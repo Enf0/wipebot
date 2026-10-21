@@ -41,6 +41,9 @@ DEATH_BURST_MS = 1_000
 PARTNER_DEATH_MS = 2000  # a buff gained this soon after another boss died came from that death
 PARTNER_SLACK_MS = 500  # or this soon before it: the buff and the death are logged in either order
 REPORT_QUIET_S = 20 * 60  # a report with no new data for this long is no longer being logged
+# A report's pull list is read anew on every load, but kept on disk: when Warcraft Logs doesn't answer, the last copy
+# loads the report, and what's on disk about its finished pulls answers.
+PULLS_FRESH_S = 1
 # Warcraft Logs' advice: a report without a pull in the last couple of hours almost never gets new ones, so its
 # actors, abilities and players are kept on disk for good (docs/reference/wcl-api.md)
 SETTLED_S = 2 * 3600
@@ -189,7 +192,7 @@ class Report(Fetched):
 
     async def _fetch(self) -> dict:
         try:
-            report = await self.wcl.report_fights(self.code, self._cache_for)
+            report = await self.wcl.report_fights(self.code, self._cache_for or PULLS_FRESH_S)
         except WCLError as e:
             raise FactError(str(e)) from e
         if not report["fights"]:

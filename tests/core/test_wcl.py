@@ -197,3 +197,22 @@ def test_serving_many_users_never_reads_with_a_user_login_saved_later(monkeypatc
     with pytest.raises(WarcraftLogsClientError):  # nothing found in the empty answers
         w._client().guild(region="eu", realm="argent-dawn", name="The Copper Lanterns")
     assert len(tokens) > 2 and set(tokens[1:]) == {"client"}
+
+
+async def test_a_report_s_pulls_are_read_anew_but_the_last_copy_serves_when_warcraft_logs_is_down(monkeypatch):
+    from wipebot.core.report.base import PULLS_FRESH_S
+    kept = Cache(":memory:")
+    monkeypatch.setattr(wcl_module, "cache", lambda: kept)
+    answers = [{"reportData": {"report": {"fights": [{"id": 1}]}}}, {"reportData": {"report": {"fights": [{"id": 2}]}}}]
+
+    def run(self, query, variables, whole=False):
+        if not answers:
+            raise WCLError("upstream_error: Warcraft Logs returned HTTP 503")
+        return answers.pop(0)
+    monkeypatch.setattr(WCL, "_run", run)
+    w = WCL()
+    assert (await w.report_fights("abc", PULLS_FRESH_S))["fights"] == [{"id": 1}]
+    kept._db.execute("UPDATE cache SET stored_at = stored_at - 60")
+    assert (await w.report_fights("abc", PULLS_FRESH_S))["fights"] == [{"id": 2}]  # read anew: a pull came
+    kept._db.execute("UPDATE cache SET stored_at = stored_at - 60")
+    assert (await w.report_fights("abc", PULLS_FRESH_S))["fights"] == [{"id": 2}]  # down: the last copy
