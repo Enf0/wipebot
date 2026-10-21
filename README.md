@@ -86,6 +86,12 @@ and `just check` runs the tests, lint, types and layers. Tests run offline ([tes
 evals need Claude and Warcraft Logs keys and cost money ([evals/README.md](evals/README.md)). Maintained on a
 best-effort basis; for a feature, open an issue before a pull request ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## Contact
+
+Open an issue, or reach the maintainer: Enfo (`enf0`) on [Discord](https://discord.com/users/111820993068081152), or
+enfo@enfo.dev. Security problems go privately through **Security → Report a vulnerability**
+([CONTRIBUTING.md](CONTRIBUTING.md#security)).
+
 ## License
 
 Wipebot is free software under the [GNU Affero General Public License v3.0](LICENSE) or later. You may use, change
