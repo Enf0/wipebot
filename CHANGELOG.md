@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` Comparing your talents with the top players no longer lists a spell with two versions on one choice node (such as Earthquake, Blizzard or Rain of Fire) as a talent you lack: Wipebot says you took the other version, and how the two differ.
+- `Agent` Asking whether a boss has an enrage now finds what the guides say about it, whether they call it an enrage or a berserk.
+
 ## [0.1.0] - 2026-10-21
 
 ### Added

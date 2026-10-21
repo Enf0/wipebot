@@ -173,3 +173,14 @@ def test_a_mechanic_is_read_from_the_guide_sections_and_paragraphs_naming_it():
     assert found["Abilities"] == "- Searing Brand: burns.\nMore on it."
     assert found["Mythic"].startswith("The marked player runs out with Searing Brand. Spread. Heal up.")
     assert "Never stack" not in found["Mythic"] and "Tanks" not in found  # another ability's name isn't this one's
+
+
+def test_an_enrage_is_found_under_either_name():
+    """Guides say enrage or berserk for the same timer, and the model asks with either."""
+    g = Guide("method", "A guide", "https://guide", None, [
+        ("Overview", "There's no DPS enrage to race against.\n\nBring a fifth healer."),
+        ("Mythic", "The boss goes berserk at 8:00."),
+    ])
+    for asked in ("Berserk", "enrage"):
+        assert dict(bosses.mechanic_sections(g, asked)) == {
+            "Overview": "There's no DPS enrage to race against.", "Mythic": "The boss goes berserk at 8:00."}

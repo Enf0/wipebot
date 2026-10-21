@@ -139,7 +139,7 @@ async def test_raid_plan_gets_every_version_the_server_saved_for_the_pulls_boss(
     session._ctx = Context(notebook=book, guild_id=1)
     told = await session._saved_plan({})
     assert told == ("No raid plan is saved for Sszorak in this server. Officers save one by pasting the plan's "
-                    "export from raidstrats.gg (the planner's Export button) to the bot.")
+                    "export from raidstrats.gg (the planner's Export button) to the bot." + server.NO_JOBS)
     monkeypatch.setenv("RAIDSTRATS_CLIENT_ID", "app")
     monkeypatch.setenv("RAIDSTRATS_CLIENT_SECRET", "secret")
     told = await session._saved_plan({})

@@ -192,6 +192,13 @@ async def compare_build(rep: Report, player: str, pull: int | None = None, boss:
                      "spec guide's single-target build before calling one a gap.")
     lines.append("  They take, few top players do: " + (", ".join(
         f"{named(i)} ({100 * taken[i] // n}%)" for i in gaps["unusual"][:12]) or "none"))
+    versions = await knowledge.choice_versions()
+    if swapped := [(i, versions[i]) for i in gaps["missing"] if versions.get(i) in gaps["unusual"]]:
+        differences = await asyncio.gather(*(knowledge.versions_difference(theirs, i) for i, theirs in swapped))
+        lines.append("  Of those, two versions of one spell on a choice node, where they take the other: " + "; ".join(
+            f"{named(theirs)} ({100 * taken[theirs] // n}%) for {named(i)} ({100 * taken[i] // n}%)"
+            + (f": {difference}" if difference else "") for (i, theirs), difference in zip(swapped, differences,
+                                                                                          strict=True)))
     lines += await _against_guides(rep, p, gaps["det"], mine, named)
     lines.append("Trinkets: theirs " + (", ".join(gaps["my_trinkets"]) or "unknown") + "; most used by the top: "
                  + ", ".join(f"{t} ({100 * c // n_all}%)" for t, c in gaps["trinkets"].most_common(5)))
@@ -306,7 +313,7 @@ async def raid_prep(rep: Report, pull: int | None = None, boss: str | None = Non
             lacking = [p.name for p in players if p.id in found and not found[p.id][kind]]
             lines.append(f"{label} ({len(lacking)} of {len(found)}): " + ", ".join(lacking) if lacking
                          else f"{label}: everyone had one")
-    names = await knowledge.talent_names()
+    names, versions = await knowledge.talent_names(), await knowledge.choice_versions()
     sem = asyncio.Semaphore(3)  # a top-parse query per spec, with every player's gear and talents in it
 
     async def gaps_of(p: Player) -> dict | str:
@@ -322,8 +329,9 @@ async def raid_prep(rep: Report, pull: int | None = None, boss: str | None = Non
             continue
         problems = []
         if gaps["missing"]:
-            problems.append("lacks talents most top players take: "
-                            + ", ".join(names.get(i, f"talent {i}") for i in gaps["missing"][:6]))
+            problems.append("lacks talents most top players take: " + ", ".join(
+                names.get(i, f"talent {i}") + (" (takes the other version)" if versions.get(i) in gaps["mine"] else "")
+                for i in gaps["missing"][:6]))
         if odd := [i for i in gaps["unusual"] if gaps["taken"][i] == 0]:
             problems.append("takes talents no top player does: "
                             + ", ".join(names.get(i, f"talent {i}") for i in odd[:6]))
