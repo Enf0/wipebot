@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Agent` Where everyone stood at a moment now also gives each player's distance to the player you ask about, such as the one carrying a mark the raid stacks on, so who was in range is measured rather than guessed from where they stood around the boss.
+
 ### Fixed
 
 - `Agent` Comparing your talents with the top players no longer lists a spell with two versions on one choice node (such as Earthquake, Blizzard or Rain of Fire) as a talent you lack: Wipebot says you took the other version, and how the two differ.
