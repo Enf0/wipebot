@@ -10,6 +10,7 @@
     just evals --label-failed 30      # mark 30 answers the judge failed, over the cases
     just evals --agreement            # how often the judge agrees with your marks
     just evals --lint                 # the cases' numbers against today's tool output (no model; after `just snapshot`)
+    just evals --coverage             # what the cases cover: tools, kinds of question, places, bosses (no model)
     just evals --api-key              # bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude login)
 
 Warcraft Logs data and the guides come from evals/cache.sqlite (untracked), frozen: what a run asks that isn't there
@@ -122,10 +123,10 @@ def load_cases(folder: Path = CASES) -> list[dict]:
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "wrong_in_channel", "derived",
-                                       "drifts", "hard", "report", *CONTEXT}:
+                                       "drifts", "hard", "report", "tools", *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
             only = {"bot": {"bot_only": True}, "connector": {"client_only": True}}.get(path.stem, {})
-            cases.append({"report": spec["defaults"]["report"], **case} | only)
+            cases.append({"report": spec["defaults"]["report"], **case} | only | {"kind": path.stem})
     if len({c["id"] for c in cases}) != len(cases):
         raise SystemExit("two cases share an id")
     return cases
@@ -302,11 +303,12 @@ def judged_by(model: str) -> dict:
 
 
 def case_hash(case: dict) -> str:
-    """What a case asks and checks: all but its id, the hard set and the lint's `drifts` (question, expect, facts,
-    wrong, its report and who asks), spaces aside, so a reflowed line keeps the hash and a changed word doesn't."""
+    """What a case asks and checks: all but its id, the hard set, the lint's `drifts`, the coverage's `tools` and
+    its file's `kind` (question, expect, facts, wrong, its report and who asks), spaces aside, so a reflowed line
+    keeps the hash and a changed word doesn't."""
     def plain(v):
         return " ".join(v.split()) if isinstance(v, str) else [plain(x) for x in v] if isinstance(v, list) else v
-    return short_hash({k: plain(v) for k, v in case.items() if k not in ("id", "hard", "drifts")})
+    return short_hash({k: plain(v) for k, v in case.items() if k not in ("id", "hard", "drifts", "tools", "kind")})
 
 
 def judged(tally: dict, case_id: str) -> int:
@@ -552,6 +554,8 @@ def main() -> None:
     parser.add_argument("--agreement", action="store_true", help="compare the judge with your marks")
     parser.add_argument("--lint", action="store_true",
                         help="check the cases' numbers against the tools' output now (no model)")
+    parser.add_argument("--coverage", action="store_true",
+                        help="what the cases cover: tools, kinds of question, places, bosses (no model)")
     parser.add_argument("--api-key", action="store_true",
                         help="bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude Code login)")
     args = parser.parse_args()
@@ -564,6 +568,9 @@ def main() -> None:
         asyncio.run(agreement(args.judge_model))
     elif args.lint:
         asyncio.run(_lint_then_drain(args.filter))
+    elif args.coverage:
+        from evals.coverage import report
+        print("\n".join(report(load_cases(), HERE / "results")))
     else:
         asyncio.run(_run_then_drain(args))
 

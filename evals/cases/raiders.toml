@@ -5,6 +5,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "real-last-pull"  # no pull named: "the last pull" is pull 42, the night's best (answer #253)
+tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = "what went wrong on our last pull of the evening"
@@ -22,6 +23,7 @@ wrong = ["the deaths after 4:39 lost the pull", "a Serpent's Fury was popped too
 
 [[case]]
 id = "real-tornadoes-most-hits"  # no boss named; hits within 1 s may be one tornado (answer #105, and #472)
+tools = ["boss_guide", "mechanic_hits"]
 hard = true  # the bot still gets it wrong often: the hard set (evals/run.py summary)
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
@@ -38,6 +40,7 @@ wrong = ["names someone other than Deathadim as hit most",
 
 [[case]]
 id = "real-dps-check"  # vague: there is no damage check yet, the pulls end on the Fury stacks (answer #184)
+tools = ["boss_guide", "compare_pulls", "progress", "pull_summary"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = "How is the raid doing against the DPS check?"
@@ -54,6 +57,7 @@ wrong = ["the pulls end because the raid fails a damage check or a timed enrage"
 
 [[case]]
 id = "real-follow-up-who-touched-cyst"  # in a channel; the log shows when cysts burst, not who touched one (#100-#101)
+tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 report = "vjt3KLbN8g62J1H9"
 question = ["what killed everone on the last attempte", "can you see who touched the cyst"]
 discord_name = "Seaker"
@@ -70,6 +74,7 @@ wrong = ["names a player as the one who touched or set off a cyst, even as a lik
 
 [[case]]
 id = "real-follow-up-defensives-saved"  # no boss named; "ready" isn't "would have saved" (answers #345-#346)
+tools = ["defensives"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = ["who used the least defensives last night? where it mattered", "but would it have saved them?"]
@@ -86,6 +91,7 @@ wrong = ["says every death with a ready defensive would have been saved",
 
 [[case]]
 id = "held-out-holy-priest-night"  # a Holy Priest's night (answers #240-#241)
+tools = ["compare_with_top", "find_reports", "healing", "player_night", "player_pull", "raid_note"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = """What would you say is my biggest room for improvement from yesterday's raid? What did I do well, and what
@@ -105,6 +111,7 @@ wrong = ["faults their overhealing as a main problem", "says they died often or 
 
 [[case]]
 id = "held-out-bm-hunter-vs-top"  # a Beast Mastery Hunter against the top (answers #339-#340)
+tools = ["boss_guide", "compare_with_top", "defensives", "mechanic_hits", "player_night"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = "How am I doing compared to the best BM hunters on this boss? In terms of mechanics, cooldowns etc"
@@ -123,6 +130,7 @@ wrong = ["says their talents differ from the top's",
 
 [[case]]
 id = "held-out-subtlety-energy-follow-up"  # a Subtlety Rogue pushes back on the energy cap (answers #303-#304)
+tools = ["boss_guide", "compare_with_top", "death_recap", "mechanic_hits", "player_night"]
 # The method under test: check the pushback against the top parses on the boss, who meet the same mechanics, rather
 # than taking or dropping it on faith.
 report = "vjt3KLbN8g62J1H9"
@@ -143,6 +151,7 @@ wrong = ["says the energy cap is nothing to fix because of the mechanics, withou
 
 [[case]]
 id = "held-out-explorers-crates"  # the log shows when crates were popped, not who popped them (answer #380)
+tools = ["boss_guide", "enemies", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "wcl_query"]
 report = "cZ8rp13y72gBQKY9"
 where = "in a DM"
 question = """we got them now, but it wasn't a clean kill. what went wrong? lots of times we took crates too fast and got over
@@ -165,6 +174,7 @@ wrong = ["names a player as one who popped crates too fast or took too many, eve
 
 [[case]]
 id = "held-out-tempest-most-hits"  # after a question about the night; a Discord name only (answers #471-#472)
+tools = ["boss_guide", "breakdown", "find_reports", "mechanic_hits", "progress"]
 report = "cZ8rp13y72gBQKY9"
 where = "in a DM"
 question = ["Who was mvp on Sszorak yesterday?", "Who got hit the most by tempest?"]
@@ -183,6 +193,7 @@ wrong = ["names someone other than Deathadim as hit most",
 
 [[case]]
 id = "twin-fangs-mythic-changes"  # every running hotfix post, not only the newest (answers #484, #485, #493)
+tools = ["hotfixes"]
 report = "cZ8rp13y72gBQKY9"
 question = "can you check hotfixes for Twin Fangs? what was changed on mythic?"
 asker = "Enfo"
@@ -200,6 +211,7 @@ wrong = ["says Mythic Twin Fangs wasn't changed",
 
 [[case]]
 id = "twin-fangs-healers-at-our-item-level"  # a ranking no tool gives: kills in an item level bracket (answers #494 and #495)
+tools = ["compare_with_top", "wcl_query"]
 report = "cZ8rp13y72gBQKY9"
 question = ["can you check whether most Twin Fangs mythic logs run 4 or 5 healers?",
             "what about logs around our own ilvl, not top logs?"]

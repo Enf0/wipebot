@@ -7,6 +7,7 @@ report = "vjt3KLbN8g62J1H9"  # Mon 12 Oct, the night of the raid note pasted bel
 
 [[case]]
 id = "officer-saves-note"  # the start of the raid's Sszorak note (tests/fixtures/real/notes), to keep for the guild
+tools = ["save_note_or_plan"]
 asker = "Enfo"
 question = """save this for the guild so you check our pulls against it
 

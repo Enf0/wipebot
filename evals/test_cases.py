@@ -29,3 +29,13 @@ def test_channel_only_wrong_items_are_on_channel_cases_and_left_out_with_the_con
     case = next(c for c in cases if c["id"] == "night-raid-prep")
     assert wrongs(case) == case["wrong"] + case["wrong_in_channel"] and wrongs(case, True) == case["wrong"]
     assert "#raid" in asked(case) and IN_CLAUDE in asked(case, True)
+
+
+def test_every_tool_has_an_eval_case():
+    """A new tool comes with an eval case tagged with it (`tools`), or a line in NO_CASE_YET saying why not, as it
+    comes with a snapshot case (tests/core/test_server.py). A tagged tool exists."""
+    from evals.coverage import NO_CASE_YET, app_tools, core_tools
+    tagged = {t for c in load_cases() for t in c.get("tools", [])}
+    assert tagged <= core_tools() | app_tools()
+    assert not core_tools() - tagged - set(NO_CASE_YET)
+    assert not tagged & set(NO_CASE_YET)  # an entry there outlived its reason

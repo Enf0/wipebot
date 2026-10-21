@@ -5,6 +5,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "me-healer-kill"
+tools = ["player_night", "player_pull", "progress"]
 question = "How did I do on the Vashnik kill?"
 asker = "Enfo"
 expect = """Enfo did well on the Vashnik kill: a good parse, near the top of the healers, and survived."""
@@ -22,6 +23,7 @@ wrong = ["faults their overhealing",
 
 [[case]]
 id = "me-low-dps"
+tools = ["compare_with_top", "player_night", "player_pull"]
 question = "Why is my DPS so low on Sszorak, and what should I fix?"
 asker = "Draiman"
 expect = """Draiman's damage while alive is low against the spec's ranked kills, and one of the main fixes is the AoE
@@ -38,6 +40,7 @@ wrong = ["using defensives (Cloak, Evasion, Feint) more would raise damage",
 
 [[case]]
 id = "me-low-parse-died"
+tools = ["boss_guide", "compare_with_top", "death_recap", "mechanic_hits", "player_pull"]
 report = "8TcXMAP2gHQGr9pW"
 question = "Why was my parse so bad on the Vashnik kill?"
 asker = "Algmor"
@@ -55,6 +58,7 @@ wrong = ["blames the talent build (73 of their 75 picks are common among the top
          "compares total damage without saying they died"]
 [[case]]
 id = "me-could-i-survive"
+tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_map", "pull_summary"]
 question = "Could I have survived on pull 13, or was that unavoidable?"
 asker = "Scopidruid"
 pull = 13
@@ -71,6 +75,7 @@ wrong = ["says Barkskin was available", "counts the combat potion as a healing p
 
 [[case]]
 id = "me-dps-hit-by-tank-mechanic"
+tools = ["boss_guide", "death_recap", "mechanic_hits", "player_pull", "pull_map", "pull_summary"]
 report = "br1n93cNZ67pGCvh"
 question = "What did I do wrong on pull 23?"
 asker = "Peggerino"
@@ -91,6 +96,7 @@ wrong = ["says the boss aimed Water Jet at Peggerino (it was cast on a tank)",
          "says the Water Jet hit was unavoidable for them"]
 [[case]]
 id = "me-tank-taunts"
+tools = ["boss_guide", "tank_swaps"]
 question = "Did I miss any taunts on pull 31?"
 asker = "Wutroll"
 pull = 31
@@ -103,6 +109,7 @@ wrong = ["says every swap was on time"]
 
 [[case]]
 id = "me-season-parses"  # player_history, the tool raiders use most; the asker plays two specs
+tools = ["player_history"]
 question = "How have my parses been this season?"
 asker = "Sonyosh"
 expect = """Strong and rising, as Elemental on Mythic: the first kill on a boss was the weakest and the newest the best."""
@@ -117,6 +124,7 @@ wrong = ["the single Restoration kill (28%) counted among their Elemental parses
 
 [[case]]
 id = "me-healer-wipe"  # a healer on a wipe: judged until the wipe was decided, not by the fallout death
+tools = ["healing", "player_pull"]
 question = "How did I do on pull 33?"
 asker = "Enfo"
 pull = 33
@@ -134,6 +142,7 @@ wrong = ["faults the 2:49 death", "faults their overhealing",
 
 [[case]]
 id = "me-tank-mitigation"
+tools = ["boss_guide", "compare_with_top", "player_pull", "tank_swaps"]
 question = "Was my mitigation OK on the Vashnik kill?"
 asker = "Wutroll"
 pull = 2
@@ -152,6 +161,7 @@ wrong = ["ranks the tanks by damage taken as a measure of mitigation",
 
 [[case]]
 id = "me-played-well"  # a good kill with one real gain (the Maelstrom cap); the rest is small (an enchant, consumables)
+tools = ["compare_with_top", "player_pull"]
 question = "Anything I should fix from the Vashnik kill?"
 asker = "Sonyosh"
 pull = 2
@@ -173,6 +183,7 @@ wrong = ["Ascendance was used too often",
 
 [[case]]
 id = "me-energy-cap"  # a tank's damage gap: resource capping and the filler, not defensives
+tools = ["compare_with_top", "player_pull"]
 question = "Why is my damage behind the top Brewmasters on Sszorak?"
 asker = "Wutroll"
 pull = 33
@@ -190,6 +201,7 @@ wrong = ["makes the unused Black Ox Brew, rather than the energy cap, the main r
 
 [[case]]
 id = "me-cooldown-sync"  # the top parses' timing of the same cooldowns
+tools = ["compare_with_top", "player_pull"]
 question = "Did I use my cooldowns right on pull 33?"
 asker = "Draiman"
 pull = 33
@@ -204,6 +216,7 @@ wrong = ["counts Feint or Cloak of Shadows uses as a fault", "says a second Deat
 
 [[case]]
 id = "me-build-on-kill"  # the comparison is with ranked Ret kills; the build nearly matches them
+tools = ["compare_with_top"]
 report = "kTMfFRQ324Hvx6G7"
 question = "Which trinkets and talents do the top Ret paladins use on Vashnik vs me?"
 asker = "Agonco"
@@ -223,6 +236,7 @@ wrong = ["calls pull 19 a wipe", "says Warcraft Logs has no ranked Retribution k
          "says their trinkets differ from the top's"]
 [[case]]
 id = "healers-kill-cooldowns"  # cooldowns against the damage pattern, on a kill
+tools = ["boss_guide", "breakdown", "healing", "pull_summary", "pull_timeline"]
 report = "dTQMvNbBcPh6mDrA"
 where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
 question = "How did the healers do on the Twin Fangs kill? Were raid cooldowns used where the damage came in?"
@@ -242,6 +256,7 @@ wrong = ["faults the healers' overhealing",
 
 [[case]]
 id = "me-sneaky-death"  # the killing blow misleads: an avoidable hit set the death up
+tools = ["boss_guide", "death_recap", "pull_map", "pull_summary"]
 report = "vjt3KLbN8g62J1H9"
 question = "What killed me on pull 42?"
 asker = "Scopidruid"
@@ -259,6 +274,7 @@ wrong = ["says Mutilated Gash (the bleed) killed them, with no word of the Tempe
 
 [[case]]
 id = "me-night-trend"  # "am I getting better?": the night's trend, as player_night counts it
+tools = ["player_night"]
 question = "Did I get better at Sszorak over the night?"
 asker = "Draiman"
 boss = "Sszorak"

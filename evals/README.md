@@ -73,6 +73,14 @@ comes with its expected spread: one trial can be off by several points, so run `
 difference. Cases marked `hard` (the bot still gets them wrong often) are counted apart, so the total shows a
 regression and the hard set an improvement.
 
+## Coverage
+
+Evals measure answers, not code, so they have no line coverage; `just evals --coverage` says what the cases cover
+instead, with no model: each tool's cases (a case's `tools`, the tools its right answers call), the kinds of
+question (a cases file each), where they're asked and the bosses, and from each mode's latest run the tagged tools
+no answer called. `just check` fails when a core tool has no case and isn't in `coverage.py`'s `NO_CASE_YET`, so a
+new tool comes with one.
+
 ## In the usual terms
 
 A case is a task; each answer to it a trial, saved with its transcript (every tool call) in `results/`. The judge
@@ -93,6 +101,7 @@ just evals --bot                    # as the Discord bot
 just evals --model sonnet           # another model for the answers
 just evals --save-baseline          # keep this run as the baseline
 just evals --lint                   # the cases' numbers against the tools now (no model, about a minute)
+just evals --coverage               # what the cases cover: tools, kinds of question, places, bosses (no model)
 just eval-data                      # the frozen data the cases were written against (maintainers)
 just evals --label results/X.json   # mark a run's answers yourself (labels.jsonl)
 just evals --agreement              # how often the judge agrees with your marks
@@ -107,7 +116,7 @@ changed tool, or the whole suite for a change to the skill, the bot's prompt or 
 ## Files
 
 - `cases/`: the cases, and in its README the cases' format and rules. `run.py`: running, comparing, labelling. `checks.py`: the judge. `lint.py`: the
-  numbers check.
+  numbers check. `coverage.py`: what the cases cover.
 - `baseline.json`, `baseline-connector-only.json`, `baseline-bot.json`: the runs others are compared with, one per
   mode.
 - `test_*.py`: tests of the eval code itself, run with the rest by `just check`.
