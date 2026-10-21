@@ -80,14 +80,17 @@ CONNECTOR_ONLY = ("You are Claude, an AI assistant made by Anthropic, in a chat 
                   "message starts with what the app knows: the report and who is asking.")
 # A tool failure that isn't the model's doing (a bad argument is): a crash, or a report Warcraft Logs won't show.
 BROKEN_TOOL = ("failed with an unexpected error", "won't show report")
+# A service that didn't answer (warcraft_cli's network failure: Warcraft Logs down, a 503), for a call the frozen
+# cache doesn't hold: it breaks a failed trial, while an answer that got by without the call still passes.
+DOWN = "upstream_error"
 
 
 def broken(t: Trial) -> str:
     """Why a trial says nothing about the answer, or ''."""
     if t.error:
         return t.error
-    if failed := next((c for c in t.calls if c.get("failed") and any(b in str(c.get("result")) for b in BROKEN_TOOL)),
-                      None):
+    if failed := next((c for c in t.calls if c.get("failed") and any(
+            b in str(c.get("result")) for b in BROKEN_TOOL + (() if t.passed else (DOWN,)))), None):
         return f"{failed.get('name')}: {str(failed.get('result'))[:200]}"
     for name, v in (("expect", t.expect), ("wrong", t.wrong)):
         if v and v.get("ok") is None:

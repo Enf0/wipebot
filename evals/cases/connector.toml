@@ -1,8 +1,8 @@
 [defaults]
 report = "vjt3KLbN8g62J1H9"  # Mon 12 Oct, the night of the raid note pasted below
 
-# ---- What only the connector does: an officer saving a pasted raid note or plan (save_note_or_plan). Run only
-#      without --bot: the bot saves a paste itself, before the model sees it. Every asker here is an officer, of a
+# ---- What only the connector does: an officer saving a pasted raid note or plan (save_note_or_plan), and a pasted
+#      plan checked against a pull. Run only without --bot: the bot saves a paste itself, before the model sees it. Every asker here is an officer, of a
 #      guild no case's report is from (run.py's as_officer), so what one case saves no other reads. ----
 
 [[case]]
@@ -36,3 +36,20 @@ are checked against it from now on without a paste."""
 wrong = ["says it can't save a note here, or that only the Discord bot saves one",
          "checks a pull against the note without saving it",
          "asks the user to paste the note again or in another form"]
+
+[[case]]
+id = "plan-spots-at-virulence"  # a pasted raidstrats.gg plan (tests/fixtures/real/plans) against a pull: who was off
+tools = ["raid_plan"]
+asker = "Enfo"
+question = """our sszorak spread plan, were people on their spots for virulence on pull 42?
+
+raidstrats-addon-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"""
+expect = """Checks pull 42 against the plan at each Virulence: Algmor was off their spot at all four, Scopidruid at the
+first three, Agonco from 1:20; most of the raid was on theirs."""
+facts = ["four Virulences checked, at 0:31, 1:20, 2:37 and 3:28",
+         "Algmor 22-32 yd off, mostly at Agonco's spot",
+         "Scopidruid furthest off, 58 yd at 2:37",
+         "at 1:20 Draiman and Sonyosh were hit by Agonco's Virulence"]
+derived = ["22-32"]
+wrong = ["says the plan can't be read or checked, or asks for it again",
+         "says a player was off their spot whom the check found on it (Sonyosh, Wutroll, Deathadim)"]

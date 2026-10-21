@@ -6,7 +6,7 @@ def test_the_cases_load():
     assert len({c["id"] for c in cases}) == len(cases)
     assert all(c["expect"].strip() and c["wrong"] for c in cases)
     assert all(isinstance(f, str) and f.strip() for c in cases for f in c.get("facts", []))
-    assert {c["id"] for c in cases if c.get("client_only")} == {"officer-saves-note"}  # connector.toml's
+    assert {c["id"] for c in cases if c.get("client_only")} == {"officer-saves-note", "plan-spots-at-virulence"}
 
 
 def test_a_broken_trial_is_an_error_not_a_wrong_answer():
@@ -20,6 +20,9 @@ def test_a_broken_trial_is_an_error_not_a_wrong_answer():
         {"name": "progress", "failed": True, "result": "progress failed with an unexpected error: TypeError"}]))
     assert "no verdict on wrong" in broken(Trial(expect=ok, wrong={"ok": None, "reason": "no verdict: "}))
     assert broken(Trial(error="ProcessError: limit")) == "ProcessError: limit"
+    down = {"name": "pull_map", "failed": True, "result": "upstream_error: Warcraft Logs returned HTTP 503 for ..."}
+    assert "HTTP 503" in broken(Trial(expect=ok, wrong={"ok": False, "reason": ""}, calls=[down]))
+    assert broken(Trial(expect=ok, wrong=ok, passed=True, calls=[down])) == ""  # it got by without the call
 
 
 def test_channel_only_wrong_items_are_on_channel_cases_and_left_out_with_the_connector():

@@ -48,7 +48,8 @@ its own baseline (`baseline.json`, `baseline-connector-only.json`, `baseline-bot
 The judge (Sonnet by default, `checks.py`) asks one question for `expect`, one for `wrong` and one to count the
 `facts`. A failed check is asked twice more and the majority kept, since the judge's usual error is failing a
 right answer on a detail. Code adds warnings that never fail an answer: numbers no tool gave, a site credited for a
-fact.
+fact. A trial that says nothing about the answer is an error, counted in neither passes nor trials: a crash, a judge
+with no verdict, or a failed answer with a call Warcraft Logs or a site didn't answer (down, a 503).
 
 Warcraft Logs and the guide sites come from `cache.sqlite`, frozen: what a run asks that isn't there is fetched once
 and kept, so every run on a machine reads the same data, with the clock set to when it was recorded. It holds
