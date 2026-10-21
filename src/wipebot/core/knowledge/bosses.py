@@ -153,8 +153,14 @@ def _plain(s: str) -> str:
     return " ".join(re.findall(r"[\w']+", fold_quotes(fold(s.lower()))))
 
 
+# Names guides use for the same thing: asking for one finds the others.
+SAME_MECHANIC = ({"enrage", "berserk"},)
+
+
 def _names(text: str, mechanic: str) -> bool:
-    return f" {_plain(mechanic)} " in f" {_plain(text)} "
+    plain = _plain(mechanic)
+    names = next((same for same in SAME_MECHANIC if plain in same), {plain})
+    return any(f" {name} " in f" {_plain(text)} " for name in names)
 
 
 def mechanic_sections(g: Guide, mechanic: str) -> list[tuple[str, str]]:

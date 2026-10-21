@@ -510,11 +510,16 @@ async def enemies(pull: Pull = None, boss: Boss = None,
     return await adds.enemies(rep, pull, boss)
 
 
+# Said with every "no note or plan": what the model is tempted to put in its place.
+NO_JOBS = (" Without one, who was assigned to what isn't in the log: who did it earlier in the pull or night isn't an "
+           "assignment (raids swap spots and keep reserves).")
+
+
 def _saved_guild(rep: Report, what: str) -> int:
     """The report's guild, whose saved `what` the user may read; else a FactError that says to paste it."""
     if not rep.guild_id:
         raise FactError(f"no {what} was given, and this report is a personal log, not a guild's: ask the user to "
-                        f"paste the {what}")
+                        f"paste the {what}." + NO_JOBS)
     remote = setup().remote
     if remote:
         from mcp.server.auth.middleware.auth_context import get_access_token
@@ -522,7 +527,7 @@ def _saved_guild(rep: Report, what: str) -> int:
         token = get_access_token()
         if not (token and token.subject and rep.guild_id in remote.guild_ids(token.subject)):
             raise FactError(f"no {what} was given, and the ones {rep.guild_name} saved are for its members only: "
-                            f"ask the user to paste the {what}")
+                            f"ask the user to paste the {what}." + NO_JOBS)
     return rep.guild_id
 
 
@@ -596,7 +601,7 @@ def _saved_note(rep: Report, pull: int | None, boss: str | None, all_pulls: bool
     f = rep.fight(pull, boss)
     if (found := saved_note(notebook.Notebook(readonly=True), guild, rep, f, all_pulls)) is None:
         raise FactError(f"no raid note was given, and {rep.guild_name} has none saved for {f['name']}: ask the user "
-                        "to paste the boss's note (the NSRT note from Viserio)")
+                        "to paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
     return found
 
 
@@ -611,7 +616,7 @@ async def _saved_plans(rep: Report, pull: int | None, boss: str | None) -> tuple
     login = book.login(guild)
     if not (found := saved_plans(book, guild, rep, f)):
         raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved for {rep.boss_key(f)}: ask the "
-                        "user to paste the plan's export from raidstrats.gg")
+                        "user to paste the plan's export from raidstrats.gg." + NO_JOBS)
     return "\n".join(found), raidstrats.source(login) if login else ""
 
 

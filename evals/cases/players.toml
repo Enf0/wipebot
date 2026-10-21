@@ -151,21 +151,22 @@ wrong = ["ranks the tanks by damage taken as a measure of mitigation",
          "calls the two Dripping Fangs stacks at the end a missed taunt (the other tank was dead from 5:51)"]
 
 [[case]]
-id = "me-played-well"  # the honest answer is "little": the concrete gaps are small (an enchant, consumables)
+id = "me-played-well"  # a good kill with one real gain (the Maelstrom cap); the rest is small (an enchant, consumables)
 question = "Anything I should fix from the Vashnik kill?"
 asker = "Sonyosh"
 pull = 2
 boss = "Vashnik the Malignant"
-expect = """Little to fix: a good parse and solid play; the concrete gaps are small."""
-drifts = ["88th"]
+expect = """A good kill with one real gain: the time at the Maelstrom cap (11% of the kill, where the top parses
+spend 0-4%); the other gaps are small."""
+drifts = ["88th", "0-4%"]
 facts = ["88th percentile",
          "never died, no casting gaps, Flame Shock up 100%",
          "Ascendance as often as the top parses",
          "Maelstrom at its cap 11% of the kill, with fewer Earthquakes than the top (2.5 a minute against 3.9)",
          "legs enchanted with Arcanoweave Spellthread where the top use Sunfire Silk Spellthread",
          "no augment or vantus rune"]
-# compare_with_top lists two talents named Earthquake: noting the top's pick in passing is fine; calling it a gap to
-# fix isn't, and casting Earthquake more when Maelstrom caps is rotation advice.
+# compare_with_top says the top take the other version of Earthquake on its choice node: noting it in passing is
+# fine; calling it a gap to fix isn't, and casting Earthquake more when Maelstrom caps is rotation advice.
 wrong = ["Ascendance was used too often",
          "calls the Earthquake or Thunderous Paws talent choice a gap or mistake to fix",
          "says there are no ranked kills to compare with"]

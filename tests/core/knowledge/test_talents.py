@@ -1,5 +1,8 @@
 import pytest
 
+from wipebot.core.knowledge import talents
+from wipebot.core.knowledge.fetch import KnowledgeError
+from wipebot.core.knowledge.spells import Spell
 from wipebot.core.knowledge.talents import LOADOUT_ALPHABET, build_hero, decode_loadout, hero_tree, untaken_spells
 
 TREE = {"specId": 264, "className": "Shaman", "specName": "Restoration", "fullNodeOrder": [1, 2, 3, 4, 5],
@@ -72,3 +75,26 @@ def test_untaken_spells_are_the_other_side_of_a_choice_node_or_a_talent_skipped(
     ]}
     assert untaken_spells(tree, {101912, 101924}) == {108280}
     assert untaken_spells(tree, set()) == {114052, 108280, 98008}
+
+
+async def test_two_versions_of_a_spell_differ_in_the_words_of_their_tooltips(monkeypatch):
+    """Earthquake on a target or on the ground: only where it's cast differs, which the line quotes; a missing
+    tooltip says nothing, and tooltips far apart aren't quoted."""
+    async def trees():
+        return [{"specNodes": [{"type": "choice", "entries": [{"id": 1, "spellId": 10}, {"id": 2, "spellId": 20}]},
+                               {"type": "choice", "entries": [{"id": 3, "spellId": 30}, {"id": 4, "spellId": 40}]}]}]
+    tips = {10: "Shakes the ground at a selected location for 6 sec.",
+            20: "Shakes the ground at your target for 6 sec.",
+            30: " ".join(f"word{i}" for i in range(30)), 40: " ".join(f"other{i}" for i in range(30))}
+
+    async def tooltip(spell_id):
+        if spell_id not in tips:
+            raise KnowledgeError("no such spell")
+        return Spell(spell_id, "Earthquake", tips[spell_id], "")
+    monkeypatch.setattr(talents, "talent_trees", trees)
+    monkeypatch.setattr(talents, "tooltip", tooltip)
+    assert await talents.versions_difference(1, 2) == \
+        'their tooltips differ only in "a selected location" / "your target"'
+    assert await talents.versions_difference(3, 4) == "their tooltips differ more widely (spell_info reads each)"
+    tips.pop(20)
+    assert await talents.versions_difference(1, 2) == ""

@@ -31,10 +31,11 @@ wrong_in_channel = ["names a healer"]
 id = "night-not-a-dps-problem"
 report = "kTMfFRQ324Hvx6G7"
 question = "Do we need more DPS for Vashnik?"
-expect = """No: Vashnik has no damage enrage, and the wipes were mechanics, above all Malignance from uncleared totems
-and Plague Wave deaths, not a damage check; the raid killed it on pull 19."""
-facts = ["Malignance killed the most over the night: 46 deaths over 19 pulls",
-         "Plague Wave was the most common of each pull's first three deaths (29), many around 1:00",
+expect = """No: Vashnik has no damage enrage and no wipe ended on one; the wipes were mechanics (early Plague Wave
+deaths, then Catalytic Bile as pulls fell apart), not a damage check; the raid killed it on pull 19."""
+facts = ["Plague Wave was the most common of each pull's first three deaths (29), many around 1:00",
+         "Malignance (totems not cleared) next with 12",
+         "Catalytic Bile killed the most until each wipe was decided: 63 deaths over 19 pulls, never the first",
          "the best wipe, pull 16, reached 9.4% at 6:41, deaths spread out from 3:48",
          "the kill on pull 19 took 7:00",
          "the guide says there's no DPS enrage (a 5th healer is worth it)"]

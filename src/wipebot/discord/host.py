@@ -256,7 +256,7 @@ class Session:
         f = report.fight(args.get("pull"), args.get("boss"))
         found = server.saved_note(self._ctx.notebook, self._ctx.guild_id, report, f, bool(args.get("all_pulls")))
         return found or (f"No raid note is saved for {f['name']} in this server. Officers save one by pasting the "
-                         "note exported from Viserio to the bot.")
+                         "note exported from Viserio to the bot." + server.NO_JOBS)
 
     async def _saved_plan(self, args: dict) -> tuple[str, str] | str:
         """raid_plan: every version of the server's plans (Context.notebook) for the boss of the call's pull, after
@@ -277,7 +277,7 @@ class Session:
             return (f"No raid plan is saved for {report.boss_key(f)} in this server. Officers save one by pasting the "
                     "plan's export from raidstrats.gg (the planner's Export button) to the bot"
                     + (f", or have the plans fetched from raidstrats.gg with /wipebot raidstrats (the plans are "
-                       f"{source})" if fetching else "") + ".")
+                       f"{source})" if fetching else "") + "." + server.NO_JOBS)
         return "\n".join(found), source
 
     async def __aenter__(self) -> Session:

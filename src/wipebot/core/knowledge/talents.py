@@ -1,5 +1,6 @@
 """Talents against Raidbots' trees: which spec a text names, hero trees, talent import strings, and the raid
 builds the spec guides give."""
+import difflib
 import re
 from collections import Counter, defaultdict
 from collections.abc import Collection
@@ -9,6 +10,9 @@ from .fetch import KnowledgeError
 from .guides import SOURCE_NAMES, spec_guide_ref
 from .names import spaced
 from .raidbots import talent_trees
+from .spells import tooltip
+
+VERSIONS_WORDS = 20  # tooltips differing in more words than this aren't quoted
 
 LOADOUT_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -59,6 +63,28 @@ def untaken_spells(tree: dict, talents: Collection[int]) -> set[int]:
                 if e.get("spellId"):
                     grants[e["spellId"]].add(e["id"])
     return {spell for spell, entries in grants.items() if not entries & set(talents)}
+
+
+async def versions_difference(entry: int, other: int) -> str:
+    """How two versions of one spell on a choice node (`choice_versions`) differ, from their Wowhead tooltips:
+    'their tooltips differ only in "a selected location" / "your target"'; '' when a tooltip can't be read."""
+    spells = {e["id"]: e["spellId"] for spec in await talent_trees() for key in ("classNodes", "specNodes")
+              for n in spec.get(key) or [] for e in n.get("entries") or [] if e.get("id") in (entry, other)
+              and e.get("spellId")}
+    try:
+        a, b = [(await tooltip(spells[i])).text.split() for i in (entry, other)]
+    except (KeyError, KnowledgeError):
+        return ""
+    if not (a and b):
+        return ""
+    opcodes = difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes()
+    changes = [(" ".join(a[i1:i2]), " ".join(b[j1:j2])) for op, i1, i2, j1, j2 in opcodes if op != "equal"]
+    if not changes:
+        return "their tooltips are the same"
+    if sum(len(x.split()) + len(y.split()) for x, y in changes) > VERSIONS_WORDS:
+        return "their tooltips differ more widely (spell_info reads each)"
+    return "their tooltips differ only in " + ", ".join(
+        " / ".join(f'"{words}"' if words else "(nothing)" for words in change) for change in changes)
 
 
 def build_hero(tree: dict, talents: Collection[int]) -> str | None:

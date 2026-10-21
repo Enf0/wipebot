@@ -30,13 +30,33 @@ _talents = Memo()
 
 
 async def talent_names() -> dict[int, str]:
-    """Talent entry id (WCL's talentTree `id`, rankings' `talentID`) -> talent name. Kept a day."""
+    """Talent entry id (WCL's talentTree `id`, rankings' `talentID`) -> talent name. Kept a day. The two versions
+    of a spell on one choice node (Earthquake, Blizzard) share a name, so each gets its spell id: "Earthquake
+    [61882]"."""
     if "all" not in _talents:
-        _talents.keep("all", {e["id"]: e["name"] for spec in await talent_trees()
-                              for key in ("classNodes", "specNodes", "heroNodes", "subTreeNodes")
-                              for node in spec.get(key) or [] for e in node.get("entries") or []
+        versions = await choice_versions()
+        _talents.keep("all", {e["id"]: e["name"] + (f" [{e['spellId']}]" if e["id"] in versions else "")
+                              for node in await _nodes() for e in node.get("entries") or []
                               if "id" in e and e.get("name")})
     return _talents["all"]
+
+
+async def choice_versions() -> dict[int, int]:
+    """Talent entry id -> the other version of the same spell on its choice node, for the nodes whose two choices
+    share a name."""
+    if "versions" not in _talents:
+        pairs = {}
+        for node in await _nodes():
+            es = [e for e in node.get("entries") or [] if "id" in e and e.get("name")]
+            if node.get("type") == "choice" and len(es) == 2 and es[0]["name"] == es[1]["name"]:
+                pairs |= {es[0]["id"]: es[1]["id"], es[1]["id"]: es[0]["id"]}
+        _talents.keep("versions", pairs)
+    return _talents["versions"]
+
+
+async def _nodes() -> list[dict]:
+    return [node for spec in await talent_trees() for key in ("classNodes", "specNodes", "heroNodes", "subTreeNodes")
+            for node in spec.get(key) or []]
 
 
 async def talent_trees() -> list[dict]:
