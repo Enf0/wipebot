@@ -1,0 +1,73 @@
+The raid note for Twin Fangs (Mythic), checked against The Twin Fangs pull 14 (1:03, wipe, https://www.warcraftlogs.com/reports/fvkH4hGZwDRVnyXJ#fight=30); the wipe was decided at 0:56 (half the raid was dead). Note times count from the pull's start (ph:1) or from the phase's first start.
+Assignments in the note's text:
+  Ravenous Feast and Tainted Blood Groups: Left: Attractîv Dragepie Martin Sonyosh Namsus Lïzårðmâñ; Right: Krøpling Zebinomage Peggerino Cptola Enfo Dscopi; Center: Draiman Slushmania Agonco Nalaxd Pomaa Nexsozz
+  Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Enfo; Kick #2 left: Dragepie; Kick #2 right: Dscopi; Kick #3 left: Martin; Kick #3 right: Krøpling; Kick #4 left: Attractîv; Kick #4 right: Peggerino; Kick #5 left: Agonco; Kick #5 right: Zebinomage
+Ravenous Feast and Tainted Blood Groups: each hit of Ravenous Feast [1290662], matched to the group with most of its players hit (2 hits):
+  2 more after the wipe was decided at 0:56
+Planned cooldowns (time in the note: what happened):
+  0:16 Lïzårðmâñ Rewind [363534]: cast at 0:17, 2s late
+  0:37 Enfo Ascendance [114052]: cast at 0:38, 2s late
+  0:38 Namsus Apotheosis [200183]: cast at 0:40, 3s late
+  0:43 Nexsozz Anti-Magic Zone [51052]: cast at 0:40, 3s early
+  0:43 Cptola Avenging Wrath [31884]: cast at 0:38, 5s early
+  0:43 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30s (alive; cast at 0:00)
+  Planned after the wipe was decided at 0:56, so not checked against this pull:
+  0:57 Dragepie Time Spiral [374968]
+  0:58 Attractîv Stampeding Roar [106898]
+  1:01 Pomaa Rallying Cry [97462]
+  1:01 Lïzårðmâñ Zephyr [374227]
+  1:39 Namsus Divine Hymn [64843]
+  1:48 Cptola Aura Mastery [31821]
+  1:58 Sonyosh Wind Rush Totem [192077]
+  2:00 Attractîv Stampeding Roar [106898]
+  2:00 Enfo Spirit Link Totem [98008]
+  2:02 Dragepie Zephyr [374227]
+  2:02 Dscopi Darkness [196718]
+  2:14 Lïzårðmâñ Time Spiral [374968]
+  2:14 Enfo Wind Rush Totem [192077]
+  2:18 Lïzårðmâñ Stasis (Store) [370537]
+  3:13 Namsus Apotheosis [200183]
+  3:18 Cptola Avenging Wrath [31884]
+  3:28 Lïzårðmâñ Rewind [363534]
+  3:33 Dragepie Time Spiral [374968]
+  3:35 Attractîv Stampeding Roar [106898]
+  3:36 Lïzårðmâñ Zephyr [374227]
+  3:37 Enfo Ascendance [114052]
+  3:57 Lïzårðmâñ Stasis (Store) [370537]
+  4:14 Namsus Divine Hymn [64843]
+  4:19 Nexsozz Anti-Magic Zone [51052]
+  4:33 Sonyosh Wind Rush Totem [192077]
+  4:36 Attractîv Stampeding Roar [106898]
+  4:37 Dragepie Zephyr [374227]
+  4:48 Lïzårðmâñ Time Spiral [374968]
+  4:49 Enfo Wind Rush Totem [192077]
+  4:57 Pomaa Rallying Cry [97462]
+  5:40 Lïzårðmâñ Stasis (Store) [370537]
+  5:48 Namsus Apotheosis [200183]
+  5:53 Cptola Avenging Wrath [31884]
+  5:57 Cptola Aura Mastery [31821]
+  6:08 Dragepie Time Spiral [374968]
+  6:10 Attractîv Stampeding Roar [106898]
+  6:10 Enfo Spirit Link Totem [98008]
+  6:11 Lïzårðmâñ Zephyr [374227]
+  6:11 Dscopi Darkness [196718]
+  6:40 Enfo Ascendance [114052]
+  6:49 Namsus Divine Hymn [64843]
+  7:04 Lïzårðmâñ Rewind [363534]
+  7:08 Sonyosh Wind Rush Totem [192077]
+  7:11 Attractîv Stampeding Roar [106898]
+  7:12 Dragepie Zephyr [374227]
+  7:21 Lïzårðmâñ Stasis (Store) [370537]
+  7:23 Lïzårðmâñ Time Spiral [374968]
+  7:24 Enfo Wind Rush Totem [192077]
+Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss that night). Which side's add begins first varies, so a note timed for one side is a second off for the other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking their own, and a kick on another cast begun within 1.5 s of the callout counts too, each with the cast that was theirs and what became of it:
+  0:37 Sonyosh "Kick #1 left": kicked the cast begun at 0:38
+  0:38 Enfo "Kick #1 right": kicked the cast begun at 0:37
+  0:39 Dragepie "Kick #2 left": kicked the cast begun at 0:40
+  0:40 Dscopi "Kick #2 right": kicked the cast begun at 0:39
+  0:41 Martin "Kick #3 left": kicked the cast begun at 0:42
+  0:42 Krøpling "Kick #3 right": kicked the cast begun at 0:41
+  0:43 Attractîv "Kick #4 left": kicked the cast begun at 0:44
+  0:44 Peggerino "Kick #4 right": kicked the cast begun at 0:43
+  0:45 Agonco "Kick #5 left": no kick (alive); their cast, begun at 0:46, went through
+  0:46 Zebinomage "Kick #5 right": kicked the cast begun at 0:45

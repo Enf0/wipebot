@@ -1,0 +1,106 @@
+EncounterID:3420;Difficulty:Mythic;Name:Sszorak
+
+time:11;ph:1;tag:Dragepie;spellid:374227;
+time:16;ph:1;tag:Lïzårðmâñ;spellid:370537;
+time:16;ph:1;tag:Miralupa;spellid:64843;
+time:16;ph:1;tag:Namsus;spellid:200183;
+time:20;ph:1;tag:Nexsozz;spellid:51052;
+time:21;ph:1;tag:Sonyosh;spellid:383013;
+time:27;ph:1;bossSpell:1297707;tag:Scopidruid;spellid:106898;
+time:58;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:63;ph:1;tag:Namsus;spellid:64843;
+time:63;ph:1;tag:Miralupa;spellid:200183;
+time:68;ph:1;tag:Sonyosh;spellid:192077;
+time:68;ph:1;tag:Enfo;spellid:114052;
+time:68;ph:1;tag:Enfo;spellid:383013;
+time:71;ph:1;tag:Deathadim;spellid:51052;
+time:72;ph:1;tag:Fappachino;spellid:196718;
+time:72;ph:1;tag:Enfo;spellid:98008;
+time:75;ph:1;tag:Pomaa;spellid:97462;
+time:75;ph:1;tag:everyone;text:Big Personals;
+time:80;ph:1;tag:Lïzårðmâñ;spellid:363534;
+time:97;ph:1;tag:Lïzårðmâñ;spellid:374968;
+time:99;ph:1;tag:Enfo;spellid:192077;
+time:100;ph:1;tag:Scopidruid;spellid:106898;
+time:110;ph:1;tag:Dragepie;spellid:374968;
+time:135;ph:1;tag:Lïzårðmâñ;spellid:370537;
+time:139;ph:1;tag:Dragepie;spellid:374227;
+time:142;ph:1;tag:Namsus;spellid:200183;
+time:143;ph:1;tag:Miralupa;spellid:64843;
+time:147;ph:1;tag:Sonyosh;spellid:383013;
+time:185;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:190;ph:1;tag:Miralupa;spellid:200183;
+time:194;ph:1;tag:Namsus;spellid:64843;
+time:194;ph:1;tag:Enfo;spellid:383013;
+time:195;ph:1;tag:Sonyosh;spellid:192077;
+time:199;ph:1;tag:everyone;text:Big Personals;
+time:200;ph:1;tag:Nexsozz;spellid:51052;
+time:202;ph:1;bossSpell:1297707;tag:Scopidruid;spellid:106898;
+time:224;ph:1;tag:Lïzårðmâñ;spellid:374968;
+time:226;ph:1;tag:Enfo;spellid:192077;
+time:227;ph:1;tag:Lïzårðmâñ;spellid:370537;
+time:237;ph:1;tag:Dragepie;spellid:374968;
+time:265;ph:1;tag:Dragepie;spellid:374227;
+time:269;ph:1;tag:Namsus;spellid:200183;
+time:270;ph:1;tag:Miralupa;spellid:64843;
+time:274;ph:1;tag:Enfo;spellid:114052;
+time:274;ph:1;tag:Sonyosh;spellid:383013;
+time:277;ph:1;tag:Deathadim;spellid:51052;
+time:277;ph:1;tag:everyone;text:Personals;
+time:279;ph:1;bossSpell:1297707;tag:Pomaa;spellid:97462;
+time:279;ph:1;bossSpell:1297707;tag:Scopidruid;spellid:106898;
+time:279;ph:1;bossSpell:1297707;tag:Enfo;spellid:98008;
+time:287;ph:1;tag:Fappachino;spellid:196718;
+time:311;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:317;ph:1;tag:Miralupa;spellid:200183;
+time:321;ph:1;tag:Namsus;spellid:64843;
+time:321;ph:1;tag:Enfo;spellid:383013;
+time:322;ph:1;tag:Sonyosh;spellid:192077;
+time:332;ph:1;tag:Lïzårðmâñ;spellid:370537;
+time:334;ph:1;tag:Lïzårðmâñ;spellid:363534;
+time:351;ph:1;tag:Lïzårðmâñ;spellid:374968;
+time:353;ph:1;tag:Enfo;spellid:192077;
+time:354;ph:1;tag:Scopidruid;spellid:106898;
+time:363;ph:1;tag:Dragepie;spellid:374968;
+time:11;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:57;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:138;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:184;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:265;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:311;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:392;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:438;ph:1;tag:Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus;text:Soak Left;colors:0.2 0.4 1 1;DisplayType:Text;
+time:11;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:58;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:138;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:185;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:265;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:312;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:392;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:439;ph:1;tag:Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa;text:Soak Right;colors:1 0.16 0.16 1;DisplayType:Text;
+time:100;ph:1;tag:Dragepie;text:You are the orb popper;colors:0.16 1 0.16 1;DisplayType:Text;
+time:227;ph:1;tag:Dragepie;text:You are the orb popper;colors:0.16 1 0.16 1;DisplayType:Text;
+time:354;ph:1;tag:Dragepie;text:You are the orb popper;colors:0.16 1 0.16 1;DisplayType:Text;
+time:25.5;ph:1;tag:Martin;text:Trigger Virulence;colors:0.63 0.16 1 1;DisplayType:Text;
+time:75.5;ph:1;tag:Martin;text:Trigger Virulence;colors:0.63 0.16 1 1;DisplayType:Text;
+time:152.5;ph:1;tag:Martin;text:Trigger Virulence;colors:0.63 0.16 1 1;DisplayType:Text;
+time:202.5;ph:1;tag:Martin;text:Trigger Virulence;colors:0.63 0.16 1 1;DisplayType:Text;
+time:279.5;ph:1;tag:Martin;text:Trigger Virulence;colors:0.63 0.16 1 1;DisplayType:Text;
+time:326.6;ph:1;tag:Martin;text:Trigger Virulence;colors:0.63 0.16 1 1;DisplayType:Text;
+
+Mutilate Soaks
+Left: Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus
+Right: Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa
+
+Intermission Orb Popper
+Orb Popper: Dragepie
+
+Virulence Spreads
+Spread: Nexsozz Pomaa Fappachino Algmor Mizaroth Deathadim Agonco Slushmania Sonyosh Peggerino Scopidruid Zebinomage Krøpling Dragepie Draiman
+Bait Serpent's Fury / Bite: Martin
+Don't Stack: Enfo Namsus Miralupa Lïzårðmâñ
+
+Virulence trigger
+Trigger: Martin
+
+invitelist:Mizaroth-Kazzak,Lïzårðmâñ-Kazzak,Fappachino-Kazzak,Pomaa-TarrenMill,Martin-Kazzak,Peggerino-Kazzak,Zebinomage-TarrenMill,Algmor-Kazzak,Enfo-Kazzak,Deathadim-Kazzak,Nexsozz-Stormscale,Krøpling-Kazzak,Scopidruid-Kazzak,Sonyosh-Kazzak,Namsus-TarrenMill,Miralupa-Kazzak,Dragepie-TarrenMill,Agonco-Kazzak,Slushmania-Kazzak,Draiman-Kazzak;

@@ -1,0 +1,14 @@
+Enemies other than the boss on all 2 Nek'zali the Soulcoiler (Mythic) pulls, each whole pull, most damaged first (how many came and died over the pulls, in how many pulls, damage taken; then their casts with a cast bar: begun, kicked and by whom, gone through):
+  Echo of Jawae: 4 came over 2 pulls, 2 died, 2 with no death recorded, took 276.08M
+    casts Hungering Pyre: 6 begun, 0 kicked, 6 went through (nobody kicked it on this boss that night: it may not be kickable)
+    casts Soul Transfer: 3 begun, 0 kicked, 3 went through (nobody kicked it on this boss that night: it may not be kickable)
+  Restless Amani: 60 came over 2 pulls, 43 died, 17 with no death recorded, took 199.51M
+  Drowned Echo: 10 came over 2 pulls, 0 died, 10 with no death recorded, took 83.49M
+    casts Soulcoiler's Curse: 24 begun, 17 kicked, 1 went through, 6 ended otherwise (the add died or was moved); kicked by Agonco 4, Sinnatony 4, Draiman 3, Fappachino 3, Krøpling 2, Deathadim 1
+  Soulcoil Well: 2 came over 2 pulls, 0 died, 2 with no death recorded, took 0
+  Summoner Jawae: 2 came over 2 pulls, 0 died, 2 with no death recorded, took 0
+    casts Soul Transfer: 2 begun, 0 kicked, 2 went through (nobody kicked it on this boss that night: it may not be kickable)
+No death recorded for any Drowned Echo: the log can't show when they were killed or in what order, only how many came, the damage they took and their casts.
+By pull (the most damaged kinds):
+  pull 1 (4:10, wipe): Echo of Jawae 2 came, 0 died; Restless Amani 22 came, 11 died; Drowned Echo 3 came, 0 died; Soulcoil Well 1 came, 0 died; 1 more kind; casts with a cast bar: 13 begun, 6 kicked, 4 went through
+  pull 2 (6:46, KILL): Echo of Jawae 2 came, 2 died; Restless Amani 38 came, 32 died; Drowned Echo 7 came, 0 died; Soulcoil Well 1 came, 0 died; 1 more kind; casts with a cast bar: 22 begun, 11 kicked, 8 went through

@@ -1,0 +1,4 @@
+Enemies other than the boss on Nymrissa Wavecaller pull 1 (1:59, https://www.warcraftlogs.com/reports/GM8XdBHaqpFgxK9Q#fight=4), most damaged first (instances, deaths and when, what became of the rest, damage taken, who did most; then their casts with a cast bar: begun, kicked and by whom, gone through):
+  Bubblefin Shorerunner: 34 came, 0 died, 34 with no death recorded, last hit at 1:44 (despawned, transformed or removed, or left alone after that), took 71.75M; most by Sonyosh 15.91M, Krøpling 8.50M, Miralupa 7.96M, Martin 7.06M
+  Bubblefin Frostscale: 4 came, 0 died, 4 with no death recorded, last hit at 1:40 (despawned, transformed or removed, or left alone after that), took 13.22M; most by Slushmania 1.64M, Martin 1.46M, Grusarn 1.43M, Pomaa 1.04M
+No death recorded for any Bubblefin Shorerunner, Bubblefin Frostscale: the log can't show when they were killed or in what order, only how many came, the damage they took and their casts.

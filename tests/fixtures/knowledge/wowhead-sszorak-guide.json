@@ -1,0 +1,23 @@
+{
+ "linked_entities": {
+  "items": [
+   {
+    "entity_type": "spell",
+    "id": 1286033,
+    "name": "Dig In"
+   }
+  ]
+ },
+ "body": {
+  "section_chunks": [
+   {
+    "title": "Sszorak Strategy and Abilities",
+    "content_raw": "Save cooldowns for [spell=1286033].\n[tabs][tab name=\"Boss Cheat Sheet\"][b]Bloodlust Timing:[/b] Pull\n[ul][li][b][spell=1286033][/b] - The boss takes 30% increased damage.[/li][/ul][/tab][tab name=\"Dungeon Journal\"][html]<ul><li><div><b>Overview</b>: builds to a massive <a href=\"/spell=1285732\">[Howling Maelstrom]</a> that pushes players.</div></li></ul>[/html][/tab][/tabs]"
+   },
+   {
+    "title": "All Sszorak Rewards",
+    "content_raw": "Loot."
+   }
+  ]
+ }
+}

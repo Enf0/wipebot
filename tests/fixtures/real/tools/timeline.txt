@@ -1,0 +1,83 @@
+Sszorak pull 13 timeline (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.
+0:00 phase 1 (Sszorak); Serpent's Fury on Martin
+0:02 Corroding Venom on Wutroll; Bloodlust (Temporal Displacement on 20 players); healing cooldown: Stasis (Store) (Lïzårðmâñ)
+0:03 healing cooldown: Avenging Wrath (Cptola)
+0:08 boss casts Ravage (2 abilities); Ravage on Wutroll
+0:12 boss casts Mutilate (2 abilities); Mutilated Gash on 10 players
+0:15 Tempest on 4 players; healing cooldown: Apotheosis (Namsus)
+0:16 boss casts Tempest
+0:20 boss casts Mutilate (2 abilities); Mutilated Gash on 9 players
+0:23 raid cooldown: Anti-Magic Zone (Nexsozz)
+0:24 boss casts Ravage (2 abilities); Ravage on Deathadim
+0:26 Corroding Venom on Deathadim
+0:27 Virulence on 20 players
+0:29 boss casts Venomous Surge ◆; boss gains Venomous Surge
+0:32 Venomous Surge on Krøpling, Peggerino; Serpent's Fury on Martin
+0:33 boss loses Venomous Surge
+0:34 Caustic Residue on Deathadim
+0:35 Corroding Venom reaches 4 stacks on Deathadim
+0:38 Caustic Residue on Dragepie, Fappachino, Pomaa
+0:39 boss casts Raging Crosswinds ◆ (4 abilities); Raging Crosswinds on 8 players
+0:40 boss casts Raging Crosswinds ◆ (2 abilities)
+0:44 Corroding Venom on Wutroll
+0:47 Turbulent Gusts on 9 players
+0:48 DEATH Scopidruid (Ula'tek's Presence), 19 alive; Tempest on Martin
+0:53 DEATH Draiman (no killing blow recorded), 18 alive
+0:55 boss casts Ravage (2 abilities); Ravage on Wutroll
+0:58 healing cooldown: Zephyr (Lïzårðmâñ)
+0:59 boss casts Ravage (2 abilities); Ravage on Deathadim
+1:02 raid cooldown: Anti-Magic Zone (Deathadim)
+1:03 boss casts Mutilate (2 abilities); Mutilated Gash on 7 players
+1:04 Tempest on Fappachino
+1:07 boss casts Tempest; healing cooldown: Divine Hymn (Namsus)
+1:08 Tempest on Sveini, Zebinomage
+1:09 healing cooldown: Spirit Link Totem (Enfo)
+1:11 boss casts Mutilate (2 abilities); Mutilated Gash on 10 players; healing cooldown: Ascendance (Enfo); raid cooldown: Rallying Cry (Pomaa)
+1:12 healing cooldown: Aura Mastery (Cptola)
+1:13 Tempest on Lïzårðmâñ, Namsus, Sveini
+1:16 boss casts Venomous Surge ◆; Virulence on 18 players; boss gains Venomous Surge
+1:19 Venomous Surge on Attractîv, Enfo
+1:20 boss loses Venomous Surge
+1:21 healing cooldown: Rewind (Lïzårðmâñ); Virulence on Enfo, Namsus; Serpent's Fury on Martin
+1:22 Corroding Venom on Wutroll
+1:23 Caustic Residue on 6 players
+1:26 boss casts Raging Crosswinds ◆ (4 abilities); Raging Crosswinds on 8 players
+1:27 boss casts Raging Crosswinds ◆ (2 abilities)
+1:28 DEATH Attractîv (Venomous Surge), 17 alive
+1:29 DEATH Zebinomage (Raging Crosswinds), 16 alive
+1:33 Corroding Venom on Deathadim
+1:34 Turbulent Gusts on 8 players
+1:35 Caustic Residue on Krøpling
+1:39 boss casts Dig In ◆; phase 2 (Howling Maelstrom); boss gains Dig In
+1:40 Caustic Residue on 11 players
+1:43 Viscous Cyst on 16 players
+1:51 Viscous Cyst on 16 players
+1:52 Caustic Residue on 7 players
+2:00 Viscous Cyst on 16 players
+2:03 healing cooldown: Avenging Wrath (Cptola)
+2:05 phase 1 (Sszorak); boss loses Dig In; Corroding Venom on Deathadim
+2:06 Viscous Cyst on 16 players
+2:07 Caustic Residue on 5 players
+2:13 healing cooldown: Stasis (Store) (Lïzårðmâñ)
+2:15 boss casts Mutilate (2 abilities); Mutilated Gash on 6 players
+2:19 boss casts Tempest
+2:20 Tempest on Krøpling, Peggerino, Wutroll
+2:23 boss casts Ravage (2 abilities); Ravage on Deathadim
+2:25 healing cooldown: Apotheosis (Namsus)
+2:27 boss casts Ravage (2 abilities); Ravage on Wutroll
+2:28 raid cooldown: Rallying Cry (Sinnatony)
+2:31 boss casts Mutilate (2 abilities); Mutilated Gash on 6 players
+2:32 boss gains Unbound Ferocity
+2:33 DEATH Sinnatony (Mutilated Gash), 15 alive
+2:34 DEATH Cptola (Ula'tek's Presence), 14 alive; DEATH Lïzårðmâñ (Mutilated Gash), 13 alive; DEATH Peggerino (Mutilated Gash), 12 alive; DEATH Pomaa (Mutilated Gash), 11 alive; DEATH Krøpling (Mutilated Gash), 10 alive; DEATH Sveini (Mutilated Gash), 9 alive; DEATH Fappachino (Mutilated Gash), 8 alive
+2:35 DEATH Enfo (Mutilated Gash), 7 alive; DEATH Sonyosh (Mutilated Gash), 6 alive; Corroding Venom reaches 5 stacks on Deathadim
+2:36 boss casts Venomous Surge ◆; boss gains Venomous Surge; DEATH Deathadim (Melee), 5 alive
+2:39 Venomous Surge on Dragepie, Namsus
+2:40 boss loses Venomous Surge
+2:41 Corroding Venom on Wutroll
+2:42 DEATH Martin (Venomous Surge), 4 alive; DEATH Nexsozz (Venomous Surge), 3 alive; DEATH Dragepie (Venomous Surge), 2 alive; DEATH Wutroll (Venomous Surge), 1 alive
+◆ marks the boss abilities Lorrgs tracks for this boss: the casts its timeline is built on, to line pulls up by.
+Boss health % over time: 0:00 100 · 0:12 95 · 0:21 90 · 0:40 85 · 1:04 80 · 1:34 75 · 1:57 70 · 2:22 65
+Boss power (0-100) over time: 0:00 25 · 0:02 30 · 0:05 36 · 0:08 41 · 0:12 47 · 0:14 53 · 0:17 58 · 0:21 64 · 0:23 70 · 0:26 0 · 0:30 6 · 0:32 12 · 0:35 17 · 0:39 23 · 0:41 29 · 0:44 34 · 0:48 40 · 0:50 46 · 0:53 51 · 0:56 57 · 0:59 63 · 1:02 68 · 1:05 74 · 1:08 80 · 1:11 85 · 1:14 91 · 1:15 0 · 1:18 6 · 1:21 11 · 1:23 17 · 1:26 23 · 1:30 28 · 1:32 34 · 1:35 40 · 1:39 45 · 2:07 51 · 2:10 57 · 2:12 62 · 2:16 68 · 2:18 74 · 2:22 79 · 2:24 85 · 2:27 91 · 2:30 96
+Raid damage taken per second, 5 s averages (median 1.73M/s; * marks twice the median or more): 0:00 607.68k · 0:05 854.21k · 0:10 1.54M · 0:15 2.07M · 0:20 2.35M · 0:25 2.73M · 0:30 2.96M · 0:35 1.77M · 0:40 2.02M · 0:45 1.57M · 0:50 868.93k · 0:55 883.35k · 1:00 1.29M · 1:05 1.53M · 1:10 2.22M · 1:15 2.69M · 1:20 2.60M · 1:25 2.26M · 1:30 1.85M · 1:35 985.84k · 1:40 1.60M · 1:45 1.51M · 1:50 1.72M · 1:55 1.34M · 2:00 2.05M · 2:05 1.89M · 2:10 1.13M · 2:15 1.46M · 2:20 1.50M · 2:25 1.73M · 2:30 5.73M* · 2:35 3.85M* · 2:40 1.99M
+Ability ids: Ravage [1277101], Mutilate [1277031], Tempest [1287072], Venomous Surge [1305959], Raging Crosswinds [1285425], Dig In [1286033], Ravage (2nd ability) [1277002], Mutilate (2nd ability) [1277027], Raging Crosswinds (2nd ability) [1285453], Raging Crosswinds (3rd ability) [1297111], Raging Crosswinds (4th ability) [1297096], Unbound Ferocity [1296898], Serpent's Fury [1305621], Corroding Venom [1282873], Mutilated Gash [1277051], Virulence [1297707], Caustic Residue [1296667], Turbulent Gusts [1285447], Viscous Cyst [1287205]

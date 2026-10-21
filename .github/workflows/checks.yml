@@ -1,0 +1,70 @@
+# What `just check` runs, on every push and pull request: lint, types and layers, and the tests. The local cases
+# (tests/README.md) only where the maintainers' private store can be read: a repository secret
+# WIPEBOT_LOCAL_FIXTURES_TOKEN, a token that may read its releases. Without it (a fork, a copy of the repo) that job
+# is skipped. A check added to the Justfile's `check` goes here too. Actions are pinned by commit, their version
+# beside it.
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to a pull request cancels its run still going; on main every push runs to the end.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Lint, types and layers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false  # no token left in .git/config for later steps
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+      - run: uv sync --locked  # the lockfile as committed; fails if pyproject.toml moved past it
+      - run: uv run ruff check .
+      - run: uv run ty check
+      - run: uv run lint-imports
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      local: ${{ steps.token.outputs.local }}
+    steps:
+      # A job's `if` can't read secrets, so this one says whether the local cases can run (the local job skips if not).
+      - id: token
+        run: echo "local=${{ secrets.WIPEBOT_LOCAL_FIXTURES_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+      - run: uv sync --locked
+      - run: uv run pytest -q
+
+  local:
+    name: Tests (local cases)
+    needs: tests
+    if: always() && needs.tests.outputs.local == 'true'  # skipped without the token (a fork, a copy of the repo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+      - run: uv sync --locked
+      - run: uv run python -m tests.support.local fetch
+        env:
+          GH_TOKEN: ${{ secrets.WIPEBOT_LOCAL_FIXTURES_TOKEN }}  # this step only: the tests run without it
+      # A public repository's logs are public: no tracebacks or diffs, which would print what the local cases hold.
+      # A failure names the case; `just local-fixtures` and `just test -k <case>` show the diff locally.
+      - run: uv run pytest tests/core/test_tools.py -v --tb=no -rN -p no:logging

@@ -1,0 +1,34 @@
+Plague Froth [1281910] running out on players on Vashnik the Malignant pull 19 (7:00, KILL, https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=42): 10 times (also logged: hit 403; `event` picks another).
+Each player with it where they stood as theirs ran out. Hit by someone else's: a hit of its name from another player's (a burst as theirs ran out, put on the player whose end was logged last before it; or an area around them while they had it, put on the nearest).
+  0:19: on 5: Lïzårðmâñ, Peggerino, Zebinomage, Pomaa, Krøpling; hit by someone else's: Deathadim by Pomaa's (4 yd apart), Fappachino by Pomaa's (3 yd apart), Wutroll by Pomaa's (2 yd apart), Wutroll by Zebinomage's (29 yd apart), Fappachino by Zebinomage's (26 yd apart); the closest two with it: Zebinomage and Lïzårðmâñ, 15 yd apart
+  1:00: on 5: Providence, Fappachino, Martin, Dragepie, Krøpling; hit by someone else's: Sonyosh by Fappachino's (3 yd apart), Enfo by Martin's (5 yd apart), Peggerino by Martin's (3 yd apart), Lïzårðmâñ by Providence's (4 yd apart), Enfo by Fappachino's (4 yd apart), Agonco by Fappachino's (4 yd apart), Wutroll by Fappachino's (4 yd apart), Nexsozz by Fappachino's (3 yd apart), Pomaa by Fappachino's (2 yd apart), Sinnatony by Fappachino's (1 yd apart), Nalaw by Fappachino's (3 yd apart), Attractîv by Martin's (26 yd apart); the closest two with it: Providence and Martin, 7 yd apart
+  1:33: on 5: Martin, Peggerino, Dragepie, Nexsozz, Pomaa; hit by someone else's: Nalaw by Nexsozz's (3 yd apart), Fappachino by Pomaa's (1 yd apart), Agonco by Pomaa's (2 yd apart), Sinnatony by Pomaa's (4 yd apart), Providence by Pomaa's (2 yd apart); the closest two with it: Nexsozz and Pomaa, 17 yd apart
+  2:24: on 5: Zebinomage, Miralupa, Peggerino, Nexsozz, Pomaa; hit by someone else's: Fappachino by Pomaa's (1 yd apart), Deathadim by Nexsozz's (3 yd apart), Agonco by Nexsozz's (2 yd apart), Sinnatony by Nexsozz's (4 yd apart), Wutroll by Nexsozz's (3 yd apart), Lïzårðmâñ by Pomaa's (3 yd apart), Martin by Nexsozz's (3 yd apart), Enfo by Miralupa's (2 yd apart), Deathadim by Miralupa's (2 yd apart), Attractîv by Pomaa's (4 yd apart), Lïzårðmâñ by Miralupa's (3 yd apart); the closest two with it: Zebinomage and Pomaa, 11 yd apart
+  2:57: on 5: Miralupa, Krøpling, Nalaw, Attractîv, Peggerino; hit by someone else's: Agonco by Nalaw's (3 yd apart), Dragepie by Krøpling's (4 yd apart), Sinnatony by Nalaw's (1 yd apart), Providence by Nalaw's (4 yd apart); the closest two with it: Nalaw and Attractîv, 10 yd apart
+  3:48: on 5: Zebinomage, Nalaw, Attractîv, Lïzårðmâñ, Agonco; hit by someone else's: Peggerino by Lïzårðmâñ's (3 yd apart), Martin by Lïzårðmâñ's (4 yd apart), Nexsozz by Agonco's (4 yd apart), Dragepie by Nalaw's (4 yd apart), Enfo by Agonco's (3 yd apart), Deathadim by Agonco's (1 yd apart), Wutroll by Agonco's (4 yd apart), Fappachino by Nalaw's (6 yd apart), Sonyosh by Nalaw's (1 yd apart); the closest two with it: Zebinomage and Attractîv, 10 yd apart
+  4:21: on 5: Sinnatony, Fappachino, Miralupa, Martin, Attractîv; hit by someone else's: Agonco by Fappachino's (6 yd apart), Nexsozz by Fappachino's (4 yd apart), Nalaw by Sinnatony's (4 yd apart), Peggerino by Fappachino's (3 yd apart); the closest two with it: Sinnatony and Fappachino, 14 yd apart
+  5:12: on 5: Peggerino, Sinnatony, Attractîv, Zebinomage, Providence; hit by someone else's: Agonco by Sinnatony's (4 yd apart), Enfo by Peggerino's (3 yd apart), Sonyosh by Sinnatony's (6 yd apart); the closest two with it: Sinnatony and Attractîv, 11 yd apart
+  5:45: on 5: Dragepie, Zebinomage, Krøpling, Namsus, Fappachino; hit by someone else's: Deathadim by Fappachino's (3 yd apart), Pomaa by Fappachino's (3 yd apart); the closest two with it: Namsus and Dragepie, 12 yd apart
+  6:36: on 5: Sonyosh, Namsus, Sinnatony, Dragepie, Nalaw; hit by someone else's: Fappachino by Nalaw's (4 yd apart), Nexsozz by Namsus's (3 yd apart), Pomaa by Nalaw's (3 yd apart), Agonco by Nalaw's (4 yd apart), Krøpling by Dragepie's (4 yd apart); the closest two with it: Sinnatony and Nalaw, 12 yd apart
+A map of Vashnik the Malignant · pull 19 at 1:00 (the moment it hit most players from someone else's) is shown to the user with this answer: each player's spec icon in a ring of their class colour (a tight stack nudged apart a little), the dead grey with a red cross where they fell, the boss with its facing as a gold cone, and the names, a red ring around each player it was on or hit, gold arrows from whose Plague Froth burst as it ran out to whom it hit. Refer to it; don't describe it again.
+Distance to Vashnik the Malignant (yd), and degrees off the way it faced (0 straight in front, 180 straight behind):
+- Agonco (dps): 3, 39°
+- Deathadim (tank): 3, 0°
+- Pomaa (dps): 4, 49°
+- Sinnatony (dps): 4, 65°
+- Nexsozz (dps): 4, 57°
+- Enfo (healer): 4, 32°
+- Nalaw (dps): 5, 52°
+- Attractîv (dps): 5, 167°
+- Lïzårðmâñ (healer): 6, 1°
+- Fappachino (dps): 6, 134°
+- Wutroll (tank): 7, 60°
+- Providence (healer): 14, 9°
+- Krøpling (dps): 18, 155°
+- Miralupa (healer): 20, 89°
+- Martin (dps): 21, 3°
+- Sonyosh (dps): 22, 87°
+- Peggerino (dps): 28, 2°
+- Dragepie (dps): 29, 162°
+- Zebinomage (dps): 32, 156°
+- Namsus (healer): 34, 175°

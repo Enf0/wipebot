@@ -1,0 +1,8 @@
+# Only what the Dockerfile copies: the context never holds .env, data or caches.
+*
+!pyproject.toml
+!uv.lock
+!src
+!CHANGELOG.md
+!LICENSE
+**/__pycache__

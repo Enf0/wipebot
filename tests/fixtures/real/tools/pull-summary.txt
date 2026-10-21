@@ -1,0 +1,31 @@
+**Sszorak** (Mythic) · pull 13 · wipe at **62.6%** · P1 (2nd time) · 2:42 · best of this log so far
+Boss buffs at the end: **Unbound Ferocity** (from 2:32)
+First deaths: Scopidruid (Ula'tek's Presence, 0:48) · Draiman (no killing blow recorded, 0:53) · Attractîv (Venomous Surge, 1:28)
+Killed by, until the wipe was decided at 2:32 (the boss gained Unbound Ferocity): Ula'tek's Presence ×1 · no killing blow recorded ×1 · Venomous Surge ×1 · Raging Crosswinds ×1 (15 later deaths: fallout)
+Last 5: 68.1 → 79.5 → 70.8 → 70.4 → 62.6
+Warcraft Logs: https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21
+Ended by (from the log, earliest first): the boss gained Unbound Ferocity at 2:32 and kept it to the end, 16 of 20 alive (look it up: an enrage makes every later death fallout).
+Phases: P1 Sszorak 0:00 → P2 Howling Maelstrom 1:39 → P1 Sszorak 2:05
+
+Raid size 20. Deaths in order (time from pull start, players alive after it, a battle res or self-res counted):
+1. 0:48 Scopidruid (Balance Druid) - Ula'tek's Presence [1285965] (19 alive)
+2. 0:53 Draiman (Assassination Rogue) - no killing blow recorded (18 alive)
+3. 1:28 Attractîv (Balance Druid) - Venomous Surge [1312156] (17 alive)
+4. 1:29 Zebinomage (Arcane Mage) - Raging Crosswinds [1312219] (16 alive)
+5. 2:33 Sinnatony (Arms Warrior) - Mutilated Gash [1285998] (15 alive, after the boss gained Unbound Ferocity)
+6. 2:34 Cptola (Holy Paladin) - Ula'tek's Presence [1285965] (14 alive, after the boss gained Unbound Ferocity)
+7. 2:34 Lïzårðmâñ (Preservation Evoker) - Mutilated Gash [1285998] (13 alive, after the boss gained Unbound Ferocity)
+8. 2:34 Peggerino (Demonology Warlock) - Mutilated Gash [1285998] (12 alive, after the boss gained Unbound Ferocity)
+9. 2:34 Pomaa (Fury Warrior) - Mutilated Gash [1285998] (11 alive, after the boss gained Unbound Ferocity)
+10. 2:34 Krøpling (Arcane Mage) - Mutilated Gash [1285998] (10 alive, after the boss gained Unbound Ferocity)
+11. 2:34 Sveini (Demonology Warlock) - Mutilated Gash [1285998] (9 alive, after the boss gained Unbound Ferocity)
+12. 2:34 Fappachino (Havoc Demon Hunter) - Mutilated Gash [1285998] (8 alive, after the boss gained Unbound Ferocity)
+13. 2:35 Enfo (Restoration Shaman) - Mutilated Gash [1285998] (7 alive, after the boss gained Unbound Ferocity)
+14. 2:35 Sonyosh (Elemental Shaman) - Mutilated Gash [1285998] (6 alive, after the boss gained Unbound Ferocity)
+15. 2:36 Deathadim (Blood Death Knight) - Melee [1] (5 alive, after the boss gained Unbound Ferocity)
+16. 2:42 Martin (Beast Mastery Hunter) - Venomous Surge [1306120] (4 alive, after the boss gained Unbound Ferocity)
+17. 2:42 Nexsozz (Unholy Death Knight) - Venomous Surge [1306120] (3 alive, after the boss gained Unbound Ferocity)
+18. 2:42 Dragepie (Devastation Evoker) - Venomous Surge [1306120] (2 alive, after the boss gained Unbound Ferocity)
+19. 2:42 Wutroll (Brewmaster Monk) - Venomous Surge [1306120] (1 alive, after the boss gained Unbound Ferocity)
+The boss gained Unbound Ferocity at 2:32 and kept it to the end; 4 players had died before that. Look the buff up: an enrage makes every later death its fallout.
+Pull ended at 2:42 with the boss at 62.59% health.

@@ -1,0 +1,39 @@
+# Dependency updates with little minding: once a week, one pull request per kind (Python packages, the actions CI
+# uses, the Docker base image) for the minor and patch updates, which merge-updates.yml merges once every check
+# passes; a major update comes as a pull request of its own, merged by hand. Each version is at least a week old (a
+# bad release is usually pulled by then). warcraft_cli, pinned by its release URL, isn't seen here.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      python:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      docker:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build

@@ -1,0 +1,30 @@
+Virulence [1297707] running out on players on Sszorak pull 42 (4:49, wipe, https://www.warcraftlogs.com/reports/vjt3KLbN8g62J1H9#fight=46): 6 times (also logged: hit 332; `event` picks another).
+Each player with it where they stood as theirs ran out. Hit by someone else's: a hit of its name from another player's (a burst as theirs ran out, put on the player whose end was logged last before it; or an area around them while they had it, put on the nearest).
+  0:31: on 15: Peggerino, Pomaa, Draiman, Dragepie, Scopidruid, Nexsozz, Zebinomage, Agonco, Fappachino, Wutroll, Krøpling, Algmor, Sonyosh, Deathadim, Martin; hit by someone else's: nobody; the closest two with it: Agonco and Nexsozz, 7 yd apart
+  1:20: on 16: Zebinomage, Peggerino, Dragepie, Agonco, Pomaa, Fappachino, Draiman, Wutroll, Algmor, Scopidruid, Sonyosh, Nexsozz, Krøpling, Slushmania, Martin, Deathadim; hit by someone else's: Draiman by Agonco's (12 yd apart), Sonyosh by Agonco's (9 yd apart); the closest two with it: Sonyosh and Algmor, 7 yd apart
+  1:25: on 2: Sonyosh, Draiman; hit by someone else's: nobody; the closest two with it: Sonyosh and Draiman, 13 yd apart
+  2:37: on 18: Peggerino, Pomaa, Zebinomage, Dragepie, Slushmania, Algmor, Draiman, Agonco, Krøpling, Fappachino, Sonyosh, Deathadim, Namsus, Nexsozz, Martin, Lïzårðmâñ, Wutroll, Scopidruid; hit by someone else's: Deathadim by Draiman's (10 yd apart); the closest two with it: Peggerino and Dragepie, 6 yd apart
+  2:42: on 1: Deathadim; hit by someone else's: nobody
+  3:28: on 14: Algmor, Agonco, Wutroll, Nexsozz, Deathadim, Sonyosh, Peggerino, Krøpling, Enfo, Dragepie, Fappachino, Zebinomage, Namsus, Martin; hit by someone else's: nobody; the closest two with it: Sonyosh and Algmor, 4 yd apart
+A map of Sszorak · pull 42 at 1:20 (the moment it hit most players from someone else's) is shown to the user with this answer: each player's spec icon in a ring of their class colour (a tight stack nudged apart a little), the dead grey with a red cross where they fell, the boss with its facing as a gold cone, and the names, a red ring around each player it was on or hit, gold arrows from whose Virulence burst as it ran out to whom it hit. Refer to it; don't describe it again.
+Distance to Sszorak (yd), and degrees off the way it faced (0 straight in front, 180 straight behind):
+- Deathadim (tank): 5, 177°
+- Algmor (dps): 8, 67°
+- Lïzårðmâñ (healer): 9, 85°
+- Draiman (dps): 11, 10°
+- Peggerino (dps): 15, 72°
+- Sonyosh (dps): 15, 80°
+- Slushmania (dps): 15, 124°
+- Miralupa (healer): 15, 34°
+- Nexsozz (dps): 16, 157°
+- Dragepie (dps): 17, 100°
+- Agonco (dps): 18, 49°
+- Pomaa (dps): 21, 141°
+- Enfo (healer): 24, 16°
+- Fappachino (dps): 27, 166°
+- Namsus (healer): 28, 30°
+- Zebinomage (dps): 28, 107°
+- Krøpling (dps): 30, 138°
+- Scopidruid (dps): 31, 47°
+- Martin (dps): 34, 0°
+- Wutroll (tank): 34, 137°

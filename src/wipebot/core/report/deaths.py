@@ -1,0 +1,415 @@
+"""Deaths: one in detail (`death_recap`), what a ready defensive would have changed, and the raid's
+healthstones, potions and defensives over a boss (`defensives`)."""
+import asyncio
+from collections import Counter, defaultdict
+
+from .. import knowledge
+from ..knowledge import KnowledgeError, spaced
+from ..text import clock, ids_line, plural, short
+from . import healing as heals
+from . import positions
+from .base import FactError, Player, Report, unavailable
+
+RECAP_WINDOW_MS = 10_000  # damage shown before a death
+HEALTHSTONE_SPELL = 6262  # the Healthstone item's spell: its tooltip says what it heals
+CASCADE_MS = 15_000       # deaths this close together are probably linked
+DEATH_STRIP_MS = 250  # a dying player's auras are removed just before the death event
+
+
+async def death_recap(rep: Report, player: str, pull: int | None = None, boss: str | None = None,
+                      death: int = 1) -> str:
+    f = rep.fight(pull, boss)
+    p = rep.player(player)
+    rep.require_in(f, p)
+    deaths = await rep.deaths(f)
+    own = [d for d in deaths if d["targetID"] == p.id]
+    if not own:
+        return f"{p.name} did not die on {rep.label(f)}."
+    p = rep.in_pull(f, p)  # defensives of the spec played in this pull
+    if not 1 <= death <= len(own):
+        raise FactError(f"{p.name} died {len(own)} time(s) on {rep.label(f)}")
+    d = own[death - 1]
+    t0, at = f["startTime"], d["timestamp"]
+    (hits, hit_lines), healing, healers, auras, defensive_lines = await asyncio.gather(
+        _hits(rep, f, p, d), _healing_received(rep, f, p, at), heals.at_death(rep, f, p, at),
+        _aura_lines(rep, f, p, at), _defensives(rep, f, p, at))
+    others = [x for x in deaths if x is not d and abs(x["timestamp"] - at) <= CASCADE_MS]
+    burst = [x for x in others if abs(x["timestamp"] - at) <= BURST_MS]
+    pressed, raid_cds = await asyncio.gather(_if_pressed_lines(rep, f, p, d, hits),
+                                             _raid_cooldowns_lines(rep, f, [d, *burst]))
+    lines = [f"{p.label} died at {clock(at - t0)} on {rep.label(f)} ({rep.url(f)}). "
+             f"Killing blow: {rep.ability_ref(d.get('killingAbilityGameID'))}.", *hit_lines, *healing, *healers, *auras,
+             *defensive_lines]
+    if others:
+        lines.append(f"Other deaths within {CASCADE_MS // 1000} s: " + ", ".join(
+            f"{rep.names[x['targetID']]} ({rep.ability(x.get('killingAbilityGameID'))}, "
+            f"{clock(x['timestamp'] - t0)})" for x in others))
+    return "\n".join(lines + pressed + raid_cds)
+
+
+async def _hits(rep: Report, f: dict, p: Player, d: dict) -> tuple[list[dict], list[str]]:
+    """The damage a player took in the window before a death, and its lines: each hit with their health after it,
+    and where they were last when nothing is named as the killing blow."""
+    t0, at = f["startTime"], d["timestamp"]
+    # For DamageTaken, WCL's sourceID filter selects the player who took the damage.
+    hits = await rep.events(f["id"], "DamageTaken", sourceID=p.id, hostilityType="Friendlies",
+                            startTime=at - RECAP_WINDOW_MS, endTime=at + 1, includeResources=True)
+    lines = [f"Damage taken in the {RECAP_WINDOW_MS // 1000} s before death (time, ability, source, amount, "
+             "health after):"]
+    for h in hits:
+        hp = ""
+        if h.get("resourceActor") == 2 and h.get("maxHitPoints"):
+            hp = f"{100 * h['hitPoints'] / h['maxHitPoints']:.0f}% hp"
+        extra = []
+        if h.get("absorbed"):
+            extra.append(f"{short(h['absorbed'])} absorbed")
+        if h.get("overkill"):
+            extra.append(f"overkill {short(h['overkill'])}")
+        lines.append(f"  {clock(h['timestamp'] - t0)} {rep.ability(h['abilityGameID'])} from "
+                     f"{rep.actor(h['sourceID'])}: {short(h.get('amount', 0))}"
+                     + (f" ({', '.join(extra)})" if extra else "") + (f" -> {hp}" if hp else ""))
+    if not hits:
+        lines.append("  (no damage events recorded)")
+    else:
+        lines.append(ids_line({rep.ability(h["abilityGameID"]): h["abilityGameID"] for h in hits}))
+    if not d.get("killingAbilityGameID"):
+        if moved := await positions.last_moves(rep, f, p.id, at):
+            lines.append("No killing blow recorded. " + moved)
+    lines.append(f"Total {short(sum(h.get('amount', 0) for h in hits))} damage in the window.")
+    return hits, lines
+
+
+async def _aura_lines(rep: Report, f: dict, p: Player, at: float) -> list[str]:
+    t0 = f["startTime"]
+    auras = await _auras_at(rep, f, p, at)
+    given = [(n, src, since) for n, (src, since, _) in auras["buffs"].items() if src != p.id and src in rep.names]
+    return ["Buffs from others on them at death (gained during the pull): " + (", ".join(
+            f"{n} ({rep.names[src]}, from {clock(since - t0)})" for n, src, since in sorted(given, key=lambda x: x[2]))
+            or "none"),
+            "Enemy debuffs on them at death: " + (", ".join(
+                f"{n}{f' x{stack}' if stack > 1 else ''} (from {clock(since - t0)})"
+                for n, (_, since, stack) in sorted(auras["debuffs"].items(), key=lambda kv: kv[1][1])) or "none")]
+
+
+async def _if_pressed_lines(rep: Report, f: dict, p: Player, d: dict, hits: list[dict]) -> list[str]:
+    try:
+        return await if_pressed(rep, f, p, d, hits)
+    except KnowledgeError as e:
+        return [unavailable("If pressed (what a ready defensive would have changed)", e)]
+
+
+async def _raid_cooldowns_lines(rep: Report, f: dict, deaths: list[dict]) -> list[str]:
+    """When several died at once, the raid cooldowns ready then."""
+    if len(deaths) < BURST_DEATHS:
+        return []
+    try:
+        return await _raid_cooldowns_at(rep, f, deaths)
+    except KnowledgeError as e:
+        return [unavailable(f"Raid cooldowns ready when {plural(len(deaths), 'player')} died at once", e)]
+
+
+BURST_FROM_PCT = 60  # the lethal burst: the hits since the player was last at this much health or more
+
+
+BURST_DEATHS, BURST_MS = 3, 3_000  # this many deaths this close together: a moment for raid cooldowns
+
+
+async def _used_ever(rep: Report, p: Player, spells: list[dict]) -> set[str]:
+    """Which of these spells the player cast in any pull of the report: a defensive they never press may be a
+    talent they don't have or a passive."""
+    mine = [c for c in await rep.defensive_casts() if c.get("sourceID") == p.id]
+    return {sp["name"] for sp in spells for c in mine if rep.is_spell(c, sp)}
+
+
+async def _their_casts(rep: Report, f: dict, p: Player, until: float) -> list[dict]:
+    """The player's defensive and raid cooldown casts in one pull up to a moment."""
+    return [c for c in await rep.defensive_casts()
+            if c.get("fight") == f["id"] and c.get("sourceID") == p.id and c["timestamp"] <= until]
+
+
+def _ready(rep: Report, casts: list[dict], sp: dict, at: float) -> bool:
+    last = max((c["timestamp"] for c in casts if rep.is_spell(c, sp) and c["timestamp"] <= at), default=None)
+    return last is None or (at - last) / 1000 >= (sp.get("cooldown") or 0)
+
+
+async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict]) -> list[str]:
+    """Whether a ready defensive, a healthstone or a healing spell would have kept them alive: the lethal burst
+    replayed with the effect from the spell's tooltip. Secondary to why they died; the arithmetic, not a verdict on
+    the player."""
+    hp_hits = [h for h in hits if h.get("resourceActor") == 2 and h.get("maxHitPoints")]
+    overkill = next((h.get("overkill", 0) for h in reversed(hits) if h.get("overkill")), 0)
+    if not hp_hits or not overkill:
+        return []
+    max_hp = hp_hits[-1]["maxHitPoints"]
+    above = [i for i, h in enumerate(hits) if h.get("resourceActor") == 2 and h.get("maxHitPoints")
+             and 100 * h["hitPoints"] / h["maxHitPoints"] >= BURST_FROM_PCT]
+    burst = hits[above[-1] + 1:] if above and above[-1] + 1 < len(hits) else hits
+    start = burst[0]["timestamp"]
+    before_kill = next((h["hitPoints"] for h in reversed(hp_hits[:-1])), None)  # health before the killing hit
+    t0 = f["startTime"]
+    lines = [f"If pressed at the start of the lethal burst ({clock(start - t0)}, the first hit after they were last "
+             f"at {BURST_FROM_PCT}%+ health; {short(overkill)} overkill to make up; healing as it was; secondary to "
+             "what killed them):"]
+    casts = await _their_casts(rep, f, p, d["timestamp"])
+    spells = await rep.defensive_spells(p)
+    pressed = await _used_ever(rep, p, spells)
+    stones, _ = await rep.potions(f, p, until=d["timestamp"])
+    candidates = [(sp, sp["spell_id"]) for sp in spells if sp["name"] in pressed and _ready(rep, casts, sp, start)]
+    if not stones:
+        candidates.append(({"name": "a healthstone (if they had one; none used this pull)"}, HEALTHSTONE_SPELL))
+    for sp, spell_id in candidates:
+        effect = await knowledge.defensive_effect(spell_id)
+        if effect is None:
+            lines.append(f"  {sp['name']}: its tooltip doesn't say how much it does; can't tell")
+            continue
+        dur_ms = 1000 * (effect.duration_s or sp.get("duration") or 0)
+        covered = [h for h in burst if not dur_ms or h["timestamp"] <= start + dur_ms]
+        if effect.only == "aoe":
+            lines.append(f"  {sp['name']} ({effect}): the log doesn't say which hits were area damage; can't tell")
+            continue
+        if effect.only == "magic":
+            schools = await rep.schools()
+            covered = [h for h in covered if schools.get(h["abilityGameID"], 1) != 1]
+        if effect.kind == "heal":
+            room = max_hp - before_kill if before_kill is not None else max_hp
+            saved = min((effect.pct or 0) / 100 * max_hp, room)
+            how = f"heals {short(saved)} just before the killing hit"
+        elif effect.kind == "absorb":  # a shield or temporary health: on top of their health, not capped by it
+            saved = (effect.pct or 0) / 100 * max_hp
+            how = f"absorbs {short(saved)} of the burst"
+        else:
+            taken = sum(h.get("amount", 0) for h in covered)
+            saved = taken if effect.kind == "immunity" else (effect.pct or 0) / 100 * taken
+            how = f"{short(saved)} less of the {short(taken)} it covers"
+        verdict = "would have kept them alive" if saved > overkill else "not enough on its own"
+        if saved > overkill and effect.sure_s:  # only a moment of it is sure (Cloak of Shadows' tooltip)
+            sure = sum(h.get("amount", 0) for h in covered if h["timestamp"] <= start + 1000 * effect.sure_s)
+            if sure <= overkill:
+                verdict = (f"would have kept them alive only if it held for all {dur_ms // 1000:g} s: its tooltip "
+                           "promises the immunity for a moment, so can't be sure")
+        lines.append(f"  {sp['name']} ({effect}): {how}: {verdict}")
+    if len(lines) == 1:
+        return []
+    return lines
+
+
+async def _raid_cooldowns_at(rep: Report, f: dict, deaths: list[dict]) -> list[str]:
+    """Several players died at once: the raid cooldowns that cut damage or add health and were ready, their reach
+    from the tooltip, and how far apart the dead stood (a short-range one needs them stacked)."""
+    at = min(x["timestamp"] for x in deaths)
+    here = rep.pull_players(f)
+    pos = await positions.pull_positions(rep, f)
+    spots = [s for x in deaths if (s := positions.where_fell(pos.samples.get(x["targetID"], []), x["timestamp"]))]
+    spread = max((positions.distance_yd(a, b) for a in spots for b in spots), default=None)
+    found = []
+    for q in here.values():
+        raid = [sp for sp in await rep.spells(q) if "raid_cd" in (sp.get("tags") or []) and sp.get("cooldown")]
+        if not raid:
+            continue
+        pressed = await _used_ever(rep, q, raid)
+        casts = await _their_casts(rep, f, q, at)
+        for sp in raid:
+            if sp["name"] in pressed and _ready(rep, casts, sp, at):
+                effect = await knowledge.defensive_effect(sp["spell_id"])
+                if effect and effect.kind in ("reduction", "immunity", "absorb"):
+                    found.append(f"{sp['name']} ({q.name}; {effect})")
+    t0 = f["startTime"]
+    head = (f"{plural(len(deaths), 'player')} died within {BURST_MS // 1000} s of {clock(at - t0)}"
+            + (f", the farthest {spread:.0f} yd apart" if spread is not None else ""))
+    if not found:
+        return [f"{head}. No raid cooldown that cuts damage or adds health was ready then."]
+    return [f"{head}. Raid cooldowns that cut damage or add health and were ready (from those who use them this "
+            "report): " + "; ".join(found)]
+
+
+async def _healing_received(rep: Report, f: dict, p: Player, at: float) -> list[str]:
+    """Healing a player received in the recap window before a death: total, from whom, per second."""
+    t0 = f["startTime"]
+    heals = [e for e in await rep.events(f["id"], "Healing", targetID=p.id, startTime=at - RECAP_WINDOW_MS,
+                                           endTime=at + 1) if e["type"] == "heal"]
+    if not heals:
+        return ["Healing received in the window: none."]
+    total = sum(e.get("amount", 0) for e in heals)
+    over = sum(e.get("overheal", 0) for e in heals)
+    by_source: Counter = Counter()
+    per_second: Counter = Counter()
+    for e in heals:
+        by_source[rep.actor(rep.owner(e["sourceID"]))] += e.get("amount", 0)
+        per_second[(e["timestamp"] - t0) // 1000] += e.get("amount", 0)
+    start = (at - RECAP_WINDOW_MS - t0) // 1000
+    seconds = range(int(max(start, 0)), int((at - t0) // 1000) + 1)
+    return [f"Healing received in the window: {short(total)} effective (+{short(over)} overhealing), most from "
+            + ", ".join(f"{who} {short(n)}" for who, n in by_source.most_common(4)) + ".",
+            "  per second: " + " · ".join(f"{clock(sec * 1000)} +{short(per_second[sec])}" for sec in seconds)]
+
+
+async def _auras_at(rep: Report, f: dict, p: Player, at: float) -> dict[str, dict[str, tuple[int, float, int]]]:
+    """The buffs and the enemies' debuffs a player had at a moment: per kind, name -> (source actor, since,
+    stacks). Only auras gained during the pull (pre-pull raid buffs and consumables aren't events)."""
+    out: dict[str, dict[str, tuple[int, float, int]]] = {"buffs": {}, "debuffs": {}}
+    for kind, data_type in (("buffs", "Buffs"), ("debuffs", "Debuffs")):
+        # For auras, WCL's sourceID filter selects the player who has the aura; the events keep their source.
+        filters = {"hostilityType": "Friendlies"} if kind == "debuffs" else {}
+        events = await rep.events(f["id"], data_type, sourceID=p.id, endTime=at + 1, **filters)
+        active = out[kind]
+        for e in sorted(events, key=lambda e: e["timestamp"]):
+            if e.get("targetID") != p.id or (kind == "debuffs" and e.get("sourceID") in rep.names):
+                continue
+            name = rep.ability(e["abilityGameID"])
+            if e["type"] in ("applybuff", "applydebuff"):
+                active[name] = (e.get("sourceID", 0), e["timestamp"], 1)
+            elif e["type"] in ("applybuffstack", "applydebuffstack") and name in active:
+                source, since, _ = active[name]
+                active[name] = (source, since, e.get("stack", 1))
+            elif e["type"] in ("removebuff", "removedebuff") and e["timestamp"] < at - DEATH_STRIP_MS:
+                active.pop(name, None)
+    return out
+
+
+async def _defensives(rep: Report, f: dict, p: Player, at: float) -> list[str]:
+    """Which of the player's defensives (Lorrgs' list for the spec), healthstone and potions were used before
+    a death, whether each was ready at the time, and which defensive was up (a buff of their own)."""
+    casts, auras = await asyncio.gather(rep.casts(f, p, until=at), _auras_at(rep, f, p, at))
+    active = {name for name, (source, _, _) in auras["buffs"].items() if source == p.id}
+    t0 = f["startTime"]
+    lines = []
+    try:
+        defs = await rep.defensive_spells(p)
+    except KnowledgeError as e:
+        defs = None
+        lines.append(unavailable("Personal defensives", e))
+    if defs == []:
+        lines.append(f"Lorrgs lists no personal defensives for {p.spec} {p.class_name}.")
+    elif defs:
+        lines.append("Personal defensives (list and cooldowns from Lorrgs; use times from the log):")
+        for sp in defs:
+            times = [c["timestamp"] for c in casts if rep.is_spell(c, sp)]
+            if not times:
+                state = "not used this pull, so ready if talented"
+            else:
+                ready = (at - times[-1]) / 1000 >= sp["cooldown"]
+                state = (f"last used at {clock(times[-1] - t0)} ({sp['cooldown']:.0f} s cooldown), "
+                         + ("ready again" if ready else "on cooldown"))
+            if sp["name"] in active:
+                state += ", active at death"
+            lines.append(f"  {sp['name']}: {state}")
+    stones, potions = await rep.potions(f, p, until=at)
+    lines.append(f"Healthstones and healing potions before death: {stones}"
+                 + (f"; combat potions (they don't heal): {potions}" if potions else ""))
+    return lines
+
+
+async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = False,  # noqa: C901
+                     player: str | None = None) -> str:
+    """Every player's healthstones and healing potions and personal defensives over a boss's pulls, until each
+    wipe was decided: uses, and at each death whether a defensive was off cooldown but not used. With `player`,
+    each of their deaths instead, replayed with what was ready (the death recap's arithmetic)."""
+    fights = rep.by_boss[rep.boss(boss)]
+    if player:
+        return await _deaths_replayed(rep, rep.player(player), fights, whole_pull)
+    await rep.all_deaths(fights)
+    decided = {} if whole_pull else await rep.decided_cuts(fights)
+    cut = {f["id"]: decided.get(f["id"], f["endTime"]) for f in fights}
+    played = {f["id"]: rep.pull_players(f) for f in fights}
+    kits, casts, missing = await _kits(rep, played)
+    await rep.tables([(f["id"], {"endTime": cut[f["id"]]}) for f in fights], "Summary")  # potions, in one query
+    used: dict[tuple[int, int], list[tuple[float, dict]]] = defaultdict(list)  # (pull, player) -> (time, spell)
+    for c in casts:
+        q = played.get(c.get("fight"), {}).get(c.get("sourceID"))
+        if q and c["timestamp"] <= cut[c["fight"]]:
+            sp = next((sp for sp in kits[(q.class_name, q.spec)] if rep.is_spell(c, sp)), None)
+            if sp:
+                used[(c["fight"], q.id)].append((c["timestamp"], sp))
+    stones: Counter = Counter()
+    uses: dict[int, Counter] = defaultdict(Counter)
+    pulls_in: Counter = Counter()
+    deaths: Counter = Counter()
+    ready_at_death: dict[int, Counter] = defaultdict(Counter)  # player -> defensive -> deaths it was ready at
+    for f in fights:
+        for pid, q in played[f["id"]].items():
+            pulls_in[pid] += 1
+            stones[pid] += (await rep.potions(f, q, until=cut[f["id"]]))[0]
+            for _, sp in used[(f["id"], pid)]:
+                uses[pid][sp["name"]] += 1
+        for d in await rep.deaths(f):
+            q = played[f["id"]].get(d["targetID"])
+            if not q or d["timestamp"] > cut[f["id"]]:
+                continue
+            deaths[q.id] += 1
+            for sp in kits[(q.class_name, q.spec)]:
+                cd_ms = (sp.get("cooldown") or 0) * 1000
+                if not any(sp is s and d["timestamp"] - cd_ms < t <= d["timestamp"] for t, s in used[(f["id"], q.id)]):
+                    ready_at_death[q.id][sp["name"]] += 1
+    scope = "until each wipe was decided (whole_pull for the rest)" if not whole_pull else "whole pulls"
+    lines = [f"Healthstones and healing potions, and personal defensives (Lorrgs' defensive tag), on "
+             f"{rep.boss_key(fights[0])}: {plural(len(fights), 'pull')}, {scope}. Per player: pulls, healthstones "
+             "and potions, each defensive's uses, deaths, and at how many deaths each defensive they used on this "
+             "boss was off cooldown but unused (ignoring charges and cooldown reduction; whether one was needed is for "
+             "the death recap); defensives never cast are a talent choice or passive, not a miss:"]
+    for pid in sorted(pulls_in, key=lambda i: (-deaths[i], rep.names.get(i, ""))):
+        q = next(here[pid] for here in played.values() if pid in here)
+        kit = ", ".join(f"{n} {k}" for n, k in uses[pid].most_common()) or "no defensive used"
+        line = (f"- {q.name} ({spaced(q.spec)} {spaced(q.class_name)}): {plural(pulls_in[pid], 'pull')}, "
+                f"{stones[pid]} healthstone{'' if stones[pid] == 1 else 's'}/potion{'' if stones[pid] == 1 else 's'}, "
+                f"{kit}")
+        if deaths[pid]:
+            ready = ", ".join(f"{n} at {k}" for n, k in ready_at_death[pid].most_common() if uses[pid][n])
+            line += f"; died {deaths[pid]}" + (f", ready but unused: {ready}" if ready else "")
+        if never := sorted({sp["name"] for here in played.values() if pid in here
+                            for sp in kits[(here[pid].class_name, here[pid].spec)]} - set(uses[pid])):
+            line += f"; never cast: {', '.join(never)}"
+        lines.append(line)
+    if missing:
+        lines.append(missing)
+    elif not any(kits.values()):
+        lines.append("Lorrgs lists no defensives for these specs: only healthstones and potions are counted.")
+    return "\n".join(lines)
+
+
+async def _kits(rep: Report, played: dict[int, dict[int, Player]]
+                ) -> tuple[dict[tuple[str, str], list[dict]], list[dict], str]:
+    """Each spec's defensives from Lorrgs ((class, spec) -> spells), everyone's casts of them, and the line saying
+    they're unavailable (then none of either)."""
+    specs = {(q.class_name, q.spec): q for here in played.values() for q in here.values()}
+    try:
+        kits = dict(zip(specs, await asyncio.gather(*(rep.defensive_spells(q) for q in specs.values())), strict=True))
+        return kits, await rep.defensive_casts(), ""
+    except KnowledgeError as e:
+        return ({spec: [] for spec in specs}, [],
+                unavailable("Defensive lists", e) + " Only healthstones and potions are counted.")
+
+
+async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pull: bool) -> str:
+    """Each of a player's deaths on a boss before its wipe was decided, with what a ready defensive or a
+    healthstone would have changed (if_pressed, the death recap's replay)."""
+    fights = rep.pulls_with(p, fights)
+    await rep.all_deaths(fights)
+    decided = {} if whole_pull else await rep.decided_cuts(fights)
+    todo = [(f, d) for f in fights for d in await rep.deaths(f)
+            if d["targetID"] == p.id and d["timestamp"] <= decided.get(f["id"], f["endTime"])]
+    # The hits before each death, and each pull's potions up to it (if_pressed), in one query each.
+    windows = [(f["id"], {"startTime": d["timestamp"] - RECAP_WINDOW_MS, "endTime": d["timestamp"] + 1})
+               for f, d in todo]
+    hits, _ = await asyncio.gather(
+        rep.events_for(windows, "DamageTaken", sourceID=p.id, hostilityType="Friendlies", includeResources=True),
+        rep.tables([(f["id"], {"endTime": d["timestamp"]}) for f, d in todo], "Summary"))
+
+    async def one(f: dict, d: dict, hits: list[dict]) -> tuple[dict, dict, list[str]]:
+        return f, d, await if_pressed(rep, f, rep.in_pull(f, p), d, hits)
+    done = await asyncio.gather(*(one(f, d, h) for (f, d), h in zip(todo, hits, strict=True)))
+    saved = sum(any("would have kept them alive" in line for line in more) for _, _, more in done)
+    scope = "before each wipe was decided" if not whole_pull else "in the whole pulls"
+    lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, each replayed with "
+             f"what was ready (secondary to what killed them): a ready defensive or a healthstone would have kept "
+             f"them alive at {saved} of them."]
+    unknown = []
+    for f, d, more in done:
+        at = f"pull {rep.pull_no(f)} {clock(d['timestamp'] - f['startTime'])}"
+        if not more:
+            unknown.append(at)
+            continue
+        lines.append(f"- {at}, {rep.ability(d.get('killingAbilityGameID'))}: "
+                     + "; ".join(m.strip() for m in more[1:]))
+    if unknown:
+        lines.append(f"Can't tell at {len(unknown)} (no overkill or health logged): {', '.join(unknown)}")
+    return "\n".join(lines)

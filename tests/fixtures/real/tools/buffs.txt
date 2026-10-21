@@ -1,0 +1,26 @@
+Buffs on Sszorak pull 13, Scopidruid only, by aura (2:42 of combat):
+  1. Flask of the Blood Knights: 100% uptime, 1 application
+  2. Hearty Well Fed: 100% uptime, 1 application
+  3. Fury of the Dead: 100% uptime, 1 application
+  4. Vantus Rune: Tides: 100% uptime, 1 application
+  5. Vantus Rune: Sszorak: 100% uptime, 1 application
+  6. Lycara's Teachings: 29% uptime, 1 application
+  7. Moonkin Form: 29% uptime, 1 application
+  8. Orbit Breaker: 26% uptime, 35 applications
+  9. Rune of Critical Power: 25% uptime, 10 applications
+  10. Arcanoweave Insight: 25% uptime, 4 applications
+  11. Akil'zon's Rite: 23% uptime, 4 applications
+  12. Halazzi's Rite: 23% uptime, 4 applications
+  13. Eclipse (Solar): 21% uptime, 3 applications
+  14. Akil'zon's Clarity: 21% uptime, 12 applications
+  15. Eclipse (Lunar): 21% uptime, 2 applications
+  16. Incarnation: Chosen of Elune: 21% uptime, 2 applications
+  17. Starlord: 20% uptime, 8 applications
+  18. Blooming Infusion: 18% uptime, 3 applications
+  19. Potion of Recklessness: 18% uptime, 1 application
+  20. Umbral Embrace: 14% uptime, 6 applications
+  21. Solstice: 14% uptime, 7 applications
+  22. Balance of All Things: 12% uptime, 3 applications
+  23. Starfall: 10% uptime, 3 applications
+  24. Starweaver's Warp: 10% uptime, 2 applications
+  25. Sylvan Beckoning (Swiftmend): 10% uptime, 3 applications

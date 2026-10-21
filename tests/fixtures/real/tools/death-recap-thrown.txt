@@ -1,0 +1,30 @@
+Draiman (Assassination Rogue) died at 0:53 on Sszorak pull 13 (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Killing blow: no killing blow recorded.
+Damage taken in the 10 s before death (time, ability, source, amount, health after):
+  0:43 Raging Crosswinds from Sszorak: 11.48k (4.79k absorbed) -> 87% hp
+  0:43 Ula'tek's Presence from Environment: 41.05k (18.83k absorbed) -> 82% hp
+  0:44 Venomous Surge from Sszorak: 140.85k (2.86k absorbed) -> 75% hp
+  0:44 Raging Crosswinds from Sszorak: 15.95k (323 absorbed) -> 77% hp
+  0:45 Raging Crosswinds from Sszorak: 2.66k (13.61k absorbed) -> 86% hp
+  0:45 Ula'tek's Presence from Environment: 32.98k (20.91k absorbed) -> 83% hp
+  0:46 Raging Crosswinds from Sszorak: 15.95k (323 absorbed) -> 85% hp
+  0:47 Raging Crosswinds from Sszorak: 11.49k (4.78k absorbed) -> 99% hp
+  0:47 Raging Crosswinds from Sszorak: 316.92k (42.36k absorbed) -> 62% hp
+  0:48 Ula'tek's Presence from Environment: 56.81k (3.07k absorbed) -> 59% hp
+  0:49 Ula'tek's Presence from Environment: 58.69k (1.19k absorbed) -> 68% hp
+  0:51 Ula'tek's Presence from Environment: 61.29k (2.36k absorbed) -> 69% hp
+Ability ids: Raging Crosswinds [1285616], Ula'tek's Presence [1285965], Venomous Surge [1306120]
+No killing blow recorded. Last logged position at 0:51: 113 yd from the middle of the rest of the raid (90% of them within 29 yd of it), after moving 63 yd in the 3 s before. A long, fast move ending far from everyone fits being thrown or knocked off (look for a knockback just before); close to the raid, an instant kill the log doesn't name.
+Total 766.12k damage in the window.
+Healing received in the window: 653.03k effective (+31.90k overhealing), most from Cptola 273.68k, Lïzårðmâñ 136.39k, Enfo 130.47k, Draiman 89.44k.
+  per second: 0:43 +36.28k · 0:44 +124.07k · 0:45 +76.06k · 0:46 +131.96k · 0:47 +62.06k · 0:48 +105.27k · 0:49 +28.20k · 0:50 +36.62k · 0:51 +38.22k · 0:52 +14.29k · 0:53 +0
+Healers in the 5 s before the death (their casts, on the dying player marked): Cptola (Holy): Reclamation x8, Holy Shock, Divine Toll, Beacon of Virtue; Enfo (Restoration): Riptide x2, Chain Heal, Surging Totem; Namsus (Holy): Prayer of Mending, Holy Word: Serenity; Lïzårðmâñ (Preservation): Twin Flame x2, Verdant Embrace x2, Glide, Naturalize
+Buffs from others on them at death (gained during the pull): Earthliving Weapon (Enfo, from 0:38), Elemental Resistance (Enfo, from 0:43), Dream Breath (Lïzårðmâñ, from 0:47), Visage (Lïzårðmâñ, from 0:47)
+Enemy debuffs on them at death: Turbulent Gusts (from 0:47)
+Personal defensives (list and cooldowns from Lorrgs; use times from the log):
+  Cloak of Shadows: not used this pull, so ready if talented
+  Evasion: not used this pull, so ready if talented
+  Crimson Vial: not used this pull, so ready if talented
+  Feint: last used at 0:30 (15 s cooldown), ready again
+  Cheating Death: not used this pull, so ready if talented
+Healthstones and healing potions before death: 0; combat potions (they don't heal): 1
+Other deaths within 15 s: Scopidruid (Ula'tek's Presence, 0:48)

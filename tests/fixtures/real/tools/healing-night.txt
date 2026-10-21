@@ -1,0 +1,21 @@
+The raid's damage spikes and the healing into them, all 8 Entombed Sentinels pulls until the wipe was decided (the boss's enrage or half the raid dead in each pull). A spike: raid damage taken at 1.5x the pull's median or more over 5 s, at least 3 s long.
+Each pull's 3 biggest spikes (time, length, damage taken per second and the ability behind most of it, healing as a share of it, healing cooldowns used, deaths in it):
+  pull 1: 2:26 6 s 2.58M/s (Toxic Droplets), healing 102%, 2 cooldowns
+  pull 2: 2:55 10 s 3.34M/s (Mark of Blood), healing 79%, 0 cooldowns, 1 death
+  pull 3: 1:20 7 s 2.67M/s (Unstable Miasma), healing 92%, 1 cooldown · 2:23 4 s 2.53M/s (Toxic Droplets), healing 95%, 3 cooldowns
+  pull 4: 0:19 14 s 2.53M/s (Noxious Blast), healing 98%, 5 cooldowns · 1:06 6 s 1.74M/s (Helical Toxins), healing 88%, 0 cooldowns, 1 death
+  pull 5: 1:16 8 s 2.31M/s (Mark of Acid), healing 108%, 2 cooldowns · 2:02 10 s 2.80M/s (Mark of Acid), healing 83%, 0 cooldowns, 1 death · 2:17 5 s 2.90M/s (Mark of Acid), healing 84%, 0 cooldowns
+  pull 7: 1:18 6 s 2.81M/s (Contaminate), healing 84%, 2 cooldowns · 2:17 6 s 2.71M/s (Mark of Blood), healing 76%, 0 cooldowns, 1 death · 2:55 10 s 4.14M/s (Noxious Blast), healing 66%, 2 cooldowns, 11 deaths
+  pull 8: 6:55 18 s 3.77M/s (Melee), healing 62%, 1 cooldown, 12 deaths
+The spikes that came back pull after pull (starts within 10 s of each other; the abilities behind most of their damage, pulls, typical length, damage taken and healing per second, healing cooldowns used per spike, spikes with a healing cooldown ready and unused, deaths in them):
+  2:17-2:26, Mark of Blood, Toxic Droplets: 4 spikes in 4 pulls, 6 s, 2.64M/s taken, healing 2.42M/s; 1.2 healing cooldowns per spike, 4 with one ready and unused; 1 death
+  1:06-1:16, Mark of Acid, Mark of Blood: 2 spikes in 2 pulls, 7 s, 2.03M/s taken, healing 2.01M/s; 1.0 healing cooldowns per spike, 2 with one ready and unused; 1 death
+  1:18-1:20, Unstable Miasma, Contaminate: 2 spikes in 2 pulls, 6 s, 2.74M/s taken, healing 2.42M/s; 1.5 healing cooldowns per spike, 1 with one ready and unused; 0 deaths
+  2:55, Mark of Blood, Noxious Blast: 2 spikes in 2 pulls, 10 s, 3.74M/s taken, healing 2.68M/s; 1.0 healing cooldowns per spike, 1 with one ready and unused; 12 deaths
+Healing cooldowns most often ready and unused in a spike: Zephyr (Lïzårðmâñ) 6 times, Rewind (Lïzårðmâñ) 3 times, Stasis (Lïzårðmâñ) 3 times, Divine Hymn (Miralupa) 3 times, Apotheosis (Miralupa) 2 times
+Each healer in the spikes against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns):
+  Enfo (Restoration): 482.37k/s (19% overheal) in the spikes, 294.94k/s (30% overheal) the rest of the time; casting throughout in 111 s of spikes; 2 healing cooldowns in a spike, 0 left ready in one
+  Namsus (Holy): 410.05k/s (30% overheal) in the spikes, 308.30k/s (42% overheal) the rest of the time; casting throughout in 111 s of spikes; 4 healing cooldowns in a spike, 1 left ready in one
+  Miralupa (Holy): 434.41k/s (26% overheal) in the spikes, 307.73k/s (40% overheal) the rest of the time; no cast begun for 7 s in 111 s of spikes; 8 healing cooldowns in a spike, 5 left ready in one
+  Lïzårðmâñ (Preservation): 487.08k/s (27% overheal) in the spikes, 276.09k/s (45% overheal) the rest of the time; dead for 2 s in 111 s of spikes; 4 healing cooldowns in a spike, 12 left ready in one
+Ability ids: Toxic Droplets [1284451], Mark of Blood [1284506], Mark of Acid [1284500], Unstable Miasma [1288282], Contaminate [1284258], Noxious Blast [1284452], Helical Toxins [1284813]

@@ -1,0 +1,15 @@
+Enemies other than the boss on all 8 Nymrissa Wavecaller pulls, each whole pull, most damaged first (how many came and died over the pulls, in how many pulls, damage taken; then their casts with a cast bar: begun, kicked and by whom, gone through):
+  Bubblefin Shorerunner: 544 came over 8 pulls, 0 died, 544 with no death recorded, took 1.84B
+  Bubblefin Frostscale: 64 came over 8 pulls, 0 died, 64 with no death recorded, took 255.71M
+  Bubblefin Berserker: 69 came over 6 pulls, 3 died, 66 with no death recorded, took 49.44M
+  Shark: 6 came over 6 pulls, 0 died, 6 with no death recorded, took 0
+No death recorded for any Bubblefin Shorerunner, Bubblefin Frostscale: the log can't show when they were killed or in what order, only how many came, the damage they took and their casts.
+By pull (the most damaged kinds):
+  pull 1 (1:59, wipe): Bubblefin Shorerunner 34 came, 0 died; Bubblefin Frostscale 4 came, 0 died
+  pull 2 (2:30, wipe): Bubblefin Shorerunner 51 came, 0 died; Bubblefin Frostscale 6 came, 0 died; Bubblefin Berserker 2 came, 0 died; Shark 1 came, 0 died
+  pull 3 (4:14, wipe): Bubblefin Shorerunner 68 came, 0 died; Bubblefin Frostscale 8 came, 0 died; Bubblefin Berserker 4 came, 1 died; Shark 1 came, 0 died
+  pull 4 (5:44, wipe): Bubblefin Shorerunner 102 came, 0 died; Bubblefin Frostscale 12 came, 0 died; Bubblefin Berserker 16 came, 2 died; Shark 1 came, 0 died
+  pull 5 (2:09, wipe): Bubblefin Shorerunner 34 came, 0 died; Bubblefin Frostscale 4 came, 0 died; Bubblefin Berserker 8 came, 0 died; Shark 1 came, 0 died
+  pull 6 (2:07, wipe): Bubblefin Shorerunner 34 came, 0 died; Bubblefin Frostscale 4 came, 0 died; Bubblefin Berserker 6 came, 0 died; Shark 1 came, 0 died
+  pull 7 (7:38, wipe): Bubblefin Shorerunner 102 came, 0 died; Bubblefin Frostscale 12 came, 0 died; Bubblefin Berserker 33 came, 0 died; Shark 1 came, 0 died
+  pull 8 (7:06, KILL): Bubblefin Shorerunner 119 came, 0 died; Bubblefin Frostscale 14 came, 0 died

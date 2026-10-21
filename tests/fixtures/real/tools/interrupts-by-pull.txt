@@ -1,0 +1,5 @@
+Interrupts on Nek'zali the Soulcoiler (Mythic) pulls 1, 2:
+  Soulcoiler's Curse: 24 began, 17 kicked, 1 went through, 6 ended otherwise (the caster died or was moved); kicked by Agonco 4, Sinnatony 4, Draiman 3, Fappachino 3, Krøpling 2, Deathadim 1
+By pull:
+  Nek'zali the Soulcoiler (Mythic) pull 1 (4:10): Soulcoiler's Curse: 9 began, 6 kicked, 0 went through, 3 ended otherwise (the caster died or was moved)
+  Nek'zali the Soulcoiler (Mythic) pull 2 (6:46): Soulcoiler's Curse: 15 began, 11 kicked, 1 went through, 3 ended otherwise (the caster died or was moved)

@@ -1,0 +1,44 @@
+ReportFight (object): The ReportFight represents a single fight that occurs in the report.
+- averageItemLevel: Float — The average item level of the players in the fight.
+- bossPercentage: Float — The percentage health of the active boss or bosses at the end of a fight.
+- boundingBox: ReportMapBoundingBox — The bounding box that encloses the positions of all players/enemies in the fight.
+- classicSeasonID: Int — The season ID of a Classic fight. Will only be nonzero for Season of Mastery in Vanilla for now.
+- completeRaid: Boolean! — Whether or not a fight represents an entire raid from start to finish, e.g., in Classic WoW a complete run of Blackwing Lair.
+- countReached: Int — The enemy forces count reached by the end of a keystone dungeon.
+- countRequired: Int — The enemy forces count required to complete a keystone dungeon.
+- difficulty: Int — The difficulty setting for the raid, dungeon, or arena. Null for trash.
+- dungeonPulls: [ReportDungeonPull] — For a dungeon, a list of pulls that occurred in the dungeon. Pulls have details such as the enemies involved in the pull and map info showing where the pull took place.
+- encounterID: Int! — The encounter ID of the fight. If the ID is 0, the fight is considered a trash fight.
+- endTime: Float! — The end time of the fight. This is a timestamp with millisecond precision that is relative to the start of the report, i.e., the start of the report is considered time 0.
+- enemyNPCs: [ReportFightNPC] — Information about enemy NPCs involved in the fight. Includes report IDs, instance counts, and instance group counts for each NPC.
+- enemyPets: [ReportFightNPC] — Information about enemy pets involved in the fight. Includes report IDs, instance counts, and instance group counts for each pet.
+- enemyPlayers: [Int] — The IDs of all players involved in a fight. These players can be referenced in the master data actors table to get detailed information about each participant.
+- fightPercentage: Float — The actual completion percentage of the fight. This is the field used to indicate how far into a fight a wipe was, since fights can be complicated and have multiple bosses, no bosses, bosses that heal, etc.
+- friendlyItemLevels: [Int] — The item levels of all players involved in a fight. These item levels match with the friendlyPlayers array exactly.
+- friendlyNPCs: [ReportFightNPC] — Information about friendly NPCs involved in the fight. Includes report IDs, instance counts, and instance group counts for each NPC.
+- friendlyPets: [ReportFightNPC] — Information about friendly pets involved in the fight. Includes report IDs, instance counts, and instance group counts for each pet.
+- friendlyPlayers: [Int] — The IDs of all players involved in a fight. These players can be referenced in the master data actors table to get detailed information about each participant.
+- friendlySpecs: [String] — The specs of all players involved in a fight. These specs match with the friendlyPlayers array exactly.
+- gameZone: GameZone — The game zone the fight takes place in. This should not be confused with the zones used by the sites for rankings. This is the actual in-game zone info.
+- hardModeLevel: Int — The hard mode level of the fight. Most fights don't support optional hard modes. This only applies to bosses like Sartharion.
+- id: Int! — The report ID of the fight. This ID can be used to fetch only events, tables or graphs for this fight.
+- inProgress: Boolean — Whether or not the fight is still in progress. If this field is false, it means the entire fight has been uploaded.
+- keystoneAffixes: [Int] — The affixes for a Mythic+ dungeon.
+- keystoneBonus: Int — The bonus field represents Bronze, Silver or Gold in Challenge Modes, or +1-+3 pushing of Mythic+ keys. It has the values 1, 2, and 3.
+- keystoneLevel: Int — The keystone level for a Mythic+ dungeon.
+- keystoneTime: Int — The completion time for a Challenge Mode or Mythic+ Dungeon. This is the official time used on Blizzard leaderboards.
+- kill: Boolean — Whether or not the fight was a boss kill, i.e., successful. If this field is false, it means the fight was a wipe or a failed run, etc..
+- lastPhase: Int — The phase that the encounter was in when the fight ended. Counts up from 1 based off the phase type (i.e., normal phase vs intermission).
+- lastPhaseAsAbsoluteIndex: Int — The phase that the encounter was in when the fight ended. Always increases from 0, so a fight with three real phases and two intermissions would count up from 0 to 4.
+- lastPhaseIsIntermission: Boolean — Whether or not the phase that the encounter was in when the fight ended was an intermission or not.
+- layer: Int — The layer of a Torghast run.
+- maps: [ReportMap] — All the maps that were involved in a fight. For single bosses this will usually be a single map, but for dungeons it will typically be multiple maps.
+- name: String! — The name of the fight.
+- npcCountMap: JSON — A mapping from NPC ids to enemy forces count provided on kill.
+- originalEncounterID: Int — Some boss fights may be converted to trash fights (encounterID = 0). When this occurs, `originalEncounterID` contains the original ID of the encounter.
+- phaseTransitions: [PhaseTransition!] — List of observed phase transitions during the fight.
+- rating: Float — The official Blizzard rating for a completed Mythic+ dungeon or Torghast run.
+- size: Int — The group size for the raid, dungeon, or arena. Null for trash.
+- startTime: Float! — The start time of the fight. This is a timestamp with millisecond precision that is relative to the start of the report, i.e., the start of the report is considered time 0.
+- talentImportCode(actorID: Int!): String — The import/export code for a Retail Dragonflight talent build. Will be null for a classic or pre-Dragonflight fight.
+- wipeCalledTime: Float — If a wipe was explicitly called using the Companion app, then this field will contain the time. This is a timestamp with millisecond precision that is relative to the start of the report, i.e., the start of the report is considered time 0.

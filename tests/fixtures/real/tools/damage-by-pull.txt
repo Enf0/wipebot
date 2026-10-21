@@ -1,0 +1,3 @@
+DamageDone on Sszorak pulls 12, 13, each pull until its wipe was decided (the boss's enrage or half the raid dead; whole_pull for the rest), by pull:
+  Sszorak pull 12 (1:53): 292.64M (2.57M/s); top Nexsozz 27.68M (243.39k/s), Pomaa 22.72M (199.79k/s), Martin 22.43M (197.20k/s)
+  Sszorak pull 13 (2:32): 389.63M (2.55M/s); top Nexsozz 35.00M (228.81k/s), Martin 33.44M (218.62k/s), Pomaa 32.35M (211.51k/s)

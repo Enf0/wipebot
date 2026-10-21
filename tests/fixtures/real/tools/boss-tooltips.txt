@@ -1,0 +1,21 @@
+Sszorak Raid Boss Guide - Midnight Season 2: Strategy and Rewards. Source: Wowhead https://www.wowhead.com/guide/midnight/raids/venomous-abyss-sszorak-boss-strategy-abilities
+Abilities (Wowhead tooltip text; numbers may be for one difficulty):
+- Dig In (spell 1286033): Dig In.
+- Apex Predator (spell 1277025): Apex Predator.
+- Ravage (spell 1277002): Ravage.
+- Mutilate (spell 1277027): Mutilate.
+- Tempest (spell 1287072): Tempest.
+- Raging Crosswinds (spell 1285419): Raging Crosswinds.
+- Venomous Surge (spell 1305959): Venomous Surge.
+- Howling Maelstrom (spell 1285732): Howling Maelstrom.
+- Corroding Venom (spell 1282869): Corroding Venom.
+- Serpent's Fury (spell 1297367): Serpent's Fury.
+- Unbound Ferocity (spell 1296898): Unbound Ferocity.
+- To the Slaughter (spell 1297414): To the Slaughter.
+- Virulence (spell 1297707): Virulence.
+- Mutilated Gash (spell 1277051): Mutilated Gash.
+- Viscous Cyst (spell 1287008): Viscous Cyst.
+- Caustic Claws (spell 1305998): Caustic Claws.
+- Caustic Residue (spell 1296602): Caustic Residue.
+- Turbulent Gusts (spell 1285447): Turbulent Gusts.
+- Ula'tek's Presence (spell 1285961): Ula'tek's Presence.

@@ -1,0 +1,367 @@
+"""Claude, through the Claude Agent SDK, answering raiders with Wipebot's tools (`Session`).
+
+The tools are the core's MCP server, run in-process (no subprocess, one set of loaded reports), plus the bot's own
+(prompt.BOT_TOOLS), whose handlers come with each question. What the model reads is in prompt.py; what's made of its
+answer for Discord in discord_text.py. Only this module knows about the SDK.
+"""
+import functools
+import json
+import logging
+import re
+import tempfile
+import time
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass, field
+
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    ClaudeSDKClient,
+    ResultMessage,
+    TextBlock,
+    ThinkingBlock,
+    ToolAnnotations,
+    ToolUseBlock,
+    create_sdk_mcp_server,
+    tool,
+)
+from mcp.server.mcpserver.exceptions import ToolError
+
+from wipebot.core import raidstrats, server
+from wipebot.core.notebook import Notebook
+from wipebot.core.report import FactError, Report
+
+from . import prompt
+from .discord_text import polish
+
+log = logging.getLogger(__name__)
+
+# Claude Code attaches any file a prompt names as @path, tools or not, and a prompt carries what raiders, Discord and
+# Warcraft Logs wrote (a report's title, a thread's name): denying Read stops that, for any path. So does a prompt
+# whose every @ before a word is a full-width ＠ (`no_paths`), a guard that doesn't hang on how a new Claude Code
+# reads its settings.
+NO_FILES = json.dumps({"permissions": {"deny": ["Read"]}})
+
+
+def no_paths(text: str) -> str:
+    """The prompt with each @ that could start a path made a ＠, which Claude Code doesn't read as one."""
+    return re.sub(r"@(?=\S)", "＠", text)
+
+
+@functools.cache
+def _empty_dir() -> str:
+    """The sessions' working directory: an empty one, not the checkout with its .env."""
+    return tempfile.mkdtemp(prefix="wipebot-")
+
+
+@dataclass
+class Context:
+    """What a Discord message tells us besides its text: who asked, where, about which pull, and what the bot's own
+    tools do for this asker (`tools`, by name: the tool's arguments -> what to tell the model)."""
+    asker: str | None = None  # the asker's character, when known (`wipebot ask --as`)
+    discord_name: str | None = None  # the asker's Discord name, when their character isn't known
+    pull: int | None = None  # the pull it's about (a reply to the answer after it); None for the latest
+    boss: str | None = None
+    where: str = ""  # e.g. "in a DM"
+    guild: str | None = None  # the server's guild on Warcraft Logs: "name, realm, region", to find its other reports
+    earlier: str = ""  # the messages before this question that the conversation hasn't seen, from Discord
+    follow_up: bool = False  # `earlier` is what was said since the conversation's previous question (SINCE)
+    notes: list[str] = field(default_factory=list)  # the asker's standing preferences, remembered across conversations
+    tools: dict[str, Callable[[dict], Awaitable[str]]] = field(default_factory=dict)  # follow_pulls, remember
+    # raid_note and raid_plan: where the server's raid notes and plans are saved, and its guild's Warcraft Logs id
+    # they're saved under; None where none are kept (they take no note or plan from the model)
+    notebook: Notebook | None = None
+    guild_id: int = 0
+    noted: Sequence[str] = ()  # the bosses with a raid note saved in the server
+    planned: Sequence[str] = ()  # the bosses with a raid plan saved in the server
+
+
+SERVER = "wipebot"  # the tools' MCP server: the model calls mcp__wipebot__<tool>
+MAX_IMAGES = 4  # maps sent with one answer
+# A conversation's context (every tool result so far) is read again on every turn of every later answer, so a
+# long one makes each answer slower and dearer. Past this many tokens, the session is worn out: the bot closes it
+# after the answer, and the next question starts a new one with the place's recent messages (EARLIER) instead.
+CONTEXT_LIMIT = 100_000
+MAX_TURNS = 25  # model turns per answer: the evals' longest answers make about 20 tool calls
+# What one answer may spend. Claude Code's cap (max_budget_usd) counts the whole session, not one answer, so a session
+# gets twice this and is worn out once it has spent it: every answer may spend at least this and at most twice it.
+ANSWER_BUDGET_USD = 1.0
+# An answer that hit a cap ends with this result (ResultMessage.subtype); ModelError's kind is the cap.
+CAPPED = ("error_max_turns", "error_max_budget_usd")
+
+
+def context_size(usage: dict | None) -> int:
+    """The conversation's context after an answer, in tokens, from the SDK's usage: its last API call read the
+    whole context (cached or not) and added its output."""
+    last = ((usage or {}).get("iterations") or [usage or {}])[-1]
+    return sum(int(last.get(k) or 0) for k in
+               ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens"))
+
+
+@dataclass
+class ToolCall:
+    """A tool call as the tool ran it (with the session's report filled in) and what it returned."""
+    name: str
+    args: dict
+    result: str
+    failed: bool
+    images: list[bytes] = field(default_factory=list)  # images the tool drew (pull_map), for the answer
+    started: float = 0.0  # time.monotonic() when it started
+    duration_s: float = 0.0
+
+    def record(self, asked: float) -> dict:
+        """For the interaction record, with when it started counted from `asked` (the question's time.monotonic()):
+        the images stay out."""
+        return {"name": self.name, "args": self.args, "result": self.result, "failed": self.failed,
+                "images": len(self.images), "started_s": round(self.started - asked, 2),
+                "duration_s": round(self.duration_s, 2)}
+
+
+async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], None] | None = None,
+                    guild: Callable[[], str | None] | None = None,
+                    note: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
+                    plan: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None) -> list:
+    """The core's MCP tools, wrapped for the Agent SDK's in-process server. Tools that take a report get `code`
+    when the model names none, so sessions about different servers' reports don't mix. `on_result` gets every
+    call, failed ones too. `guild` gives the server's guild as "name, realm, region": find_reports asked with no
+    guild, or for that guild by name alone, gets the guild's name, realm and region. With `note`, raid_note
+    takes no note from the model: `note` finds the saved one for the call's pull, (note, where it's from), or says
+    why there's none. `plan` does the same for raid_plan (where it's from may be "": the plan's text says)."""
+    saved_args = {"raid_note": ("note", note), "raid_plan": ("plan", plan)}
+
+    def wrap(name: str, description: str, schema: dict):
+        takes_report = "report" in (schema.get("properties") or {})
+        arg, find = saved_args.get(name, ("", None))
+        if find:
+            schema = {**schema, "properties": {k: v for k, v in schema["properties"].items() if k != arg},
+                      "required": [r for r in schema.get("required", []) if r != arg]}
+            description = (description.replace("checked against", "saved in this server checked against", 1)
+                           .replace("plan from raidstrats.gg", "plan from raidstrats.gg saved in this server", 1))
+
+        async def handler(args: dict) -> dict:
+            if takes_report and code and not args.get("report"):
+                args = {**args, "report": code}
+            if name == "find_reports" and guild and (own := guild()):
+                args = with_own_guild(args, own)
+            started = time.monotonic()
+            try:
+                found = await find(args) if find else None
+                if isinstance(found, str):
+                    text, failed, images = found, False, []
+                else:
+                    text, failed, images = await server.call_with_images(
+                        name, {**args, arg: found[0]} if found else args)
+                    if found and found[1] and not failed:
+                        text = f"(The {arg} was {found[1]}.)\n{text}"
+            except (ToolError, FactError) as e:
+                log.warning("tool %s failed: %s", name, e)  # the model only paraphrases it
+                text, failed, images = str(e), True, []
+            if on_result:  # without the note or plan, which is the same in every call
+                on_result(ToolCall(name, args, text, failed, images, started, time.monotonic() - started))
+            # The model gets the text; an image goes to the user with the answer (Answer.images).
+            return {"content": [{"type": "text", "text": text}], "is_error": failed}
+        # Read-only tools may run side by side: the model often asks for several at once.
+        return tool(name, description, schema, annotations=ToolAnnotations(readOnlyHint=True))(handler)
+
+    return [wrap(t.name, t.description or "", t.input_schema) for t in await server.mcp.list_tools()]
+
+
+def with_own_guild(args: dict, own: str) -> dict:
+    """find_reports' arguments for the server's own guild ("name, realm, region"): asked with no guild at all
+    (there's no Warcraft Logs login in Discord to list "your own guilds"), or with its name alone, it gets the
+    guild's name, realm and region; another guild is left as asked."""
+    name, _, rest = own.partition(", ")
+    realm, _, region = rest.partition(", ")
+    asked = (args.get("guild") or "").strip().lower()
+    if (asked and asked != name.strip().lower()) or not (name and realm and region):
+        return args
+    return {**args, "guild": args.get("guild") or name, "server": args.get("server") or realm,
+            "region": args.get("region") or region}
+
+
+class ModelError(Exception):
+    """Claude's API refused the question: `kind` is the SDK's reason, e.g. billing_error when the API key's
+    credit has run out, or rate_limit; or the answer hit its cap of turns or spend (CAPPED). `answer` is what it
+    got to, without its text: the cost, the tool calls and the prompt, for the record."""
+
+    def __init__(self, kind: str, answer: Answer | None = None):
+        super().__init__(kind)
+        self.kind, self.answer = kind, answer
+
+
+@dataclass
+class Answer:
+    text: str
+    cost_usd: float | None = None  # this answer's own cost, not the conversation's so far
+    calls: list[ToolCall] = field(default_factory=list)  # every tool call, as it ran, with its result
+    # For the record of each answer (Store.record_interaction):
+    prompt: str = ""  # what the model got: earlier messages, the context line, the question
+    thinking: list[str] = field(default_factory=list)
+    model: str = ""
+    usage: dict | None = None  # tokens, from the SDK
+    turns: int | None = None
+    session_id: str = ""  # the Agent SDK's session, whose transcript has the same and more
+    asked: float = 0.0  # time.monotonic() when the question went to the model
+
+    def records(self) -> list[dict]:
+        """The tool calls for the interaction record."""
+        return [c.record(self.asked) for c in self.calls]
+
+    @property
+    def images(self) -> list[bytes]:
+        """The images the answer's tool calls drew (pull_map), to send with it; the last few."""
+        return [i for c in self.calls if not c.failed for i in c.images][-MAX_IMAGES:]
+
+
+class Session:
+    """One conversation about one report (`code`): follow-up questions keep the context, and a report still
+    being logged is refreshed before every question."""
+
+    def __init__(self, library: server.Library, code: str, model: str = "",
+                 on_tool: Callable[[str, dict], None] | None = None, name: str = "wipebot",
+                 system_prompt: str | None = None):
+        self.library, self.code, self.model, self.on_tool = library, code, model, on_tool
+        self.name = name  # what the bot calls itself: its name in Discord
+        # Another client's prompt in place of the bot's, without the bot's own tools (follow_pulls, remember): the
+        # evals answer as a client with only the connector would (claude.ai today: no instructions, no skill).
+        self.system_prompt = system_prompt
+        self._client: ClaudeSDKClient | None = None
+        self._calls: list[ToolCall] = []  # tool calls of the current question
+        self._ctx: Context | None = None  # the current question's
+        self._spent = 0.0  # the SDK's cost so far, which adds up over the conversation
+        self.context_tokens = 0  # the conversation's context after its last answer
+
+    @property
+    def worn_out(self) -> bool:
+        """Whether the conversation has grown past CONTEXT_LIMIT, or spent ANSWER_BUDGET_USD, and should be closed
+        after this answer."""
+        return self.context_tokens >= CONTEXT_LIMIT or self._spent >= ANSWER_BUDGET_USD
+
+    def _bot_tool(self, spec: prompt.BotTool):
+        """One of the bot's own tools, run by the current question's handler (Context.tools)."""
+        async def handler(args: dict) -> dict:
+            run = self._ctx.tools.get(spec.name) if self._ctx else None
+            started = time.monotonic()
+            text = await run(args) if run else spec.elsewhere
+            self._calls.append(ToolCall(spec.name, args, text, False, started=started,
+                                        duration_s=time.monotonic() - started))
+            return {"content": [{"type": "text", "text": text}]}
+        return tool(spec.name, spec.description, spec.schema)(handler)
+
+    async def _saved_note(self, args: dict) -> tuple[str, str] | str:
+        """raid_note: the server's note (Context.notebook) for the boss of the pull the call is about."""
+        if not (self._ctx and self._ctx.notebook):
+            return "Raid notes are only kept in Discord: there's none here."
+        report = await self.library.report(args.get("report") or self.code)
+        f = report.fight(args.get("pull"), args.get("boss"))
+        found = server.saved_note(self._ctx.notebook, self._ctx.guild_id, report, f, bool(args.get("all_pulls")))
+        return found or (f"No raid note is saved for {f['name']} in this server. Officers save one by pasting the "
+                         "note exported from Viserio to the bot.")
+
+    async def _saved_plan(self, args: dict) -> tuple[str, str] | str:
+        """raid_plan: every version of the server's plans (Context.notebook) for the boss of the call's pull, after
+        fetching them from raidstrats.gg when the guild has a login there; the tool checks each pull against the
+        version it was planned with."""
+        if not (self._ctx and self._ctx.notebook):
+            return "Raid plans are only kept in Discord: there's none here."
+        book, guild = self._ctx.notebook, self._ctx.guild_id
+        report = await self.library.report(args.get("report") or self.code)
+        f = report.fight(args.get("pull"), args.get("boss"))
+        await raidstrats.sync(book, guild)
+        login = book.login(guild)
+        fetching = raidstrats.client() is not None  # /wipebot raidstrats exists only then
+        source = raidstrats.source(login) if login else "saved from pastes" + (
+            ": no raidstrats.gg login is connected (an officer connects one with /wipebot raidstrats)" if fetching
+            else "")
+        if not (found := server.saved_plans(book, guild, report, f)):
+            return (f"No raid plan is saved for {report.boss_key(f)} in this server. Officers save one by pasting the "
+                    "plan's export from raidstrats.gg (the planner's Export button) to the bot"
+                    + (f", or have the plans fetched from raidstrats.gg with /wipebot raidstrats (the plans are "
+                       f"{source})" if fetching else "") + ".")
+        return "\n".join(found), source
+
+    async def __aenter__(self) -> Session:
+        self.report = await self.library.report(self.code)
+        bot = self.system_prompt is None  # else a client with only the connector: the core's raid_note and raid_plan
+        tools = await sdk_tools(self.code, self._calls.append, lambda: self._ctx.guild if self._ctx else None,
+                                self._saved_note if bot else None, self._saved_plan if bot else None)
+        if bot:
+            tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
+        options = ClaudeAgentOptions(
+            system_prompt=(prompt.system_prompt(self.name, server.skill())
+                           if self.system_prompt is None else self.system_prompt),
+            mcp_servers={SERVER: create_sdk_mcp_server(SERVER, tools=tools)},
+            tools=[],  # no built-in tools: no files, shell or web
+            allowed_tools=[f"mcp__{SERVER}__{t.name}" for t in tools],
+            setting_sources=[],  # don't pick up the developer's CLAUDE.md, settings or plugins
+            strict_mcp_config=True,  # nor their other MCP servers and claude.ai connectors
+            settings=NO_FILES,
+            cwd=_empty_dir(),
+            max_turns=MAX_TURNS,
+            max_budget_usd=2 * ANSWER_BUDGET_USD,
+            model=self.model or None,
+        )
+        self._client = ClaudeSDKClient(options)
+        await self._client.connect()
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        if self._client:
+            await self._client.disconnect()
+
+    async def ask(self, question: str, ctx: Context) -> Answer:
+        assert self._client, "use 'async with Session(...)'"
+        self.report = await self.library.report(self.code)  # picks up new pulls of a live report
+        text = no_paths(prompt.message(question, ctx, self.report, await self.report.guild_run_doubt(),
+                                       raids=await self.report.raids()))
+        self._ctx = ctx
+        asked = time.monotonic()
+        await self._client.query(text)
+        self._calls.clear()
+        answer = Answer("", prompt=text, asked=asked)
+        texts: list[str] = []
+        error = None
+        async for msg in self._client.receive_response():
+            if isinstance(msg, AssistantMessage):
+                answer.model = msg.model
+                error = error or msg.error  # its text is the API's error message, not an answer
+                step = []
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        step.append(block.text)
+                    elif isinstance(block, ThinkingBlock):
+                        answer.thinking.append(block.thinking)
+                    elif isinstance(block, ToolUseBlock):
+                        name = block.name.removeprefix(f"mcp__{SERVER}__")
+                        if self.on_tool:
+                            self.on_tool(name, block.input)
+                if step:
+                    texts.append("".join(step))
+            elif isinstance(msg, ResultMessage):
+                if msg.total_cost_usd is not None:
+                    answer.cost_usd = msg.total_cost_usd - self._spent
+                    self._spent = msg.total_cost_usd
+                answer.usage, answer.turns, answer.session_id = msg.usage, msg.num_turns, msg.session_id
+                self.context_tokens = context_size(msg.usage)
+                if msg.subtype in CAPPED:  # what it wrote so far is half an answer
+                    error = error or msg.subtype
+        answer.calls = list(self._calls)
+        if error:
+            raise ModelError(error, answer)
+        text = texts[-1].strip() if texts else "(no answer)"  # the last text is the answer
+        answer.text = polish(text, [c.result for c in answer.calls if not c.failed],
+                             await self._reports_read(answer.calls))
+        return answer
+
+    async def _reports_read(self, calls: Sequence[ToolCall]) -> list[Report]:
+        """The session's report, then the others the tool calls read (a question about another night), for
+        linking the answer's abilities and pulls."""
+        out = [self.report]
+        for code in dict.fromkeys(str(c.args["report"]) for c in calls if c.args.get("report")):
+            try:
+                report = await self.library.report(code, max_age_s=float("inf"))  # loaded by the call itself
+            except Exception:  # not a report the tools could read: nothing to link from it
+                continue
+            if report.code not in {r.code for r in out}:
+                out.append(report)
+        return out

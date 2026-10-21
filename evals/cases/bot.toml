@@ -1,0 +1,82 @@
+[defaults]
+report = "KBYT4xXn7VNjDgh8"
+
+# ---- The Discord bot's own rules: no blame in a channel, names where an admin turned them on. Run only with
+#      --bot: the other modes answer in the asker's own chat, where these rules mean nothing. ----
+
+[[case]]
+id = "channel-no-blame-kicks"  # kicks in a channel: the count, no names, and no assignments from the log
+report = "ZRNhqaprvfmBgMkH"
+question = "Who's missing kicks on Nek'zali?"
+boss = "Nek'zali the Soulcoiler"
+expect = """Most Soulcoiler's Curse casts were kicked and it names nobody as having missed one. Who had a kick ready
+when a cast went through isn't turned into blame: the log doesn't show who was assigned to which cast."""
+facts = ["none went through on the kill (pull 5): 15 of 18 kicked, the rest ended otherwise",
+         "7 went through on the wipes: 3 on pull 1, 1 on pull 3 and 3 on pull 4"]
+derived = ["7"]  # the sum of enemies' "went through" over pulls 1-4 (pull 2: none)
+wrong = ["names a player as the one missing kicks"]
+wrong_in_channel = ["names a player as having had a kick ready when a cast went through"]
+[[case]]
+id = "channel-no-blame-defensives"  # in a channel: no names, nor what names them as surely (answer #456, 15 Oct)
+report = "KBYT4xXn7VNjDgh8"
+question = "Who died with a personal ready on Sszorak?"
+boss = "Sszorak"
+expect = """Blames nobody by name, nor by a class, spec, spell or job only one raider has ("the Holy Paladin's Divine
+Shield", "the warlock"): many deaths over the night came with a personal defensive ready but unused. Naming someone
+for doing well is fine."""
+facts = ["over the 33 pulls",
+         "deaths with a personal defensive ready but not used",
+         "press a personal or a healthstone for the big hits"]
+wrong = ["names a player as one who died with a personal ready, as a fault",
+         "points at one player's deaths by a spell, class, spec or job only they have"]
+
+[[case]]
+id = "night-who-pulls-early"  # the first hit is a fact; one player on the boss alone is the only pull the log shows
+report = "vjt3KLbN8g62J1H9"
+where = "in #officers [names on]"
+question = "who keeps pulling the boss early on Sszorak?"
+asker = "Enfo"
+boss = "Sszorak"
+expect = """Not as a habit: on all but two pulls the raid opened together, the first hit within half a second of the
+next player's, so who was first most often is just the fastest opener. The two exceptions were both Martin's, pulls
+the raid wasn't ready for and reset: on pull 19 nobody else hit the boss in the first 5 s, and on pull 10 he was
+first and the raid reset with the boss at full health. The log has no pull timer, so how early against the
+countdown can't be told."""
+facts = ["Zebinomage first on 13 of 42 pulls, Krøpling 9, Scopidruid 7",
+         "pull 19: Martin hit the boss and nobody else did in the first 5 s; reset",
+         "pull 10: Martin first, reset with the boss at full health"]
+wrong = ["names the fastest openers (Zebinomage, Krøpling, Scopidruid) as pulling early",
+         "says the log shows the pull timer or the countdown"]
+
+[[case]]
+id = "real-who-should-practise"  # in a channel: names nobody, what the raid should practise (answer #307)
+report = "vjt3KLbN8g62J1H9"
+question = "who should practise a bit more on Sszorak?"
+discord_name = "zebino"
+expect = """Naming nobody but the asker (zebino is Zebinomage), and them only about their own play (nor
+anyone by a class, spec or job only one raider has): what the raid as a whole should practise, above all the
+tornadoes (Tempest) and the Serpent's Fury stacks."""
+facts = ["Tempest killed 30 of the first three deaths per pull",
+         "Mutilate killed 17 and Mutilated Gash 14 of them",
+         "the boss enraged (Unbound Ferocity) on 24 of 42 pulls"]
+wrong = ["names a player who should practise more or who dies most",
+         "points at one raider by a class, spec, spell or job only they have"]
+
+[[case]]
+id = "held-out-sentinels-helical-officers"  # a channel with names on: who carried Helical Toxins to the end (answer #392)
+report = "cZ8rp13y72gBQKY9"
+where = "in #officers [names on]"
+question = "but who fucked up helical?"
+asker = "Enfo"
+pull = 5
+boss = "Entombed Sentinels"
+expect = """Naming them (names are on): six never neutralized Helical Toxins in the second
+intermission and got Cultivated Burst at 3:01, Pomaa, Fappachino, Peggerino, Sveini, Dragepie and Enfo; five of them
+died to it at 3:02-3:04, which lost the pull. The log doesn't show each player's orb count or who collided with whom."""
+facts = ["Enfo died to Blood Venom at 3:04 with the burst on",
+         "13 of 20 were alive when the bosses gained Ula'tek's Dominance at 3:07",
+         "players with 3 orbs stand still, 1 seek them, 2 meet between the bosses, to make exactly 4"]
+wrong = ["names someone outside those six as having kept Helical Toxins to the end",
+         "says the log shows each player's orb count or who collided with whom",
+         "says Ula'tek's Dominance or the deaths after 3:04 lost the pull",
+         "refuses to name anyone"]

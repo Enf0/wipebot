@@ -1,0 +1,104 @@
+The raid note for Sszorak (Mythic), checked against every Sszorak pull (42), each until its wipe was decided (the boss's enrage or half the raid dead) and against the note as it was saved before it began. "p3 1:15" is pull 3 at 1:15.
+Assignments in the note's text:
+  Mutilate Soaks: Left: Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus; Right: Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa
+  Intermission Orb Popper: Orb Popper: Dragepie
+  Virulence Spreads: Spread: Nexsozz Pomaa Fappachino Algmor Mizaroth Deathadim Agonco Slushmania Sonyosh Peggerino Scopidruid Zebinomage Krøpling Dragepie Draiman; Bait Serpent's Fury / Bite: Martin; Don't Stack: Enfo Namsus Miralupa Lïzårðmâñ
+  Virulence trigger: Trigger: Martin
+Mutilate Soaks: 172 hits of Mutilate [1285999] over 42 pulls (10 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
+  Miralupa (Right): hit by 1 of 88; missed 87: p1 0:20, p2 0:08, p2 1:07, p3 0:20, p4 0:24, p4 1:11, p4 2:31, p5 0:24, p5 0:55, p6 0:16, p6 1:11, p7 0:24 and 75 more, the last p42 3:06; in the other group's 1
+  Namsus (Left): hit by 12 of 84; missed 72: p1 0:08, p2 0:20, p2 0:59, p3 0:16, p3 0:55, p3 0:59, p4 0:08, p4 1:03, p5 0:20, p5 0:59, p6 0:08, p6 1:07 and 60 more, the last p42 3:14; in the other group's 5
+  Enfo (Left): hit by 21 of 84; missed 63: p1 0:08, p2 0:20, p2 0:59, p3 0:16, p3 0:59, p4 0:08, p4 1:03, p5 0:20, p5 0:59, p6 0:08, p6 1:07, p7 0:11 and 51 more, the last p42 3:14; in the other group's 2
+  Lïzårðmâñ (Right): hit by 49 of 87; missed 38: p1 0:20, p2 0:08, p2 1:07, p3 0:20, p4 0:24, p4 2:31, p5 0:24, p5 0:55, p6 0:16, p6 1:11, p7 0:24, p7 0:55 and 26 more, the last p42 3:06; dead for 1 more; in the other group's 5
+  Algmor (Left): hit by 71 of 80; missed 9: p1 0:08, p2 0:59, p3 0:55, p3 0:59, p4 1:03, p5 0:59, p6 1:07, p8 1:11, p19 0:08; dead for 4 more; in the other group's 5
+  Scopidruid (Left): hit by 69 of 78; missed 9: p1 0:08, p3 0:55, p3 0:59, p19 0:08, p25 1:03, p33 1:07, p37 2:31, p42 2:23, p42 3:14; dead for 6 more; in the other group's 4
+  Dragepie (Right): hit by 80 of 87; missed 7: p1 0:20, p7 0:55, p9 0:20, p10 0:08, p27 2:23, p30 0:16, p33 0:55; dead for 1 more; in the other group's 2
+  Peggerino (Right): hit by 79 of 86; missed 7: p5 0:24, p10 0:08, p11 2:31, p21 0:55, p32 2:15, p33 0:55, p42 3:06; dead for 2 more; in the other group's 2
+  Zebinomage (Right): hit by 80 of 87; missed 7: p2 1:07, p7 2:15, p10 0:08, p13 0:16, p32 2:15, p33 0:55, p35 0:55; dead for 1 more
+  Sonyosh (Left): hit by 75 of 81; missed 6: p1 0:08, p3 0:59, p4 2:15, p6 0:08, p19 0:08, p28 0:24; dead for 3 more; in the other group's 1
+  Agonco (Left): hit by 69 of 73; missed 4: p4 1:03, p6 1:07, p19 0:08, p28 0:24; dead for 11 more; in the other group's 2
+  Fappachino (Right): hit by 83 of 87; missed 4: p13 0:16, p37 2:27, p42 2:31, p42 3:06; dead for 1 more; in the other group's 5
+  Nexsozz (Left): hit by 79 of 83; missed 4: p1 0:08, p3 0:59, p14 1:11, p19 0:08; dead for 1 more; in the other group's 1
+  Krøpling (Left): hit by 79 of 82; missed 3: p1 0:08, p3 0:59, p19 0:08; dead for 2 more
+  Pomaa (Right): hit by 85 of 88; missed 3: p4 2:31, p10 0:08, p21 0:55; in the other group's 2
+  Deathadim (Left): hit by 82 of 84; missed 2: p2 0:59, p3 0:55; in the other group's 3
+  Draiman (Left): hit by 28 of 30; missed 2: p32 2:31, p33 1:07; dead for 1 more; in the other group's 2
+  Slushmania (Right): hit by 85 of 86; missed 1: p42 3:06; dead for 2 more; in the other group's 3
+  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Miralupa (1 of 88), Namsus (12 of 84)
+  Hit, in no group: Wutroll 89, Sveini 46, Martin 30
+Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
+  Enfo: 132 planned uses; on time 14, early 36 (2 s), late 28 (6 s), not cast 50, dead 4
+    1:08 Ascendance [114052], 36 pulls: on time 4, early 2 (2 s), late 19 (7 s), not cast 10 (p2, p3, p4, p5, p6, p13, p22, p29, p35, p36), dead 1
+    1:08 Poison Cleansing Totem [383013], 36 pulls: on time 3, early 14 (5 s), late 3 (3 s), not cast 16 (p2, p3, p4, p5, p6, p7, p8, p9, p11, p13, p22, p27 and 4 more)
+    1:12 Spirit Link Totem [98008], 35 pulls: on time 2, early 18 (2 s), late 5 (3 s), not cast 9 (p2, p3, p4, p5, p6, p13, p36, p39, p41), dead 1
+    1:39 Wind Rush Totem [192077], 23 pulls: on time 5, early 2 (2 s), late 1 (16 s), not cast 13 (p4, p8, p14, p15, p16, p17, p25, p27, p30, p32, p37, p39 and 1 more), dead 2
+    3:14 Poison Cleansing Totem [383013], 1 pull: not cast 1 (p42)
+    3:46 Wind Rush Totem [192077], 1 pull: not cast 1 (p42)
+  Dragepie: 66 planned uses; on time 1, early 12 (3 s), late 2 (2 s), not cast 49, dead 2
+    0:11 Zephyr [374227], 42 pulls: not cast 42 (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12 and 30 more)
+    1:50 Time Spiral [374968], 15 pulls: early 11 (3 s), late 2 (2 s), not cast 1 (p39), dead 1
+    2:19 Zephyr [374227], 8 pulls: on time 1, early 1 (2 s), not cast 5 (p4, p27, p32, p37, p42), dead 1
+    3:57 Time Spiral [374968], 1 pull: not cast 1 (p42)
+  Lïzårðmâñ: 138 planned uses; on time 13, early 55 (14 s), late 21 (6 s), not cast 44, dead 5
+    0:16 Stasis (Store) [370537], 42 pulls: early 40 (14 s), not cast 1 (p10), dead 1
+    0:58 Zephyr [374227], 38 pulls: on time 4, early 4 (3 s), late 7 (5 s), not cast 22 (p3, p5, p8, p14, p15, p18, p21, p22, p24, p25, p27, p28 and 10 more), dead 1
+    1:20 Rewind [363534], 24 pulls: on time 9, early 8 (2 s), late 2 (2 s), not cast 5 (p2, p7, p8, p11, p14)
+    1:37 Time Spiral [374968], 23 pulls: early 1 (2 s), late 12 (8 s), not cast 10 (p8, p15, p17, p25, p26, p28, p30, p32, p37, p41)
+    2:15 Stasis (Store) [370537], 8 pulls: early 1 (27 s), not cast 6 (p4, p7, p23, p27, p37, p42), dead 1
+    3:05 Zephyr [374227], 1 pull: early 1 (5 s)
+    3:44 Time Spiral [374968], 1 pull: dead 1
+    3:47 Stasis (Store) [370537], 1 pull: dead 1
+  Scopidruid: 62 planned uses; on time 8, early 23 (3 s), not cast 20, dead 11
+    0:27 Stampeding Roar [106898] for Virulence [1297707], 40 pulls: on time 8, early 23 (3 s), not cast 9 (p1, p2, p3, p4, p5, p6, p12, p22, p29)
+    1:40 Stampeding Roar [106898], 21 pulls: not cast 11 (p7, p11, p15, p16, p23, p25, p27, p32, p37, p41, p42), dead 10
+    3:22 Stampeding Roar [106898] for Virulence [1297707], 1 pull: dead 1
+  Deathadim: 35 planned uses; on time 4, early 13 (4 s), late 2 (3 s), not cast 15, dead 1
+    1:11 Anti-Magic Zone [51052], 35 pulls: on time 4, early 13 (4 s), late 2 (3 s), not cast 15 (p2, p14, p15, p16, p23, p24, p26, p27, p28, p29, p31, p33 and 3 more), dead 1
+  Namsus: 88 planned uses; on time 16, early 20 (4 s), late 37 (5 s), not cast 14, dead 1
+    0:16 Apotheosis [200183], 42 pulls: on time 12, early 6 (2 s), late 15 (6 s), not cast 8 (p12, p19, p20, p21, p26, p30, p31, p36), dead 1
+    1:03 Divine Hymn [64843], 37 pulls: on time 4, early 12 (12 s), late 17 (6 s), not cast 4 (p6, p18, p21, p35)
+    2:22 Apotheosis [200183], 8 pulls: early 1 (8 s), late 5 (1 s), not cast 2 (p27, p32)
+    3:14 Divine Hymn [64843], 1 pull: early 1 (3 s)
+  Miralupa: 88 planned uses; on time 15, early 9 (2 s), late 52 (6 s), not cast 12
+    0:16 Divine Hymn [64843], 42 pulls: on time 7, early 1 (2 s), late 31 (5 s), not cast 3 (p1, p10, p19)
+    1:03 Apotheosis [200183], 37 pulls: on time 8, early 8 (2 s), late 17 (8 s), not cast 4 (p3, p21, p22, p33)
+    2:23 Divine Hymn [64843], 8 pulls: late 3 (9 s), not cast 5 (p4, p7, p23, p27, p32)
+    3:10 Apotheosis [200183], 1 pull: late 1 (7 s)
+  Fappachino: 35 planned uses; on time 4, early 15 (3 s), late 2 (2 s), not cast 11, dead 3
+    1:12 Darkness [196718], 35 pulls: on time 4, early 15 (3 s), late 2 (2 s), not cast 11 (p3, p4, p5, p13, p18, p23, p24, p26, p29, p30, p40), dead 3
+  Nexsozz: 41 planned uses; on time 1, early 29 (12 s), late 4 (3 s), not cast 7
+    0:20 Anti-Magic Zone [51052], 40 pulls: on time 1, early 29 (12 s), late 4 (3 s), not cast 6 (p1, p4, p13, p33, p38, p42)
+    3:20 Anti-Magic Zone [51052], 1 pull: not cast 1 (p42)
+  Pomaa: 33 planned uses; on time 4, early 19 (3 s), late 2 (3 s), not cast 5, dead 3
+    1:15 Rallying Cry [97462], 33 pulls: on time 4, early 19 (3 s), late 2 (3 s), not cast 5 (p5, p6, p28, p29, p35), dead 3
+  Sonyosh: 84 planned uses; on time 27, early 23 (2 s), late 26 (2 s), not cast 4, dead 4
+    0:21 Poison Cleansing Totem [383013], 40 pulls: on time 13, early 18 (3 s), late 8 (2 s), not cast 1 (p4)
+    1:08 Wind Rush Totem [192077], 36 pulls: on time 9, early 5 (2 s), late 16 (2 s), not cast 2 (p3, p38), dead 4
+    2:27 Poison Cleansing Totem [383013], 7 pulls: on time 4, late 2 (2 s), not cast 1 (p7)
+    3:15 Wind Rush Totem [192077], 1 pull: on time 1
+Callouts to one player or to everyone over the pulls, per callout and per player it names, most often pressing none first: how many of the callouts they were alive for, at how many they pressed a spell Lorrgs tracks for their spec from 3 s before to 5 s after it (callouts by the tag of what they pressed: defensive, raid_cd, tank, move, dps or untagged; which answer a callout is in its words), and the ones they pressed none at, with the tags of what was ready then (callouts with a spell of that tag ready):
+  "Trigger Virulence" to Martin (78 callouts over 40 pulls, at 0:25, 1:15, 2:32, 3:22):
+    Martin: alive for 78; pressed at 7 (defensive 5, untagged 2); none at 71: p1 0:25, p2 0:25, p2 1:15, p3 0:25, p4 0:25, p4 1:15, p5 0:25, p5 1:15, p6 0:25, p6 1:15, p7 0:25, p7 1:15 and 59 more, the last p42 3:22 (ready: defensive 71, move 67, untagged 2)
+  "Big Personals" to everyone (34 callouts over 33 pulls, at 1:15, 3:19):
+    Deathadim: alive for 34; pressed at 5 (move 2, raid_cd 2, tank 1); none at 29: p5 1:15, p6 1:15, p7 1:15, p8 1:15, p9 1:15, p11 1:15, p14 1:15, p15 1:15, p16 1:15, p17 1:15, p23 1:15, p24 1:15 and 17 more, the last p42 3:19 (ready: defensive 29, tank 29, untagged 29, move 28, raid_cd 12)
+    Martin: alive for 34; pressed at 8 (untagged 5, defensive 4); none at 26: p2 1:15, p4 1:15, p5 1:15, p7 1:15, p8 1:15, p9 1:15, p11 1:15, p14 1:15, p15 1:15, p16 1:15, p18 1:15, p25 1:15 and 14 more, the last p42 1:15 (ready: defensive 26, move 24, untagged 2)
+    Miralupa: alive for 34; pressed at 8 (raid_cd 8, defensive 1); none at 26: p2 1:15, p4 1:15, p5 1:15, p6 1:15, p7 1:15, p8 1:15, p9 1:15, p11 1:15, p13 1:15, p15 1:15, p16 1:15, p17 1:15 and 14 more, the last p40 1:15 (ready: defensive 26, move 26, untagged 26, raid_cd 1)
+    Sonyosh: alive for 29; pressed at 4 (defensive 3, move 1); none at 25: p2 1:15, p4 1:15, p7 1:15, p9 1:15, p13 1:15, p14 1:15, p15 1:15, p16 1:15, p17 1:15, p23 1:15, p24 1:15, p25 1:15 and 13 more, the last p42 3:19 (ready: defensive 25, move 7)
+    Wutroll: alive for 33; pressed at 8 (untagged 8); none at 25: p2 1:15, p4 1:15, p5 1:15, p6 1:15, p7 1:15, p8 1:15, p9 1:15, p11 1:15, p13 1:15, p14 1:15, p15 1:15, p16 1:15 and 13 more, the last p42 1:15 (ready: tank 25, untagged 25, defensive 15)
+    Namsus: alive for 34; pressed at 10 (defensive 7, raid_cd 3); none at 24: p2 1:15, p5 1:15, p6 1:15, p9 1:15, p11 1:15, p14 1:15, p16 1:15, p18 1:15, p23 1:15, p25 1:15, p26 1:15, p27 1:15 and 12 more, the last p42 3:19 (ready: untagged 24, move 22, defensive 17, raid_cd 6)
+    Nexsozz: alive for 31; pressed at 7 (move 5, untagged 4); none at 24: p7 1:15, p9 1:15, p13 1:15, p14 1:15, p15 1:15, p16 1:15, p17 1:15, p18 1:15, p23 1:15, p24 1:15, p25 1:15, p26 1:15 and 12 more, the last p42 1:15 (ready: untagged 24, defensive 22, move 7, raid_cd 3)
+    Algmor: alive for 31; pressed at 8 (defensive 6, untagged 3); none at 23: p2 1:15, p4 1:15, p5 1:15, p6 1:15, p7 1:15, p8 1:15, p11 1:15, p14 1:15, p15 1:15, p16 1:15, p17 1:15, p18 1:15 and 11 more, the last p41 1:15 (ready: move 18, defensive 15, untagged 2)
+    Peggerino: alive for 31; pressed at 9 (dps 5, defensive 4); none at 22: p4 1:15, p6 1:15, p9 1:15, p11 1:15, p14 1:15, p15 1:15, p16 1:15, p18 1:15, p24 1:15, p25 1:15, p26 1:15, p29 1:15 and 10 more, the last p42 3:19 (ready: defensive 22, dps 22, untagged 22)
+    Krøpling: alive for 29; pressed at 8 (defensive 8); none at 21: p2 1:15, p8 1:15, p11 1:15, p13 1:15, p14 1:15, p15 1:15, p16 1:15, p17 1:15, p18 1:15, p23 1:15, p24 1:15, p25 1:15 and 9 more, the last p39 1:15 (ready: defensive 21, dps 21, untagged 4)
+    Scopidruid: alive for 27; pressed at 8 (defensive 4, untagged 4); none at 19: p4 1:15, p7 1:15, p8 1:15, p11 1:15, p13 1:15, p14 1:15, p15 1:15, p16 1:15, p18 1:15, p23 1:15, p25 1:15, p26 1:15 and 7 more, the last p42 3:19 (ready: raid_cd 19, untagged 19, defensive 5, move 1)
+    Enfo: alive for 34; pressed at 16 (raid_cd 14, defensive 2); none at 18: p2 1:15, p4 1:15, p5 1:15, p6 1:15, p7 1:15, p8 1:15, p11 1:15, p13 1:15, p15 1:15, p16 1:15, p18 1:15, p24 1:15 and 6 more, the last p36 1:15 (ready: defensive 18, move 18, raid_cd 18)
+    Zebinomage: alive for 33; pressed at 16 (defensive 15, dps 1); none at 17: p2 1:15, p5 1:15, p6 1:15, p11 1:15, p13 1:15, p14 1:15, p15 1:15, p16 1:15, p18 1:15, p23 1:15, p24 1:15, p28 1:15 and 5 more, the last p41 1:15 (ready: defensive 17, dps 17, untagged 2)
+    Pomaa: alive for 31; pressed at 17 (raid_cd 13, dps 5, defensive 1, untagged 1); none at 14: p4 1:15, p5 1:15, p6 1:15, p7 1:15, p8 1:15, p9 1:15, p14 1:15, p16 1:15, p17 1:15, p29 1:15, p30 1:15, p31 1:15 and 2 more, the last p41 1:15 (ready: untagged 14, defensive 12, dps 4, raid_cd 4)
+    Dragepie: alive for 32; pressed at 19 (untagged 14, defensive 6, dps 4); none at 13: p4 1:15, p6 1:15, p7 1:15, p8 1:15, p14 1:15, p24 1:15, p28 1:15, p29 1:15, p31 1:15, p32 1:15, p34 1:15, p40 1:15 and 1 more, the last p42 1:15 (ready: dps 13, move 13, raid_cd 13, defensive 1)
+    Lïzårðmâñ: alive for 33; pressed at 20 (raid_cd 15, untagged 11, defensive 1); none at 13: p2 1:15, p5 1:15, p6 1:15, p11 1:15, p13 1:15, p14 1:15, p18 1:15, p25 1:15, p27 1:15, p29 1:15, p30 1:15, p31 1:15 and 1 more, the last p42 3:19 (ready: move 13, raid_cd 13, defensive 5)
+    Agonco: alive for 29; pressed at 17 (untagged 12, defensive 8, dps 1); none at 12: p2 1:15, p6 1:15, p8 1:15, p9 1:15, p11 1:15, p14 1:15, p15 1:15, p30 1:15, p35 1:15, p39 1:15, p41 1:15, p42 1:15 (ready: defensive 12, untagged 9)
+    Fappachino: alive for 32; pressed at 21 (untagged 18, raid_cd 3, defensive 1); none at 11: p4 1:15, p5 1:15, p8 1:15, p9 1:15, p15 1:15, p16 1:15, p23 1:15, p26 1:15, p32 1:15, p37 1:15, p42 3:19 (ready: defensive 7, raid_cd 4, untagged 3, dps 1)
+    Sveini: alive for 19; pressed at 9 (dps 7, defensive 3); none at 10: p5 1:15, p6 1:15, p7 1:15, p13 1:15, p16 1:15, p18 1:15, p23 1:15, p25 1:15, p27 1:15, p28 1:15 (ready: dps 10, untagged 10, defensive 8)
+    Slushmania: alive for 31; pressed at 29 (defensive 22, untagged 12); none at 2: p38 1:15, p41 1:15 (ready: defensive 2)
+    Draiman: alive for 12; pressed at 11 (defensive 10, dps 1); none at 1: p39 1:15 (ready: defensive 1, dps 1, untagged 1)
+  "You are the orb popper" to Dragepie (22 callouts over 21 pulls, at 1:40, 3:47):
+    Dragepie: alive for 20; pressed at 11 (untagged 9, move 4, raid_cd 4, defensive 1); none at 9: p7 1:40, p8 1:40, p11 1:40, p14 1:40, p15 1:40, p16 1:40, p37 1:40, p39 1:40, p40 1:40 (ready: dps 9, move 9, raid_cd 9, untagged 1)

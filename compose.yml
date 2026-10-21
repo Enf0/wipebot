@@ -1,0 +1,70 @@
+# Wipebot's two apps from one image: the remote MCP server and the Discord bot.
+#   docker compose up -d --build              # both; or name one: wipebot-mcp, wipebot-discord
+# Settings come from .env (see .env.example); each app says at start which of its own are missing. State lives in
+# ./data/<service>, and the raid notes and plans in ./data/wipebot-notes, which both read and write. The MCP server
+# listens on localhost only: put a reverse proxy with HTTPS in front of it.
+name: wipebot
+
+# What both apps share: the image, restarts, log rotation, and no privileges or writes outside their volumes and /tmp.
+x-app: &app
+  build: .
+  image: wipebot:local
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  read_only: true
+  tmpfs: ["/tmp:size=256m"]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  wipebot-mcp:
+    <<: *app
+    container_name: wipebot-mcp
+    command: ["python", "-m", "wipebot", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    # Internet-facing, so only the settings it needs: the bot's secrets (DISCORD_TOKEN, ANTHROPIC_API_KEY) stay out.
+    environment:
+      WCL_CLIENT_ID: ${WCL_CLIENT_ID:-}
+      WCL_CLIENT_SECRET: ${WCL_CLIENT_SECRET:-}
+      WIPEBOT_ALLOWED_GUILDS: ${WIPEBOT_ALLOWED_GUILDS:-}
+      WIPEBOT_PUBLIC_URL: ${WIPEBOT_PUBLIC_URL:-}
+      WIPEBOT_TRUSTED_PROXIES: ${WIPEBOT_TRUSTED_PROXIES:-}
+      WIPEBOT_OFFICER_RANK: ${WIPEBOT_OFFICER_RANK:-}
+      WIPEBOT_SIGNIN_DB: /data/signin.sqlite
+      WIPEBOT_CACHE: /data/cache.sqlite
+      WIPEBOT_NOTES_DB: /notes/notes.sqlite
+      HOME: /data/home  # warcraft_cli's own caches
+    volumes:
+      - ./data/wipebot-mcp:/data
+      - ./data/wipebot-notes:/notes
+    ports: ["127.0.0.1:8000:8000"]
+    mem_limit: ${WIPEBOT_MCP_MEMORY:-2g}
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      # A proxy may route to a container only once it's healthy: check often while it starts.
+      start_period: 60s
+      start_interval: 2s
+
+  wipebot-discord:
+    <<: *app
+    container_name: wipebot-discord
+    command: ["python", "-m", "wipebot", "bot"]
+    # Not internet-facing: it only calls out (Discord, Claude, Warcraft Logs), so it gets the whole .env.
+    env_file: [{path: .env, required: false}]  # Compose 2.24 or later
+    environment:
+      WIPEBOT_DB: /data/wipebot.db
+      WIPEBOT_CACHE: /data/cache.sqlite
+      WIPEBOT_NOTES_DB: /notes/notes.sqlite
+      HOME: /data/home  # Claude Code's settings and sessions (the Agent SDK runs it), warcraft_cli's caches
+    volumes:
+      - ./data/wipebot-discord:/data
+      - ./data/wipebot-notes:/notes
+    # Each answer in progress runs a Claude Code process.
+    mem_limit: ${WIPEBOT_BOT_MEMORY:-4g}
+    pids_limit: 1024
+    stop_grace_period: 420s  # a stop lets the answers in progress finish first (bot.py's DRAIN_S, 390 s)

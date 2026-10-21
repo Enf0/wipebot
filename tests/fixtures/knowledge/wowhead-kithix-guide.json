@@ -1,0 +1,27 @@
+{
+ "linked_entities": {
+  "items": [
+   {
+    "entity_type": "item",
+    "id": 3,
+    "name": "Shadeweaver's Hearthstone"
+   }
+  ]
+ },
+ "body": {
+  "section_chunks": [
+   {
+    "title": "Phase 1",
+    "content_raw": "Kill adds. [item=9][/td][td]Not loot[/td]"
+   },
+   {
+    "title": "Gear Drop Information for the Unbinding of Kith'ix",
+    "content_raw": "[tr][td align=center][pad]Raid FInder[/td][td align=center]285\n[i]Veteran 3/6[/i][/td][/tr][tr][td align=center][pad]Mythic[/td][td align=center]324\n[i]Myth 3/6[/i][/td][/tr][tr][td][item=1 bonus=1:2][/td][td]Trinket[/td][/tr][tr][td][item=2][/td][td]Leather Chest[/td][/tr][tr][td][item=4][/td][td]Mail Tier Set Token - Legs[/td][/tr]"
+   },
+   {
+    "title": "All Other Unbinding of Kith'ix Rewards",
+    "content_raw": "[tr][td][item=3][/td][td]Toy[/td][/tr]"
+   }
+  ]
+ }
+}

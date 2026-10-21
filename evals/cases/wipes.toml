@@ -1,0 +1,278 @@
+[defaults]
+report = "KBYT4xXn7VNjDgh8"
+
+# ---- Right after a wipe: why? ----
+
+[[case]]
+id = "wipe-enrage-hidden-by-deaths"
+question = "Why did we wipe on Sszorak pull 13?"
+pull = 13
+boss = "Sszorak"
+expect = """The boss enraged (Unbound Ferocity) at 2:32 because the Serpent's Fury after the intermission wasn't popped,
+though enough players were alive for the stack."""
+facts = ["16 players were alive, enough for the 14-player stack",
+         "the rage was at 96 by 2:30 and reached 100 at 2:32, a second after the combo's last Mutilate at 2:31",
+         "the stack has to form as that Mutilate ends or be built before it; \"stack for it\" alone is not the fix"]
+wrong = ["the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the pull",
+         "the second Serpent's Fury pop was too early, stated as the cause rather than a possibility"]
+
+[[case]]
+id = "wipe-too-few-alive"
+question = "Why did we wipe on our last Sszorak pull?"
+expect = """The first Mutilate after the intermission killed four at once, which with the earlier deaths left too few alive
+for the 14-player Serpent's Fury stack, so the boss's rage reached 100 and he enraged: the fix is that Mutilate
+soak (enough players in it to survive)."""
+facts = ["pull 33",
+         "the Mutilate at 2:15 killed four players",
+         "two earlier deaths (1:29, 1:54) and one more at 2:23 left 13 alive",
+         "the stack needs 14 players",
+         "the boss enraged (Unbound Ferocity) at 2:32"]
+wrong = ["the deaths after 2:32 lost the pull",
+         "says the raid lacked damage or hit a damage check or hard enrage timer"]
+
+[[case]]
+id = "wipe-who-started-it"  # the raid leader's "who wiped us?": the first domino, not the most deaths
+question = "Who wiped us on pull 14?"
+pull = 14
+boss = "Sszorak"
+expect = """The first dominoes, before the Mutilate that killed four more: the Tempest deaths early on and a tank
+death after a late taunt swap, which left too few for the Serpent's Fury, so the boss enraged."""
+# In a channel the facts are stated by role, not by name. Taunt swaps are often a back-and-forth between the tanks, so
+# a late one is a domino, not one tank's fault.
+facts = ["Tempest killed three at 0:46-0:50, and a fourth player died at 0:53",
+         "the tank holding the boss died at 1:03 to a second Ravage (the first at 0:55)",
+         "the other tank's taunt came only at 1:05, though it had been ready since 0:21",
+         "the Mutilate at 1:07 killed four",
+         "half the raid was dead at 1:11 and the boss enraged at 1:19"]
+wrong = ["blames the players the Mutilate killed at 1:07 as the cause",
+         "names a player, or points at one tank by class, spec or role alone, as the one who wiped the pull"]
+
+[[case]]
+id = "wipe-was-a-reset"
+question = "Why did we wipe on pull 9?"
+pull = 9
+boss = "Sszorak"
+expect = """Pull 9 was a reset, not an attempt: the boss was untouched. Short."""
+facts = ["it ended at 0:24"]
+wrong = ["analyses pull 9's deaths as if it were a real attempt"]
+
+[[case]]
+id = "wipe-enrage-after-collapse"  # the boss enraged, but the raid had died before it: deaths, not the timer
+report = "f8X1bzJ3T6HpArac"
+question = "We hit the enrage on Ula'tek at 6.4%. Do we need more DPS?"
+asker = "Enfo"
+pull = 14
+boss = "Ula'tek"
+expect = """Not a race lost on the timer: Fury Unleashed at 9:58 only finished the last two players. The raid had died
+before it, from 7:02 on, half of it dead by 9:31, so the last Venomous Heart window (9:33-9:53), the burn that
+should finish her, had three players in it. What was missing above all is players alive for that window; saying the damage was also behind the
+guild's later kill is fair, calling it a race lost on the timer isn't."""
+facts = ["Fury Unleashed at 9:58, when 26 players had already died; it killed the last two at 9:58 and 10:00",
+         "deaths from 7:02 on, six of them by 8:01 at the second platform break, and no single hit killing many",
+         "Volatile Purge killed nine at 9:31, which left half the raid dead",
+         "the boss at 10% at 9:31, with three players alive when Rage of the Shackled and the Venomous Heart came at 9:33"]
+wrong = ["says the enrage (Fury Unleashed) ended the pull, or that the raid ran out of time",
+         "says the fix is more damage from rotations, gear or cooldowns, with no word on the deaths before the enrage"]
+wrong_in_channel = ["names a player who died to Caustic Waves or Volatile Purge"]
+[[case]]
+id = "wipe-unkicked-add"  # killing blows that are the raid's own attacks, on players the curse turned
+report = "ZRNhqaprvfmBgMkH"
+where = "in a DM"  # who had a kick ready is a fact; who should have kicked, only a note shows
+question = "We got her to the intermission on the first pull, what went wrong?"
+pull = 1
+boss = "Nek'zali the Soulcoiler"
+expect = """The intermission's Drowned Echo (Grasping Depths at 4:03) wasn't handled: two of its Soulcoiler's Curse
+casts went through unkicked and Soulcoiled the players in the well, and Grasping Depths kept stacking until it killed
+players one by one to the wipe. The fix is kicking every Curse and killing the Echo."""
+facts = ["the Curse went through at 4:28 and 4:39",
+         "Agonco, Fappachino, Grusarn and Krøpling (and three more) had a kick ready for both",
+         "Miralupa and Sonyom were Soulcoiled at 4:45; Sonyom died at 4:58 to the raid's own attacks (Black Powder, a Rogue's finisher, is the killing blow)",
+         "Grasping Depths killed eight, from 5:23 (20 stacks on Enfo at 5:38); half the raid was dead at 5:32 with the boss at 47.4%"]
+# Three died to Hungering Pyre at 5:27 and three to Slithering Flame as the raid thinned; no item rests on them. No
+# Drowned Echo has a death logged on the kill either, so "the Echo never died" isn't what set this pull apart: the
+# stacks are (20 here; 9 at most on the kill, pull 5).
+wrong = ["her energy bar filling (Uncoiled Rage) ended the pull",
+         "says the boss, an add or the well killed Sonyom, or that Black Powder is a boss ability (saying the log shows it as the killing blow is fine)",
+         """says a named player should have kicked, missed their kick or lost the pull, even as a likely guess, beyond
+         what the log or a raid note shows (e.g. 'Grusarn should have kicked'); saying who had a kick ready is fine"""]
+[[case]]
+id = "wipe-adds"
+report = "GM8XdBHaqpFgxK9Q"
+question = "Why did we wipe on Nymrissa Wavecaller pull 3?"
+pull = 3
+boss = "Nymrissa Wavecaller"
+expect = """Bubblefin Berserkers (murlocs that got into the bubble) killed most of the raid with Pulsing Tides: three
+came at 3:50, after the 3:41 Swirling Whirlpools popped the bubble, and their pulses killed players three at a time
+from 3:53 to the wipe. The fix is stopping the murlocs before the bubble."""
+facts = ["Pulsing Tides killed 14; half the raid was dead at 3:56",
+         "the one Berserker earlier in the pull, at 2:00, was killed at 2:12",
+         "on Mythic, killing the Frostscale first so the murlocs can be hurt (the guide's rule)"]
+# Five had already died to Abyssal Rain, Frost Orb and Frost Burst by 1:50 and one to Water Jet at 3:28 (16 alive
+# when the Berserkers came): it left the raid short, but no item rests on it.
+wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
+         "the Swirling Whirlpools deaths (at 3:48-3:49) lost the pull"]
+wrong_in_channel = ["names a player who died"]
+[[case]]
+id = "wipe-tank-death"  # the first domino: a tank death that leaves a tank mechanic to the raid
+report = "dTQMvNbBcPh6mDrA"
+question = "We had them at 15% on pull 5, why did we wipe?"
+pull = 5
+boss = "The Twin Fangs"
+expect = """A tank death started it: a tank died to Caustic Deluge at 7:00, and with one tank holding both serpents
+the next Stone Breaker set (7:13, 7:16, 7:19), which a tank soaks, went off on the raid: it killed 9 and half the
+raid was dead at 7:16."""
+facts = ["the tanks alternated Caustic Deluge as on the kill (5:48 on one, 6:56 on the other)",
+         "the tank who died had Envenomed x9 and Stone Breaker x3, with Fortifying Brew used at 6:02",
+         "the other tank took Vexhul at 7:03; no tank got Stone Breaker from the 7:13 set",
+         "the first death, the same tank at 2:51, was battle-ressed at 2:56"]
+wrong = ["says the tank's first death at 2:51 lost the pull",
+         "says the tanks didn't swap Caustic Deluge",
+         "says the players who died to Stone Breaker stood in it, or blames the DPS for those deaths",
+         "Eternal Venom stacks or Toxic Fumes lost the pull, with no word of the tank death",
+         "says a named player failed a soak or the swap"]
+wrong_in_channel = ["names the tank who died"]
+[[case]]
+id = "wipe-droplet-explosion"  # 10 dead in one second to erupting droplets, behind a lone death at 2:26
+report = "GM8XdBHaqpFgxK9Q"
+question = "Why did we wipe on Sentinels pull 16?"
+pull = 16
+boss = "Entombed Sentinels"
+expect = """The pull was lost when Toxic Droplets from the 2:21 set were left to erupt: their Noxious Blasts hit the
+whole raid at 2:35-2:36 and killed 10 within a second, half the raid. The fix is clearing that set, the one just
+before the intermission at 2:32, as the guide plans it (immunities on the hard sets)."""
+facts = ["Toxic Droplets at 2:21, the intermission (Vitriolic Stasis) at 2:32",
+         "Noxious Blast hits every player: two at 2:35 (313.72k and 307.31k) and a third at 2:36 on one of the dead",
+         "11 players died within 3 s of 2:36, the farthest 68 yd apart: the whole raid, not a stack",
+         "the one earlier death, at 2:26, was battle-ressed at 2:31"]
+wrong = ["says the death at 2:26 lost the pull",
+         "says Ula'tek's Dominance (2:42) or the bosses standing too close lost the pull",
+         "the raid lacked damage, or Mark of Blood / Mark of Acid stacks lost the pull",
+         """says a named player failed to clear the droplets or set them off, even as a likely guess, beyond what the
+         log or a raid note shows"""]
+wrong_in_channel = ["names the players who died"]
+[[case]]
+id = "wipe-heroic-failed-soak"
+report = "PjKR7hQwtYpd8WDz"
+question = "We had Ula'tek at 6.2% on pull 6. Why did we wipe?"
+asker = "Miralupa"
+pull = 6
+boss = "Ula'tek"
+expect = """A Serpent's Bite wasn't soaked off: the one on a healer from 7:43 was kept the full 15 s and became a
+Calcified Corpse at 7:58 that killed most of the raid. The fix is filling every Serpent's Bite soak, the healers'
+group's too."""
+facts = ["three Serpent's Bites at 7:43: two were cleared in 10 s and 6 s, one was kept the full 15 s",
+         "the Calcified Corpse at 7:58",
+         "it killed 8 within 1 s at 7:59 and 19 in all; half the raid was dead at 8:00",
+         "five players had died before it, from 3:28 to 7:54, a tank to Stone Venom at 7:54 among them"]
+wrong = ["says the tank's death at 7:54, the Caustic Waves or the platform break (Circling Prey) ended the pull",
+         "says a lack of damage ended the pull (being behind the kill's pace is a fair side note)",
+         "blames the player who carried the unsoaked Serpent's Bite"]
+wrong_in_channel = ["names the player who carried the unsoaked Serpent's Bite, or a player who died"]
+[[case]]
+id = "wipe-second-fury-not-stacked"
+where = "in a DM"  # who stood outside the stack is a fact; who should have been in it, only the plan shows
+question = "Why did we wipe on Sszorak pull 24?"
+pull = 24
+boss = "Sszorak"
+# Who stacks is set in the raid plan (14 and a hunter), with a healer in reserve for a death; the log doesn't show it.
+expect = """The boss gained Unbound Ferocity because the second Serpent's Fury wasn't popped: enough players were
+alive for the 14-player stack, but it didn't form."""
+facts = ["at 1:18",
+         "15 were still alive then",
+         "Krøpling and Sonyosh died at 1:08-1:09",
+         "Martin had the mark",
+         "at 1:16 a few of the living stood more than 8 yd from Martin (Sveini, Dragepie, Lïzårðmâñ)"]
+wrong = ["the Mutilated Gash deaths after 1:18 lost the pull",
+         "too few players were alive to pop it",
+         """says a named player should have been in the stack, failed their job or caused the enrage, even as a likely
+         guess, beyond what the log or a raid plan shows (e.g. 'Dragepie should have stacked'); saying who stood
+         where is fine"""]
+
+[[case]]
+id = "wipe-follow-up-next-pull"  # a follow-up that only makes sense after the first question
+hard = true  # the bot still gets it wrong often: the hard set (evals/run.py summary)
+where = "in a DM"  # names the other tank's taunt as a fact, not as a fault
+question = ["Why did we wipe on Sszorak pull 13?", "And what killed Wutroll on the next pull?"]
+expect = """On pull 14, Wutroll (a tank) died to a second Ravage: the boss wasn't taunted off him in time after the
+first."""
+facts = ["at 1:03",
+         "Wutroll's Ravage at 0:55",
+         "Deathadim took the boss only at 1:05, after the death"]
+# Taunt swaps are often a back-and-forth between the tanks: a late one is a fact, not one tank's fault.
+wrong = ["Wutroll's death is placed on pull 13",
+         "Tempest or the enrage killed Wutroll",
+         "says Deathadim (or Wutroll) failed the swap or caused the wipe, as a fault rather than as what the log shows"]
+
+[[case]]
+id = "wipe-imbibe-totems"  # totems going off are the wipe; the healing cooldowns were there and couldn't carry it
+report = "kTMfFRQ324Hvx6G7"
+question = "Why did we wipe on Vashnik pull 6?"
+pull = 6
+boss = "Vashnik the Malignant"
+expect = """Malignant Totems left uncleared went off at the 1:48 Imbibe: Malignance hit all 20 players at 1:52, every
+one of them twice, and killed 7 within 2 s, though the healing and raid cooldowns were stacked for that Imbibe. The fix
+is clearing every totem with the Plague Froth waves before the Imbibe."""
+facts = ["Imbibe at 1:48; Malignance on 20 players at 1:52",
+         "Malignance killed 7 within 2 s at 1:52; half the raid was dead at 2:06",
+         "the totems were cleared in two sets (14 at 1:00, 8 at 1:33) and 2 were still alive at the end",
+         "cooldowns went out for it: Divine Hymn at 1:39, Anti-Magic Zone at 1:43, Rallying Cry at 1:45, Darkness and Spirit Link Totem at 1:46, a second Rallying Cry and Rewind at 1:48",
+         "the guide says one totem going off is livable and two almost always a wipe"]
+# Two totems: enemies says 24 came, 22 died, 2 alive at the end, and mechanic_hits gives every player 2 Malignance
+# hits at 1:52. The cast-bar line (Malignance x26 at 1:50, all "ended otherwise") doesn't say how many fired: no item
+# rests on it.
+wrong = ["says the totems were all cleared before Imbibe",
+         "the raid lacked damage or hit a damage check",
+         "says Congealing Bolt or Catalytic Bile started the wipe",
+         "says the healers saved no cooldowns for the Imbibe, or caused the wipe with their cooldowns"]
+wrong_in_channel = ["names who died first, or who should have aimed the Plague Froth waves at the totems"]
+[[case]]
+id = "wipe-dps-in-ravage"  # a non-tank in the tank frontal, asked about by the player who died
+question = "Why did I die at 0:08 on pull 29?"
+asker = "Martin"
+pull = 29
+boss = "Sszorak"
+expect = """Ravage, the tank frontal, hit them: a non-tank standing in the cone, so the fix is positioning out of the
+frontal from the pull."""
+facts = ["973k (988k overkill) at 0:08, from 97% health",
+         "only they and the tank holding the boss were hit",
+         "16 yd from the boss, 38° off its facing, while the rest of the non-tanks stood 90° or more off it",
+         "the pull was lost later, to the enrage at 1:18"]
+wrong = ["a healing gap or a missing defensive is what killed them", "says a defensive would have saved them",
+         "says this death lost the pull"]
+
+[[case]]
+id = "wipe-tank-solo-soak"  # a Mutilate soaked by one tank, then a follow-up about the asker's own death
+where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
+question = ["Why did we wipe on pull 20?", "ok and what should I personally have done?"]
+asker = "Nexsozz"
+pull = 20
+boss = "Sszorak"
+expect = """For Nexsozz: they died at 0:16 to Ravage, the tank frontal, standing in front of the boss beside the
+remaining tank after Deathadim had soaked the second Mutilate alone and died; the fix is staying out of the cone, no
+defensive or healthstone would have saved them from that hit, and the wipe wasn't on them."""
+facts = ["Nexsozz died at 0:16 (896k, 716k overkill), 9 yd from the boss and 27° off its facing, beside Wutroll at 1°, while most of the raid stood behind",
+         "Deathadim soaked the second Mutilate at 0:12 alone (the first at 0:08 had 11 players) and died at 0:15",
+         "Wutroll took both Ravages (0:16, 0:24) and died",
+         "the battle res at 0:17 never took the boss back",
+         "Icebound Fortitude would not have saved them from that hit",
+         "Ravage hit Nexsozz only twice over the night's 33 pulls: not a pattern"]
+wrong = ["Tempest is the cause of the wipe or of Nexsozz's death",
+         "says a defensive (Icebound Fortitude) or a healthstone would have saved Nexsozz",
+         "says Nexsozz's death caused or decided the wipe"]
+
+[[case]]
+id = "could-they-have-lived"  # a defensive ready and unused, asked about someone else's death, in a DM
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"  # a fact about a named player is fine here; blame for the wipe isn't
+question = "Could Slushmania have survived on pull 42?"
+asker = "Enfo"
+pull = 42
+boss = "Sszorak"
+expect = """Yes: two Tempest hits at 3:17 took them from 95% to 22% with Mutilated Gash ticking, and a third finished
+them at 3:18; Cloak of Shadows was ready and would have covered that magic damage, and Crimson Vial was ready too."""
+facts = ["died at 3:18 to Tempest, 67k past dead",
+         "Feint was up at the death",
+         "Cloak of Shadows unused on the pull; Crimson Vial last used at 2:34, ready again",
+         "the death was the first of five at 3:18-3:23"]
+wrong = ["says nothing could have saved them", "says Feint was unused",
+         "blames Slushmania for the wipe"]

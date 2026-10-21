@@ -1,0 +1,3 @@
+Casts on all 33 Sszorak pulls, Flash Heal only, each pull until its wipe was decided (the boss's enrage or half the raid dead; whole_pull for the rest), by player (48:18 of combat):
+  1. Namsus (Holy Priest): 408 casts (8.4/min), 86% of total, 408 hits
+  2. Miralupa (Holy Priest): 66 casts (1.4/min), 14% of total, 66 hits

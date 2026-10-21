@@ -1,0 +1,190 @@
+[defaults]
+report = "KBYT4xXn7VNjDgh8"
+
+# ---- The raid leader, over a night ----
+
+[[case]]
+id = "night-bottleneck"
+question = "What keeps wiping us on Sszorak?"
+expect = """The boss enraging because a Serpent's Fury isn't popped by 14 players, on most pulls; the early deaths
+leave too few for the stack."""
+facts = ["20 of 33 pulls",
+         "11 of them at 1:17-1:25, the stack before the intermission; 6 at 2:32, 3 at 0:39",
+         "the early deaths are Virulence and Tempest (24 each among the first three deaths per pull)"]
+wrong = ["names the Mutilate soak, rather than the missed Serpent's Fury stacks, as what ends most pulls",
+         "the second Serpent's Fury pop is too early, stated as fact rather than a possibility"]
+
+[[case]]
+id = "night-healing-cooldowns"  # from the raiders' own question (answer #265)
+question = "When do we take the most damage on Sszorak, and are our healing cooldowns in the right place?"
+expect = """The damage comes in waves at the same moments every pull. The healing cooldowns go on the second wave,
+at 1:04-1:17 (2.5 and 2.2 per spike), and almost none on the first, at 0:20-0:27 (Virulence and Mutilated Gash, 0.1
+per spike), which came in 21 pulls."""
+facts = ["in the first wave healing kept pace without cooldowns: 3.07M/s against 3.14M/s taken",
+         "Venomous Surge at 0:31-0:40 got no healing cooldown in any of its 6 spikes, healing 2.25M/s against 3.40M/s",
+         "a healing cooldown was ready and unused in all 21 first-wave spikes"]
+wrong = ["the healing cooldowns are well spread over every spike",
+         "the first wave's deaths came from too little healing, though healing matched the damage taken"]
+wrong_in_channel = ["names a healer"]
+
+[[case]]
+id = "night-not-a-dps-problem"
+report = "kTMfFRQ324Hvx6G7"
+question = "Do we need more DPS for Vashnik?"
+expect = """No: Vashnik has no damage enrage, and the wipes were mechanics, above all Malignance from uncleared totems
+and Plague Wave deaths, not a damage check; the raid killed it on pull 19."""
+facts = ["Malignance killed the most over the night: 46 deaths over 19 pulls",
+         "Plague Wave was the most common of each pull's first three deaths (29), many around 1:00",
+         "the best wipe, pull 16, reached 9.4% at 6:41, deaths spread out from 3:48",
+         "the kill on pull 19 took 7:00",
+         "the guide says there's no DPS enrage (a 5th healer is worth it)"]
+# compare_pulls puts pull 16 behind the closest-item-level fast kill (5:21) from 0:30 on: saying more damage would
+# mean fewer Imbibes, so fewer totem rounds, is fair; calling it a damage check isn't. The Malignant Burst deaths on
+# pulls 10 and 16 came as or after half the raid was dead (5:09, 6:40).
+wrong = ["the raid needs more damage to beat an enrage or damage check on Vashnik",
+         "calls Flame Infusion or Shadow Infusion an enrage (the boss gains them at every Imbibe)",
+         "says the Malignant Burst deaths on pulls 10 and 16 were a damage check failed"]
+[[case]]
+id = "night-improving"  # what went right over a night
+report = "dTQMvNbBcPh6mDrA"
+question = "Did we actually get better on the Twin Fangs tonight?"
+asker = "Enfo"
+expect = """Yes: the wipes got much better over the night, and the boss died."""
+facts = ["the average wipe went from 52.8% in the first third to 17.3% in the middle and 8.9% in the last",
+         "each pull from 3 to 6 was the best of the night so far: 18.3%, 16.4%, 15.5%, 2.3%",
+         "the boss died on pull 7"]
+wrong = ["the night was flat or got worse"]
+[[case]]
+id = "night-who-dies-first"  # accountability, fairly
+where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
+report = "PjKR7hQwtYpd8WDz"
+question = "Who keeps dying first on Sentinels?"
+asker = "Karadim"
+expect = """Scopidruid died first most often, on 3 of the 7 pulls (2, 3 and 4), each time to something different;
+Grusarn was first twice and nobody else more than once. Only one of the three was a death that mattered alone: on
+pull 3 Scopidruid was one of five killed by Noxious Blast within a second, and on pull 4 the pull went on two
+minutes after their death to the night's best wipe."""
+facts = ["Grusarn first on pulls 5 and 6; Providence on 1 and Wutroll on 7",
+         "pull 3: Noxious Blast killed 5 within 1 s at 2:35, Scopidruid first only by the order",
+         "pull 4: Scopidruid died at 2:17, the next death came at 4:13, and the pull reached 36.3%, the night's best",
+         "on pulls 2 and 4 they died in the Blood side's damage after an Unstable Miasma hit, with 15 Mark of Blood stacks",
+         "no healthstone used before any of the three deaths; on pull 4 Barkskin was not used"]
+wrong = ["names someone other than Scopidruid as dying first most often",
+         "says Scopidruid's deaths lost those pulls",
+         "says Scopidruid stood in the wrong place or broke an assignment, as if the log showed it",
+         "claims what a class can or can't do (\"druids can't...\")"]
+[[case]]
+id = "night-kill-what-went-right"
+report = "ZRNhqaprvfmBgMkH"
+question = "We finally killed Ula'tek! What did we do better than on the 9.3% pull?"
+asker = "Enfo"
+expect = """Stayed alive through the Caustic Waves, Volatile Purge and second platform break around 8:00: the boss's
+health was level on both pulls until then, but pull 9 fell to 10 players alive by 8:02, while the kill had 22 alive at
+8:01. The kill wasn't clean either: a Calcified Corpse from the last Serpent's Bite killed most of the raid at
+9:36-9:37, and the boss died at 9:38 in the last Venomous Heart window."""
+facts = ["boss health level with the kill until the wipe: 15% on pull 9 and 16% on the kill at 8:00",
+         "pull 9: Caustic Waves hit 3, then 3, then 8 players at 7:52, and Volatile Purge killed 6 within 1 s at 7:58, stacking up to 3 on one player",
+         "the kill lost one player at the platform break (Circling Prey at 8:01) and three in all before 8:49",
+         "on the kill the last Serpent's Bite (9:20) was kept the full 15 s; its Calcified Corpse at 9:35 killed 16, and the boss died at 9:38, after the Venomous Heart opened at 9:33"]
+wrong = ["says the kill won mainly by doing more damage, or that pull 9 was behind on damage",
+         "says the kill was clean or had far fewer deaths than pull 9 (it had 24, pull 9 had 26)",
+         "says every Serpent's Bite was soaked on the kill"]
+[[case]]
+id = "night-raid-prep"
+question = "Is everyone prepared for Sszorak: flasks, food, runes and oils?"
+expect = """Flasks, food and weapon oils are complete, but most of the raid had no augment rune."""
+facts = ["16 of 20 had no augment rune",
+         "one player had no vantus rune",
+         "one player's main-hand weapon had no enchant"]
+wrong = ["says everyone had an augment rune"]
+wrong_in_channel = ["names the player missing a vantus rune or the one missing an enchant"]
+
+[[case]]
+id = "night-add-control"  # what the log shows about the adds, and what it can't (kill order)
+report = "GM8XdBHaqpFgxK9Q"
+question = "Are we killing the adds in the right order on Nymrissa?"
+boss = "Nymrissa Wavecaller"
+expect = """The log doesn't record the murlocs dying, so it can't show the order they were killed in (anything like
+damage on the Frostscales is an indirect sign, said as such); what it does show is the outcome: no murloc became a
+Bubblefin Berserker on the kill, while Berserkers' Pulsing Tides hit the raid on the wipes."""
+facts = ["the kill is pull 8",
+         "on the kill, 119 Shorerunners and 14 Frostscales came, none has a death recorded, and no Berserker came",
+         "Pulsing Tides was the killing blow 14 times over the night, until each wipe was decided",
+         "the best wipe, 7.6% on pull 7, ended when Berserkers came and their Pulsing Tides killed most of the raid",
+         "Frostscale first is the guide's rule, not something the log shows"]
+wrong = ["states, as something the log shows, the order the adds died in or that the Frostscales died first (advising Frostscale first as the guide's rule is fine)",
+         "says Berserkers got into the fight on the kill"]
+[[case]]
+id = "night-dispels"
+report = "8TcXMAP2gHQGr9pW"
+where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
+question = "Were our dispels fast enough on Vashnik?"
+asker = "Miralupa"
+boss = "Vashnik the Malignant"
+expect = """Yes: nearly every Exploding Infection was dispelled. The one held longest on the kill, on Krøpling to 9
+stacks, killed them at 6:31, a second before the boss died, so it cost nothing."""
+facts = ["104 of 113 Exploding Infections were dispelled over the 8 pulls; 35 of 36 on the kill",
+         "Krøpling had it from 6:19 and died at 6:31; Dragepie died to Caustic Explosion the same second",
+         "Exploding Infection itself killed 3 over the night",
+         "the guide wants it dispelled one at a time when the raid is stable, since each removal hits the whole raid"]
+# On the kill a totem went off at the 6:00 Imbibe (Malignance on 19 players at 6:05, Krøpling among them), and
+# Sveini's Infection reached 12 stacks at 6:04 before it was dispelled: holding through an Imbibe is what the guide's
+# "when the raid is stable" means, so neither is a fault to state. No raid note shows who had which dispel.
+wrong = ["says the dispels caused the wipes",
+         "says Congealing Bolt needed dispelling (most ran out undispelled)",
+         "blames a named healer for Krøpling's death"]
+[[case]]
+id = "night-kill-vs-best-wipe"  # execution, not a new plan
+report = "dTQMvNbBcPh6mDrA"
+question = "Compare our kill with the best wipe: what did we do differently?"
+asker = "Enfo"
+boss = "The Twin Fangs"
+expect = """The difference was staying alive through the middle of the fight, not a new plan or more damage per
+player: both pulls did the same damage per second and both ran into the 8:07 enrage; the kill had nobody die until
+6:46, while the best wipe (pull 6, 2.3%) lost a healer at 5:55 and three players to the 6:48 Ravenous Feast, fell
+behind and was short when the enrage came."""
+facts = ["damage per second until each pull's first death: 2.16M/s on pull 6, 2.15M/s on the kill",
+         "boss health 10% at 7:07 on the kill against 7:19 on pull 6",
+         "both pulls reached the enrage (Caustic Rain, at the third Submerge) at 8:07; on the kill one twin died at 8:11 and the other at 8:14, seconds into it",
+         "the kill was messy late: 12 deaths, most from 7:39 on, once the boss was nearly dead"]
+derived = ["10%"]  # the timeline prints the boss's health without a % sign ("7:07 10")
+wrong = ["the kill used a different cooldown plan or strategy",
+         "credits the kill to more damage per player rather than to who stayed alive",
+         "says the kill had few or no deaths in all (it had 12, most from 7:39 on; none until 6:46 is right)",
+         "says the best wipe fell apart from deaths alone, with no word of the enrage at 8:07"]
+[[case]]
+id = "night-summary-for-raid"  # short, for the raid: the night's one lesson
+report = "PjKR7hQwtYpd8WDz"
+question = "Give me a 3-line summary for the raid of tonight's Ula'tek progress and what to change next week."
+asker = "Miralupa"
+boss = "Ula'tek"
+expect = """Short (about three lines): the boss died on pull 8 (8:49). Mother's Wrath was the night's killer: on three
+Phase One wipes it hit the whole raid at once, which it does when its target is out of reach, so the change is keeping
+the boss and her tail tanked in reach through Phase One. (The best wipe, 6.2%, was a Serpent's Bite left unsoaked.)"""
+facts = ["the kill on pull 8 at 8:49, with 7 deaths",
+         "Mother's Wrath killed 11 at 1:59 on pull 1 and 15 at 1:59 on pull 3, and many on pull 4",
+         "Mother's Wrath the night's killer, 39 deaths",
+         "the 6.2% wipe (pull 6) was a Calcified Corpse from an unsoaked Serpent's Bite"]
+wrong = ["gives no change about Mother's Wrath or the tanking in Phase One",
+         "treats Mother's Wrath as raid damage to heal through or survive with cooldowns, not as its target being out of reach",
+         "says the fix is more damage from rotations, gear or cooldowns, with no word on the Phase One wipes",
+         "blames a named tank for Mother's Wrath going out (the log doesn't show why its target was out of reach)"]
+wrong_in_channel = ["names the tank Mother's Wrath was cast on, or a player who died"]
+[[case]]
+id = "healers-imbibe-cooldowns"  # the guide's plan for a role against the log: cooldowns through each Imbibe
+report = "kTMfFRQ324Hvx6G7"
+question = "Did we line up our healing cooldowns for Imbibe on the Vashnik kill?"
+asker = "Enfo"
+pull = 19
+boss = "Vashnik the Malignant"
+expect = """Yes: from the second Imbibe on (1:48, 3:12, 4:36, 6:00) each had healing and raid cooldowns on it, as
+the guide's plan asks (the raid stacks in melee for the healing cooldowns that carry it through Imbibe); the first, at
+0:23, came while the opening cooldowns were still up, with an Anti-Magic Zone at 0:22. Nobody died to it. Calling one
+of them the thinnest is fair (3:12 and 4:36 had three each before the cast)."""
+facts = ["five Imbibes: 0:23, 1:48, 3:12, 4:36, 6:00",
+         "the 3:12 Imbibe had the fewest: Divine Hymn at 3:04, Rallying Cry at 3:08 and Zephyr at 3:10",
+         "at 1:48: Divine Hymn at 1:39, then Rallying Cry, Spirit Link Totem and Anti-Magic Zone at 1:46 and Darkness at 1:47",
+         "at 6:00: Divine Hymn, Apotheosis, Rallying Cry, Spirit Link Totem, Zephyr, two Anti-Magic Zones and Rewind in the 9 s before it",
+         "the deaths on the kill were to Plague Wave, Burning Presence and the tank's own hits"]
+wrong = ["says an Imbibe from 1:48 on got no healing or raid cooldown",
+         "says players died to Imbibe or Malignance on the kill"]

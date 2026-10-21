@@ -1,0 +1,23 @@
+Tank swaps on Sszorak pull 14 (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=22), tanks: Deathadim (Blood Death Knight), Wutroll (Brewmaster Monk).
+Deathadim:
+  Ravage: 0:16-0:41, peak 1 at 0:16
+  Mutilated Gash: 0:24-0:46, peak 1 at 0:24; 1:07-1:11, peak 1 at 1:07
+  Virulence: 0:28-0:33, peak 1 at 0:28
+  Corroding Venom: 0:35-1:01, peak 2 at 0:36
+  Caustic Residue: 0:36-0:37, peak 1 at 0:36; 0:39-0:40, peak 1 at 0:39
+  Tempest: 1:06-1:11, peak 2 at 1:09
+  spells that took a boss for them on this pull (cooldowns from Wowhead; a talent can shorten them):
+    Dark Command (8 s cooldown) cast at 0:13, 1:05; ready again at 0:21, 1:13
+  died at 1:11 to Mutilate [1285999]
+Wutroll:
+  Corroding Venom: 0:02-0:29, peak 2 at 0:04; 0:44-1:03, peak 4 at 0:51
+  Mutilated Gash: 0:08-0:30, peak 1 at 0:08
+  Ravage: 0:12-0:37, peak 1 at 0:12; 0:55-1:03, peak 2 at 1:03
+  Virulence: 0:28-0:33, peak 1 at 0:28
+  Caustic Residue: 0:36-0:37, peak 1 at 0:36; 0:37-0:37, peak 1 at 0:37
+  Tempest: 0:40-0:42, peak 2 at 0:41
+  spells that took a boss for them on this pull (cooldowns from Wowhead; a talent can shorten them):
+    Provoke (8 s cooldown) cast at 0:00, 0:38; ready again at 0:08, 0:46
+  died at 1:03 to Ravage [1277101]
+Boss aggro in order (who took it, and with what): 0:00 Wutroll (Provoke); 0:13 Deathadim (Dark Command); 0:38 Wutroll (Provoke); 1:05 Deathadim (Dark Command); 1:14 Zebinomage (Melee); 1:20 Pomaa (Melee); 1:22 Fenryr (Melee); 1:24 Martin (Melee)
+Spells each tank took a boss's aggro with on the guild's 8 raid nights of the 4 weeks up to this one (every boss; times, and the last time): Deathadim: Dark Command 496 (last Sszorak pull 33, Mon 5 Oct), Death Grip 19 (last Sszorak pull 28, Mon 5 Oct); Wutroll: Provoke 809 (last Sszorak pull 33, Mon 5 Oct)

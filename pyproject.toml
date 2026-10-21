@@ -1,0 +1,94 @@
+[project]
+name = "wipebot"
+version = "0.1.0"
+description = "AI raid coaching for World of Warcraft from Warcraft Logs: an MCP server and a Discord bot."
+requires-python = ">=3.14"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+# The core (wipebot.core: Warcraft Logs, the guides, the tools) needs only these; each app adds its extra.
+dependencies = [
+    "mcp>=2.3",  # the tools are an MCP server, run in-process by every app
+    "httpx>=0.28",
+    # warcraft_cli: Warcraft Logs client and login store, Wowhead, Icy Veins, Method, Lorrgs, ...
+    "warcraft @ https://github.com/aurokin/warcraft_cli/releases/download/v0.6.0/warcraft-0.6.0-py3-none-any.whl",
+    "tzdata",  # warcraft_cli 0.6.0 needs it on Windows but doesn't declare it
+    "pillow>=13",
+]
+
+[project.optional-dependencies]
+mcp = ["starlette", "uvicorn"]  # the remote server (wipebot.mcp); both come with mcp, named for what it imports
+discord = ["discord.py>=2.7", "claude-agent-sdk>=0.2"]  # the Discord bot (wipebot.discord)
+
+[project.scripts]
+wipebot = "wipebot.__main__:main"
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wipebot"]
+
+[dependency-groups]
+dev = [
+    "wipebot[mcp,discord]",  # every app, for the tests
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "ty==0.0.90",
+    "import-linter>=2.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "evals"]
+asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
+pythonpath = ["."]  # tests.support, imported from the repo root
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+# C901 and PLR0915: a function that fetches, computes and writes at once is split (facts, then text); the few
+# left over carry a noqa on their def line, so no new one can grow that long.
+select = ["E", "F", "W", "I", "B", "UP", "C901", "PLR0915"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pylint]
+max-statements = 50
+
+# The layers (import-linter, part of `just check`): core is the analysis every app shares; the MCP server and the
+# Discord bot build on it and not on each other.
+[tool.importlinter]
+root_package = "wipebot"
+
+[[tool.importlinter.contracts]]
+name = "core imports no app"
+type = "forbidden"
+source_modules = ["wipebot.core"]
+forbidden_modules = ["wipebot.mcp", "wipebot.discord"]
+
+[[tool.importlinter.contracts]]
+name = "the MCP server and the Discord bot build only on core"
+type = "independence"
+modules = ["wipebot.mcp", "wipebot.discord"]
+
+[[tool.importlinter.contracts]]
+name = "core in layers: a module imports only those below it"
+type = "layers"
+containers = ["wipebot.core"]
+layers = [
+    "server",
+    "raidstrats | library",
+    "report",
+    "knowledge | accounts | notebook | pulls",
+    "wcl | clock",
+    "cache | text | classes",
+]
+exhaustive = true

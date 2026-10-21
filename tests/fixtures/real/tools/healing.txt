@@ -1,0 +1,21 @@
+The raid's damage spikes and the healing into them, Nymrissa Wavecaller pull 8 (https://www.warcraftlogs.com/reports/GM8XdBHaqpFgxK9Q#fight=11). A spike: raid damage taken at 1.5x the pull's median or more over 5 s, at least 3 s long.
+2:41-2:55 (14 s): 2.91M/s taken (Frost Burst 41%, Abyssal Rain 31%); healing 2.71M/s, 93% of the damage taken.
+  Healers: Providence 325.94k/s (33% overheal); Enfo 363.06k/s (21% overheal); Namsus 404.51k/s (42% overheal); Miralupa 585.07k/s (35% overheal); Lïzårðmâñ 544.21k/s (38% overheal)
+  Healing cooldowns used (or up to 5 s before): Divine Hymn (Namsus) at 2:36; ready and unused (by healers who press them this report): none
+3:24-3:36 (12 s): 2.69M/s taken (Frost Burst 50%, Abyssal Rain 33%); healing 2.82M/s, 105% of the damage taken.
+  Healers: Providence 460.98k/s (38% overheal); Enfo 748.43k/s (26% overheal); Namsus 577.56k/s (39% overheal); Miralupa 307.43k/s (41% overheal); Lïzårðmâñ 323.85k/s (38% overheal)
+  Healing cooldowns used (or up to 5 s before): Divine Hymn (Miralupa) at 3:20; ready and unused (by healers who press them this report): none
+5:09-5:23 (14 s): 3.09M/s taken (Abyssal Rain 42%, Frost Burst 36%); healing 3.46M/s, 112% of the damage taken.
+  Healers: Providence 588.15k/s (19% overheal); Enfo 601.53k/s (16% overheal); Namsus 465.40k/s (30% overheal); Miralupa 629.46k/s (29% overheal); Lïzårðmâñ 479.09k/s (37% overheal)
+  Healing cooldowns used (or up to 5 s before): Aura Mastery (Providence) at 5:10, Divine Hymn (Namsus) at 5:07, Apotheosis (Miralupa) at 5:09; ready and unused (by healers who press them this report): none
+  Deaths in it: Peggerino (Abyssal Rain, 5:12)
+6:20-6:38 (18 s): 2.86M/s taken (Frost Burst 43%, Abyssal Rain 31%); healing 2.60M/s, 91% of the damage taken.
+  Healers: Providence 281.67k/s (38% overheal); Enfo 512.28k/s (32% overheal); Namsus 436.44k/s (53% overheal); Miralupa 444.02k/s (45% overheal); Lïzårðmâñ 335.07k/s (47% overheal)
+  Healing cooldowns used (or up to 5 s before): Ascendance (Enfo) at 6:21, Apotheosis (Namsus) at 6:18, Divine Hymn (Miralupa) at 6:16; ready and unused (by healers who press them this report): none
+Each healer in the spikes against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns):
+  Providence (Holy): 404.74k/s (32% overheal) in the spikes, 218.46k/s (46% overheal) the rest of the time; casting throughout in 59 s of spikes; 1 healing cooldown in a spike, 0 left ready in one
+  Enfo (Restoration): 547.84k/s (25% overheal) in the spikes, 246.42k/s (42% overheal) the rest of the time; casting throughout in 59 s of spikes; 1 healing cooldown in a spike, 0 left ready in one
+  Namsus (Holy): 465.65k/s (43% overheal) in the spikes, 254.30k/s (52% overheal) the rest of the time; casting throughout in 59 s of spikes; 3 healing cooldowns in a spike, 0 left ready in one
+  Miralupa (Holy): 494.20k/s (37% overheal) in the spikes, 248.55k/s (50% overheal) the rest of the time; casting throughout in 59 s of spikes; 3 healing cooldowns in a spike, 0 left ready in one
+  Lïzårðmâñ (Preservation): 418.30k/s (40% overheal) in the spikes, 264.00k/s (50% overheal) the rest of the time; casting throughout in 59 s of spikes; 0 healing cooldowns in a spike, 0 left ready in one
+Ability ids: Frost Burst [1313450], Abyssal Rain [1260843]

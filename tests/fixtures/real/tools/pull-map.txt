@@ -1,0 +1,22 @@
+A map of Sszorak · pull 13 at 0:48, just before Scopidruid died is shown to the user with this answer: each player's spec icon in a ring of their class colour (a tight stack nudged apart a little), the dead grey with a red cross where they fell, the boss with its facing as a gold cone, and the names, Scopidruid larger. Refer to it; don't describe it again.
+Distance to Sszorak (yd), and degrees off the way it faced (0 straight in front, 180 straight behind):
+- Pomaa (dps): 4, 102°
+- Deathadim (tank): 7, 45°
+- Fappachino (dps): 8, 98°
+- Dragepie (dps): 10, 162°
+- Namsus (healer): 12, 108°
+- Wutroll (tank): 13, 0°
+- Draiman (dps): 15, 153°
+- Sinnatony (dps): 16, 136°
+- Nexsozz (dps): 17, 73°
+- Lïzårðmâñ (healer): 18, 67°
+- Martin (dps): 18, 114°
+- Enfo (healer): 22, 178°
+- Cptola (healer): 23, 46°
+- Sveini (dps): 25, 96°
+- Sonyosh (dps): 26, 12°
+- Zebinomage (dps): 26, 101°
+- Scopidruid (dps): 26, 140°
+- Peggerino (dps): 27, 109°
+- Attractîv (dps): 30, 148°
+- Krøpling (dps): 33, 38°

@@ -1,0 +1,16 @@
+Sszorak pull 13 timeline, 2:25-2:40 (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.
+2:25 healing cooldown: Apotheosis (Namsus)
+2:27 boss casts Ravage (2 abilities); Ravage on Wutroll
+2:28 raid cooldown: Rallying Cry (Sinnatony)
+2:31 boss casts Mutilate (2 abilities); Mutilated Gash on 6 players
+2:32 boss gains Unbound Ferocity
+2:33 DEATH Sinnatony (Mutilated Gash), 15 alive
+2:34 DEATH Cptola (Ula'tek's Presence), 14 alive; DEATH Lïzårðmâñ (Mutilated Gash), 13 alive; DEATH Peggerino (Mutilated Gash), 12 alive; DEATH Pomaa (Mutilated Gash), 11 alive; DEATH Krøpling (Mutilated Gash), 10 alive; DEATH Sveini (Mutilated Gash), 9 alive; DEATH Fappachino (Mutilated Gash), 8 alive
+2:35 DEATH Enfo (Mutilated Gash), 7 alive; DEATH Sonyosh (Mutilated Gash), 6 alive; Corroding Venom reaches 5 stacks on Deathadim
+2:36 boss casts Venomous Surge ◆; boss gains Venomous Surge; DEATH Deathadim (Melee), 5 alive
+2:39 Venomous Surge on Dragepie, Namsus
+◆ marks the boss abilities Lorrgs tracks for this boss: the casts its timeline is built on, to line pulls up by.
+Boss health % over time: 2:27 64
+Boss power (0-100) over time: 2:25 87 · 2:28 92 · 2:31 98
+Raid damage taken per second, 5 s averages (median 3.85M/s; * marks twice the median or more): 2:25 1.73M · 2:30 5.73M · 2:35 3.85M
+Ability ids: Ravage [1277101], Mutilate [1277031], Tempest [1287072], Venomous Surge [1305959], Raging Crosswinds [1285425], Dig In [1286033], Ravage (2nd ability) [1277002], Mutilate (2nd ability) [1277027], Raging Crosswinds (2nd ability) [1285453], Raging Crosswinds (3rd ability) [1297111], Raging Crosswinds (4th ability) [1297096], Unbound Ferocity [1296898], Serpent's Fury [1305621], Corroding Venom [1282873], Mutilated Gash [1277051], Virulence [1297707], Caustic Residue [1296667], Turbulent Gusts [1285447], Viscous Cyst [1287205]

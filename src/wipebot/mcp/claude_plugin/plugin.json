@@ -1,0 +1,12 @@
+{
+  "name": "{slug}",
+  "displayName": "{name}",
+  "version": "{version}",
+  "description": "World of Warcraft raid analysis for {guild}: why a pull wiped, how a night went, how a player did, from Warcraft Logs, with the method for reading them.",
+  "author": { "name": "{name}", "url": "{site}" },
+  "homepage": "{site}",
+  "keywords": ["world-of-warcraft", "warcraft-logs", "raiding", "raid-analysis"],
+  "mcpServers": {
+    "{name}": { "type": "http", "url": "{mcp_url}" }
+  }
+}

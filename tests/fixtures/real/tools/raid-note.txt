@@ -1,0 +1,99 @@
+The raid note for Sszorak (Mythic), checked against Sszorak pull 42 (4:49, wipe, https://www.warcraftlogs.com/reports/vjt3KLbN8g62J1H9#fight=46); the wipe was decided at 4:08 (half the raid was dead). Note times count from the pull's start (ph:1) or from the phase's first start.
+Assignments in the note's text:
+  Mutilate Soaks: Left: Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus; Right: Mizaroth Fappachino Pomaa Slushmania Peggerino Dragepie Zebinomage Lïzårðmâñ Miralupa
+  Intermission Orb Popper: Orb Popper: Dragepie
+  Virulence Spreads: Spread: Nexsozz Pomaa Fappachino Algmor Mizaroth Deathadim Agonco Slushmania Sonyosh Peggerino Scopidruid Zebinomage Krøpling Dragepie Draiman; Bait Serpent's Fury / Bite: Martin; Don't Stack: Enfo Namsus Miralupa Lïzårðmâñ
+  Virulence trigger: Trigger: Martin
+Mutilate Soaks: each hit of Mutilate [1285999], matched to the group with most of its players hit (10 hits):
+  0:16 Left: 10 of 10 hit, 366.44k each
+  0:24 Right: 7 of 9 hit, 370.75k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll
+  0:55 Right: 7 of 9 hit, 375.54k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll
+  1:03 Left: 9 of 10 hit, 384.37k each; not hit: Namsus (alive)
+  2:23 Left: 8 of 10 hit, 371.13k each; not hit: Scopidruid (alive), Namsus (alive); also hit: Fappachino (Right)
+  2:31 Right: 6 of 9 hit, 461.20k each; not hit: Mizaroth (not in this pull), Fappachino (alive), Miralupa (alive); also hit: Scopidruid (Left), Wutroll
+  3:06 Right: 3 of 9 hit, 564.44k each; not hit: Mizaroth (not in this pull), Fappachino (alive), Slushmania (alive), Peggerino (alive), Lïzårðmâñ (alive), Miralupa (alive); also hit: Enfo (Left), Scopidruid (Left), Wutroll
+  3:14 Left: 6 of 10 hit, 351.59k each; not hit: Scopidruid (alive), Draiman (dead since 3:00), Enfo (alive), Namsus (alive); also hit: Fappachino (Right), Lïzårðmâñ (Right), Peggerino (Right), Slushmania (Right)
+  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Miralupa (0 of 4)
+  2 more after the wipe was decided at 4:08
+Planned cooldowns (time in the note: what happened):
+  0:11 Dragepie Zephyr [374227]: not cast within 30s (alive; cast at 3:08)
+  0:16 Lïzårðmâñ Stasis (Store) [370537]: cast at 0:01, 15s early
+  0:16 Miralupa Divine Hymn [64843]: cast at 0:18, 3s late
+  0:16 Namsus Apotheosis [200183]: cast at 0:15, on time
+  0:20 Nexsozz Anti-Magic Zone [51052]: not cast within 30s (alive)
+  0:21 Sonyosh Poison Cleansing Totem [383013]: cast at 0:15, 5s early
+  0:27 Scopidruid Stampeding Roar [106898] for Virulence [1297707]: cast at 0:23, 3s early
+  0:58 Lïzårðmâñ Zephyr [374227]: not cast within 30s (alive; cast at 0:23, 3:00)
+  1:03 Namsus Divine Hymn [64843]: cast at 1:03, on time
+  1:03 Miralupa Apotheosis [200183]: cast at 1:15, 13s late
+  1:08 Sonyosh Wind Rush Totem [192077]: cast at 1:09, 2s late
+  1:08 Enfo Ascendance [114052]: cast at 1:16, 9s late
+  1:08 Enfo Poison Cleansing Totem [383013]: not cast within 30s (alive; cast at 2:27)
+  1:11 Deathadim Anti-Magic Zone [51052]: cast at 1:09, 2s early
+  1:12 Fappachino Darkness [196718]: cast at 1:08, 3s early
+  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, 1s late
+  1:15 Pomaa Rallying Cry [97462]: cast at 1:12, 2s early
+  1:20 Lïzårðmâñ Rewind [363534]: cast at 1:18, 1s early
+  1:37 Lïzårðmâñ Time Spiral [374968]: cast at 1:47, 10s late
+  1:39 Enfo Wind Rush Totem [192077]: cast at 1:38, on time
+  1:40 Scopidruid Stampeding Roar [106898]: not cast within 30s (alive; cast at 0:23, 2:30)
+  1:50 Dragepie Time Spiral [374968]: cast at 1:46, 3s early
+  2:15 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30s (alive; cast at 0:01, 2:59)
+  2:19 Dragepie Zephyr [374227]: not cast within 30s (alive; cast at 3:08)
+  2:22 Namsus Apotheosis [200183]: cast at 2:23, 1s late
+  2:23 Miralupa Divine Hymn [64843]: cast at 2:35, 13s late
+  2:27 Sonyosh Poison Cleansing Totem [383013]: cast at 2:29, 3s late
+  3:05 Lïzårðmâñ Zephyr [374227]: cast at 3:00, 5s early
+  3:10 Miralupa Apotheosis [200183]: cast at 3:17, 7s late
+  3:14 Namsus Divine Hymn [64843]: cast at 3:11, 3s early
+  3:14 Enfo Poison Cleansing Totem [383013]: not cast within 30s (alive; cast at 2:27)
+  3:15 Sonyosh Wind Rush Totem [192077]: cast at 3:14, on time
+  3:20 Nexsozz Anti-Magic Zone [51052]: not cast within 30s (alive)
+  3:22 Scopidruid Stampeding Roar [106898] for Virulence [1297707]: not cast within 30s (dead since 3:21; cast at 0:23, 2:30)
+  3:44 Lïzårðmâñ Time Spiral [374968]: not cast within 30s (dead since 3:22; cast at 1:47)
+  3:46 Enfo Wind Rush Totem [192077]: not cast within 30s (alive; cast at 1:38)
+  3:47 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30s (dead since 3:22; cast at 0:01, 2:59)
+  3:57 Dragepie Time Spiral [374968]: not cast within 30s (alive; cast at 1:46)
+  Planned after the wipe was decided at 4:08, so not checked against this pull:
+  4:25 Dragepie Zephyr [374227]
+  4:29 Namsus Apotheosis [200183]
+  4:30 Miralupa Divine Hymn [64843]
+  4:34 Enfo Ascendance [114052]
+  4:34 Sonyosh Poison Cleansing Totem [383013]
+  4:37 Deathadim Anti-Magic Zone [51052]
+  4:39 Pomaa Rallying Cry [97462] for Virulence [1297707]
+  4:39 Scopidruid Stampeding Roar [106898] for Virulence [1297707]
+  4:39 Enfo Spirit Link Totem [98008] for Virulence [1297707]
+  4:47 Fappachino Darkness [196718]
+  5:11 Lïzårðmâñ Zephyr [374227]
+  5:17 Miralupa Apotheosis [200183]
+  5:21 Namsus Divine Hymn [64843]
+  5:21 Enfo Poison Cleansing Totem [383013]
+  5:22 Sonyosh Wind Rush Totem [192077]
+  5:32 Lïzårðmâñ Stasis (Store) [370537]
+  5:34 Lïzårðmâñ Rewind [363534]
+  5:51 Lïzårðmâñ Time Spiral [374968]
+  5:53 Enfo Wind Rush Totem [192077]
+  5:54 Scopidruid Stampeding Roar [106898]
+  6:03 Dragepie Time Spiral [374968]
+Callouts to one player or to everyone, with what each player it names pressed from 3 s before to 5 s after it (the spells Lorrgs tracks for their spec, with its tags: defensive, raid_cd, tank, move, dps or untagged; which of them answer a callout is in its words), and for those who pressed none, which were ready (cooldowns from Lorrgs, ignoring charges and cooldown reduction):
+  0:25 Martin: "Trigger Virulence": 1 alive; players who pressed a spell tagged nothing; pressed none 1
+    pressed none: Martin (ready: Exhilaration [defensive], Survival of the Fittest [defensive], Aspect of the Cheetah [move], Aspect of the Turtle [defensive])
+  1:15 everyone: "Big Personals": 20 alive; players who pressed a spell tagged defensive 5, raid_cd 4, untagged 1; pressed none 10
+    pressed: Algmor Aspect of the Turtle [defensive] 1:19; Draiman Feint [defensive] 1:18; Enfo Spirit Link Totem [raid_cd] 1:13, Ascendance [raid_cd] 1:16; Fappachino Essence Break [untagged] 1:12; Krøpling Prismatic Barrier [defensive] 1:19; Lïzårðmâñ Rewind [raid_cd] 1:18; Miralupa Apotheosis [raid_cd] 1:15; Pomaa Rallying Cry [raid_cd] 1:12; Slushmania Crimson Vial [defensive] 1:19; Zebinomage Prismatic Barrier [defensive] 1:16
+    pressed none: Agonco (ready: Divine Shield [defensive], Divine Protection [defensive], Execution Sentence [untagged]); Deathadim (ready: Death's Advance [move], Icebound Fortitude [defensive], Lichborne [untagged], Reaper's Mark [untagged], Vampiric Blood [tank], Purgatory [tank]); Dragepie (ready: Zephyr [raid_cd], Time Spiral [raid_cd, move], Spatial Paradox [move], Rescue [move], Firestorm [dps]); Martin (ready: Exhilaration [defensive], Survival of the Fittest [defensive], Aspect of the Cheetah [move], Aspect of the Turtle [defensive]); Namsus (ready: Mass Dispel [untagged], Leap of Faith [move], Fade [defensive], Halo [untagged]); Nexsozz (ready: Anti-Magic Zone [raid_cd], Icebound Fortitude [defensive], Lichborne [untagged], Reaper's Mark [untagged]); Peggerino (ready: Unending Resolve [defensive], Demonic Healthstone [defensive], Summon Demonic Tyrant [dps], Summon Doomguard [dps], Grimoire: Imp Lord [untagged], Grimoire: Fel Ravager [untagged], Dark Pact [defensive]); Scopidruid (ready: Convoke the Spirits [raid_cd], Fury of Elune [untagged], Lunar Eclipse [untagged]); Sonyosh (ready: Spiritwalker's Grace [move], Astral Shift [defensive], Earth Elemental [defensive]); Wutroll (ready: Fortifying Brew [defensive], Touch of Death [untagged], Celestial Brew [untagged], Zen Meditation [tank])
+  1:15 Martin: "Trigger Virulence": 1 alive; players who pressed a spell tagged nothing; pressed none 1
+    pressed none: Martin (ready: Exhilaration [defensive], Survival of the Fittest [defensive], Aspect of the Cheetah [move], Aspect of the Turtle [defensive])
+  1:40 Dragepie: "You are the orb popper": 1 alive; players who pressed a spell tagged untagged 1; pressed none 0
+    pressed: Dragepie Eternity Surge [untagged] 1:42
+  2:32 Martin: "Trigger Virulence": 1 alive; players who pressed a spell tagged nothing; pressed none 1
+    pressed none: Martin (ready: Exhilaration [defensive], Aspect of the Cheetah [move], Aspect of the Turtle [defensive])
+  3:19 everyone: "Big Personals": 18 alive; players who pressed a spell tagged untagged 5, defensive 4, dps 2, raid_cd 1; pressed none 7
+    pressed: Agonco Wake of Ashes [untagged] 3:23; Algmor Bestial Wrath [untagged] 3:16, Survival of the Fittest [defensive] 3:20, Exhilaration [defensive] 3:21; Dragepie Fire Breath [untagged] 3:20, Eternity Surge [untagged] 3:22; Enfo Reincarnation [defensive] 3:22; Krøpling Prismatic Barrier [defensive] 3:21; Martin Survival of the Fittest [defensive] 3:19; Miralupa Apotheosis [raid_cd] 3:17; Nexsozz Anti-Magic Shell [untagged] 3:20; Pomaa Odyn's Fury [dps] 3:17; Wutroll Celestial Infusion [untagged] 3:19; Zebinomage Touch of the Magi [dps] 3:16
+    pressed none: Deathadim (ready: Death's Advance [move], Anti-Magic Zone [raid_cd], Icebound Fortitude [defensive], Lichborne [untagged], Reaper's Mark [untagged], Vampiric Blood [tank], Purgatory [tank]); Fappachino (ready: Vengeful Retreat [untagged], Metamorphosis [dps]); Lïzårðmâñ (ready: Spatial Paradox [move], Rescue [move], Emerald Communion [raid_cd], Dreamflight [raid_cd]); Namsus (ready: Mass Dispel [untagged], Leap of Faith [move], Fade [defensive], Halo [untagged]); Peggerino (ready: Unending Resolve [defensive], Demonic Healthstone [defensive], Summon Doomguard [dps], Grimoire: Fel Ravager [untagged], Dark Pact [defensive]); Scopidruid (ready: Convoke the Spirits [raid_cd], Fury of Elune [untagged]); Sonyosh (ready: Earth Elemental [defensive])
+    dead: Draiman, Slushmania
+  3:22 Martin: "Trigger Virulence": 1 alive; players who pressed a spell tagged nothing; pressed none 1
+    pressed none: Martin (ready: Aspect of the Cheetah [move], Aspect of the Turtle [defensive])
+  3:47 Dragepie: "You are the orb popper": 1 alive; players who pressed a spell tagged untagged 1; pressed none 0
+    pressed: Dragepie Fire Breath [untagged] 3:45, Eternity Surge [untagged] 3:49
+Named in the note but not in this pull: Mizaroth

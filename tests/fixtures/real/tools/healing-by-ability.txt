@@ -1,0 +1,17 @@
+Healing on Sszorak pull 13, Enfo only, until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest), by ability (2:32 of combat):
+  1. Chain Heal: 12.80M (83.70k/s), 25% of total, overheal 17%, 267 hits, 47.95k on average, 43% crits
+  2. Healing Rain: 11.54M (75.42k/s), 23% of total, overheal 36%, 865 hits, 13.34k on average, 39% crits
+  3. Riptide: 6.05M (39.57k/s), 12% of total, overheal 38%, 37 hits and 413 ticks, 13.45k on average, 47% crits
+  4. Soulcoiler Ritual Vessel: 5.48M (35.84k/s), 11% of total, 142 hits, 38.60k on average
+  5. Earthliving Weapon: 3.62M (23.66k/s), 7% of total, overheal 33%, 0 hits and 686 ticks, 5.28k on average, 47% crits
+  6. Healing Stream Totem: 3.40M (22.23k/s), 7% of total, overheal 11%, 0 hits and 234 ticks, 14.53k on average, 44% crits
+  7. Stormstream Totem: 2.67M (17.44k/s), 5% of total, overheal 17%, 0 hits and 111 ticks, 24.03k on average, 40% crits
+  8. Earth Shield: 1.34M (8.78k/s), 3% of total, overheal 12%, 81 hits, 16.58k on average, 53% crits
+  9. Spirit Link: 1.31M (8.59k/s), 3% of total, 16 hits, 82.14k on average
+  10. Leech: 977.71k (6.39k/s), 2% of total, overheal 3%, 81 hits, 12.07k on average
+  11. Nature's Guardian: 526.82k (3.44k/s), 1% of total, 1 hit, 526.82k on average
+  12. Omnium Folio: 505.71k (3.31k/s), 1% of total, overheal 11%, 37 hits and 182 ticks, 2.31k on average, 0% crits
+  13. Healing Wave: 413.81k (2.71k/s), 1% of total, overheal 65%, 6 hits, 68.97k on average, 67% crits
+  14. Wind Barrier: 359.83k (2.35k/s), 1% of total, 7 hits, 51.40k on average
+  15. Restorative Mists: 255.36k (1.67k/s), 0% of total, overheal 70%, 52 hits, 4.91k on average, 48% crits
+  Not healing: Spirit Link (Damage): -1.58M (-10.31k/s), 39 hits, -40.44k on average: health taken from players to give to others. Warcraft Logs counts it as negative healing and takes it off the healer's total; it is left out of the total and the shares above.

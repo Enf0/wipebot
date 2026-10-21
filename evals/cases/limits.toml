@@ -1,0 +1,60 @@
+[defaults]
+report = "KBYT4xXn7VNjDgh8"
+
+# ---- What the log can't answer, and who's asking ----
+
+[[case]]
+id = "me-boss-loot"  # loot and BiS: no log needed; the asker is a Restoration Shaman
+question = "is there any good resto shaman loot from the new boss? kithix"
+asker = "Enfo"
+expect = """Names what Kith'ix drops that suits a Restoration Shaman, above all Twisted Horror's Tendril,
+the trinket in Wowhead's Restoration Shaman best-in-slot list."""
+wrong = ["says it has no loot list for Kith'ix", "recommends a plate, leather or cloth piece or the Strength sword"]
+
+[[case]]
+id = "me-top-builds-unpulled-boss"  # a boss the report never pulled: the top parses, not the asker's own pull
+question = """can you pull logs from the ones who've killed Kith'ix on hc and give a summary of talents for Balance druid? we
+haven't killed him yet"""
+asker = "Scopidruid"
+expect = """Summarises what the top ranked Heroic Kith'ix Balance Druid parses play, from their logs."""
+facts = ["nearly all play Elune's Chosen",
+         "Lunation",
+         "Radiant Moonlight",
+         "Vile Vial of Volatile Venom",
+         "Gebbo's Bottomless Bag",
+         "talents where they differ",
+         "an import string or links to top logs"]
+wrong = ["says the top logs can't be fetched or that it needs a pull of the asker's own first",
+         "gives only a guide's build without anything from the top parses"]
+
+[[case]]
+id = "ask-unknown-asker"
+question = "How did I do tonight?"
+discord_name = "Kebabmannen"
+expect = """No character matches Kebabmannen, so it asks which character is theirs."""
+wrong = ["gives some other player's results as the asker's"]
+
+[[case]]
+id = "ask-assignment"  # the log shows who was hit, not who was assigned
+where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
+question = "Who was supposed to soak the Mutilate that killed four people on pull 33?"
+pull = 33
+boss = "Sszorak"
+expect = """The log can't show assignments (the raid note holds them); it shows who the Mutilate hit and who died to
+it."""
+facts = ["the Mutilate at 2:15",
+         "it hit five: Lïzårðmâñ, Wutroll, Draiman, Sveini and Zebinomage",
+         "all but Draiman died to it",
+         "the same side's earlier soaks (0:08, 0:59) had 11-12 players"]
+wrong = ["names who was assigned to soak as if the log showed it",
+         """says named players should have soaked it or failed to come, even as a likely guess, beyond what the log or
+         a raid note shows (e.g. 'Pomaa and Nexsozz should have been there'); saying who soaked that side earlier and
+         wasn't hit this time is fine"""]
+
+[[case]]
+id = "ask-boss-not-in-report"
+question = "Why did we wipe on Kith'ix?"
+expect = """This report has no Kith'ix pulls; it says so."""
+facts = ["the report has Sszorak and a Vashnik kill",
+         "offers the guild's other reports"]
+wrong = ["analyses Kith'ix pulls as if they were in this report"]

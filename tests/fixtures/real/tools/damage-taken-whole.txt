@@ -1,0 +1,21 @@
+DamageTaken on Sszorak pull 13, by ability (2:42 of combat):
+  1. Ula'tek's Presence: 89.84M (551.65k/s), 29% of total, 1389 hits, 64.68k on average; most on Namsus 6.61M, Nexsozz 6.49M, Martin 6.27M, Dragepie 6.01M
+  2. Mutilated Gash: 75.72M (464.95k/s), 24% of total, 917 hits, 82.57k on average; most on Peggerino 6.32M, Pomaa 5.91M, Sveini 5.83M, Krøpling 5.56M
+  3. Viscous Cyst: 34.55M (212.16k/s), 11% of total, 64 hits and 320 ticks, 89.98k on average; most on Peggerino 2.44M, Sveini 2.43M, Sinnatony 2.32M, Cptola 2.31M
+  4. Venomous Surge: 20.52M (126.03k/s), 7% of total, 118 hits, 173.93k on average; most on Namsus 4.88M, Peggerino 1.67M, Martin 1.53M, Nexsozz 1.47M
+  5. Mutilate: 20.02M (122.94k/s), 6% of total, 48 hits, 417.12k on average; most on Cptola 1.59M, Sonyosh 1.50M, Sinnatony 1.45M, Enfo 1.44M
+  6. Melee: 18.74M (115.09k/s), 6% of total, 22 hits, 851.96k on average; most on Deathadim 15.09M, Wutroll 3.65M
+  7. Virulence: 17.87M (109.75k/s), 6% of total, 202 hits, 88.48k on average; most on Enfo 1.87M, Namsus 1.76M, Cptola 985.10k, Peggerino 981.98k
+  8. Tempest: 9.59M (58.88k/s), 3% of total, 21 hits and 24 ticks, 213.10k on average; most on Sveini 2.98M, Krøpling 1.64M, Namsus 906.87k, Lïzårðmâñ 820.32k
+  9. Raging Crosswinds: 8.68M (53.31k/s), 3% of total, 140 hits, 62.01k on average; most on Cptola 954.61k, Sonyosh 915.60k, Dragepie 759.37k, Peggerino 551.06k
+  10. Stagger: 6.45M (39.62k/s), 2% of total, 0 hits and 320 ticks, 20.17k on average; most on Wutroll 6.45M
+  11. Ravage: 4.93M (30.26k/s), 2% of total, 6 hits, 821.44k on average; most on Deathadim 3.34M, Wutroll 1.59M
+  12. Refraction: 2.42M (14.83k/s), 1% of total, 0 hits and 239 ticks, 10.11k on average; most on Krøpling 1.53M, Zebinomage 888.24k
+  13. Caustic Claws: 1.35M (8.29k/s), 0% of total, 3 hits, 449.79k on average; most on Deathadim 555.40k, Fappachino 458.13k, Dragepie 335.85k
+  14. Stretch Time: 1.02M (6.24k/s), 0% of total, 0 hits and 50 ticks, 20.33k on average; most on Dragepie 1.02M
+  15. Caustic Residue: 629.81k (3.87k/s), 0% of total, 0 hits and 16 ticks, 39.36k on average; most on Krøpling 199.68k, Dragepie 128.18k, Cptola 88.84k, Sonyosh 84.87k
+  16. Burning Rush: 628.77k (3.86k/s), 0% of total, 0 hits and 17 ticks, 36.99k on average; most on Sveini 628.77k
+  17. Time Dilation: 610.02k (3.75k/s), 0% of total, 0 hits and 18 ticks, 33.89k on average; most on Sveini 610.02k
+  18. Fel Armor: 378.66k (2.33k/s), 0% of total, 0 hits and 600 ticks, 631 on average; most on Sveini 192.41k, Peggerino 186.25k
+  19. Seriously Sharp Seashell: 257.39k (1.58k/s), 0% of total, 0 hits and 156 ticks, 1.65k on average; most on Peggerino 41.04k, Lïzårðmâñ 38.47k, Enfo 32.77k, Namsus 31.85k
+  20. Set Fire to the Pain: 42.16k (259/s), 0% of total, 0 hits and 42 ticks, 1.00k on average; most on Fappachino 42.16k

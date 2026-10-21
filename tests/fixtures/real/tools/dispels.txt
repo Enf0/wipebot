@@ -1,0 +1,7 @@
+Dispels on all 19 Vashnik the Malignant pulls:
+  Exploding Infection: 324 applied, 306 dispelled, 18 ran out, and 1 more dispel took a stack off and left it on; dispels by Miralupa 97, Enfo 84, Lïzårðmâñ 62, Namsus 61, Providence 2, Peggerino 1; ran out on Krøpling 2, Peggerino 2, Sonyosh 2, Attractîv 2, Agonco 2, Nexsozz 2, Martin 1, Enfo 1
+  Congealing Bolt: 1565 applied, 96 dispelled, 1469 ran out (mostly left alone: not worth dispelling, or missed; check what it does); dispels by Enfo 19, Dragepie 17, Providence 17, Miralupa 12, Lïzårðmâñ 11, Namsus 10, Martin 6, Attractîv 2, Sonyosh 1, Peggerino 1; ran out on Nexsozz 100, Deathadim 94, Fappachino 84, Krøpling 81, Sonyosh 78, Miralupa 78, Zebinomage 77, Namsus 76
+  Exploding Infection dispelled off: Martin 40, Sonyosh 40, Zebinomage 38, Dragepie 35, Krøpling 35, Peggerino 32, Attractîv 30, Pomaa 10, Nexsozz 8, Namsus 8, Miralupa 7, Enfo 7
+    most often (by > on): Miralupa > Peggerino 14, Miralupa > Sonyosh 13, Namsus > Zebinomage 13, Enfo > Sonyosh 13, Enfo > Martin 11, Miralupa > Martin 11, Miralupa > Zebinomage 11, Miralupa > Attractîv 10
+  Congealing Bolt dispelled off: Dragepie 22, Enfo 11, Lïzårðmâñ 10, Martin 8, Providence 7, Peggerino 6, Attractîv 5, Zebinomage 5, Sinnatony 4, Namsus 4, Miralupa 3, Nalaw 3
+    most often (by > on): Dragepie > Dragepie 17, Enfo > Enfo 9, Lïzårðmâñ > Lïzårðmâñ 8, Martin > Martin 6, Providence > Providence 5, Providence > Sinnatony 3, Miralupa > Dragepie 3, Namsus > Attractîv 2

@@ -1,0 +1,14 @@
+{
+ "1": {
+  "name": "Twisted Horror's Tendril",
+  "html": "<b>Twisted Horror's Tendril</b><br>Item Level <!--ilvl-->340<br>Binds when picked up<br>Trinket<br>+190 [Agility or Intellect]<br>Equip: Grants Devastating Power.<br>Requires Level 90<br>Sell Price: 53g"
+ },
+ "2": {
+  "name": "Chestwrap of Palpable Terror",
+  "html": "Item Level 334 Binds when picked up Chest Leather +189 Intellect Durability 165 / 165 +143 Haste"
+ },
+ "4": {
+  "name": "Venomcast Relic",
+  "html": "Item Level 219 Binds when picked up Classes: Hunter, Shaman Use: Create a set item."
+ }
+}

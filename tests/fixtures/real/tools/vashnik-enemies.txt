@@ -1,0 +1,6 @@
+Enemies other than the boss on Vashnik the Malignant pull 7 (3:35, https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=25), most damaged first (instances, deaths and when, what became of the rest, damage taken, who did most; then their casts with a cast bar: begun, kicked and by whom, gone through):
+  Shrouded Venom: 24 came, 16 died (at 0:30, 0:30, 0:30, 0:30, 0:30, 0:30, 0:31, 0:31 ...), 8 alive at the end, took 175.13M; most by Pomaa 20.60M, Zebinomage 19.56M, Nexsozz 16.99M, Martin 16.13M
+  Burning Venom: 9 came, 7 died (at 0:37, 0:51, 1:02, 2:07, 2:19, 2:33, 3:34), 2 alive at the end, took 54.30M; most by Sinnatony 6.14M, Dragepie 4.88M, Nalaw 4.57M, Zebinomage 4.37M
+    casts Malignant Burst: 1 begun, 0 kicked, 1 went through (nobody kicked it on this boss that night: it may not be kickable); went through at 3:32
+  Malignant Totem: 46 came, 46 died (at 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00 ...), took 0; most by nobody
+    casts Malignance: 74 begun, 0 kicked, 2 went through, 72 ended otherwise (the add died or was moved) (nobody kicked it on this boss that night: it may not be kickable); went through at 1:50, 1:50

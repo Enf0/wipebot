@@ -1,0 +1,31 @@
+**Vashnik the Malignant** (Mythic) · pull 16 · wipe at **9.4%** · 6:41 · best of this log so far
+First deaths: Martin (Plague Wave, 3:48) · Attractîv (Plague Wave, 3:48) · Attractîv (Conflagrating Expulsion, 4:36)
+Killed by, until the wipe was decided at 6:28 (half the raid was dead): Melee ×4 · Plague Wave ×3 · Conflagrating Expulsion ×1 · Stygian Burst ×1 · Plague Froth ×1 · 2 other abilities ×2 (9 later deaths: fallout)
+Last 5: 60.2 → 54.5 → 71.9 → 76.8 → 9.4
+Warcraft Logs: https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=38
+Ended by: deaths from 3:48 until half the raid was dead at 6:28, no single hit killing many: start from the first death and follow what each left short.
+
+Raid size 20. Deaths in order (time from pull start, players alive after it, a battle res or self-res counted):
+1. 3:48 Martin (Beast Mastery Hunter; also Marksmanship in some pulls) - Plague Wave [1295798] (19 alive)
+2. 3:48 Attractîv (Balance Druid) - Plague Wave [1295798] (18 alive)
+3. 4:36 Attractîv (Balance Druid) - Conflagrating Expulsion [1298587] (19 alive)
+4. 4:59 Lïzårðmâñ (Preservation Evoker) - Stygian Burst [1302489] (18 alive)
+5. 5:13 Deathadim (Blood Death Knight) - Melee [1] (17 alive)
+6. 5:45 Dragepie (Devastation Evoker) - Plague Froth [1281925] (16 alive)
+7. 5:45 Krøpling (Arcane Mage) - Plague Wave [1295798] (15 alive)
+8. 6:16 Wutroll (Brewmaster Monk) - Melee [1] (14 alive)
+9. 6:20 Zebinomage (Arcane Mage) - Melee [1] (13 alive)
+10. 6:22 Agonco (Retribution Paladin) - Melee [1] (12 alive)
+11. 6:25 Pomaa (Fury Warrior) - Congealing Bolt [1305833] (11 alive)
+12. 6:28 Sinnatony (Arms Warrior) - Caustic Explosion [1295209] (10 alive)
+13. 6:33 Nalaw (Arms Warrior) - Congealing Bolt [1305833] (9 alive, after half the raid was dead)
+14. 6:35 Sonyosh (Elemental Shaman) - Melee [1] (8 alive, after half the raid was dead)
+15. 6:40 Providence (Holy Paladin; also Retribution in some pulls) - Malignant Burst [1280189] (7 alive, after half the raid was dead)
+16. 6:40 Enfo (Restoration Shaman) - Malignant Burst [1280189] (6 alive, after half the raid was dead)
+17. 6:40 Miralupa (Holy Priest) - Malignant Burst [1280189] (5 alive, after half the raid was dead)
+18. 6:40 Peggerino (Demonology Warlock; also Destruction in some pulls) - Malignant Burst [1280189] (4 alive, after half the raid was dead)
+19. 6:40 Martin (Beast Mastery Hunter; also Marksmanship in some pulls) - Malignant Burst [1280189] (3 alive, after half the raid was dead)
+20. 6:40 Fappachino (Havoc Demon Hunter) - Caustic Explosion [1295209] (2 alive, after half the raid was dead)
+21. 6:41 Nexsozz (Unholy Death Knight) - Congealing Bolt [1305833] (1 alive, after half the raid was dead)
+Half the raid was dead at 6:28; later deaths are fallout of the wipe.
+Pull ended at 6:41 with the boss at 9.43% health.

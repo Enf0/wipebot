@@ -1,0 +1,23 @@
+Healthstones and healing potions, and personal defensives (Lorrgs' defensive tag), on Sszorak: 33 pulls, until each wipe was decided (whole_pull for the rest). Per player: pulls, healthstones and potions, each defensive's uses, deaths, and at how many deaths each defensive they used on this boss was off cooldown but unused (ignoring charges and cooldown reduction; whether one was needed is for the death recap); defensives never cast are a talent choice or passive, not a miss:
+- Cptola (Holy Paladin): 33 pulls, 4 healthstones/potions, Divine Shield 11, Divine Protection 2; died 25, ready but unused: Divine Protection at 25, Divine Shield at 16
+- Peggerino (Demonology Warlock): 33 pulls, 17 healthstones/potions, Demonic Healthstone 17, Unending Resolve 10, Dark Pact 4; died 21, ready but unused: Dark Pact at 18, Unending Resolve at 16, Demonic Healthstone at 14
+- Scopidruid (Balance Druid): 33 pulls, 4 healthstones/potions, Barkskin 10; died 20, ready but unused: Barkskin at 16
+- Enfo (Restoration Shaman): 33 pulls, 8 healthstones/potions, Astral Shift 10; died 18, ready but unused: Astral Shift at 12; never cast: Earth Elemental
+- Sonyosh (Elemental Shaman): 33 pulls, 10 healthstones/potions, Astral Shift 10; died 18, ready but unused: Astral Shift at 14; never cast: Earth Elemental
+- Krøpling (Arcane Mage): 24 pulls, 7 healthstones/potions, Prismatic Barrier 36, Alter Time 12, Ice Cold 8, Mirror Image 3; died 17, ready but unused: Mirror Image at 15, Ice Cold at 13, Alter Time at 12, Prismatic Barrier at 9; never cast: Ice Block
+- Pomaa (Fury Warrior): 33 pulls, 2 healthstones/potions, Spell Reflection 44; died 17, ready but unused: Spell Reflection at 14
+- Sinnatony (Arms Warrior): 33 pulls, 4 healthstones/potions, Spell Reflection 30, Die by the Sword 5; died 17, ready but unused: Spell Reflection at 15, Die by the Sword at 15
+- Sveini (Demonology Warlock): 33 pulls, 33 healthstones/potions, Dark Pact 55, Unending Resolve 25, Demonic Healthstone 24; died 16, ready but unused: Demonic Healthstone at 8, Unending Resolve at 5
+- Dragepie (Devastation Evoker): 33 pulls, 17 healthstones/potions, Obsidian Scales 41; died 15, ready but unused: Obsidian Scales at 4
+- Attractîv (Balance Druid): 22 pulls, 4 healthstones/potions, Barkskin 2; died 14, ready but unused: Barkskin at 13
+- Draiman (Assassination Rogue): 33 pulls, 0 healthstones/potions, Feint 87, Crimson Vial 19, Cloak of Shadows 7; died 14, ready but unused: Cloak of Shadows at 11, Crimson Vial at 11, Feint at 9; never cast: Cheating Death, Evasion
+- Zebinomage (Arcane Mage): 33 pulls, 3 healthstones/potions, Prismatic Barrier 63, Alter Time 32, Ice Cold 8, Mirror Image 8; died 14, ready but unused: Ice Cold at 12, Mirror Image at 10, Alter Time at 6, Prismatic Barrier at 6; never cast: Ice Block
+- Fappachino (Havoc Demon Hunter): 33 pulls, 8 healthstones/potions, Blur 30; died 12, ready but unused: Blur at 5
+- Lïzårðmâñ (Preservation Evoker): 33 pulls, 0 healthstones/potions, Obsidian Scales 36; died 12, ready but unused: Obsidian Scales at 4
+- Wutroll (Brewmaster Monk): 33 pulls, 0 healthstones/potions, Fortifying Brew 16; died 12, ready but unused: Fortifying Brew at 6
+- Nexsozz (Unholy Death Knight): 33 pulls, 13 healthstones/potions, Icebound Fortitude 2; died 11, ready but unused: Icebound Fortitude at 11
+- Martin (Beast Mastery Hunter): 33 pulls, 0 healthstones/potions, Survival of the Fittest 11, Exhilaration 11, Aspect of the Turtle 4; died 10, ready but unused: Aspect of the Turtle at 10, Survival of the Fittest at 7, Exhilaration at 6
+- Deathadim (Blood Death Knight): 33 pulls, 0 healthstones/potions, Icebound Fortitude 2; died 9, ready but unused: Icebound Fortitude at 8
+- Algmor (Beast Mastery Hunter): 11 pulls, 3 healthstones/potions, Survival of the Fittest 17, Exhilaration 9, Aspect of the Turtle 4; died 5, ready but unused: Aspect of the Turtle at 2, Exhilaration at 1, Survival of the Fittest at 1
+- Namsus (Holy Priest): 30 pulls, 1 healthstone/potion, Fade 24, Desperate Prayer 20; died 3, ready but unused: Fade at 3, Desperate Prayer at 2
+- Miralupa (Holy Priest): 12 pulls, 0 healthstones/potions, Fade 4, Desperate Prayer 2

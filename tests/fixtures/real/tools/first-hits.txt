@@ -1,0 +1,93 @@
+Sszorak: 42 pulls on the night (pull, boss %, phase, duration, first death, buffs the boss gained and kept to the end)
+The guild's best wipe before the night: 62.6% on Mon 5 Oct (pull 13, https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21).
+  1: 86.1% P1 0:41 first death Agonco (Mutilate, 0:08); boss Unbound Ferocity from 0:39 best of the night until then
+  2: 78.0% P1 1:31 first death Sveini (Virulence, 0:37); boss Unbound Ferocity from 1:25 best of the night until then
+  3: 79.8% P1 1:19 first death Agonco (Virulence, 0:40)
+  4: 57.2% P1 (2nd time) 2:47 first death Agonco (Tempest, 1:27); boss Unbound Ferocity from 2:31 best of the night until then
+  5: 78.6% P1 1:25 first death Agonco (Tempest, 0:51); boss Unbound Ferocity from 1:18
+  6: 75.9% P1 1:30 first death Krøpling (Mutilate, 1:07); boss Unbound Ferocity from 1:16
+  7: 60.4% P1 (2nd time) 2:45 first death Sonyosh (Tempest, 0:40); boss Unbound Ferocity from 2:32
+  8: 72.3% P2 1:57 first death Dragepie (Mutilated Gash, 0:44)
+  9: 72.6% P2 1:48 first death Krøpling (Tempest, 0:47)
+  10: 100.0% P1 0:41 first death Martin (Melee, 0:00); boss Unbound Ferocity from 0:39 reset
+  11: 55.3% P1 (2nd time) 2:44 first death Agonco (Virulence, 1:20); boss Unbound Ferocity from 2:31 best of the night until then
+  12: 80.4% P1 1:08 first death Scopidruid (Tempest, 0:29)
+  13: 77.0% P1 1:26 first death Krøpling (Tempest, 0:14); boss Unbound Ferocity from 1:18
+  14: 64.5% P1 (2nd time) 2:15 first death Nexsozz (Tempest, 1:05)
+  15: 69.6% P2 1:55 first death Agonco (Virulence, 1:21)
+  16: 67.8% P2 1:59 first death Algmor (Virulence, 1:21)
+  17: 73.7% P2 1:49 first death Nexsozz (Tempest, 1:34)
+  18: 75.8% P1 1:25 first death Slushmania (no killing blow recorded, 0:52); boss Unbound Ferocity from 1:18
+  19: 100.0% P1 0:28 first death Fappachino (Mutilate, 0:08) reset
+  20: 84.3% P1 0:48 first death Agonco (Tempest, 0:25); boss Unbound Ferocity from 0:39
+  21: 77.8% P1 1:22 first death Wutroll (Mutilate, 0:55); boss Unbound Ferocity from 1:17
+  22: 77.7% P1 1:20 first death Peggerino (Mutilated Gash, 1:04); boss Unbound Ferocity from 1:16
+  23: 57.1% P1 (2nd time) 2:43 first death Pomaa (Melee, 0:01); boss Unbound Ferocity from 2:30
+  24: 62.4% P1 (2nd time) 2:28 first death Scopidruid (Ula'tek's Presence, 1:33)
+  25: 67.7% P1 (2nd time) 2:11 first death Dragepie (Tempest, 0:43)
+  26: 71.0% P2 1:50 first death Algmor (Mutilated Gash, 1:22)
+  27: 59.8% P1 (2nd time) 2:36 first death Agonco (Tempest, 1:03); boss Unbound Ferocity from 2:32
+  28: 72.5% P2 1:49 first death Agonco (no killing blow recorded, 0:53)
+  29: 76.3% P1 1:28 first death Sonyosh (Virulence, 0:31); boss Unbound Ferocity from 1:17
+  30: 73.6% P2 1:52 first death Pomaa (Melee, 0:00)
+  31: 76.0% P1 1:23 first death Krøpling (Caustic Claws, 0:33); boss Unbound Ferocity from 1:17
+  32: 55.7% P1 (2nd time) 2:42 first death Algmor (Virulence, 1:20); boss Unbound Ferocity from 2:32
+  33: 78.8% P1 1:23 first death Agonco (no killing blow recorded, 0:56); boss Unbound Ferocity from 1:17
+  34: 68.9% P1 (2nd time) 2:16 first death Agonco (no killing blow recorded, 0:52)
+  35: 74.8% P1 1:23 first death Zebinomage (Mutilated Gash, 0:29); boss Unbound Ferocity from 1:17
+  36: 75.5% P1 1:25 first death Peggerino (Mutilate, 1:11); boss Unbound Ferocity from 1:16
+  37: 55.8% P1 (2nd time) 2:42 first death Sonyosh (no killing blow recorded, 1:46); boss Unbound Ferocity from 2:32
+  38: 74.5% P1 1:31 first death Sonyosh (Ula'tek's Presence, 1:08); boss Unbound Ferocity from 1:17
+  39: 65.2% P1 (2nd time) 2:10 first death Algmor (Mutilated Gash, 0:31)
+  40: 63.4% P1 (2nd time) 2:27 first death Scopidruid (Ula'tek's Presence, 1:32)
+  41: 69.3% P2 1:56 first death Nexsozz (Tempest, 0:49)
+  42: 34.1% P1 (3rd time) 4:49 first death Peggerino (Virulence, 2:36); boss Unbound Ferocity from 4:39 best of the night until then
+Average wipe % (resets left out): first third 72.2, middle 70.9, last third 66.6
+The boss gained Unbound Ferocity and kept it to the end on 24 of 42 pulls, gained at 0:39 (3 pulls), 1:16-1:25 (13 pulls), 2:30-2:32 (7 pulls), 4:39 (1 pull).
+Killers of the first 3 deaths per pull (deaths after the boss gained one of those buffs left out): Tempest x30, no killing blow recorded x19, Mutilate x17, Mutilated Gash x14, Virulence x12, Caustic Claws x5
+The night's killer (deaths until each wipe was decided): Tempest [1287083], 58 deaths over 40 pulls, the first death on 12 of them; killed most: Scopidruid 7, Enfo 6, Sonyosh 6, Nexsozz 6; hit most (until each wipe was decided): Deathadim (tank) 165, Peggerino 85, Sonyosh 78, Fappachino 68.
+
+First hits on the boss, per pull (the log has no pull timer, so how early against a countdown can't be told; a first hit well ahead of the next player's is someone pulling on their own):
+  Sszorak pull 1: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 2: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 3: Zebinomage (Arcane Blast) at 0.0 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 4: Zebinomage (Arcane Blast) at 0.3 s, 0.1 s before the next player (Sonyosh)
+  Sszorak pull 5: Krøpling (Arcane Surge) at 0.4 s, 0.1 s before the next player (Agonco)
+  Sszorak pull 6: Agonco (Execution Sentence) at 0.4 s, 0.1 s before the next player (Zebinomage)
+  Sszorak pull 7: Scopidruid (Wrath) at 0.4 s, 0.0 s before the next player (Pomaa)
+  Sszorak pull 8: Krøpling (Arcane Surge) at 0.0 s, 0.4 s before the next player (Pomaa)
+  Sszorak pull 9: Pomaa (Melee) at 0.4 s, 0.1 s before the next player (Krøpling)
+  Sszorak pull 10: Martin (Cobra Shot) at 0.0 s, 0.3 s before the next player (Krøpling); reset with the boss at 100.0%
+  Sszorak pull 11: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 12: Sonyosh (Flame Shock) at 0.0 s, 0.1 s before the next player (Deathadim)
+  Sszorak pull 13: Zebinomage (Arcane Surge) at 0.4 s, 0.1 s before the next player (Krøpling)
+  Sszorak pull 14: Zebinomage (Arcane Surge) at 0.2 s, 0.2 s before the next player (Sonyosh)
+  Sszorak pull 15: Krøpling (Arcane Surge) at 0.4 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 16: Pomaa (Charge) at 0.2 s, 0.2 s before the next player (Krøpling)
+  Sszorak pull 17: Deathadim (Melee) at 0.0 s, 0.0 s before the next player (Zebinomage)
+  Sszorak pull 18: Scopidruid (Moonfire) at 0.3 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 19: Martin (Auto Shot) at 0.0 s, nobody else hit the boss in its first 5 s; reset with the boss at 100.0%
+  Sszorak pull 20: Krøpling (Arcane Surge) at 0.3 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 21: Scopidruid (Moonfire) at 0.1 s, 0.0 s before the next player (Krøpling)
+  Sszorak pull 22: Pomaa (Melee) at 0.5 s, 0.0 s before the next player (Krøpling)
+  Sszorak pull 23: Krøpling (Arcane Surge) at 0.4 s, 0.1 s before the next player (Scopidruid)
+  Sszorak pull 24: Deathadim (Melee) at 0.0 s, 0.0 s before the next player (Krøpling)
+  Sszorak pull 25: Scopidruid (Moonfire) at 0.3 s, 0.2 s before the next player (Pomaa)
+  Sszorak pull 26: Deathadim (Melee) at 0.0 s, 0.4 s before the next player (Pomaa)
+  Sszorak pull 27: Scopidruid (Moonfire) at 0.1 s, 0.2 s before the next player (Krøpling)
+  Sszorak pull 28: Pomaa (Charge) at 0.2 s, 0.1 s before the next player (Sonyosh)
+  Sszorak pull 29: Krøpling (Arcane Surge) at 0.2 s, 0.0 s before the next player (Zebinomage)
+  Sszorak pull 30: Scopidruid (Moonfire) at 0.2 s, 0.3 s before the next player (Pomaa)
+  Sszorak pull 31: Scopidruid (Moonfire) at 0.3 s, 0.0 s before the next player (Pomaa)
+  Sszorak pull 32: Zebinomage (Arcane Surge) at 0.0 s, 0.2 s before the next player (Krøpling)
+  Sszorak pull 33: Zebinomage (Arcane Surge) at 0.0 s, 0.3 s before the next player (Krøpling)
+  Sszorak pull 34: Zebinomage (Arcane Surge) at 0.0 s, 0.3 s before the next player (Pomaa)
+  Sszorak pull 35: Zebinomage (Arcane Surge) at 0.0 s, 0.4 s before the next player (Pomaa)
+  Sszorak pull 36: Pomaa (Charge) at 0.0 s, 0.1 s before the next player (Zebinomage)
+  Sszorak pull 37: Zebinomage (Arcane Surge) at 0.0 s, 0.0 s before the next player (Pomaa)
+  Sszorak pull 38: Zebinomage (Arcane Surge) at 0.2 s, 0.2 s before the next player (Krøpling)
+  Sszorak pull 39: Zebinomage (Arcane Surge) at 0.0 s, 0.1 s before the next player (Pomaa)
+  Sszorak pull 40: Zebinomage (Arcane Surge) at 0.2 s, 0.3 s before the next player (Krøpling)
+  Sszorak pull 41: Zebinomage (Arcane Surge) at 0.0 s, 0.0 s before the next player (Pomaa)
+  Sszorak pull 42: Enfo (Flame Shock) at 0.1 s, 0.2 s before the next player (Scopidruid)
+First on the boss over 42 pulls: Zebinomage 13, Krøpling 9, Scopidruid 7, Pomaa 5, Deathadim 3, Martin 2, Agonco 1, Sonyosh 1, Enfo 1; at least 1 s ahead of everyone else: Martin 1

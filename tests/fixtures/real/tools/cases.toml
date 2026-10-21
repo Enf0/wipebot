@@ -1,0 +1,147 @@
+# The tool cases: each runs one tool on recorded answers (recorded.sqlite) and is pinned to <name>.txt here
+# (test_tools.py). To add one: a line below, `just record-tools`, `just snapshot`, then read the new file.
+#
+#   name = { tool = "<tool>", <its arguments> }    an argument { file = "<path>" } is that file's text, from real/
+#
+# `local = true`: the case reads Warcraft Logs' rankings, another guild's report (the top parses, the fastest
+# kills) or a Raidbots data file, which may not be published; its answers and snapshot are in local/, untracked
+# (tests/README.md).
+#
+# The reports:
+#   KBYT4xXn7VNjDgh8  Mon 5 Oct: Vashnik killed on pull 2, 33 Sszorak pulls (the captured night, ../KBYT...json)
+#   vjt3KLbN8g62J1H9  Mon 12 Oct: 42 Sszorak pulls, with that night's raid note (../notes)
+#   kTMfFRQ324Hvx6G7  Mon 28 Sep: Entombed Sentinels killed on pull 8, Vashnik the Malignant on pull 19
+#   GM8XdBHaqpFgxK9Q  Mon 21 Sep: Nymrissa Wavecaller killed on pull 8
+#   8TcXMAP2gHQGr9pW  Wed 7 Oct: a Heroic Coiled Altar wipe at 0.3%, phases and an intermission
+#   BfgjDv6LC2HaVbFm  Wed 30 Sep: Mythic Nek'zali, two pulls with kicks on its adds
+# All are reports of The Dragonfell Tribe, the maintainers' guild (tests/README.md). Bosses other than Sszorak are
+# where how a pull ended is easy to get wrong (a tank death, a battle res, adds).
+
+# ---- one pull ----
+pull-summary = { tool = "pull_summary", report = "KBYT4xXn7VNjDgh8", pull = 13 }
+vashnik-summary = { tool = "pull_summary", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", pull = 16 }
+altar-summary = { tool = "pull_summary", report = "8TcXMAP2gHQGr9pW", boss = "The Coiled Altar", pull = 1 }
+timeline = { tool = "pull_timeline", report = "KBYT4xXn7VNjDgh8", pull = 13 }
+timeline-window = { tool = "pull_timeline", report = "KBYT4xXn7VNjDgh8", pull = 13, start = "2:25", end = "2:40" }
+death-recap = { tool = "death_recap", report = "KBYT4xXn7VNjDgh8", player = "Scopidruid", pull = 13 }
+# no killing blow: thrown off the platform, by where they were last logged
+death-recap-thrown = { tool = "death_recap", report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13 }
+mechanic-hits = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", ability = "Tempest", all_pulls = true }
+# a debuff baited onto one player: each time it went on someone else, and whether they were alive
+mechanic-hits-bait = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", ability = "Serpent's Fury", all_pulls = true, whole_pull = true }
+mechanic-outliers = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", pull = 13 }
+tank-swaps = { tool = "tank_swaps", report = "KBYT4xXn7VNjDgh8", pull = 14 }
+# what each tank took a boss with over the guild's nights: Death Grip taunts too
+tank-swaps-taunts = { tool = "tank_swaps", report = "KBYT4xXn7VNjDgh8", pull = 14, taunts = true }
+vashnik-tank-swaps = { tool = "tank_swaps", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", pull = 16 }
+# the night's own kill, later in the report
+compare-with-kill = { tool = "compare_pulls", local = true, report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", pull = 16 }
+compare-pulls = { tool = "compare_pulls", report = "KBYT4xXn7VNjDgh8", pull = 12, other = 13 }
+raid-prep = { tool = "raid_prep", local = true, report = "KBYT4xXn7VNjDgh8", pull = 13 }
+nymrissa-enemies = { tool = "enemies", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", pull = 1 }
+# adds' casts that went through, and who had a kick ready for each
+nekzali-enemies = { tool = "enemies", report = "BfgjDv6LC2HaVbFm", boss = "Nek'zali", pull = 2 }
+# every pull: murlocs whose deaths aren't in the log, so their kill order isn't either
+nymrissa-enemies-night = { tool = "enemies", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", all_pulls = true }
+# every pull: the adds' casts, kicked and by whom, summed over the night
+nekzali-enemies-night = { tool = "enemies", report = "BfgjDv6LC2HaVbFm", boss = "Nek'zali", all_pulls = true }
+# Malignant Totems die under two actors of one game id
+vashnik-enemies = { tool = "enemies", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik the Malignant", pull = 7 }
+
+# ---- the map ----
+# the pull the replay viewer is tested on too (test_tools.py)
+pull-map = { tool = "pull_map", report = "KBYT4xXn7VNjDgh8", pull = 13, players = ["Scopidruid"] }
+# each time a debuff ran out: who had it, whose burst hit whom
+pull-map-mechanic = { tool = "pull_map", report = "vjt3KLbN8g62J1H9", pull = 42, at = "Virulence" }
+pull-map-night = { tool = "pull_map", report = "vjt3KLbN8g62J1H9", at = "Virulence", all_pulls = true, players = ["Scopidruid"] }
+# another boss: a debuff whose damage hits whoever stands near its carrier
+pull-map-vashnik = { tool = "pull_map", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", at = "Plague Froth" }
+
+# ---- the night ----
+night = { tool = "progress", local = true, report = "KBYT4xXn7VNjDgh8" }
+progress = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
+list-pulls = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Vashnik", each_pull = true }
+first-hits = { tool = "progress", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", first_hits = true }
+roster = { tool = "roster", report = "KBYT4xXn7VNjDgh8" }
+defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
+defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid" }
+healing = { tool = "healing", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", pull = 8 }
+# the spikes that come back at the same moment pull after pull
+healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true }
+
+# ---- breakdown: any table over any pulls ----
+breakdown = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "DamageTaken", group_by = "ability", pulls = [13], cutoff = 3 }
+damage-taken = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "DamageTaken", group_by = "ability", pulls = [13] }
+# the fallout too: past the wipe being decided
+damage-taken-whole = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "DamageTaken", group_by = "ability", pulls = [13], whole_pull = true }
+# one ability: each player's hits, average hit and crits
+damage-taken-ability = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "DamageTaken", ability = "Tempest", pulls = [13] }
+healing-by-ability = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "Healing", group_by = "ability", player = "Enfo", pulls = [13] }
+buffs = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "Buffs", player = "Scopidruid", pulls = [13] }
+damage-by-pull = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "DamageDone", group_by = "pull", pulls = [12, 13] }
+debuffs-by-pull = { tool = "breakdown", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", data_type = "Debuffs", ability = "Exploding Infection", group_by = "pull", pulls = [15, 16] }
+interrupts = { tool = "breakdown", report = "BfgjDv6LC2HaVbFm", boss = "Nek'zali", data_type = "Interrupts" }
+interrupts-by-pull = { tool = "breakdown", report = "BfgjDv6LC2HaVbFm", boss = "Nek'zali", data_type = "Interrupts", group_by = "pull", pulls = [1, 2] }
+dispels = { tool = "breakdown", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", data_type = "Dispels" }
+
+# ---- raid notes and plans ----
+# soaks against their groups, planned cooldowns against casts; a long pull, past the wipe being decided
+raid-note = { tool = "raid_note", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", pull = 42, note = { file = "notes/sszorak-2026-10-12.txt" } }
+# every pull counted per player: soaks missed while alive, planned cooldowns, callouts
+raid-note-night = { tool = "raid_note", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", all_pulls = true, note = { file = "notes/sszorak-2026-10-12.txt" } }
+# kick assignments: callouts to one player as each Broodling begins Visceral Burst, neighbours swapping sides
+raid-note-kicks = { tool = "raid_note", report = "fvkH4hGZwDRVnyXJ", boss = "Twin Fangs", pull = 14, note = { file = "notes/twin-fangs-2026-10-19.txt" } }
+raid-note-kicks-night = { tool = "raid_note", report = "fvkH4hGZwDRVnyXJ", boss = "Twin Fangs", all_pulls = true, note = { file = "notes/twin-fangs-2026-10-19.txt" } }
+# spots against where everyone stood as Virulence ran out: mirrored on one side of the room, as drawn on the other
+# (the plan is a later version than the night's pulls had)
+raid-plan = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", pull = 42, plan = { file = "plans/sszorak-2026-10-14.txt" } }
+raid-plan-night = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", all_pulls = true, plan = { file = "plans/sszorak-2026-10-14.txt" } }
+# two versions saved: the pull against the one saved before it, the newer one named; or every pull against the newest
+raid-plan-versions = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", pull = 42, plan = { file = "plans/sszorak-versions.txt" } }
+raid-plan-latest = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", all_pulls = true, latest = true, plan = { file = "plans/sszorak-versions.txt" } }
+# one player at every moment against their spot, drawn
+raid-plan-player = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", all_pulls = true, player = "Scopidruid", plan = { file = "plans/sszorak-2026-10-14.txt" } }
+
+# ---- one player ----
+player-pull = { tool = "player_pull", local = true, report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13 }
+player-night = { tool = "player_night", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo" }
+compare-with-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13, aspects = ["build", "casts"] }
+cooldowns-vs-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo", pull = 13, aspects = ["cooldowns"] }
+# a boss the report never pulled; none ranked on Mythic yet, so Heroic
+top-builds = { tool = "compare_with_top", local = true, spec = "balance druid", boss = "Kith'ix", aspects = ["build"] }
+# what the fastest kills brought ("is it a 4-heal fight?"), the boss named as a raider wrote it
+top-kills = { tool = "compare_with_top", local = true, boss = "vashnik" }
+player-history = { tool = "player_history", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo" }
+player-trends = { tool = "player_history", report = "KBYT4xXn7VNjDgh8", player = "Draiman", boss = "Sszorak", weeks = 2, show = ["deaths"] }
+guild-rankings = { tool = "player_history", local = true, report = "KBYT4xXn7VNjDgh8", role = "healer" }
+buff-at-casts = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", pull = 13, player = "Scopidruid", buff = "Starlord", spell = "Starsurge" }
+# Bloodlust by its name, though a mage's Time Warp gave it
+buff-at-casts-lust = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", pull = 13, player = "Scopidruid", buff = "Bloodlust", spell = "Starsurge" }
+# every pull: a spell cast all the time, tallied per pull, with the first cast on each
+buff-at-casts-night = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid", buff = "Starlord", spell = "Starsurge", all_pulls = true }
+
+# ---- game knowledge ----
+spell-info = { tool = "spell_info", spell = "1287083" }
+spec-cooldowns = { tool = "spec_guide", local = true, spec = "restoration shaman", topic = "cooldowns" }
+boss-tooltips = { tool = "boss_guide", boss = "Sszorak", topic = "tooltips" }
+# one mechanic: its tooltip and only the guides' parts naming it
+boss-guide-mechanic = { tool = "boss_guide", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", mechanic = "Virulence" }
+# any Warcraft Logs query the model writes, and the schema to write it from
+wcl-query = { tool = "wcl_query", report = "KBYT4xXn7VNjDgh8", query = "{ reportData { report(code: $code) { fights(fightIDs: [21, 41]) { id name kill bossPercentage startTime endTime } } } }" }
+wcl-query-schema = { tool = "wcl_query", schema_type = "ReportFight" }
+# any page of the guide and news sites, in parts, and a search across them
+web-lookup-read = { tool = "web_lookup", url = "https://www.wowhead.com/news/nymrissa-wavecaller-nerfs-mythic-twin-fangs-changed-raid-tuning-on-weekly-reset-382704" }
+web-lookup-guide-part = { tool = "web_lookup", url = "https://www.method.gg/guides/the-venomous-abyss/the-twin-fangs", part = 2 }
+web-lookup-search = { tool = "web_lookup", query = "twin fangs mythic" }
+
+# ---- finding reports ----
+# a guild's reports, a raider's pug among them (4 of 35 in the guild)
+find-reports = { tool = "find_reports", guild = "The Dragonfell Tribe", server = "Kazzak", region = "eu", days = 7 }
+# the current report's guild, named without its realm: no realm lookup
+find-reports-own-guild = { tool = "find_reports", report = "vjt3KLbN8g62J1H9", guild = "the dragonfell tribe", days = 7 }
+# a raider's alt in a pug's log the guild's reports don't have
+character-reports = { tool = "find_reports", local = true, player = "Dscopi", server = "Kazzak", region = "eu", days = 14 }
+# casts of one spell by player, with the rate over the pulls' combat
+breakdown-casts = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "Casts", ability = "Flash Heal", boss = "Sszorak" }
+# a spec's top parses' major cooldowns without a player: when they pressed them, beside the boss's casts
+top-cooldowns = { tool = "compare_with_top", local = true, spec = "restoration shaman", boss = "Vashnik", difficulty = "Mythic", aspects = ["cooldowns"] }

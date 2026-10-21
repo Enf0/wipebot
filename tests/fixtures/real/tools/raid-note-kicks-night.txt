@@ -1,0 +1,51 @@
+The raid note for Twin Fangs (Mythic), checked against every The Twin Fangs pull (15), each until its wipe was decided (the boss's enrage or half the raid dead) and against the note as it was saved before it began. "p3 1:15" is pull 3 at 1:15.
+Assignments in the note's text:
+  Ravenous Feast and Tainted Blood Groups: Left: Attractîv Dragepie Martin Sonyosh Namsus Lïzårðmâñ; Right: Krøpling Zebinomage Peggerino Cptola Enfo Dscopi; Center: Draiman Slushmania Agonco Nalaxd Pomaa Nexsozz
+  Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Enfo; Kick #2 left: Dragepie; Kick #2 right: Dscopi; Kick #3 left: Martin; Kick #3 right: Krøpling; Kick #4 left: Attractîv; Kick #4 right: Peggerino; Kick #5 left: Agonco; Kick #5 right: Zebinomage
+Ravenous Feast and Tainted Blood Groups: 7 hits of Ravenous Feast [1290662] over 7 pulls (4 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
+  Enfo (Right): hit by 2 of 3; missed 1: p10 1:03; in the other group's 1
+  Sonyosh (Left): hit by 3 of 4; missed 1: p12 1:01; in the other group's 1
+  Attractîv (Left): hit by 3 of 3; dead for 1 more; in the other group's 1
+  Cptola (Right): hit by 3 of 3; in the other group's 1
+  Dragepie (Left): hit by 3 of 3; dead for 1 more
+  Dscopi (Right): hit by 3 of 3; in the other group's 1
+  Krøpling (Right): hit by 3 of 3; in the other group's 1
+  Lïzårðmâñ (Left): hit by 4 of 4; in the other group's 1
+  Martin (Left): hit by 3 of 3; dead for 1 more; in the other group's 1
+  Namsus (Left): hit by 4 of 4; in the other group's 1
+  Peggerino (Right): hit by 3 of 3; in the other group's 1
+  Zebinomage (Right): hit by 3 of 3; in the other group's 1
+  Hit, in no group: Karadim 5, Wutroll 5
+Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
+  Lïzårðmâñ: 34 planned uses; on time 6, early 5 (2 s), late 8 (3 s), not cast 14, dead 1
+    0:16 Rewind [363534], 15 pulls: on time 4, late 8 (3 s), not cast 2 (p4, p13), dead 1
+    0:43 Stasis (Store) [370537], 13 pulls: on time 1, early 1 (22 s), not cast 11 (p3, p4, p5, p7, p8, p9, p11, p12, p13, p14, p15)
+    1:01 Zephyr [374227], 6 pulls: on time 1, early 4 (2 s), not cast 1 (p12)
+  Attractîv: 6 planned uses; not cast 5, dead 1
+    0:58 Stampeding Roar [106898], 6 pulls: not cast 5 (p3, p6, p10, p11, p15), dead 1
+  Cptola: 15 planned uses; on time 1, early 12 (4 s), not cast 2
+    0:43 Avenging Wrath [31884], 13 pulls: on time 1, early 10 (4 s), not cast 2 (p5, p7)
+    1:48 Aura Mastery [31821], 2 pulls: early 2 (3 s)
+  Dragepie: 6 planned uses; early 4 (3 s), not cast 1, dead 1
+    0:57 Time Spiral [374968], 6 pulls: early 4 (3 s), not cast 1 (p3), dead 1
+  Enfo: 13 planned uses; on time 5, early 2 (1 s), late 5 (2 s), not cast 1
+    0:37 Ascendance [114052], 13 pulls: on time 5, early 2 (1 s), late 5 (2 s), not cast 1 (p9)
+  Nexsozz: 13 planned uses; on time 2, early 10 (4 s), not cast 1
+    0:43 Anti-Magic Zone [51052], 13 pulls: on time 2, early 10 (4 s), not cast 1 (p3)
+  Pomaa: 6 planned uses; early 5 (2 s), not cast 1
+    1:01 Rallying Cry [97462], 6 pulls: early 5 (2 s), not cast 1 (p3)
+  Namsus: 15 planned uses; on time 4, early 6 (3 s), late 5 (3 s)
+    0:38 Apotheosis [200183], 13 pulls: on time 4, early 5 (2 s), late 4 (2 s)
+    1:39 Divine Hymn [64843], 2 pulls: early 1 (26 s), late 1 (3 s)
+Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss that night). Which side's add begins first varies, so a note timed for one side is a second off for the other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking their own, and a kick on another cast begun within 1.5 s of the callout counts too. Over the pulls, per player, most missed first: of their kicks while alive, how many they made, the ones they didn't with what became of their cast, dead for how many more:
+  Agonco (Kick #5 left): kicked 1 of 15; no kick at 14: p3 0:45 (kicked by Sonyosh), p4 0:45 (kicked by Dragepie), p5 0:45 (went through), p6 0:45 (kicked by Karadim), p7 0:45 (kicked by Karadim), p8 0:45 (kicked by Sonyosh), p9 0:45 (went through), p10 0:45 (kicked by Attractîv), p11 0:45 (kicked by Wutroll), p11 1:46 (went through), p12 0:45 (went through), p13 0:45 (went through) and 2 more
+  Attractîv (Kick #4 left): kicked 5 of 15; no kick at 10: p3 0:43 (kicked by Wutroll), p4 0:43 (went through), p5 0:43 (kicked by Wutroll), p6 0:43 (kicked by Peggerino), p7 0:43 (went through), p8 0:43 (went through), p10 0:43 (kicked by Wutroll), p11 1:44 (went through), p12 0:43 (kicked by Wutroll), p15 1:44 (kicked by Karadim)
+  Zebinomage (Kick #5 right): kicked 5 of 14; no kick at 9: p4 0:46 (kicked by Peggerino), p6 0:46 (kicked by Krøpling), p7 0:46 (went through), p8 0:46 (kicked by Peggerino), p9 0:46 (kicked by Karadim), p10 0:46 (kicked by Karadim), p11 0:46 (kicked by Peggerino), p13 0:46 (went through), p15 1:47 (went through); dead for 1 more
+  Peggerino (Kick #4 right): kicked 6 of 13; no kick at 7: p3 0:44 (kicked by Karadim), p4 0:44 (kicked by Karadim), p5 0:44 (kicked by Karadim), p7 0:44 (went through), p8 0:44 (kicked by Karadim), p11 0:44 (kicked by Karadim), p12 0:44 (kicked by Dscopi); dead for 2 more
+  Sonyosh (Kick #1 left): kicked 8 of 15; no kick at 7: p3 0:37 (kicked by Attractîv), p4 0:37 (kicked by Attractîv), p5 0:37 (kicked by Attractîv), p6 0:37 (kicked by Attractîv), p7 0:37 (kicked by Attractîv), p8 0:37 (kicked by Attractîv), p9 0:37 (went through)
+  Martin (Kick #3 left): kicked 9 of 15; no kick at 6: p3 0:41 (kicked by Dragepie), p5 0:41 (kicked by Sonyosh), p8 0:41 (kicked by Wutroll), p11 0:41 (kicked by Karadim), p13 0:41 (went through), p15 0:41 (kicked by Wutroll)
+  Dragepie (Kick #2 left): kicked 10 of 15; no kick at 5: p3 0:39 (kicked by Martin), p4 0:39 (kicked by Karadim), p6 0:39 (kicked by Karadim), p7 0:39 (kicked by Karadim), p11 1:40 (went through)
+  Dscopi (Kick #2 right): kicked 9 of 14; no kick at 5: p4 0:40 (kicked by Enfo), p5 0:40 (kicked by Enfo), p9 0:40 (kicked by Dragepie), p10 0:40 (kicked by Karadim), p12 0:40 (kicked by Karadim); dead for 1 more
+  Enfo (Kick #1 right): kicked 11 of 15; no kick at 4: p3 0:38 (kicked by Karadim), p4 0:38 (kicked by Dscopi), p5 0:38 (went through), p10 0:38 (kicked by Karadim)
+  Krøpling (Kick #3 right): kicked 11 of 15; no kick at 4: p5 0:42 (kicked by Karadim), p6 0:42 (kicked by Wutroll), p7 0:42 (kicked by Wutroll), p15 1:43 (went through)
+  Their casts that went through, per assignment: "Kick #5 left" 6, "Kick #4 left" 4, "Kick #5 right" 3, "Kick #4 right" 2, "Kick #1 left" 1, "Kick #1 right" 1, "Kick #2 left" 1, "Kick #3 left" 1, "Kick #3 right" 1

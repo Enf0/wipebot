@@ -1,0 +1,16 @@
+**Sszorak** (Mythic) · pull 12 · wipe at **70.4%** · P1 (2nd time) · 2:23 · best of this log 66.8%
+First deaths: Sveini (Tempest, 0:28) · Cptola (Caustic Claws, 1:21) · Scopidruid (Ula'tek's Presence, 1:32)
+Killed by, until the wipe was decided at 1:53 (half the raid was dead): Ula'tek's Presence ×3 · no killing blow recorded ×3 · Viscous Cyst ×2 · Tempest ×1 · Caustic Claws ×1 (10 later deaths: fallout)
+Last 5: 66.8 → 68.1 → 79.5 → 70.8 → 70.4
+All killers until the wipe was decided (half the raid was dead at 1:53): Ula'tek's Presence x3, no killing blow recorded x3, Viscous Cyst x2, Tempest x1, Caustic Claws x1
+All killers after that (fallout): no killing blow recorded x4, Mutilate x4, Melee x1, Ravage x1
+Most damage taken until 1:53, when the wipe was decided (half the raid was dead; whole_pull for the rest): Ula'tek's Presence 55.90M, Mutilated Gash 49.08M, Viscous Cyst 20.22M, Tempest 19.51M, Virulence 15.79M, Mutilate 13.11M, Venomous Surge 10.57M, Melee 6.05M
+
+**Sszorak** (Mythic) · pull 13 · wipe at **62.6%** · P1 (2nd time) · 2:42 · best of this log so far
+Boss buffs at the end: **Unbound Ferocity** (from 2:32)
+First deaths: Scopidruid (Ula'tek's Presence, 0:48) · Draiman (no killing blow recorded, 0:53) · Attractîv (Venomous Surge, 1:28)
+Killed by, until the wipe was decided at 2:32 (the boss gained Unbound Ferocity): Ula'tek's Presence ×1 · no killing blow recorded ×1 · Venomous Surge ×1 · Raging Crosswinds ×1 (15 later deaths: fallout)
+Last 5: 68.1 → 79.5 → 70.8 → 70.4 → 62.6
+All killers until the wipe was decided (the boss gained Unbound Ferocity at 2:32): Ula'tek's Presence x1, no killing blow recorded x1, Venomous Surge x1, Raging Crosswinds x1
+All killers after that (fallout): Mutilated Gash x9, Venomous Surge x4, Ula'tek's Presence x1, Melee x1
+Most damage taken until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest): Ula'tek's Presence 77.03M, Mutilated Gash 59.07M, Viscous Cyst 34.55M, Mutilate 20.02M, Virulence 16.78M, Venomous Surge 10.53M, Tempest 9.59M, Melee 7.39M

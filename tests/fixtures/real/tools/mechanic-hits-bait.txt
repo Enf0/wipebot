@@ -1,0 +1,49 @@
+Serpent's Fury on all 33 Sszorak pulls. Per player: hits (and periodic ticks), damage incl. absorbed and ticks, times the debuff was applied (applications over the whole night, not stacks), deaths of any cause within 6 s after a hit or tick, deaths with Serpent's Fury itself as the killing blow (what it leaves behind, a spawn or a debuff that kills later, counts under that ability's name); then, if any, hits while the debuff from an earlier hit was still up and how long after the hit before:
+  Martin: 0 hits, 0, 58 applications, 0 deaths soon after, 0 with it as the killing blow
+  Sonyosh: 0 hits, 0, 6 applications, 0 deaths soon after, 0 with it as the killing blow
+  Fappachino: 0 hits, 0, 6 applications, 0 deaths soon after, 0 with it as the killing blow
+  Attractîv: 0 hits, 0, 5 applications, 0 deaths soon after, 0 with it as the killing blow
+  Zebinomage: 0 hits, 0, 4 applications, 0 deaths soon after, 0 with it as the killing blow
+  Nexsozz: 0 hits, 0, 4 applications, 0 deaths soon after, 0 with it as the killing blow
+  Algmor: 0 hits, 0, 4 applications, 0 deaths soon after, 0 with it as the killing blow
+  Miralupa: 0 hits, 0, 2 applications, 0 deaths soon after, 0 with it as the killing blow
+  Draiman: 0 hits, 0, 2 applications, 0 deaths soon after, 0 with it as the killing blow
+  Scopidruid: 0 hits, 0, 2 applications, 0 deaths soon after, 0 with it as the killing blow
+  Namsus: 0 hits, 0, 2 applications, 0 deaths soon after, 0 with it as the killing blow
+  Dragepie: 0 hits, 0, 2 applications, 0 deaths soon after, 0 with it as the killing blow
+  Sveini: 0 hits, 0, 2 applications, 0 deaths soon after, 0 with it as the killing blow
+  Lïzårðmâñ: 0 hits, 0, 1 application, 0 deaths soon after, 0 with it as the killing blow
+  Enfo: 0 hits, 0, 1 application, 0 deaths soon after, 0 with it as the killing blow
+Total with Serpent's Fury as the killing blow: 0
+Serpent's Fury went on Martin 58 of 101 times; each time it went on someone else (pull, when, who, how long they kept it, whether Martin was alive):
+  Sszorak pull 1 0:00: Fappachino, kept 40 s; Martin alive
+  Sszorak pull 1 0:40: Draiman, kept 4 s; Martin dead since 0:40
+  Sszorak pull 2 0:00: Fappachino, kept 42 s; Martin alive
+  Sszorak pull 3 0:00: Nexsozz, kept 33 s; Martin alive
+  Sszorak pull 3 0:39: Algmor, kept 47 s; Martin alive
+  Sszorak pull 4 0:43: Zebinomage, kept 12 s; Martin alive
+  Sszorak pull 4 0:59: Namsus, kept 28 s; Martin alive
+  Sszorak pull 6 0:32: Algmor, kept 49 s; Martin alive
+  Sszorak pull 7 1:21: Algmor, kept 70 s; Martin alive
+  Sszorak pull 7 2:32: Lïzårðmâñ, kept 1 s; Martin alive
+  Sszorak pull 8 1:47: Scopidruid, kept 31 s; Martin dead since 1:47
+  Sszorak pull 8 2:18: Zebinomage, kept 5 s; Martin dead since 1:47
+  Sszorak pull 8 2:23: Dragepie, kept 11 s; Martin dead since 1:47
+  Sszorak pull 8 2:34: Namsus, kept 1 s; Martin dead since 1:47
+  Sszorak pull 9 0:00: Sonyosh, kept 19 s; Martin alive
+  Sszorak pull 9 0:19: Dragepie, kept 3 s; Martin alive
+  Sszorak pull 11 1:20: Algmor, kept 4 s; Martin alive
+  Sszorak pull 11 1:25: Scopidruid, kept 23 s; Martin alive
+  Sszorak pull 11 1:48: Fappachino, kept 5 s; Martin dead since 1:48
+  Sszorak pull 11 1:53: Sonyosh, kept 8 s; Martin dead since 1:48
+  Sszorak pull 12 0:00: Draiman, kept 26 s; Martin alive
+  Sszorak pull 14 0:00: Attractîv, kept 28 s; Martin alive
+  Sszorak pull 17 1:08: Attractîv, kept 1 s; Martin dead since 1:08
+  Sszorak pull 17 1:08: Sveini, kept 13 s; Martin dead since 1:08
+  Sszorak pull 21 1:21: Sonyosh, kept 26 s; Martin dead since 1:21
+  Sszorak pull 21 1:50: Fappachino, kept 2 s; Martin dead since 1:21
+  Sszorak pull 21 1:52: Nexsozz, kept 4 s; Martin dead since 1:21
+  Sszorak pull 22 1:21: Zebinomage, kept 66 s; Martin alive
+  Sszorak pull 22 2:28: Enfo, kept 4 s; Martin dead since 1:33
+  Sszorak pull 25 1:21: Fappachino, kept 31 s; Martin alive
+  and 13 more

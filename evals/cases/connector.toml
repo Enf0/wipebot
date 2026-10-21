@@ -1,0 +1,37 @@
+[defaults]
+report = "vjt3KLbN8g62J1H9"  # Mon 12 Oct, the night of the raid note pasted below
+
+# ---- What only the connector does: an officer saving a pasted raid note or plan (save_note_or_plan). Run only
+#      without --bot: the bot saves a paste itself, before the model sees it. Every asker here is an officer, of a
+#      guild no case's report is from (run.py's as_officer), so what one case saves no other reads. ----
+
+[[case]]
+id = "officer-saves-note"  # the start of the raid's Sszorak note (tests/fixtures/real/notes), to keep for the guild
+asker = "Enfo"
+question = """save this for the guild so you check our pulls against it
+
+EncounterID:3420;Difficulty:Mythic;Name:Sszorak
+
+time:11;ph:1;tag:Dragepie;spellid:374227;
+time:16;ph:1;tag:Lïzårðmâñ;spellid:370537;
+time:16;ph:1;tag:Miralupa;spellid:64843;
+time:16;ph:1;tag:Namsus;spellid:200183;
+time:20;ph:1;tag:Nexsozz;spellid:51052;
+time:21;ph:1;tag:Sonyosh;spellid:383013;
+time:27;ph:1;bossSpell:1297707;tag:Scopidruid;spellid:106898;
+time:58;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:63;ph:1;tag:Namsus;spellid:64843;
+time:63;ph:1;tag:Miralupa;spellid:200183;
+time:68;ph:1;tag:Sonyosh;spellid:192077;
+time:68;ph:1;tag:Enfo;spellid:114052;
+time:68;ph:1;tag:Enfo;spellid:383013;
+time:71;ph:1;tag:Deathadim;spellid:51052;
+time:72;ph:1;tag:Fappachino;spellid:196718;
+time:72;ph:1;tag:Enfo;spellid:98008;
+time:75;ph:1;tag:Pomaa;spellid:97462;
+time:75;ph:1;tag:everyone;text:Big Personals;"""
+expect = """Says the Sszorak note (Mythic) is saved for the guild, with 17 timed cooldowns and 1 callout, and that pulls
+are checked against it from now on without a paste."""
+wrong = ["says it can't save a note here, or that only the Discord bot saves one",
+         "checks a pull against the note without saving it",
+         "asks the user to paste the note again or in another form"]

@@ -1,0 +1,215 @@
+[defaults]
+report = "KBYT4xXn7VNjDgh8"
+
+# ---- The raiders' own questions, as they asked them (the bot's answers #100-#346, 12-13 Oct) ----
+
+[[case]]
+id = "real-last-pull"  # no pull named: "the last pull" is pull 42, the night's best (answer #253)
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"
+question = "what went wrong on our last pull of the evening"
+asker = "Enfo"
+expect = """Pull 42, the night's best (34.1%), was lost to deaths in the Tempest and Mutilate stretch: five died at
+3:18-3:23 and half the raid was dead by 4:08, so the next Serpent's Fury had too few to stack; the enrage at 4:39 is
+fallout. The fix is getting through that stretch alive."""
+facts = ["the Fury after the intermission (2:31) and the one at 3:22 were popped",
+         "Peggerino died to Virulence at 2:36 but was battle-rezzed at 2:45",
+         "after a death at 3:00, the 3:06 Mutilate was soaked by only 6 players (8-10 on the others)",
+         "Slushmania, Scopidruid, Enfo, Lïzårðmâñ and Pomaa died at 3:18-3:23, several to two Tempest hits on top of Gash ticks",
+         "half the raid was dead at 4:08",
+         "Unbound Ferocity at 4:39"]
+wrong = ["the deaths after 4:39 lost the pull", "a Serpent's Fury was popped too early and that lost the pull"]
+
+[[case]]
+id = "real-tornadoes-most-hits"  # no boss named; hits within 1 s may be one tornado (answer #105, and #472)
+hard = true  # the bot still gets it wrong often: the hard set (evals/run.py summary)
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"
+question = "who gets hit by tornadoes the most?"
+asker = "Enfo"
+expect = """Over the night's Sszorak pulls, the tank Deathadim took by far the most Tempest (tornado) hits;
+of the others, Peggerino and Sonyosh took the most."""
+facts = ["counted until each wipe was decided",
+         "Deathadim 165 hits, Peggerino 85, Sonyosh 78",
+         "Tempest was the night's killer, 58 deaths",
+         "hits within a second of each other may be one tornado hitting twice; the log can't tell"]
+wrong = ["names someone other than Deathadim as hit most",
+         "states as fact that hits within a second of each other were separate tornadoes"]
+
+[[case]]
+id = "real-dps-check"  # vague: there is no damage check yet, the pulls end on the Fury stacks (answer #184)
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"
+question = "How is the raid doing against the DPS check?"
+asker = "Algmor"
+expect = """The pulls don't end on a damage check but on the Serpent's Fury enrage (a stack not popped)
+and deaths; damage is behind a fast kill's pace on the best pull, so it matters later, but the stacks and staying
+alive come first."""
+facts = ["Unbound Ferocity on 24 of 42 pulls",
+         "pull 42 (34.1%) was the best",
+         "on pull 42 the boss had 39% at 4:00, a fast kill's 28%, with 10 dead against the kill's 1",
+         "the kill compared is one of the 50 fastest"]
+wrong = ["the pulls end because the raid fails a damage check or a timed enrage",
+         "Unbound Ferocity is a timer that more damage would beat"]
+
+[[case]]
+id = "real-follow-up-who-touched-cyst"  # in a channel; the log shows when cysts burst, not who touched one (#100-#101)
+report = "vjt3KLbN8g62J1H9"
+question = ["what killed everone on the last attempte", "can you see who touched the cyst"]
+discord_name = "Seaker"
+pull = 17
+boss = "Sszorak"
+expect = """No, and it names nobody: the log shows when the cysts burst, just before the intermission, not who touched
+one."""
+facts = ["Viscous Cyst hit all 17 living players at 1:37",
+         "it killed six at 1:39-1:40",
+         "the Raging Crosswinds knockbacks (Turbulent Gusts on 10 players) at 1:34, just before the bursts",
+         "the burst hits the whole room, so the hit list can't show who set it off either"]
+wrong = ["names a player as the one who touched or set off a cyst, even as a likely guess",
+         "says the log shows who touched it"]
+
+[[case]]
+id = "real-follow-up-defensives-saved"  # no boss named; "ready" isn't "would have saved" (answers #345-#346)
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"
+question = ["who used the least defensives last night? where it mattered", "but would it have saved them?"]
+asker = "Enfo"
+expect = """Sometimes, not always: replaying each death before a wipe was decided with what was ready, a defensive or a
+healthstone would have saved Agonco at 16 of 28, others far less often, and never against Mutilate or Ravage; some
+deaths can't be judged."""
+facts = ["Algmor 14 of 29", "Nexsozz 8 of 15", "Martin 6 of 12", "Pomaa 6 of 23", "Peggerino 5 of 22",
+         "10 of Agonco's deaths can't be told (no health or overkill logged)",
+         "the saves are mostly Tempest and Virulence deaths"]
+wrong = ["says every death with a ready defensive would have been saved",
+         "counts deaths after a wipe was decided",
+         "says a defensive or healthstone would have saved a Mutilate or Ravage death"]
+
+[[case]]
+id = "held-out-holy-priest-night"  # a Holy Priest's night (answers #240-#241)
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"
+question = """What would you say is my biggest room for improvement from yesterday's raid? What did I do well, and what
+badly?"""
+asker = "Miralupa"
+expect = """A good night: often the top healer and seldom dead; what to improve comes from the comparison
+with the top Holy Priests (cooldown timing, casts a minute, stats), not from deaths or mistakes."""
+drifts = ["50th"]
+facts = ["top healer on 15 of 42 pulls",
+         "died before a wipe was decided on 4 of 42 pulls, never first",
+         "pull 42: 395.56k/s, above the 50th percentile of ranked kills",
+         "Apotheosis first used at a median 1:04, where the top parses press it at 0:24-0:26; Divine Hymn at a median 0:18, where they use it at 1:11-1:18",
+         "36 casts a minute against 43 for the top Oracle parses, 7% of the time in casting gaps against their 0-2%",
+         "no augment rune; Mastery 13% of secondaries against the top's 38%"]
+wrong = ["faults their overhealing as a main problem", "says they died often or early",
+         "says they used Divine Hymn too often (the per-pull counts are its channel ticks)"]
+
+[[case]]
+id = "held-out-bm-hunter-vs-top"  # a Beast Mastery Hunter against the top (answers #339-#340)
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"
+question = "How am I doing compared to the best BM hunters on this boss? In terms of mechanics, cooldowns etc"
+asker = "Algmor"
+expect = """Nothing big to change in the build or the cooldowns against the top Beast Mastery hunters; the gap is
+staying alive: they died before the wipe was decided on most pulls."""
+drifts = ["25th", "96%"]
+facts = ["26 of 42 pulls",
+         "all 73 talents common among the top",
+         "Bestial Wrath at 0:02, 0:36 and 1:06, like the top",
+         "203.76k/s alive on pull 42, above the 25th percentile of ranked kills",
+         "Focus at its cap 15% of the time alive",
+         "no augment rune, and a main-hand enchant 96% of the top replace with Rite of the Hash'ey"]
+wrong = ["says their talents differ from the top's",
+         "says they cast Barbed Shot or Kill Command far less than the top parses"]
+
+[[case]]
+id = "held-out-subtlety-energy-follow-up"  # a Subtlety Rogue pushes back on the energy cap (answers #303-#304)
+# The method under test: check the pushback against the top parses on the boss, who meet the same mechanics, rather
+# than taking or dropping it on faith.
+report = "vjt3KLbN8g62J1H9"
+question = ["got any tips for me, slushmania?", "energy being at 100 has to do with mechanics though."]
+asker = "Slushmania"
+expect = """Agrees that most of the time at the energy cap is the fight, because the top Subtlety parses on
+Sszorak sit at the cap about as much, and points instead at what is left to win back: getting back to the boss far
+less often than the top (Shadowstep)."""
+drifts = ["29%", "25", "32%", "1.5", "58", "25th"]
+facts = ["energy at its cap 31% of their time alive on pull 42",
+         "top parses at the cap 29% of the time (25-32%)",
+         "Shadowstep 0.3 a minute against 1.5",
+         "57 casts a minute against 58",
+         "212.42k/s alive, below the 25th percentile of ranked kills"]
+wrong = ["says the energy cap is nothing to fix because of the mechanics, without comparing with top parses",
+         "holds that the time at the cap is theirs to win back, without comparing with top parses",
+         "compares them with a named raidmate"]
+
+[[case]]
+id = "held-out-explorers-crates"  # the log shows when crates were popped, not who popped them (answer #380)
+report = "cZ8rp13y72gBQKY9"
+where = "in a DM"
+question = """we got them now, but it wasn't a clean kill. what went wrong? lots of times we took crates too fast and got over
+2 stacks at a time. who were the culprits?"""
+asker = "Enfo"
+pull = 1
+boss = "The Lost Explorers"
+expect = """Names no culprit, because the log can't show who popped a crate (on Mythic Splinters hits the
+whole raid, and no one is recorded breaking the crates); it shows when crates were popped too fast, and that the
+crates weren't what killed most of the nine: Splinters killed only Miralupa."""
+facts = ["Splinters hit the raid 51 times, 36 while the bleed from an earlier one was still up, 13 of those within a second of each other",
+         "Splinters reached 4 stacks at 0:35 and 5 at 0:40",
+         "five deaths at 3:28-3:44 in Scrollsage Iku's Binding Anguish: Attractîv and Pomaa to Blink Nova, Zebinomage and Providence to Elemental Explosion, Sveini to Malevolent Presence",
+         "the only Splinters death: Miralupa at 5:59",
+         "Attractîv died to Blast Wave at 2:11",
+         "one player pops every crate: 2 stacks, let the bleed drop, then 2 more"]
+wrong = ["names a player as one who popped crates too fast or took too many, even as a likely guess",
+         "says the log shows who popped or stepped on a crate",
+         "says the crates (Splinters) caused most of the deaths"]
+
+[[case]]
+id = "held-out-tempest-most-hits"  # after a question about the night; a Discord name only (answers #471-#472)
+report = "cZ8rp13y72gBQKY9"
+where = "in a DM"
+question = ["Who was mvp on Sszorak yesterday?", "Who got hit the most by tempest?"]
+discord_name = "Apekatt"
+expect = """Over the night's 12 Sszorak pulls, the tank Deathadim was hit by Tempest most; of the others,
+Miralupa by far, ahead of Peggerino, Sonyosh and Attractîv."""
+facts = ["counted until each wipe was decided",
+         "Deathadim 46 hits, Miralupa 32, Peggerino, Sonyosh and Attractîv 21 each",
+         "Miralupa never died within 6 s of a hit",
+         "hits within a second of each other may be one tornado hitting twice (12 of Miralupa's 32); the log can't tell",
+         "Tempest was the killing blow 11 times, Grusarn's 3"]
+wrong = ["names someone other than Deathadim as hit most",
+         "says Miralupa died to Tempest",
+         """says as fact that a player was hit by two tornadoes at once, or that their repeated or overlapping hits were
+         separate tornadoes (the log can't tell one tornado hitting twice from two)"""]
+
+[[case]]
+id = "twin-fangs-mythic-changes"  # every running hotfix post, not only the newest (answers #484, #485, #493)
+report = "cZ8rp13y72gBQKY9"
+question = "can you check hotfixes for Twin Fangs? what was changed on mythic?"
+asker = "Enfo"
+expect = """Gives the Mythic changes from every Blizzard hotfix post about the Twin Fangs, not only the newest: at
+least those of 1 September and 15 September (later posts may add more)."""
+facts = ["1 Sep: Eternal Venom kills at 10 stacks on Mythic",
+         "1 Sep: Ravenous Feast needs at least 4 targets on Mythic",
+         "1 Sep: immunities no longer stop Eternal Venom stacks past the limit on Mythic",
+         "15 Sep: Corrosive Spit 20% less damage on Mythic",
+         "15 Sep: Rouse the Brood down to 10 Broodlings and Visceral Burst's cast 0.5 s longer (no difficulty named)",
+         "the Raid Finder changes (health, Eternal Venom's damage) aren't Mythic's"]
+wrong = ["says Mythic Twin Fangs wasn't changed",
+         "gives the Twinfang Harrower or Altar of Fangs hotfixes as changes to The Twin Fangs",
+         "gives a Raid Finder change as a Mythic one"]
+
+[[case]]
+id = "twin-fangs-healers-at-our-item-level"  # a ranking no tool gives: kills in an item level bracket (answers #494 and #495)
+report = "cZ8rp13y72gBQKY9"
+question = ["can you check whether most Twin Fangs mythic logs run 4 or 5 healers?",
+            "what about logs around our own ilvl, not top logs?"]
+asker = "Enfo"
+expect = """Answers from the ranked Mythic Twin Fangs kills in Warcraft Logs' item level bracket around the raid's
+own (about 328-330), not the fastest kills overall: they bring 4 healers (all of them when this case was written)."""
+derived = ["6:06", "7:39"]  # Warcraft Logs gives the kills' durations in ms (366364): the answer converts them
+drifts = ["37", "6:06", "7:39"]
+facts = ["37 ranked kills in the bracket, 6:06 to 7:39",
+         "the fastest kills overall also ran 4 healers",
+         "these are the bracket's ranked kills, not every guild's progression kill: wipes and unranked kills don't show"]
+wrong = ["says it can only see the fastest kills overall, not kills at their item level",
+         "says kills at their item level ran 5 healers"]

@@ -1,0 +1,22 @@
+The raid plan "Wowutils - Sszorak Mythic Spread" for Sszorak (https://raidstrats.gg/planner?view=e816f3b1-47fb-492b-ac36-3e0673e85662), checked against every Sszorak pull (42).
+Checked at each Virulence [1297707] running out on players (each player where they stood as theirs ran out, the others at the middle of that moment). The plan is laid over where the raid stood each time (turned, scaled, mirrored if that fits better), so off means further from their spot than half the distance between neighbouring spots (at least 3 yd), relative to the rest of the raid, not to the room. Left out: 39 times it was on fewer than 4 players (passed on).
+66 moments checked; the raid wasn't standing as drawn at 6: pull 4 1:19, pull 7 1:20, pull 8 1:20, pull 8 1:25, pull 29 0:36, pull 37 2:38.
+Per player (off: further from their spot than the tolerance):
+- Scopidruid (Scop): off in 44 of 57, median 18 yd when off; at an open rdps spot (13x); dead at 3
+- Martin (Mart): off in 40 of 60, median 12 yd when off
+- Algmor (Algm): off in 37 of 60, median 24 yd when off; at Agonco's spot (20x), Dragepie's spot (1x), Deathadim's spot (1x)
+- Agonco (Agon): off in 20 of 57, median 13 yd when off; at Scopidruid's spot (4x), an open rdps spot (2x), Slushmania's spot (1x); dead at 3
+- Dragepie (Drag): off in 17 of 60, median 10 yd when off; at Zebinomage's spot (8x), Slushmania's spot (3x), Peggerino's spot (2x)
+- Pomaa (Poma): off in 14 of 59, median 8 yd when off; at Slushmania's spot (5x); dead at 1
+- Zebinomage (Zebi): off in 13 of 60, median 10 yd when off; at Dragepie's spot (3x)
+- Krøpling (Krøp): off in 5 of 59, median 7 yd when off; dead at 1 (pull 2 0:38, pull 8 0:31, pull 13 0:32, pull 26 0:31, pull 40 1:21)
+- Nexsozz (Nexs): off in 4 of 60, median 7 yd when off; at Pomaa's spot (1x), Agonco's spot (1x) (pull 9 1:20, pull 40 1:21, pull 42 1:20, pull 42 2:37)
+- Wutroll (Wutr): off in 4 of 60, median 7 yd when off; at Pomaa's spot (1x) (pull 5 0:31, pull 6 0:30, pull 7 0:31, pull 9 0:30)
+- Sonyosh (Sony): off in 3 of 60, median 7 yd when off; at Agonco's spot (1x) (pull 17 1:19, pull 28 0:32, pull 35 0:31)
+- Peggerino (Pegg): off in 3 of 60, median 9 yd when off; at Slushmania's spot (3x) (pull 17 1:19, pull 26 0:31, pull 37 0:30)
+- Slushmania (Slus): off in 1 of 59, median 8 yd when off; at Pomaa's spot (1x); dead at 1 (pull 23 1:19)
+- Deathadim (Deat): off in 1 of 60, median 9 yd when off (pull 25 1:21)
+- Fappachino (Fapp): off in 0 of 60
+- Draiman (Drai): off in 0 of 23; dead at 1
+Hit by someone else's (whose -> whom, moments): Agonco -> Sonyosh 10x, Pomaa -> Slushmania 3x, Algmor -> Deathadim 3x, Slushmania -> Peggerino 2x, Sveini -> Deathadim 2x, Slushmania -> Pomaa 2x, Deathadim -> Algmor 2x, Nexsozz -> Agonco 1x, Fappachino -> Nexsozz 1x, Scopidruid -> Sonyosh 1x, Slushmania -> Nexsozz 1x, Nexsozz -> Wutroll 1x; 20 more pairs
+A map of Scopidruid at every moment is shown to the user with this answer: the plan laid over the room once for each way the raid used it (as drawn and mirrored, each where it fitted best), Scopidruid's spot as a filled ring of the tolerance's radius, the other spots as small dots, and a dot where they stood each time, laid over the plan the same way: green within the tolerance of their spot, red further, labelled pull·moment. Refer to it; don't describe it again.

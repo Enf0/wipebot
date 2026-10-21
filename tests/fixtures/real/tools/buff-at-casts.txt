@@ -1,0 +1,15 @@
+Starlord on Scopidruid at each Starsurge cast, Sszorak pull 13 (the buff's state just before the cast):
+- 0:06: 0 stacks
+- 0:06: 1 stack
+- 0:07: 2 stacks
+- 0:08: 3 stacks
+- 0:13: 3 stacks
+- 0:13: 3 stacks
+- 0:18: 3 stacks
+- 0:24: 3 stacks
+- 0:29: 0 stacks
+- 0:39: 0 stacks
+- 0:40: 1 stack
+- 0:40: 2 stacks
+- 0:44: 3 stacks
+Over the 13 casts: 0 stacks on 3, 1 stack on 2, 2 stacks on 2, 3 stacks on 6.

@@ -1,0 +1,270 @@
+[defaults]
+report = "KBYT4xXn7VNjDgh8"
+
+# ---- A raider about their own play ----
+
+[[case]]
+id = "me-healer-kill"
+question = "How did I do on the Vashnik kill?"
+asker = "Enfo"
+expect = """Enfo did well on the Vashnik kill: a good parse, near the top of the healers, and survived."""
+drifts = ["75th"]
+facts = ["75th percentile",
+         "pull 2",
+         "second of five healers"]
+# Raid healing cooldowns (Ascendance, Spirit Link Totem) aren't defensives, and are often assigned to a timeline:
+# saying an earlier Ascendance would have fit a third use is fair coaching (the second, at 4:23, lined up with the
+# Imbibe at 4:36: a trade-off); calling one wasted or never used is not.
+wrong = ["faults their overhealing",
+         "says Ascendance or Spirit Link Totem was wasted or never used",
+         "faults them for not pressing personal defensives on cooldown",
+         "says they died on the kill (their death was on pull 1)"]
+
+[[case]]
+id = "me-low-dps"
+question = "Why is my DPS so low on Sszorak, and what should I fix?"
+asker = "Draiman"
+expect = """Draiman's damage while alive is low against the spec's ranked kills, and one of the main fixes is the AoE
+build on a single-target boss."""
+drifts = ["25th", "1:07", "12.3"]  # rankings and the top parses move: lint reports these apart
+facts = ["below the 25th percentile of ranked Assassination kills",
+         "lacking Doomblade, Improved Poisons and Systemic Failure, which most top players take",
+         "the second Kingsbane at 1:38 where the top parses press it at about 1:07",
+         "Envenom 9.6 a minute against the top's 12.3",
+         "DoT and poison uptime is already 93-99%"]
+wrong = ["using defensives (Cloak, Evasion, Feint) more would raise damage",
+         "counts a defensive's uses against how many were possible as a fault",
+         "says low DoT or poison uptime is the problem"]
+
+[[case]]
+id = "me-low-parse-died"
+report = "8TcXMAP2gHQGr9pW"
+question = "Why was my parse so bad on the Vashnik kill?"
+asker = "Algmor"
+expect = """The low parse is mostly Algmor's death to Plague Wave at 5:13, which left them dead for the end of the
+kill; alive, their damage was close to the other Beast Mastery hunter's."""
+drifts = ["5th"]
+facts = ["5th percentile",
+         "died at 5:13 to two Plague Wave hits (567.93k, then 105.57k)",
+         "dead for 80 s, 20% of the 6:32 kill",
+         "244.17k damage per second while alive, against the other Beast Mastery hunter's 256.60k/s",
+         "casts per minute alive in line with the top parses (Kill Command 15.3 against 14.6, Barbed Shot 8.8 the same)"]
+# Wild Thrash 1.9 a minute against 3.5 and the Font of Venomous Rage trinket (8% of the top) are fair small points.
+wrong = ["blames the talent build (73 of their 75 picks are common among the top)",
+         "makes Focus capping the reason (8% of their time alive, less than the top's 12%)",
+         "compares total damage without saying they died"]
+[[case]]
+id = "me-could-i-survive"
+question = "Could I have survived on pull 13, or was that unavoidable?"
+asker = "Scopidruid"
+pull = 13
+boss = "Sszorak"
+expect = """Probably yes: Barkskin was on cooldown, but no healthstone or healing potion was used, and a healthstone
+after the Venomous Surge at 0:44 would have covered the small overkill; a Raging Crosswinds hit had taken them from
+about half health to nearly dead."""
+facts = ["died at 0:48 to an Ula'tek's Presence tick, 12.7k past dead",
+         "Barkskin used at 0:30 (60 s cooldown)",
+         "the Crosswinds hit at 0:47, 378k, from about 50% to 6%",
+         "the death didn't lose the pull: it ended on Unbound Ferocity at 2:32 with 16 alive"]
+wrong = ["says Barkskin was available", "counts the combat potion as a healing potion",
+         "says nothing could have saved them", "says this death caused the wipe"]
+
+[[case]]
+id = "me-dps-hit-by-tank-mechanic"
+report = "br1n93cNZ67pGCvh"
+question = "What did I do wrong on pull 23?"
+asker = "Peggerino"
+boss = "Nymrissa Wavecaller"
+pull = 23
+expect = """Peggerino's first death, the first of the pull at 1:37, was to Water Jet, a tank mechanic: the boss cast it
+on a tank at 1:35 and one 431.48k hit took them from 48% to dead, so they were standing in its line. The fix is
+staying out of the line between the boss and the tank it is aimed at."""
+drifts = ["25th"]
+facts = ["at the death they stood 27 yd from the boss, 16° off its facing, just behind the tank the jet was on (24 yd, 21°)",
+         "Unending Resolve and a healthstone were ready and either would have kept them alive",
+         "battle-rezzed at 1:42, they died again at 3:01 to Frost Orb with two stacks, and a defensive would have saved that one too",
+         "198.34k/s while alive, above the 25th percentile of Demonology kills"]
+# Wowhead's cheat sheet has the tank point Water Jet away from the group, and several damage dealers stood in front
+# of the boss at 1:37: the tank's aim may share it, so no item says the hit was all Peggerino's fault.
+wrong = ["says the boss aimed Water Jet at Peggerino (it was cast on a tank)",
+         "says Abyssal Rain or Frost Burst killed them at 1:37",
+         "says the Water Jet hit was unavoidable for them"]
+[[case]]
+id = "me-tank-taunts"
+question = "Did I miss any taunts on pull 31?"
+asker = "Wutroll"
+pull = 31
+boss = "Sszorak"
+expect = """Yes, one: Wutroll was late taking the boss back, so Deathadim took a second Ravage."""
+facts = ["after Deathadim taunted at 0:56",
+         "Wutroll took the boss back only at 1:28",
+         "the second Ravage at 1:11, on top of the one from 1:02"]
+wrong = ["says every swap was on time"]
+
+[[case]]
+id = "me-season-parses"  # player_history, the tool raiders use most; the asker plays two specs
+question = "How have my parses been this season?"
+asker = "Sonyosh"
+expect = """Strong and rising, as Elemental on Mythic: the first kill on a boss was the weakest and the newest the best."""
+drifts = ["30", "44%", "84", "94%", "71.4", "87.4"]
+facts = ["on every boss but Nymrissa",
+         "first kills 30-44%",
+         "newest 84-94%",
+         "the lower median (71.4, against 87.4 for the best) comes from those first kills"]
+wrong = ["the single Restoration kill (28%) counted among their Elemental parses",
+         "their parses are inconsistent or getting worse",
+         "a Kith'ix kill"]
+
+[[case]]
+id = "me-healer-wipe"  # a healer on a wipe: judged until the wipe was decided, not by the fallout death
+question = "How did I do on pull 33?"
+asker = "Enfo"
+pull = 33
+boss = "Sszorak"
+expect = """Well: top healer on the pull, with the big cooldowns on the 1:11-1:21 damage spike, mana to spare when the
+wipe was decided, and the death is fallout of the wipe."""
+drifts = ["1:07"]
+facts = ["top healer of 5",
+         "Ascendance at 1:12 and Spirit Link Totem at 1:15",
+         "the 1:11-1:21 spike (Mutilate, Virulence, Venomous Surge); the top parses use theirs at 1:07-1:11",
+         "mana at 64% when the wipe was decided at 2:32",
+         "the death at 2:49"]
+wrong = ["faults the 2:49 death", "faults their overhealing",
+         "says they should have used Healing Tide Totem (not talented)"]
+
+[[case]]
+id = "me-tank-mitigation"
+question = "Was my mitigation OK on the Vashnik kill?"
+asker = "Wutroll"
+pull = 2
+boss = "Vashnik the Malignant"
+expect = """Yes: active mitigation (Shuffle) up through the kill, brews used steadily, and never died; a note on the
+timing of a defensive is fair."""
+drifts = ["6.3"]
+facts = ["Shuffle up 100%",
+         "49 Purifying Brews, 7.1 a minute against a top median of 6.3",
+         "Celestial Infusion 1.4 a minute, the same as the top",
+         "Fortifying Brew at 2:33 and 4:53, 2-3 s after Dripping Fangs landed (2:30, 4:51)",
+         "Niuzao five times"]
+wrong = ["ranks the tanks by damage taken as a measure of mitigation",
+         "says Celestial Brew was never used (not talented)",
+         "calls the two Dripping Fangs stacks at the end a missed taunt (the other tank was dead from 5:51)"]
+
+[[case]]
+id = "me-played-well"  # the honest answer is "little": the concrete gaps are small (an enchant, consumables)
+question = "Anything I should fix from the Vashnik kill?"
+asker = "Sonyosh"
+pull = 2
+boss = "Vashnik the Malignant"
+expect = """Little to fix: a good parse and solid play; the concrete gaps are small."""
+drifts = ["88th"]
+facts = ["88th percentile",
+         "never died, no casting gaps, Flame Shock up 100%",
+         "Ascendance as often as the top parses",
+         "Maelstrom at its cap 11% of the kill, with fewer Earthquakes than the top (2.5 a minute against 3.9)",
+         "legs enchanted with Arcanoweave Spellthread where the top use Sunfire Silk Spellthread",
+         "no augment or vantus rune"]
+# compare_with_top lists two talents named Earthquake: noting the top's pick in passing is fine; calling it a gap to
+# fix isn't, and casting Earthquake more when Maelstrom caps is rotation advice.
+wrong = ["Ascendance was used too often",
+         "calls the Earthquake or Thunderous Paws talent choice a gap or mistake to fix",
+         "says there are no ranked kills to compare with"]
+
+[[case]]
+id = "me-energy-cap"  # a tank's damage gap: resource capping and the filler, not defensives
+question = "Why is my damage behind the top Brewmasters on Sszorak?"
+asker = "Wutroll"
+pull = 33
+boss = "Sszorak"
+expect = """Energy sat at its cap much of the time and Tiger Palm went out far less than the top parses: energy was
+wasted that Tiger Palm should have spent, while the rotation's core was fine."""
+facts = ["about 21% of the time alive",
+         "Tiger Palm 7.1 a minute against about 10.2 for the top Shado-Pan parses",
+         "Keg Smash and Breath of Fire cast as often as the top parses (13.3 a minute each), with 98% uptime",
+         "Shuffle up 98%"]
+# Black Ox Brew is talented (compare_with_top's build: they take it instead of the guides' picks) and was never
+# cast: a fair small point, not the reason.
+wrong = ["makes the unused Black Ox Brew, rather than the energy cap, the main reason",
+         "tells them to use Fortifying Brew more"]
+
+[[case]]
+id = "me-cooldown-sync"  # the top parses' timing of the same cooldowns
+question = "Did I use my cooldowns right on pull 33?"
+asker = "Draiman"
+pull = 33
+boss = "Sszorak"
+expect = """Partly: Deathmark and the first Kingsbane went out together at the start, but Vanish came only at 1:39,
+not with them, and the second Kingsbane came late, at 1:38."""
+drifts = ["1:07", "0:05", "0:09"]
+facts = ["Kingsbane at 0:06 and 1:38, the second about 30 s later than the top parses' ~1:07",
+         "Vanish at 1:39 instead of with Deathmark at 0:07; top parses Vanish at 0:05-0:09",
+         "Deathmark at 0:07; its second, ready at 2:07, was still unused when they died at 2:23"]
+wrong = ["counts Feint or Cloak of Shadows uses as a fault", "says a second Deathmark was ready before 2:07 (its first was at 0:07; saying it was ready at 2:07 and unused is right)"]
+
+[[case]]
+id = "me-build-on-kill"  # the comparison is with ranked Ret kills; the build nearly matches them
+report = "kTMfFRQ324Hvx6G7"
+question = "Which trinkets and talents do the top Ret paladins use on Vashnik vs me?"
+asker = "Agonco"
+pull = 19
+boss = "Vashnik the Malignant"
+expect = """Compares Agonco's trinkets and talents from the log with the top ranked Retribution parses on Vashnik and
+finds them close: the same trinkets, and talents that differ from the top's in a pick or two. The rest is small
+(enchants, no augment rune)."""
+drifts = ["92%", "90%", "45", "50", "76", "77", "100%", "0%", "80%", "74%"]
+facts = ["Voracious Heart of Ula'tek (92% of the top) and Zul'jin's Guillotine Technique (90%), the same as theirs",
+         "45 of the top 50 play Herald of the Sun as they do; 76 of their 77 picks are common among the top",
+         "Jurisdiction (100%) and Burning Crusade (100%) missing; Heart of the Crusader (0%) taken",
+         "main hand Arcane Mastery where 80% use Rite of the Hash'ey; feet Farstrider's Hunt where 74% use Lynx's Dexterity",
+         "no augment rune at the pull"]
+wrong = ["calls pull 19 a wipe", "says Warcraft Logs has no ranked Retribution kills of Vashnik",
+         "says their talents or trinkets aren't in the log",
+         "says their trinkets differ from the top's"]
+[[case]]
+id = "healers-kill-cooldowns"  # cooldowns against the damage pattern, on a kill
+report = "dTQMvNbBcPh6mDrA"
+where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
+question = "How did the healers do on the Twin Fangs kill? Were raid cooldowns used where the damage came in?"
+asker = "Enfo"
+pull = 7
+boss = "The Twin Fangs"
+expect = """Mostly well: the healing cooldowns went into each Stir the Depths and Ravenous Feast cycle but the fifth.
+The fight's highest damage, 1.53M/s at 6:35 (Venomous Emergence at 6:18, Stir the Depths at 6:31), got none until
+Zephyr at 6:44 and Darkness at 6:48, with Avenging Wrath ready since 5:32 and never used again."""
+facts = ["Stir the Depths at 0:52, 2:00, 3:41, 4:49, 6:31, 7:39; Ravenous Feast at 1:07, 2:15, 3:57, 5:04, 6:46, 7:54",
+         "the 4:49 cycle got Rallying Cry at 4:47, Ascendance at 4:53, Spirit Link Totem at 5:04 and Rewind at 5:09",
+         "Avenging Wrath used twice, at 0:40 and 3:32",
+         "the late deaths were Eternal Venom stacks (10 kill) and a 7:54 Feast with only 3 soakers per hit, not damage healing should have covered"]
+wrong = ["faults the healers' overhealing",
+         "blames the healers for the Eternal Venom deaths from 7:27 on",
+         "says a named healer missed an assigned cooldown (there is no raid note)"]
+
+[[case]]
+id = "me-sneaky-death"  # the killing blow misleads: an avoidable hit set the death up
+report = "vjt3KLbN8g62J1H9"
+question = "What killed me on pull 42?"
+asker = "Scopidruid"
+pull = 42
+boss = "Sszorak"
+expect = """Two Tempest hits (the tornadoes) at 3:20 took them from about 68% to 3%; the Mutilated Gash tick at 3:21
+that shows as the killing blow only finished them. The fix is getting out of the tornadoes while the bleed ticks."""
+facts = ["Mutilated Gash on them from 3:06, ticking about 117k",
+         "the two Tempest hits were 334k each",
+         "healing kept up with the bleed until then (1.35M in the 10 s)",
+         "Barkskin was on cooldown (used at 2:49), and they had already used a healthstone or potion twice"]
+wrong = ["says Mutilated Gash (the bleed) killed them, with no word of the Tempest hits",
+         "says the healers let them die",
+         "says a defensive or healthstone was ready and would have saved them"]
+
+[[case]]
+id = "me-night-trend"  # "am I getting better?": the night's trend, as player_night counts it
+question = "Did I get better at Sszorak over the night?"
+asker = "Draiman"
+boss = "Sszorak"
+expect = """Not really: more deaths before the wipe was decided after the first third of the night, not fewer, and
+damage per second alive no higher at the end than at the start (lower in the last third)."""
+facts = ["died before the wipe was decided on 4 of 10 pulls in the first third, 8 of 12 in the middle, 7 of 10 in the last",
+         "damage per second alive, median, about 210k, 217k and 185k",
+         "the best pull by damage alive was pull 26"]
+wrong = ["says they improved over the night",
+         "counts deaths after the wipe was decided against them"]

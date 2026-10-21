@@ -1,0 +1,2 @@
+Warcraft Logs' answer (0 points; 376 of 3600 spent this hour, 600 of them kept for the other tools):
+{"reportData":{"report":{"fights":[{"id":21,"name":"Sszorak","kill":false,"bossPercentage":62.59,"startTime":6330494,"endTime":6493348},{"id":41,"name":"Sszorak","kill":false,"bossPercentage":63.1,"startTime":10221874,"endTime":10392811}]}}}

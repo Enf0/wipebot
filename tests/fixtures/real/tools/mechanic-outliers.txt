@@ -1,0 +1,14 @@
+Enemy abilities on Sszorak pull 13, each pull until the wipe was decided (the boss's enrage or half the raid dead), 20 players. Per ability: players who took it, the median damage per minute alive of those who did, and who took most (times the median: everyone at 2x or more, else the top three; deaths it killed):
+  Ula'tek's Presence [1285965]: 20 of 20 took it, median 1.77M/min, total 79.02M; most: Cptola 1.1x, Sveini 1.1x, Peggerino 1.1x
+  Mutilated Gash [1285998]: 19 of 20 took it, median 1.42M/min, total 60.97M; most: Peggerino 1.4x, Sveini 1.3x, Attractîv 1.3x
+  Viscous Cyst [1287205]: 16 of 20 took it, median 858.91k/min, total 35.46M; most: Peggerino 1.1x, Sveini 1.1x, Sinnatony 1.1x
+  Mutilate [1285999]: 19 of 20 took it, median 499.82k/min, total 20.45M; most: Cptola 1.2x, Sonyosh 1.2x, Sinnatony 1.1x
+  Virulence [1300089, 1312189]: 20 of 20 took it, median 355.61k/min, total 18.21M; most: Enfo 2.1x
+  Venomous Surge [1306120, 1312156]: 20 of 20 took it, median 244.21k/min, total 13.19M; most: Peggerino 2.7x, Enfo 2.4x, Attractîv 2.3x (1 killed)
+  Melee [1]: 2 of 20 took it (few players: avoided or assigned), median 2.47M/min, total 12.58M; most: -
+  Tempest [1287083]: 12 of 20 took it, median 235.52k/min, total 10.08M; most: Sveini 5.0x, Krøpling 2.7x
+  Ravage [1277101]: 2 of 20 took it (few players: avoided or assigned), median 1.73M/min, total 8.80M; most: -
+  Raging Crosswinds [1285444, 1285616, 1312219]: 16 of 20 took it, median 207.29k/min, total 8.67M; most: Scopidruid 3.0x, Draiman 2.7x
+  Caustic Claws [1305998]: 3 of 20 took it (few players: avoided or assigned), median 179.70k/min, total 1.35M; most: -
+  Caustic Residue [1296667]: 7 of 20 took it (few players: avoided or assigned), median 33.29k/min, total 675.94k; most: Krøpling 2.4x, Dragepie 2.1x
+Damage per minute alive evens out early deaths, not assignments: a soaker or the player a mechanic targets takes more by design.
