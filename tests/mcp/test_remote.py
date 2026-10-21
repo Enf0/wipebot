@@ -493,6 +493,7 @@ def test_pull_map_opens_the_replay_viewer_which_reads_the_app_only_pull_replay(c
     assert tools["pull_map"]["_meta"]["ui"]["resourceUri"] == remote.PULL_MAP_APP
     assert tools["pull_map"]["description"].endswith("a replay of the pull to play instead of the picture "
                                                      "(not with all_pulls).")  # this server's own note
+    assert tools["raid_plan"]["_meta"]["ui"]["resourceUri"] == remote.PULL_MAP_APP  # the plan's spots on it
     for app_only in ("pull_replay", "viewer_log"):
         assert tools[app_only]["_meta"]["ui"] == {"resourceUri": remote.PULL_MAP_APP, "visibility": ["app"]}
     page = call("resources/read", {"uri": remote.PULL_MAP_APP})["contents"][0]

@@ -663,7 +663,7 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
                     latest: Annotated[bool, Field(description=(
                         "check against the newest version of the plan, not the one each pull was planned "
                         "with"))] = False,
-                    report: Report_ = None) -> CallToolResult:
+                    report: Report_ = None, *, ctx: Context) -> CallToolResult:
     """For "was everyone on their spot?", "who stood in the wrong place for the spread?", "show me where people
     stood against the plan".
     The raid's positioning plan from raidstrats.gg against where each player stood at each moment of its
@@ -679,10 +679,19 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     rep, source = await lib().report(report), ""
     if not plan:
         plan, source = await _saved_plans(rep, pull, boss)
-    ans = await plans.plan_check(rep, plan, pull, boss, all_pulls, at, player, latest=latest)
+    # As pull_map: on one pull, a host that shows the replay viewer gets the plan's spots on it, not the picture.
+    serving_many = setup().remote is not None
+    viewer = serving_many and _supports_apps(ctx) and not all_pulls
+    ans = await plans.plan_check(rep, plan, pull, boss, all_pulls, at, player, draw=not viewer, latest=latest)
     text = f"(The plans were {source}.)\n{ans.text}" if source else ans.text
-    return CallToolResult(content=[TextContent(type="text", text=text)] + [
-        ImageContent(type="image", data=base64.b64encode(i).decode(), mime_type="image/webp") for i in ans.images])
+    content: list[TextContent | ImageContent] = [TextContent(type="text", text=text)] + [
+        ImageContent(type="image", data=base64.b64encode(i).decode(), mime_type="image/webp") for i in ans.images]
+    if not serving_many or ans.fight is None or ans.overlay is None:
+        return CallToolResult(content=content)
+    f = ans.fight
+    return CallToolResult(content=content, structured_content={
+        "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "at_ms": ans.overlay["at_ms"],
+        "players": [player] if player else [], "plan": ans.overlay["moments"]})
 
 
 @_tool

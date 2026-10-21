@@ -370,7 +370,8 @@ async def replay(rep: Report, f: dict, at_ms: float, focus: Collection[int] = ()
         "step_ms": REPLAY_STEP_MS, "duration_ms": f["endTime"] - start, "at_ms": round(at_ms),
         "decided": {"ms": round(decided[0]), "why": decided[1]} if decided else None,
         "map": {"image": f"maps/{map_id}-map.png", "size": [(bounds[1] - bounds[0]) / REPLAY_UNIT,
-                                                           (bounds[3] - bounds[2]) / REPLAY_UNIT]},
+                                                           (bounds[3] - bounds[2]) / REPLAY_UNIT],
+                "origin": [origin[0], origin[1]]},  # in the log's coordinates: where raid_plan's spots are
         "unit_yd": REPLAY_UNIT / 100,
         "bosses": [{"name": rep.actor(b) if len(boss_ids) > 1 else rep.boss_key(f), "icon": boss_icon(f), "track": tr}
                    for b, tr in zip(boss_ids, packed, strict=False)],
