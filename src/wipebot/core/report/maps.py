@@ -155,10 +155,13 @@ async def pull_map(rep: Report, pull: int | None = None, boss: str | None = None
     focus = [rep.in_pull(f, rep.player(n)) if not all_pulls else rep.player(n) for n in players or []]
     at_ms = parse_clock(at_) if at_ else None
     if at_ and at_ms is None:
-        fights = rep.by_boss[rep.boss_key(f)] if all_pulls else [f]
+        pulls = rep.by_boss[rep.boss_key(f)]
+        fights = rep.ended(pulls) if all_pulls else [f]
         mech = await mechanic(rep, fights, at_, event)
         if all_pulls:
-            return await _night(rep, mech, fights, focus, draw_it)
+            ans = await _night(rep, mech, fights, focus, draw_it)
+            ans.text = rep.still_going(pulls) + ans.text
+            return ans
         return await _pull_mechanic(rep, f, mech, {p.id for p in focus}, draw_it, focus[0].name if focus else None)
     if all_pulls:
         raise FactError("all_pulls needs an ability in `at`: the moments to look at on every pull")

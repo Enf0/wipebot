@@ -304,9 +304,10 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
     """Every player's healthstones and healing potions and personal defensives over a boss's pulls, until each
     wipe was decided: uses, and at each death whether a defensive was off cooldown but not used. With `player`,
     each of their deaths instead, replayed with what was ready (the death recap's arithmetic)."""
-    fights = rep.by_boss[rep.boss(boss)]
+    pulls = rep.by_boss[rep.boss(boss)]
+    fights, going = rep.ended(pulls), rep.still_going(pulls)
     if player:
-        return await _deaths_replayed(rep, rep.player(player), fights, whole_pull)
+        return going + await _deaths_replayed(rep, rep.player(player), fights, whole_pull)
     await rep.all_deaths(fights)
     decided = {} if whole_pull else await rep.decided_cuts(fights)
     cut = {f["id"]: decided.get(f["id"], f["endTime"]) for f in fights}
@@ -341,7 +342,7 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
                 if not any(sp is s and d["timestamp"] - cd_ms < t <= d["timestamp"] for t, s in used[(f["id"], q.id)]):
                     ready_at_death[q.id][sp["name"]] += 1
     scope = "until each wipe was decided (whole_pull for the rest)" if not whole_pull else "whole pulls"
-    lines = [f"Healthstones and healing potions, and personal defensives (Lorrgs' defensive tag), on "
+    lines = [going + f"Healthstones and healing potions, and personal defensives (Lorrgs' defensive tag), on "
              f"{rep.boss_key(fights[0])}: {plural(len(fights), 'pull')}, {scope}. Per player: pulls, healthstones "
              "and potions, each defensive's uses, deaths, and at how many deaths each defensive they used on this "
              "boss was off cooldown but unused (ignoring charges and cooldown reduction; whether one was needed is for "

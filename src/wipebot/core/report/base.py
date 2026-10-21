@@ -362,6 +362,22 @@ class Report(Fetched):
         if not self.was_in(fight, p):
             raise FactError(f"{p.name} was not in {self.label(fight)}; {self.pulls_in(p)}")
 
+    def ended(self, fights: list[dict]) -> list[dict]:
+        """A boss's pulls for an answer over the night: those still being logged left out, as what they logged so
+        far isn't a pull's (`still_going` says so). None ended yet is an error."""
+        kept = [f for f in fights if f["id"] not in self.live]
+        if fights and not kept:
+            raise FactError(f"the only {self.boss_key(fights[0])} pull is still going: ask again once it has ended")
+        return kept
+
+    def still_going(self, fights: list[dict]) -> str:
+        """What an answer over the night opens with when `ended` left pulls out ('' when none)."""
+        going = [str(self.pull_no(f)) for f in fights if f["id"] in self.live]
+        if not going:
+            return ""
+        return (f"Pull {going[0]} is still going and left out until it ends.\n" if len(going) == 1
+                else f"Pulls {', '.join(going)} are still going and left out until they end.\n")
+
     def pulls_with(self, p: Player, fights: list[dict]) -> list[dict]:
         """The pulls a player was in; none at all is an error, not a night of zeros."""
         kept = [f for f in fights if self.was_in(f, p)]

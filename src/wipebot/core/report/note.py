@@ -222,7 +222,8 @@ async def note_check(rep: Report, text: str, pull: int | None = None, boss: str 
         raise FactError(f"the note has no part for {f['name']} (it has: "
                         + ", ".join(dict.fromkeys(n.boss or str(n.encounter_id) for v in found for n in v.notes)) + ")")
     if all_pulls:
-        return await _night(rep, found, rep.by_boss[rep.boss_key(f)], source)
+        pulls = rep.by_boss[rep.boss_key(f)]
+        return rep.still_going(pulls) + await _night(rep, found, rep.ended(pulls), source)
     v = _version(found, (rep.start_ms + f["startTime"]) / 1000)
     note = for_boss(v.notes, f["encounterID"]) or next(n for v in found if (n := for_boss(v.notes, f["encounterID"])))
     return _pull_text(rep, await _check(rep, f, note), source or (v.source() if v.saved_at else ""))

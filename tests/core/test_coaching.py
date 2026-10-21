@@ -3,7 +3,7 @@ import time
 
 from tests.support import CODE, RESTO_SPELLS, FakeWCL, Night
 from wipebot.core import server
-from wipebot.core.report import Player, coaching, mechanics
+from wipebot.core.report import Player, adds, coaching, deaths, healing, mechanics, tables
 
 
 async def test_the_resource_judged_is_the_one_the_spec_spends(rep, patch_wcl, fake_knowledge):
@@ -61,3 +61,12 @@ async def test_a_pull_still_going_is_left_out_of_the_night(fake_knowledge):
                            "left out until it ends.")
     text = await mechanics.mechanic_outliers(rep, boss="Sszorak", all_pulls=True)
     assert f"all {n - 2} Sszorak pulls (resets and the pull still going left out)" in text  # one reset
+    # The other answers over the night leave it out too, and say so first.
+    going = f"Pull {n} is still going and left out until it ends.\n"
+    for text in [await mechanics.mechanic_hits(rep, "Mutilate", boss="Sszorak", all_pulls=True),
+                 await tables.breakdown(rep, "DamageTaken", boss="Sszorak"),
+                 await deaths.defensives(rep, "Sszorak"),
+                 await adds.enemies_night(rep, "Sszorak"),
+                 await healing.healing(rep, boss="Sszorak", all_pulls=True)]:
+        assert text.startswith(going) and f"{n} Sszorak pulls" not in text
+    assert not any("999" in q for q in wcl.queries)

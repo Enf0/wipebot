@@ -208,7 +208,8 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     """The adds over every pull on a boss: per kind how many came and died over the pulls and the damage they
     took, their casts with a cast bar (begun, kicked and by whom, gone through), then each pull in a line. Each
     pull's deaths, damage by enemy and casts are fetched in one query each for all the pulls."""
-    fights = rep.by_boss[rep.boss(boss)]
+    pulls = rep.by_boss[rep.boss(boss)]
+    fights, going = rep.ended(pulls), rep.still_going(pulls)
     items = [(f["id"], {}) for f in fights]
     died_all, done_all, _, _ = await asyncio.gather(
         rep.events_for(items, "Deaths", hostilityType="Enemies"), rep.tables(items, "DamageDone", viewBy="Target"),
@@ -244,7 +245,7 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
                         + (f"; {plural(len(here) - NIGHT_KINDS, 'more kind')}" if len(here) > NIGHT_KINDS else "")
                         + cast_text)
     if not came:
-        return f"No enemies other than the boss on any {fights[0]['name']} pull."
+        return going + f"No enemies other than the boss on any {fights[0]['name']} pull."
     kickable = await kicked_tonight(rep, fights[0]) if casts else set()
     lines = [f"Enemies other than the boss on all {plural(len(fights), rep.boss_key(fights[0]) + ' pull')}, each "
              "whole pull, most damaged first (how many came and died over the pulls, in how many pulls, damage "
@@ -269,7 +270,7 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     shown = sorted(came, key=lambda n: -taken[n])[:10]
     if unrecorded := [n for n in shown if came[n] > 1 and not died[n] and taken[n]]:
         lines.append(_no_deaths(unrecorded))
-    return "\n".join([*lines, "By pull (the most damaged kinds):", *per_pull])
+    return going + "\n".join([*lines, "By pull (the most damaged kinds):", *per_pull])
 
 
 def _cast_line(ability: str, these: list[tuple[float, str, str | None, int]], kickable: set[int],
