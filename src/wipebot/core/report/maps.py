@@ -159,7 +159,7 @@ async def pull_map(rep: Report, pull: int | None = None, boss: str | None = None
         mech = await mechanic(rep, fights, at_, event)
         if all_pulls:
             return await _night(rep, mech, fights, focus, draw_it)
-        return await _pull_mechanic(rep, f, mech, {p.id for p in focus}, draw_it)
+        return await _pull_mechanic(rep, f, mech, {p.id for p in focus}, draw_it, focus[0].name if focus else None)
     if all_pulls:
         raise FactError("all_pulls needs an ability in `at`: the moments to look at on every pull")
     deaths = await rep.deaths(f)
@@ -174,7 +174,7 @@ async def pull_map(rep: Report, pull: int | None = None, boss: str | None = None
     sc = await scene(rep, f, t, pos, {p.id for p in focus})
     lines = [f"A map of {sc.title} at {sc.at}{why} is shown to the user with this answer: "
              + _legend([p.name for p in focus])]
-    lines += _around(rep, f, sc)
+    lines += _around(rep, f, sc, focus[0].name if focus else None)
     return MapAnswer("\n".join(lines), t - f["startTime"], await drawn(sc) if draw_it else None)
 
 
@@ -184,17 +184,21 @@ def _legend(focus: list[str], extra: str = "") -> str:
             + (f", {', '.join(focus)} larger" if focus else "") + extra + ". Refer to it; don't describe it again.")
 
 
-def _around(rep: Report, f: dict, sc: Scene) -> list[str]:
-    """Each player's distance to the boss and how far off its facing they stood; who isn't on the map."""
+def _around(rep: Report, f: dict, sc: Scene, near: str | None = None) -> list[str]:
+    """Each player's distance to the boss and how far off its facing they stood, and to `near` (the first player
+    asked about: a soak or stack is around them); who isn't on the map."""
     lines = []
+    to = next((d for d in sc.dots if d.name == near), None)
     if sc.bosses:
         b = sc.bosses[0]
         lines.append(f"Distance to {b.name} (yd)" + (", and degrees off the way it faced (0 straight in front, 180 "
-                                                      "straight behind)" if b.facing is not None else "") + ":")
+                                                      "straight behind)" if b.facing is not None else "")
+                     + (f"; then distance to {to.name} (yd)" if to else "") + ":")
         for d in sorted(sc.dots, key=lambda d: distance_yd((d.x, d.y), (b.x, b.y))):
             yd = distance_yd((d.x, d.y), (b.x, b.y))
             angle = f", {off_facing((d.x, d.y), (b.x, b.y), b.facing):.0f}°" if b.facing is not None and yd >= 1 else ""
-            lines.append(f"- {d.name} ({d.role}){' dead' if d.dead else ''}: {yd:.0f}{angle}")
+            apart = f"; {distance_yd((d.x, d.y), (to.x, to.y)):.0f} from {to.name}" if to and d is not to else ""
+            lines.append(f"- {d.name} ({d.role}){' dead' if d.dead else ''}: {yd:.0f}{angle}{apart}")
     else:
         lines.append(f"The boss's position isn't logged at {sc.at}.")
     if missing := [p.name for p in rep.pull_players(f).values() if p.name not in {d.name for d in sc.dots}]:
@@ -228,7 +232,8 @@ def _moment_line(rep: Report, fx: Facts) -> str:
     return f"  {clock(m.at - m.f['startTime'])}: " + "; ".join(parts)
 
 
-async def _pull_mechanic(rep: Report, f: dict, mech: Mechanic, focus: set[int], draw_it: bool) -> MapAnswer:
+async def _pull_mechanic(rep: Report, f: dict, mech: Mechanic, focus: set[int], draw_it: bool,
+                         near: str | None = None) -> MapAnswer:
     """Every moment of the mechanic on one pull, and a map of the one where it hit most players from someone else's
     (else the first)."""
     lines = _what(rep, mech, rep.label(f) + f" ({clock(f['endTime'] - f['startTime'])}, "
@@ -254,7 +259,7 @@ async def _pull_mechanic(rep: Report, f: dict, mech: Mechanic, focus: set[int], 
                      ", a red ring around each player it " + ("was on or hit" if m.carried else "hit")
                      + (f", gold arrows from whose {mech.name} burst as it ran out to whom it hit" if best.at_end
                         else "")))
-    lines += _around(rep, f, sc)
+    lines += _around(rep, f, sc, near)
     return MapAnswer("\n".join(lines), m.at - f["startTime"], await drawn(sc) if draw_it else None)
 
 

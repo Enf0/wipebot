@@ -1,22 +1,22 @@
 A map of Sszorak · pull 13 at 0:48, just before Scopidruid died is shown to the user with this answer: each player's spec icon in a ring of their class colour (a tight stack nudged apart a little), the dead grey with a red cross where they fell, the boss with its facing as a gold cone, and the names, Scopidruid larger. Refer to it; don't describe it again.
-Distance to Sszorak (yd), and degrees off the way it faced (0 straight in front, 180 straight behind):
-- Pomaa (dps): 4, 102°
-- Deathadim (tank): 7, 45°
-- Fappachino (dps): 8, 98°
-- Dragepie (dps): 10, 162°
-- Namsus (healer): 12, 108°
-- Wutroll (tank): 13, 0°
-- Draiman (dps): 15, 153°
-- Sinnatony (dps): 16, 136°
-- Nexsozz (dps): 17, 73°
-- Lïzårðmâñ (healer): 18, 67°
-- Martin (dps): 18, 114°
-- Enfo (healer): 22, 178°
-- Cptola (healer): 23, 46°
-- Sveini (dps): 25, 96°
-- Sonyosh (dps): 26, 12°
-- Zebinomage (dps): 26, 101°
+Distance to Sszorak (yd), and degrees off the way it faced (0 straight in front, 180 straight behind); then distance to Scopidruid (yd):
+- Pomaa (dps): 4, 102°; 28 from Scopidruid
+- Deathadim (tank): 7, 45°; 28 from Scopidruid
+- Fappachino (dps): 8, 98°; 21 from Scopidruid
+- Dragepie (dps): 10, 162°; 23 from Scopidruid
+- Namsus (healer): 12, 108°; 33 from Scopidruid
+- Wutroll (tank): 13, 0°; 37 from Scopidruid
+- Draiman (dps): 15, 153°; 12 from Scopidruid
+- Sinnatony (dps): 16, 136°; 30 from Scopidruid
+- Nexsozz (dps): 17, 73°; 41 from Scopidruid
+- Lïzårðmâñ (healer): 18, 67°; 27 from Scopidruid
+- Martin (dps): 18, 114°; 13 from Scopidruid
+- Enfo (healer): 22, 178°; 18 from Scopidruid
+- Cptola (healer): 23, 46°; 49 from Scopidruid
+- Sveini (dps): 25, 96°; 19 from Scopidruid
+- Sonyosh (dps): 26, 12°; 51 from Scopidruid
+- Zebinomage (dps): 26, 101°; 17 from Scopidruid
 - Scopidruid (dps): 26, 140°
-- Peggerino (dps): 27, 109°
-- Attractîv (dps): 30, 148°
-- Krøpling (dps): 33, 38°
+- Peggerino (dps): 27, 109°; 14 from Scopidruid
+- Attractîv (dps): 30, 148°; 34 from Scopidruid
+- Krøpling (dps): 33, 38°; 59 from Scopidruid

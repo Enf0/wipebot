@@ -36,9 +36,10 @@ question = "Who wiped us on pull 14?"
 pull = 14
 boss = "Sszorak"
 expect = """The first dominoes, before the Mutilate that killed four more: the Tempest deaths early on and a tank
-death after a late taunt swap, which left too few for the Serpent's Fury, so the boss enraged."""
+death after a late taunt swap."""
 # In a channel the facts are stated by role, not by name. Taunt swaps are often a back-and-forth between the tanks, so
-# a late one is a domino, not one tank's fault.
+# a late one is a domino, not one tank's fault. pull_summary decides the wipe at 1:11 (half the raid dead): calling the
+# enrage at 1:19 fallout is right, and so is tying it to too few left for Serpent's Fury.
 facts = ["Tempest killed three at 0:46-0:50, and a fourth player died at 0:53",
          "the tank holding the boss died at 1:03 to a second Ravage (the first at 0:55)",
          "the other tank's taunt came only at 1:05, though it had been ready since 0:21",
