@@ -5,6 +5,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "night-bottleneck"
+tools = ["boss_guide", "mechanic_hits", "progress", "pull_summary", "pull_timeline"]
 question = "What keeps wiping us on Sszorak?"
 expect = """The boss enraging because a Serpent's Fury isn't popped by 14 players, on most pulls; the early deaths
 leave too few for the stack."""
@@ -16,6 +17,7 @@ wrong = ["names the Mutilate soak, rather than the missed Serpent's Fury stacks,
 
 [[case]]
 id = "night-healing-cooldowns"  # from the raiders' own question (answer #265)
+tools = ["boss_guide", "healing"]
 question = "When do we take the most damage on Sszorak, and are our healing cooldowns in the right place?"
 expect = """The damage comes in waves at the same moments every pull. The healing cooldowns go on the second wave,
 at 1:04-1:17 (2.5 and 2.2 per spike), and almost none on the first, at 0:20-0:27 (Virulence and Mutilated Gash, 0.1
@@ -29,6 +31,7 @@ wrong_in_channel = ["names a healer"]
 
 [[case]]
 id = "night-not-a-dps-problem"
+tools = ["boss_guide", "compare_pulls", "progress"]
 report = "kTMfFRQ324Hvx6G7"
 question = "Do we need more DPS for Vashnik?"
 expect = """No: Vashnik has no damage enrage and no wipe ended on one; the wipes were mechanics (early Plague Wave
@@ -47,6 +50,7 @@ wrong = ["the raid needs more damage to beat an enrage or damage check on Vashni
          "says the Malignant Burst deaths on pulls 10 and 16 were a damage check failed"]
 [[case]]
 id = "night-improving"  # what went right over a night
+tools = ["progress"]
 report = "dTQMvNbBcPh6mDrA"
 question = "Did we actually get better on the Twin Fangs tonight?"
 asker = "Enfo"
@@ -57,6 +61,7 @@ facts = ["the average wipe went from 52.8% in the first third to 17.3% in the mi
 wrong = ["the night was flat or got worse"]
 [[case]]
 id = "night-who-dies-first"  # accountability, fairly
+tools = ["progress"]
 where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
 report = "PjKR7hQwtYpd8WDz"
 question = "Who keeps dying first on Sentinels?"
@@ -76,6 +81,7 @@ wrong = ["names someone other than Scopidruid as dying first most often",
          "claims what a class can or can't do (\"druids can't...\")"]
 [[case]]
 id = "night-kill-what-went-right"
+tools = ["boss_guide", "compare_pulls", "mechanic_hits", "progress", "pull_map", "pull_summary", "pull_timeline"]
 report = "ZRNhqaprvfmBgMkH"
 question = "We finally killed Ula'tek! What did we do better than on the 9.3% pull?"
 asker = "Enfo"
@@ -92,6 +98,7 @@ wrong = ["says the kill won mainly by doing more damage, or that pull 9 was behi
          "says every Serpent's Bite was soaked on the kill"]
 [[case]]
 id = "night-raid-prep"
+tools = ["raid_prep"]
 question = "Is everyone prepared for Sszorak: flasks, food, runes and oils?"
 expect = """Flasks, food and weapon oils are complete, but most of the raid had no augment rune."""
 facts = ["16 of 20 had no augment rune",
@@ -102,6 +109,7 @@ wrong_in_channel = ["names the player missing a vantus rune or the one missing a
 
 [[case]]
 id = "night-add-control"  # what the log shows about the adds, and what it can't (kill order)
+tools = ["boss_guide", "enemies"]
 report = "GM8XdBHaqpFgxK9Q"
 question = "Are we killing the adds in the right order on Nymrissa?"
 boss = "Nymrissa Wavecaller"
@@ -117,6 +125,7 @@ wrong = ["states, as something the log shows, the order the adds died in or that
          "says Berserkers got into the fight on the kill"]
 [[case]]
 id = "night-dispels"
+tools = ["boss_guide", "breakdown", "death_recap", "mechanic_hits", "pull_summary"]
 report = "8TcXMAP2gHQGr9pW"
 where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
 question = "Were our dispels fast enough on Vashnik?"
@@ -136,6 +145,7 @@ wrong = ["says the dispels caused the wipes",
          "blames a named healer for Krøpling's death"]
 [[case]]
 id = "night-kill-vs-best-wipe"  # execution, not a new plan
+tools = ["boss_guide", "breakdown", "compare_pulls", "progress", "pull_summary", "pull_timeline"]
 report = "dTQMvNbBcPh6mDrA"
 question = "Compare our kill with the best wipe: what did we do differently?"
 asker = "Enfo"
@@ -155,6 +165,7 @@ wrong = ["the kill used a different cooldown plan or strategy",
          "says the best wipe fell apart from deaths alone, with no word of the enrage at 8:07"]
 [[case]]
 id = "night-summary-for-raid"  # short, for the raid: the night's one lesson
+tools = ["boss_guide", "progress", "pull_summary"]
 report = "PjKR7hQwtYpd8WDz"
 question = "Give me a 3-line summary for the raid of tonight's Ula'tek progress and what to change next week."
 asker = "Miralupa"
@@ -173,6 +184,7 @@ wrong = ["gives no change about Mother's Wrath or the tanking in Phase One",
 wrong_in_channel = ["names the tank Mother's Wrath was cast on, or a player who died"]
 [[case]]
 id = "healers-imbibe-cooldowns"  # the guide's plan for a role against the log: cooldowns through each Imbibe
+tools = ["boss_guide", "healing", "pull_timeline", "raid_note"]
 report = "kTMfFRQ324Hvx6G7"
 question = "Did we line up our healing cooldowns for Imbibe on the Vashnik kill?"
 asker = "Enfo"

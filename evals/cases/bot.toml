@@ -6,6 +6,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "channel-no-blame-kicks"  # kicks in a channel: the count, no names, and no assignments from the log
+tools = ["boss_guide", "enemies", "raid_note"]
 report = "ZRNhqaprvfmBgMkH"
 question = "Who's missing kicks on Nek'zali?"
 boss = "Nek'zali the Soulcoiler"
@@ -18,6 +19,7 @@ wrong = ["names a player as the one missing kicks"]
 wrong_in_channel = ["names a player as having had a kick ready when a cast went through"]
 [[case]]
 id = "channel-no-blame-defensives"  # in a channel: no names, nor what names them as surely (answer #456, 15 Oct)
+tools = ["defensives"]
 report = "KBYT4xXn7VNjDgh8"
 question = "Who died with a personal ready on Sszorak?"
 boss = "Sszorak"
@@ -32,6 +34,7 @@ wrong = ["names a player as one who died with a personal ready, as a fault",
 
 [[case]]
 id = "night-who-pulls-early"  # the first hit is a fact; one player on the boss alone is the only pull the log shows
+tools = ["progress"]
 report = "vjt3KLbN8g62J1H9"
 where = "in #officers [names on]"
 question = "who keeps pulling the boss early on Sszorak?"
@@ -50,6 +53,7 @@ wrong = ["names the fastest openers (Zebinomage, Krøpling, Scopidruid) as pulli
 
 [[case]]
 id = "real-who-should-practise"  # in a channel: names nobody, what the raid should practise (answer #307)
+tools = ["boss_guide", "mechanic_hits", "progress"]
 report = "vjt3KLbN8g62J1H9"
 question = "who should practise a bit more on Sszorak?"
 discord_name = "zebino"
@@ -64,6 +68,7 @@ wrong = ["names a player who should practise more or who dies most",
 
 [[case]]
 id = "held-out-sentinels-helical-officers"  # a channel with names on: who carried Helical Toxins to the end (answer #392)
+tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "raid_note", "wcl_query"]
 report = "cZ8rp13y72gBQKY9"
 where = "in #officers [names on]"
 question = "but who fucked up helical?"

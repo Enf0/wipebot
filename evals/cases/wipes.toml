@@ -5,6 +5,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "wipe-enrage-hidden-by-deaths"
+tools = ["boss_guide", "compare_pulls", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 question = "Why did we wipe on Sszorak pull 13?"
 pull = 13
 boss = "Sszorak"
@@ -18,6 +19,7 @@ wrong = ["the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the p
 
 [[case]]
 id = "wipe-too-few-alive"
+tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 question = "Why did we wipe on our last Sszorak pull?"
 expect = """The first Mutilate after the intermission killed four at once, which with the earlier deaths left too few alive
 for the 14-player Serpent's Fury stack, so the boss's rage reached 100 and he enraged: the fix is that Mutilate
@@ -32,6 +34,7 @@ wrong = ["the deaths after 2:32 lost the pull",
 
 [[case]]
 id = "wipe-who-started-it"  # the raid leader's "who wiped us?": the first domino, not the most deaths
+tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_summary", "pull_timeline", "tank_swaps"]
 question = "Who wiped us on pull 14?"
 pull = 14
 boss = "Sszorak"
@@ -50,6 +53,7 @@ wrong = ["blames the players the Mutilate killed at 1:07 as the cause",
 
 [[case]]
 id = "wipe-was-a-reset"
+tools = ["boss_guide", "death_recap", "pull_summary", "pull_timeline"]
 question = "Why did we wipe on pull 9?"
 pull = 9
 boss = "Sszorak"
@@ -59,6 +63,7 @@ wrong = ["analyses pull 9's deaths as if it were a real attempt"]
 
 [[case]]
 id = "wipe-enrage-after-collapse"  # the boss enraged, but the raid had died before it: deaths, not the timer
+tools = ["boss_guide", "compare_pulls", "pull_summary", "pull_timeline"]
 report = "f8X1bzJ3T6HpArac"
 question = "We hit the enrage on Ula'tek at 6.4%. Do we need more DPS?"
 asker = "Enfo"
@@ -77,6 +82,7 @@ wrong = ["says the enrage (Fury Unleashed) ended the pull, or that the raid ran 
 wrong_in_channel = ["names a player who died to Caustic Waves or Volatile Purge"]
 [[case]]
 id = "wipe-unkicked-add"  # killing blows that are the raid's own attacks, on players the curse turned
+tools = ["boss_guide", "enemies", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "ZRNhqaprvfmBgMkH"
 where = "in a DM"  # who had a kick ready is a fact; who should have kicked, only a note shows
 question = "We got her to the intermission on the first pull, what went wrong?"
@@ -98,6 +104,7 @@ wrong = ["her energy bar filling (Uncoiled Rage) ended the pull",
          what the log or a raid note shows (e.g. 'Grusarn should have kicked'); saying who had a kick ready is fine"""]
 [[case]]
 id = "wipe-adds"
+tools = ["boss_guide", "enemies", "pull_summary", "pull_timeline"]
 report = "GM8XdBHaqpFgxK9Q"
 question = "Why did we wipe on Nymrissa Wavecaller pull 3?"
 pull = 3
@@ -115,6 +122,7 @@ wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
 wrong_in_channel = ["names a player who died"]
 [[case]]
 id = "wipe-tank-death"  # the first domino: a tank death that leaves a tank mechanic to the raid
+tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_summary", "pull_timeline", "tank_swaps"]
 report = "dTQMvNbBcPh6mDrA"
 question = "We had them at 15% on pull 5, why did we wipe?"
 pull = 5
@@ -134,6 +142,7 @@ wrong = ["says the tank's first death at 2:51 lost the pull",
 wrong_in_channel = ["names the tank who died"]
 [[case]]
 id = "wipe-droplet-explosion"  # 10 dead in one second to erupting droplets, behind a lone death at 2:26
+tools = ["boss_guide", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "GM8XdBHaqpFgxK9Q"
 question = "Why did we wipe on Sentinels pull 16?"
 pull = 16
@@ -153,6 +162,7 @@ wrong = ["says the death at 2:26 lost the pull",
 wrong_in_channel = ["names the players who died"]
 [[case]]
 id = "wipe-heroic-failed-soak"
+tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 report = "PjKR7hQwtYpd8WDz"
 question = "We had Ula'tek at 6.2% on pull 6. Why did we wipe?"
 asker = "Miralupa"
@@ -171,6 +181,7 @@ wrong = ["says the tank's death at 7:54, the Caustic Waves or the platform break
 wrong_in_channel = ["names the player who carried the unsoaked Serpent's Bite, or a player who died"]
 [[case]]
 id = "wipe-second-fury-not-stacked"
+tools = ["boss_guide", "compare_pulls", "pull_map", "pull_summary", "pull_timeline"]
 where = "in a DM"  # who stood outside the stack is a fact; who should have been in it, only the plan shows
 question = "Why did we wipe on Sszorak pull 24?"
 pull = 24
@@ -191,6 +202,7 @@ wrong = ["the Mutilated Gash deaths after 1:18 lost the pull",
 
 [[case]]
 id = "wipe-follow-up-next-pull"  # a follow-up that only makes sense after the first question
+tools = ["boss_guide", "compare_pulls", "death_recap", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "tank_swaps"]
 hard = true  # the bot still gets it wrong often: the hard set (evals/run.py summary)
 where = "in a DM"  # names the other tank's taunt as a fact, not as a fault
 question = ["Why did we wipe on Sszorak pull 13?", "And what killed Wutroll on the next pull?"]
@@ -206,6 +218,7 @@ wrong = ["Wutroll's death is placed on pull 13",
 
 [[case]]
 id = "wipe-imbibe-totems"  # totems going off are the wipe; the healing cooldowns were there and couldn't carry it
+tools = ["boss_guide", "enemies", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "kTMfFRQ324Hvx6G7"
 question = "Why did we wipe on Vashnik pull 6?"
 pull = 6
@@ -228,6 +241,7 @@ wrong = ["says the totems were all cleared before Imbibe",
 wrong_in_channel = ["names who died first, or who should have aimed the Plague Froth waves at the totems"]
 [[case]]
 id = "wipe-dps-in-ravage"  # a non-tank in the tank frontal, asked about by the player who died
+tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_map"]
 question = "Why did I die at 0:08 on pull 29?"
 asker = "Martin"
 pull = 29
@@ -243,6 +257,7 @@ wrong = ["a healing gap or a missing defensive is what killed them", "says a def
 
 [[case]]
 id = "wipe-tank-solo-soak"  # a Mutilate soaked by one tank, then a follow-up about the asker's own death
+tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "tank_swaps"]
 where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
 question = ["Why did we wipe on pull 20?", "ok and what should I personally have done?"]
 asker = "Nexsozz"
@@ -263,6 +278,7 @@ wrong = ["Tempest is the cause of the wipe or of Nexsozz's death",
 
 [[case]]
 id = "could-they-have-lived"  # a defensive ready and unused, asked about someone else's death, in a DM
+tools = ["boss_guide", "death_recap", "pull_summary"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"  # a fact about a named player is fine here; blame for the wipe isn't
 question = "Could Slushmania have survived on pull 42?"

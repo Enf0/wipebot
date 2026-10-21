@@ -5,6 +5,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "me-boss-loot"  # loot and BiS: no log needed; the asker is a Restoration Shaman
+tools = ["boss_guide"]
 question = "is there any good resto shaman loot from the new boss? kithix"
 asker = "Enfo"
 expect = """Names what Kith'ix drops that suits a Restoration Shaman, above all Twisted Horror's Tendril,
@@ -13,6 +14,7 @@ wrong = ["says it has no loot list for Kith'ix", "recommends a plate, leather or
 
 [[case]]
 id = "me-top-builds-unpulled-boss"  # a boss the report never pulled: the top parses, not the asker's own pull
+tools = ["compare_with_top"]
 question = """can you pull logs from the ones who've killed Kith'ix on hc and give a summary of talents for Balance druid? we
 haven't killed him yet"""
 asker = "Scopidruid"
@@ -29,6 +31,7 @@ wrong = ["says the top logs can't be fetched or that it needs a pull of the aske
 
 [[case]]
 id = "ask-unknown-asker"
+tools = ["roster"]
 question = "How did I do tonight?"
 discord_name = "Kebabmannen"
 expect = """No character matches Kebabmannen, so it asks which character is theirs."""
@@ -36,6 +39,7 @@ wrong = ["gives some other player's results as the asker's"]
 
 [[case]]
 id = "ask-assignment"  # the log shows who was hit, not who was assigned
+tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "raid_note"]
 where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
 question = "Who was supposed to soak the Mutilate that killed four people on pull 33?"
 pull = 33
@@ -53,6 +57,7 @@ wrong = ["names who was assigned to soak as if the log showed it",
 
 [[case]]
 id = "ask-boss-not-in-report"
+tools = ["boss_guide", "find_reports"]
 question = "Why did we wipe on Kith'ix?"
 expect = """This report has no Kith'ix pulls; it says so."""
 facts = ["the report has Sszorak and a Vashnik kill",
