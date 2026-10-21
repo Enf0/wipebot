@@ -40,6 +40,10 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
          box-shadow: 0 0 0 3px var(--bg); }
 .mark { position: absolute; top: 9px; width: 3px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--dead); }
 .mark.decided { background: var(--decided); width: 3px; top: 6px; height: 20px; }
+.mark.plan { background: var(--gold); top: 11px; height: 10px; }
+#moments { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 2px 0; }
+#moments button { height: 28px; font-size: 12.5px; padding: 0 8px; font-variant-numeric: tabular-nums; }
+#moments button.on { border-color: var(--gold); color: var(--gold); }
 /* loading: the viewer's shape, so nothing jumps when the pull arrives */
 #status .sk-head { display: flex; gap: 10px; padding: 0 2px 8px; }
 #status .sk-line { height: 14px; border-radius: 7px; background: var(--sk); }
@@ -75,6 +79,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
       <div id="timeline" role="slider" tabindex="0" aria-label="Time in the pull"><div id="track"></div><div id="done"></div><div id="thumb"></div></div>
       <button id="speed" aria-label="Playback speed">1×</button>
     </div>
+    <div id="moments" hidden></div>
   </div>
 </div>
 <script>
@@ -132,6 +137,7 @@ request("ui/initialize", { appInfo: { name: "Wipebot pull map", version: "1" },
 const $ = (id) => document.getElementById(id);
 const UNKNOWN = -32768;
 let R = null, tracks = [], bossTracks = [], view = null, images = {}, t = 0, playing = false, speed = 1, hover = -1;
+let P = [];  // raid_plan's moments: the plan's spots laid over the room at each, and who was off theirs
 
 function report(note) {  // to the server's log (viewer_log): what went wrong in a host we can't open devtools in
   request("tools/call", { name: "viewer_log", arguments: { note: String(note).slice(0, 500) } }).catch(() => {});
@@ -140,11 +146,13 @@ window.addEventListener("error", (e) => report(`error: ${e.message} at ${e.linen
 window.addEventListener("unhandledrejection", (e) => report(`rejection: ${e.reason && e.reason.message || e.reason}`));
 
 let loaded = "";
-async function load(asked) {
+async function load(given) {
+  const { plan, ...asked } = given;  // raid_plan's result carries the plan's moments; the replay is the pull's
   if (!asked.report) { fail("No pull to show."); return; }
-  const key = JSON.stringify(asked);
+  const key = JSON.stringify(given);
   if (key === loaded) return;
   loaded = key;
+  P = plan || [];
   try {
     const res = await request("tools/call", { name: "pull_replay", arguments: asked });
     if (res.isError || !res.structuredContent) throw new Error((res.content || [])[0]?.text || "no data");
@@ -178,6 +186,16 @@ function show(data) {
   $("timeline").querySelectorAll(".mark").forEach((m) => m.remove());
   for (const d of R.deaths) addMark(d.ms, "", `${d.name} died (${d.by})`);
   if (R.decided) addMark(R.decided.ms, "decided", `Wipe decided: ${R.decided.why}`);
+  const row = $("moments");
+  row.replaceChildren(); row.hidden = !P.length;
+  P.forEach((m) => {
+    addMark(m.ms, "plan", momentText(m));
+    const b = document.createElement("button");
+    b.textContent = `${m.ability} ${clock(m.ms)}`;  // text only: names come from the log and the plan
+    b.title = momentText(m);
+    b.onclick = () => { setPlaying(false); seek(m.ms, true); };
+    row.appendChild(b);
+  });
   $("status").hidden = true; $("view").hidden = false;
   image(R.map.image); R.bosses.forEach((b) => image(b.icon)); R.players.forEach((p) => image(p.icon));
   seek(R.at_ms, true);
@@ -205,6 +223,18 @@ function isDead(i) { const p = at(tracks[i], t); return !!p && p[2] === DEAD; }
 
 function clock(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
 
+// The plan's moment shown: the nearest within PLAN_HOLD_MS, so its spots stay while one scrubs around it.
+const PLAN_HOLD_MS = 4000;
+function moment() {
+  let best = null;
+  for (const m of P) if (Math.abs(m.ms - t) <= PLAN_HOLD_MS && (!best || Math.abs(m.ms - t) < Math.abs(best.ms - t))) best = m;
+  return best;
+}
+function momentText(m) {
+  return `${m.ability} ${clock(m.ms)}: ` + (m.off.length ? "off their spot: " + m.off.map((o) =>
+    `${o.name} ${o.yd} yd` + (o.at ? ` (at ${o.at})` : "")).join(", ") : "everyone on their spot");
+}
+
 function seek(ms, jump) {
   t = Math.max(0, Math.min(ms, R.duration_ms));
   follow(jump);
@@ -212,13 +242,15 @@ function seek(ms, jump) {
   $("thumb").style.left = pct + "%"; $("done").style.width = pct + "%";
   $("clock").textContent = `${clock(t)} / ${clock(R.duration_ms)}`;
   $("timeline").setAttribute("aria-valuetext", clock(t));
-  const recent = R.deaths.filter((d) => d.ms <= t && t - d.ms < 4000).pop();
+  const recent = R.deaths.filter((d) => d.ms <= t && t - d.ms < 4000).pop(), m = moment();
   $("event").textContent = recent ? `${recent.name} died (${recent.by})`
-    : (R.decided && t >= R.decided.ms && t - R.decided.ms < 4000 ? `Wipe decided: ${R.decided.why}` : "");
+    : (R.decided && t >= R.decided.ms && t - R.decided.ms < 4000 ? `Wipe decided: ${R.decided.why}`
+       : m ? momentText(m) : "");
+  $("moments").querySelectorAll("button").forEach((b, n) => b.classList.toggle("on", P[n] === m));
   draw();
 }
 
-// The view follows the living and the boss at the moment (at least LEAST yards across, at the stage's 3:2),
+// The view follows the living, the boss and the plan's spots at the moment (at least LEAST yards across, at the stage's 3:2),
 // easing toward where it should be so playing doesn't jitter; a jump in time moves it at once.
 const LEAST_YD = 60, MARGIN_YD = 12;
 function target() {
@@ -226,6 +258,8 @@ function target() {
   const add = (p) => { if (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); } };
   R.players.forEach((p, i) => { if (!isDead(i) || p.focus) add(at(tracks[i], t)); });
   bossTracks.forEach((tr) => add(at(tr, t)));
+  const m = moment(), per = R.unit_yd * 100;  // and the plan's spots, at one of its moments
+  if (m) m.spots.forEach((s) => add([(s.x - R.map.origin[0]) / per, (s.y - R.map.origin[1]) / per]));
   if (x0 === Infinity) return view;
   const yd = 1 / R.unit_yd;
   let w = Math.max(x1 - x0 + 2 * MARGIN_YD * yd, LEAST_YD * yd), h = Math.max(y1 - y0 + 2 * MARGIN_YD * yd, LEAST_YD * yd / 1.5);
@@ -281,6 +315,7 @@ function draw() {
     ring(g, bx, by, r * 1.6, "#f5c542", images[boss.icon], false);
     label(g, boss.name, bx, by - r * 1.6 - 6, "#f5c542", false);
   });
+  drawPlan(g, px, s, r);
   // players: the dead first (under), the asked-about last (on top)
   dots = [];
   const order = R.players.map((p, i) => i).sort((i, j) =>
@@ -306,6 +341,31 @@ function draw() {
     if (rank(d) > 0 && taken.some((b) => box[0] < b[0] + b[2] && b[0] < box[0] + box[2] && box[1] < b[1] + b[3] && b[1] < box[1] + box[3])) continue;
     taken.push(box);
     label(g, p.name, d.x, d.y + d.r + 12, d.dead ? "#9aa3b8" : p.color, bold);
+  }
+}
+
+// The plan's spots at the moment shown, under the players: a dot in its player's class colour (grey when open); for a
+// player off theirs, a red ring of the tolerance around it and a red line to where they are.
+function drawPlan(g, px, s, r) {
+  const m = moment();
+  if (!m) return;
+  const per = R.unit_yd * 100;  // the log's coordinates (hundredths of a yard) per replay unit
+  const color = {}, index = {};
+  R.players.forEach((p, i) => { color[p.name] = p.color; index[p.name] = i; });
+  for (const spot of m.spots) {
+    const [x, y] = px((spot.x - R.map.origin[0]) / per, (spot.y - R.map.origin[1]) / per);
+    if (spot.off && index[spot.player] !== undefined) {
+      const pos = at(tracks[index[spot.player]], t);
+      g.strokeStyle = "rgba(255, 92, 92, .9)"; g.lineWidth = 2;
+      g.beginPath(); g.arc(x, y, m.tolerance_yd / R.unit_yd * s, 0, 2 * Math.PI); g.stroke();
+      if (pos && pos[2] !== DEAD) {
+        const [qx, qy] = px(pos[0], pos[1]);
+        g.setLineDash([5, 4]); g.beginPath(); g.moveTo(x, y); g.lineTo(qx, qy); g.stroke(); g.setLineDash([]);
+      }
+    }
+    g.beginPath(); g.arc(x, y, r * 0.45, 0, 2 * Math.PI);
+    if (spot.player) { g.fillStyle = color[spot.player] || "#969caa"; g.fill(); }
+    g.lineWidth = 1.5; g.strokeStyle = spot.player ? "rgba(11, 16, 30, .85)" : "#969caa"; g.stroke();
   }
 }
 

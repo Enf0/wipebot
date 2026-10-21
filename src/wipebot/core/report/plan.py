@@ -353,6 +353,8 @@ def _how(mech: Mechanic) -> str:
 class PlanAnswer:
     text: str
     images: list[bytes]  # WebP maps
+    fight: dict | None = None  # one pull's: what the replay viewer plays
+    overlay: dict | None = None  # one pull's: the plan at each moment, for the viewer (`_overlay`)
 
 
 async def plan_check(rep: Report, text: str, pull: int | None = None, boss: str | None = None,
@@ -375,12 +377,15 @@ async def plan_check(rep: Report, text: str, pull: int | None = None, boss: str 
         raise FactError(f"the raid plan is for {plans[0].boss or 'another boss'}, not {key}")
     asked = (rep.player(player) if night else rep.in_pull(f, rep.player(player))).name if player else None
     ability = at if at and parse_clock(at) is None else None
-    out, images = [], []
+    out, images, overlays = [], [], []
     pulls = rep.ended(rep.by_boss[key]) if night else [f]
     for vs in versions.values():
         used = vs[-1:] if latest else vs
-        lines, image = await (_night(rep, used, pulls, ability, asked, draw) if night else
-                              _pull(rep, used, f, ability, None if ability else at, asked, draw))
+        if night:
+            lines, image = await _night(rep, used, pulls, ability, asked, draw)
+        else:
+            lines, image, overlay = await _pull(rep, used, f, ability, None if ability else at, asked, draw)
+            overlays += [overlay] if overlay else []
         checked = max((_version(rep, used, g) for g in pulls), key=vs.index)
         if checked is not vs[-1]:
             lines.insert(1, f"A newer version of this plan is saved ({saved.source(vs[-1].saved_at, vs[-1].saved_by)})"
@@ -388,7 +393,10 @@ async def plan_check(rep: Report, text: str, pull: int | None = None, boss: str 
                             "against the newest.")
         out += lines
         images += [image] if image else []
-    return PlanAnswer((rep.still_going(rep.by_boss[key]) if night else "") + "\n".join(out), images)
+    if night:
+        return PlanAnswer(rep.still_going(rep.by_boss[key]) + "\n".join(out), images)
+    return PlanAnswer("\n".join(out), images, f, {"at_ms": overlays[0]["at_ms"], "moments": sorted(
+        (m for o in overlays for m in o["moments"]), key=lambda m: m["ms"])} if overlays else None)
 
 
 def _boss_of(rep: Report, plan: Plan) -> str | None:
@@ -406,13 +414,14 @@ def _version(rep: Report, versions: list[Plan], f: dict) -> Plan:
 
 
 async def _pull(rep: Report, versions: list[Plan], f: dict, ability: str | None, at: str | None, asked: str | None,
-                draw: bool) -> tuple[list[str], bytes | None]:
+                draw: bool) -> tuple[list[str], bytes | None, dict | None]:
     plan = _version(rep, versions, f)
     lines = [_head(plan) + f", checked against {rep.label(f)} ({clock(f['endTime'] - f['startTime'])}, "
              + ("KILL" if f.get("kill") else "wipe") + f", {rep.url(f)})."]
     if plan.saved_at and plan.saved_at > (rep.start_ms + f["startTime"]) / 1000:
         lines.append("It was saved after this pull began: the plan for this pull may have been different.")
     shown: list[tuple[Scene, Checked]] = []
+    named: dict[str, str] = {}  # a scene's ability
     for scene in plan.scenes:
         if len(plan.scenes) > 1:
             lines.append(f"Scene {scene.name}:")
@@ -425,16 +434,20 @@ async def _pull(rep: Report, versions: list[Plan], f: dict, ability: str | None,
             lines.append(f"{mech.name} [{mech.ids[0]}] didn't happen on this pull.")
             continue
         checked = await check(rep, scene, mech)
+        named[scene.name] = mech.name
         lines += [_how(mech), f"{mech.name}: {len(checked)} time{'s' if len(checked) != 1 else ''}:"]
         lines += [_moment_line(rep, c) for c in checked]
         shown += [(scene, c) for c in checked if c.fit and c.fit.holds]
-    if not draw or not shown:
-        return lines, None
+    if not shown:
+        return lines, None, None
     if at and (ms := parse_clock(at)) is not None:
         want = f["startTime"] + ms
         scene, c = min(shown, key=lambda sc: abs(sc[1].moment.at - want))
     else:
         scene, c = max(shown, key=lambda sc: (len(sc[1].off()), -sc[1].moment.at))
+    overlay = _overlay(plan, f, shown, c, named)
+    if not draw:
+        return lines, None, overlay
     sc = await _moment_scene(rep, scene, c, asked)
     lines.append(f"A map of {sc.title} at {sc.at} is shown to the user with this answer: each spot of the plan as a "
                  "dot in its player's class colour, laid over where the raid stood; for a player off their spot, a red "
@@ -442,7 +455,29 @@ async def _pull(rep: Report, versions: list[Plan], f: dict, ability: str | None,
                  "arrows from whose debuff hit someone to whom; each player's spec icon where they stood, the dead "
                  "where they fell." + ("" if at else " The moment drawn is the one with most players off their spot.")
                  + " Refer to it; don't describe it again.")
-    return lines, await maps.drawn(sc)
+    return lines, await maps.drawn(sc), overlay
+
+
+def _overlay(plan: Plan, f: dict, shown: list[tuple[Scene, Checked]], first: Checked, named: dict[str, str]) -> dict:
+    """The plan at each moment it held, for the replay viewer: the moment to open at (`first`), and per moment its
+    spots laid over the room (in the log's coordinates, as the tracks are), each with its player and whether they
+    stood off it, the tolerance, and who was off by how far."""
+    moments = []
+    for scene, c in shown:
+        assert c.fit
+        off = {s.name for s in c.off()}
+        spots = []
+        for i, spot in enumerate(scene.spots):
+            x, y = c.fit.place((spot.x, spot.y))
+            owner = c.owners.get(i, "")
+            spots.append({"x": round(x * 100), "y": round(y * 100), "player": owner, "role": spot.role,
+                          "off": owner in off})
+        moments.append({"ms": round(c.moment.at - f["startTime"]), "ability": named[scene.name], "plan": plan.name,
+                        "scene": scene.name,
+                        "tolerance_yd": round(c.fit.tolerance, 1), "spots": spots,
+                        "off": [{"name": s.name, "yd": round(s.off_yd), "at": _spot_of(s.at_spot) if s.at_spot
+                                 else None} for s in c.off()]})
+    return {"at_ms": round(first.moment.at - f["startTime"]), "moments": moments}
 
 
 async def _moment_scene(rep: Report, scene: Scene, c: Checked, asked: str | None) -> maps.Scene:

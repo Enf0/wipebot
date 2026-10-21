@@ -6,7 +6,7 @@ import json
 import struct
 
 import pytest
-from mcp.types import CallToolResult
+from mcp.types import CallToolResult, TextContent
 from PIL import Image
 
 from tests.support import assert_snapshot
@@ -26,6 +26,7 @@ from tests.support.recorded import (
 )
 from wipebot.core import server
 from wipebot.core.report import maps
+from wipebot.core.text import clock
 
 
 @pytest.fixture
@@ -72,6 +73,25 @@ async def test_pull_map_serving_many_users_tells_the_viewer_its_moment(recorded,
     assert [c.type for c in result.content] == ["text", "image"]  # no MCP Apps client in-process: the picture too
 
 
+async def test_raid_plan_serving_many_users_gives_the_viewer_the_plan_at_each_moment(recorded, monkeypatch):
+    """claude.ai and ChatGPT get the replay viewer with the plan: per moment its spots in the log's coordinates,
+    whose each is and who stood off theirs, as the text says; it opens at the moment the picture would show."""
+    monkeypatch.setattr(server.DEFAULT, "remote", server.Remote(guilds=list, user_name=str))
+    case = CASES["raid-plan"]
+    result = await server.mcp.call_tool(case.tool, case.args)
+    assert isinstance(result, CallToolResult) and result.structured_content is not None
+    asked, first = result.structured_content, result.content[0]
+    assert isinstance(first, TextContent)
+    text = first.text
+    assert (asked["report"], asked["pull"], asked["boss"]) == (case.args["report"], case.args["pull"], "Sszorak")
+    moments = asked["plan"]
+    assert [clock(m["ms"]) for m in moments] == ["0:31", "1:20", "2:37", "3:28"]  # as the text lists them
+    assert asked["at_ms"] == moments[2]["ms"]  # the one with most players off their spot
+    for m in moments:
+        assert len(m["spots"]) == 20 and {s["player"] for s in m["spots"] if s["off"]} == {o["name"] for o in m["off"]}
+        assert f"{clock(m['ms'])} (plan" in text and all(f"{o['name']} {o['yd']} yd" in text for o in m["off"])
+
+
 def _ints(track: str) -> tuple[int, ...]:
     raw = base64.b64decode(track)
     return struct.unpack(f"<{len(raw) // 2}h", raw)
@@ -92,3 +112,7 @@ async def test_the_replay_of_a_pull_fits_a_tool_result(recorded):
     assert [d["name"] for d in data["deaths"]] == [rep.names[d["targetID"]] for d in await rep.deaths(f)]
     assert [p["name"] for p in data["players"] if p["focus"]] == args["players"]
     assert data["map"]["image"].startswith("maps/") and data["at_ms"] == REPLAY_AT_MS
+    # The map's corner in the log's coordinates, from which the viewer places raid_plan's spots.
+    ox, oy = data["map"]["origin"]
+    w, h = (v * maps.REPLAY_UNIT for v in data["map"]["size"])
+    assert 0 < w and 0 < h and isinstance(ox, int | float) and isinstance(oy, int | float)

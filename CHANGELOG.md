@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `MCP` **The raid plan in the replay.** In Claude, checking a pull against the raid plan opens the pull's replay with the plan's spots on it: a button for each time its mechanic happened, and at each, a red ring and a line from the spot of every player who stood off theirs.
+
 ### Changed
 
 - `Agent` Where everyone stood at a moment now also gives each player's distance to the player you ask about, such as the one carrying a mark the raid stacks on, so who was in range is measured rather than guessed from where they stood around the boss.
