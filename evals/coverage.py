@@ -21,9 +21,7 @@ CONNECTOR_TOOLS = {"my_characters", "save_note_or_plan"}
 # The core's tools with no eval case yet, and why: each needs a case (CLAUDE.md: a new tool comes with one).
 NO_CASE_YET = {
     "buff_at_casts": "the answers to the cases that could use it call it in fewer than two of three",
-    "raid_plan": "a case needs a raid plan pasted in its question",
     "spell_info": "the answers to the cases that could use it call it in fewer than two of three",
-    "spec_guide": "no case asks for a spec's guide yet",
     "web_lookup": "no case needs a page no other tool reads yet",
 }
 

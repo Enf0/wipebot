@@ -13,6 +13,18 @@ the trinket in Wowhead's Restoration Shaman best-in-slot list."""
 wrong = ["says it has no loot list for Kith'ix", "recommends a plate, leather or cloth piece or the Strength sword"]
 
 [[case]]
+id = "me-stat-priority"  # the spec guide, for the asker's hero tree: the log says which they play
+tools = ["compare_with_top", "spec_guide"]
+question = "what stats should i be aiming for?"
+asker = "Sonyosh"
+expect = """The spec guide's stat priority for an Elemental Shaman playing Farseer, as Sonyosh does: Mastery, then Haste
+and Crit about even, then Versatility."""
+facts = ["Farseer: Mastery > Haste >= Crit > Versatility",
+         "their gear already has the most Mastery of their secondary stats"]
+wrong = ["gives a stat priority the guide doesn't (Crit or Haste first for Farseer)",
+         "asks which spec or hero tree they play, or answers for Stormbringer as theirs"]
+
+[[case]]
 id = "me-top-builds-unpulled-boss"  # a boss the report never pulled: the top parses, not the asker's own pull
 tools = ["compare_with_top"]
 question = """can you pull logs from the ones who've killed Kith'ix on hc and give a summary of talents for Balance druid? we
