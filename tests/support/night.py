@@ -118,6 +118,10 @@ class FakeWCL:
     async def graph(self, code, fight, data_type, **filters):
         return {"series": []}
 
+    async def graphs(self, code, fights, data_type, **filters):
+        self.queries.append(f"graphs {data_type} {[f['id'] for f in fights]}")
+        return {f["id"]: {"series": []} for f in fights}
+
     async def table(self, code, fight_id, data_type, **filters):
         self.queries.append(f"table {data_type}")
         return {"entries": []}

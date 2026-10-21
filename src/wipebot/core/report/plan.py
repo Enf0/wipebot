@@ -376,18 +376,19 @@ async def plan_check(rep: Report, text: str, pull: int | None = None, boss: str 
     asked = (rep.player(player) if night else rep.in_pull(f, rep.player(player))).name if player else None
     ability = at if at and parse_clock(at) is None else None
     out, images = [], []
+    pulls = rep.ended(rep.by_boss[key]) if night else [f]
     for vs in versions.values():
         used = vs[-1:] if latest else vs
-        lines, image = await (_night(rep, used, rep.by_boss[key], ability, asked, draw) if night else
+        lines, image = await (_night(rep, used, pulls, ability, asked, draw) if night else
                               _pull(rep, used, f, ability, None if ability else at, asked, draw))
-        checked = max((_version(rep, used, g) for g in (rep.by_boss[key] if night else [f])), key=vs.index)
+        checked = max((_version(rep, used, g) for g in pulls), key=vs.index)
         if checked is not vs[-1]:
             lines.insert(1, f"A newer version of this plan is saved ({saved.source(vs[-1].saved_at, vs[-1].saved_by)})"
                             ": each pull is checked against the version saved before it began; `latest` checks "
                             "against the newest.")
         out += lines
         images += [image] if image else []
-    return PlanAnswer("\n".join(out), images)
+    return PlanAnswer((rep.still_going(rep.by_boss[key]) if night else "") + "\n".join(out), images)
 
 
 def _boss_of(rep: Report, plan: Plan) -> str | None:

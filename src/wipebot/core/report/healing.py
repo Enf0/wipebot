@@ -61,13 +61,14 @@ class InSpike:
 
 
 async def healing(rep: Report, pull: int | None = None, boss: str | None = None, all_pulls: bool = False) -> str:
-    fights = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
+    pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
+    fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = await rep.decided_cuts(fights)  # what follows is fallout: everyone heals the few still alive
     ends = {f["id"]: cut.get(f["id"], f["endTime"]) for f in fights}
     try:
         graphs = await _damage_graphs(rep, fights)
     except WCLError as e:
-        return unavailable("Raid damage taken over time", e)
+        return going + unavailable("Raid damage taken over time", e)
     spikes = [s for f in fights for s in sorted(_spikes(f, graphs.get(f["id"]), ends[f["id"]])[
         :NIGHT_SPIKES if all_pulls else SPIKES_SHOWN], key=lambda s: s.start)]
     scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
@@ -79,10 +80,11 @@ async def healing(rep: Report, pull: int | None = None, boss: str | None = None,
             + ("" if all_pulls else f" ({rep.url(fights[0])})") + f". A spike: raid damage taken at {SPIKE_TIMES}x "
             f"the pull's median or more over {SPIKE_AVG_MS // 1000} s, at least {SPIKE_MIN_MS // 1000} s long.")
     if not spikes:
-        return head + "\nNo spikes: " + "; ".join(_even(f, graphs.get(f["id"]), ends[f["id"]]) for f in fights) + "."
+        return (going + head + "\nNo spikes: "
+                + "; ".join(_even(f, graphs.get(f["id"]), ends[f["id"]]) for f in fights) + ".")
     whole = await _fill(rep, fights, spikes, ends)
     healers = {p.id: p for f in fights for p in rep.pull_players(f).values() if p.role == "healer"}
-    lines = [head]
+    lines = [going + head]
     if all_pulls:
         lines += _night_lines(rep, fights, spikes, healers)
     else:

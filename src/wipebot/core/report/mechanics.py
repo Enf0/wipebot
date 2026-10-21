@@ -32,19 +32,20 @@ class Hits:
 
 async def mechanic_hits(rep: Report, ability: str, pull: int | None = None, boss: str | None = None,
                         all_pulls: bool = False, whole_pull: bool = False) -> str:
-    fights = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
+    pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
+    fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = {} if whole_pull else await rep.decided_cuts(fights)  # later hits are fallout
     found = await _hits(rep, fights, rep.ability_ids(ability), cut)
     scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
     if not found.hits and not found.ticks and not found.debuffs:
-        return f"Nobody took damage from or got a debuff named {ability!r} on {scope}."
+        return going + f"Nobody took damage from or got a debuff named {ability!r} on {scope}."
     name = found.name or ability
     if cut:
         scope += (" until the wipe was decided (the boss's enrage or half the raid dead"
                   + (" in each pull" if all_pulls else f", {clock(cut[fights[0]['id']] - fights[0]['startTime'])}")
                   + "; whole_pull for the rest)")
-    lines = [f"{name} on {scope}. Per player: hits (and periodic ticks), damage incl. absorbed and ticks, times "
-             f"the debuff was applied (applications over the whole {'night' if all_pulls else 'pull'}, not "
+    lines = [going + f"{name} on {scope}. Per player: hits (and periodic ticks), damage incl. absorbed and ticks, "
+             f"times the debuff was applied (applications over the whole {'night' if all_pulls else 'pull'}, not "
              f"stacks), deaths of any cause within {HIT_THEN_DEATH_MS // 1000} s after a hit or tick, deaths with "
              f"{name} itself as the killing blow (what it leaves behind, a spawn or a debuff that kills later, "
              "counts under that ability's name); then, if any, hits while the debuff from an earlier hit was "

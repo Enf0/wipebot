@@ -56,7 +56,7 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
         raise FactError("group_by must be player, ability or pull")
     cut = not (whole_pull or cutoff) and data_type in UNTIL_DECIDED_TYPES  # a cutoff is its own cut
     b = rep.boss(boss)
-    fights = [rep.fight(n, b) for n in pulls] if pulls else rep.by_boss[b]
+    fights = [rep.fight(n, b) for n in pulls] if pulls else rep.ended(rep.by_boss[b])
     p = rep.player(player) if player else None
     if p and pulls:
         for f in fights:
@@ -74,7 +74,8 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
              else f"all {plural(len(fights), b + ' pull')}")
     what = "Debuffs on enemies" if data_type == "EnemyDebuffs" else data_type
     who = (f", applied by {p.name}" if data_type == "EnemyDebuffs" else f", {p.name} only") if p else ""
-    head = (f"{what} on {scope}{who}" + (f", {ability} only" if ability else "")
+    head = (("" if pulls else rep.still_going(rep.by_boss[b])) + f"{what} on {scope}{who}"
+            + (f", {ability} only" if ability else "")
             + (f", each pull until its {ordinal(cutoff)} death" if cutoff else "")
             + (await _decided_note(rep, fights, ends) if cut else ""))
     return Asked("Debuffs" if data_type == "EnemyDebuffs" else data_type, group_by, fights, p, filters, ability,
