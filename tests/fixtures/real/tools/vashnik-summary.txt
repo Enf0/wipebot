@@ -4,6 +4,7 @@ Killed by, until the wipe was decided at 6:28 (half the raid was dead): Melee ×
 Last 5: 60.2 → 54.5 → 71.9 → 76.8 → 9.4
 Warcraft Logs: https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=38
 Ended by: deaths from 4:36 until half the raid was dead at 6:28, no single hit killing many: start from the first death and follow what each left short.
+Not an enrage buff: the boss kept none gained near the end. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
 
 Raid size 20. Deaths in order (time from pull start, players alive after it, a battle res or self-res counted):
 1. 3:48 Martin (Beast Mastery Hunter; also Marksmanship in some pulls) - Plague Wave [1295798] (19 alive)

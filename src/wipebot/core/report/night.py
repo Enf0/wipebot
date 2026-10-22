@@ -10,6 +10,7 @@ from ..pulls import DIFFICULTIES, FIRST_DEATHS, attempt, is_reset, pct_text, pha
 from ..text import clock, clusters, date, ordinal, plural
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report
+from .ending import kind_of_end, pull_ending
 
 
 def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
@@ -265,6 +266,9 @@ async def progress(rep: Report, boss: str | None = None) -> str:
     for name, times in kept.items():
         lines.append(f"The boss gained {name} and kept it to the end on {len(times)} of {plural(len(fights), 'pull')}, "
                      f"gained at {clusters(times)}.")
+    ends = Counter([kind_of_end(await pull_ending(rep, f)) for f in fights if not f.get("inProgress")])
+    lines.append("How the pulls ended, by the first thing that ended each (pull_summary's \"Ended by\"): "
+                 + ", ".join(f"{what} {n}" for what, n in ends.most_common()) + ".")
     lines.append(f"Killers of the first {FIRST_DEATHS} deaths per pull"
                  + (" (deaths after the boss gained one of those buffs left out)" if kept else "") + ": "
                  + ", ".join(f"{a} x{n}" for a, n in first_killers.most_common(6)))

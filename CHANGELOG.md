@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `Agent` How the night went now counts the pulls by what ended each, so the one thing that ends most of them stands out; why a pull wiped says plainly when it wasn't the boss's enrage or a damage check; and who was hit, stood where or had a kick ready comes with a reminder that whose job it was isn't in the log.
 - `Agent` Why a pull wiped now names the deaths that led into the moment that lost it, counts an ability that kills in pulses over a few seconds (a set of hits, a wave of adds) as one moment, and no longer starts a run of deaths at a player who was battle-ressed.
 - `Agent` Asking about the adds over the whole night now also gives, for the most damaged kinds, when each wave of them died and each player's damage on them over the pulls.
 - `Agent` Where everyone stood at a moment now also gives each player's distance to the player you ask about, such as the one carrying a mark the raid stacks on, so who was in range is measured rather than guessed from where they stood around the boss.
