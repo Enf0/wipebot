@@ -1,6 +1,6 @@
 ---
 name: raid-log-analysis
-description: Analyses World of Warcraft raid logs from Warcraft Logs with the Wipebot tools, the way an experienced raid leader reads them. Use when someone asks about a raid night or a Warcraft Logs report, even when they only name a boss, a pull or a player - why a pull wiped, how the night went, what keeps wiping the raid, how a player did or why their damage or healing is low, how they compare with top players, whether the raid needs more damage or another healer, or what to change before the next pull.
+description: How to read World of Warcraft raid logs from the Wipebot tools the way an experienced raid leader does, and how to answer from them. Use when a question needs any Wipebot tool - load it before the first tool call: why a pull wiped, how a raid night went, what keeps wiping the raid, how a player did or why their damage or healing is low, how they compare with top players, whether the raid needs more damage or another healer, or what to change before the next pull, even when the question only names a boss, a pull or a player.
 ---
 
 # Analysing raid logs
