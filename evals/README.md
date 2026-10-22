@@ -134,6 +134,7 @@ just evals --save-baseline          # keep this run as the baseline
 just evals --lint                   # the cases' numbers against the tools now (no model, about a minute)
 just evals --coverage               # what the cases cover: tools, kinds of question, places, bosses (no model)
 just evals --endings                # pull_summary's "Ended by" against each case's `cause` (no model)
+just evals --held-out --trials 3    # the held-out cases alone, at a milestone (never while changing the method)
 just eval-data                      # the frozen data the cases were written against (maintainers)
 just evals --label results/X.json   # mark a run's answers yourself (labels.jsonl)
 just evals --agreement              # how often the judge agrees with your marks
