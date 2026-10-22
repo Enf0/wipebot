@@ -4,6 +4,7 @@ import asyncio
 import math
 import time
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 
 from ..cache import DAY
 from ..pulls import DIFFICULTIES, FIRST_DEATHS, attempt, is_reset, pct_text, phase_label, wipe_pct, wipe_pcts
@@ -316,3 +317,59 @@ async def _nights_killer(rep: Report, fights: list[dict]) -> str | None:
             f"{plural(n, 'death')} over {plural(len(pulls), 'pull')}, the first death on {first[name]} of them; "
             f"killed most: {named(victims[name])}")
     return line + (f"; hit most (until each wipe was decided): {named(hits)}." if hits else ".")
+
+
+ENDINGS_SHOWN = 3  # per night, the most common ways its pulls on the boss ended
+
+
+@dataclass(frozen=True)
+class BossNight:
+    """One raid night's pulls on a boss: the evidence for "are we getting better over the weeks?"."""
+    start_ms: float
+    pulls: int
+    kill: int | None  # the first kill's pull number on the boss that night
+    best: tuple[float, int] | None  # the furthest wipe before the kill (or of the night): wipe %, pull number
+    ends: tuple[tuple[str, int], ...]  # how the pulls ended (kind_of_end), the most common first
+
+
+def boss_pulls(rep: Report, encounter: int, difficulty: int | None) -> list[dict]:
+    """A report's finished pulls on one boss and difficulty, in order."""
+    return [f for fights in rep.by_boss.values() for f in fights
+            if f["encounterID"] == encounter and f.get("difficulty") == difficulty and not f.get("inProgress")]
+
+
+async def boss_night(reps: list[Report], start_ms: float, encounter: int, difficulty: int | None) -> BossNight | None:
+    """One night's pulls on the boss over its reports (a night logged twice counts each pull once: the first log's),
+    or None when the night didn't pull it."""
+    pulls: list[tuple[Report, dict]] = []
+    for r in reps:
+        for f in boss_pulls(r, encounter, difficulty):
+            if not any(abs(f2["startTime"] + r2.start_ms - f["startTime"] - r.start_ms) < 60_000 for r2, f2 in pulls):
+                pulls.append((r, f))
+    if not pulls:
+        return None
+    pulls.sort(key=lambda x: x[0].start_ms + x[1]["startTime"])
+    for r in reps:
+        await r.decided_cuts(boss_pulls(r, encounter, difficulty))  # each report's pulls' deaths and buffs at once
+    kill = next((i for i, (_, f) in enumerate(pulls, 1) if f["kill"]), None)
+    wipes = [(pct, i) for i, (_, f) in enumerate(pulls, 1) if not f["kill"] and not is_reset(f)
+             and (kill is None or i < kill) and (pct := wipe_pct(f)) is not None]
+    ends = Counter([kind_of_end(await pull_ending(r, f)) for r, f in pulls])
+    return BossNight(start_ms, len(pulls), kill, min(wipes) if wipes else None, tuple(ends.most_common()))
+
+
+def weeks_text(boss: str, weeks: int, nights: list[BossNight]) -> str:
+    """The boss night by night: pulls, the kill, the best wipe, and how the pulls ended."""
+    if not nights:
+        return f"The guild's raid nights of the last {plural(weeks, 'week')} have no pulls on {boss}."
+    lines = [f"{boss} night by night over the last {plural(weeks, 'week')} (the guild's raid nights in this raid: "
+             "pulls, the kill, the best wipe before it, and how the pulls ended, by the first thing that ended each):"]
+    for n in nights:
+        kill = f"killed on pull {n.kill}" if n.kill else "no kill"
+        best = f", best wipe {n.best[0]:.1f}% (pull {n.best[1]})" if n.best else ""
+        ends = ", ".join(f"{what} {k}" for what, k in n.ends if what != "a kill")
+        lines.append(f"  {date(n.start_ms)}: {plural(n.pulls, 'pull')}, {kill}{best}; ended by {ends or 'nothing yet'}")
+    bests = [f"{n.best[0]:.1f}" if n.best else ("kill" if n.kill else "-") for n in nights]
+    lines.append("Best wipe night by night: " + " → ".join(bests) + (" (a kill counts as done)" if "kill" in bests
+                                                                     else ""))
+    return "\n".join(lines)

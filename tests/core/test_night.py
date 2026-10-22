@@ -1,5 +1,6 @@
 """The guild's nights (report/night.py): who raided which nights. The night's overview and progress are pinned by
 the tool cases (test_tools.py)."""
+from wipebot.core.pulls import wipe_pcts
 from wipebot.core.report import night
 
 
@@ -42,3 +43,28 @@ async def test_attendance_counts_a_night_once_and_leaves_out_other_difficulties(
     assert lines[1].endswith("2 players (A, B)")  # two logs of one evening; Mirelle there in one, benched in the other
     assert lines[-2].endswith("guild's page): PUG (1 of 3 in the guild)")
     assert lines[-1] == "Nights raided, of 2: Torvek 2, Mirelle 1, Brightleaf 0 (+1 benched)"
+
+
+async def test_a_boss_night_counts_its_pulls_once_with_the_kill_the_best_wipe_and_the_endings(rep):
+    f = rep.by_boss[rep.boss("sszorak")][-1]
+    one = await night.boss_night([rep], rep.start_ms, f["encounterID"], f.get("difficulty"))
+    pulls = night.boss_pulls(rep, f["encounterID"], f.get("difficulty"))
+    assert one and one.pulls == len(pulls) and sum(k for _, k in one.ends) == len(pulls)
+    assert one.kill is None and one.best and one.best[0] == min(w for w in wipe_pcts(pulls))
+    # the same night logged twice (two raiders' logs) counts each pull once
+    again = await night.boss_night([rep, rep], rep.start_ms, f["encounterID"], f.get("difficulty"))
+    assert again == one
+    assert await night.boss_night([rep], rep.start_ms, 999_999, f.get("difficulty")) is None
+
+
+def test_weeks_read_night_by_night_with_the_best_wipe_trend():
+    nights = [night.BossNight(1_760_000_000_000, 33, None, (34.1, 42), (("the boss gaining X and keeping it to the "
+                                                                          "end", 20), ("Mutilate killing many", 8))),
+              night.BossNight(1_760_600_000_000, 14, 14, (2.0, 12), (("a kill", 1), ("deaths one after another", 9)))]
+    text = night.weeks_text("Sszorak", 2, nights)
+    assert text.splitlines()[1:] == [
+        "  Thu 2025-10-09: 33 pulls, no kill, best wipe 34.1% (pull 42); ended by the boss gaining X and keeping it "
+        "to the end 20, Mutilate killing many 8",
+        "  Thu 2025-10-16: 14 pulls, killed on pull 14, best wipe 2.0% (pull 12); ended by deaths one after another 9",
+        "Best wipe night by night: 34.1 → 2.0"]
+    assert night.weeks_text("Sszorak", 2, []) == "The guild's raid nights of the last 2 weeks have no pulls on Sszorak."

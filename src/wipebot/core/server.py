@@ -732,6 +732,9 @@ async def progress(boss: Annotated[str | None, Field(description=(
                                                                 "killer, the trend)")] = False,
                    first_hits: Annotated[bool, Field(description="also who hit the boss first on each pull, for "
                                                                  "\"who pulls early?\"")] = False,
+                   weeks: Annotated[int | None, Field(description=(
+                       "also the boss on each of the guild's raid nights over this many weeks back (1-12), for "
+                       "\"are we doing better than last week?\": reads every night, slow"), ge=1, le=12)] = None,
                    report: Report_ = None) -> str:
     """How did tonight go, are we improving, what keeps wiping us, who keeps dying first, which pulls were there:
     start here for a night.
@@ -743,14 +746,29 @@ async def progress(boss: Annotated[str | None, Field(description=(
     player, and a tally ("who pulled?").
     Reading it: deaths after a buff the boss kept to the end are left out of the killers. The night's killer is
     the ability with the most deaths (every death on a kill, a wipe's until it was decided), with the players it
-    killed and the players it hit most; a tank tops a "hit most" list by standing at the boss."""
+    killed and the players it hit most; a tank tops a "hit most" list by standing at the boss. With `weeks`: each
+    night's pulls on the boss, the kill, the best wipe before it and how the pulls ended, then the best wipe night
+    by night."""
     rep = await lib().report(report)
     # The overview asks Warcraft Logs other things than the pulls do: both at once. The posts read what the
     # pulls' lines just fetched, so they come after.
     texts = list(await asyncio.gather(*([] if boss else [night.overview(rep)]), night.progress(rep, boss)))
     if each_pull or first_hits:
         texts.append(await night.each_pull(rep, boss, each_pull, first_hits))
+    if weeks:
+        texts.append(await _boss_over_weeks(rep, boss, weeks))
     return "\n\n".join(texts)
+
+
+async def _boss_over_weeks(rep: Report, boss: str | None, weeks: int) -> str:
+    """The boss of `progress` (on its difficulty in this report) on each of the guild's raid nights over the weeks."""
+    f = rep.by_boss[rep.boss(boss)][-1]
+    nights, _, _ = await night.raid_nights(rep, weeks)
+    found = []
+    for n in nights:
+        if (one := await night.boss_night(await lib().night(n), n["start"], f["encounterID"], f.get("difficulty"))):
+            found.append(one)
+    return night.weeks_text(rep.boss_key(f), weeks, found)
 
 
 # ---------- players ----------
