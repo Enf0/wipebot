@@ -71,7 +71,8 @@ Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and trou
   of keys yet (the timer, trash, affixes) and its guides and comparisons are for raids. Classic logs are on Warcraft
   Logs' separate Classic sites, which it doesn't read yet.
 - The method, how to read a raid log, is a [skill](src/wipebot/core/skills/raid-log-analysis): the bot and Claude
-  (with the plugin) use it; other assistants get only the tools for now. MCP has a
+  (with the plugin) use it; other assistants get the tools, whose output carries what code can decide of it (how a
+  pull ended, and what it wasn't), for now. MCP has a
   [standard](https://modelcontextprotocol.io/extensions/skills/overview) for a server to serve its skills itself, but
   the major assistants [don't load them yet](https://modelcontextprotocol.io/extensions/client-matrix)
   ([docs/reference/mcp-clients.md](docs/reference/mcp-clients.md)).

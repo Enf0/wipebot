@@ -20,3 +20,5 @@ paths:
 - The cases cover twelve reports and several ways to lose a pull: check a change against the other bosses too, not
   only Sszorak.
 - Record what a run costs per model in docs/models.md when it changes the picture.
+- A wipe case may name its `cause` (what a raid leader names first); `just evals --endings` checks the tools'
+  "Ended by" against it with no model: run it after a change to how pulls end.

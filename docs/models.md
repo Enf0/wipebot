@@ -8,6 +8,8 @@ and how long it takes. Each section is a snapshot of the suite and the judge tha
 The 66 cases of 21 October (62 outside the bot; all of them three times), judged by Sonnet 5.5.
 "Plugin" is Claude with the connector and the skill, "connector only" a client with just the connector (as ChatGPT
 or claude.ai without the plugin), "bot" the Discord bot. The Opus runs are the baselines (`evals/baseline*.json`).
+In these runs "plugin" had the whole skill in its prompt; from 22 October the plugin mode loads the skill as Claude
+does, when a question calls for it, so later plugin rows aren't comparable with these.
 
 | Model | Run as | Passed | Cases right every trial | Median s | Per answer, judge included | One run |
 |---|---|---|---|---|---|---|

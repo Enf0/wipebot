@@ -3,16 +3,21 @@
 What Wipebot can answer and how, in more detail than the [README](../README.md). The questions below are examples. You
 ask in your own words, and the model picks the tools. Every number in an answer comes from a tool reading the log.
 
-Unless you name a report, Wipebot reads the guild's latest raid night. A question names a pull ("pull 12"), a boss
-("Sszorak"), a time ("at 2:31") or a player, or none of these: then it means the latest pull.
+Unless you name a report, Wipebot reads the guild's latest raid night. A question names a pull ("pull 12", "the kill",
+"the best wipe"), a boss ("Sszorak"), a time ("at 2:31") or a player, or none of these: then it means the latest
+pull.
 
 ## A pull: why did we wipe?
 
 - **What ended it.** Every death in order, with spec, the ability that killed them and how many players were still
   alive. Also when half the raid was dead, and whether the boss gained a buff it kept to the end (an enrage). The
-  wipe is put down to one ability killing many players at once, a buff on the boss, half the raid dead or deaths
-  spread out. Deaths after that point are marked as fallout and don't count against anyone.
-- **How it compares.** Each wipe is compared with the night's earlier pulls and the guild's best on the boss so far.
+  wipe is put down to one ability killing many players at once (or in pulses over a few seconds), a buff on the
+  boss, half the raid dead or deaths spread out, starting from the first death that stayed (not one a battle res
+  undid). Before a moment that killed many, it names the deaths that led into it, which often left the raid short.
+  When no enrage ended it, it says so: deaths lost the pull, not a damage check. Deaths after the wipe was decided
+  are marked as fallout and don't count against anyone.
+- **How it compares.** Each wipe is compared with the night's earlier pulls and the guild's best on the boss so far,
+  and says whether it ended the way earlier pulls that night did, or got past what ended most of them.
 - **One death in detail** ("what killed X?", "could they have lived?"): every hit in the 10 seconds before it, with
   health after each hit, the healing they got and what each healer was casting, the defensives they had ready and
   whether a healthstone or potion was used.
@@ -20,11 +25,13 @@ Unless you name a report, Wipebot reads the guild's latest raid night. A questio
   and whether each was kicked, debuffs on players, deaths, Bloodlust, battle res and raid cooldowns, then the boss's
   health and energy over time.
 - **Mechanics** ("who keeps standing in things?", "who got hit by the soak?"): who was hit by an ability or got its
-  debuff, and how often, on one pull or on every pull of the night. Asked with no ability, it lists every ability
-  that hurt the raid and who took twice the usual damage from it or more.
+  debuff, and how often, on one pull or on every pull of the night, or only in one stretch of each pull ("the first
+  set of orbs"). Asked with no ability, it lists every ability that hurt the raid and who took twice the usual damage
+  from it or more. Who was hit isn't whose job it was: the raid note says that.
 - **Adds and kicks** ("were the adds killed in time?", "did anyone have a kick ready?"): how many adds came, when they
   died, every cast that was kicked (and by whom) or went through, and who had their interrupt ready when a cast went
-  through.
+  through. Over the night, for the adds that took the most damage, when each wave of them died and each player's
+  damage on them.
 - **Tanks** ("did the tanks swap?"): who had the boss when, what taunted it, each tank's debuff stacks and tank
   deaths.
 - **Healing** ("did the healers keep up?", "were our cooldowns on the peaks?"): the moments of heavy raid damage and
@@ -39,8 +46,11 @@ Unless you name a report, Wipebot reads the guild's latest raid night. A questio
 
 - **The night at a glance:** every boss pulled, kills with their speed and execution percentiles, the best wipe, time
   spent, the trend and the guild's progress rank.
-- **Every pull on a boss:** boss health, phase, duration and first death of each, averages over the night, and the
-  night's killer: the ability behind the most deaths, who it killed and who it hit most.
+- **Every pull on a boss:** boss health, phase, duration and first death of each, averages over the night, how the
+  pulls ended counted by what ended each (the one thing that ends most of them stands out), and the night's killer:
+  the ability behind the most deaths, who it killed and who it hit most.
+- **Week over week** ("are we doing better than last week?"): the boss on each of the guild's raid nights over the
+  last weeks: the pulls, the kill, the best wipe and what ended the pulls, night by night.
 - **Who pulled?** Who hit the boss first on each pull, and with what.
 - **Earlier nights:** other reports of the guild, a raider's pugs and alts, and who has come to raid over the last
   weeks.
