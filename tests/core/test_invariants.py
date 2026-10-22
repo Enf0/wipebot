@@ -92,7 +92,7 @@ async def _load() -> Recorded:
             fights = rep.by_boss[rep.boss(a.get("boss"))] if a.get("all_pulls") else [rep.fight(a.get("pull"))]
             cut = {} if a.get("whole_pull") else await rep.decided_cuts(fights)
             ids = rep.ability_ids(a["ability"])
-            found = await mechanics._hits(rep, fights, ids, cut)
+            found = await mechanics._hits(rep, fights, ids, mechanics._counting(fights, cut, None))
             out.hits.append((case.name, [p for p in out.pulls if p.f in fights], found, set(ids)))
     if LOCAL_RECORDED.exists():
         a = CASES["player-night"].args

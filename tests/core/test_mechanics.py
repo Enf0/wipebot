@@ -5,7 +5,7 @@ from collections import Counter
 import pytest
 
 from wipebot.core.report import mechanics
-from wipebot.core.report.base import JOBS_NOT_LOGGED
+from wipebot.core.report.base import JOBS_NOT_LOGGED, FactError
 
 POOL = 904  # a made-up ability
 
@@ -110,3 +110,17 @@ async def test_outliers_of_a_kill_run_to_its_end(rep, hits):
     text = await mechanics.mechanic_outliers(rep, 2, "vashnik")
     assert text.startswith("Enemy abilities on Vashnik the Malignant pull 2, each pull until the wipe was decided")
     assert "  Toxic Pool [904]: 1 of 20 took it" in text
+
+
+async def test_a_window_counts_only_that_stretch_of_each_pull(rep, hits):
+    # Pull 13: Enfo's debuff from 0:20 and Sinnatony's hit at 0:30 are before the window; Attractîv's from 1:25 in it.
+    f = rep.fight(13)
+    a, e, s = (rep.player(n).id for n in ("Attractîv", "Enfo", "Sinnatony"))
+    hits([event(f, a, 85, "damage", amount=100), event(f, s, 30, "damage", amount=100)],
+         [event(f, a, 85, "applydebuff"), event(f, a, 88, "removedebuff"), event(f, e, 20, "applydebuff")])
+    text = await mechanics.mechanic_hits(rep, "toxic pool", 13, start="1:00", end="2:00")
+    assert "pull 13, from 1:00 to 2:00 of each" in text.splitlines()[0]
+    assert "  Attractîv: 1 hit, 100, 1 application" in text and "Sinnatony" not in text
+    assert "  Sszorak pull 13 1:25: Attractîv, kept 3 s" in text and "0:20: Enfo" not in text
+    with pytest.raises(FactError, match="m:ss from the pull's start"):
+        await mechanics.mechanic_hits(rep, "toxic pool", 13, start="2:00", end="1:00")

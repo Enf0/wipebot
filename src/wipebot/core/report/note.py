@@ -19,7 +19,7 @@ from ..pulls import Decided
 from ..text import clock, plural, short
 from . import saved
 from .adds import interruptible_casts, kicked_tonight
-from .base import REPEAT_CAST_MS, FactError, Player, Report, dead_since, unavailable
+from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since, unavailable
 
 MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it this close to its time
 BURST_MS = 2_000  # hits of an ability this close together are one hit of it (one soak)
@@ -211,7 +211,7 @@ class PullCheck:
     unavailable: str = ""  # why the callouts couldn't be checked
 
 
-async def note_check(rep: Report, text: str, pull: int | None = None, boss: str | None = None,
+async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | None = None,
                      source: str = "", all_pulls: bool = False) -> str:
     """The note's part for the pull's boss, checked against the pull: the assignments, each soak group's hits
     (who of the group was hit, who wasn't and why, who else was), each planned cooldown against the player's casts,

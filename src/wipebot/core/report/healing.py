@@ -9,7 +9,7 @@ from ..cache import FOREVER
 from ..knowledge import KnowledgeError
 from ..text import clock, ids_line, plural, short
 from ..wcl import WCLError
-from .base import Player, Report, dead_since, unavailable
+from .base import Player, PullRef, Report, dead_since, unavailable
 from .casting import casting, raid_pauses, without
 
 # A spike: raid damage taken at SPIKE_TIMES the pull's median or more, averaged over SPIKE_AVG_MS. The timeline
@@ -60,7 +60,7 @@ class InSpike:
     ready: int = 0
 
 
-async def healing(rep: Report, pull: int | None = None, boss: str | None = None, all_pulls: bool = False) -> str:
+async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False) -> str:
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
     fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = await rep.decided_cuts(fights)  # what follows is fallout: everyone heals the few still alive

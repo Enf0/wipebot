@@ -8,7 +8,7 @@ from ..knowledge import KnowledgeError, spaced
 from ..text import clock, ids_line, plural, short
 from . import healing as heals
 from . import positions
-from .base import FactError, Player, Report, unavailable
+from .base import FactError, Player, PullRef, Report, unavailable
 
 RECAP_WINDOW_MS = 10_000  # damage shown before a death
 HEALTHSTONE_SPELL = 6262  # the Healthstone item's spell: its tooltip says what it heals
@@ -16,7 +16,7 @@ CASCADE_MS = 15_000       # deaths this close together are probably linked
 DEATH_STRIP_MS = 250  # a dying player's auras are removed just before the death event
 
 
-async def death_recap(rep: Report, player: str, pull: int | None = None, boss: str | None = None,
+async def death_recap(rep: Report, player: str, pull: PullRef = None, boss: str | None = None,
                       death: int = 1) -> str:
     f = rep.fight(pull, boss)
     p = rep.player(player)

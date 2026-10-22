@@ -6,7 +6,7 @@ from collections import Counter
 from ..cache import FOREVER
 from ..text import clock, fight_url, plural, short
 from ..wcl import WCLError
-from .base import SAME_DEATH_MS, FactError, Report
+from .base import SAME_DEATH_MS, FactError, PullRef, Report
 from .fight import boss_tracks, tracks
 
 PACE_POINTS = 3  # boss health this many points above the kill's at the same moment is behind its pace
@@ -14,7 +14,7 @@ PACE_STEP_MS = 10_000  # the moments the pace is compared at
 TABLE_ROWS = 12  # about this many rows of the side-by-side table
 
 
-async def compare_with_kill(rep: Report, pull: int | None = None, boss: str | None = None,
+async def compare_with_kill(rep: Report, pull: PullRef = None, boss: str | None = None,
                             kill: str | None = None) -> str:
     """A wipe next to a kill of the same boss and difficulty: phase changes, when the boss's power bar was
     reset, the pull against the kill's pace, and boss health and power at the same moments. Without `kill`, the
@@ -144,7 +144,7 @@ def _at(points: list[tuple[float, float]] | None, t: float) -> str:
     return f"{v:.0f}" if (v := _value(points, t)) is not None else "-"
 
 
-async def compare_pulls(rep: Report, pull_a: int | None, pull_b: int, boss: str | None = None) -> str:
+async def compare_pulls(rep: Report, pull_a: PullRef, pull_b: PullRef, boss: str | None = None) -> str:
     """Two pulls side by side: posts, killing abilities before and after the wipe was decided, most damage taken."""
     out = []
     for n in (pull_a, pull_b):

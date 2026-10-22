@@ -26,7 +26,7 @@ from .. import knowledge
 from ..classes import class_rgb
 from ..text import clock, parse_clock, plural
 from . import maps, saved
-from .base import FactError, Player, Report
+from .base import FactError, Player, PullRef, Report
 from .positions import Facts, Mechanic, Moment, facts, mechanic, pull_positions, window, window_positions
 
 EXPORT = re.compile(r"raidstrats-addon-([A-Za-z0-9+/=]+)")
@@ -357,7 +357,7 @@ class PlanAnswer:
     overlay: dict | None = None  # one pull's: the plan at each moment, for the viewer (`_overlay`)
 
 
-async def plan_check(rep: Report, text: str, pull: int | None = None, boss: str | None = None,
+async def plan_check(rep: Report, text: str, pull: PullRef = None, boss: str | None = None,
                      night: bool = False, at: str | None = None, player: str | None = None,
                      draw: bool = True, latest: bool = False) -> PlanAnswer:
     """The plan's spots against where each player stood at each moment of its mechanic: one pull, or with `night`

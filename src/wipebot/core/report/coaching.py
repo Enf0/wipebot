@@ -11,7 +11,7 @@ from ..knowledge import KnowledgeError, spaced
 from ..pulls import FIRST_DEATHS, Decided, is_reset, pct_text, wipe_pct
 from ..text import clock, name_key, plural, short
 from ..wcl import WCLError
-from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, Report, unavailable
+from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report, unavailable
 from .build import gear_stats, hero_of, prepared
 from .casting import alive, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
@@ -26,7 +26,7 @@ CAP_STRETCHES = 4  # the longest stretches at the cap named, with their times
 CAP_STRETCH_MS = 2000  # a shorter one is a cast's worth
 
 
-async def player_pull(rep: Report, player: str, pull: int | None = None, boss: str | None = None) -> str:
+async def player_pull(rep: Report, player: str, pull: PullRef = None, boss: str | None = None) -> str:
     f = rep.fight(pull, boss)
     p = rep.player(player)
     rep.require_in(f, p)
@@ -508,7 +508,7 @@ def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns) -> 
             + (f"; cooldowns {', '.join(cd_text)}" if cd_text else ""))
 
 
-async def buff_at_casts(rep: Report, player: str, buff: str, spell: str, pull: int | None = None,
+async def buff_at_casts(rep: Report, player: str, buff: str, spell: str, pull: PullRef = None,
                         boss: str | None = None, all_pulls: bool = False) -> str:
     """`buff` on `player` (and its stacks) at each of their casts of `spell` on a pull, from the buff's events
     (applied, a stack added or taken, removed) up to the cast. With `all_pulls`, on every pull on the boss they
