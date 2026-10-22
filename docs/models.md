@@ -3,6 +3,33 @@
 How the Claude models answer the eval cases (`evals/cases/`), in each way Wipebot is used, with what an answer costs
 and how long it takes. Each section is a snapshot of the suite and the judge that day.
 
+## 22 October 2026
+
+The 70 cases of 22 October (all three times; 8 of them in the hard set, the questions a raid leader asks beyond
+diagnosis: ranking problems, false premises, a cooldown plan, week over week), judged by Sonnet 5.5. The plugin mode
+now loads the skill the way Claude does, when a question calls for it, so its rows aren't comparable with 21
+October's, which had the whole skill in the prompt.
+
+| Model | Run as | Passed | Cases right every trial | Median s | Per answer, judge included | One run |
+|---|---|---|---|---|---|---|
+| Opus 5.5 | plugin | 195/210 (93%) | 60/70 | 32 | $0.30 | $63.85 |
+| Opus 5.5 | bot | 202/222 (91%) | 59/74 | 21 | $0.20 | $44.59 |
+| Opus 5.5 | connector only | 188/210 (90%) | 52/70 | 27 | $0.21 | $45.14 |
+| Haiku 5.5 | plugin | 138/209 (66%) | 31/70 | 19 | $0.08 | $15.98 |
+
+Without the hard set, Opus passes 94% with the plugin, 93% in the bot and 92% with the connector alone (87% on 21
+October): what code can decide of the method is now in the tools' output, which a client without the skill reads too.
+
+- Opus 5.5 stays the bot's model and the one to recommend in Claude.
+- Haiku loaded the skill in only 60 of its 209 answers here, so most of them had no method: its 77% of 21 October was
+  with the skill pasted into the prompt, which members never get. The skill's description now has Claude load it
+  before the first tool call; on 12 cases afterwards Haiku loaded it in all 12 answers and passed 10 (one trial each),
+  so expect its plugin number to rise; a full run is due with the next model comparison.
+- The plugin's answers cost more than the others' ($0.30): Claude reads the skill and calls more tools (6.3 an answer,
+  against 4.8 with the connector alone).
+- The held-out cases, written blind on a night nothing in the skill or the other cases was built on (21 October), all
+  passed with Opus and the plugin: 9 of 9. The method holds on a night it wasn't fitted to.
+
 ## 21 October 2026
 
 The 66 cases of 21 October (62 outside the bot; all of them three times), judged by Sonnet 5.5.
