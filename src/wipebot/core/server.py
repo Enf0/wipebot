@@ -765,7 +765,7 @@ async def _boss_over_weeks(rep: Report, boss: str | None, weeks: int) -> str:
     f = rep.by_boss[rep.boss(boss)][-1]
     nights, _, _ = await night.raid_nights(rep, weeks)
     found = []
-    for n in nights:
+    for n in [n for n in nights if n["start"] <= rep.end_ms]:  # the weeks up to this report's night, not after it
         if (one := await night.boss_night(await lib().night(n), n["start"], f["encounterID"], f.get("difficulty"))):
             found.append(one)
     return night.weeks_text(rep.boss_key(f), weeks, found)
