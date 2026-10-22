@@ -553,15 +553,40 @@ def _saved_guild(rep: Report, what: str) -> int:
     return rep.guild_id
 
 
-def saved_note(book: notebook.Notebook, guild: int, rep: Report, f: dict,
-               all_pulls: bool = False) -> tuple[str, str] | None:
+NIGHT_APART_S = 12 * 3600  # a log begun this long before another is another raid night; a note saved this long after
+# the night's log ended is for the next one
+
+
+async def note_night(rep: Report, f: dict, saved_at: list[float]) -> tuple[float, float]:
+    """The times (epoch seconds, from and until) a raid note for pull `f`'s night was saved in, as officers change
+    the note each night with who comes: from the end of the guild's last raid night on the boss (a log with pulls on
+    it at the pull's difficulty), or the version saved last before the report if that's later, until NIGHT_APART_S
+    after the report ends. Asks Warcraft Logs only when that version is from a day before."""
+    start, until = rep.start_ms / 1000, rep.end_ms / 1000 + NIGHT_APART_S
+    since = max((t for t in saved_at if t <= start), default=0.0)
+    if not since or since > start - NIGHT_APART_S:
+        return since, until
+    try:
+        logs = await rep.wcl.guild_reports(rep.guild_id or 0, since * 1000, pulls=True, cache_for=wcl.GUILD_REPORTS_S)
+    except WCLError:
+        return since, until
+    ended = [r["endTime"] / 1000 for r in logs if f["name"] in (r.get("bosses") or {})
+             and (r.get("pulls_by_difficulty") or {}).get(f.get("difficulty"))
+             and r["startTime"] / 1000 <= start - NIGHT_APART_S]
+    return max([since, *ended]), until
+
+
+async def saved_note(book: notebook.Notebook, guild: int, rep: Report, f: dict,
+                     all_pulls: bool = False) -> tuple[str, str] | None:
     """The raid note `guild` saved for pull `f`'s boss as it was when the pull began, and where it's from; with
-    `all_pulls`, every version after its mark (saved.py), each pull checked against the one saved before it began.
-    None when there's none."""
+    `all_pulls`, every version saved for the night after its mark (saved.py), each pull checked against the one
+    saved before it began. Only versions saved for the pull's night (note_night). None when there's none."""
     start = (rep.start_ms + f["startTime"]) / 1000
-    if all_pulls and (every := book.notes(guild, f["encounterID"])):
+    every = book.notes(guild, f["encounterID"])
+    since, until = await note_night(rep, f, [n.saved_at for n in every])
+    if all_pulls and (every := [n for n in every if since <= n.saved_at < until]):
         return "\n".join(f"{saved.mark(n.saved_at, n.saved_by)}\n{n.note}" for n in every), ""
-    found = book.note_for(guild, f["encounterID"], start)
+    found = book.note_for(guild, f["encounterID"], start, (since, until))
     return (found.note, found.source(start)) if found else None
 
 
@@ -655,17 +680,24 @@ def _save_notes(book: notebook.Notebook, guild_id: int, text: str, saved_by: str
         lines.append(f"**{boss}**" + (f" ({n.difficulty})" if n.difficulty else "")
                      + f": {plural(len(n.cooldowns), 'timed cooldown')}, {plural(len(n.callouts), 'callout')}"
                      + (f"; {groups}" if groups else ""))
-    return (_saved_for("raid note", "the previous one is kept for earlier pulls", [s for _, s in when]) + "\n"
+    kept = "that night's only, as a note changes with who comes: the previous one is kept for earlier pulls"
+    return (_saved_for("raid note", kept, [s for _, s in when]) + "\n"
             + "\n".join(f"- {line}" for line in lines))
 
 
-def _saved_note(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool) -> tuple[str, str]:
+OTHER_NIGHTS = (" (only for other nights: a note changes with who comes, so another night's isn't checked against "
+                "this one)")
+
+
+async def _saved_note(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool) -> tuple[str, str]:
     """The note the report's guild saved for the pull's boss, and where it's from (`saved_note`)."""
     guild = _saved_guild(rep, "raid note")
     f = rep.fight(pull, boss)
-    if (found := saved_note(notebook.Notebook(readonly=True), guild, rep, f, all_pulls)) is None:
-        raise FactError(f"no raid note was given, and {rep.guild_name} has none saved for {f['name']}: ask the user "
-                        "to paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
+    book = notebook.Notebook(readonly=True)
+    if (found := await saved_note(book, guild, rep, f, all_pulls)) is None:
+        other = OTHER_NIGHTS if book.notes(guild, f["encounterID"]) else ""
+        raise FactError(f"no raid note was given, and {rep.guild_name} has none saved for {f['name']} that "
+                        f"night{other}: ask the user to paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
     return found
 
 
@@ -708,7 +740,7 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     a night's question needs no call per pull."""
     rep, source = await lib().report(report), ""
     if not note:
-        note, source = _saved_note(rep, pull, boss, all_pulls)
+        note, source = await _saved_note(rep, pull, boss, all_pulls)
     return await notes.note_check(rep, note, pull, boss, source=source, all_pulls=all_pulls)
 
 

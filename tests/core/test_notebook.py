@@ -9,13 +9,27 @@ from wipebot.core import server
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
 
-SSZORAK = {"name": "Sszorak", "encounterID": 3420, "startTime": 1_500_000}
+SSZORAK = {"name": "Sszorak", "encounterID": 3420, "startTime": 1_500_000, "difficulty": 5}
+DAY = 86400
+
+
+class Logs:
+    """Warcraft Logs as the lookup asks it for the guild's other raid nights."""
+    def __init__(self, *nights: tuple[float, str]):
+        self.nights = nights  # (start in epoch seconds, boss pulled)
+        self.asked: list[float] = []
+
+    async def guild_reports(self, guild_id, since_ms, pulls=False, cache_for=None):
+        self.asked.append(since_ms)
+        return [{"code": f"n{start:.0f}", "startTime": start * 1000, "endTime": (start + 3 * 3600) * 1000,
+                 "bosses": {boss: (20, 0)}, "pulls_by_difficulty": {5: 20}} for start, boss in self.nights]
 
 
 class Night:
     """A report as the lookup reads it: the guild's, one Sszorak pull at 1,500 s epoch."""
     guild_id: int | None = 14169
-    guild_name, start_ms = "The Copper Lanterns", 0
+    guild_name, start_ms, end_ms, code = "The Copper Lanterns", 0, 3 * 3600_000, "tonight"
+    wcl = Logs()
 
     def fight(self, pull, boss):
         return SSZORAK
@@ -29,9 +43,9 @@ class Night:
         return "Sszorak"
 
 
-def night(guild_id: int | None = 14169) -> Report:
+def night(guild_id: int | None = 14169, start_s: int = 0, logs: Logs | None = None) -> Report:
     n = Night()
-    n.guild_id = guild_id
+    n.guild_id, n.start_ms, n.end_ms, n.wcl = guild_id, start_s * 1000, (start_s + 3 * 3600) * 1000, logs or Logs()
     return cast(Report, n)
 
 
@@ -57,9 +71,9 @@ def signed_in(monkeypatch, guilds: set[int]) -> None:
 
 
 async def test_without_a_paste_a_tool_reads_what_the_reports_guild_saved(book):
-    note, source = server._saved_note(night(), None, None, all_pulls=False)
+    note, source = await server._saved_note(night(), None, None, all_pulls=False)
     assert note == "the note" and source.startswith("saved by Rowan")
-    every, _ = server._saved_note(night(), None, None, all_pulls=True)
+    every, _ = await server._saved_note(night(), None, None, all_pulls=True)
     assert every == "[saved 1000 by Rowan]\nthe note"
     plans = await server._saved_plans(night(), None, None)
     assert plans == ("[saved 1200 by Halvard] raidstrats-addon-x", "")  # Sszorak's only; pasted, no login
@@ -67,19 +81,40 @@ async def test_without_a_paste_a_tool_reads_what_the_reports_guild_saved(book):
 
 async def test_a_member_of_the_reports_guild_reads_its_notes_on_the_remote_server_and_no_one_else(book, monkeypatch):
     signed_in(monkeypatch, {14169})
-    assert server._saved_note(night(), None, None, all_pulls=False)[0] == "the note"
+    assert (await server._saved_note(night(), None, None, all_pulls=False))[0] == "the note"
     signed_in(monkeypatch, {555})
     with pytest.raises(FactError, match="members only"):
-        server._saved_note(night(), None, None, all_pulls=False)
+        await server._saved_note(night(), None, None, all_pulls=False)
     with pytest.raises(FactError, match="members only"):
         await server._saved_plans(night(), None, None)
 
 
-def test_with_nothing_saved_or_a_personal_log_it_asks_for_a_paste(book):
+async def test_with_nothing_saved_or_a_personal_log_it_asks_for_a_paste(book):
     with pytest.raises(FactError, match="personal log"):
-        server._saved_note(night(None), None, None, all_pulls=False)
-    with pytest.raises(FactError, match="none saved for Sszorak: ask the user"):
-        server._saved_note(night(555), None, None, all_pulls=False)
+        await server._saved_note(night(None), None, None, all_pulls=False)
+    with pytest.raises(FactError, match="none saved for Sszorak that night: ask the user"):
+        await server._saved_note(night(555), None, None, all_pulls=False)
+
+
+async def test_a_note_counts_only_for_the_night_it_was_saved_for(book):
+    """Officers change the note each night with who comes, so a pull isn't checked against another night's: one
+    saved before the guild's last raid night on the boss, or for the next night (half a day after), isn't used."""
+    monday, wednesday, friday = 10 * DAY, 12 * DAY, 14 * DAY
+    logs = Logs((monday, "Sszorak"), (wednesday - 4 * 3600, "Vashnik"), (friday, "Sszorak"))
+    book.save_note(14169, 3420, "Sszorak", "monday's", "Rowan", at=monday - 3600)
+    book.save_note(14169, 3420, "Sszorak", "friday's", "Rowan", at=friday - 3600)
+    with pytest.raises(FactError, match="none saved for Sszorak that night \\(only for other nights"):
+        await server._saved_note(night(start_s=wednesday, logs=logs), None, None, all_pulls=True)
+    assert logs.asked == [(monday - 3600) * 1000]  # from the version saved last before the night
+    book.save_note(14169, 3420, "Sszorak", "for wednesday", "Rowan", at=monday + 6 * 3600)  # after monday's raid
+    every, _ = await server._saved_note(night(start_s=wednesday, logs=logs), None, None, all_pulls=True)
+    assert "for wednesday" in every and "monday's" not in every and "friday's" not in every
+    every, _ = await server._saved_note(night(start_s=monday, logs=logs), None, None, all_pulls=True)
+    assert "monday's" in every and "for wednesday" in every  # saved 3 h after monday's log ended: a late paste
+    assert "the note" not in every and "friday's" not in every
+    logs.asked.clear()  # pasted the same day: no need to ask
+    assert (await server._saved_note(night(start_s=950, logs=logs), None, None, all_pulls=False))[0] == "the note"
+    assert logs.asked == []
 
 
 def test_notes_are_kept_per_guild_and_boss_with_each_version():
@@ -115,7 +150,8 @@ def test_a_pasted_note_or_plan_is_saved_for_the_guild_and_says_what_was_saved():
     when saved before)."""
     book = Notebook(":memory:")
     assert server.save_pasted(book, 14169, NOTE.read_text(encoding="utf-8"), "Rowan", at=1000.0) == (
-        "Saved the raid note, for checking pulls against from now on (the previous one is kept for earlier pulls; "
+        "Saved the raid note, for checking pulls against from now on (that night's only, as a note changes with who "
+        "comes: the previous one is kept for earlier pulls; "
         'pasted after the pulls it was for? Paste it again with the pull it counts from, such as "from pull 1"):\n'
         "- **Sszorak** (Mythic): 59 timed cooldowns, 28 callouts; Mutilate Soaks (Left, Right); Intermission Orb "
         "Popper (Orb Popper); Virulence Spreads (Spread, Bait Serpent's Fury / Bite, Don't Stack); Virulence trigger "
