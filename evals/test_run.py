@@ -140,3 +140,19 @@ def test_skill_use_counts_answers_that_loaded_it_and_the_files_read():
                "broken": [Trial(errored=True)]}
     assert skill_use(results) == ("The skill was loaded in 2 of 3 answers; files read: reading-a-wipe.md 1\n"
                                   "  answered without the skill on some trial: wipe")
+
+
+def test_a_run_counts_facts_calls_and_first_calls_apart_from_passing():
+    from evals.run import answers, how_answered
+    call = {"name": "pull_summary", "args": {}, "result": "", "failed": False}
+    other = {**call, "name": "progress"}
+    cases = [{"id": "wipe", "tools": ["pull_summary"]}, {"id": "night"}]
+    results = {"wipe": [Trial(facts={"stated": 2, "of": 3, "missing": ["x"]}, calls=[call, other]),
+                        Trial(facts={"stated": 3, "of": 3, "missing": []}, calls=[other]),
+                        Trial(errored=True, calls=[call])],
+               "night": [Trial(calls=[call, call, call])]}
+    counts = answers(cases, results)
+    assert counts == {"facts": {"wipe": [5, 6]}, "calls": {"wipe": 3, "night": 3}, "first_tagged": {"wipe": 1}}
+    t = tally({"wipe": 1, "night": 1}, trials=3, errors={"wipe": 1}) | counts  # wipe: 2 answers judged
+    assert how_answered(t, ["wipe"]) == ("supporting facts stated 5/6 (83%); 1.5 tool calls an answer; first call "
+                                         "one of the case's tools in 1/2 (50%)")
