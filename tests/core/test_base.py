@@ -7,7 +7,7 @@ import pytest
 
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import knowledge, server
-from wipebot.core.pulls import Decided
+from wipebot.core.pulls import Decided, is_reset, wipe_pct
 from wipebot.core.report import FactError, Report, casting, cooldowns, deaths, fight, ranks
 from wipebot.core.report.base import alive_after, alive_at, half_dead
 from wipebot.core.wcl import WCL, WCLError
@@ -334,3 +334,17 @@ def test_a_council_is_several_bosses_each_one_of_its_kind(rep):
     assert rep._council({"enemyNPCs": [{"id": boss}, {"id": other, "instanceCount": 1}]})
     assert not rep._council({"enemyNPCs": [{"id": boss}, {"id": 5}]})  # one boss and an add
     assert not rep._council({"enemyNPCs": [{"id": boss}, {"id": other, "instanceCount": 2}]})  # a pack of one kind
+
+
+def test_a_pull_can_be_named_kill_best_wipe_first_or_last(rep):
+    sszorak = rep.by_boss[rep.boss("sszorak")]
+    assert rep.fight("first", "sszorak") is sszorak[0] and rep.fight("last", "sszorak") is rep.fight(None, "sszorak")
+    assert rep.fight("13", "sszorak") is rep.fight(13, "sszorak")
+    best = rep.fight("best wipe", "sszorak")
+    pcts = [pct for f in sszorak if not f["kill"] and not is_reset(f) and (pct := wipe_pct(f)) is not None]
+    assert wipe_pct(best) == min(pcts) and rep.fight(" Best  Wipe ", "sszorak") is best
+    assert rep.fight("kill", "vashnik")["kill"]
+    with pytest.raises(FactError, match="has no kill in this report"):
+        rep.fight("kill", "sszorak")
+    with pytest.raises(FactError, match="give a pull number or one of kill, best wipe"):
+        rep.fight("the good one", "sszorak")

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from .. import knowledge
 from ..knowledge import KnowledgeError
 from ..text import clock, few, plural, short
-from .base import JOBS_NOT_LOGGED, SAME_DEATH_MS, Report, dead_since, unavailable
+from .base import JOBS_NOT_LOGGED, SAME_DEATH_MS, PullRef, Report, dead_since, unavailable
 
 ADD_GROUP_MS = 15_000  # an add's casts this close together are one wave of them
 ADD_GONE_MS = 10_000  # an add nobody hit for this long before a wipe ended was gone, or left alone
@@ -101,7 +101,7 @@ def add_wave(f: dict, name: str, ability: str, wave: list[tuple[float, str, str 
     return f"{name} casts {ability} x{len(wave)}: " + ", ".join(parts)
 
 
-async def enemies(rep: Report, pull: int | None = None, boss: str | None = None) -> str:
+async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
     """The enemies other than the boss in a pull (adds): how many came, when they died, what became of the rest
     (alive at the end, or gone without a death: despawned, transformed or removed), the damage they took and who
     did it, and their interruptible casts (begun, kicked, gone through). A boss-type unit that comes several

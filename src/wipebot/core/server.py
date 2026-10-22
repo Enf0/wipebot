@@ -47,6 +47,7 @@ from .library import Library, ensure_wcl_access, latest_raid, report_code  # noq
 from .report import (
     FactError,
     PullNotLogged,
+    PullRef,
     Report,
     adds,
     build,
@@ -249,7 +250,8 @@ def guarded(fn, setup: Setup = DEFAULT):
 
 
 Report_ = Annotated[str | None, Field(description="Warcraft Logs report code or URL; omit for the current report")]
-Pull = Annotated[int | None, Field(description="pull number on the boss; omit for the latest")]
+Pull = Annotated[int | str | None, Field(description="pull number on the boss, or kill, best wipe, last wipe, first "
+                                                    "or last; omit for the latest")]
 Boss = Annotated[str | None, Field(description="boss name, or part of it; omit for the boss of the latest pull")]
 Player = Annotated[str, Field(description="character name as in the log (accents optional)")]
 WholePull = Annotated[bool, Field(description="include what happened after the wipe was decided (the boss's "
@@ -370,7 +372,9 @@ async def death_recap(player: Player, pull: Pull = None, boss: Boss = None,
     cast, dead), the player's defensives and whether each was ready, healthstone and potion, and other deaths
     close by.
     Reading it: "ready" is off cooldown, not that it was theirs to press then: the raid note (raid_note) plans
-    defensives and external cooldowns; whether the hit could be avoided, boss_guide says."""
+    defensives and external cooldowns; whether the hit could be avoided, boss_guide says.
+    Not for everyone's defensives and healthstones over a boss's pulls (defensives).
+    Example: player="Scopidruid", pull=42."""
     return await deaths.death_recap(await lib().report(report), player, pull, boss, death)
 
 
@@ -381,18 +385,24 @@ async def mechanic_hits(ability: Annotated[str | None, Field(description=(
                         pull: Pull = None, boss: Boss = None,
                         all_pulls: Annotated[bool, Field(description="every pull on the boss")] = False,
                         whole_pull: WholePull = False,
+                        start: Annotated[str | None, Field(description="with `ability`: only from this m:ss of each "
+                                                                        "pull (\"the first orb set\")")] = None,
+                        end: Annotated[str | None, Field(description="with `ability`: only until this m:ss of each "
+                                                                      "pull")] = None,
                         report: Report_ = None) -> str:
-    """Who got hit by a boss ability or its debuff, who missed a soak, who keeps standing in things: for one pull or
-    every pull on the boss, each until its wipe was decided.
+    """For "who stood in it?", "who missed the soak?", "who keeps getting hit by X?".
+    Who got hit by a boss ability or its debuff: for one pull or every pull on the boss, each until its wipe was
+    decided.
     With `ability`: per player its hits, damage, debuff applications, deaths soon after a hit, and deaths it dealt
     the killing blow; then each time the debuff went on a player (pull, time, how long they kept it), when few
     did, or for a debuff one player has most of the time ("who took the bait?"), each time anyone else got it and
     whether that player was alive. Without: every enemy ability that hurt the raid, how many took it, the median
     damage per minute alive, and who took twice the median or more (the mechanics people keep failing, and who).
-    Reading it: it shows who was hit, not whose job a soak was; the raid note (raid_note) holds the jobs."""
+    Not for the raid's damage taken in totals by ability (breakdown), nor whose job a soak was (raid_note).
+    Example: ability="Tempest", all_pulls=true."""
     rep = await lib().report(report)
     if ability:
-        return await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull)
+        return await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull, start, end)
     return await mechanics.mechanic_outliers(rep, pull, boss, all_pulls)
 
 
@@ -417,8 +427,7 @@ async def pull_map(pull: Pull = None, boss: Boss = None,
     without having it and from whose (the nearest player with it), and the two with it who stood closest. With
     all_pulls, those counted per player and per pair over every pull on the boss, and for a player in `players`,
     each of their moments and a map of where they stood every time. With a raid plan, raid_plan checks spots.
-    Reading it: it shows who stood where and who carried what, not whose job a spot or a debuff was; the raid note
-    (raid_note) and plan (raid_plan) hold the jobs."""
+    Example: at="Virulence", all_pulls=true, players=["Martin"]."""
     rep = await lib().report(report)
     # Serving many users, the host may show the replay viewer (remote.py) instead of the picture: it reads which pull
     # and moment from structuredContent. Whether it does is the host's call, and an older protocol version may hide
@@ -483,9 +492,10 @@ async def tank_swaps(pull: Pull = None, boss: Boss = None,
 
 @_tool
 async def compare_pulls(pull: Pull = None, boss: Boss = None,
-                        other: Annotated[int | None, Field(description="another pull of ours on the boss to set "
-                                                                       "side by side; omit to compare with a "
-                                                                       "kill")] = None,
+                        other: Annotated[int | str | None, Field(description="another pull of ours on the boss "
+                                                                             "to set side by side (a number, or "
+                                                                             "kill, best wipe, ...); omit to compare "
+                                                                             "with a kill")] = None,
                         kill: Annotated[str | None, Field(description="the kill to compare with, as a Warcraft Logs "
                                                                       "link with #fight=N; omit for the one with "
                                                                       "the closest item level among the 50 fastest "
@@ -514,8 +524,8 @@ async def enemies(pull: Pull = None, boss: Boss = None,
     casts with a cast bar: begun, kicked and by whom, gone through, and for each that went through who was alive
     with their interrupt ready. With all_pulls, over the night: per kind how many came and died and the damage
     they took, their casts and who kicked them, then each pull in a line.
-    Reading it: "kick ready" is who could have kicked, not whose kick it was; the raid note (raid_note) holds the
-    jobs. Adds with no death recorded can't show when or in what order they were killed."""
+    Reading it: adds with no death recorded can't show when or in what order they were killed.
+    Not for the raid's kicks and dispels in totals per player (breakdown)."""
     rep = await lib().report(report)
     if all_pulls:
         return await adds.enemies_night(rep, boss)
@@ -607,7 +617,7 @@ def _save_notes(book: notebook.Notebook, guild_id: int, text: str, saved_by: str
             "pulls):\n" + "\n".join(f"- {line}" for line in lines))
 
 
-def _saved_note(rep: Report, pull: int | None, boss: str | None, all_pulls: bool) -> tuple[str, str]:
+def _saved_note(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool) -> tuple[str, str]:
     """The note the report's guild saved for the pull's boss, and where it's from (`saved_note`)."""
     guild = _saved_guild(rep, "raid note")
     f = rep.fight(pull, boss)
@@ -617,7 +627,7 @@ def _saved_note(rep: Report, pull: int | None, boss: str | None, all_pulls: bool
     return found
 
 
-async def _saved_plans(rep: Report, pull: int | None, boss: str | None) -> tuple[str, str]:
+async def _saved_plans(rep: Report, pull: PullRef, boss: str | None) -> tuple[str, str]:
     """Every version of the plans the report's guild saved for the pull's boss, fetched from raidstrats.gg first
     when the guild has a login there, and where they're from ("" without a login: each version's text says)."""
     guild = _saved_guild(rep, "raid plan")
@@ -811,7 +821,8 @@ async def compare_with_top(
     builds against them, trinkets, item level, kill time, links to the top logs and a typical build's import
     string; and their major cooldowns: how many pressed each, and when the top 5 did beside the boss's casts
     ("where do I want my cooldowns?"). With only `boss`: the 50 fastest kills' tanks, healers, melee and ranged,
-    how many kills brought each count, kill time and item level by healers brought, and links to the fastest."""
+    how many kills brought each count, kill time and item level by healers brought, and links to the fastest.
+    Example: player="Draiman", aspects=["casts", "cooldowns"]; or spec="balance druid", boss="Kith'ix"."""
     if not player:
         if not boss:
             raise FactError("give a player, or a boss (and a spec for what its top players play)")
@@ -912,7 +923,8 @@ async def defensives(boss: Boss = None, whole_pull: WholePull = False,
     """For "who used healthstones and defensives?", "would a personal have saved me?".
     Everyone's healthstones and healing potions and personal defensives over a boss's pulls, in one table:
     uses per player, deaths, and at how many deaths each defensive was ready but unused. With `player`: each of
-    their deaths, replayed with a ready defensive or a healthstone."""
+    their deaths, replayed with a ready defensive or a healthstone.
+    Not for one death in detail, the hits and the healing before it (death_recap)."""
     return await deaths.defensives(await lib().report(report), boss, whole_pull, player)
 
 
@@ -971,9 +983,10 @@ async def breakdown(
         "tables are always whole pulls"))] = False,
     report: Report_ = None,
 ) -> str:
-    """Damage, healing, damage taken, casts, buffs, debuffs, interrupts and dispels: any Warcraft Logs table over
-    any set of pulls, with totals and per second, grouped by player, ability or pull. For anything else in the
-    log: what hurt the raid most on a wipe (DamageTaken by ability), who kicked, who dispelled.
+    """For "who did the most damage?", "what hurt us most?", "who kicked or dispelled?", "who played well on the
+    kill?".
+    Damage, healing, damage taken, casts, buffs, debuffs, interrupts and dispels: any Warcraft Logs table over
+    any set of pulls, with totals and per second, grouped by player, ability or pull.
     Buff or debuff uptime is on players; EnemyDebuffs is on enemies (DoTs, a player's with `player`). Interrupts
     and dispels: began, kicked or dispelled and by whom, went through or ran out; per player who kicked what, per
     pull the counts; who was dispelled, by whom (who had a kick ready for a cast that went through: enemies).
@@ -982,7 +995,10 @@ async def breakdown(
     row has the player's spec, and damage or healing on one kill each player's parse against their spec: the way
     to compare players of different specs ("who played well on the kill?").
     Reading it: healing is capped by the damage taken, so its overhealing (healing past full health) is high where
-    the raid took little and isn't a fault on its own."""
+    the raid took little and isn't a fault on its own.
+    Not for who stood in one mechanic (mechanic_hits), the damage spikes and the healing cooldowns in them
+    (healing), or who had a kick ready for a cast that went through (enemies).
+    Example: data_type="DamageTaken", group_by="ability", pulls=[13]."""
     return await tables.breakdown(await lib().report(report), data_type, group_by, pulls, boss, player, ability, cutoff,
                                   whole_pull)
 
@@ -1022,7 +1038,10 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
 
 @_tool
 async def spell_info(spell: Annotated[str, Field(description="spell id (best, from a log tool) or name")]) -> str:
-    """What a spell or boss ability does, from Wowhead."""
+    """For "what does X do?": a spell or boss ability from Wowhead's tooltip (its text, cooldown, what kind of
+    defensive), by the [id] a tool printed or by name.
+    Not for how to handle a boss's mechanic (boss_guide with `mechanic`) or a spec's cooldowns (spec_guide).
+    Example: spell=1287083."""
     return await knowledge.spell_text(spell)
 
 

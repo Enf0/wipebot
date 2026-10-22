@@ -13,7 +13,7 @@ from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES
 from ..text import clock, fight_url, name_key, plural, short
 from ..wcl import WCL, WCLError
-from .base import FactError, Player, Report, unavailable
+from .base import FactError, Player, PullRef, Report, unavailable
 from .build import MAX_BUILD_TALENTS, SAME_HERO_MIN, TOP_PARSES, hero_of
 from .casting import GAP_MS, GCD_MAX_MS, Casting, alive, cast_rows, casting
 from .coaching import cap_stretches, resource_of, resource_points, resource_use
@@ -268,7 +268,7 @@ class Reference:
     capped: float | None = None  # the share of the kill their resource sat at its cap (None: not read)
 
 
-async def compare_casts(rep: Report, player: str, pull: int | None = None, boss: str | None = None) -> str:
+async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: str | None = None) -> str:
     """Casts per minute of each spell for a player on a pull, next to top parses of their spec and hero tree on
     the same boss, the closest in item level."""
     f = rep.fight(pull, boss)

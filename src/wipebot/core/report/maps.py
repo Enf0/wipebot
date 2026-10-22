@@ -20,7 +20,7 @@ from .. import knowledge
 from ..classes import class_hex, class_rgb
 from ..text import clock, parse_clock, plural
 from . import draw
-from .base import JOBS_NOT_LOGGED, FactError, Report
+from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report
 from .positions import (
     Event,
     Facts,
@@ -146,7 +146,7 @@ class MapAnswer:
     image: bytes | None  # the map as WebP, unless it wasn't asked for
 
 
-async def pull_map(rep: Report, pull: int | None = None, boss: str | None = None, at_: str | None = None,
+async def pull_map(rep: Report, pull: PullRef = None, boss: str | None = None, at_: str | None = None,
                    players: list[str] | None = None, event: Event | None = None, all_pulls: bool = False,
                    draw_it: bool = True) -> MapAnswer:
     """Where everyone stood at `at_`: a time (m:ss), or each time an ability happened; by default the first death of

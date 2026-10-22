@@ -12,7 +12,7 @@ from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES
 from ..text import clock, plural
 from ..wcl import WCLError
-from .base import FactError, Player, Report, unavailable
+from .base import FactError, Player, PullRef, Report, unavailable
 from .ranks import NO_TOP, metric_of, readable, top_parses
 
 TOP_PARSES = 50  # top parses a build is compared with
@@ -158,7 +158,7 @@ async def _build_gaps(rep: Report, f: dict, p: Player) -> dict | str:
     }
 
 
-async def compare_build(rep: Report, player: str, pull: int | None = None, boss: str | None = None) -> str:
+async def compare_build(rep: Report, player: str, pull: PullRef = None, boss: str | None = None) -> str:
     """A player's talents, item level, trinkets, enchants and gems on a pull, next to the top parses of their
     spec on the same boss and difficulty, and to their guides' raid builds."""
     f = rep.fight(pull, boss)
@@ -302,7 +302,7 @@ def gear_stats(det: dict) -> str:
             + ("; " + ", ".join(f"{n} {v}" for n, v in minor) if minor else "") + ".")
 
 
-async def raid_prep(rep: Report, pull: int | None = None, boss: str | None = None) -> str:
+async def raid_prep(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
     """Every player's preparation on a pull: consumables missing at the pull, and builds that stray from the
     top parses of their spec (talents most take, enchants and gems most have)."""
     f = rep.fight(pull, boss)

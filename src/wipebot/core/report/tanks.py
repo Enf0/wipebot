@@ -5,10 +5,10 @@ from collections import Counter, defaultdict
 from .. import knowledge
 from ..knowledge import KnowledgeError
 from ..text import clock, date, day, plural
-from .base import Player, Report
+from .base import Player, PullRef, Report
 
 
-async def tank_swaps(rep: Report, pull: int | None = None, boss: str | None = None) -> str:
+async def tank_swaps(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
     """Tank swaps on one pull: who had the boss's aggro when and what took it (usually a taunt), and per tank
     the stacks of each debuff the boss put on them (one line per stint, from first application to removal),
     when they cast each spell that took a boss and when it was ready again, plus tank deaths."""

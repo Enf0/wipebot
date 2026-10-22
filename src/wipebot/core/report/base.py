@@ -26,8 +26,10 @@ from ..pulls import (
     end_buffs,
     first_by_name,
     format_summary,
+    is_reset,
     lost_buffs,
     summarize,
+    wipe_pct,
 )
 from ..text import clock, fight_url, name_key, plural, ranges
 from ..wcl import WCL, WCLError, boss_ids
@@ -110,6 +112,11 @@ def unavailable(what: str, e: Exception) -> str:
 # After a tool's facts about who was hit, carried a debuff or had a kick ready: what the log can't show.
 JOBS_NOT_LOGGED = ("Whose job it was (a soak, a kick, a spot) isn't in the log: the raid note holds the jobs, and who "
                    "did it on other pulls isn't an assignment (raids swap spots and keep reserves).")
+
+
+# A pull by number on its boss, or by one of these names.
+PULL_ALIASES = ("kill", "best wipe", "last wipe", "first", "last")
+PullRef = int | str | None
 
 
 class FactError(ValueError):
@@ -285,9 +292,13 @@ class Report(Fetched):
         # By id: a refresh replaces the fight dicts while a tool may still hold an old one.
         return [f["id"] for f in self.by_boss[self.boss_key(fight)]].index(fight["id"]) + 1
 
-    def fight(self, pull: int | None = None, boss: str | None = None) -> dict:
-        """The fight for 'pull N on boss'. No pull means the latest finished pull on that boss (one still being
-        logged only when it's the boss's first)."""
+    def fight(self, pull: PullRef = None, boss: str | None = None) -> dict:
+        """The fight for 'pull N on boss', or a pull named by PULL_ALIASES. No pull means the latest finished pull on
+        that boss (one still being logged only when it's the boss's first)."""
+        if isinstance(pull, str):
+            if not pull.strip().isdigit():
+                return self._named_pull(pull, boss)
+            pull = int(pull)
         pulls = self.by_boss[self.boss(boss)]
         if pull is None:
             return next((f for f in reversed(pulls) if f["id"] not in self.live), pulls[-1])
@@ -307,6 +318,27 @@ class Report(Fetched):
                 raise FactError(f"no boss has a pull {pull} in this report (pulls: {counts})")
             raise FactError(f"{pulls[0]['name']} has pulls 1-{len(pulls)} in this report")
         return pulls[pull - 1]
+
+    def _named_pull(self, name: str, boss: str | None) -> dict:
+        """A pull named by PULL_ALIASES on `boss` (the latest pull's boss when none is named)."""
+        key = " ".join(name.lower().split())
+        pulls = [f for f in self.by_boss[self.boss(boss)] if f["id"] not in self.live]
+        wipes = [f for f in pulls if not f["kill"] and not is_reset(f)]
+        found = {"latest": pulls[-1:], "last": pulls[-1:], "first": pulls[:1],
+                 "kill": [f for f in pulls if f["kill"]][-1:], "last kill": [f for f in pulls if f["kill"]][-1:],
+                 "last wipe": wipes[-1:], "best": self._best(wipes), "best wipe": self._best(wipes)}
+        if key not in found:
+            raise FactError(f"pull {name!r}: give a pull number or one of {', '.join(PULL_ALIASES)}")
+        if not found[key]:
+            boss_name = pulls[0]["name"] if pulls else self.boss(boss)
+            raise FactError(f"{boss_name} has no {key} in this report")
+        return found[key][0]
+
+    @staticmethod
+    def _best(wipes: list[dict]) -> list[dict]:
+        """The furthest wipe (lowest wipe %; the latest of equals), as a list of one or none."""
+        ranked = [f for f in wipes if wipe_pct(f) is not None]
+        return [min(reversed(ranked), key=lambda f: wipe_pct(f) or 0)] if ranked else []
 
     def label(self, fight: dict) -> str:
         return f"{self.boss_key(fight)} pull {self.pull_no(fight)}"

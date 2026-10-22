@@ -7,8 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from ..pulls import attempt
-from ..text import clock, plural, short
-from .base import JOBS_NOT_LOGGED, FactError, Report, alive_ms, dead_since
+from ..text import clock, parse_clock, plural, short
+from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, dead_since
 
 HIT_THEN_DEATH_MS = 6_000  # a mechanic hit followed by death this soon counts as "died after"
 SAME_MOMENT_MS = 1_000  # a second hit this soon after the one before landed together with it
@@ -30,13 +30,17 @@ class Hits:
     spans: dict[int, list[list[float]]] = field(default_factory=dict)  # per player, each [applied, removed]
 
 
-async def mechanic_hits(rep: Report, ability: str, pull: int | None = None, boss: str | None = None,
-                        all_pulls: bool = False, whole_pull: bool = False) -> str:
+async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: str | None = None,
+                        all_pulls: bool = False, whole_pull: bool = False, start: str | None = None,
+                        end: str | None = None) -> str:
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
     fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = {} if whole_pull else await rep.decided_cuts(fights)  # later hits are fallout
-    found = await _hits(rep, fights, rep.ability_ids(ability), cut)
+    window = _window(start, end)
+    found = await _hits(rep, fights, rep.ability_ids(ability), _counting(fights, cut, window))
     scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
+    if window:
+        scope += f", from {clock(window[0])} to {clock(window[1]) if window[1] < math.inf else 'the end'} of each"
     if not found.hits and not found.ticks and not found.debuffs:
         return going + f"Nobody took damage from or got a debuff named {ability!r} on {scope}."
     name = found.name or ability
@@ -57,10 +61,34 @@ async def mechanic_hits(rep: Report, ability: str, pull: int | None = None, boss
     lines.append(f"Total with {name} as the killing blow: {sum(h.killed_by.values())}"
                  + (f" ({n} death{'s' if n > 1 else ''} within {HIT_THEN_DEATH_MS // 1000} s of a hit: the "
                     "deaths it set up, by any killing blow)" if (n := sum(h.died_after.values())) else ""))
-    return "\n".join(lines[:31] + await _applications(rep, fights, h, cut, name) + [JOBS_NOT_LOGGED])
+    return "\n".join(lines[:31] + await _applications(rep, fights, h, _counting(fights, cut, window), name)
+                     + [JOBS_NOT_LOGGED])
 
 
-async def _applications(rep: Report, fights: list[dict], h: Hits, cut: dict[int, float], name: str) -> list[str]:
+def _window(start: str | None, end: str | None) -> tuple[float, float] | None:
+    """(from, to) in ms from each pull's start, or None for the whole pull."""
+    if start is None and end is None:
+        return None
+    lo, hi = parse_clock(start) if start else 0.0, parse_clock(end) if end else math.inf
+    if lo is None or hi is None or lo > hi:
+        raise FactError(f"start and end are m:ss from the pull's start, the start first (got {start!r}, {end!r})")
+    return lo, hi
+
+
+def _counting(fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None) -> Callable[[dict], bool]:
+    """Whether an event counts: before its pull's wipe was decided (`cut`), and within `window` of its pull's start."""
+    starts = {f["id"]: f["startTime"] for f in fights}
+
+    def counts(e: dict) -> bool:
+        fight = e.get("fight", fights[0]["id"])
+        if e["timestamp"] > cut.get(fight, math.inf):
+            return False
+        return window is None or window[0] <= e["timestamp"] - starts.get(fight, fights[0]["startTime"]) <= window[1]
+    return counts
+
+
+async def _applications(rep: Report, fights: list[dict], h: Hits, counts: Callable[[dict], bool],
+                        name: str) -> list[str]:
     """Each time the debuff went on a player, with when and how long they kept it, when that's few times; for a
     debuff one player has most of the time (baited or assigned), each time it went on anyone else, and whether that
     player was alive."""
@@ -73,7 +101,7 @@ async def _applications(rep: Report, fights: list[dict], h: Hits, cut: dict[int,
     for who, theirs in h.spans.items():
         for start, end in theirs if not (baited and who == holder) else []:
             f = next((f for f in fights if f["startTime"] <= start <= f["endTime"]), None)
-            if f and start <= cut.get(f["id"], math.inf):
+            if f and counts({"timestamp": start, "fight": f["id"]}):
                 rows.append((start, f, who, end))
     if not rows or not baited and len(rows) > APPLICATIONS_LISTED:
         return []
@@ -114,12 +142,9 @@ def _player_line(rep: Report, h: Hits, who: int) -> str:
     return line
 
 
-async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], cut: dict[int, float]) -> Hits:
-    """The ability's hits and debuffs over the pulls: one query per ability id covers every pull (timestamps are
-    report-wide, so pulls don't mix)."""
-    def counts(e: dict) -> bool:
-        return e["timestamp"] <= cut.get(e.get("fight", fights[0]["id"]), math.inf)
-
+async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts: Callable[[dict], bool]) -> Hits:
+    """The ability's hits and debuffs over the pulls, those `counts` keeps: one query per ability id covers every pull
+    (timestamps are report-wide, so pulls don't mix)."""
     out = Hits()
     ids = [f["id"] for f in fights]
     await rep.all_deaths(fights)
@@ -173,7 +198,7 @@ async def _debuff_spans(rep: Report, fight_ids: list[int], ability_ids: list[int
     return spans
 
 
-async def mechanic_outliers(rep: Report, pull: int | None = None, boss: str | None = None,
+async def mechanic_outliers(rep: Report, pull: PullRef = None, boss: str | None = None,
                             all_pulls: bool = False) -> str:
     """For each enemy ability that hurt the raid before the wipe was decided: how many players took it, and who
     took far more of it per minute alive than the rest. A mechanic few players take is avoided or assigned; one

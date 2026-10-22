@@ -16,6 +16,7 @@ from .base import (
     PARTNER_SLACK_MS,
     REPEAT_CAST_MS,
     FactError,
+    PullRef,
     Report,
     alive_after,
     half_dead,
@@ -47,7 +48,7 @@ def boss_left(f: dict) -> str:
                                            if fight is not None and abs(fight - pct) >= 0.05 else "")
 
 
-async def pull_summary(rep: Report, pull: int | None = None, boss: str | None = None) -> str:
+async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
     f = rep.fight(pull, boss)
     deaths = await rep.deaths(f)
     raid = await rep.raid_size(f)
@@ -113,7 +114,7 @@ class Found:
     notes: list[str] = field(default_factory=list)
 
 
-async def pull_timeline(rep: Report, pull: int | None = None, boss: str | None = None, start: str | None = None,
+async def pull_timeline(rep: Report, pull: PullRef = None, boss: str | None = None, start: str | None = None,
                         end: str | None = None) -> str:
     """One pull in time order: phases, the boss's casts and buffs, its debuffs on players (how many each time),
     deaths with players alive, Bloodlust, battle res and raid cooldowns, and raid damage taken over time."""
