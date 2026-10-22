@@ -27,7 +27,9 @@ it (pyproject.toml). import-linter checks both in `just check`.
   code can work out; the model explains.
 - **Where guidance goes** (why: docs/reference/mcp-clients.md):
   - A tool's docstring says what it returns, when to call it and how to read its output, never how to answer.
-  - The method, how to answer, lives only in the skill `src/wipebot/core/skills/raid-log-analysis/`.
+  - The method, how to answer, lives only in the skill `src/wipebot/core/skills/raid-log-analysis/`; what code can
+    decide of it (how a pull ended, what it wasn't, that the log doesn't show whose job it was) goes in the tool's
+    output instead, which every client reads and the skill only some, and the description leaves it out.
   - `instructions.md` is a short overview for clients that read server instructions (under 512 characters).
   - These three are for every host, so they name no host and only the core's tools (a test checks). What one app
     adds (the remote server's `my_characters`, the bot's channels and own tools) and which method rule it replaces
