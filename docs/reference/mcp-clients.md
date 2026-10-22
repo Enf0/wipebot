@@ -2,7 +2,8 @@
 
 What Claude and ChatGPT do as clients of Wipebot's remote server, and where the MCP, Anthropic and OpenAI
 guidance says each kind of guidance for the model goes. This is why tool descriptions say what and when, the
-raid-log-analysis skill holds the method, and `instructions.md` stays under 512 characters.
+raid-log-analysis skill holds the method, what code can decide of the method is in the tools' output (the one channel
+every client reads), and `instructions.md` stays under 512 characters.
 
 ## Claude as a client of the remote server
 
@@ -98,3 +99,11 @@ it shows "Connected · Custom". The plugin page shows a revision ("v2"), not the
   (https://cra.mr/a-bigger-toolbox-for-mcp).
 - Ours: 44 tools became 26 on 15 October by merging tools that answer one kind of question at different scopes; the
   connector-only evals went from 118/150 to 129/150. There are 28 now.
+- Overlap that merging leaves: OpenAI's guidance names what a tool is not for ("Do not use for...",
+  https://developers.openai.com/apps-sdk/guides/optimize-metadata), and MCP has no field for example arguments
+  (Anthropic's API has `input_examples`). Ours: the tools that answer a similar question say "Not for ... (the other
+  tool)", and those with arguments that aren't obvious end on "Example: ..." (22 October).
+- Guidance in a tool's output reaches every client, with or without a skill. Ours: the connector-only evals' worst
+  cases rose when what code can decide moved into the output (how a pull ended, that it wasn't an enrage, that whose
+  job it was isn't in the log): `ask-assignment` from 0/3 to 2/3, `night-not-a-dps-problem` from 0/3 to 3/3, while the
+  same caveat in five tool descriptions hadn't moved them (22 October).

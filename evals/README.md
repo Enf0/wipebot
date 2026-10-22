@@ -97,6 +97,13 @@ without asking again, and keeps what it finds in `results/rechecks/X.json`. Neit
 
 `-k` picks cases as in a run. A recheck costs the judges' tokens only, about $0.20 an answer.
 
+## How the engine reads a pull
+
+The tools work out how a pull ended before the model reads it (pull_summary's "Ended by"). A wipe case may name what an
+experienced raid leader names first for its pull (`cause`), and `just evals --endings` says, with no model and in
+seconds, on how many pulls "Ended by" leads with the same. Where it doesn't, the model has to find the cause from the
+rest of the output: a list of what the tools should work out next, not a pass rate to fit.
+
 ## Coverage
 
 Evals measure answers, not code, so they have no line coverage; `just evals --coverage` says what the cases cover
@@ -126,6 +133,7 @@ just evals --model sonnet           # another model for the answers
 just evals --save-baseline          # keep this run as the baseline
 just evals --lint                   # the cases' numbers against the tools now (no model, about a minute)
 just evals --coverage               # what the cases cover: tools, kinds of question, places, bosses (no model)
+just evals --endings                # pull_summary's "Ended by" against each case's `cause` (no model)
 just eval-data                      # the frozen data the cases were written against (maintainers)
 just evals --label results/X.json   # mark a run's answers yourself (labels.jsonl)
 just evals --agreement              # how often the judge agrees with your marks
