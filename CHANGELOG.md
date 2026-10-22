@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-22
+
 ### Added
 
 - `Agent` **Week over week.** Ask whether the raid is doing better on a boss than last week, and Wipebot goes through each of the guild's raid nights on it: the pulls, the kill, the best wipe and what ended the pulls, night by night.
