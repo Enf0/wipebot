@@ -70,7 +70,7 @@ from .report import healing as heals
 from .report import note as notes
 from .report import plan as plans
 from .report import query as queries
-from .text import name_key, plural
+from .text import day, name_key, plural
 from .wcl import WCLError
 
 INSTRUCTIONS = resources.files("wipebot.core").joinpath("instructions.md").read_text(encoding="utf-8")
@@ -577,21 +577,61 @@ def saved_plans(book: notebook.Notebook, guild: int, rep: Report, f: dict) -> li
     return [f"{saved.mark(p.saved_at, p.saved_by)} {p.plan}" for p in book.plans(guild) if same(p.boss)]
 
 
-def save_pasted(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None = None) -> str:
+FromPull = tuple[Report, int]  # a report of the guild, and the pull on the boss a paste counts from
+
+
+def save_pasted(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None = None,
+                from_pull: FromPull | None = None) -> str:
     """A pasted raid note (each boss's part) or raid plan (each plan in it) saved for the guild (as saved `at`,
-    default now); what was saved, for the officer. A paste that's neither raises FactError."""
+    default now, or with `from_pull` as saved just before that pull on its boss began: one pasted after the pulls it
+    was for); what was saved, for the officer. A paste that's neither raises FactError."""
     if plans.EXPORT.search(text) and not notes.HEADER.search(text):
-        return _save_plans(book, guild_id, text, saved_by, at)
-    return _save_notes(book, guild_id, text, saved_by, at)
+        return _save_plans(book, guild_id, text, saved_by, at, from_pull)
+    return _save_notes(book, guild_id, text, saved_by, at, from_pull)
 
 
-def _save_plans(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None) -> str:
+def _pull_start(guild_id: int, from_pull: FromPull | None, at: float | None, encounter_id: int | None = None,
+                boss: str = "") -> tuple[float | None, str]:
+    """When a paste counts as saved: `at`, or, counting from a pull, a second before that pull on its boss began (a
+    version saved as a pull begins is that pull's); and the pull, for the officer ("" without one). The boss is the
+    note's encounter or the plan's boss name."""
+    if from_pull is None:
+        return at, ""
+    rep, pull = from_pull
+    if rep.guild_id != guild_id:
+        raise FactError(f"report {rep.code} isn't the guild's: name a pull in one of the guild's reports")
+    if encounter_id is not None:
+        keys = [k for k, fs in rep.by_boss.items() if fs[0]["encounterID"] == encounter_id]
+        if not keys:
+            raise FactError(f"report {rep.code} has no pull on {boss}")
+        key = max(keys, key=lambda k: rep.by_boss[k][-1]["startTime"])
+    elif boss:
+        key = rep.boss(boss)
+    else:
+        raise FactError("the plan names no boss, so it can't count from a pull: save it without one")
+    pulls = rep.by_boss[key]
+    if not 1 <= pull <= len(pulls):
+        raise FactError(f"{key} has pulls 1-{len(pulls)} in report {rep.code}")
+    return (rep.start_ms + pulls[pull - 1]["startTime"]) / 1000 - 1, f"{key} pull {pull} of {day(rep.start_ms)}"
+
+
+def _saved_for(what: str, kept: str, starts: list[str]) -> str:
+    """The first line of what a paste saved: for pulls from now on, or from the pull it counts from."""
+    if not any(starts):
+        return (f"Saved the {what}, for checking pulls against from now on ({kept}; pasted after the pulls it was "
+                'for? Paste it again with the pull it counts from, such as "from pull 1"):')
+    return f"Saved the {what}, for checking pulls against from {', '.join(dict.fromkeys(starts))} on ({kept}):"
+
+
+def _save_plans(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None,
+                from_pull: FromPull | None) -> str:
     """A plan saved before gets a new version."""
     parsed = plans.parse(text)
     known = {p.plan_id for p in book.plans(guild_id)}
+    when = [_pull_start(guild_id, from_pull, at, boss=p.boss) for p in parsed]  # all checked before any is saved
     lines = []
-    for p in parsed:
-        book.save_plan(guild_id, p.boss, p.plan_id, p.name, p.export, saved_by, at)
+    for p, (saved_at, _) in zip(parsed, when, strict=True):
+        book.save_plan(guild_id, p.boss, p.plan_id, p.name, p.export, saved_by, saved_at)
         spots = [s for sc in p.scenes for s in sc.spots]
         named = [s.label for s in spots if s.label]
         aside = [n for sc in p.scenes for n in sc.aside]
@@ -600,21 +640,23 @@ def _save_plans(book: notebook.Notebook, guild_id: int, text: str, saved_by: str
                      + f": {plural(len(named), 'spot')} ({', '.join(named)})"
                      + (f", {len(spots) - len(named)} open" if len(spots) > len(named) else "")
                      + (f"; side panel: {', '.join(aside)}" if aside else ""))
-    return ("Saved the raid plan, for checking pulls against from now on (an earlier version is kept for earlier "
-            "pulls):\n" + "\n".join(f"- {line}" for line in lines))
+    return (_saved_for("raid plan", "an earlier version is kept for earlier pulls", [s for _, s in when]) + "\n"
+            + "\n".join(f"- {line}" for line in lines))
 
 
-def _save_notes(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None) -> str:
+def _save_notes(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None,
+                from_pull: FromPull | None) -> str:
+    parsed = [(n, n.boss or f"encounter {n.encounter_id}") for n in notes.parse(text)]
+    when = [_pull_start(guild_id, from_pull, at, n.encounter_id, boss) for n, boss in parsed]
     lines = []
-    for n in notes.parse(text):
-        boss = n.boss or f"encounter {n.encounter_id}"
-        book.save_note(guild_id, n.encounter_id, boss, n.text, saved_by, at)
+    for (n, boss), (saved_at, _) in zip(parsed, when, strict=True):
+        book.save_note(guild_id, n.encounter_id, boss, n.text, saved_by, saved_at)
         groups = "; ".join(f"{heading} ({', '.join(labels)})" for heading, labels in n.groups.items())
         lines.append(f"**{boss}**" + (f" ({n.difficulty})" if n.difficulty else "")
                      + f": {plural(len(n.cooldowns), 'timed cooldown')}, {plural(len(n.callouts), 'callout')}"
                      + (f"; {groups}" if groups else ""))
-    return ("Saved the raid note, for checking pulls against from now on (the previous one is kept for earlier "
-            "pulls):\n" + "\n".join(f"- {line}" for line in lines))
+    return (_saved_for("raid note", "the previous one is kept for earlier pulls", [s for _, s in when]) + "\n"
+            + "\n".join(f"- {line}" for line in lines))
 
 
 def _saved_note(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool) -> tuple[str, str]:
@@ -1235,18 +1277,24 @@ SAVING = {"raid_note": "An officer of the guild keeps a pasted note for the guil
 
 async def save_note_or_plan(pasted: Annotated[str, Field(description=(
         "the raid note or plan as the user pasted it: the NSRT note from Viserio (EncounterID lines included) or "
-        "raidstrats.gg's export (the text starting raidstrats-addon-)"))]) -> str:
-    """For "save this note", "keep this plan for the guild": a raid note or plan the user pasted and wants kept for
-    the guild.
+        "raidstrats.gg's export (the text starting raidstrats-addon-)"))],
+        from_pull: Annotated[int | None, Field(description=(
+            "the pull on its boss in the report it counts from, when pasted after the pulls it was for (\"we used "
+            "it all night\": 1); omit for from now on"))] = None,
+        report: Report_ = None) -> str:
+    """For "save this note", "keep this plan for the guild", and "save this, we used it last night from pull 7": a
+    raid note or plan the user pasted and wants kept for the guild.
     Saves it for the user's guild, credited to them, when they are one of its officers: raid_note and raid_plan
     then check pulls against it with no paste, each pull against the version saved last before it began (earlier
-    versions are kept). Returns what was saved: each boss's note with its timed cooldowns, callouts and assignment
-    groups, or each plan with its spots; or why nothing was (not an officer, not a note or plan export)."""
+    versions are kept), so one pasted after the pulls it was for takes from_pull. Returns what was saved: each
+    boss's note with its timed cooldowns, callouts and assignment groups, or each plan with its spots, and the pull
+    it counts from; or why nothing was (not an officer, not a note or plan export, no such pull)."""
     officer = setup().officer
     if officer is None:
         raise FactError("nothing is saved here: raid_note and raid_plan check a pasted note or plan as pasted")
     by, guild = officer()
-    return save_pasted(notebook.Notebook(), guild, pasted, by)
+    since = (await lib().report(report), from_pull) if from_pull else None
+    return save_pasted(notebook.Notebook(), guild, pasted, by, from_pull=since)
 
 
 def allow_saving(server: MCPServer, setup: Setup, officer: Callable[[], tuple[str, int]]) -> None:

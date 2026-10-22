@@ -160,6 +160,13 @@ def test_a_past_nights_note_saved_from_the_command_line_counts_for_that_nights_p
     assert "Raid notes saved here" in commands.describe_notes(store, 1001)
 
 
+def test_a_paste_counts_from_the_pull_the_message_names():
+    assert commands.from_pull("forgot this last night, from pull 7\nEncounterID:3421;...") == (7, None)
+    assert commands.from_pull("gjaldt fra pull #3 https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8") == (
+        3, "KBYT4xXn7VNjDgh8")
+    assert commands.from_pull("EncounterID:3421;Difficulty:Mythic;Name:Twin Fangs") is None
+
+
 def test_text_that_isnt_a_note_or_plan_is_refused(store, settings):
     from wipebot.core.report import FactError
     store.save_settings(settings)

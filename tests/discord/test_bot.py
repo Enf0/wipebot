@@ -356,6 +356,25 @@ async def test_a_pasted_raid_note_is_saved_only_for_officers(bot, message, asked
     assert not asked  # a note isn't a question
 
 
+async def test_a_note_pasted_late_counts_from_the_pull_the_message_names(bot, message, monkeypatch):
+    """"from pull 2" with the paste: as saved just before pull 2 on the boss in the server's current report."""
+    member = server_member(manage_guild=True)
+    monkeypatch.setattr(bot, "get_guild", lambda guild_id: SimpleNamespace(get_member=lambda i: member))
+    pulls = [{"encounterID": 3420, "startTime": 1_000_000}, {"encounterID": 3420, "startTime": 2_000_000}]
+    asked_for = []
+
+    async def report(code, max_age_s=None):
+        asked_for.append(code)
+        return SimpleNamespace(code=code, guild_id=14169, start_ms=0, by_boss={"Sszorak": pulls})
+    monkeypatch.setattr(bot.library, "report", report)
+    msg = message(f"<@99> forgot this, from pull 2\n{NOTE.read_text(encoding='utf-8')}")
+    await bot.on_message(msg)
+    assert msg.replies[-1].startswith("Saved the raid note, for checking pulls against from Sszorak pull 2 of ")
+    assert asked_for == ["LIVE1"] and [n.saved_at for n in bot.store.notebook.notes(14169, 3420)] == [1999]
+    await bot.on_message(message(f"<@99> from pull 3\n{NOTE.read_text(encoding='utf-8')}"))
+    assert bot.store.notebook.notes(14169, 3420)[1:] == []  # no such pull: nothing saved
+
+
 async def test_the_bots_own_tools_act_for_the_asker_where_they_asked(bot, message, asked, channel):
     await bot.on_message(message())
     ctx: Context = asked[0][3]
