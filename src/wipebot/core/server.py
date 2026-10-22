@@ -332,8 +332,10 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     One pull: its post, how it ended, phases, raid size, every death in order with spec, killing ability [id] and
     players still alive, when half the raid was dead, and any buff the boss gained and kept to the end, such as
     an enrage.
-    Reading it: "Ended by" is computed from the log alone (one ability killing many within 2 s, a buff the boss
-    gained and kept, half the raid dead, or deaths spread out); what that ability or buff is, boss_guide says.
+    Reading it: "Ended by" is computed from the log alone (one ability killing many within 2 s or in pulses within
+    6 s, a buff the boss gained and kept, half the raid dead, or deaths spread out, from the first that stayed dead),
+    with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
+    says.
     Deaths after the wipe was decided are marked as fallout of it. "P1 (2nd time)" is a phase the fight went back
     to after an intermission. The post compares the wipe with this log's earlier pulls and with the guild's best
     in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded" means the log names no
