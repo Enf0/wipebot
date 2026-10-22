@@ -21,7 +21,7 @@ from .base import (
     half_dead,
     unavailable,
 )
-from .ending import ending, ending_text
+from .ending import ending, ending_text, ruled_out
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -55,8 +55,12 @@ async def pull_summary(rep: Report, pull: int | None = None, boss: str | None = 
     decided = await rep.decided_at(f)
     backs = (await rep.resurrects([f]))[f["id"]]
     lines = [await rep.summary(f), f"Warcraft Logs: {rep.url(f)}"]
-    if ended := ending_text(ending(rep, f, deaths, backs, raid, await rep.enrages(f), decided)):
-        lines.append(ended)
+    enrages = await rep.enrages(f)
+    ended = ending(rep, f, deaths, backs, raid, enrages, decided)
+    if text := ending_text(ended):
+        lines.append(text)
+    if not_it := ruled_out(ended, enrages, decided):
+        lines.append(not_it)
     if phases := rep.phases(f):
         lines.append(f"Phases: {phases}")
     lines += ["", f"Raid size {raid}. Deaths in order (time from pull start, players alive after it, a battle res "

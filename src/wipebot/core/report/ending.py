@@ -71,6 +71,12 @@ class Ending:
         return max(3, math.ceil(self.raid / MASS_DEATH_SHARE))
 
 
+async def pull_ending(rep: Report, f: dict) -> Ending | None:
+    """How a pull ended (`ending`), from what the report has read or reads for it."""
+    return ending(rep, f, await rep.deaths(f), (await rep.resurrects([f]))[f["id"]], await rep.raid_size(f),
+                  await rep.enrages(f), await rep.decided_at(f))
+
+
 def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float]], raid: int,
            buffs: list[tuple[str, float]], decided: Decided | None) -> Ending | None:
     """How a wipe ended, from the log alone, earliest first: one ability killing many at once, a buff the boss kept to
@@ -208,3 +214,42 @@ def lead(e: Ending | None) -> str:
                 case HalfDead():
                     return "half the raid dead"
     return e.kind
+
+
+def ruled_out(e: Ending | None, enrages: list[tuple[str, float]], decided: Decided | None) -> str | None:
+    """What a wipe no enrage buff decided wasn't: a buff gained near the end, or a damage check, unless the guide names
+    an enrage that is a cast (the log can't tell one from a hit killing many). None for a kill, a reset, a pull still
+    going, or one an enrage buff decided."""
+    if e is None or e.kind not in ("moments", "cascade") or any(isinstance(m, KeptBuff) for m in e.moments):
+        return None
+    late = [(name, at) for name, at in enrages if decided and at > decided.at_ms]
+    if late:
+        return (f"Not an enrage buff: the boss gained {late[0][0]} at {clock(late[0][1])}, after the wipe was decided "
+                f"at {clock(decided.at_ms) if decided else '?'}, so it's fallout. Unless the guide names a cast that "
+                "ends the fight on a timer, deaths lost it, not a damage check.")
+    return ("Not an enrage buff: the boss kept none gained near the end. Unless the guide names a cast that ends the "
+            "fight on a timer, deaths lost it, not a damage check.")
+
+
+def kind_of_end(e: Ending | None) -> str:
+    """What ended a pull, in a few words to count the night's pulls by: the first moment of a wipe ("Mutilate killing
+    many"), "deaths one after another", or "a reset", "a kill", "called off", "still going"."""
+    if e is None:
+        return "a kill"
+    match e.kind:
+        case "cascade":
+            return "deaths one after another"
+        case "called_off":
+            return "called off"
+        case "reset":
+            return "a reset"
+        case "live":
+            return "still going"
+    match e.moments[0]:
+        case MassDeath(ability=""):
+            return "many dying at once, no killing blow"
+        case MassDeath(ability=name):  # at once or in pulses: one ability's way of ending pulls
+            return f"{name} killing many"
+        case KeptBuff(name=name):
+            return f"the boss gaining {name} (kept to the end)"
+    return "half the raid dead"

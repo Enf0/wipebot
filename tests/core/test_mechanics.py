@@ -5,6 +5,7 @@ from collections import Counter
 import pytest
 
 from wipebot.core.report import mechanics
+from wipebot.core.report.base import JOBS_NOT_LOGGED
 
 POOL = 904  # a made-up ability
 
@@ -66,7 +67,8 @@ async def test_one_pulls_hits_count_until_the_wipe_was_decided(rep, hits):
         "killing blow)",
         "Each time Toxic Pool went on a player (pull, when, who, how long they kept it):",
         "  Sszorak pull 13 0:20: Enfo, kept to the end of the pull",
-        "  Sszorak pull 13 1:25: Attractîv, kept 3 s"]
+        "  Sszorak pull 13 1:25: Attractîv, kept 3 s",
+        JOBS_NOT_LOGGED]  # who was hit isn't whose job it was
     vashnik = rep.fight(1, "vashnik")
     hits([event(vashnik, a, 30, "damage", amount=100)], [])
     assert (await mechanics.mechanic_hits(rep, "Toxic Pool", 1, "vashnik")).startswith(

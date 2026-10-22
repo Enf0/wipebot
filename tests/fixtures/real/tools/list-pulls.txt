@@ -2,6 +2,7 @@ Vashnik the Malignant: 2 pulls on the night (pull, boss %, phase, duration, firs
 The guild's best wipe before the night: 9.4% on Mon 28 Sep (pull 16, https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=38).
   1: 50.9%  3:30 first death Algmor (Plague Wave, 1:00) best of the night until then
   2: 0.0%  6:56 first death Krøpling (Toxic Vapor, 1:38) KILL
+How the pulls ended, by the first thing that ended each (pull_summary's "Ended by"): Malignance killing many 1, a kill 1.
 Killers of the first 3 deaths per pull: Plague Wave x2, Caustic Surge x2, Malignance x1, Toxic Vapor x1
 The night's killer (deaths until each wipe was decided): Malignance [1304459], 15 deaths over 2 pulls, the first death on 0 of them; killed most: Lïzårðmâñ 1, Martin 1, Algmor 1, Draiman 1; hit most (until each wipe was decided): Deathadim (tank) 3, Namsus 3, Miralupa 3, Peggerino 3.
 

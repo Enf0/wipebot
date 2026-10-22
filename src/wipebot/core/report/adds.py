@@ -7,7 +7,7 @@ from collections.abc import Callable
 from .. import knowledge
 from ..knowledge import KnowledgeError
 from ..text import clock, few, plural, short
-from .base import SAME_DEATH_MS, Report, dead_since, unavailable
+from .base import JOBS_NOT_LOGGED, SAME_DEATH_MS, Report, dead_since, unavailable
 
 ADD_GROUP_MS = 15_000  # an add's casts this close together are one wave of them
 ADD_GONE_MS = 10_000  # an add nobody hit for this long before a wipe ended was gone, or left alone
@@ -164,7 +164,7 @@ async def enemies(rep: Report, pull: int | None = None, boss: str | None = None)
         lines.append("Kick ready: alive with their interrupt (the one they kicked with on this boss that night) off "
                      "its base cooldown when the cast began; range and stuns not checked"
                      + (f"; never kicked on this boss that night, so not counted: {', '.join(unknown)}." if unknown
-                        else "."))
+                        else ".") + " " + JOBS_NOT_LOGGED)
     if no_kicks:
         lines.append(no_kicks)
     if unrecorded := [rep.actor(n["id"]) for n in shown if came_of(n, deaths) > 1 and not deaths[n["id"]]

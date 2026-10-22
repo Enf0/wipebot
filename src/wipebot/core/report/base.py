@@ -107,6 +107,11 @@ def unavailable(what: str, e: Exception) -> str:
     return f"{what}: unavailable ({str(e).rstrip('.')})."
 
 
+# After a tool's facts about who was hit, carried a debuff or had a kick ready: what the log can't show.
+JOBS_NOT_LOGGED = ("Whose job it was (a soak, a kick, a spot) isn't in the log: the raid note holds the jobs, and who "
+                   "did it on other pulls isn't an assignment (raids swap spots and keep reserves).")
+
+
 class FactError(ValueError):
     """A bad tool argument (unknown player, pull out of range); the message is shown to the model."""
 

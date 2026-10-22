@@ -20,7 +20,7 @@ from .. import knowledge
 from ..classes import class_hex, class_rgb
 from ..text import clock, parse_clock, plural
 from . import draw
-from .base import FactError, Report
+from .base import JOBS_NOT_LOGGED, FactError, Report
 from .positions import (
     Event,
     Facts,
@@ -161,8 +161,10 @@ async def pull_map(rep: Report, pull: int | None = None, boss: str | None = None
         if all_pulls:
             ans = await _night(rep, mech, fights, focus, draw_it)
             ans.text = rep.still_going(pulls) + ans.text
-            return ans
-        return await _pull_mechanic(rep, f, mech, {p.id for p in focus}, draw_it, focus[0].name if focus else None)
+        else:
+            ans = await _pull_mechanic(rep, f, mech, {p.id for p in focus}, draw_it, focus[0].name if focus else None)
+        ans.text += "\n" + JOBS_NOT_LOGGED
+        return ans
     if all_pulls:
         raise FactError("all_pulls needs an ability in `at`: the moments to look at on every pull")
     deaths = await rep.deaths(f)

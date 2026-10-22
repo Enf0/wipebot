@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from ..pulls import attempt
 from ..text import clock, plural, short
-from .base import FactError, Report, alive_ms, dead_since
+from .base import JOBS_NOT_LOGGED, FactError, Report, alive_ms, dead_since
 
 HIT_THEN_DEATH_MS = 6_000  # a mechanic hit followed by death this soon counts as "died after"
 SAME_MOMENT_MS = 1_000  # a second hit this soon after the one before landed together with it
@@ -57,7 +57,7 @@ async def mechanic_hits(rep: Report, ability: str, pull: int | None = None, boss
     lines.append(f"Total with {name} as the killing blow: {sum(h.killed_by.values())}"
                  + (f" ({n} death{'s' if n > 1 else ''} within {HIT_THEN_DEATH_MS // 1000} s of a hit: the "
                     "deaths it set up, by any killing blow)" if (n := sum(h.died_after.values())) else ""))
-    return "\n".join(lines[:31] + await _applications(rep, fights, h, cut, name))
+    return "\n".join(lines[:31] + await _applications(rep, fights, h, cut, name) + [JOBS_NOT_LOGGED])
 
 
 async def _applications(rep: Report, fights: list[dict], h: Hits, cut: dict[int, float], name: str) -> list[str]:
