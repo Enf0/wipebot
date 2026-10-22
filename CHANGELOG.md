@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `Agent` **Week over week.** Ask whether the raid is doing better on a boss than last week, and Wipebot goes through each of the guild's raid nights on it: the pulls, the kill, the best wipe and what ended the pulls, night by night.
 - `Agent` **Pulls by name.** Ask about the kill, the best wipe, the last wipe, or the first or last pull of a boss, and Wipebot finds it without looking up its number first.
 - `Agent` **One stretch of a pull.** Who got hit by a mechanic can be counted for one stretch of each pull, such as the first set of orbs, without the rest of the pull mixing in.
 - `Discord` **Answers in your DMs.** Ask Wipebot in a channel to send something to your DMs, such as who missed their kicks, and it answers there as if you'd asked there, where it may name players. It only ever writes to the one who asked.
