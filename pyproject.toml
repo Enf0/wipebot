@@ -16,7 +16,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["starlette", "uvicorn"]  # the remote server (wipebot.mcp); both come with mcp, named for what it imports
+# the remote server (wipebot.mcp); all come with mcp, named for what it imports
+mcp = ["starlette", "uvicorn", "cryptography"]
 discord = ["discord.py>=2.7", "claude-agent-sdk>=0.2"]  # the Discord bot (wipebot.discord)
 
 [project.scripts]

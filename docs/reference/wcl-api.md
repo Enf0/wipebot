@@ -9,7 +9,8 @@ What the GraphQL API does that its schema doesn't say, each checked against real
 - Wipebot reads with client credentials (`WCL_CLIENT_ID`/`WCL_CLIENT_SECRET`: public reports only). warcraft_cli
   uses a user login saved in its store (`~/.local/state/warcraft/providers/warcraftlogs.json`) instead when there is
   one, so `wipebot serve` refuses to start with one. Wipebot had its own browser login until 19 October 2026 (PKCE,
-  a public client); a user token lasts about 360 days.
+  a public client); a user token lasts about 360 days. `wipebot serve` reads a signed-in user's tool calls with the
+  token their sign-in gave (`wcl.reading_as`), at `/api/v2/user`, so their own points pay first ("Point types").
 - Realm slugs aren't one rule: Warcraft Logs keeps some word breaks (`tarren-mill`, `area-52`), runs others together
   (`azjolnerub`; `azjol-nerub` finds nothing) and slugs some Russian realms in English (`Ревущий фьорд` is
   `howling-fjord`). So `WCL.find_guild` takes the realm as typed and lets warcraft_cli's client try each spelling.
@@ -203,7 +204,9 @@ The remote server signs people in with Warcraft Logs (`core/accounts.py`).
   documentation, "Authorization Code Flow"). Warcraft Logs also accepts a PKCE verifier on that request, so the
   server sends both (verified live 19 October 2026: HTTP 200, `expires_in` 31104000, a refresh token included). The
   server's callback, `<public URL>/wcl/callback`, must be one of the client's redirect URLs (comma-separated in the
-  client's settings).
+  client's settings). The token is kept, encrypted, for the user's tool calls; its scope stays `view-user-profile`,
+  which reads public reports and rankings like the client credentials and no more, so what it reads may be cached
+  for everyone. A token Warcraft Logs refuses (HTTP 401) is read past with the client credentials.
 - `userData.currentUser` (user token, scope `view-user-profile`) gives `id` (an int), `name`, `battleTag` and
   `characters`: the ones the user claimed, in any guild.
 - `Character.guildRank` is the in-game rank (0 = guild master). A character in no guild has `guildRank` 0 and

@@ -33,11 +33,13 @@ def character(id: int, name: str, realm: str = "argent-dawn", rank: int = 0, gui
 
 ACCOUNTS = {  # what a Warcraft Logs login code stands for
     "raider": accounts.Account(1, "Raider", [character(11, "Torvek", "silvermoon", 4, [LANTERNS]),
-                                             character(12, "Alt", rank=8, guilds=[LANTERNS])]),
+                                             character(12, "Alt", rank=8, guilds=[LANTERNS])],
+                               "raider's warcraft logs token", 4e9),
     "social": accounts.Account(2, "Social", [character(21, "Social", rank=8, guilds=[LANTERNS])]),
     "stranger": accounts.Account(3, "Stranger", [character(31, "Pug", "silvermoon")]),
     "unclaimed": accounts.Account(4, "Unclaimed", []),
-    "officer": accounts.Account(5, "Lead", [character(51, "Halvard", rank=1, guilds=[LANTERNS])]),
+    "officer": accounts.Account(5, "Lead", [character(51, "Halvard", rank=1, guilds=[LANTERNS])],
+                                "lead's warcraft logs token", 4e9),
 }
 VERIFIER = "a-code-verifier-of-at-least-forty-three-characters-long-xyz"
 CHALLENGE = base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest()).rstrip(b"=").decode()
@@ -229,6 +231,39 @@ def test_someone_who_left_the_guild_cant_refresh(client, now):
     r = client.post("/token", data=dict(grant_type="refresh_token", refresh_token=t["refresh_token"],
                                         client_id=client_id))
     assert r.status_code == 400 and r.json()["error"] == "invalid_grant"
+
+
+def test_a_users_warcraft_logs_token_is_kept_encrypted_for_their_calls(client, users):
+    """Their tool calls read Warcraft Logs with it, so their own points pay first (wcl.reading_as)."""
+    tokens(client, register(client))
+    assert users.wcl_token(1) == "raider's warcraft logs token"
+    stored = users._db.execute("SELECT wcl_token FROM users WHERE id = 1").fetchone()[0]
+    assert stored and "raider" not in stored  # a copy of the database alone doesn't give it
+    moved = SignIn(PUBLIC, Access([GUILD], find_guild), CLIENT, "a new secret", ":memory:")
+    moved._db.execute("INSERT INTO users (id, name, characters, signed_in, wcl_token) VALUES (1, 'Raider', '[]', 0, ?)",
+                      (stored,))
+    assert moved.wcl_token(1) is None  # the client secret changed: read as the server until they sign in again
+    users._db.execute("UPDATE users SET wcl_expires = 1 WHERE id = 1")
+    assert users.wcl_token(1) is None  # lapsed
+
+
+def test_a_users_warcraft_logs_token_goes_when_they_leave_the_guild_or_have_no_grant_left(client, users, now):
+    client_id = register(client)
+    t = tokens(client, client_id)
+    now[11] = character(11, "Torvek", "silvermoon", 0)  # no guild now
+    client.post("/token", data=dict(grant_type="refresh_token", refresh_token=t["refresh_token"],
+                                    client_id=client_id))
+    assert users._db.execute("SELECT wcl_token FROM users WHERE id = 1").fetchone() == (None,)
+
+    tokens(client, client_id, "officer")
+    users._purge(now_=True)
+    assert users.wcl_token(5)  # signed in, with a grant
+    users._db.execute("DELETE FROM tokens")  # signed out, revoked or lapsed
+    users._purge(now_=True)
+    assert users.wcl_token(5)  # back from Warcraft Logs moments ago: still exchanging its code
+    users._db.execute("UPDATE users SET signed_in = 0")
+    users._purge(now_=True)
+    assert users._db.execute("SELECT wcl_token FROM users WHERE id = 5").fetchone() == (None,)
 
 
 def test_a_user_who_says_no_goes_back_to_the_app_with_access_denied(client):
@@ -722,8 +757,9 @@ def test_a_sign_in_database_half_brought_up_to_date_is_finished(tmp_path):
     db.commit()
     db.close()
     users = SignIn(PUBLIC, Access([GUILD], find_guild), CLIENT, SECRET, path)
-    assert users.user(1) == ("Raider", []) and users._db.execute("PRAGMA user_version").fetchone()[0] == 2
-    assert "checked" in {r[1] for r in users._db.execute("PRAGMA table_info(users)")}
+    assert users.user(1) == ("Raider", []) and users._db.execute("PRAGMA user_version").fetchone()[0] == 3
+    assert {"checked", "wcl_token", "wcl_expires"} <= {r[1] for r in users._db.execute("PRAGMA table_info(users)")}
+    assert users.wcl_token(1) is None  # signed in before tokens were kept
 
 
 # ---- the consent page, and the browser a sign-in is bound to ----
@@ -894,8 +930,8 @@ async def test_the_default_report_is_the_signed_in_users_own_guilds_latest_raid(
 
     other = accounts.Guild("eu", "silvermoon", "brightleaf-company", id=777)
     users = SignIn(PUBLIC, Access([other, GUILD], find_guild), CLIENT, SECRET, ":memory:")
-    users._db.execute("INSERT INTO users VALUES (1, 'Raider', ?, 0, 0)", (json.dumps([accounts.Character(
-        11, "Torvek", "silvermoon", "eu", 4, LANTERNS_ID).__dict__]),))
+    users._db.execute("INSERT INTO users (id, name, characters, signed_in) VALUES (1, 'Raider', ?, 0)", (
+        json.dumps([accounts.Character(11, "Torvek", "silvermoon", "eu", 4, LANTERNS_ID).__dict__]),))
     asked = []
 
     class Logs:

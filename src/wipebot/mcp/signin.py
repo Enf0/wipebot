@@ -20,7 +20,9 @@ else. Before Warcraft Logs, the consent page names the client and where it sends
 a cookie the callback asks for: a sign-in finishes only in the browser it was started in.
 
 Tokens are stored as their SHA-256 in SQLite (WIPEBOT_SIGNIN_DB, default ~/.local/share/wipebot/signin.sqlite), with
-the registered clients and each user's Warcraft Logs user id, name and guild characters, nothing else.
+the registered clients and each user's Warcraft Logs user id, name and guild characters, and their Warcraft Logs
+token, encrypted with a key made from WCL_CLIENT_SECRET, nothing else. Their tool calls read Warcraft Logs with that
+token (`wcl_token`), so their own Warcraft Logs points pay first; it goes when they lose access or have no grant left.
 """
 import base64
 import dataclasses
@@ -37,6 +39,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import httpx
+from cryptography.fernet import Fernet, InvalidToken
 from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,
@@ -228,6 +231,9 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         """`client_id`, `client_secret`: the server's Warcraft Logs client, which users sign in with."""
         self.public_url = public_url.rstrip("/")
         self.access, self.client_id, self.client_secret = access, client_id, client_secret
+        # Users' Warcraft Logs tokens are kept encrypted with a key only the server's settings give, not the database
+        self._fernet = Fernet(base64.urlsafe_b64encode(hashlib.sha256(b"wipebot sign-in: " + client_secret.encode())
+                                                       .digest()))
         path = path or default_path()
         if path != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -236,7 +242,7 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         self._db.execute("BEGIN IMMEDIATE")  # all of the migration or none, one server at a time
         try:
             self._migrate(self._db.execute("PRAGMA user_version").fetchone()[0])
-            self._db.execute("PRAGMA user_version = 2")
+            self._db.execute("PRAGMA user_version = 3")
             self._db.execute("COMMIT")
         except BaseException:
             self._db.execute("ROLLBACK")
@@ -251,7 +257,8 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                                                user INTEGER NOT NULL, scopes TEXT NOT NULL, resource TEXT,
                                                expires REAL NOT NULL, grant_id TEXT NOT NULL, grace REAL);
             CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL,
-                                              characters TEXT NOT NULL, signed_in REAL NOT NULL, checked REAL);
+                                              characters TEXT NOT NULL, signed_in REAL NOT NULL, checked REAL,
+                                              wcl_token TEXT, wcl_expires REAL);
         """)
         self._documents: dict[str, tuple[DocumentClient | None, float]] = {}  # url -> (client, fresh until)
         self._purged = 0.0
@@ -259,7 +266,7 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         self._purge()
 
     def _migrate(self, version: int) -> None:
-        """A store from before brought up to version 2 (the tables are then created as they are now)."""
+        """A store from before brought up to version 3 (the tables are then created as they are now)."""
         if version < 1:
             # The users were Battle.net accounts before: their ids mean nothing now, so everyone signs in again.
             for table in ("logins", "codes", "tokens", "users"):
@@ -271,6 +278,12 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                 if columns and column not in columns:
                     self._db.execute(f"ALTER TABLE {table} ADD COLUMN {column} REAL")
             self._db.execute("DROP TABLE IF EXISTS logins")  # under way, not bound to a browser: started again
+        if version < 3:
+            # The user's Warcraft Logs token (the ones signed in before have none until they sign in again).
+            columns = {r[1] for r in self._db.execute("PRAGMA table_info(users)")}
+            for column, kind in (("wcl_token", "TEXT"), ("wcl_expires", "REAL")):
+                if columns and column not in columns:
+                    self._db.execute(f"ALTER TABLE users ADD COLUMN {column} {kind}")
 
     def _purge(self, now_: bool = False) -> None:
         """Drop what has expired, and registered clients without a token unused for UNUSED_CLIENT_S (never used for
@@ -284,6 +297,10 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         self._db.execute("DELETE FROM clients WHERE client_id NOT IN (SELECT client_id FROM tokens) AND "
                          "(created < ? OR (used IS NULL AND created < ?))",
                          (now - UNUSED_CLIENT_S, now - NEVER_USED_CLIENT_S))
+        # A user with no grant left (signed out, revoked, lapsed) has no use for their Warcraft Logs token; one just
+        # back from Warcraft Logs is still exchanging their code for one
+        self._db.execute("UPDATE users SET wcl_token = NULL, wcl_expires = NULL WHERE wcl_token IS NOT NULL AND "
+                         "id NOT IN (SELECT user FROM tokens) AND signed_in < ?", (now - CODE_TTL_S,))
 
     def _make_room(self, table: str, rows: str, first: str, most: int) -> None:
         """Room for one more of `table`'s `rows` (a condition), kept to `most`: when full after dropping what has
@@ -459,8 +476,11 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                          "rank that may use Wipebot. Claim your character on warcraftlogs.com (your character's "
                          "page, <b>Claim</b>), then sign in again. If you joined the guild recently, Warcraft Logs "
                          "can take a day or two to see it.", 403)
-        self._db.execute("INSERT OR REPLACE INTO users VALUES (?, ?, ?, ?, ?)", (
-            account.id, account.name, json.dumps([c.__dict__ for c in allowed]), time.time(), time.time()))
+        self._db.execute("INSERT OR REPLACE INTO users (id, name, characters, signed_in, checked, wcl_token, "
+                         "wcl_expires) VALUES (?, ?, ?, ?, ?, ?, ?)", (
+            account.id, account.name, json.dumps([c.__dict__ for c in allowed]), time.time(), time.time(),
+            self._fernet.encrypt(account.token.encode()).decode() if account.token else None,
+            account.expires or None))
         log.info("signed in: %s as %s", account.name, ", ".join(c.name for c in allowed))
         code = secrets.token_urlsafe(32)
         auth_code = AuthorizationCode(
@@ -560,6 +580,8 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         if allowed:
             self._db.execute("UPDATE users SET characters = ?, checked = ? WHERE id = ?",
                              (json.dumps([c.__dict__ for c in allowed]), time.time(), user))
+        elif allowed is None:
+            self._db.execute("UPDATE users SET wcl_token = NULL, wcl_expires = NULL WHERE id = ?", (user,))
         return allowed is not None
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
@@ -571,6 +593,17 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         """A signed-in user's Warcraft Logs name and guild characters."""
         row = self._db.execute("SELECT name, characters FROM users WHERE id = ?", (user,)).fetchone()
         return (row[0], [accounts.Character(**c) for c in json.loads(row[1])]) if row else None
+
+    def wcl_token(self, user: int) -> str | None:
+        """A signed-in user's Warcraft Logs token, which their tool calls read with; None when they have none (signed
+        in before tokens were kept), it lapsed, or the client secret changed since."""
+        row = self._db.execute("SELECT wcl_token, wcl_expires FROM users WHERE id = ?", (user,)).fetchone()
+        if not row or not row[0] or (row[1] is not None and row[1] < time.time()):
+            return None
+        try:
+            return self._fernet.decrypt(row[0].encode()).decode()
+        except InvalidToken:
+            return None
 
 
 STYLE = ("body{font:16px/1.5 system-ui,sans-serif;background:#0b101e;color:#ecf0f8;margin:0;padding:15vh 16px}"

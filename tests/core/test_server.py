@@ -240,6 +240,26 @@ async def test_each_call_is_kept_with_its_result_or_error(monkeypatch):
     assert all(k[5] >= 0 for k in kept)
 
 
+async def test_a_signed_in_users_calls_read_warcraft_logs_with_their_own_token(monkeypatch):
+    """So their own Warcraft Logs points pay first; someone else's call, or one with no user, reads as the server."""
+    from mcp.server.auth.middleware.auth_context import auth_context_var
+    from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
+    from mcp.server.auth.provider import AccessToken
+
+    from wipebot.core import wcl
+    monkeypatch.setattr(server.DEFAULT, "remote", server.Remote(
+        guilds=list, user_name=str, wcl_token=lambda subject: {"1": "raider's token"}.get(subject)))
+
+    async def reads_as() -> str | None:
+        return wcl._user.get()
+
+    for subject, token in (("1", "raider's token"), ("2", None), (None, None)):
+        auth_context_var.set(AuthenticatedUser(AccessToken(token="t", client_id="c", scopes=[], subject=subject))
+                             if subject else None)
+        assert await server.guarded(reads_as)() == token
+    assert wcl._user.get() is None  # and only during the call
+
+
 async def test_an_unexpected_error_names_itself():
     async def broken(pull: int) -> str:
         raise TimeoutError()

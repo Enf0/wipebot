@@ -68,7 +68,8 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     setup = server.Setup(library, server.Remote(
         guilds=guilds, user_name=lambda subject: (signin.user(int(subject)) or (f"account {subject}", []))[0],
         record=record,
-        guild_ids=lambda subject: _guild_ids(signin, subject)))
+        guild_ids=lambda subject: _guild_ids(signin, subject),
+        wcl_token=lambda subject: signin.wcl_token(int(subject))))
     mcp = server.new_server(
         website_url=public,
         auth=AuthSettings(issuer_url=public, resource_server_url=signin.resource,  # type: ignore[arg-type]
