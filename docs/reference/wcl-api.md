@@ -18,9 +18,8 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   `rateLimitData` showed one counter for the client-credentials key, a second client of the same account and that
   account's user (PKCE) token; points spent through any of them moved all three (14 Oct 2026). Another account signed
   in through the server's client spends the same counter too: the limit belongs to the account that owns the
-  clients, so users signing in with their own Warcraft Logs accounts don't add quota. A new point system is coming
-  (Archon's post "API updates are on the way", October 2026): each query's points rebalanced to its database cost,
-  and keys made since 29 September limited lower until it ships.
+  clients, so users signing in with their own Warcraft Logs accounts don't add quota. That is the old point system;
+  the new one (in beta from 20 October 2026) adds database and user points: "Point types" below.
 - `report.fights(killType: Encounters)`: fight `startTime`/`endTime` are ms relative to the report start.
   Report `startTime`/`endTime` are UNIX ms. `inProgress` is true while a pull is still being logged.
 - `difficulty`: 1 LFR, 3 Normal, 4 Heroic, 5 Mythic. `lastPhase` 0 means the boss has no phases.
@@ -257,6 +256,49 @@ Every query adds to how long a raider waits in chat, and all of them spend the a
   report's boss pulls as `{ id encounterID name difficulty kill fightPercentage }` came to 60,601 and was refused
   ("Max query complexity should be 50000"). The guild's furthest wipes (`WCL.guild_wipes`) ask 50 reports a page,
   filtered to the raid's `zoneID`.
+
+## Point types (verified 2026-10-22)
+
+Warcraft Logs' new point system (Archon's post "Archon API updates (beta)", 20 October 2026; its values may change
+until the beta ends) splits points in three. Application points, as before. Database points, a cap inside them for
+fields labelled [Database Points]: past it those fields fail and the rest still answers. User points, a signed-in
+user's own pool, spent first on fields labelled [User-Eligible Points] when a query is made with their token.
+- The schema labels the fields in their descriptions. [Database Points]: `ReportData.reports`, `Report.rankings`,
+  `Encounter.characterRankings`, `Character.encounterRankings`, `zoneRankings` and `recentReports`,
+  `Server.guilds` and `Server.characters`. [User-Eligible Points]: `Report.events`, `table`, `graph`, `fights`,
+  `masterData`, `playerDetails`, `phases`, `guild`, `zone`, `owner`, `ReportFight.talentImportCode`, `GuildData.guild`
+  and a guild's `members`, `attendance`, `tags`, `server`, `GuildZoneRankings`, `CharacterData.character(s)`,
+  `Character.gameData`, `UserData`. `WorldData` (zones, encounters, `fightRankings`) has no label.
+- `rateLimitData` gains `databaseLimitPerHour`, `databasePointsSpentThisHour`, `userHasRemainingPoints`,
+  `userPointsResetIn` (null without a user token) and `currentRequest`: the request's `application`, `database` and
+  `user` points and its `total` (at least 1). The spent counters it gives in a query leave that query out.
+  `currentRequest` shows user and database points without opting in, so any query's cost can be measured now.
+- A key not opted in keeps 3,600 points an hour; `databaseLimitPerHour` reads 250 but isn't enforced (the counter
+  went past it and rankings still answered), and points `currentRequest` counts as `user` are charged to the
+  application, user token or not. `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
+  @onlySpendUserPoints { ... }`) is refused: "cannot require only user points be spent without authenticating a user
+  and opting into the new point system".
+- User points are per Warcraft Logs account, shared "across all applications the user authenticates with" (the
+  schema's description of `userHasRemainingPoints`).
+- A user token with only the `view-user-profile` scope reads a public report at `/api/v2/user` (fights, tables,
+  events) and rankings, the same as the client credentials; private reports need `view-private-reports` (warcraft_cli
+  says so; not tried).
+- What each query costs, from `currentRequest` (KBYT4xXn7VNjDgh8, a Mythic kill, its guild's reports):
+
+  | Query | Database | Application | User-eligible |
+  |---|---|---|---|
+  | A report's fights; a table of one pull; a whole report's death events | 0 | 0 | 1; 1; 1-10 |
+  | A guild's reports, a page of 100, without their fights | 1 | 1 | 0 |
+  | The same with each report's boss pulls (100 a page), or with players (25), or the furthest wipes (50) | 1 | 1 | 50-59 |
+  | A guild's attendance, a page of 25; its members, a page of 100; its `zoneRanking` | 0 | 0 | 25; 1; 1 |
+  | A kill's rankings; every kill's in a report | 3-5; 2 | 2 | 0 |
+  | A spec's top 100 with talents and gear; a ranking page, page 1 to 20 alike; the fastest kills | 1-2 | 1 | 0 |
+  | `zoneRankings`, per character (aliased: 20 characters 100) | 5 | 5 | 0 |
+  | `encounterRankings`, one boss | 1 | 1 | 0 |
+  | A character's `recentReports`, a page of 25 | 4 | 0.25 | 25 |
+
+  So the database points go mostly to character pages (`zoneRankings`, 5 a character), and a ranking page costs one
+  however deep; the user-eligible points mostly to a guild's report list with its pulls.
 
 ## Adds, interrupts and dispels (verified 2026-10-13)
 
