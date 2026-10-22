@@ -392,11 +392,16 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
         if k.dead:
             lines.append("    dead: " + ", ".join(k.dead))
     if c.kicks:
-        lines.append(KICKS_ARE + ", each with the cast that was theirs and what became of it:")
+        lines.append(KICKS_ARE + ", each with the cast that was theirs and what became of it (covered: another "
+                     "player kicked it, so it was handled):")
     for k in c.kicks:
         line = f"  {clock(k.at)} {k.player} \"{k.callout.text}\": "
-        line += f"kicked the cast begun at {clock(k.cast[0])}" if k.kicked else (
-            f"no kick ({k.state}); their cast, begun at {clock(k.cast[0])}, {_cast_end(k.cast)}")
+        if k.kicked:
+            line += f"kicked the cast begun at {clock(k.cast[0])}"
+        elif k.cast[1] == "kicked":
+            line += f"covered: their cast, begun at {clock(k.cast[0])}, was kicked by {k.cast[2]} ({k.state})"
+        else:
+            line += f"no kick ({k.state}); their cast, begun at {clock(k.cast[0])}, {_cast_end(k.cast)}"
         lines.append(line)
     if c.unavailable:
         lines.append(c.unavailable)
@@ -919,10 +924,12 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
     rows = [(c, k) for c in checks for k in c.kicks]
     if not rows:
         return []
-    out = [KICKS_ARE + ". Over the pulls, per player, most missed first: of their kicks while alive, how many they "
-           "made, the ones they didn't with what became of their cast, dead for how many more:"]
+    out = [KICKS_ARE + ". Over the pulls, per player, most casts that went through first: of their kicks while alive, "
+           "how many they made, how many another player covered (kicked their cast: handled, by whom), and the casts "
+           "of theirs that weren't kicked, with what became of them; dead for how many more:"]
     alive: Counter = Counter()
     made: Counter = Counter()
+    covered: dict[str, Counter] = defaultdict(Counter)
     missed: dict[str, list[tuple[dict, KickCheck]]] = defaultdict(list)
     dead: Counter = Counter()
     texts: dict[str, list[str]] = defaultdict(list)
@@ -935,12 +942,17 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
             alive[k.player] += 1
             if k.kicked:
                 made[k.player] += 1
+            elif k.cast[1] == "kicked":
+                covered[k.player][k.cast[2]] += 1
             else:
                 missed[k.player].append((c.f, k))
-    for n in sorted(alive.keys() | dead.keys(), key=lambda n: (-len(missed[n]), n)):
+    for n in sorted(alive.keys() | dead.keys(), key=lambda n: (-len(missed[n]), -sum(covered[n].values()), n)):
         line = f"  {n} ({', '.join(texts[n])}): kicked {made[n]} of {alive[n]}"
+        if covered[n]:
+            line += f"; covered {sum(covered[n].values())} (" + ", ".join(
+                f"{by} {k}" for by, k in _by_count(covered[n])) + ")"
         if missed[n]:
-            line += f"; no kick at {len(missed[n])}: " + ", ".join(
+            line += f"; not kicked {len(missed[n])}: " + ", ".join(
                 f"p{rep.pull_no(f)} {clock(k.at)} ({_cast_end(k.cast)})" for f, k in missed[n][:LISTED])
             if len(missed[n]) > LISTED:
                 line += f" and {len(missed[n]) - LISTED} more"
