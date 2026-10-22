@@ -432,7 +432,8 @@ def test_an_officer_saves_a_pasted_note_for_the_guild_and_no_one_else_does(clien
     call, _ = session(client, "raider")  # Torvek, rank 4
     tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
     save = tools["save_note_or_plan"]
-    assert save["title"] == "Save raid note or plan" and list(save["inputSchema"]["properties"]) == ["pasted"]
+    assert save["title"] == "Save raid note or plan"
+    assert list(save["inputSchema"]["properties"]) == ["pasted", "from_pull", "report"]
     assert save["annotations"] == {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False,
                                    "openWorldHint": False}
     model_sees = {n: t for n, t in tools.items() if "app" not in t.get("_meta", {}).get("ui", {}).get("visibility", [])}

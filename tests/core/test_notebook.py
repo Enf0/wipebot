@@ -115,7 +115,8 @@ def test_a_pasted_note_or_plan_is_saved_for_the_guild_and_says_what_was_saved():
     when saved before)."""
     book = Notebook(":memory:")
     assert server.save_pasted(book, 14169, NOTE.read_text(encoding="utf-8"), "Rowan", at=1000.0) == (
-        "Saved the raid note, for checking pulls against from now on (the previous one is kept for earlier pulls):\n"
+        "Saved the raid note, for checking pulls against from now on (the previous one is kept for earlier pulls; "
+        'pasted after the pulls it was for? Paste it again with the pull it counts from, such as "from pull 1"):\n'
         "- **Sszorak** (Mythic): 59 timed cooldowns, 28 callouts; Mutilate Soaks (Left, Right); Intermission Orb "
         "Popper (Orb Popper); Virulence Spreads (Spread, Bait Serpent's Fury / Bite, Don't Stack); Virulence trigger "
         "(Trigger)")
@@ -127,3 +128,26 @@ def test_a_pasted_note_or_plan_is_saved_for_the_guild_and_says_what_was_saved():
     assert [p.saved_by for p in book.plans(14169)] == ["Rowan", "Halvard"] and book.plans(555) == []
     with pytest.raises(FactError, match="EncounterID"):
         server.save_pasted(book, 14169, "just some text", "Rowan")
+
+
+async def test_a_note_pasted_after_the_pulls_it_was_for_counts_from_the_pull_named(rep):
+    """An officer who forgot to paste the note before the raid pastes it after, from the pull it was used from: that
+    pull and the later ones are checked against it, the earlier ones against the version saved before the night,
+    and the next night's against it too."""
+    rep.guild_id = 14169
+    book, text = Notebook(":memory:"), NOTE.read_text(encoding="utf-8")
+    pulls = [(rep.start_ms + f["startTime"]) / 1000 for f in rep.by_boss["Sszorak"]]
+    book.save_note(14169, 3420, "Sszorak", "last week's", "Halvard", at=pulls[0] - 86400 * 7)
+    said = server.save_pasted(book, 14169, text, "Rowan", from_pull=(rep, 7))
+    assert said.startswith("Saved the raid note, for checking pulls against from Sszorak pull 7 of ")
+    found = [book.note_for(14169, 3420, at) for at in (pulls[5], pulls[6], pulls[-1], pulls[-1] + 86400 * 7)]
+    assert [n and n.saved_by for n in found] == ["Halvard", "Rowan", "Rowan", "Rowan"]
+    assert '"from pull 1"' in server.save_pasted(Notebook(":memory:"), 14169, text, "Rowan")  # how, when it's late
+    with pytest.raises(FactError, match="Sszorak has pulls 1-33"):
+        server.save_pasted(book, 14169, text, "Rowan", from_pull=(rep, 34))
+    with pytest.raises(FactError, match="no pull on Vashnik"):  # every boss is checked before anything is saved
+        server.save_pasted(book, 14169, text + "\nEncounterID:3418;Difficulty:Mythic;Name:Vashnik\n", "Rowan",
+                           from_pull=(rep, 1))
+    with pytest.raises(FactError, match="isn't the guild's"):
+        server.save_pasted(book, 555, text, "Rowan", from_pull=(rep, 1))
+    assert len(book.notes(14169, 3420)) == 2

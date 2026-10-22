@@ -125,7 +125,10 @@ Raid plans can also be fetched from raidstrats.gg instead of pasted, where the h
 
 Only a pasted export is saved, not typed text, a screenshot or a link. Every version is kept, with who saved it.
 Each pull is checked against the note saved before it started, so changing the note mid-night doesn't affect earlier
-pulls. Both apps read what's saved for the guild, wherever it was saved, so no one needs to paste it again.
+pulls. A note pasted after the pulls it was for counts from the pull the officer names: "from pull 7" in the
+message with the paste in Discord (the night's report, or a report link in the message), or said in the chat in
+Claude or ChatGPT. Both apps read what's saved for the guild, wherever it was saved, so no one needs to paste it
+again.
 
 ### What gets checked
 

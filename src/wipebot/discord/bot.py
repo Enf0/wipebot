@@ -674,7 +674,9 @@ class WipeBot(discord.Client):
         return f"Remembered for {name}: character {raider.character or 'unknown'}; notes: {raider.notes or 'none'}."
 
     async def _save_note(self, message: discord.Message, s: ServerSettings, text: str) -> None:
-        """A raid note or plan pasted to the bot: saved for the server's guild, if the sender is an officer."""
+        """A raid note or plan pasted to the bot: saved for the server's guild, if the sender is an officer; pasted
+        after the pulls it was for, as of the pull the message names ("from pull 7", in the guild's current report or
+        one linked)."""
         guild = self.get_guild(s.discord_guild_id)
         member = None
         if guild is not None:
@@ -685,10 +687,18 @@ class WipeBot(discord.Client):
         if not member or not is_officer(s, member):
             await respond(message, f"Only officers save the raid note or plan: {officers(s)}.")
             return
+        since = None
+        if counts := commands.from_pull(message.content):
+            pull, code = counts
+            try:
+                since = (await self.library.report(code or await self.current_report(s)), pull)
+            except (FactError, WCLError) as e:
+                await respond(message, f"Didn't save it: couldn't find pull {pull}'s report ({e}).")
+                return
         try:
-            reply = commands.save_pasted(self.store, s.discord_guild_id, text, member.display_name)
+            reply = commands.save_pasted(self.store, s.discord_guild_id, text, member.display_name, from_pull=since)
         except FactError as e:
-            reply = f"Couldn't read that as a raid note or plan: {e}."
+            reply = f"Couldn't save that as a raid note or plan: {e}."
         log.info("raid note or plan from %s: %s", self._shown(member.display_name), reply.splitlines()[-1])
         await respond(message, reply)
 

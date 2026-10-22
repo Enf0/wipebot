@@ -6,6 +6,7 @@ by pasting it to the bot (bot.py).
 Only members with Manage Server see them (Discord enforces this), and server owners can change that in
 Server Settings > Integrations.
 """
+import re
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -25,6 +26,9 @@ if TYPE_CHECKING:
     from .bot import WipeBot
 
 MAX_NOTE_BYTES = 200_000  # a whole raid's note is some tens of kB; a plan's export a few
+# A paste the officer says counts from a pull ("from pull 7", Norwegian "fra pull 7"), and the report it's in.
+FROM_PULL = re.compile(r"\b(?:from|fra)\s+pull\s*#?(\d+)\b", re.I)
+REPORT_LINK = re.compile(r"warcraftlogs\.com/reports/([A-Za-z0-9]+)")
 
 
 def looks_like_note(text: str) -> bool:
@@ -40,10 +44,19 @@ def _guild(store: Store, discord_guild_id: int) -> int:
     return s.wcl_guild_id
 
 
-def save_pasted(store: Store, discord_guild_id: int, text: str, saved_by: str, at: float | None = None) -> str:
+def from_pull(message: str) -> tuple[int, str | None] | None:
+    """The pull a paste counts from, and the report linked for it (None: the guild's current one), when the
+    message says ("from pull 7"); None when it doesn't."""
+    if not (m := FROM_PULL.search(message)):
+        return None
+    return int(m[1]), (link[1] if (link := REPORT_LINK.search(message)) else None)
+
+
+def save_pasted(store: Store, discord_guild_id: int, text: str, saved_by: str, at: float | None = None,
+                from_pull: server.FromPull | None = None) -> str:
     """A pasted raid plan or raid note saved for the server's guild (server.save_pasted); what was saved, for the
     officer. A paste that's neither, or a server not set up, raises FactError."""
-    return server.save_pasted(store.notebook, _guild(store, discord_guild_id), text, saved_by, at)
+    return server.save_pasted(store.notebook, _guild(store, discord_guild_id), text, saved_by, at, from_pull)
 
 
 def describe_notes(store: Store, discord_guild_id: int) -> str:
