@@ -47,6 +47,32 @@ async def test_a_hung_request_is_given_up_after_two_tries(monkeypatch):
     assert len(tries) == WCL_ATTEMPTS == 2
 
 
+@pytest.mark.parametrize("refused", [False, True])
+async def test_serving_many_users_a_users_token_reads_at_the_user_endpoint_and_a_refused_one_falls_back(
+        monkeypatch, refused):
+    """Their own Warcraft Logs points pay first; a token Warcraft Logs no longer takes reads as the server."""
+    asked = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        bearer = request.headers["Authorization"].removeprefix("Bearer ")
+        asked.append((request.url.path, bearer))
+        if refused and bearer == "raider's token":
+            return httpx.Response(401, json={"error": "Unauthenticated."})
+        return httpx.Response(200, json={"data": {"x": bearer}})
+    monkeypatch.setattr(WarcraftLogsClient, "_client", lambda self: httpx.Client(transport=httpx.MockTransport(answer)))
+    monkeypatch.setattr(WarcraftLogsClient, "_token", lambda self: "server's token")
+    monkeypatch.setattr(warcraft_api.http, "backoff_seconds", lambda attempt: 0)
+    monkeypatch.setenv("WARCRAFT_HTTP_MIN_INTERVAL_SECONDS", "0")
+    monkeypatch.setattr(wcl_module, "_client_only", True)
+    w = WCL()
+    with wcl_module.reading_as("raider's token"):
+        found = await w.query("query { x }")
+    assert found == {"x": "server's token" if refused else "raider's token"}
+    assert asked[0] == ("/api/v2/user", "raider's token")
+    assert asked[1:] == ([("/api/v2/client", "server's token")] if refused else [])
+    assert await w.query("query { x }") == {"x": "server's token"}  # no user: the client credentials
+
+
 async def test_a_partial_answer_is_not_kept(cache, monkeypatch):
     """Warcraft Logs sometimes answers a rankings query with an error next to empty data; kept for a day, that
     would read as "no ranked kills"."""

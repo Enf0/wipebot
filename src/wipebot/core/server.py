@@ -120,6 +120,8 @@ class Remote:
     record: Record | None = None  # given each call, when whoever serves it asks
     # A signed-in user -> the Warcraft Logs ids of their guilds: whose saved raid notes and plans they may read
     guild_ids: Callable[[str], set[int]] = lambda subject: set()
+    # A signed-in user -> their Warcraft Logs token, which their calls read with (wcl.reading_as), or None
+    wcl_token: Callable[[str], str | None] = lambda subject: None
 
 
 @dataclass
@@ -196,7 +198,8 @@ def _prompt(fn):
 def guarded(fn, setup: Setup = DEFAULT):
     """`fn` as a tool of a server with `setup`. Bad arguments and source failures reach the model as readable tool
     errors. A question about the pull that just ended, before the live log has it, waits for it a little. Serving
-    many users, each call is logged with its user, and kept (Remote.record)."""
+    many users, each call is logged with its user, kept (Remote.record) and read with their Warcraft Logs token
+    (Remote.wcl_token)."""
     async def run(*args, **kwargs):
         for waited in range(PULL_WAITS + 1):
             try:
@@ -224,7 +227,8 @@ def guarded(fn, setup: Setup = DEFAULT):
         user, client = _log_call(remote, fn.__name__, shown)
         started, began, failed, out = time.time(), time.monotonic(), True, ""
         try:
-            result = await run(*args, **kwargs)
+            with wcl.reading_as(remote.wcl_token(user) if user else None):  # the user's own points pay first
+                result = await run(*args, **kwargs)
             failed, out = False, _text(result)
             return result
         except ToolError as e:

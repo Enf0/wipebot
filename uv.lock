@@ -1443,6 +1443,7 @@ discord = [
     { name = "discord-py" },
 ]
 mcp = [
+    { name = "cryptography" },
     { name = "starlette" },
     { name = "uvicorn" },
 ]
@@ -1460,6 +1461,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "claude-agent-sdk", marker = "extra == 'discord'", specifier = ">=0.2" },
+    { name = "cryptography", marker = "extra == 'mcp'" },
     { name = "discord-py", marker = "extra == 'discord'", specifier = ">=2.7" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "mcp", specifier = ">=2.3" },

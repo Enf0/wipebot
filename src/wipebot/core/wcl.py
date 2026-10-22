@@ -3,7 +3,8 @@
 warcraft_cli's client is synchronous, so each query runs in a worker thread with that thread's own
 client. It reads with client credentials from WARCRAFTLOGS_CLIENT_ID / WARCRAFTLOGS_CLIENT_SECRET, which Wipebot
 fills from WCL_CLIENT_ID / WCL_CLIENT_SECRET, unless warcraft_cli has a user login saved (`saved_login`), which it
-uses instead; serving many users, never (`client_credentials_only`).
+uses instead; serving many users, never (`client_credentials_only`), but a signed-in user's own token for what they
+ask (`reading_as`).
 """
 import asyncio
 import json
@@ -13,6 +14,9 @@ import re
 import threading
 import time
 from collections import Counter
+from collections.abc import Generator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from warcraft_core.auth import load_provider_auth_state
@@ -327,12 +331,34 @@ def client_credentials_only() -> None:
     _client_only = True
 
 
+_user: ContextVar[str | None] = ContextVar("wcl_user", default=None)  # the token `reading_as` gave
+
+
+@contextmanager
+def reading_as(token: str | None) -> Generator[None]:
+    """Within it, a server reading with the client credentials only reads with this user's Warcraft Logs token
+    instead, at the user endpoint: on Warcraft Logs' new point system the user's own points pay first, and the
+    client's once they run out. Its answers are cached for everyone, so the token's scope must read nothing the
+    client credentials can't (`view-user-profile`; docs/reference/wcl-api.md, "Point types"). A token Warcraft Logs
+    refuses (expired, revoked) falls back to the client credentials."""
+    reset = _user.set(token or None)
+    try:
+        yield
+    finally:
+        _user.reset(reset)
+
+
 class _ClientOnly(WarcraftLogsClient):
     """warcraft_cli's client that never sees a saved user login: its own requests (`guild`, `character`) and
-    `raw_graphql` all ask the client endpoint then."""
+    `raw_graphql` all ask the client endpoint then, or the user endpoint with the token `reading_as` gave."""
 
     def _has_user_token(self) -> bool:
-        return False
+        return bool(_user.get())
+
+    def _user_token(self) -> str:
+        if not (token := _user.get()):
+            raise WarcraftLogsClientError("missing_user_auth", "no user token for this call")
+        return token
 
 
 class WCL:
@@ -352,7 +378,15 @@ class WCL:
         couldn't rank right then): an answer meant for the cache, or whole (`keep`), is then refused rather than
         kept, so an empty ranking never sticks for a day and gets told to raiders as "no ranked kills"."""
         try:
-            data, _endpoint = self._client().raw_graphql(operation_name=None, query=query, variables=variables)
+            try:
+                data, _endpoint = self._client().raw_graphql(operation_name=None, query=query, variables=variables)
+            except WarcraftLogsClientError as e:
+                if e.code != "auth_failed" or not _user.get():
+                    raise
+                log.info("a user's Warcraft Logs token was refused (%s): read with the client credentials", e)
+                with reading_as(None):
+                    data, _endpoint = self._client().raw_graphql(operation_name=None, query=query,
+                                                                 variables=variables)
         except WarcraftLogsClientError as e:
             raise WCLError(f"{e.code}: {e}") from e
         data = dict(data or {})

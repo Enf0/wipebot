@@ -4,14 +4,16 @@ characters they claimed are in.
 The remote MCP server (`wipebot serve`) lets a user in when a character they claimed on Warcraft Logs is in an
 allowed guild at an allowed rank. The login is the authorization code flow (with PKCE) of the confidential client
 the server reads with (WCL_CLIENT_ID, WCL_CLIENT_SECRET), whose redirect URLs include
-the server's callback; the user's token is used once and dropped. Membership is checked again with the
-client credentials, which read any character's guild and rank. Facts verified live are in docs/reference/wcl-api.md,
-"Sign-in".
+the server's callback. The user's token is kept (its scope reads only what the client credentials read), so their
+own Warcraft Logs points pay first for what they ask (`wcl.reading_as`). Membership is checked again with the client
+credentials, which read any character's guild and rank. Facts verified live are in docs/reference/wcl-api.md,
+"Sign-in" and "Point types".
 """
 import base64
 import hashlib
 import re
 import secrets
+import time
 import urllib.parse
 from dataclasses import dataclass, field
 
@@ -117,6 +119,8 @@ class Account:
     id: int
     name: str
     characters: list[dict]  # as Warcraft Logs gives them (CHARACTER)
+    token: str = field(default="", repr=False)  # the user's Warcraft Logs token
+    expires: float = 0.0  # when it lapses (Warcraft Logs gives about 360 days)
 
 
 def members(characters: list[dict], guilds: list[Guild]) -> list[Character]:
@@ -154,20 +158,22 @@ def authorize_url(client_id: str, redirect_uri: str, state: str, challenge: str)
 
 
 async def login(client_id: str, secret: str, code: str, verifier: str, redirect_uri: str) -> Account:
-    """The account behind a login's code, with the characters it claimed: the authorization code flow, the client's
-    secret by basic auth plus the PKCE verifier (Warcraft Logs takes both, verified 19 October 2026)."""
+    """The account behind a login's code, with the characters it claimed and its token: the authorization code flow,
+    the client's secret by basic auth plus the PKCE verifier (Warcraft Logs takes both, verified 19 October 2026)."""
     try:
         async with httpx.AsyncClient(timeout=15) as http:
             r = await http.post(TOKEN_URL, auth=(client_id, secret), data=dict(
                 grant_type="authorization_code", code=code, code_verifier=verifier, redirect_uri=redirect_uri))
             if r.status_code != 200:
                 raise AccountError(f"Warcraft Logs token: {r.status_code}")
-            r = await http.post(USER_API, json={"query": ME},
-                                headers={"Authorization": f"Bearer {r.json()['access_token']}"})
+            granted = r.json()
+            token, expires = str(granted["access_token"]), time.time() + float(granted.get("expires_in") or 0)
+            r = await http.post(USER_API, json={"query": ME}, headers={"Authorization": f"Bearer {token}"})
             if r.status_code != 200:
                 raise AccountError(f"Warcraft Logs currentUser: {r.status_code}")
             user = r.json()["data"]["userData"]["currentUser"]
-        return Account(int(user["id"]), str(user.get("name") or ""), list(user.get("characters") or []))
+        return Account(int(user["id"]), str(user.get("name") or ""), list(user.get("characters") or []), token,
+                       expires)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
         raise AccountError(f"Warcraft Logs sign-in: {e!r}") from e
 
