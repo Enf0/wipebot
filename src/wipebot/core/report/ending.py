@@ -130,3 +130,24 @@ def ending_text(e: Ending | None) -> str | None:
             return f"Ended by: called off at {clock(e.end_ms)} with {e.alive_at_end} of {e.raid} alive."
     return ("Ended by (from the log, earliest first): " + "; then ".join(moment_text(m, e.raid) for m in e.moments)
             + ".")
+
+
+def lead(e: Ending | None) -> str:
+    """What the ending leads with, in the words a case's `cause` uses (evals/endings.py): "enrage: <buff>",
+    "ability: <ability>", "moment: no killing blow", "deaths from <m:ss>", "reset", "called off", "live" or "kill"."""
+    if e is None:
+        return "kill"
+    match e.kind:
+        case "cascade":
+            return f"deaths from {clock(e.first_death_ms or 0)}"
+        case "called_off":
+            return "called off"
+        case "moments":
+            match e.moments[0]:
+                case MassDeath(ability=name):
+                    return f"ability: {name}" if name else "moment: no killing blow"
+                case KeptBuff(name=name):
+                    return f"enrage: {name}"
+                case HalfDead():
+                    return "half the raid dead"
+    return e.kind

@@ -11,6 +11,7 @@
     just evals --agreement            # how often the judge agrees with your marks
     just evals --lint                 # the cases' numbers against today's tool output (no model; after `just snapshot`)
     just evals --coverage             # what the cases cover: tools, kinds of question, places, bosses (no model)
+    just evals --endings              # the engine's "Ended by" against each case's `cause` (no model)
     just evals --api-key              # bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude login)
     just evals --recheck evals/results/X.json  # a run's answers again: claims its tools don't back, and the rubric
 
@@ -46,6 +47,7 @@ from evals.checks import (
     EXPECT,
     FACTS,
     FAIL_VOTES,
+    GROUNDED_MODEL,
     RUBRIC,
     WRONG,
     expect_prompt,
@@ -143,7 +145,7 @@ def load_cases(folder: Path = CASES) -> list[dict]:
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "wrong_in_channel", "derived",
-                                       "drifts", "hard", "report", "tools", *CONTEXT}:
+                                       "drifts", "hard", "report", "tools", "cause", *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
             only = {"bot": {"bot_only": True}, "connector": {"client_only": True}}.get(path.stem, {})
             cases.append({"report": spec["defaults"]["report"], **case} | only | {"kind": path.stem})
@@ -387,12 +389,13 @@ def judged_by(model: str) -> dict:
 
 
 def case_hash(case: dict) -> str:
-    """What a case asks and checks: all but its id, the hard set, the lint's `drifts`, the coverage's `tools` and
-    its file's `kind` (question, expect, facts, wrong, its report and who asks), spaces aside, so a reflowed line
-    keeps the hash and a changed word doesn't."""
+    """What a case asks and checks: all but its id, the hard set, the lint's `drifts`, the coverage's `tools`, the
+    engine's `cause` and its file's `kind` (question, expect, facts, wrong, its report and who asks), spaces aside, so
+    a reflowed line keeps the hash and a changed word doesn't."""
     def plain(v):
         return " ".join(v.split()) if isinstance(v, str) else [plain(x) for x in v] if isinstance(v, list) else v
-    return short_hash({k: plain(v) for k, v in case.items() if k not in ("id", "hard", "drifts", "tools", "kind")})
+    left_out = ("id", "hard", "drifts", "tools", "cause", "kind")
+    return short_hash({k: plain(v) for k, v in case.items() if k not in left_out})
 
 
 def judged(tally: dict, case_id: str) -> int:
@@ -499,9 +502,9 @@ def compare(base: dict, now: dict) -> list[str]:
 
 
 async def recheck(path: Path, judge_model: str, only: str = "") -> None:
-    """A saved run's answers checked again, without asking again: the claims about the raid their tool outputs don't
-    back (checks.grounded) and how each is built (checks.RUBRIC). Neither fails an answer; both are kept in
-    results/rechecks/, under the run's name."""
+    """A saved run's answers checked again, without asking again: the misleading claims about the raid their tool
+    outputs don't back (checks.grounded) and how each is built (checks.RUBRIC). Neither fails an answer; both are
+    kept in results/rechecks/, under the run's name."""
     run = json.loads(path.read_text(encoding="utf-8"))
     cases = {c["id"]: c for c in load_cases()}
     client = run.get("mode", "plugin") != "bot"
@@ -513,35 +516,34 @@ async def recheck(path: Path, judge_model: str, only: str = "") -> None:
     async def one(c: str, i: int, t: dict) -> None:
         async with jobs:
             question = asked(cases[c], client)
-            g, (scores, cost) = await asyncio.gather(grounded(question, t["answer"], t.get("calls") or [], judge_model),
+            g, (scores, cost) = await asyncio.gather(grounded(question, t["answer"], t.get("calls") or []),
                                                      rubric(question, t["answer"], judge_model))
         out.setdefault(c, []).append({"trial": i, "passed": t.get("passed"), "grounded": asdict(g),
                                       "rubric": scores, "cost_usd": g.cost_usd + cost})
-        flagged = [f"contradicted: {x}" for x in g.contradicted] + [f"unsupported: {x}" for x in g.unsupported]
+        flagged = [f"misleading: {x}" for x in g.misleading]
         print(f"{c:34} {'grounded' if g.ok else 'NOT GROUNDED' if g.ok is False else 'no verdict':12} "
               + " ".join(f"{k}={'-' if v is None else 'y' if v else 'N'}" for k, v in scores.items())
               + "".join(f"\n    {x[:240]}" for x in flagged), flush=True)
 
     await asyncio.gather(*(one(*x) for x in todo))
-    print("\n" + "\n".join(recheck_summary(out)) + f"\n(judge {judge_model}, "
+    print("\n" + "\n".join(recheck_summary(out)) + f"\n(grounded {GROUNDED_MODEL}, rubric {judge_model}, "
           f"${sum(x['cost_usd'] for xs in out.values() for x in xs):.2f})")
     saved = HERE / "results" / "rechecks" / path.name  # apart from the runs, which coverage and lint read
     saved.parent.mkdir(parents=True, exist_ok=True)
-    saved.write_text(json.dumps({"run": path.name, "judge_model": judge_model, "cases": out}, indent=1,
+    saved.write_text(json.dumps({"run": path.name, "judge_model": judge_model, "grounded_model": GROUNDED_MODEL,
+                                "cases": out}, indent=1,
                                 ensure_ascii=False), encoding="utf-8")
     print(f"saved {saved}")
 
 
 def recheck_summary(out: dict[str, list[dict]]) -> list[str]:
-    """How many answers state something their tool outputs contradict (and of those that passed), the claims
-    flagged, and each rubric rule's yes rate where it applied. A contradicted claim is a wrong fact a raider reads; an
-    unsupported one ranges from a cause the outputs don't show to a detail they don't state, so it's counted apart."""
+    """How many answers state something misleading that their tool outputs don't back (and of those that passed), and
+    each rubric rule's yes rate where it applied."""
     every = [x for xs in out.values() for x in xs]
-    wrong = [x for x in every if x["grounded"]["contradicted"]]
-    lines = [f"answers stating something their tool outputs contradict: {len(wrong)}/{len(every)} "
-             f"({sum(bool(x['passed']) for x in wrong)} of them passed); claims contradicted "
-             f"{sum(len(x['grounded']['contradicted']) for x in every)}, unsupported "
-             f"{sum(len(x['grounded']['unsupported']) for x in every)}, over {len(every)} answers"]
+    wrong = [x for x in every if x["grounded"]["misleading"]]
+    lines = [f"answers stating something misleading their tool outputs don't back: {len(wrong)}/{len(every)} "
+             f"({sum(bool(x['passed']) for x in wrong)} of them passed; "
+             f"{sum(len(x['grounded']['misleading']) for x in every)} claims)"]
     for rule in RUBRIC:
         applied = [x["rubric"].get(rule) for x in every if x["rubric"].get(rule) is not None]
         lines.append(f"{rule}: {sum(applied)}/{len(applied)}" + (f" ({sum(applied) / len(applied):.0%})"
@@ -691,6 +693,8 @@ def main() -> None:
     parser.add_argument("--agreement", action="store_true", help="compare the judge with your marks")
     parser.add_argument("--lint", action="store_true",
                         help="check the cases' numbers against the tools' output now (no model)")
+    parser.add_argument("--endings", action="store_true",
+                        help="the engine's reading of how each case's pull ended against the experts' (no model)")
     parser.add_argument("--coverage", action="store_true",
                         help="what the cases cover: tools, kinds of question, places, bosses (no model)")
     parser.add_argument("--recheck", metavar="RESULTS",
@@ -709,6 +713,8 @@ def main() -> None:
         asyncio.run(_lint_then_drain(args.filter))
     elif args.recheck:
         asyncio.run(recheck(Path(args.recheck), args.judge_model, args.filter))
+    elif args.endings:
+        asyncio.run(_endings_then_drain())
     elif args.coverage:
         from evals.coverage import report
         print("\n".join(report(load_cases(), HERE / "results")))
@@ -747,6 +753,17 @@ async def _lint_then_drain(only: str) -> None:
         f"{flagged} numbers no tool prints now" if flagged else "every number is in its tools' output"))
     if flagged:
         raise SystemExit(1)
+
+
+async def _endings_then_drain() -> None:
+    from evals.endings import endings
+    frozen()
+    try:
+        cases = [c for c in load_cases() if c.get("cause")]
+        agree, lines = await endings(cases)
+    finally:
+        await cache().drain()
+    print("\n".join(lines) + f"\nThe engine leads with the expert's cause on {agree} of {len(cases)} pulls.")
 
 
 async def _run_then_drain(args) -> None:

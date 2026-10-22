@@ -16,3 +16,4 @@ CLAUDE.local.md
 .import_linter_cache/
 tests/fixtures/real/tools/recording.sqlite*
 tests/fixtures/real/tools/local/
+evals/grounding-labels.jsonl

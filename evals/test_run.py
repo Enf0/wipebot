@@ -158,15 +158,15 @@ def test_a_run_counts_facts_calls_and_first_calls_apart_from_passing():
                                          "one of the case's tools in 1/2 (50%)")
 
 
-def test_a_recheck_leads_with_answers_whose_tools_contradict_them():
+def test_a_recheck_leads_with_answers_stating_something_misleading():
     from evals.run import recheck_summary
-    def x(passed, contradicted, unsupported, scores):
-        return {"passed": passed, "grounded": {"ok": not (contradicted or unsupported), "contradicted": contradicted,
-                                                "unsupported": unsupported}, "rubric": scores, "cost_usd": 0.0}
-    out = {"a": [x(True, ["wrong time"], [], {"verdict_first": True, "concrete_fix": None, "few_changes": True}),
-                 x(False, [], ["a guess"], {"verdict_first": False, "concrete_fix": True, "few_changes": True})],
-           "b": [x(True, [], [], {"verdict_first": True, "concrete_fix": None, "few_changes": None})]}
+
+    def x(passed, misleading, scores):
+        return {"passed": passed, "grounded": {"ok": not misleading, "misleading": misleading}, "rubric": scores,
+                "cost_usd": 0.0}
+    out = {"a": [x(True, ["wrong time"], {"verdict_first": True, "concrete_fix": None, "few_changes": True}),
+                 x(False, [], {"verdict_first": False, "concrete_fix": True, "few_changes": True})],
+           "b": [x(True, [], {"verdict_first": True, "concrete_fix": None, "few_changes": None})]}
     assert recheck_summary(out) == [
-        "answers stating something their tool outputs contradict: 1/3 (1 of them passed); claims contradicted 1, "
-        "unsupported 1, over 3 answers",
+        "answers stating something misleading their tool outputs don't back: 1/3 (1 of them passed; 1 claims)",
         "verdict_first: 2/3 (67%)", "concrete_fix: 1/1 (100%)", "few_changes: 2/2 (100%)"]

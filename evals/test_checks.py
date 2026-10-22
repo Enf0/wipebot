@@ -83,14 +83,14 @@ async def test_a_facts_reply_missing_a_line_is_asked_again_then_none(replies):
     assert await checks.facts("why?", ["a", "b"], "answer", "sonnet") is None
 
 
-async def test_grounding_lists_contradicted_and_unsupported_claims_and_shows_the_judge_the_outputs(replies):
+async def test_grounding_lists_misleading_claims_and_shows_the_judge_the_outputs(replies):
     queue, asked = replies
-    queue.append("CONTRADICTED: \"pull 3 ended at 3:50\" – it ended at 4:14\n"
-                 "UNSUPPORTED: \"the healers caused it\" – nothing shows that\nNOT GROUNDED")
+    queue.append("MISLEADING: \"pull 3 ended at 3:50\" – it ended at 4:14\n"
+                 "MISLEADING: \"the healers caused it\" – nothing shows that\nNOT GROUNDED")
     calls = [{"name": "pull_summary", "args": {"pull": 3}, "result": "Pull ended at 4:14."}]
     g = await checks.grounded("Why?", "It ended at 3:50; the healers caused it.", calls, "sonnet")
-    assert g.ok is False and g.contradicted == ["\"pull 3 ended at 3:50\" – it ended at 4:14"]
-    assert g.unsupported == ["\"the healers caused it\" – nothing shows that"]
+    assert g.ok is False and g.misleading == ["\"pull 3 ended at 3:50\" – it ended at 4:14",
+                                              "\"the healers caused it\" – nothing shows that"]
     assert '[pull_summary {"pull": 3}]\nPull ended at 4:14.' in asked[0]
     queue.append("Every claim is in the outputs.\nGROUNDED")
     assert (await checks.grounded("Why?", "An enrage.", calls, "sonnet")).ok is True

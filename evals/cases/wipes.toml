@@ -5,6 +5,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "wipe-enrage-hidden-by-deaths"
+cause = "enrage: Unbound Ferocity"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "compare_pulls", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 question = "Why did we wipe on Sszorak pull 13?"
 pull = 13
@@ -19,6 +20,7 @@ wrong = ["the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the p
 
 [[case]]
 id = "wipe-too-few-alive"
+cause = "ability: Mutilate"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 question = "Why did we wipe on our last Sszorak pull?"
 expect = """The first Mutilate after the intermission killed four at once, which with the earlier deaths left too few alive
@@ -34,6 +36,7 @@ wrong = ["the deaths after 2:32 lost the pull",
 
 [[case]]
 id = "wipe-who-started-it"  # the raid leader's "who wiped us?": the first domino, not the most deaths
+cause = "deaths from 0:46"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_summary", "pull_timeline", "tank_swaps"]
 question = "Who wiped us on pull 14?"
 pull = 14
@@ -53,6 +56,7 @@ wrong = ["blames the players the Mutilate killed at 1:07 as the cause",
 
 [[case]]
 id = "wipe-was-a-reset"
+cause = "reset"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "death_recap", "pull_summary", "pull_timeline"]
 question = "Why did we wipe on pull 9?"
 pull = 9
@@ -63,6 +67,7 @@ wrong = ["analyses pull 9's deaths as if it were a real attempt"]
 
 [[case]]
 id = "wipe-enrage-after-collapse"  # the boss enraged, but the raid had died before it: deaths, not the timer
+cause = "deaths from 7:02"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "compare_pulls", "pull_summary", "pull_timeline"]
 report = "f8X1bzJ3T6HpArac"
 question = "We hit the enrage on Ula'tek at 6.4%. Do we need more DPS?"
@@ -82,6 +87,7 @@ wrong = ["says the enrage (Fury Unleashed) ended the pull, or that the raid ran 
 wrong_in_channel = ["names a player who died to Caustic Waves or Volatile Purge"]
 [[case]]
 id = "wipe-unkicked-add"  # killing blows that are the raid's own attacks, on players the curse turned
+cause = "deaths from 4:14"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "enemies", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "ZRNhqaprvfmBgMkH"
 where = "in a DM"  # who had a kick ready is a fact; who should have kicked, only a note shows
@@ -104,6 +110,7 @@ wrong = ["her energy bar filling (Uncoiled Rage) ended the pull",
          what the log or a raid note shows (e.g. 'Grusarn should have kicked'); saying who had a kick ready is fine"""]
 [[case]]
 id = "wipe-adds"
+cause = "ability: Pulsing Tides"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "enemies", "pull_summary", "pull_timeline"]
 report = "GM8XdBHaqpFgxK9Q"
 question = "Why did we wipe on Nymrissa Wavecaller pull 3?"
@@ -122,6 +129,7 @@ wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
 wrong_in_channel = ["names a player who died"]
 [[case]]
 id = "wipe-tank-death"  # the first domino: a tank death that leaves a tank mechanic to the raid
+cause = "deaths from 7:00"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_summary", "pull_timeline", "tank_swaps"]
 report = "dTQMvNbBcPh6mDrA"
 question = "We had them at 15% on pull 5, why did we wipe?"
@@ -142,6 +150,7 @@ wrong = ["says the tank's first death at 2:51 lost the pull",
 wrong_in_channel = ["names the tank who died"]
 [[case]]
 id = "wipe-droplet-explosion"  # 10 dead in one second to erupting droplets, behind a lone death at 2:26
+cause = "ability: Noxious Blast"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "GM8XdBHaqpFgxK9Q"
 question = "Why did we wipe on Sentinels pull 16?"
@@ -162,6 +171,7 @@ wrong = ["says the death at 2:26 lost the pull",
 wrong_in_channel = ["names the players who died"]
 [[case]]
 id = "wipe-heroic-failed-soak"
+cause = "ability: Calcified Corpse"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 report = "PjKR7hQwtYpd8WDz"
 question = "We had Ula'tek at 6.2% on pull 6. Why did we wipe?"
@@ -181,6 +191,7 @@ wrong = ["says the tank's death at 7:54, the Caustic Waves or the platform break
 wrong_in_channel = ["names the player who carried the unsoaked Serpent's Bite, or a player who died"]
 [[case]]
 id = "wipe-second-fury-not-stacked"
+cause = "enrage: Unbound Ferocity"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "compare_pulls", "pull_map", "pull_summary", "pull_timeline"]
 where = "in a DM"  # who stood outside the stack is a fact; who should have been in it, only the plan shows
 question = "Why did we wipe on Sszorak pull 24?"
@@ -218,6 +229,7 @@ wrong = ["Wutroll's death is placed on pull 13",
 
 [[case]]
 id = "wipe-imbibe-totems"  # totems going off are the wipe; the healing cooldowns were there and couldn't carry it
+cause = "ability: Malignance"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "enemies", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "kTMfFRQ324Hvx6G7"
 question = "Why did we wipe on Vashnik pull 6?"
@@ -257,6 +269,7 @@ wrong = ["a healing gap or a missing defensive is what killed them", "says a def
 
 [[case]]
 id = "wipe-tank-solo-soak"  # a Mutilate soaked by one tank, then a follow-up about the asker's own death
+cause = "deaths from 0:15"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "tank_swaps"]
 where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
 question = ["Why did we wipe on pull 20?", "ok and what should I personally have done?"]

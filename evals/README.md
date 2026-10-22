@@ -86,15 +86,16 @@ The judge sees the question and the answer, not what the tools returned, so it c
 a wrong time, a cause the log doesn't show. `just evals --recheck results/X.json` checks a saved run's answers again
 without asking again, and keeps what it finds in `results/rechecks/X.json`. Neither check fails an answer:
 
-- **Grounded** (`checks.grounded`): the judge reads the answer's tool calls and their outputs, and lists each claim
-  about the raid they contradict or don't back. A contradicted claim is a wrong fact a raider reads, so the summary
-  leads with the answers that state one; unsupported ones run from a cause the outputs don't show to a detail they
-  don't state, and are counted apart.
+- **Grounded** (`checks.grounded`, Opus): the judge reads the answer's tool calls and their outputs, and lists each
+  claim that would mislead a raider and that they don't back: a cause, fault or job the log doesn't show, where
+  players stood, a cooldown's length or when it's ready, a comparison no output makes, a contradicted number. Against
+  a Claude council's labels of 26 answers it flagged every answer the council found such a claim in, and half the
+  rest: a list to read and compare between runs, not a verdict.
 - **Rubric** (`checks.RUBRIC`): how the answer is built, by the skill's rules for every answer, one question each:
   does it open with its main finding, does a recommended change say who does what and when, and are the changes few
   and ordered. Each rule's yes rate where it applied.
 
-`-k` picks cases as in a run. A recheck costs the judge's tokens only, about $0.15 an answer.
+`-k` picks cases as in a run. A recheck costs the judges' tokens only, about $0.20 an answer.
 
 ## Coverage
 
