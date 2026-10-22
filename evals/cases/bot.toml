@@ -85,3 +85,15 @@ wrong = ["names someone outside those six as having kept Helical Toxins to the e
          "says the log shows each player's orb count or who collided with whom",
          "says Ula'tek's Dominance or the deaths after 3:04 lost the pull",
          "refuses to name anyone"]
+[[case]]
+id = "between-pulls-quick"  # between pulls: at most three short bullets
+tools = ["pull_summary"]
+hard = true
+question = "quick, why did we wipe? pulling again in a sec"
+pull = 33
+boss = "Sszorak"
+expect = """Short: a one-line verdict and at most three one-sentence bullets. Mutilate killed four at 2:15, leaving too
+few for the Serpent's Fury stack, so the boss enraged at 2:32; the fix is that soak."""
+facts = ["2:15", "2:32"]
+wrong = ["runs past three bullets or into headed sections",
+         "blames the enrage's fallout deaths after 2:32"]
