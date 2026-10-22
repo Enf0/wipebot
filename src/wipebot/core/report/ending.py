@@ -216,19 +216,19 @@ def lead(e: Ending | None) -> str:
     return e.kind
 
 
-def ruled_out(e: Ending | None, enrages: list[tuple[str, float]], decided: Decided | None) -> str | None:
-    """What a wipe no enrage buff decided wasn't: a buff gained near the end, or a damage check, unless the guide names
-    an enrage that is a cast (the log can't tell one from a hit killing many). None for a kill, a reset, a pull still
-    going, or one an enrage buff decided."""
+def ruled_out(e: Ending | None, kept: list[tuple[str, float]], decided: Decided | None) -> str | None:
+    """What a wipe no enrage buff decided wasn't: a buff gained near the end (`kept`: every one the boss kept to the
+    end, Report.end_buffs), or a damage check, unless the guide names an enrage that is a cast (the log can't tell one
+    from a hit killing many). None for a kill, a reset, a pull still going, or one an enrage buff decided."""
     if e is None or e.kind not in ("moments", "cascade") or any(isinstance(m, KeptBuff) for m in e.moments):
         return None
-    late = [(name, at) for name, at in enrages if decided and at > decided.at_ms]
+    late = [(name, at) for name, at in kept if decided and at > decided.at_ms]
     if late:
-        return (f"Not an enrage buff: the boss gained {late[0][0]} at {clock(late[0][1])}, after the wipe was decided "
-                f"at {clock(decided.at_ms) if decided else '?'}, so it's fallout. Unless the guide names a cast that "
-                "ends the fight on a timer, deaths lost it, not a damage check.")
-    return ("Not an enrage buff: the boss kept none gained near the end. Unless the guide names a cast that ends the "
-            "fight on a timer, deaths lost it, not a damage check.")
+        head = (f"Not an enrage buff: the boss gained {late[0][0]} at {clock(late[0][1])}, after the wipe was decided "
+                f"at {clock(decided.at_ms) if decided else '?'}, so it's fallout.")
+    else:
+        head = "Not an enrage buff: no buff the boss gained near the end decided it."
+    return head + " Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check."
 
 
 def kind_of_end(e: Ending | None) -> str:
