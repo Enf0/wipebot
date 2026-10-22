@@ -1,0 +1,154 @@
+EncounterID:3421;Difficulty:Mythic;Name:Twin Fangs
+
+time:16;ph:1;tag:Lïzårðmâñ;spellid:363534;
+time:37;ph:1;tag:Enfo;spellid:114052;
+time:38;ph:1;tag:Namsus;spellid:200183;
+time:43;ph:1;tag:Nexsozz;spellid:51052;
+time:43;ph:1;tag:Cptola;spellid:31884;
+time:57;ph:1;tag:Dragepie;spellid:374968;
+time:58;ph:1;tag:Attractîv;spellid:106898;
+time:61;ph:1;tag:Pomaa;spellid:97462;
+time:61;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:70;ph:1;tag:Lïzårðmâñ;spellid:357170;text:Time Dilation on Wutroll;DisplayType:Text;
+time:70;ph:1;tag:Karadim;spellid:6940;text:Sac Wutroll;
+time:99;ph:1;tag:Namsus;spellid:64843;
+time:108;ph:1;tag:Cptola;spellid:31821;
+time:118;ph:1;tag:Sonyosh;spellid:192077;
+time:120;ph:1;tag:Attractîv;spellid:106898;
+time:120;ph:1;tag:Enfo;spellid:98008;
+time:122;ph:1;tag:Dragepie;spellid:374227;
+time:122;ph:1;tag:Dscopi;spellid:196718;
+time:134;ph:1;tag:Lïzårðmâñ;spellid:374968;
+time:134;ph:1;tag:Enfo;spellid:192077;
+time:193;ph:1;tag:Namsus;spellid:200183;
+time:198;ph:1;tag:Cptola;spellid:31884;
+time:208;ph:1;tag:Lïzårðmâñ;spellid:363534;
+time:213;ph:1;tag:Dragepie;spellid:374968;
+time:215;ph:1;tag:Attractîv;spellid:106898;
+time:216;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:217;ph:1;tag:Enfo;spellid:114052;
+time:225;ph:1;tag:Lïzårðmâñ;spellid:357170;text:Time Dilation on Wutroll;
+time:225;ph:1;tag:Karadim;spellid:6940;text:Sac Wutroll;
+time:254;ph:1;tag:Namsus;spellid:64843;
+time:259;ph:1;tag:Nexsozz;spellid:51052;
+time:273;ph:1;tag:Sonyosh;spellid:192077;
+time:276;ph:1;tag:Attractîv;spellid:106898;
+time:277;ph:1;tag:Dragepie;spellid:374227;
+time:288;ph:1;tag:Lïzårðmâñ;spellid:374968;
+time:289;ph:1;tag:Enfo;spellid:192077;
+time:297;ph:1;tag:Pomaa;spellid:97462;
+time:348;ph:1;tag:Namsus;spellid:200183;
+time:353;ph:1;tag:Cptola;spellid:31884;
+time:357;ph:1;tag:Cptola;spellid:31821;
+time:368;ph:1;tag:Dragepie;spellid:374968;
+time:370;ph:1;tag:Attractîv;spellid:106898;
+time:370;ph:1;tag:Enfo;spellid:98008;
+time:371;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:371;ph:1;tag:Dscopi;spellid:196718;
+time:380;ph:1;tag:Lïzårðmâñ;spellid:357170;text:Time Dilation on Wutroll;
+time:380;ph:1;tag:Karadim;spellid:6940;text:Sac Wutroll;
+time:400;ph:1;tag:Enfo;spellid:114052;
+time:409;ph:1;tag:Namsus;spellid:64843;
+time:424;ph:1;tag:Lïzårðmâñ;spellid:363534;
+time:428;ph:1;tag:Sonyosh;spellid:192077;
+time:431;ph:1;tag:Attractîv;spellid:106898;
+time:432;ph:1;tag:Dragepie;spellid:374227;
+time:443;ph:1;tag:Lïzårðmâñ;spellid:374968;
+time:444;ph:1;tag:Enfo;spellid:192077;
+time:61;ph:1;tag:Peggerino Krøpling Zebinomage Enfo Cptola Namsus;text:Soak First, Knock Right;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:122;ph:1;tag:Peggerino Krøpling Zebinomage Enfo Cptola Namsus;text:Soak First, Knock Right;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:216;ph:1;tag:Peggerino Krøpling Zebinomage Enfo Cptola Namsus;text:Soak First, Knock Right;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:277;ph:1;tag:Peggerino Krøpling Zebinomage Enfo Cptola Namsus;text:Soak First, Knock Right;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:371;ph:1;tag:Peggerino Krøpling Zebinomage Enfo Cptola Namsus;text:Soak First, Knock Right;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:432;ph:1;tag:Peggerino Krøpling Zebinomage Enfo Cptola Namsus;text:Soak First, Knock Right;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:63;ph:1;tag:Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ;text:Soak Second, Knock Left;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:124;ph:1;tag:Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ;text:Soak Second, Knock Left;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:218;ph:1;tag:Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ;text:Soak Second, Knock Left;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:279;ph:1;tag:Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ;text:Soak Second, Knock Left;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:373;ph:1;tag:Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ;text:Soak Second, Knock Left;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:434;ph:1;tag:Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ;text:Soak Second, Knock Left;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:65;ph:1;tag:Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll;text:Soak Third, Knock Center;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:126;ph:1;tag:Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll;text:Soak Third, Knock Center;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:220;ph:1;tag:Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll;text:Soak Third, Knock Center;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:281;ph:1;tag:Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll;text:Soak Third, Knock Center;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:375;ph:1;tag:Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll;text:Soak Third, Knock Center;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:436;ph:1;tag:Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll;text:Soak Third, Knock Center;dur:8;colors:1 0.16 0.16 1;DisplayType:Text;
+time:37.5;ph:1;tag:Sonyosh;text:Kick #1 left;dur:5;colors:0.2 0.4 1 1;DisplayType:Text;
+time:98.5;ph:1;tag:Sonyosh;text:Kick #1 left;dur:5;colors:0.2 0.4 1 1;DisplayType:Text;
+time:192.5;ph:1;tag:Sonyosh;text:Kick #1 left;dur:5;colors:0.2 0.4 1 1;DisplayType:Text;
+time:253.5;ph:1;tag:Sonyosh;text:Kick #1 left;dur:5;colors:0.2 0.4 1 1;DisplayType:Text;
+time:347.5;ph:1;tag:Sonyosh;text:Kick #1 left;dur:5;colors:0.2 0.4 1 1;DisplayType:Text;
+time:408.5;ph:1;tag:Sonyosh;text:Kick #1 left;dur:5;colors:0.2 0.4 1 1;DisplayType:Text;
+time:38.5;ph:1;tag:Karadim;text:Kick #1 right;dur:6;colors:0 1 1 1;DisplayType:Text;
+time:99.5;ph:1;tag:Karadim;text:Kick #1 right;dur:6;colors:0 1 1 1;DisplayType:Text;
+time:193.5;ph:1;tag:Karadim;text:Kick #1 right;dur:6;colors:0 1 1 1;DisplayType:Text;
+time:254.5;ph:1;tag:Karadim;text:Kick #1 right;dur:6;colors:0 1 1 1;DisplayType:Text;
+time:348.5;ph:1;tag:Karadim;text:Kick #1 right;dur:6;colors:0 1 1 1;DisplayType:Text;
+time:409.5;ph:1;tag:Karadim;text:Kick #1 right;dur:6;colors:0 1 1 1;DisplayType:Text;
+time:39.5;ph:1;tag:Attractîv;text:Kick #2 left;dur:7;colors:0.2 0.4 1 1;DisplayType:Text;
+time:100.5;ph:1;tag:Attractîv;text:Kick #2 left;dur:7;colors:0.2 0.4 1 1;DisplayType:Text;
+time:194.5;ph:1;tag:Attractîv;text:Kick #2 left;dur:7;colors:0.2 0.4 1 1;DisplayType:Text;
+time:255.5;ph:1;tag:Attractîv;text:Kick #2 left;dur:7;colors:0.2 0.4 1 1;DisplayType:Text;
+time:349.5;ph:1;tag:Attractîv;text:Kick #2 left;dur:7;colors:0.2 0.4 1 1;DisplayType:Text;
+time:410.5;ph:1;tag:Attractîv;text:Kick #2 left;dur:7;colors:0.2 0.4 1 1;DisplayType:Text;
+time:40.5;ph:1;tag:Enfo;text:Kick #2 right;dur:8;colors:0 1 1 1;DisplayType:Text;
+time:101.5;ph:1;tag:Enfo;text:Kick #2 right;dur:8;colors:0 1 1 1;DisplayType:Text;
+time:195.5;ph:1;tag:Enfo;text:Kick #2 right;dur:8;colors:0 1 1 1;DisplayType:Text;
+time:256.5;ph:1;tag:Enfo;text:Kick #2 right;dur:8;colors:0 1 1 1;DisplayType:Text;
+time:350.5;ph:1;tag:Enfo;text:Kick #2 right;dur:8;colors:0 1 1 1;DisplayType:Text;
+time:411.5;ph:1;tag:Enfo;text:Kick #2 right;dur:8;colors:0 1 1 1;DisplayType:Text;
+time:41.5;ph:1;tag:Algmor;text:Kick #3 left;dur:9;colors:0.2 0.4 1 1;DisplayType:Text;
+time:102.5;ph:1;tag:Algmor;text:Kick #3 left;dur:9;colors:0.2 0.4 1 1;DisplayType:Text;
+time:196.5;ph:1;tag:Algmor;text:Kick #3 left;dur:9;colors:0.2 0.4 1 1;DisplayType:Text;
+time:257.5;ph:1;tag:Algmor;text:Kick #3 left;dur:9;colors:0.2 0.4 1 1;DisplayType:Text;
+time:351.5;ph:1;tag:Algmor;text:Kick #3 left;dur:9;colors:0.2 0.4 1 1;DisplayType:Text;
+time:412.5;ph:1;tag:Algmor;text:Kick #3 left;dur:9;colors:0.2 0.4 1 1;DisplayType:Text;
+time:42.5;ph:1;tag:Krøpling;text:Kick #3 right;dur:10;colors:0 1 1 1;DisplayType:Text;
+time:103.5;ph:1;tag:Krøpling;text:Kick #3 right;dur:10;colors:0 1 1 1;DisplayType:Text;
+time:197.5;ph:1;tag:Krøpling;text:Kick #3 right;dur:10;colors:0 1 1 1;DisplayType:Text;
+time:258.5;ph:1;tag:Krøpling;text:Kick #3 right;dur:10;colors:0 1 1 1;DisplayType:Text;
+time:352.5;ph:1;tag:Krøpling;text:Kick #3 right;dur:10;colors:0 1 1 1;DisplayType:Text;
+time:413.5;ph:1;tag:Krøpling;text:Kick #3 right;dur:10;colors:0 1 1 1;DisplayType:Text;
+time:43.5;ph:1;tag:Dscopi;text:Kick #4 left;dur:11;colors:0.2 0.4 1 1;DisplayType:Text;
+time:104.5;ph:1;tag:Dscopi;text:Kick #4 left;dur:11;colors:0.2 0.4 1 1;DisplayType:Text;
+time:198.5;ph:1;tag:Dscopi;text:Kick #4 left;dur:11;colors:0.2 0.4 1 1;DisplayType:Text;
+time:259.5;ph:1;tag:Dscopi;text:Kick #4 left;dur:11;colors:0.2 0.4 1 1;DisplayType:Text;
+time:353.5;ph:1;tag:Dscopi;text:Kick #4 left;dur:11;colors:0.2 0.4 1 1;DisplayType:Text;
+time:414.5;ph:1;tag:Dscopi;text:Kick #4 left;dur:11;colors:0.2 0.4 1 1;DisplayType:Text;
+time:44.5;ph:1;tag:Peggerino;text:Kick #4 right;dur:12;colors:0 1 1 1;DisplayType:Text;
+time:105.5;ph:1;tag:Peggerino;text:Kick #4 right;dur:12;colors:0 1 1 1;DisplayType:Text;
+time:199.5;ph:1;tag:Peggerino;text:Kick #4 right;dur:12;colors:0 1 1 1;DisplayType:Text;
+time:260.5;ph:1;tag:Peggerino;text:Kick #4 right;dur:12;colors:0 1 1 1;DisplayType:Text;
+time:354.5;ph:1;tag:Peggerino;text:Kick #4 right;dur:12;colors:0 1 1 1;DisplayType:Text;
+time:415.5;ph:1;tag:Peggerino;text:Kick #4 right;dur:12;colors:0 1 1 1;DisplayType:Text;
+time:45.5;ph:1;tag:Dragepie;text:Kick #5 left;dur:13;colors:0.2 0.4 1 1;DisplayType:Text;
+time:106.5;ph:1;tag:Dragepie;text:Kick #5 left;dur:13;colors:0.2 0.4 1 1;DisplayType:Text;
+time:200.5;ph:1;tag:Dragepie;text:Kick #5 left;dur:13;colors:0.2 0.4 1 1;DisplayType:Text;
+time:261.5;ph:1;tag:Dragepie;text:Kick #5 left;dur:13;colors:0.2 0.4 1 1;DisplayType:Text;
+time:355.5;ph:1;tag:Dragepie;text:Kick #5 left;dur:13;colors:0.2 0.4 1 1;DisplayType:Text;
+time:416.5;ph:1;tag:Dragepie;text:Kick #5 left;dur:13;colors:0.2 0.4 1 1;DisplayType:Text;
+time:46.5;ph:1;tag:Zebinomage;text:Kick #5 right;dur:14;colors:0 1 1 1;DisplayType:Text;
+time:107.5;ph:1;tag:Zebinomage;text:Kick #5 right;dur:14;colors:0 1 1 1;DisplayType:Text;
+time:201.5;ph:1;tag:Zebinomage;text:Kick #5 right;dur:14;colors:0 1 1 1;DisplayType:Text;
+time:262.5;ph:1;tag:Zebinomage;text:Kick #5 right;dur:14;colors:0 1 1 1;DisplayType:Text;
+time:356.5;ph:1;tag:Zebinomage;text:Kick #5 right;dur:14;colors:0 1 1 1;DisplayType:Text;
+time:417.5;ph:1;tag:Zebinomage;text:Kick #5 right;dur:14;colors:0 1 1 1;DisplayType:Text;
+
+Ravenous Feast and Tainted Blood Groups
+Right: Peggerino Krøpling Zebinomage Enfo Cptola Namsus
+Left: Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ
+Center: Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll
+
+Broodling Kicks - Cast Order
+Kick #1 left: Sonyosh
+Kick #1 right: Karadim
+Kick #2 left: Attractîv
+Kick #2 right: Enfo
+Kick #3 left: Algmor
+Kick #3 right: Krøpling
+Kick #4 left: Dscopi
+Kick #4 right: Peggerino
+Kick #5 left: Dragepie
+Kick #5 right: Zebinomage
+
+invitelist:Karadim-Kazzak,Wutroll-Kazzak,Cptola-Frostmane,Enfo-Kazzak,Lïzårðmâñ-Kazzak,Namsus-TarrenMill,Draiman-Kazzak,Nalaxd-TarrenMill,Nexsozz-Stormscale,Pomaa-TarrenMill,Slushmania-Kazzak,Dragepie-TarrenMill,Krøpling-Kazzak,Peggerino-Kazzak,Sonyosh-Kazzak,Zebinomage-TarrenMill,Dscopi-Kazzak,Algmor-Kazzak,Agonco-Kazzak,Attractîv-Turalyon;

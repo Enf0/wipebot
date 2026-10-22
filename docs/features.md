@@ -135,11 +135,15 @@ again.
 - **The note** ("did people do their jobs?", "who missed their soak?", "were the cooldowns on time?"):
   - each soak: who in the assigned group wasn't hit (alive or dead), and who else was;
   - each planned cooldown: cast on time, early, late or not at all;
+  - each kick assignment (a callout to one player as an add begins its cast): who kicked that cast, or whether it went
+    through;
   - each callout ("Big Personals" to everyone, a job for one player): what the players it names pressed around that
     time, and what they had ready.
 
-  Over the whole night, it counts per player: soaks missed while alive, cooldowns on time or not, and how often they
-  answered each callout.
+  Over the whole night, it counts per player: soaks missed while alive, cooldowns on time or not, kicks made, and how
+  often they answered each callout. When the note's kick order only fits the later pulls (a raider joined or the
+  order was changed, and the note was pasted afterwards), it says from which pull, what the pulls before had, and
+  counts the kicks from that pull on. A note saved only after the pulls it's checked against is said to be so.
 - **The plan** ("was everyone on their spot?"): at each moment of the plan's mechanic, who was off their spot and by
   how far, whose spot they stood at instead, who was dead, and who was hit by the debuff from whom. Since the plan has
   no room coordinates, it is fitted to where the raid stood, so a player is off relative to the rest of the raid. A

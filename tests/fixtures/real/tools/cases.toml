@@ -92,6 +92,8 @@ raid-note-night = { tool = "raid_note", report = "vjt3KLbN8g62J1H9", boss = "Ssz
 # kick assignments: callouts to one player as each Broodling begins Visceral Burst, neighbours swapping sides
 raid-note-kicks = { tool = "raid_note", report = "fvkH4hGZwDRVnyXJ", boss = "Twin Fangs", pull = 14, note = { file = "notes/twin-fangs-2026-10-19.txt" } }
 raid-note-kicks-night = { tool = "raid_note", report = "fvkH4hGZwDRVnyXJ", boss = "Twin Fangs", all_pulls = true, note = { file = "notes/twin-fangs-2026-10-19.txt" } }
+# the night's final note, its kick order brought in at pull 12 (a raider joined, another moved); kicks counted from there
+raid-note-order-change = { tool = "raid_note", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", all_pulls = true, note = { file = "notes/twin-fangs-2026-10-21.txt" } }
 # spots against where everyone stood as Virulence ran out: mirrored on one side of the room, as drawn on the other
 # (the plan is a later version than the night's pulls had)
 raid-plan = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", pull = 42, plan = { file = "plans/sszorak-2026-10-14.txt" } }
