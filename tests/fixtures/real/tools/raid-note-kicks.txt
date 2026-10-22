@@ -71,3 +71,4 @@ Kick assignments (a callout to one player when an add begins a cast someone kick
   0:44 Peggerino "Kick #4 right": kicked the cast begun at 0:43
   0:45 Agonco "Kick #5 left": no kick (alive); their cast, begun at 0:46, went through
   0:46 Zebinomage "Kick #5 right": kicked the cast begun at 0:45
+  Went through in the 10 s before the wipe was decided at 0:56: "Kick #5 left" Agonco 0:46 (alive)

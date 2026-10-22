@@ -13,7 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- `Agent` A kick on someone's cast that another player took, such as a tank backing up, now counts as covered instead of missed: the cast was handled. Who missed most is now whose casts went through.
+- `Agent` A kick on someone's cast that another player took, such as a tank backing up, now counts as covered instead of missed: the cast was handled. Who missed most is now whose casts went through, and the pulls lost within seconds of kicks going through are named, with which assignments they were.
 
 ## [0.2.0] - 2026-10-22
 

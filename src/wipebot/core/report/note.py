@@ -43,6 +43,9 @@ KICK_WAVE_GAP_MS = 5_000  # kick assignments this close together are one wave of
 # by another before too, or the assignment's player wasn't in those pulls. Otherwise one player kicked a cast not
 # theirs, pull after pull: a mistake the kicks show.
 ORDER_KICKS, ORDER_SHARE, ASSIGNEE_SHARE = 4, 0.5, 0.25
+# A kick assignment's cast that went through this close before the wipe was decided is named with the wipe: what
+# it did (the add's spell) is for the boss's guide and the pull's ending to say.
+LOST_AFTER_MS = 10_000
 KICKS_ARE = ("Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss "
              "that night). Which side's add begins first varies, so a note timed for one side is a second off for the "
              "other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking "
@@ -403,6 +406,9 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
         else:
             line += f"no kick ({k.state}); their cast, begun at {clock(k.cast[0])}, {_cast_end(k.cast)}"
         lines.append(line)
+    if before := _through_before(c):
+        lines.append(f"  Went through in the {LOST_AFTER_MS // 1000} s before the wipe was decided at "
+                     f"{clock(c.until)}: " + ", ".join(_through(k) for k in before))
     if c.unavailable:
         lines.append(c.unavailable)
     if c.missing:
@@ -963,4 +969,22 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
     if through:
         out.append("  Their casts that went through, per assignment: " + ", ".join(
             f"\"{t}\" {n}" for t, n in _by_count(through)))
+    lost = [(c, before) for c in checks if (before := _through_before(c))]
+    if lost:
+        out.append(f"  Pulls whose wipe was decided within {LOST_AFTER_MS // 1000} s after casts on assignments went "
+                   f"through, {len(lost)} of {len(checks)} (when it was decided, then the casts): " + "; ".join(
+                       f"p{rep.pull_no(c.f)} {clock(c.until)} (" + ", ".join(_through(k) for k in before) + ")"
+                       for c, before in lost[:LISTED])
+                   + (f" and {len(lost) - LISTED} more" if len(lost) > LISTED else ""))
     return out
+
+
+def _through_before(c: PullCheck) -> list[KickCheck]:
+    """The kick assignments whose casts went through in the LOST_AFTER_MS before the pull's wipe was decided."""
+    if c.decided is None:
+        return []
+    return [k for k in c.kicks if k.cast[1] == "went through" and c.until - LOST_AFTER_MS <= k.cast[0] <= c.until]
+
+
+def _through(k: KickCheck) -> str:
+    return f"\"{k.callout.text}\" {k.player} {clock(k.cast[0])} ({k.state})"
