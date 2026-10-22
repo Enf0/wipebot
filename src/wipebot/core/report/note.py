@@ -972,18 +972,39 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
     lost = [(c, before) for c in checks if (before := _through_before(c))]
     if lost:
         out.append(f"  Pulls whose wipe was decided within {LOST_AFTER_MS // 1000} s after casts on assignments went "
-                   f"through, {len(lost)} of {len(checks)} (when it was decided, then the casts): " + "; ".join(
-                       f"p{rep.pull_no(c.f)} {clock(c.until)} (" + ", ".join(_through(k) for k in before) + ")"
-                       for c, before in lost[:LISTED])
-                   + (f" and {len(lost) - LISTED} more" if len(lost) > LISTED else ""))
+                   f"through, {len(lost)} of {len(checks)} (when it was decided, then the casts, first one first): "
+                   + "; ".join(f"p{rep.pull_no(c.f)} {clock(c.until)} (" + ", ".join(_through(k) for k in before) + ")"
+                               for c, before in lost))
+        out.append(_first_through(rep, lost))
     return out
+
+
+def _first_through(rep: Report, lost: list[tuple[PullCheck, list[KickCheck]]]) -> str:
+    """Of those pulls, whose cast went through first: the miss that let the wipe in; the casts after it are left out."""
+    first: dict[str, list[tuple[dict, KickCheck]]] = defaultdict(list)
+    no_one = []
+    for c, before in lost:
+        if before[0].state == "alive":
+            first[before[0].player].append((c.f, before[0]))
+        else:
+            no_one.append(f"p{rep.pull_no(c.f)} ({before[0].player} {before[0].state})")
+    texts = {n: {k.callout.text for _, k in got} for n, got in first.items()}
+    return ("  On those pulls, per player, whose cast went through first while they were alive (the casts after it "
+            "aren't counted against anyone): " + "; ".join(
+                f"{n} {len(got)}: " + ", ".join(
+                    f"p{rep.pull_no(f)} {clock(k.cast[0])}" + (f" \"{k.callout.text}\"" if len(texts[n]) > 1 else "")
+                    for f, k in got)
+                for n, got in sorted(first.items(), key=lambda i: (-len(i[1]), i[0])))
+            + (f"; no one's, the first cast's player dead or not in the pull: {', '.join(no_one)}" if no_one else ""))
 
 
 def _through_before(c: PullCheck) -> list[KickCheck]:
     """The kick assignments whose casts went through in the LOST_AFTER_MS before the pull's wipe was decided."""
     if c.decided is None:
         return []
-    return [k for k in c.kicks if k.cast[1] == "went through" and c.until - LOST_AFTER_MS <= k.cast[0] <= c.until]
+    return sorted((k for k in c.kicks
+                   if k.cast[1] == "went through" and c.until - LOST_AFTER_MS <= k.cast[0] <= c.until),
+                  key=lambda k: k.cast[0])
 
 
 def _through(k: KickCheck) -> str:
