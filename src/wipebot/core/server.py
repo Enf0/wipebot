@@ -1113,10 +1113,11 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
     character's or guild's data. The other tools are faster and know how to read a wipe; this is for the rest, and
     spends the hour's Warcraft Logs points that every tool shares.
     With `query`: the answer as compact JSON, in parts when long, with what it cost and the hour's points left;
-    kept for 10 minutes, so its parts and a repeat cost nothing. With `schema_type`: that type's fields, their
-    arguments and types, to write a query from. The roots: reportData { report(code) { fights, playerDetails,
-    events, table, rankings, masterData } }, worldData { encounter(id) { fightRankings, characterRankings },
-    zone(id) }, characterData { character(name, serverSlug, serverRegion) }, guildData { guild(...) }.
+    kept for 10 minutes, so its parts and a repeat cost nothing. One over 3 parts is refused, with which fields
+    made it long. With `schema_type`: that type's fields, their arguments and types, to write a query from. The
+    roots: reportData { report(code) { fights, playerDetails, events, table, rankings, masterData } }, worldData {
+    encounter(id) { fightRankings, characterRankings }, zone(id) }, characterData { character(name, serverSlug,
+    serverRegion) }, guildData { guild(...) }.
     Reading it: times in a report are milliseconds from its start; events come a page at a time (nextPageTimestamp
     is where the next starts); table and rankings are JSON inside the answer. Rankings are kept per partition (a
     patch's), and a new one is empty for a while: an empty ranking may need zone(id) { partitions } and an older

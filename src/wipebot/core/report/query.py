@@ -10,6 +10,10 @@ from .base import FactError
 
 RESERVE_POINTS = 600  # of the hour's points, kept for the other tools: a query is refused past the rest
 ANSWER_CHARS = 12_000  # an answer is shown in parts this long
+MAX_PARTS = 3  # a longer answer is refused: each part is another turn of the model's (about 20 s)
+EMPTY_FILTERED = ("\n(Empty with a filterExpression: Warcraft Logs answers one it can't read, such as a field it "
+                  "doesn't have like `fight` or a typo, with nothing too, as if nothing matched. In it `timestamp` "
+                  "counts ms from each fight's start; pulls go in fightIDs. Ask once without it to tell them apart.)")
 KEEP_S = 10 * 60  # an answer is kept this long, so its parts and a repeat cost no points
 ROOTS = ("reportData", "worldData", "characterData", "guildData", "progressRaceData", "rateLimitData")
 RATE = "rateLimitData { limitPerHour pointsSpentThisHour pointsResetIn }"
@@ -74,7 +78,7 @@ async def query_text(wcl: WCL, query: str, code: str | None, part: int = 1) -> s
     q = _checked(query, code)
     kept = None if cache().frozen else cache().get(cache_key("wcl", q, {}))
     if kept and kept[1] <= KEEP_S:  # asked moments ago (its next part, or again): no points, so no checks of them
-        return _parts(kept[0], f"Warcraft Logs' answer (kept from {kept[1] / 60:.0f} min ago: no points)", part)
+        return _parts(kept[0], f"Warcraft Logs' answer (kept from {kept[1] / 60:.0f} min ago: no points)", part, q)
     before = await _rate(wcl)
     left = before["limitPerHour"] - RESERVE_POINTS - before["pointsSpentThisHour"]
     if left <= 0:
@@ -89,16 +93,41 @@ async def query_text(wcl: WCL, query: str, code: str | None, part: int = 1) -> s
     cost = max(0.0, after["pointsSpentThisHour"] - before["pointsSpentThisHour"])
     return _parts(data, f"Warcraft Logs' answer ({cost:.0f} points; {after['pointsSpentThisHour']:.0f} of "
                         f"{after['limitPerHour']} spent this hour, {RESERVE_POINTS} of them kept for the other tools)",
-                  part)
+                  part, q)
 
 
-def _parts(data: dict, head: str, part: int) -> str:
-    """An answer as compact JSON, part `part` of it, under `head`."""
+def _parts(data: dict, head: str, part: int, query: str) -> str:
+    """An answer as compact JSON, part `part` of it, under `head`; one longer than MAX_PARTS raises FactError
+    with what made it long."""
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     n = max(1, -(-len(text) // ANSWER_CHARS))
+    if n > MAX_PARTS:
+        raise FactError(f"the answer is {len(text):,} characters ({n} parts), too long to read: {_sizes(data)}. Ask "
+                        "for less: fewer fields, the pulls needed in fightIDs, a filterExpression, a lower limit, or "
+                        "one query per question")
     part = min(max(part, 1), n)
     if n > 1:
         head += (f", part {part} of {n} ({len(text):,} characters: a narrower query, fewer fields or a shorter time "
                  "range, reads better than every part)")
     tail = f"\n(Part {part} of {n}: the next is part {part + 1}.)" if part < n else ""
-    return f"{head}:\n{text[(part - 1) * ANSWER_CHARS:part * ANSWER_CHARS]}{tail}"
+    empty = EMPTY_FILTERED if "filterExpression" in query and _has_empty(data) else ""
+    return f"{head}:\n{text[(part - 1) * ANSWER_CHARS:part * ANSWER_CHARS]}{tail}{empty}"
+
+
+def _sizes(data: dict) -> str:
+    """Where an answer's characters are: each field under the single-field wrappers (reportData, report), biggest
+    first."""
+    while isinstance(data, dict) and len(data) == 1 and isinstance(next(iter(data.values())), dict):
+        data = next(iter(data.values()))
+    sizes = sorted(((k, len(json.dumps(v, ensure_ascii=False, separators=(",", ":")))) for k, v in data.items()),
+                   key=lambda kv: -kv[1])
+    return ", ".join(f"{k} {n:,}" for k, n in sizes)
+
+
+def _has_empty(data) -> bool:
+    """Whether an answer has an empty list of events or table rows (`data`, `auras`, `entries`)."""
+    if isinstance(data, dict):
+        return any((k in ("data", "auras", "entries") and v == []) or _has_empty(v) for k, v in data.items())
+    if isinstance(data, list):
+        return any(_has_empty(v) for v in data)
+    return False
