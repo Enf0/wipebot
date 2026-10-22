@@ -44,7 +44,7 @@ The guild's best wipe before the night: 62.6% on Mon 5 Oct (pull 13, https://www
   42: 34.1% P1 (3rd time) 4:49 first death Peggerino (Virulence, 2:36); boss Unbound Ferocity from 4:39 best of the night until then
 Average wipe % (resets left out): first third 72.2, middle 70.9, last third 66.6
 The boss gained Unbound Ferocity and kept it to the end on 24 of 42 pulls, gained at 0:39 (3 pulls), 1:16-1:25 (13 pulls), 2:30-2:32 (7 pulls), 4:39 (1 pull).
-How the pulls ended, by the first thing that ended each (pull_summary's "Ended by"): the boss gaining Unbound Ferocity (kept to the end) 11, Mutilate killing many 8, deaths one after another 8, many dying at once, no killing blow 7, Viscous Cyst killing many 3, a reset 2, Raging Crosswinds killing many 1, Ravage killing many 1, Tempest killing many 1.
+How the pulls ended, by the first thing that ended each (pull_summary's "Ended by"): the boss gaining Unbound Ferocity and keeping it to the end 11, Mutilate killing many 8, deaths one after another 8, many dying at once, no killing blow 7, Viscous Cyst killing many 3, a reset 2, Raging Crosswinds killing many 1, Ravage killing many 1, Tempest killing many 1.
 Killers of the first 3 deaths per pull (deaths after the boss gained one of those buffs left out): Tempest x30, no killing blow recorded x19, Mutilate x17, Mutilated Gash x14, Virulence x12, Caustic Claws x5
 The night's killer (deaths until each wipe was decided): Tempest [1287083], 58 deaths over 40 pulls, the first death on 12 of them; killed most: Scopidruid 7, Enfo 6, Sonyosh 6, Nexsozz 6; hit most (until each wipe was decided): Deathadim (tank) 165, Peggerino 85, Sonyosh 78, Fappachino 68.
 
