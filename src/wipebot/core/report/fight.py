@@ -1,7 +1,6 @@
 """One pull in order: its summary and how it ended (`pull_summary`), and its timeline (`pull_timeline`)."""
 import asyncio
 import json
-import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
@@ -19,10 +18,10 @@ from .base import (
     FactError,
     Report,
     alive_after,
-    alive_at,
     half_dead,
     unavailable,
 )
+from .ending import ending, ending_text
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -48,63 +47,6 @@ def boss_left(f: dict) -> str:
                                            if fight is not None and abs(fight - pct) >= 0.05 else "")
 
 
-MASS_DEATH_MS = 2000  # deaths to one ability this close together are one hit killing many
-MASS_DEATH_SHARE = 5  # a fifth of the raid (at least 3) dying in one hit is a raid-wiping mechanic
-
-
-def ended_by(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float]], raid: int,
-             buffs: list[tuple[str, float]], decided: tuple[float, str] | None) -> str | None:
-    """How a wipe ended, from the log alone, earliest first: one ability killing many at once, a buff the boss
-    kept to the end, half the raid dead, or deaths one after another; what each mechanic is, the guide says. None
-    for a kill."""
-    if f["kill"]:
-        return None
-    t0 = f["startTime"]
-    if f.get("inProgress"):
-        return f"Ended by: not yet, the pull is still going ({clock(f['endTime'] - t0)} logged so far)."
-    if is_reset(f):
-        return "Ended by: a reset (the boss untouched)."
-    until = t0 + decided[0] if decided else f["endTime"]
-    before = [d for d in deaths if d["timestamp"] <= until]
-    half = half_dead(deaths, backs, raid) if decided and decided[1] == "half the raid was dead" else None
-    events: list[tuple[float, str]] = []
-    mass = max(3, math.ceil(raid / MASS_DEATH_SHARE))
-    i = 0
-    while i < len(before):
-        name = rep.ability(before[i].get("killingAbilityGameID"))  # by name: an ability logs under several ids
-        hit = [d for d in before[i:] if d["timestamp"] - before[i]["timestamp"] <= MASS_DEATH_MS
-               and rep.ability(d.get("killingAbilityGameID")) == name]
-        if len(hit) >= mass:
-            within = (f"within {max(1, round((hit[-1]['timestamp'] - hit[0]['timestamp']) / 1000))} s at "
-                      f"{clock(hit[0]['timestamp'] - t0)}")
-            if ids := sorted({gid for d in hit if (gid := d.get("killingAbilityGameID"))}):
-                text = (f"{name} [{', '.join(map(str, ids))}] killed {len(hit)} {within} (one ability killing many "
-                        "at once: find which mechanic failed)")
-            else:
-                text = (f"{len(hit)} died at once, no killing blow logged, {within} (one moment killing many: a "
-                        "fall, a knockback or a hit the log doesn't name; find which mechanic failed)")
-            events.append((hit[0]["timestamp"] - t0, text))
-            i = before.index(hit[-1]) + 1
-        else:
-            i += 1
-    for name, gained in buffs:
-        if t0 + gained > until:  # gained once the wipe was decided: fallout too
-            continue
-        alive = alive_at(deaths, backs, raid, t0 + gained)
-        events.append((gained, f"the boss gained {name} at {clock(gained)} and kept it to the end, {alive} of "
-                               f"{raid} alive (look it up: an enrage makes every later death fallout)"))
-    if not events and half is not None:  # half the raid dead, with no hit killing many and no enrage: a cascade
-        first = before[0]["timestamp"] - t0
-        return (f"Ended by: deaths from {clock(first)} until half the raid was dead at {clock(half - t0)}, no "
-                "single hit killing many: start from the first death and follow what each left short.")
-    if not events:
-        alive = alive_at(deaths, backs, raid, f["endTime"])
-        return f"Ended by: called off at {clock(f['endTime'] - t0)} with {alive} of {raid} alive."
-    if half is not None:
-        events.append((half - t0, f"half the raid was dead at {clock(half - t0)}"))
-    return "Ended by (from the log, earliest first): " + "; then ".join(text for _, text in sorted(events)) + "."
-
-
 async def pull_summary(rep: Report, pull: int | None = None, boss: str | None = None) -> str:
     f = rep.fight(pull, boss)
     deaths = await rep.deaths(f)
@@ -113,13 +55,13 @@ async def pull_summary(rep: Report, pull: int | None = None, boss: str | None = 
     decided = await rep.decided_at(f)
     backs = (await rep.resurrects([f]))[f["id"]]
     lines = [await rep.summary(f), f"Warcraft Logs: {rep.url(f)}"]
-    if ended := ended_by(rep, f, deaths, backs, raid, await rep.enrages(f), decided):
+    if ended := ending_text(ending(rep, f, deaths, backs, raid, await rep.enrages(f), decided)):
         lines.append(ended)
     if phases := rep.phases(f):
         lines.append(f"Phases: {phases}")
     lines += ["", f"Raid size {raid}. Deaths in order (time from pull start, players alive after it, a battle res "
                   "or self-res counted):"]
-    half = decided[0] if decided and decided[1] == "half the raid was dead" else None
+    half = decided.at_ms if decided and not decided.enrage else None
     for i, (d, alive) in enumerate(zip(deaths, alive_after(deaths, backs, raid), strict=True)):
         p = rep.players.get(rep.names[d["targetID"]].lower())
         at = d["timestamp"] - f["startTime"]

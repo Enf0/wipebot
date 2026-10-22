@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError, spaced
-from ..pulls import FIRST_DEATHS, is_reset, pct_text, wipe_pct
+from ..pulls import FIRST_DEATHS, Decided, is_reset, pct_text, wipe_pct
 from ..text import clock, name_key, plural, short
 from ..wcl import WCLError
 from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, Report, unavailable
@@ -141,9 +141,9 @@ async def _taken_line(rep: Report, f: dict, p: Player) -> str:
     return f"Damage taken{note}: " + ", ".join(f"{e['name']} {short(e['total'])}" for e in taken)
 
 
-def _decided_ts(f: dict, decided: tuple[float, str] | None) -> float:
+def _decided_ts(f: dict, decided: Decided | None) -> float:
     """When a pull stopped counting: the moment the wipe was decided, or its end."""
-    return f["startTime"] + decided[0] if decided else f["endTime"]
+    return f["startTime"] + decided.at_ms if decided else f["endTime"]
 
 
 def _dead_s(f: dict, deaths: list[dict], casts: list[dict], end: float) -> float:
@@ -155,7 +155,7 @@ def _dead_s(f: dict, deaths: list[dict], casts: list[dict], end: float) -> float
 
 
 def time_lost(f: dict, deaths: list[dict], casts: list[dict], gaps: list[tuple[float, float]], resource: str,
-              capped: list[tuple[float, float]], decided: tuple[float, str] | None) -> str:
+              capped: list[tuple[float, float]], decided: Decided | None) -> str:
     """Where a player's time went, in seconds until the wipe was decided (or the pull's end), so a death, casting
     gaps and a capped resource can be weighed in one unit: dead loses all output, a gap the casts not begun, the
     cap only that resource's gain. Biggest first."""
@@ -176,8 +176,8 @@ def time_lost(f: dict, deaths: list[dict], casts: list[dict], gaps: list[tuple[f
 async def _death_note(rep: Report, f: dict, death: dict) -> str:
     """' (after the wipe was decided at 2:32)' for a death in a wipe's fallout, else ''."""
     decided = await rep.decided_at(f)
-    if decided and death["timestamp"] - f["startTime"] > decided[0]:
-        return f" (after the wipe was decided at {clock(decided[0])}: fallout)"
+    if decided and death["timestamp"] - f["startTime"] > decided.at_ms:
+        return f" (after the wipe was decided at {clock(decided.at_ms)}: fallout)"
     return " (before the wipe was decided)" if decided else ""
 
 
@@ -369,7 +369,7 @@ async def _night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list
             f, q, next((e for e in entries if e.get("id") == p.id), None),
             [e for e in entries if (o := here.get(e.get("id"))) and o.role == q.role],
             alive(rep, f, p, own, ordered)[0], _dead_s(f, own, ordered, end), (end - f["startTime"]) / 1000,
-            death, bool(death and decided and death[1]["timestamp"] - f["startTime"] > decided[0]), rows,
+            death, bool(death and decided and death[1]["timestamp"] - f["startTime"] > decided.at_ms), rows,
             await parse(rep, f, q) if f["kill"] else None))
     skipped = {n for _, s in uses for n in s or []}
     return out, skipped, why

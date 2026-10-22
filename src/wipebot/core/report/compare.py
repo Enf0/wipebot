@@ -82,7 +82,7 @@ async def _pace(rep: Report, f: dict, k: dict, code: str, fight_id: int, ours: d
     """The pull against the kill's pace, until our wipe was decided or the kill ended: boss health at the same
     moments, since when ours was behind, the enrage if the boss gained one, and deaths so far on each side."""
     decided = await rep.decided_at(f)
-    our_end = decided[0] if decided else f["endTime"] - f["startTime"]
+    our_end = decided.at_ms if decided else f["endTime"] - f["startTime"]
     kill_end = k["endTime"] - k["startTime"]
     upto = min(our_end, kill_end)
     moments = [t for t in range(PACE_STEP_MS, int(upto) + 1, PACE_STEP_MS)
@@ -91,7 +91,7 @@ async def _pace(rep: Report, f: dict, k: dict, code: str, fight_id: int, ours: d
         return "Pace against the kill: boss health not logged."
     behind = {t: (_value(ours.get("health"), t) or 0) - (_value(theirs.get("health"), t) or 0) for t in moments}
     last = moments[-1]
-    until = (f"until our wipe was decided at {clock(our_end)} ({decided[1]})" if decided and our_end <= kill_end
+    until = (f"until our wipe was decided at {clock(our_end)} ({decided.why})" if decided and our_end <= kill_end
              else f"until the kill ended at {clock(kill_end)}" if kill_end <= our_end
              else f"until our pull ended at {clock(our_end)}")
     text = f"Pace against the kill (boss health at the same moment, {until}): "
@@ -150,7 +150,7 @@ async def compare_pulls(rep: Report, pull_a: int | None, pull_b: int, boss: str 
     for n in (pull_a, pull_b):
         f = rep.fight(n, boss)
         decided = await rep.decided_at(f)
-        cut = f["startTime"] + decided[0] if decided else math.inf
+        cut = f["startTime"] + decided.at_ms if decided else math.inf
         deaths = await rep.deaths(f)
         killers = [Counter(rep.ability(d.get("killingAbilityGameID"))
                            for d in deaths if (d["timestamp"] <= cut) == before) for before in (True, False)]
@@ -159,7 +159,7 @@ async def compare_pulls(rep: Report, pull_a: int | None, pull_b: int, boss: str 
         top = sorted(t["entries"], key=lambda e: -e.get("total", 0))[:8]
         out.append("\n".join([
             await rep.summary(f),
-            (f"All killers until the wipe was decided ({decided[1]} at {clock(decided[0])}): " if decided
+            (f"All killers until the wipe was decided ({decided.why} at {clock(decided.at_ms)}): " if decided
              else "All killers: ") + (", ".join(f"{a} x{c}" for a, c in killers[0].most_common()) or "none"),
             *(["All killers after that (fallout): "
                + (", ".join(f"{a} x{c}" for a, c in killers[1].most_common()) or "none")] if decided else []),

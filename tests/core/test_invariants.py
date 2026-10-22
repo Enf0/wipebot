@@ -12,13 +12,20 @@ import pytest
 
 from tests.support.recorded import CASES, LOCAL_RECORDED, NOT_LOCAL, Replay, serve_from
 from wipebot.core import server
-from wipebot.core.pulls import BUFF_GRACE_MS, NO_KILLING_BLOW, PullSummary, attempt, format_summary, summarize
+from wipebot.core.pulls import (
+    BUFF_GRACE_MS,
+    NO_KILLING_BLOW,
+    Decided,
+    PullSummary,
+    attempt,
+    format_summary,
+    summarize,
+)
 from wipebot.core.report import Report, coaching, mechanics, night, ranks
 from wipebot.core.report.base import DEATH_BURST_MS, DEATH_GAP_MS, alive_after, alive_at, alive_ms
 
 REPORTS = sorted({c.args["report"] for c in CASES.values() if "report" in c.args})
 MIN_PULLS = 100  # about half the reports' pulls: those some case read every death and battle res of
-HALF = "half the raid was dead"
 
 
 @dataclass
@@ -29,7 +36,7 @@ class Pull:
     deaths: list[dict]
     backs: dict[int, list[float]]  # battle res and self-res, per player
     raid: int
-    decided: tuple[float, str] | None
+    decided: Decided | None
     summary: PullSummary
 
     @property
@@ -62,7 +69,7 @@ async def _pulls(rep: Report, fights: list[dict]) -> list[Pull]:
         except LookupError:
             continue  # no case read this pull
         s = summarize(f, rep.by_boss[rep.boss_key(f)], deaths, rep.names, rep.abilities, buffs, routine, None,
-                      *(decided or (None, "")))
+                      decided)
         out.append(Pull(rep.code, f"{rep.code} {rep.label(f)}", f, deaths, backs, raid, decided, s))
     return out
 
@@ -135,14 +142,14 @@ async def test_a_kill_has_no_decided_moment_and_no_fallout(recorded):
 async def test_the_decided_moment_is_within_the_pull(recorded):
     for p in recorded.pulls:
         if p.decided:
-            assert 0 <= p.decided[0] <= p.f["endTime"] - p.f["startTime"], p.label
+            assert 0 <= p.decided.at_ms <= p.f["endTime"] - p.f["startTime"], p.label
 
 
 async def test_a_death_is_fallout_exactly_when_it_came_after_the_decided_moment(recorded):
     """Counted and fallout split every death of the pull, by the moment alone."""
     for p in recorded.pulls:
         assert len(p.summary.deaths) == len(p.deaths), p.label
-        at = p.decided[0] if p.decided else math.inf
+        at = p.decided.at_ms if p.decided else math.inf
         assert [d.fallout for d in p.summary.deaths] == [d.at_ms > at for d in p.summary.deaths], p.label
 
 
@@ -150,8 +157,8 @@ async def test_one_moments_deaths_are_never_split_into_counted_and_fallout(recor
     """A burst of deaths logged ms apart is one moment: the first fallout death comes more than DEATH_GAP_MS after
     the last counted one, unless the burst ran past DEATH_BURST_MS."""
     for p in recorded.pulls:
-        counted = [p.at(d) for d in p.deaths if p.decided and p.at(d) <= p.decided[0]]
-        later = [p.at(d) for d in p.deaths if p.decided and p.at(d) > p.decided[0]]
+        counted = [p.at(d) for d in p.deaths if p.decided and p.at(d) <= p.decided.at_ms]
+        later = [p.at(d) for d in p.deaths if p.decided and p.at(d) > p.decided.at_ms]
         if counted and later and later[0] - counted[-1] <= DEATH_GAP_MS:
             burst = [t for t in counted if counted[-1] - t <= DEATH_BURST_MS]
             assert counted[-1] - burst[0] >= DEATH_BURST_MS - DEATH_GAP_MS, p.label
@@ -171,10 +178,10 @@ def _first_half_dead(p: Pull) -> float | None:
 async def test_half_the_raid_dead_is_a_death_with_half_the_raid_dead(recorded):
     """A wipe decided by half the raid dead is decided at a death, with at least ⌈n/2⌉ of the n players dead (a
     battle res counted), at the first moment that was so or within the burst of deaths it fell in."""
-    halves = [p for p in recorded.pulls if p.decided and p.decided[1] == HALF]
+    halves = [p for p in recorded.pulls if p.decided and not p.decided.enrage]
     assert halves
     for p in halves:
-        t0, at = p.f["startTime"], p.decided[0]
+        t0, at = p.f["startTime"], p.decided.at_ms
         assert any(p.at(d) == at for d in p.deaths), p.label
         assert p.raid - alive_at(p.deaths, p.backs, p.raid, t0 + at) >= math.ceil(p.raid / 2), p.label
         first = _first_half_dead(p)
@@ -204,7 +211,7 @@ async def test_players_alive_stay_within_the_raid_and_go_up_only_with_a_battle_r
 async def test_time_alive_runs_to_a_players_first_death_and_on_after_a_battle_res(recorded):
     for p in recorded.pulls:
         start = p.f["startTime"]
-        end = start + p.decided[0] if p.decided else p.f["endTime"]
+        end = start + p.decided.at_ms if p.decided else p.f["endTime"]
         for who in {d["targetID"] for d in p.deaths}:
             first = min(next(d["timestamp"] for d in p.deaths if d["targetID"] == who), end)
             alive = alive_ms(p.deaths, p.backs.get(who, []), who, start, end)
@@ -254,7 +261,7 @@ async def test_a_mechanics_deaths_are_its_hits_deaths(recorded):
     for case, pulls, h, ids in recorded.hits:
         whole = CASES[case].args.get("whole_pull", False)
         died = Counter(d["targetID"] for p in pulls for d in p.deaths if d.get("killingAbilityGameID") in ids
-                       and (whole or not p.decided or p.at(d) <= p.decided[0]))
+                       and (whole or not p.decided or p.at(d) <= p.decided.at_ms))
         assert h.killed_by == died, case
         for who, n in h.killed_by.items():
             assert n <= h.hits[who] + h.ticks[who] and n <= h.died_after[who], case

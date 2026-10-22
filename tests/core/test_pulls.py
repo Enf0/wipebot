@@ -2,6 +2,7 @@
 fixtures/real/<code>.summaries.md, and the rules behind it."""
 from tests.support import CODE, REAL, FakeWCL, assert_snapshot
 from wipebot.core.pulls import (
+    Decided,
     GuildBest,
     best_marks,
     end_buffs,
@@ -166,7 +167,8 @@ def test_end_buffs_count_from_the_pull_and_its_edges():
 def test_a_wipe_with_no_death_after_the_decision_or_none_says_plainly_what_killed():
     deaths = [{"timestamp": 30_000, "targetID": 7, "killingAbilityGameID": 1}]
     for decided in (None, 45_000):
-        s = summarize(WIPE, [WIPE], deaths, {7: "Torvek"}, {1: "Tempest"}, decided_ms=decided)
+        s = summarize(WIPE, [WIPE], deaths, {7: "Torvek"}, {1: "Tempest"},
+                      decided=Decided(decided) if decided else None)
         assert format_summary(s).splitlines()[-1] == "Killed by: Tempest ×1"
 
 
