@@ -67,7 +67,7 @@ wrong = ["names a player who should practise more or who dies most",
          "points at one raider by a class, spec, spell or job only they have"]
 
 [[case]]
-id = "held-out-sentinels-helical-officers"  # a channel with names on: who carried Helical Toxins to the end (answer #392)
+id = "real-sentinels-helical-officers"  # a channel with names on: who carried Helical Toxins to the end (answer #392)
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "raid_note", "wcl_query"]
 report = "cZ8rp13y72gBQKY9"
 where = "in #officers [names on]"

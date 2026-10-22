@@ -12,6 +12,7 @@
     just evals --lint                 # the cases' numbers against today's tool output (no model; after `just snapshot`)
     just evals --coverage             # what the cases cover: tools, kinds of question, places, bosses (no model)
     just evals --api-key              # bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude login)
+    just evals --recheck evals/results/X.json  # a run's answers again: claims its tools don't back, and the rubric
 
 Warcraft Logs data and the guides come from evals/cache.sqlite (untracked), frozen: what a run asks that isn't there
 is fetched once and kept, never refreshed, so every run on a machine reads the same data, as of the time it was
@@ -41,7 +42,19 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from evals.checks import EXPECT, FACTS, FAIL_VOTES, WRONG, expect_prompt, facts, judge_majority, wrong_prompt
+from evals.checks import (
+    EXPECT,
+    FACTS,
+    FAIL_VOTES,
+    RUBRIC,
+    WRONG,
+    expect_prompt,
+    facts,
+    grounded,
+    judge_majority,
+    rubric,
+    wrong_prompt,
+)
 from wipebot.core import server
 from wipebot.core.cache import cache
 from wipebot.discord import config
@@ -485,6 +498,57 @@ def compare(base: dict, now: dict) -> list[str]:
     return lines
 
 
+async def recheck(path: Path, judge_model: str, only: str = "") -> None:
+    """A saved run's answers checked again, without asking again: the claims about the raid their tool outputs don't
+    back (checks.grounded) and how each is built (checks.RUBRIC). Neither fails an answer; both are kept in
+    results/rechecks/, under the run's name."""
+    run = json.loads(path.read_text(encoding="utf-8"))
+    cases = {c["id"]: c for c in load_cases()}
+    client = run.get("mode", "plugin") != "bot"
+    todo = [(c, i, t) for c, ts in run["cases"].items() if c in cases and picked(cases[c], only)
+            for i, t in enumerate(ts) if t.get("answer") and not t.get("errored")]
+    jobs = asyncio.Semaphore(2 * JOBS)
+    out: dict[str, list[dict]] = {}
+
+    async def one(c: str, i: int, t: dict) -> None:
+        async with jobs:
+            question = asked(cases[c], client)
+            g, (scores, cost) = await asyncio.gather(grounded(question, t["answer"], t.get("calls") or [], judge_model),
+                                                     rubric(question, t["answer"], judge_model))
+        out.setdefault(c, []).append({"trial": i, "passed": t.get("passed"), "grounded": asdict(g),
+                                      "rubric": scores, "cost_usd": g.cost_usd + cost})
+        flagged = [f"contradicted: {x}" for x in g.contradicted] + [f"unsupported: {x}" for x in g.unsupported]
+        print(f"{c:34} {'grounded' if g.ok else 'NOT GROUNDED' if g.ok is False else 'no verdict':12} "
+              + " ".join(f"{k}={'-' if v is None else 'y' if v else 'N'}" for k, v in scores.items())
+              + "".join(f"\n    {x[:240]}" for x in flagged), flush=True)
+
+    await asyncio.gather(*(one(*x) for x in todo))
+    print("\n" + "\n".join(recheck_summary(out)) + f"\n(judge {judge_model}, "
+          f"${sum(x['cost_usd'] for xs in out.values() for x in xs):.2f})")
+    saved = HERE / "results" / "rechecks" / path.name  # apart from the runs, which coverage and lint read
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_text(json.dumps({"run": path.name, "judge_model": judge_model, "cases": out}, indent=1,
+                                ensure_ascii=False), encoding="utf-8")
+    print(f"saved {saved}")
+
+
+def recheck_summary(out: dict[str, list[dict]]) -> list[str]:
+    """How many answers state something their tool outputs contradict (and of those that passed), the claims
+    flagged, and each rubric rule's yes rate where it applied. A contradicted claim is a wrong fact a raider reads; an
+    unsupported one ranges from a cause the outputs don't show to a detail they don't state, so it's counted apart."""
+    every = [x for xs in out.values() for x in xs]
+    wrong = [x for x in every if x["grounded"]["contradicted"]]
+    lines = [f"answers stating something their tool outputs contradict: {len(wrong)}/{len(every)} "
+             f"({sum(bool(x['passed']) for x in wrong)} of them passed); claims contradicted "
+             f"{sum(len(x['grounded']['contradicted']) for x in every)}, unsupported "
+             f"{sum(len(x['grounded']['unsupported']) for x in every)}, over {len(every)} answers"]
+    for rule in RUBRIC:
+        applied = [x["rubric"].get(rule) for x in every if x["rubric"].get(rule) is not None]
+        lines.append(f"{rule}: {sum(applied)}/{len(applied)}" + (f" ({sum(applied) / len(applied):.0%})"
+                                                                  if applied else ""))
+    return lines
+
+
 def commit() -> str:
     return subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
                           cwd=HERE).stdout.strip()
@@ -629,6 +693,8 @@ def main() -> None:
                         help="check the cases' numbers against the tools' output now (no model)")
     parser.add_argument("--coverage", action="store_true",
                         help="what the cases cover: tools, kinds of question, places, bosses (no model)")
+    parser.add_argument("--recheck", metavar="RESULTS",
+                        help="check a saved run's answers again: claims their tools don't back, and the rubric")
     parser.add_argument("--api-key", action="store_true",
                         help="bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude Code login)")
     args = parser.parse_args()
@@ -641,6 +707,8 @@ def main() -> None:
         asyncio.run(agreement(args.judge_model))
     elif args.lint:
         asyncio.run(_lint_then_drain(args.filter))
+    elif args.recheck:
+        asyncio.run(recheck(Path(args.recheck), args.judge_model, args.filter))
     elif args.coverage:
         from evals.coverage import report
         print("\n".join(report(load_cases(), HERE / "results")))
