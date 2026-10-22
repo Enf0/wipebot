@@ -156,3 +156,17 @@ def test_a_run_counts_facts_calls_and_first_calls_apart_from_passing():
     t = tally({"wipe": 1, "night": 1}, trials=3, errors={"wipe": 1}) | counts  # wipe: 2 answers judged
     assert how_answered(t, ["wipe"]) == ("supporting facts stated 5/6 (83%); 1.5 tool calls an answer; first call "
                                          "one of the case's tools in 1/2 (50%)")
+
+
+def test_a_recheck_leads_with_answers_whose_tools_contradict_them():
+    from evals.run import recheck_summary
+    def x(passed, contradicted, unsupported, scores):
+        return {"passed": passed, "grounded": {"ok": not (contradicted or unsupported), "contradicted": contradicted,
+                                                "unsupported": unsupported}, "rubric": scores, "cost_usd": 0.0}
+    out = {"a": [x(True, ["wrong time"], [], {"verdict_first": True, "concrete_fix": None, "few_changes": True}),
+                 x(False, [], ["a guess"], {"verdict_first": False, "concrete_fix": True, "few_changes": True})],
+           "b": [x(True, [], [], {"verdict_first": True, "concrete_fix": None, "few_changes": None})]}
+    assert recheck_summary(out) == [
+        "answers stating something their tool outputs contradict: 1/3 (1 of them passed); claims contradicted 1, "
+        "unsupported 1, over 3 answers",
+        "verdict_first: 2/3 (67%)", "concrete_fix: 1/1 (100%)", "few_changes: 2/2 (100%)"]

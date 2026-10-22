@@ -6,6 +6,7 @@ never fails it. Code also gives warnings that don't fail it (wipebot.discord.che
 credited for a fact.
 """
 import asyncio
+import json
 import re
 from dataclasses import dataclass
 
@@ -161,3 +162,106 @@ def expect_prompt(question: str, expect: str, answer: str) -> str:
 
 def wrong_prompt(question: str, wrong: list[str], answer: str) -> str:
     return WRONG.format(question=question, wrong="\n".join(f"- {w}" for w in wrong), answer=answer)
+
+
+# ---- checks that never fail an answer: run on saved answers (`just evals --recheck`) ----
+
+GROUNDED = """You check an answer from a World of Warcraft raid-analysis bot against what its tools returned. The tools
+compute every fact from the raid's log and fetch the guides; the bot should state only what they show.
+
+Question: {question}
+
+<tool_outputs>
+{outputs}
+</tool_outputs>
+
+<answer>
+{answer}
+</answer>
+
+List each claim the answer makes about this raid (a number, a time, who did or took what, what caused or lost a
+pull, what a player should change) that the tool outputs don't support. A claim is supported when the outputs state
+it, or it follows plainly from them and the guide text in them (a time worked out from two times, a mechanic the
+guide describes). Rounded numbers, other words and leaving things out are fine; general advice that names nothing in
+this raid ("use defensives") isn't a claim. Mark a claim CONTRADICTED when the outputs show otherwise, UNSUPPORTED
+when they show nothing that backs it (a cause the outputs don't point to, a number no output has, a guess stated as
+fact).
+
+Reply with one line per claim, "CONTRADICTED: ..." or "UNSUPPORTED: ...", quoting the answer briefly and saying in a
+few words what the outputs show; then a last line with only GROUNDED (no such claim) or NOT GROUNDED."""
+
+# How the answer is built, the skill's rules for every answer: each judged alone, binary, with "n/a" where the rule
+# doesn't apply. A score to watch, never a pass or fail.
+RUBRIC = {
+    "verdict_first": "Does the answer open with its main finding (what ended the pull, what cost the most, the "
+                     "direct answer to the question), rather than background, a list of events or a hedge?",
+    "concrete_fix": "When the answer recommends a change, does the change say who does what and when (a cast, a "
+                    "phase, a time, a mechanic's moment), rather than a general wish ('handle the mechanic better', "
+                    "'use more cooldowns')? Reply N/A when it recommends no change.",
+    "few_changes": "Does the answer keep its recommended changes few and ordered: at most one change for one pull, "
+                   "at most three, most important first, for a night or a player? Reply N/A when it recommends no "
+                   "change.",
+}
+
+RUBRIC_PROMPT = """You check one thing about an answer from a World of Warcraft raid-analysis bot that raiders ask in
+Discord.
+
+Question: {question}
+
+{rule}
+
+<answer>
+{answer}
+</answer>
+
+Reply with one sentence of reasoning, then a last line with only YES, NO or N/A."""
+
+GROUNDED_LINE = re.compile(r"^\s*(CONTRADICTED|UNSUPPORTED):\s*(.+)$", re.M)
+RUBRIC_VERDICT = re.compile(r"\b(YES|NO|N/A)\b")
+
+
+@dataclass
+class Grounding:
+    ok: bool | None  # None: the judge gave no verdict
+    contradicted: list[str]
+    unsupported: list[str]
+    cost_usd: float = 0.0
+
+
+def tool_outputs(calls: list[dict]) -> str:
+    """The answer's tool calls and what each returned, as the judge reads them."""
+    return "\n\n".join(f"[{c.get('name')} {json.dumps(c.get('args') or {}, ensure_ascii=False)}]\n{c.get('result')}"
+                       for c in calls)
+
+
+async def grounded(question: str, answer: str, calls: list[dict], model: str) -> Grounding:
+    """The answer's claims about the raid that its tool outputs don't back up or contradict."""
+    text, cost = await _ask_patiently(GROUNDED.format(question=question, outputs=tool_outputs(calls),
+                                                      answer=answer), model)
+    last = text.strip().splitlines()[-1].strip(" *`.").upper() if text.strip() else ""
+    found = GROUNDED_LINE.findall(text)
+    ok = True if last == "GROUNDED" else False if last == "NOT GROUNDED" else None
+    return Grounding(ok, [c for k, c in found if k == "CONTRADICTED"], [c for k, c in found if k == "UNSUPPORTED"],
+                     cost)
+
+
+async def rubric(question: str, answer: str, model: str) -> tuple[dict[str, bool | None], float]:
+    """Each RUBRIC rule's verdict on the answer: True, False, or None where it doesn't apply or the judge gave
+    none."""
+    async def one(rule: str) -> tuple[bool | None, float]:
+        text, cost = await _ask_patiently(RUBRIC_PROMPT.format(question=question, rule=rule, answer=answer), model)
+        verdicts = RUBRIC_VERDICT.findall(text)
+        return {"YES": True, "NO": False}.get(verdicts[-1] if verdicts else "", None), cost
+    got = await asyncio.gather(*(one(rule) for rule in RUBRIC.values()))
+    return dict(zip(RUBRIC, (v for v, _ in got), strict=True)), sum(c for _, c in got)
+
+
+async def _ask_patiently(prompt: str, model: str) -> tuple[str, float]:
+    """The judge's reply, asked again after a wait when the SDK fails (a usage limit or an overload); "" at last."""
+    for tries in range(1, JUDGE_TRIES + 1):
+        try:
+            return await _ask_judge(prompt, model)
+        except Exception:  # noqa: BLE001  the SDK's errors for a limit or an overload
+            if tries < JUDGE_TRIES:
+                await asyncio.sleep(JUDGE_WAIT_S * tries)
+    return "", 0.0

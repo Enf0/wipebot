@@ -76,6 +76,26 @@ comes with its expected spread: one trial can be off by several points, so run `
 difference. Cases marked `hard` (the bot still gets them wrong often) are counted apart, so the total shows a
 regression and the hard set an improvement.
 
+A pass rate near the top can't show an answer getting fuller or finding its tools faster, so a run also counts, and
+compares with the baseline: the supporting facts its answers stated, their tool calls per answer, and how often the
+first call was one of the case's `tools`.
+
+## Checking saved answers again
+
+The judge sees the question and the answer, not what the tools returned, so it can't catch a claim no case foresaw:
+a wrong time, a cause the log doesn't show. `just evals --recheck results/X.json` checks a saved run's answers again
+without asking again, and keeps what it finds in `results/rechecks/X.json`. Neither check fails an answer:
+
+- **Grounded** (`checks.grounded`): the judge reads the answer's tool calls and their outputs, and lists each claim
+  about the raid they contradict or don't back. A contradicted claim is a wrong fact a raider reads, so the summary
+  leads with the answers that state one; unsupported ones run from a cause the outputs don't show to a detail they
+  don't state, and are counted apart.
+- **Rubric** (`checks.RUBRIC`): how the answer is built, by the skill's rules for every answer, one question each:
+  does it open with its main finding, does a recommended change say who does what and when, and are the changes few
+  and ordered. Each rule's yes rate where it applied.
+
+`-k` picks cases as in a run. A recheck costs the judge's tokens only, about $0.15 an answer.
+
 ## Coverage
 
 Evals measure answers, not code, so they have no line coverage; `just evals --coverage` says what the cases cover
@@ -109,6 +129,7 @@ just eval-data                      # the frozen data the cases were written aga
 just evals --label results/X.json   # mark a run's answers yourself (labels.jsonl)
 just evals --agreement              # how often the judge agrees with your marks
 just evals --api-key                # bill the run to ANTHROPIC_API_KEY, not your Claude login
+just evals --recheck results/X.json # a saved run's answers again: claims its tools don't back, and the rubric
 ```
 
 A run is on your Claude Code login: it ignores an `ANTHROPIC_API_KEY` in `.env` (the bot's), so it's never billed

@@ -90,7 +90,7 @@ wrong = ["says every death with a ready defensive would have been saved",
          "says a defensive or healthstone would have saved a Mutilate or Ravage death"]
 
 [[case]]
-id = "held-out-holy-priest-night"  # a Holy Priest's night (answers #240-#241)
+id = "real-holy-priest-night"  # a Holy Priest's night (answers #240-#241)
 tools = ["compare_with_top", "find_reports", "healing", "player_night", "player_pull", "raid_note"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
@@ -110,7 +110,7 @@ wrong = ["faults their overhealing as a main problem", "says they died often or 
          "says they used Divine Hymn too often (the per-pull counts are its channel ticks)"]
 
 [[case]]
-id = "held-out-bm-hunter-vs-top"  # a Beast Mastery Hunter against the top (answers #339-#340)
+id = "real-bm-hunter-vs-top"  # a Beast Mastery Hunter against the top (answers #339-#340)
 tools = ["boss_guide", "compare_with_top", "defensives", "mechanic_hits", "player_night"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
@@ -129,7 +129,7 @@ wrong = ["says their talents differ from the top's",
          "says they cast Barbed Shot or Kill Command far less than the top parses"]
 
 [[case]]
-id = "held-out-subtlety-energy-follow-up"  # a Subtlety Rogue pushes back on the energy cap (answers #303-#304)
+id = "real-subtlety-energy-follow-up"  # a Subtlety Rogue pushes back on the energy cap (answers #303-#304)
 tools = ["boss_guide", "compare_with_top", "death_recap", "mechanic_hits", "player_night"]
 # The method under test: check the pushback against the top parses on the boss, who meet the same mechanics, rather
 # than taking or dropping it on faith.
@@ -150,7 +150,7 @@ wrong = ["says the energy cap is nothing to fix because of the mechanics, withou
          "compares them with a named raidmate"]
 
 [[case]]
-id = "held-out-explorers-crates"  # the log shows when crates were popped, not who popped them (answer #380)
+id = "real-explorers-crates"  # the log shows when crates were popped, not who popped them (answer #380)
 tools = ["boss_guide", "enemies", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "wcl_query"]
 report = "cZ8rp13y72gBQKY9"
 where = "in a DM"
@@ -173,7 +173,7 @@ wrong = ["names a player as one who popped crates too fast or took too many, eve
          "says the crates (Splinters) caused most of the deaths"]
 
 [[case]]
-id = "held-out-tempest-most-hits"  # after a question about the night; a Discord name only (answers #471-#472)
+id = "real-tempest-most-hits"  # after a question about the night; a Discord name only (answers #471-#472)
 tools = ["boss_guide", "breakdown", "find_reports", "mechanic_hits", "progress"]
 report = "cZ8rp13y72gBQKY9"
 where = "in a DM"
