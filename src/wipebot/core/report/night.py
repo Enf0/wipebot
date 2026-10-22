@@ -369,7 +369,6 @@ def weeks_text(boss: str, weeks: int, nights: list[BossNight]) -> str:
         best = f", best wipe {n.best[0]:.1f}% (pull {n.best[1]})" if n.best else ""
         ends = ", ".join(f"{what} {k}" for what, k in n.ends if what != "a kill")
         lines.append(f"  {date(n.start_ms)}: {plural(n.pulls, 'pull')}, {kill}{best}; ended by {ends or 'nothing yet'}")
-    bests = [f"{n.best[0]:.1f}" if n.best else ("kill" if n.kill else "-") for n in nights]
-    lines.append("Best wipe night by night: " + " → ".join(bests) + (" (a kill counts as done)" if "kill" in bests
-                                                                     else ""))
+    bests = [f"kill on pull {n.kill}" if n.kill else f"{n.best[0]:.1f}" if n.best else "-" for n in nights]
+    lines.append("Best wipe night by night: " + " → ".join(bests))
     return "\n".join(lines)

@@ -66,5 +66,5 @@ def test_weeks_read_night_by_night_with_the_best_wipe_trend():
         "  Thu 2025-10-09: 33 pulls, no kill, best wipe 34.1% (pull 42); ended by the boss gaining X and keeping it "
         "to the end 20, Mutilate killing many 8",
         "  Thu 2025-10-16: 14 pulls, killed on pull 14, best wipe 2.0% (pull 12); ended by deaths one after another 9",
-        "Best wipe night by night: 34.1 → 2.0"]
+        "Best wipe night by night: 34.1 → kill on pull 14"]
     assert night.weeks_text("Sszorak", 2, []) == "The guild's raid nights of the last 2 weeks have no pulls on Sszorak."
