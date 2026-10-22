@@ -570,8 +570,9 @@ async def note_night(rep: Report, f: dict, saved_at: list[float]) -> tuple[float
     since = max((t for t in saved_at if t <= start), default=0.0)
     if not since or since > start - NIGHT_APART_S:
         return since, until
-    try:
-        logs = await rep.wcl.guild_reports(rep.guild_id or 0, since * 1000, pulls=True, cache_for=wcl.GUILD_REPORTS_S)
+    try:  # from a night before: a version saved during a night's raid, after its log began
+        logs = await rep.wcl.guild_reports(rep.guild_id or 0, (since - NIGHT_APART_S) * 1000, pulls=True,
+                                           cache_for=wcl.GUILD_REPORTS_S)
     except WCLError:
         return since, until
     ended = [r["endTime"] / 1000 for r in logs if f["name"] in (r.get("bosses") or {})
