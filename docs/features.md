@@ -172,6 +172,8 @@ the same way the bot does. Other clients get only the tools ([reference/mcp-clie
 - **Who it names:** in a server channel it doesn't blame players: it says what went wrong and how to fix it, without
   names. Praise is fine, and so is feedback on the asker's own play. In a DM, and in the channels where an admin turned
   names on with `/wipebot names`, it names players.
+- **In your DMs instead:** ask it in a channel to send something to your DMs, and it answers there as if you'd
+  asked there, where it may name players. It only ever writes to the one who asked.
 - **Posts after each wipe:** ask it to follow tonight's raid, and it posts after every wipe, in a DM (your own
   feedback) or in a channel (what you asked for), until the report ends or you tell it to stop. It works before the
   raid starts logging, too.

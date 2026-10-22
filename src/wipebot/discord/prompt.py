@@ -1,5 +1,5 @@
 """What the model reads besides the core's tools: the system prompt, the lines before each question, the questions
-behind the posts after wipes, and the bot's own tools (follow_pulls, remember).
+behind the posts after wipes, and the bot's own tools (follow_pulls, remember, answer_in_dm).
 
 How to analyse is the core's raid-log-analysis skill, all of it in the system prompt (the bot only analyses raid
 logs, so it needs it every time). What's specific to Discord (who asks, which pull a reply is about, short answers
@@ -74,7 +74,18 @@ REMEMBER = BotTool(
                    "default": False},
     }},
     "Raiders are only remembered in Discord.")
-BOT_TOOLS = (FOLLOW_PULLS, REMEMBER)
+ANSWER_IN_DM = BotTool(
+    "answer_in_dm",
+    "Answer a question in the asking raider's own DMs instead of here, when they ask to get it there (\"send it to me "
+    "in a DM\"). It's answered there as if they had asked it there, where players may be named. Only from a "
+    "channel, and only to the asker.",
+    {"type": "object", "properties": {
+        "question": {"type": "string",
+                     "description": "the question to answer there, whole: what it's about (the boss, the pulls, "
+                                    "whose play), as the conversation here makes it"},
+    }, "required": ["question"]},
+    "Answers in DMs only work in Discord.")
+BOT_TOOLS = (FOLLOW_PULLS, REMEMBER, ANSWER_IN_DM)
 
 
 # How long a post after a wipe may be: raids pull again a minute or two after a wipe, and the posts of 14 Oct 2026
