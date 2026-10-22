@@ -5,7 +5,19 @@ import os
 
 import pytest
 
-from evals.run import HERE, beyond_noise, billed_to, case_hash, compare, judged_by, spread, summary
+from evals.run import (
+    HERE,
+    Trial,
+    beyond_noise,
+    billed_to,
+    case_hash,
+    compare,
+    judged_by,
+    plugin_folder,
+    skill_use,
+    spread,
+    summary,
+)
 
 CASE = {"id": "a", "report": "R", "question": "Why did we wipe?", "expect": "An enrage.", "wrong": ["deaths"]}
 
@@ -111,3 +123,20 @@ def test_asking_for_the_api_without_a_key_stops(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     with pytest.raises(SystemExit, match="ANTHROPIC_API_KEY is not set"):
         billed_to(api_key=True)
+
+
+def test_the_plugin_mode_loads_the_plugin_members_get_without_its_connector():
+    """The skill as the plugin ships it; the session's in-process tools stand in for the connector."""
+    from pathlib import Path
+    folder = Path(plugin_folder())
+    manifest = json.loads((folder / ".claude-plugin" / "plugin.json").read_text())
+    assert "mcpServers" not in manifest and manifest["version"]
+    assert {p.name for p in (folder / "skills" / "raid-log-analysis").iterdir()} >= {"SKILL.md", "reading-a-wipe.md"}
+
+
+def test_skill_use_counts_answers_that_loaded_it_and_the_files_read():
+    loaded = ["skill:wipebot:raid-log-analysis", "read:reading-a-wipe.md", "read:reading-a-wipe.md"]
+    results = {"wipe": [Trial(loaded=loaded), Trial()], "night": [Trial(loaded=loaded[:1])],
+               "broken": [Trial(errored=True)]}
+    assert skill_use(results) == ("The skill was loaded in 2 of 3 answers; files read: reading-a-wipe.md 1\n"
+                                  "  answered without the skill on some trial: wipe")

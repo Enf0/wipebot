@@ -25,6 +25,7 @@ when its pass rate moved beyond noise (beyond_noise), and the total with its exp
 """
 import argparse
 import asyncio
+import functools
 import hashlib
 import io
 import json
@@ -45,6 +46,7 @@ from wipebot.core.cache import cache
 from wipebot.discord import config
 from wipebot.discord.checks import warnings
 from wipebot.discord.host import Context, Session
+from wipebot.mcp.plugin import plugin_files
 
 HERE = Path(__file__).resolve().parent
 CACHE, LABELS = HERE / "cache.sqlite", HERE / "labels.jsonl"
@@ -111,6 +113,7 @@ class Trial:
     facts: dict = field(default_factory=dict)  # Facts: how many supporting facts it states (never fails it)
     warnings: list[str] = field(default_factory=list)
     calls: list[dict] = field(default_factory=list)  # {name, args, result, failed}
+    loaded: list[str] = field(default_factory=list)  # with the plugin: the skills loaded and files read (Answer.loaded)
 
 
 # One file per kind of question; bot.toml's cases are the bot's own rules, run only with --bot, and connector.toml's
@@ -146,9 +149,22 @@ def questions(case: dict) -> list[str]:
 
 IN_CHANNEL = "in #raid (a server channel)"
 # With the plugin, as Claude has Wipebot when a member adds it (the README's way): the connector, and the skill the
-# plugin brings. The whole skill goes in the prompt here, where Claude loads it when a question calls for it.
+# plugin brings, which Claude loads itself when a question calls for it (plugin_folder).
 PLUGIN = CONNECTOR_ONLY.replace("has connected the Wipebot connector", "has added the Wipebot plugin: its connector "
-                                "and its skill, the method below") + "\n\n"
+                                "and its skill")
+
+
+@functools.cache
+def plugin_folder() -> str:
+    """The plugin as members get it (wipebot.mcp.plugin), written to a folder for the session to load: its skill and
+    manifest, without the manifest's connector, which the session's in-process tools stand in for."""
+    folder = Path(tempfile.mkdtemp(prefix="wipebot-plugin-"))
+    for path, data in plugin_files("Wipebot", "the guild", "https://wipebot.invalid/mcp").items():
+        if path == ".claude-plugin/plugin.json":
+            data = json.dumps({k: v for k, v in json.loads(data).items() if k != "mcpServers"}).encode()
+        (folder / path).parent.mkdir(parents=True, exist_ok=True)
+        (folder / path).write_bytes(data)
+    return str(folder)
 IN_CLAUDE = "in their own chat on claude.ai"
 # The connector knows who's asking: an officer saves a pasted note or plan for their guild (save_note_or_plan). Here
 # every asker is an officer, of a guild no case's report is from, so what one case saves no other case reads.
@@ -194,15 +210,17 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
             # the bot's own place for a channel ("in #raid"), or in a client, the asker's chat
             ctx = Context(where=IN_CLAUDE if client else case.get("where", "in #raid"), **given)
             # None: the bot's own, with the skill
-            prompt = {"plugin": PLUGIN + server.skill(), "connector": CONNECTOR_ONLY, "bot": None}[mode]
+            prompt = {"plugin": PLUGIN, "connector": CONNECTOR_ONLY, "bot": None}[mode]
             calls, prompts = [], []
-            async with Session(library, case["report"], model, system_prompt=prompt) as session:
+            async with Session(library, case["report"], model, system_prompt=prompt,
+                               plugin=plugin_folder() if mode == "plugin" else None) as session:
                 for turn, question in enumerate(questions(case)):  # follow-ups in one conversation; the last
                     answer = await session.ask(question, ctx)      # answer is judged
                     t.cost_usd += answer.cost_usd or 0.0
                     # images as a count; a follow-up's calls marked with the question they answered (0 the first)
                     calls += [{**c, "turn": turn} if len(questions(case)) > 1 else c for c in answer.records()]
                     prompts.append(answer.prompt)
+                    t.loaded += answer.loaded
         except Exception as e:
             t.error, t.seconds, t.errored = f"{type(e).__name__}: {e}", time.time() - started, True
             return t
@@ -222,6 +240,22 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
     if why := broken(t):
         t.errored, t.passed, t.error = True, False, why
     return t
+
+
+def skill_use(results: dict[str, list[Trial]]) -> str:
+    """With the plugin: in how many answers Claude loaded the skill, which of its files it read how often, and the
+    cases it answered without the skill on some trial."""
+    answered = [(c, t) for c, ts in results.items() for t in ts if not t.errored]
+    loaded = [(c, t) for c, t in answered if any(x.startswith("skill:") for x in t.loaded)]
+    reads: dict[str, int] = {}
+    for _, t in answered:
+        for x in dict.fromkeys(t.loaded):  # a file read twice in one answer counts once
+            if x.startswith("read:"):
+                reads[x.removeprefix("read:")] = reads.get(x.removeprefix("read:"), 0) + 1
+    without = sorted({c for c, t in answered if not any(x.startswith("skill:") for x in t.loaded)})
+    return (f"The skill was loaded in {len(loaded)} of {len(answered)} answers; files read: "
+            + (", ".join(f"{f} {n}" for f, n in sorted(reads.items(), key=lambda x: -x[1])) or "none")
+            + (f"\n  answered without the skill on some trial: {', '.join(without)}" if without else ""))
 
 
 def show(case_id: str, t: Trial) -> None:
@@ -272,6 +306,8 @@ async def run(args) -> None:
               if counted else "")
     mode = f", {args.mode}"
     print("\n" + "\n".join(summary(tally)) + f"\n({shown}{mode}, judge {args.judge_model}, ${cost:.2f}{stated})")
+    if args.mode == "plugin":
+        print(skill_use(results))
     if base:
         print("\n" + "\n".join(compare(base, tally)))
 

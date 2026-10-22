@@ -7,17 +7,23 @@ answer for Discord in discord_text.py. Only this module knows about the SDK.
 import functools
 import json
 import logging
+import os
 import re
 import tempfile
 import time
+import warnings
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 
 from claude_agent_sdk import (
     AssistantMessage,
+    CanUseToolShadowedWarning,
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    PermissionResultAllow,
+    PermissionResultDeny,
     ResultMessage,
+    SdkPluginConfig,
     TextBlock,
     ThinkingBlock,
     ToolAnnotations,
@@ -35,6 +41,8 @@ from . import prompt
 from .discord_text import polish
 
 log = logging.getLogger(__name__)
+# With a plugin, can_use_tool gates Read alone: the tools allowed outright are meant to skip it.
+warnings.filterwarnings("ignore", category=CanUseToolShadowedWarning)
 
 # Claude Code attaches any file a prompt names as @path, tools or not, and a prompt carries what raiders, Discord and
 # Warcraft Logs wrote (a report's title, a thread's name): denying Read stops that, for any path. So does a prompt
@@ -202,6 +210,9 @@ class Answer:
     turns: int | None = None
     session_id: str = ""  # the Agent SDK's session, whose transcript has the same and more
     asked: float = 0.0  # time.monotonic() when the question went to the model
+    # With a plugin (Session's `plugin`): each skill the model loaded ("skill:wipebot:raid-log-analysis") and file it
+    # read ("read:reading-a-wipe.md"), in order
+    loaded: list[str] = field(default_factory=list)
 
     def records(self) -> list[dict]:
         """The tool calls for the interaction record."""
@@ -219,12 +230,15 @@ class Session:
 
     def __init__(self, library: server.Library, code: str, model: str = "",
                  on_tool: Callable[[str, dict], None] | None = None, name: str = "wipebot",
-                 system_prompt: str | None = None):
+                 system_prompt: str | None = None, plugin: str | None = None):
         self.library, self.code, self.model, self.on_tool = library, code, model, on_tool
         self.name = name  # what the bot calls itself: its name in Discord
         # Another client's prompt in place of the bot's, without the bot's own tools (follow_pulls, remember): the
         # evals answer as a client with only the connector would (claude.ai today: no instructions, no skill).
         self.system_prompt = system_prompt
+        # A plugin's folder whose skills the model loads when a question calls for one, as Claude does with a plugin
+        # (the evals' plugin mode): it may load them and read the files in that folder, nothing else.
+        self.plugin = plugin
         self._client: ClaudeSDKClient | None = None
         self._calls: list[ToolCall] = []  # tool calls of the current question
         self._ctx: Context | None = None  # the current question's
@@ -301,9 +315,20 @@ class Session:
             max_budget_usd=2 * ANSWER_BUDGET_USD,
             model=self.model or None,
         )
+        if self.plugin:  # its skills, and Read for their files only: the folder is all can_use_tool lets it read
+            options.tools, options.settings, options.skills = ["Skill", "Read"], None, "all"
+            options.plugins = [SdkPluginConfig(type="local", path=self.plugin)]
+            options.can_use_tool = self._in_plugin
         self._client = ClaudeSDKClient(options)
         await self._client.connect()
         return self
+
+    async def _in_plugin(self, name: str, args: dict, context) -> PermissionResultAllow | PermissionResultDeny:
+        """With a plugin: Read only inside its folder; Claude Code asks this for any other built-in tool use."""
+        path, folder = os.path.realpath(str(args.get("file_path") or "")), os.path.realpath(self.plugin or "")
+        if name == "Read" and self.plugin and path.startswith(folder + os.sep):
+            return PermissionResultAllow()
+        return PermissionResultDeny(message="Only the plugin's own files can be read here.")
 
     async def __aexit__(self, *exc) -> None:
         if self._client:
@@ -335,6 +360,10 @@ class Session:
                         name = block.name.removeprefix(f"mcp__{SERVER}__")
                         if self.on_tool:
                             self.on_tool(name, block.input)
+                        if name == "Skill":
+                            answer.loaded.append(f"skill:{block.input.get('skill', '')}")
+                        elif name == "Read":
+                            answer.loaded.append(f"read:{os.path.basename(str(block.input.get('file_path', '')))}")
                 if step:
                     texts.append("".join(step))
             elif isinstance(msg, ResultMessage):
