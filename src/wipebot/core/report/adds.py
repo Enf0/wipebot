@@ -161,7 +161,7 @@ async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None) ->
         lines += [_cast_line(ability, these, kickable, ready, t0) for (add, ability), these in casts.items()
                   if add == name]
     if ready:
-        lines.append("Kick ready: alive with their interrupt (the one they kicked with on this boss that night) off "
+        lines.append("Kick ready: alive with an interrupt (any spell they kicked with on this boss that night) off "
                      "its base cooldown when the cast began; range and stuns not checked"
                      + (f"; never kicked on this boss that night, so not counted: {', '.join(unknown)}." if unknown
                         else ".") + " " + JOBS_NOT_LOGGED)
@@ -396,10 +396,10 @@ async def kicked_tonight(rep: Report, f: dict) -> set[int]:
 
 async def kicks_ready(rep: Report, f: dict, times: list[float]) -> tuple[dict[float, list[str]], list[str]]:
     """Who could have kicked at each of these moments (casts that went through): alive (a battle res brings one
-    back), with their interrupt off its base cooldown. A player's interrupt is the spell they kicked with on this
-    boss tonight (a pet's counts for its owner), its cooldown from its tooltip; range, stuns and talents that shorten
-    it aren't checked. Also the players of the pull who never kicked on the boss tonight, so their interrupt isn't
-    known."""
+    back), with an interrupt off its base cooldown. A player's interrupts are every spell they kicked with on this
+    boss tonight (a pet's counts for its owner; some kick with more than one), each's cooldown from its tooltip;
+    range, stuns and talents that shorten one aren't checked. Also the players of the pull who never kicked
+    on the boss tonight, so their interrupts aren't known."""
     if not times:
         return {}, []
     pulls = rep.by_boss[rep.boss_key(f)]
@@ -409,27 +409,28 @@ async def kicks_ready(rep: Report, f: dict, times: list[float]) -> tuple[dict[fl
         if e.get("type") == "interrupt" and e.get("abilityGameID"):
             used[rep.owner(e.get("sourceID", -1))][e["abilityGameID"]] += 1
     here = rep.pull_players(f)
-    kick = {pid: c.most_common(1)[0][0] for pid, c in used.items() if pid in here}
-    unknown = sorted(p.name for pid, p in here.items() if pid not in kick)
-    if not kick:
+    kicks = {pid: set(c) for pid, c in used.items() if pid in here}
+    unknown = sorted(p.name for pid, p in here.items() if pid not in kicks)
+    if not kicks:
         return {}, unknown
-    spells = sorted(set(kick.values()))
+    spells = sorted(set().union(*kicks.values()))
     cooldown = dict(zip(spells, await asyncio.gather(*(knowledge.spell_cooldown(s) for s in spells)), strict=True))
-    pressed: dict[int, list[float]] = defaultdict(list)
+    pressed: dict[tuple[int, int], list[float]] = defaultdict(list)
     expr = "ability.id in (" + ", ".join(str(s) for s in spells) + ")"
     for e in await rep.events(f["id"], "Casts", filterExpression=expr):
         if e.get("type") == "cast":
-            pressed[rep.owner(e.get("sourceID", -1))].append(e["timestamp"])
+            pressed[rep.owner(e.get("sourceID", -1)), e["abilityGameID"]].append(e["timestamp"])
     deaths = await rep.deaths(f)
+
+    def off_cooldown(pid: int, sid: int, t: float) -> bool:
+        if (cd := cooldown.get(sid)) is None:
+            return False
+        last = max((x for x in pressed[pid, sid] if x <= t), default=None)
+        return last is None or t - last >= cd * 1000
+
     ready: dict[float, list[str]] = {}
     for t in times:
-        names = []
-        for pid, sid in kick.items():
-            cd = cooldown.get(sid)
-            if cd is None or dead_since(deaths, backs[f["id"]].get(pid, []), pid, t) is not None:  # a battle res: alive
-                continue
-            last = max((x for x in pressed[pid] if x <= t), default=None)
-            if last is None or t - last >= cd * 1000:
-                names.append(here[pid].name)
-        ready[t] = sorted(names)
+        ready[t] = sorted(here[pid].name for pid, sids in kicks.items()
+                          if dead_since(deaths, backs[f["id"]].get(pid, []), pid, t) is None  # a battle res: alive
+                          and any(off_cooldown(pid, sid, t) for sid in sids))
     return ready, unknown
