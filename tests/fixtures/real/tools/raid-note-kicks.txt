@@ -60,7 +60,7 @@ Planned cooldowns (time in the note: what happened):
   7:21 Lïzårðmâñ Stasis (Store) [370537]
   7:23 Lïzårðmâñ Time Spiral [374968]
   7:24 Enfo Wind Rush Totem [192077]
-Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss that night). Which side's add begins first varies, so a note timed for one side is a second off for the other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking their own, and a kick on another cast begun within 1.5 s of the callout counts too, each with the cast that was theirs and what became of it:
+Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss that night). Which side's add begins first varies, so a note timed for one side is a second off for the other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking their own, and a kick on another cast begun within 1.5 s of the callout counts too, each with the cast that was theirs and what became of it (covered: another player kicked it, so it was handled):
   0:37 Sonyosh "Kick #1 left": kicked the cast begun at 0:38
   0:38 Enfo "Kick #1 right": kicked the cast begun at 0:37
   0:39 Dragepie "Kick #2 left": kicked the cast begun at 0:40

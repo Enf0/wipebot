@@ -451,10 +451,11 @@ Kick #5 right: Zebinomage
 
 invitelist:Karadim-Kazzak,Wutroll-Kazzak,Cptola-Frostmane,Enfo-Kazzak,Lïzårðmâñ-Kazzak,Namsus-TarrenMill,Draiman-Kazzak,Nalaxd-TarrenMill,Nexsozz-Stormscale,Pomaa-TarrenMill,Slushmania-Kazzak,Dragepie-TarrenMill,Krøpling-Kazzak,Peggerino-Kazzak,Sonyosh-Kazzak,Zebinomage-TarrenMill,Dscopi-Kazzak,Algmor-Kazzak,Agonco-Kazzak,Attractîv-Turalyon;"""
 expect = """Says the note's kick order only fits pulls 12-39: pulls 1-11 had another (Dragepie on Kick #2 left,
-Slushmania on Kick #5 left, Attractîv not in the raid yet), so the kicks are counted from pull 12; then names who
-missed most from there: Algmor (Kick #3 left, 33 of 58), Zebinomage (Kick #5 right, 31 of 54) and Dragepie (Kick #5
-left, 35 of 55)."""
-facts = ["Sonyosh (Kick #1 left) kicked 57 of 58 and Karadim (Kick #1 right) 56 of 57",
-         "many of the casts others' assignments missed were kicked by Wutroll or Karadim"]
+Slushmania on Kick #5 left, Attractîv not in the raid yet), so the kicks are counted from pull 12; then names whose
+casts went through most from there: Algmor (Kick #3 left) and Attractîv (Kick #2 left), 5 each, then Dscopi and Enfo,
+4 each; a cast another player kicked was handled."""
+facts = ["Zebinomage (Kick #5 right) had 1 cast go through, and 22 covered by others, 15 of them by Karadim",
+         "Sonyosh (Kick #1 left) kicked 57 of 58 and Karadim (Kick #1 right) 56 of 57"]
 wrong = ["blames Dragepie or anyone else for kicks in pulls 1-11 as if the note's order applied there",
-         "says Attractîv missed kicks before pull 12"]
+         "says Attractîv missed kicks before pull 12",
+         "counts a cast another player kicked as a missed kick, such as Zebinomage's covered by Karadim"]
