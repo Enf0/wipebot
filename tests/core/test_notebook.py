@@ -22,7 +22,8 @@ class Logs:
     async def guild_reports(self, guild_id, since_ms, pulls=False, cache_for=None):
         self.asked.append(since_ms)
         return [{"code": f"n{start:.0f}", "startTime": start * 1000, "endTime": (start + 3 * 3600) * 1000,
-                 "bosses": {boss: (20, 0)}, "pulls_by_difficulty": {5: 20}} for start, boss in self.nights]
+                 "bosses": {boss: (20, 0)}, "pulls_by_difficulty": {5: 20}} for start, boss in self.nights
+                if start * 1000 >= since_ms]  # as Warcraft Logs: the reports begun since
 
 
 class Night:
@@ -105,12 +106,16 @@ async def test_a_note_counts_only_for_the_night_it_was_saved_for(book):
     book.save_note(14169, 3420, "Sszorak", "friday's", "Rowan", at=friday - 3600)
     with pytest.raises(FactError, match="none saved for Sszorak that night \\(only for other nights"):
         await server._saved_note(night(start_s=wednesday, logs=logs), None, None, all_pulls=True)
-    assert logs.asked == [(monday - 3600) * 1000]  # from the version saved last before the night
+    assert logs.asked == [(monday - 3600 - 12 * 3600) * 1000]  # from half a day before the version saved last
+    book.save_note(14169, 3420, "Sszorak", "monday's, changed in the raid", "Rowan", at=monday + 3600)
+    with pytest.raises(FactError, match="only for other nights"):  # monday's log began before it
+        await server._saved_note(night(start_s=wednesday, logs=logs), None, None, all_pulls=True)
     book.save_note(14169, 3420, "Sszorak", "for wednesday", "Rowan", at=monday + 6 * 3600)  # after monday's raid
     every, _ = await server._saved_note(night(start_s=wednesday, logs=logs), None, None, all_pulls=True)
     assert "for wednesday" in every and "monday's" not in every and "friday's" not in every
     every, _ = await server._saved_note(night(start_s=monday, logs=logs), None, None, all_pulls=True)
-    assert "monday's" in every and "for wednesday" in every  # saved 3 h after monday's log ended: a late paste
+    assert "monday's" in every and "changed in the raid" in every
+    assert "for wednesday" in every  # saved 3 h after monday's log ended: a late paste
     assert "the note" not in every and "friday's" not in every
     logs.asked.clear()  # pasted the same day: no need to ask
     assert (await server._saved_note(night(start_s=950, logs=logs), None, None, all_pulls=False))[0] == "the note"
