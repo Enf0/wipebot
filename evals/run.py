@@ -36,6 +36,7 @@ import sys
 import tempfile
 import time
 import tomllib
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -242,6 +243,39 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
     return t
 
 
+def answers(cases: list[dict], results: dict[str, list[Trial]]) -> dict:
+    """What the answers did besides passing, per case over its trials that didn't error: the supporting facts they
+    stated (`facts`: [stated, of]), their tool calls (`calls`) and how many began with one of the case's `tools`, the
+    tools its right answers call (`first_tagged`). They move when an answer gets fuller or finds its tools faster,
+    which a pass rate near the top can't show."""
+    tagged = {c["id"]: set(c.get("tools") or []) for c in cases}
+    out: dict[str, dict] = {"facts": {}, "calls": {}, "first_tagged": {}}
+    for c, ts in results.items():
+        ok = [t for t in ts if not t.errored]
+        if counted := [t.facts for t in ok if t.facts]:
+            out["facts"][c] = [sum(f["stated"] for f in counted), sum(f["of"] for f in counted)]
+        out["calls"][c] = sum(len(t.calls) for t in ok)
+        if tagged[c]:
+            out["first_tagged"][c] = sum(bool(t.calls) and t.calls[0]["name"] in tagged[c] for t in ok)
+    return out
+
+
+def how_answered(tally: dict, cases: Iterable[str]) -> str:
+    """The answers' supporting facts stated, tool calls per answer, and how often the first call was one of the
+    case's tools, over `cases` (those of the run with facts, or the ones compared with a baseline)."""
+    cases = list(cases)
+    answered = sum(judged(tally, c) for c in cases)
+    facts = [tally.get("facts", {}).get(c) for c in cases]
+    stated, of = sum(f[0] for f in facts if f), sum(f[1] for f in facts if f)
+    tagged = [c for c in cases if c in tally.get("first_tagged", {})]
+    first, of_first = sum(tally["first_tagged"][c] for c in tagged), sum(judged(tally, c) for c in tagged)
+    parts = [f"supporting facts stated {stated}/{of} ({stated / of:.0%})" if of else "",
+             f"{sum(tally.get('calls', {}).get(c, 0) for c in cases) / answered:.1f} tool calls an answer"
+             if answered and tally.get("calls") else "",
+             f"first call one of the case's tools in {first}/{of_first} ({first / of_first:.0%})" if of_first else ""]
+    return "; ".join(p for p in parts if p)
+
+
 def skill_use(results: dict[str, list[Trial]]) -> str:
     """With the plugin: in how many answers Claude loaded the skill, which of its files it read how often, and the
     cases it answered without the skill on some trial."""
@@ -299,13 +333,11 @@ async def run(args) -> None:
     errors = {case_id: n for case_id, ts in results.items() if (n := sum(t.errored for t in ts))}
     tally = {"model": shown, "commit": commit(), "trials": args.trials, "judge": judged_by(args.judge_model),
              "case_hashes": {c["id"]: case_hash(c) for c in cases}, "passed": passed, "errors": errors,
-             "hard": [c["id"] for c in cases if c.get("hard")]}
+             "hard": [c["id"] for c in cases if c.get("hard")]} | answers(cases, results)
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
-    counted = [t.facts for ts in results.values() for t in ts if t.facts and not t.errored]
-    stated = (f"; supporting facts stated {sum(f['stated'] for f in counted)}/{sum(f['of'] for f in counted)}"
-              if counted else "")
     mode = f", {args.mode}"
-    print("\n" + "\n".join(summary(tally)) + f"\n({shown}{mode}, judge {args.judge_model}, ${cost:.2f}{stated})")
+    print("\n" + "\n".join(summary(tally)) + f"\n({shown}{mode}, judge {args.judge_model}, ${cost:.2f})")
+    print(how_answered(tally, tally["passed"]))
     if args.mode == "plugin":
         print(skill_use(results))
     if base:
@@ -437,6 +469,8 @@ def compare(base: dict, now: dict) -> list[str]:
     lines.append(f"  total {total}/{sum(trials.values())}, the baseline's {expected:.4g} at these trials: "
                  f"{total - expected:+.3g}, {'within' if abs(total - expected) <= width else 'beyond'} the "
                  f"±{width:.1f} expected from run to run")
+    if "facts" in base and "facts" in now:  # baselines from before 22 October have none
+        lines.append(f"  answers: {how_answered(now, same)}\n  the baseline's: {how_answered(base, same)}")
     moved, noise = [], []
     for c in same:
         n, of, b, b_of = now["passed"][c], trials[c], base["passed"][c], base_trials[c]
