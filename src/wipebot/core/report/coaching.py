@@ -49,7 +49,7 @@ async def player_pull(rep: Report, player: str, pull: int | None = None, boss: s
         asyncio.gather(cooldown_lines(rep, f, p, casts), _uptimes(rep, f, p, alive_s, alive_until),
                        resource_use(rep, f, p, casts, alive_s, alive_until), rep.potions(f, p), prepared(rep, f, p),
                        rep.decided_at(f)))
-    lost = time_lost(f, own, casts, flow.gaps, resource_name, capped, decided)
+    lost = time_lost_text(time_lost(f, own, casts, flow.gaps, resource_name, capped, decided))
     lines = [f"{p.label}{f', hero talents {hero}' if hero else ''}, {p.role}, item level "
              f"{det.get('maxItemLevel', '?')}, on {rep.label(f)} ({clock(f['endTime'] - t0)}, {rep.url(f)})."]
     lines += [gear_stats(det), lost, parsed] if parsed is not None else [lost, gear_stats(det)]
@@ -154,22 +154,41 @@ def _dead_s(f: dict, deaths: list[dict], casts: list[dict], end: float) -> float
     return sum(max(0.0, min(b, end) - a) for a, b in spans if a < end) / 1000
 
 
+@dataclass(frozen=True)
+class TimeLost:
+    """Where a player's time went until the wipe was decided (or the pull's end), in seconds, so a death, casting gaps
+    and a capped resource can be weighed in one unit: dead loses all output, a gap the casts not begun, the cap only
+    that resource's gain."""
+    until_ms: float  # from the pull's start: when the wipe was decided, or the pull's end
+    decided: bool  # whether `until_ms` is when the wipe was decided
+    dead_s: float
+    gaps_s: float
+    capped_s: float
+    resource: str  # the capped resource's name
+
+    def costs(self) -> list[tuple[float, str]]:
+        """(seconds, what) of each cost, biggest first."""
+        return sorted([(self.dead_s, "dead (no output at all)"), (self.gaps_s, "casting gaps (no cast begun)"),
+                       (self.capped_s, f"{self.resource} at its cap (only its gain lost)")], key=lambda x: -x[0])
+
+
 def time_lost(f: dict, deaths: list[dict], casts: list[dict], gaps: list[tuple[float, float]], resource: str,
-              capped: list[tuple[float, float]], decided: Decided | None) -> str:
-    """Where a player's time went, in seconds until the wipe was decided (or the pull's end), so a death, casting
-    gaps and a capped resource can be weighed in one unit: dead loses all output, a gap the casts not begun, the
-    cap only that resource's gain. Biggest first."""
-    t0, end = f["startTime"], _decided_ts(f, decided)
-    window = (end - t0) / 1000
-    dead = _dead_s(f, deaths, casts, end)
+              capped: list[tuple[float, float]], decided: Decided | None) -> TimeLost:
+    """A player's time lost on a pull (TimeLost), from their deaths, casts, casting gaps and spans at the cap."""
+    end = _decided_ts(f, decided)
 
     def within(spans: list[tuple[float, float]]) -> float:
         return sum(max(0.0, min(b, end) - a) for a, b in spans if a < end) / 1000
-    costs = sorted([(dead, "dead (no output at all)"), (within(gaps), "casting gaps (no cast begun)"),
-                    (within(capped), f"{resource} at its cap (only its gain lost)")], key=lambda x: -x[0])
-    head = (f"Time lost until {clock(end - t0)}, when the wipe was decided" if decided
-            else f"Time lost over the {clock(end - t0)} pull")
-    shown = [f"{what} {s:.0f} s ({100 * s / max(window, 1):.0f}%)" for s, what in costs if s >= 1]
+    return TimeLost(end - f["startTime"], decided is not None, _dead_s(f, deaths, casts, end), within(gaps),
+                    within(capped), resource)
+
+
+def time_lost_text(lost: TimeLost) -> str:
+    """player_pull's "Time lost" line: each cost of a second or more, biggest first, with its share of the time."""
+    window = lost.until_ms / 1000
+    head = (f"Time lost until {clock(lost.until_ms)}, when the wipe was decided" if lost.decided
+            else f"Time lost over the {clock(lost.until_ms)} pull")
+    shown = [f"{what} {s:.0f} s ({100 * s / max(window, 1):.0f}%)" for s, what in lost.costs() if s >= 1]
     return f"{head}, biggest first: " + (", ".join(shown) if shown else "none") + "."
 
 

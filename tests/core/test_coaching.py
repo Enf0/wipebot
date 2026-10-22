@@ -39,11 +39,14 @@ def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_
     f = {"startTime": 0, "endTime": 200_000}
     deaths = [{"timestamp": 50_000}, {"timestamp": 150_000}]  # battle-ressed at 80 s; the second is fallout
     casts = [{"timestamp": 10_000}, {"timestamp": 80_000}]
-    line = coaching.time_lost(f, deaths, casts, [(20_000, 25_000)], "Energy", [(85_000, 130_000)],
+    lost = coaching.time_lost(f, deaths, casts, [(20_000, 25_000)], "Energy", [(85_000, 130_000)],
                               Decided(120_000))
-    assert line == ("Time lost until 2:00, when the wipe was decided, biggest first: Energy at its cap (only its gain "
-                    "lost) 35 s (29%), dead (no output at all) 30 s (25%), casting gaps (no cast begun) 5 s (4%).")
-    assert coaching.time_lost(f, [], casts, [], "", [], None) == "Time lost over the 3:20 pull, biggest first: none."
+    assert (lost.dead_s, lost.gaps_s, lost.capped_s) == (30, 5, 35)
+    assert coaching.time_lost_text(lost) == (
+        "Time lost until 2:00, when the wipe was decided, biggest first: Energy at its cap (only its gain lost) 35 s "
+        "(29%), dead (no output at all) 30 s (25%), casting gaps (no cast begun) 5 s (4%).")
+    assert coaching.time_lost_text(coaching.time_lost(f, [], casts, [], "", [], None)) == (
+        "Time lost over the 3:20 pull, biggest first: none.")
 
 
 async def test_a_pull_still_going_is_left_out_of_the_night(fake_knowledge):
