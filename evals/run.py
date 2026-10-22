@@ -13,6 +13,7 @@
     just evals --coverage             # what the cases cover: tools, kinds of question, places, bosses (no model)
     just evals --endings              # the engine's "Ended by" against each case's `cause` (no model)
     just evals --api-key              # bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude login)
+    just evals --held-out --trials 3  # the held-out cases alone, at a milestone (never while changing the method)
     just evals --recheck evals/results/X.json  # a run's answers again: claims its tools don't back, and the rubric
 
 Warcraft Logs data and the guides come from evals/cache.sqlite (untracked), frozen: what a run asks that isn't there
@@ -328,7 +329,8 @@ async def run(args) -> None:
     shown = model or config.model()
     cases = [c for c in load_cases() if picked(c, args.filter)
              and not (args.mode != "bot" and c.get("bot_only"))  # the bot's channel rules mean nothing in claude.ai
-             and not (args.mode == "bot" and c.get("client_only"))]  # nor the connector's saving in Discord
+             and not (args.mode == "bot" and c.get("client_only"))  # nor the connector's saving in Discord
+             and (c["kind"] == "heldout") == args.held_out]  # the held-out cases only when asked, and then alone
     if args.mode != "bot":
         as_officer()
     library, jobs = server.configure(), asyncio.Semaphore(JOBS)
@@ -688,6 +690,8 @@ def main() -> None:
     modes.add_argument("--bot", dest="mode", action="store_const", const="bot",
                        help="answer as the Discord bot: its prompt with the skill")
     parser.add_argument("--save-baseline", action="store_true", help="keep this run as its mode's baseline")
+    parser.add_argument("--held-out", action="store_true",
+                        help="only the held-out cases (cases/heldout.toml), at a milestone: never while tuning")
     parser.add_argument("--label", metavar="RESULTS", help="mark a run's answers yourself")
     parser.add_argument("--label-failed", type=int, metavar="N", help="mark N answers the judge failed yourself")
     parser.add_argument("--agreement", action="store_true", help="compare the judge with your marks")
@@ -702,6 +706,8 @@ def main() -> None:
     parser.add_argument("--api-key", action="store_true",
                         help="bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude Code login)")
     args = parser.parse_args()
+    if args.held_out and args.save_baseline:
+        parser.error("--held-out with --save-baseline: a baseline is the regular cases'")
     args.billed_to = billed_to(args.api_key)
     if args.label:
         label(Path(args.label))

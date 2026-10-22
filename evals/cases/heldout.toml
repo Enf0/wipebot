@@ -1,0 +1,53 @@
+[defaults]
+report = "p7jRwgv8b1rY6LBd"
+
+# ---- Held out: written from the tools' output before any answer was read, on the guild's 21 October night, which
+#      nothing in the skill or the other cases was built on. A run leaves them out unless asked (`--held-out`): never
+#      run them while changing the skill or the tools' text, only at milestones, so a gap between them and the
+#      regular cases shows the method fitted to its own cases. ----
+
+[[case]]
+id = "heldout-night-what-kept-wiping-us"
+tools = ["progress"]
+where = "in a DM"
+question = "What kept wiping us on the Twin Fangs last night?"
+asker = "Enfo"
+boss = "The Twin Fangs"
+expect = """Visceral Burst (the Broodlings' cast) killing many at once ended most of the pulls, 21 of the 39, far ahead
+of Stone Breaker (7) and Caustic Globule (6); the fix is the kicks on the Broodlings, which still let casts through."""
+facts = ["21 of 39 pulls", "the best wipe, 0.9% on pull 37",
+         "Visceral Burst the night's killer: 168 deaths, the first death on only 4 pulls"]
+wrong = ["names Stone Breaker, Caustic Globule or healing as what ended most pulls",
+         "says the raid needs more damage"]
+
+[[case]]
+id = "heldout-so-close-more-dps"  # a false premise on the best wipe
+tools = ["pull_summary", "enemies"]
+where = "in a DM"
+question = "We got her to 0.9% on pull 37! We just need a bit more DPS, right?"
+asker = "Enfo"
+pull = 37
+boss = "The Twin Fangs"
+expect = """Not damage: pull 37 was lost to Visceral Bursts at the end, which killed 4 at 6:52 and 9 at 6:54 and left
+half the raid dead before the boss died; Uncoiled Wrath at 6:59 came as Vexhul died, after the wipe was decided, not
+an enrage that ended it. The fix is the kicks on the Broodlings' Visceral Burst."""
+facts = ["half the raid dead at 6:54",
+         "14 of the pull's 71 Visceral Burst casts went through, 52 were kicked",
+         "casts went through at 6:48 and 6:50 with kicks ready"]
+wrong = ["agrees the raid needs more damage to kill her",
+         "calls Uncoiled Wrath an enrage that ended the pull, or says the raid ran out of time"]
+
+[[case]]
+id = "heldout-healer-night"  # a healer's night: steady, rarely the first to die; a cooldown held, judged by timing
+tools = ["player_night"]
+where = "in a DM"
+question = "How did I do on the Twin Fangs last night?"
+asker = "Enfo"
+boss = "The Twin Fangs"
+expect = """Steady: never the first death and healing per second alive steady over the night (about 360-380k), most
+deaths coming as the raid fell apart; worth a look is Spirit Link Totem, pressed on few pulls (first use around 2:00
+when it was), judged against when the damage came rather than by how often."""
+facts = ["first death 0 times", "Spirit Link Totem 14 of 51, Ascendance 47 of 51",
+         "best pull by healing per second alive: pull 37"]
+wrong = ["faults their overhealing", "counts Spirit Link Totem uses against possible uses as the fault itself",
+         "says they died first often"]

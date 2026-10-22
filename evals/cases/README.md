@@ -19,4 +19,7 @@ answer makes, and what would make it wrong: often the tempting misreading of the
 
 One file per kind of question; `bot.toml` holds the cases on the Discord bot's own rules, which only `--bot` runs,
 and `connector.toml` the connector's own (an officer saving a pasted note), which every mode but `--bot` runs.
+`heldout.toml` holds cases written blind on a night nothing else was built on; only `--held-out` runs them, alone,
+and only at milestones (a release), never while changing the method: a gap between them and the regular cases is the
+method fitted to its own cases.
 Every file's cases share one id space (`-k` picks by id) and `[defaults]`.
