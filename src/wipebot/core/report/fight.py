@@ -60,7 +60,7 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     ended = ending(rep, f, deaths, backs, raid, enrages, decided)
     if text := ending_text(ended):
         lines.append(text)
-    if not_it := ruled_out(ended, enrages, decided):
+    if not_it := ruled_out(ended, buffs, decided):
         lines.append(not_it)
     if again := await _same_ending(rep, f, ended):
         lines.append(again)

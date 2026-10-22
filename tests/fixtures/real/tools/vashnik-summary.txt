@@ -4,7 +4,7 @@ Killed by, until the wipe was decided at 6:28 (half the raid was dead): Melee ×
 Last 5: 60.2 → 54.5 → 71.9 → 76.8 → 9.4
 Warcraft Logs: https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=38
 Ended by: deaths from 4:36 until half the raid was dead at 6:28, no single hit killing many: start from the first death and follow what each left short.
-Not an enrage buff: the boss kept none gained near the end. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
+Not an enrage buff: no buff the boss gained near the end decided it. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
 This pull ended the way 2 earlier pulls on Vashnik the Malignant in this log did (pulls 5, 8): deaths one after another; it got past what ended most earlier pulls, 5 of 15: Malignance killing many.
 
 Raid size 20. Deaths in order (time from pull start, players alive after it, a battle res or self-res counted):
