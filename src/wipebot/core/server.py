@@ -342,9 +342,9 @@ async def pull_timeline(pull: Pull = None, boss: Boss = None,
     One pull in time order: phases, the boss's casts (◆ marks the ones Lorrgs tracks: the casts to line pulls up
     by) and buffs (enrage), the adds' casts and whether each was kicked (by whom) or went through, its debuffs on
     players and how many got each (per hit when one cast lands on several groups), a stacking debuff reaching its
-    highest stacks, deaths with players alive, Bloodlust, battle res, raid cooldowns; then the boss's health and
-    power bar (energy, rage) and raid damage taken over time. Shows what the boss did and what state it was in,
-    which deaths alone don't."""
+    highest stacks, deaths with players alive, Bloodlust, battle res and self-res, raid cooldowns; then the boss's
+    health and power bar (energy, rage) and raid damage taken over time. Shows what the boss did and what state it
+    was in, which deaths alone don't."""
     return await fight.pull_timeline(await lib().report(report), pull, boss, start, end)
 
 
