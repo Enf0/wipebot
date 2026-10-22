@@ -142,7 +142,8 @@ again.
     time, and what they had ready.
 
   Over the whole night, it counts per player: soaks missed while alive, cooldowns on time or not, kicks made,
-  covered or let through, and how often they answered each callout. When the note's kick order only fits the later
+  covered or let through, how often they answered each callout, and the pulls whose wipe came within seconds of
+  casts on kick assignments going through. When the note's kick order only fits the later
   pulls (a raider joined or the order was changed, and the note was pasted afterwards), it says from which pull, what
   the pulls before had, and counts the kicks from that pull on. A note saved only after the pulls it's checked against is said to be so.
 - **The plan** ("was everyone on their spot?"): at each moment of the plan's mechanic, who was off their spot and by

@@ -455,7 +455,8 @@ Slushmania on Kick #5 left, Attractîv not in the raid yet), so the kicks are co
 casts went through most from there: Algmor (Kick #3 left) and Attractîv (Kick #2 left), 5 each, then Dscopi and Enfo,
 4 each; a cast another player kicked was handled."""
 facts = ["Zebinomage (Kick #5 right) had 1 cast go through, and 22 covered by others, 15 of them by Karadim",
-         "Sonyosh (Kick #1 left) kicked 57 of 58 and Karadim (Kick #1 right) 56 of 57"]
+         "Sonyosh (Kick #1 left) kicked 57 of 58 and Karadim (Kick #1 right) 56 of 57",
+         "13 of the 28 pulls from pull 12 were lost within 10 s of casts on assignments going through"]
 wrong = ["blames Dragepie or anyone else for kicks in pulls 1-11 as if the note's order applied there",
          "says Attractîv missed kicks before pull 12",
          "counts a cast another player kicked as a missed kick, such as Zebinomage's covered by Karadim"]
