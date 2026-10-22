@@ -5,6 +5,7 @@ report = "KBYT4xXn7VNjDgh8"
 
 [[case]]
 id = "real-last-pull"  # no pull named: "the last pull" is pull 42, the night's best (answer #253)
+cause = "deaths from 3:00"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
@@ -57,6 +58,7 @@ wrong = ["the pulls end because the raid fails a damage check or a timed enrage"
 
 [[case]]
 id = "real-follow-up-who-touched-cyst"  # in a channel; the log shows when cysts burst, not who touched one (#100-#101)
+cause = "ability: Viscous Cyst"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 report = "vjt3KLbN8g62J1H9"
 question = ["what killed everone on the last attempte", "can you see who touched the cyst"]

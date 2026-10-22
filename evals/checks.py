@@ -167,7 +167,8 @@ def wrong_prompt(question: str, wrong: list[str], answer: str) -> str:
 # ---- checks that never fail an answer: run on saved answers (`just evals --recheck`) ----
 
 GROUNDED = """You check an answer from a World of Warcraft raid-analysis bot against what its tools returned. The tools
-compute every fact from the raid's log and fetch the guides; the bot should state only what they show.
+compute every fact from the raid's log and fetch the guides; the bot should state only what they show, and say so when
+it can't tell.
 
 Question: {question}
 
@@ -179,16 +180,20 @@ Question: {question}
 {answer}
 </answer>
 
-List each claim the answer makes about this raid (a number, a time, who did or took what, what caused or lost a
-pull, what a player should change) that the tool outputs don't support. A claim is supported when the outputs state
-it, or it follows plainly from them and the guide text in them (a time worked out from two times, a mechanic the
-guide describes). Rounded numbers, other words and leaving things out are fine; general advice that names nothing in
-this raid ("use defensives") isn't a claim. Mark a claim CONTRADICTED when the outputs show otherwise, UNSUPPORTED
-when they show nothing that backs it (a cause the outputs don't point to, a number no output has, a guess stated as
-fact).
+Find the claims in the answer that would mislead a raider about what happened in this raid or what to change:
+- a cause, a fault or a job stated as fact that the outputs don't show (who caused it, whose fault it wasn't, who was
+  meant to soak or stand where, what lost the pull);
+- something about players the outputs don't show: where they stood or moved, what they could have pressed, how long a
+  cooldown or buff lasted or when it would be ready;
+- a comparison or ranking no output makes ("the biggest problem", "the only one that");
+- a number or time the answer uses to back its point that the outputs contradict.
 
-Reply with one line per claim, "CONTRADICTED: ..." or "UNSUPPORTED: ...", quoting the answer briefly and saying in a
-few words what the outputs show; then a last line with only GROUNDED (no such claim) or NOT GROUNDED."""
+Leave out: a slip in a side detail that doesn't change the answer's point (a count off by one, a rounded time), a fair
+reading of the outputs or of the guide text in them, a possibility the answer hedges ("may", "likely", "can't tell"),
+and general advice that names nothing in this raid.
+
+Reply with one line per claim, "MISLEADING: ...", quoting the answer briefly and saying in a few words what the
+outputs show; then a last line with only GROUNDED (none) or NOT GROUNDED."""
 
 # How the answer is built, the skill's rules for every answer: each judged alone, binary, with "n/a" where the rule
 # doesn't apply. A score to watch, never a pass or fail.
@@ -216,15 +221,18 @@ Question: {question}
 
 Reply with one sentence of reasoning, then a last line with only YES, NO or N/A."""
 
-GROUNDED_LINE = re.compile(r"^\s*(CONTRADICTED|UNSUPPORTED):\s*(.+)$", re.M)
+GROUNDED_LINE = re.compile(r"^\s*MISLEADING:\s*(.+)$", re.M)
+# The grounded check's judge. Against a Claude council's labels of 26 answers (22 October 2026: evals/
+# grounding-labels.jsonl) Opus flagged all 10 answers the council found a misleading claim in, and 9 of the 16 it
+# didn't (Sonnet: 15 of 16): a list to read, not a verdict.
+GROUNDED_MODEL = "opus"
 RUBRIC_VERDICT = re.compile(r"\b(YES|NO|N/A)\b")
 
 
 @dataclass
 class Grounding:
     ok: bool | None  # None: the judge gave no verdict
-    contradicted: list[str]
-    unsupported: list[str]
+    misleading: list[str]  # the claims the tool outputs don't back, in the judge's words
     cost_usd: float = 0.0
 
 
@@ -234,15 +242,13 @@ def tool_outputs(calls: list[dict]) -> str:
                        for c in calls)
 
 
-async def grounded(question: str, answer: str, calls: list[dict], model: str) -> Grounding:
-    """The answer's claims about the raid that its tool outputs don't back up or contradict."""
+async def grounded(question: str, answer: str, calls: list[dict], model: str = GROUNDED_MODEL) -> Grounding:
+    """The answer's claims about the raid that its tool outputs don't back and that would mislead a raider."""
     text, cost = await _ask_patiently(GROUNDED.format(question=question, outputs=tool_outputs(calls),
                                                       answer=answer), model)
     last = text.strip().splitlines()[-1].strip(" *`.").upper() if text.strip() else ""
-    found = GROUNDED_LINE.findall(text)
     ok = True if last == "GROUNDED" else False if last == "NOT GROUNDED" else None
-    return Grounding(ok, [c for k, c in found if k == "CONTRADICTED"], [c for k, c in found if k == "UNSUPPORTED"],
-                     cost)
+    return Grounding(ok, GROUNDED_LINE.findall(text), cost)
 
 
 async def rubric(question: str, answer: str, model: str) -> tuple[dict[str, bool | None], float]:
