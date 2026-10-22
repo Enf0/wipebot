@@ -168,7 +168,7 @@ async def compare_build(rep: Report, player: str, pull: int | None = None, boss:
     gaps = await _build_gaps(rep, f, p)
     if isinstance(gaps, str):
         return gaps
-    names = await knowledge.talent_names()
+    names, parts = await knowledge.talent_names(), await knowledge.talent_parts()
 
     def named(i: int) -> str:
         return names.get(i, f"talent {i}")
@@ -184,14 +184,15 @@ async def compare_build(rep: Report, player: str, pull: int | None = None, boss:
                      + (f"compared with those {n}." if gaps["same_hero"] >= SAME_HERO_MIN
                         else f"compared with all {n_all} (fewer than {SAME_HERO_MIN} play their tree)."))
     lines.append(f"Talents: {len(mine) - len(gaps['unusual'])} of their {plural(len(mine), 'pick')} are common "
-                 "among the top.")
-    lines.append("  Most top players take, they don't: " + (", ".join(
-        f"{named(i)} ({100 * taken[i] // n}%)" for i in gaps["missing"][:12]) or "none"))
+                 "among the top. By part of the tree: a talent only replaces one in its own part (class, spec or "
+                 "hero), which has its own points.")
+    lines.append("  Most top players take, they don't: " + (by_part(
+        [(parts.get(i, ""), f"{named(i)} ({100 * taken[i] // n}%)") for i in gaps["missing"][:12]]) or "none"))
     if gaps["missing"]:
         lines.append("  Talents most top players take and they don't may be AoE or utility choices: check the "
                      "spec guide's single-target build before calling one a gap.")
-    lines.append("  They take, few top players do: " + (", ".join(
-        f"{named(i)} ({100 * taken[i] // n}%)" for i in gaps["unusual"][:12]) or "none"))
+    lines.append("  They take, few top players do: " + (by_part(
+        [(parts.get(i, ""), f"{named(i)} ({100 * taken[i] // n}%)") for i in gaps["unusual"][:12]]) or "none"))
     versions = await knowledge.choice_versions()
     if swapped := [(i, versions[i]) for i in gaps["missing"] if versions.get(i) in gaps["unusual"]]:
         differences = await asyncio.gather(*(knowledge.versions_difference(theirs, i) for i, theirs in swapped))
@@ -199,7 +200,7 @@ async def compare_build(rep: Report, player: str, pull: int | None = None, boss:
             f"{named(theirs)} ({100 * taken[theirs] // n}%) for {named(i)} ({100 * taken[i] // n}%)"
             + (f": {difference}" if difference else "") for (i, theirs), difference in zip(swapped, differences,
                                                                                           strict=True)))
-    lines += await _against_guides(rep, p, gaps["det"], mine, named)
+    lines += await _against_guides(rep, p, gaps["det"], mine, named, parts)
     lines.append("Trinkets: theirs " + (", ".join(gaps["my_trinkets"]) or "unknown") + "; most used by the top: "
                  + ", ".join(f"{t} ({100 * c // n_all}%)" for t, c in gaps["trinkets"].most_common(5)))
     lines += _enchant_lines(gaps["enchants"], n_all)
@@ -217,6 +218,15 @@ async def compare_build(rep: Report, player: str, pull: int | None = None, boss:
                  "progression pull. Sources: Warcraft Logs rankings https://www.warcraftlogs.com/zone/rankings/"
                  f"{rep.zone_id or ''}, talent names from Raidbots https://www.raidbots.com")
     return "\n".join(lines)
+
+
+def by_part(items: list[tuple[str, str]]) -> str:
+    """(part of the tree, text) pairs as "class: a, b; spec: c", the parts in the tree's order."""
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for part, text in items:
+        grouped[part or "other"].append(text)
+    return "; ".join(f"{part}: {', '.join(texts)}" for part in ("class", "spec", "hero", "other")
+                     if (texts := grouped.get(part)))
 
 
 def _enchant_lines(slots: list[tuple[str, str | None, str, list[tuple[str, int]]]], n_top: int) -> list[str]:
@@ -347,7 +357,7 @@ async def raid_prep(rep: Report, pull: int | None = None, boss: str | None = Non
 
 
 async def _against_guides(rep: Report, p: Player, det: dict, mine: dict[int, int],
-                          named: Callable[[int], str]) -> list[str]:
+                          named: Callable[[int], str], parts: dict[int, str]) -> list[str]:
     """The player's talents against the raid builds of their spec's guides (Icy Veins, Method), those for their
     hero tree first: what each build takes that they don't, and the other way round."""
     try:
@@ -367,11 +377,13 @@ async def _against_guides(rep: Report, p: Player, det: dict, mine: dict[int, int
     lines = [f"Against the guides' raid builds{f' for {hero}' if hero else ''} (talents differ by boss; a guide "
              "build is a starting point):"]
     theirs = {named(i) for i in mine if i not in free}  # by name: a talent can have an entry id per rank
+    part = {named(i): parts.get(i, "") for b in builds for i in [*mine, *b["talents"]]}
     for b in builds[:4]:
         guide = {named(i) for i in b["talents"] if i not in free}
         lines.append(f"  {b['source']} \"{b['label']}\" ({b['url']}): they lack "
-                     + (", ".join(sorted(guide - theirs)) or "nothing") + "; they take instead "
-                     + (", ".join(sorted(theirs - guide)) or "nothing"))
+                     + (by_part([(part[t], t) for t in sorted(guide - theirs)]) or "nothing")
+                     + "; they take, the build doesn't: "
+                     + (by_part([(part[t], t) for t in sorted(theirs - guide)]) or "nothing"))
     if unread:
         lines.append(f"  {len(unread)} guide build(s) couldn't be read.")
     return lines

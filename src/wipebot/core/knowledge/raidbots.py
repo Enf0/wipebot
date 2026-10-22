@@ -54,6 +54,18 @@ async def choice_versions() -> dict[int, int]:
     return _talents["versions"]
 
 
+PARTS = {"classNodes": "class", "specNodes": "spec", "heroNodes": "hero", "subTreeNodes": "hero"}
+
+
+async def talent_parts() -> dict[int, str]:
+    """Talent entry id -> the part of the tree it's in: "class", "spec" or "hero". A talent only replaces one in its
+    own part: each part has its own points."""
+    if "parts" not in _talents:
+        _talents.keep("parts", {e["id"]: part for spec in await talent_trees() for key, part in PARTS.items()
+                                for node in spec.get(key) or [] for e in node.get("entries") or [] if "id" in e})
+    return _talents["parts"]
+
+
 async def _nodes() -> list[dict]:
     return [node for spec in await talent_trees() for key in ("classNodes", "specNodes", "heroNodes", "subTreeNodes")
             for node in spec.get(key) or []]
