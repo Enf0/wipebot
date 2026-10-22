@@ -47,6 +47,9 @@ What the GraphQL API does that its schema doesn't say, each checked against real
 - In a filter expression `timestamp` counts ms from the fight's start (`timestamp > 45043` on KBYT4xXn7VNjDgh8
   fight 27 kept the casts after a death 45.0 s in; verified 2026-10-21), and `source.name` matches accented names
   as written (`"Lïzårðmâñ"`). A `type = "cast"` filter on Casts keeps `fake` casts.
+- A filter expression Warcraft Logs can't read gives an empty answer, not an error: `fight = 4` (there is no
+  `fight` field; pulls go in `fightIDs`) and `nonsense.field ==== 3` both returned `events.data: []` and an empty
+  Debuffs table on p7jRwgv8b1rY6LBd (verified 2026-10-22). `wcl_query` says so under an empty answer to a filter.
 - `table(dataType: Threat)` → `threat[].targets[].bands[{startTime, startEvent}]`: who had a boss's aggro
   when, and the event that took it (usually the taunt). Better than a list of taunt spells.
 - Boss health and power over time: `graph(dataType: Resources, hostilityType: Enemies, sourceID: <boss>,

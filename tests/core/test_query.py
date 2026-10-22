@@ -72,3 +72,22 @@ async def test_an_answer_asked_moments_ago_costs_no_checks_of_the_points(monkeyp
     text = await query_text(cast(WCL, wcl), q, None)
     assert text.startswith("Warcraft Logs' answer (kept from 0 min ago: no points)") and '"name":"x"' in text
     assert not wcl.asked and not wcl.rate_checks
+
+
+async def test_an_answer_too_long_to_read_is_refused_with_where_its_length_is():
+    """Each part is another turn of the model's: 15 parts of raw events took minutes to read (#682)."""
+    answer = {"reportData": {"report": {"bursts": {"data": ["x" * 100] * 400}, "deaths": {"data": ["y"] * 10}}}}
+    with pytest.raises(FactError, match=r"\(4 parts\), too long to read: bursts 41,\d+, deaths \d+\. Ask for less"):
+        await query_text(cast(WCL, Points(100, answer)), "{ reportData { report { bursts deaths } } }", None)
+
+
+async def test_an_empty_answer_to_a_filter_says_an_unreadable_filter_reads_as_empty_too():
+    """Warcraft Logs answers a filterExpression with a field it doesn't have (`fight = 4`) with nothing, no error."""
+    q = '{ reportData { report { events(filterExpression: "fight = 4") { data } } } }'
+    empty = await query_text(cast(WCL, Points(100, {"reportData": {"report": {"events": {"data": []}}}})), q, None)
+    assert "Empty with a filterExpression" in empty and "`timestamp` counts ms from each fight's start" in empty
+    found = await query_text(cast(WCL, Points(100, {"reportData": {"report": {"events": {"data": [1]}}}})), q, None)
+    assert "Empty with" not in found
+    unfiltered = "{ reportData { report { events { data } } } }"
+    assert "Empty with" not in await query_text(
+        cast(WCL, Points(100, {"reportData": {"report": {"events": {"data": []}}}})), unfiltered, None)
