@@ -10,6 +10,8 @@ from .base import Report, alive_at, half_dead
 
 MASS_DEATH_MS = 2000  # deaths to one ability this close together are one hit killing many
 MASS_DEATH_SHARE = 5  # a fifth of the raid (at least 3) dying in one hit is a raid-wiping mechanic
+WAVE_MS = 6000  # deaths to one named ability this close together, in pulses, are one moment too (Stone Breaker's set)
+LEAD_IN_GAP_MS = 60_000  # deaths this close one after another lead into the moment that follows them
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,16 @@ class MassDeath:
     ids: tuple[int, ...]  # its ability ids, as the deaths logged them
     killed: int
     span_s: int  # from the first of those deaths to the last, at least 1
+    waves: bool = False  # in pulses over a few seconds (WAVE_MS), not one hit
+
+
+@dataclass(frozen=True)
+class LeadIn:
+    """The deaths that led into the first moment killing many: one after another, none more than LEAD_IN_GAP_MS from
+    the next, brought-back players left out. A raid short of players then is often what lost the moment."""
+    first_ms: float
+    deaths: int
+    tanks: int
 
 
 @dataclass(frozen=True)
@@ -51,6 +63,12 @@ class Ending:
     first_death_ms: float | None = None  # a cascade's first death
     half_dead_ms: float | None = None  # a cascade's end: half the raid dead
     alive_at_end: int | None = None  # called off: players still alive
+    lead_in: LeadIn | None = None  # "moments" led by a moment killing many: the deaths that led into it
+
+    @property
+    def mass(self) -> int:
+        """How many dying at once is a raid-wiping mechanic in this raid: a fifth of it, at least 3."""
+        return max(3, math.ceil(self.raid / MASS_DEATH_SHARE))
 
 
 def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float]], raid: int,
@@ -72,25 +90,54 @@ def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float
     moments += [KeptBuff(gained, name, alive_at(deaths, backs, raid, t0 + gained)) for name, gained in buffs
                 if t0 + gained <= until]  # gained once the wipe was decided: fallout too
     if not moments and half is not None:  # half the raid dead, with no hit killing many and no enrage: a cascade
-        return Ending("cascade", raid, length, first_death_ms=before[0]["timestamp"] - t0, half_dead_ms=half - t0)
+        stayed = [d for d in before if not _brought_back(d, backs)] or before  # a battle res undid a death
+        return Ending("cascade", raid, length, first_death_ms=stayed[0]["timestamp"] - t0, half_dead_ms=half - t0)
     if not moments:
         return Ending("called_off", raid, length, alive_at_end=alive_at(deaths, backs, raid, f["endTime"]))
     if half is not None:
         moments.append(HalfDead(half - t0))
-    return Ending("moments", raid, length, tuple(sorted(moments, key=lambda m: (m.at_ms, moment_text(m, raid)))))
+    moments.sort(key=lambda m: (m.at_ms, moment_text(m, raid)))
+    lead_in = _lead_in(rep, before, backs, t0, t0 + moments[0].at_ms) if isinstance(moments[0], MassDeath) else None
+    return Ending("moments", raid, length, tuple(moments), lead_in=lead_in)
+
+
+def _brought_back(death: dict, backs: dict[int, list[float]]) -> bool:
+    """Whether the player was brought back after this death (a battle res, a self-res)."""
+    return any(b > death["timestamp"] for b in backs.get(death["targetID"], []))
+
+
+def _lead_in(rep: Report, deaths: list[dict], backs: dict[int, list[float]], t0: float, at: float) -> LeadIn | None:
+    """The deaths that led into the moment at `at` (report time; the pull began at `t0`), or None for fewer than
+    two."""
+    chain, last = [], at
+    for d in reversed([d for d in deaths if d["timestamp"] < at and not _brought_back(d, backs)]):
+        if last - d["timestamp"] > LEAD_IN_GAP_MS:
+            break
+        chain.append(d)
+        last = d["timestamp"]
+    if len(chain) < 2:
+        return None
+    tanks = sum(p.role == "tank" for d in chain if (p := rep.players.get(rep.names.get(d["targetID"], "").lower())))
+    return LeadIn(chain[-1]["timestamp"] - t0, len(chain), tanks)
 
 
 def _mass_deaths(rep: Report, deaths: list[dict], t0: float, raid: int) -> list[MassDeath]:
-    """Each run of deaths to one ability within MASS_DEATH_MS that killed a fifth of the raid (at least 3)."""
+    """Each run of deaths to one ability within MASS_DEATH_MS, or for a named ability in pulses within WAVE_MS, that
+    killed a fifth of the raid (at least 3)."""
     found, mass, i = [], max(3, math.ceil(raid / MASS_DEATH_SHARE)), 0
     while i < len(deaths):
         name = rep.ability(deaths[i].get("killingAbilityGameID"))  # by name: an ability logs under several ids
         hit = [d for d in deaths[i:] if d["timestamp"] - deaths[i]["timestamp"] <= MASS_DEATH_MS
                and rep.ability(d.get("killingAbilityGameID")) == name]
+        waves = False
+        if len(hit) < mass and deaths[i].get("killingAbilityGameID"):  # the same ability in pulses
+            hit = [d for d in deaths[i:] if d["timestamp"] - deaths[i]["timestamp"] <= WAVE_MS
+                   and rep.ability(d.get("killingAbilityGameID")) == name]
+            waves = True
         if len(hit) >= mass:
             ids = tuple(sorted({gid for d in hit if (gid := d.get("killingAbilityGameID"))}))
             span = max(1, round((hit[-1]["timestamp"] - hit[0]["timestamp"]) / 1000))
-            found.append(MassDeath(hit[0]["timestamp"] - t0, name if ids else "", ids, len(hit), span))
+            found.append(MassDeath(hit[0]["timestamp"] - t0, name if ids else "", ids, len(hit), span, waves))
             i = deaths.index(hit[-1]) + 1
         else:
             i += 1
@@ -99,6 +146,9 @@ def _mass_deaths(rep: Report, deaths: list[dict], t0: float, raid: int) -> list[
 
 def moment_text(m: Moment, raid: int) -> str:
     match m:
+        case MassDeath(at_ms=at, ability=name, ids=ids, killed=n, span_s=span, waves=True):
+            return (f"{name} [{', '.join(map(str, ids))}] killed {n} in pulses within {span} s from {clock(at)} (one "
+                    "ability killing many in a few seconds: find which mechanic failed)")
         case MassDeath(at_ms=at, ability=name, ids=ids, killed=n, span_s=span):
             within = f"within {span} s at {clock(at)}"
             if ids:
@@ -128,8 +178,13 @@ def ending_text(e: Ending | None) -> str | None:
                     "what each left short.")
         case "called_off":
             return f"Ended by: called off at {clock(e.end_ms)} with {e.alive_at_end} of {e.raid} alive."
-    return ("Ended by (from the log, earliest first): " + "; then ".join(moment_text(m, e.raid) for m in e.moments)
-            + ".")
+    text = "Ended by (from the log, earliest first): " + "; then ".join(moment_text(m, e.raid) for m in e.moments) + "."
+    if e.lead_in:
+        tanks = f", {'a tank' if e.lead_in.tanks == 1 else f'{e.lead_in.tanks} tanks'} among them" if e.lead_in.tanks \
+            else ""
+        text += (f" Before it, {e.lead_in.deaths} deaths one after another from {clock(e.lead_in.first_ms)}{tanks}, "
+                 "none brought back: what each left short may be what lost it.")
+    return text
 
 
 def lead(e: Ending | None) -> str:
@@ -143,6 +198,8 @@ def lead(e: Ending | None) -> str:
         case "called_off":
             return "called off"
         case "moments":
+            if e.lead_in and e.lead_in.deaths >= e.mass:
+                return f"deaths from {clock(e.lead_in.first_ms)}"
             match e.moments[0]:
                 case MassDeath(ability=name):
                     return f"ability: {name}" if name else "moment: no killing blow"

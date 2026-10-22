@@ -9,7 +9,7 @@ from tests.support import CODE, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.pulls import Decided
 from wipebot.core.report import fight
-from wipebot.core.report.ending import ending, ending_text
+from wipebot.core.report.ending import ending, ending_text, lead
 
 T0 = 1_000_000  # a pull late in the log: times in the text are from its start
 PULL = {"id": 1, "kill": False, "fightPercentage": 40.0, "startTime": T0, "endTime": T0 + 120_000}
@@ -56,6 +56,44 @@ def test_a_wipe_nothing_decided_was_called_off_and_one_still_going_has_no_end(re
         "Ended by: not yet, the pull is still going (2:00 logged so far).")
     assert ended_by(rep, {**PULL, "kill": True}, died, {}, 20, [], None) is None
 
+
+
+def died_as(*at: tuple[float, int, int]) -> list[dict]:
+    """Deaths (seconds, ability, player id), for players the night doesn't have (no role) unless the id is one."""
+    return [{"targetID": who, "timestamp": T0 + s * 1000, "killingAbilityGameID": a} for s, a, who in at]
+
+
+def test_one_ability_killing_in_pulses_over_a_few_seconds_is_one_moment(rep, deaths):
+    # A set of three hits about 3 s apart, two deaths each: never four within 2 s, six within 6 s.
+    died = deaths((40.0, VENOM), (40.2, VENOM), (43.0, VENOM), (43.1, VENOM), (45.5, VENOM), (45.8, VENOM))
+    assert ended_by(rep, PULL, died, {}, 20, [], Decided(47_000)).startswith(
+        "Ended by (from the log, earliest first): Venom Burst [901] killed 6 in pulses within 6 s from 0:40 (one "
+        "ability killing many in a few seconds: find which mechanic failed)")
+    # an unnamed killing blow isn't one ability: no pulses
+    unnamed = [{**d, "killingAbilityGameID": None} for d in died]
+    assert "in pulses" not in str(ended_by(rep, PULL, unnamed, {}, 20, [], Decided(47_000)))
+
+
+def test_the_deaths_leading_into_a_moment_are_named_and_lead_when_they_are_many(rep, deaths):
+    # Four die one after another from 1:10 (another brought back, one long before), then one hit kills four at 1:40.
+    rep.abilities |= {VENOM: "Venom Burst", SWIPE: "Tail Swipe", CRASH: "Shadow Crash"}
+    died = died_as((5.0, SWIPE, 901), (70.0, SWIPE, 902), (80.0, SWIPE, 903), (85.0, SWIPE, 904), (90.0, CRASH, 905),
+                   (95.0, SWIPE, 906), (100.0, VENOM, 907), (100.2, VENOM, 908), (100.4, VENOM, 909),
+                   (100.6, VENOM, 910))
+    backs: dict[int, list[float]] = {903: [T0 + 81_000.0]}  # 903 battle-ressed: not one of the deaths that stayed
+    e = ending(rep, PULL, died, backs, 20, [], None)
+    assert e and e.lead_in and (e.lead_in.first_ms, e.lead_in.deaths, e.lead_in.tanks) == (70_000, 4, 0)
+    assert str(ending_text(e)).endswith("Before it, 4 deaths one after another from 1:10, none brought back: what each "
+                                        "left short may be what lost it.")
+    assert lead(e) == "deaths from 1:10"  # four is a fifth of 20
+    fewer = ending(rep, PULL, died[4:], backs, 20, [], None)  # two deaths before it: named, but don't lead
+    assert fewer and fewer.lead_in and fewer.lead_in.deaths == 2 and lead(fewer) == "ability: Venom Burst"
+
+
+def test_a_cascade_starts_at_the_first_death_that_stayed(rep, deaths):
+    died = died_as((10.0, SWIPE, 901), (50.0, SWIPE, 902), (55.0, CRASH, 903), (60.0, SWIPE, 904))
+    e = ending(rep, PULL, died, {901: [T0 + 15_000.0]}, 6, [], Decided(60_000))
+    assert e and e.kind == "cascade" and e.first_death_ms == 50_000
 
 async def test_a_pull_still_going_has_no_buffs_at_the_end_and_is_logged_so_far():
     night = Night()
