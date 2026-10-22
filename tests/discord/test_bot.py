@@ -595,3 +595,19 @@ async def test_with_nothing_live_questions_are_about_the_guilds_latest_raid(bot,
     assert await bot.current_report(settings) == "RAID" and asked_for == [14169]  # looked up once in a while
     follower.code = "LIVE1"
     assert await bot.current_report(settings) == "LIVE1"
+
+
+async def test_asked_in_a_channel_to_answer_in_a_dm_it_answers_there_as_if_asked_there(bot, message, asked):
+    """answer_in_dm: the question goes to the asker's own DM conversation, where players may be named; from a DM it
+    declines, since that's where it is."""
+    msg, dm = message("<@99> send me who missed kicks in a DM"), FakeDM()
+    msg.author.create_dm = lambda: asyncio.sleep(0, dm)
+    await bot.on_message(msg)
+    told = await asked[0][3].tools["answer_in_dm"]({"question": "who missed their kicks on Twin Fangs tonight?"})
+    assert "DM gets the answer" in told
+    for _ in range(5):  # the DM's answer runs on its own
+        await asyncio.sleep(0)
+    key, _, question, ctx = asked[1]
+    assert (key, question, ctx.where) == (("dm", 7), "who missed their kicks on Twin Fangs tonight?", "in a DM")
+    assert dm.sent == ["**Wiped.**"] and msg.replies == ["**Wiped.**"]  # the channel's own answer, and the DM's
+    assert await ctx.tools["answer_in_dm"]({"question": "x"}) == "This is their DM already: answer here."

@@ -536,9 +536,32 @@ class WipeBot(discord.Client):
 
         async def remember(args: dict) -> str:
             return await self._remember(user.id, name, code, args)
+
+        async def answer_in_dm(args: dict) -> str:
+            if channel is None:
+                return "This is their DM already: answer here."
+            if not (question := " ".join(str(args.get("question") or "").split())):
+                return "Give the question to answer in their DM."
+            asyncio.create_task(self._in_dm(s, user, name, code, question))
+            return ("Their DM gets the answer now, as if they had asked it there. Say so here in a line, and don't "
+                    "answer it here too.")
         return Context(asker=asker or raider.character, discord_name=name, where=where, pull=pull, boss=boss,
                        notes=raider.notes, guild=f"{s.wcl_guild}, {s.wcl_server}, {s.wcl_region}",
-                       tools={"follow_pulls": follow_pulls, "remember": remember}, **self._raid_notes(s))
+                       tools={"follow_pulls": follow_pulls, "remember": remember, "answer_in_dm": answer_in_dm},
+                       **self._raid_notes(s))
+
+    @answering
+    async def _in_dm(self, s: ServerSettings, user: discord.User | discord.Member, name: str, code: str,
+                     question: str) -> None:
+        """A question asked in a channel to be answered in the asker's DMs (answer_in_dm): in their DM conversation,
+        as if asked there."""
+        dm = await user.create_dm()
+
+        async def send(answer: Answer) -> list[int]:
+            return await self._send(dm, answer)
+        ctx = self._context(s, user, name, code, "in a DM", None)
+        if failed := await self._answer("chat", ("dm", user.id), code, question, ctx, name, send):
+            await dm.send(failed)
 
     async def _answer(self, kind: str, key: Hashable, code: str, question: str, ctx: Context, who: str,
                       send: Callable[[Answer], Awaitable[list[int]]], message: discord.Message | None = None,
