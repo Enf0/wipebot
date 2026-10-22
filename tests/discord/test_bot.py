@@ -191,8 +191,8 @@ def recorded(store: Store) -> list[tuple]:
     return store._db.execute("SELECT kind, asker, question, answer, error, fight FROM interactions").fetchall()
 
 
-def server_member(roles=(), manage_guild=False):
-    return SimpleNamespace(roles=[SimpleNamespace(id=r) for r in roles], display_name="Rowan",
+def server_member(roles=(), manage_guild=False, nick="Rowan"):
+    return SimpleNamespace(roles=[SimpleNamespace(id=r) for r in roles], display_name=nick, name="rowan",
                            guild_permissions=SimpleNamespace(manage_guild=manage_guild))
 
 
@@ -235,6 +235,14 @@ async def test_a_dm_is_answered_in_the_dm(bot, message, asked, monkeypatch):
     await bot.on_message(msg)
     assert [(q[0], q[3].where) for q in asked] == [(("dm", 7), "in a DM")]
     assert msg.channel.sent == ["**Wiped.**"] and msg.replies == []
+
+
+async def test_in_a_dm_the_asker_has_their_server_nickname(bot, message, asked, monkeypatch):
+    """A DM's author is the Discord account; the server's member has the nickname naming their character."""
+    member = server_member(nick="Jekå/Namsus")
+    monkeypatch.setattr(bot, "get_guild", lambda guild_id: SimpleNamespace(get_member=lambda i: member))
+    await bot.on_message(message("how did I do?", dm=True))
+    assert asked[0][3].discord_name == "Jekå/Namsus (rowan)"
 
 
 async def test_where_names_are_on_the_bot_knows_it(bot, message, asked):

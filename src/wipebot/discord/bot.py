@@ -201,7 +201,7 @@ def officers(settings: ServerSettings) -> str:
             else "members who can manage the server")
 
 
-def display(user: discord.abc.User) -> str:
+def display(user: discord.abc.User | discord.Member) -> str:
     """A Discord user as the model and the record name them: "Display (username)", or the one name when they're the
     same."""
     return plain(user.display_name if user.display_name == user.name else f"{user.display_name} ({user.name})")
@@ -494,7 +494,11 @@ class WipeBot(discord.Client):
     async def _chat(self, message: discord.Message, s: ServerSettings, code: str, question: str, where: str,
                     is_dm: bool) -> None:
         """Answer a question in its conversation: the asker's DMs, or the asker in that channel."""
-        author, name = message.author, display(message.author)
+        author = message.author
+        # In a DM the author is the Discord account: the server's member has the nickname a raider names their
+        # character in ("Jekå/Namsus"), as a channel's message does.
+        guild = self.get_guild(s.discord_guild_id) if is_dm else None
+        name = display((guild.get_member(author.id) if guild else None) or author)
         ctx = self._context(s, author, name, code, where, None if is_dm else message.channel)
         if message.reference and (posted := self.store.pull_for_message(message.reference.message_id)):
             try:
