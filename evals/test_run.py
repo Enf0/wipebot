@@ -131,14 +131,14 @@ def test_the_plugin_mode_loads_the_plugin_members_get_without_its_connector():
     folder = Path(plugin_folder())
     manifest = json.loads((folder / ".claude-plugin" / "plugin.json").read_text())
     assert "mcpServers" not in manifest and manifest["version"]
-    assert {p.name for p in (folder / "skills" / "raid-log-analysis").iterdir()} >= {"SKILL.md", "reading-a-wipe.md"}
+    assert {p.name for p in (folder / "skills" / "raid-log-analysis").iterdir()} >= {"SKILL.md", "examples.md"}
 
 
 def test_skill_use_counts_answers_that_loaded_it_and_the_files_read():
-    loaded = ["skill:wipebot:raid-log-analysis", "read:reading-a-wipe.md", "read:reading-a-wipe.md"]
+    loaded = ["skill:wipebot:raid-log-analysis", "read:examples.md", "read:examples.md"]
     results = {"wipe": [Trial(loaded=loaded), Trial()], "night": [Trial(loaded=loaded[:1])],
                "broken": [Trial(errored=True)]}
-    assert skill_use(results) == ("The skill was loaded in 2 of 3 answers; files read: reading-a-wipe.md 1\n"
+    assert skill_use(results) == ("The skill was loaded in 2 of 3 answers; files read: examples.md 1\n"
                                   "  answered without the skill on some trial: wipe")
 
 

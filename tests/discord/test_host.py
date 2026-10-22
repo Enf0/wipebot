@@ -362,8 +362,8 @@ async def test_with_a_plugin_the_model_loads_its_skills_and_reads_only_its_files
 async def test_an_answer_says_which_skill_it_loaded_and_which_files_it_read(session):
     session._client = cast(ClaudeSDKClient, FakeClient(
         [AssistantMessage([ToolUseBlock("t1", "Skill", {"skill": "wipebot:raid-log-analysis"}),
-                           ToolUseBlock("t2", "Read", {"file_path": "/p/skills/s/reading-a-wipe.md"})],
+                           ToolUseBlock("t2", "Read", {"file_path": "/p/skills/s/examples.md"})],
                           "claude-opus-5-5"),
          AssistantMessage([TextBlock("Wiped to the enrage.")], "claude-opus-5-5"), result(0.1, 10)]))
     answer = await session.ask("why did we wipe?", Context())
-    assert answer.loaded == ["skill:wipebot:raid-log-analysis", "read:reading-a-wipe.md"]
+    assert answer.loaded == ["skill:wipebot:raid-log-analysis", "read:examples.md"]

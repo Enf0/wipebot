@@ -211,7 +211,7 @@ class Answer:
     session_id: str = ""  # the Agent SDK's session, whose transcript has the same and more
     asked: float = 0.0  # time.monotonic() when the question went to the model
     # With a plugin (Session's `plugin`): each skill the model loaded ("skill:wipebot:raid-log-analysis") and file it
-    # read ("read:reading-a-wipe.md"), in order
+    # read ("read:examples.md"), in order
     loaded: list[str] = field(default_factory=list)
 
     def records(self) -> list[dict]:

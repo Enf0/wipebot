@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `Agent` A question that assumes its answer, such as "do we need more DPS?", now gets that checked first: the answer opens with what the log shows lost the pull. Asked what to change, Wipebot says whether to keep the plan or change it, which damage spike needs a healing cooldown, and whether more damage or another healer would help at all.
 - `Agent` Why a pull wiped now says whether it ended the way earlier pulls that night did, or got past the thing that ended most of them.
 - `Agent` How the night went now counts the pulls by what ended each, so the one thing that ends most of them stands out; why a pull wiped says plainly when it wasn't the boss's enrage or a damage check; and who was hit, stood where or had a kick ready comes with a reminder that whose job it was isn't in the log.
 - `Agent` Why a pull wiped now names the deaths that led into the moment that lost it, counts an ability that kills in pulses over a few seconds (a set of hits, a wave of adds) as one moment, and no longer starts a run of deaths at a player who was battle-ressed.
