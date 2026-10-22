@@ -105,7 +105,8 @@ def session_on(report: object, code: str = "ReportOfServerA1") -> Session:
 
 async def test_raid_note_gets_the_servers_saved_note_and_over_all_pulls_every_version():
     session = session_on(SimpleNamespace(fight=lambda pull, boss: {"encounterID": 3420, "startTime": 0,
-                                                                   "name": "Sszorak"}, start_ms=1_500_000))
+                                                                   "name": "Sszorak"}, start_ms=1_500_000,
+                                    end_ms=2_500_000))
     book = Notebook(":memory:")
     book.save_note(14169, 3420, "Sszorak", "EncounterID:3420;a", "Rowan", at=1000.0)
     book.save_note(14169, 3420, "Sszorak", "EncounterID:3420;b", "Ha]lvard", at=2000.0)
@@ -115,7 +116,7 @@ async def test_raid_note_gets_the_servers_saved_note_and_over_all_pulls_every_ve
     assert await session._saved_note({"pull": 3}) == ("EncounterID:3420;a", "saved by Rowan on Thu 01 Jan 00:16 UTC")
     session._ctx = Context(notebook=book, guild_id=1)  # another server's guild
     told = await session._saved_note({"pull": 3})
-    assert isinstance(told, str) and told.startswith("No raid note is saved for Sszorak in this server.")
+    assert isinstance(told, str) and told.startswith("No raid note is saved for Sszorak that night in this server.")
     session._ctx = Context()  # not in Discord
     assert await session._saved_note({}) == "Raid notes are only kept in Discord: there's none here."
 

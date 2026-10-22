@@ -268,9 +268,12 @@ class Session:
             return "Raid notes are only kept in Discord: there's none here."
         report = await self.library.report(args.get("report") or self.code)
         f = report.fight(args.get("pull"), args.get("boss"))
-        found = server.saved_note(self._ctx.notebook, self._ctx.guild_id, report, f, bool(args.get("all_pulls")))
-        return found or (f"No raid note is saved for {f['name']} in this server. Officers save one by pasting the "
-                         "note exported from Viserio to the bot." + server.NO_JOBS)
+        book, guild = self._ctx.notebook, self._ctx.guild_id
+        if found := await server.saved_note(book, guild, report, f, bool(args.get("all_pulls"))):
+            return found
+        other = server.OTHER_NIGHTS if book.notes(guild, f["encounterID"]) else ""
+        return (f"No raid note is saved for {f['name']} that night in this server{other}. Officers save one by "
+                "pasting the note exported from Viserio to the bot." + server.NO_JOBS)
 
     async def _saved_plan(self, args: dict) -> tuple[str, str] | str:
         """raid_plan: every version of the server's plans (Context.notebook) for the boss of the call's pull, after

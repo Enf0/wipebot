@@ -9,6 +9,7 @@ read-only, and writes it only to save a paste or fetched plans. One SQLite file,
 (default ~/.local/share/wipebot/notes.sqlite); without it there's nothing saved.
 """
 import datetime
+import math
 import os
 import sqlite3
 import time
@@ -135,13 +136,16 @@ class Notebook:
                          (guild_id, encounter_id, boss, note, saved_by, time.time() if at is None else at))
         self._db.commit()
 
-    def note_for(self, guild_id: int, encounter_id: int, at: float) -> SavedNote | None:
+    def note_for(self, guild_id: int, encounter_id: int, at: float, night: tuple[float, float] = (0, math.inf)
+                 ) -> SavedNote | None:
         """The boss's note as it was at `at` (epoch seconds): the last one saved by then, else the first one saved
-        after (a note saved during the night, checked against an earlier pull)."""
+        after (a note saved during the night, checked against an earlier pull); only those saved in `night`
+        (from, until), as notes change from night to night."""
         query = ("SELECT boss, note, saved_by, saved_at FROM raid_notes WHERE wcl_guild_id = ? AND "
-                 "encounter_id = ? AND saved_at {} ? ORDER BY saved_at {} LIMIT 1")
-        rows = (self._rows(query.format("<=", "DESC"), (guild_id, encounter_id, at))
-                or self._rows(query.format(">", "ASC"), (guild_id, encounter_id, at)))
+                 "encounter_id = ? AND saved_at >= ? AND saved_at < ? AND saved_at {} ? ORDER BY saved_at {} LIMIT 1")
+        since, until = night
+        rows = (self._rows(query.format("<=", "DESC"), (guild_id, encounter_id, since, until, at))
+                or self._rows(query.format(">", "ASC"), (guild_id, encounter_id, since, until, at)))
         return SavedNote(*rows[0]) if rows else None
 
     def notes(self, guild_id: int, encounter_id: int) -> list[SavedNote]:
