@@ -31,3 +31,4 @@ async def test_a_choice_nodes_two_versions_of_one_spell_are_told_apart(monkeypat
     assert await raidbots.talent_names() == {1: "Earthquake [462620]", 2: "Earthquake [61882]", 3: "Ascending Air",
                                              4: "Jet Stream", 5: "Everbloom", 6: "Everbloom"}
     assert await raidbots.choice_versions() == {1: 2, 2: 1}
+    assert await raidbots.talent_parts() == {1: "spec", 2: "spec", 3: "spec", 4: "spec", 5: "spec", 6: "spec"}
