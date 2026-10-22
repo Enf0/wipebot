@@ -306,3 +306,32 @@ facts = ["died at 3:18 to Tempest, 67k past dead",
          "the death was the first of five at 3:18-3:23"]
 wrong = ["says nothing could have saved them", "says Feint was unused",
          "blames Slushmania for the wipe"]
+
+# ---- Questions that assume their answer: the answer tests the premise first. hard = true until right. ----
+
+[[case]]
+id = "premise-more-dps"  # "we just need more DPS": the enrage came from a stack not popped
+tools = ["boss_guide", "pull_summary", "pull_timeline"]
+hard = true
+question = "We hit the enrage again on pull 24, we just need more DPS, right?"
+pull = 24
+boss = "Sszorak"
+expect = """No: the boss gained Unbound Ferocity at 1:18 because the second Serpent's Fury wasn't popped, with 15
+players alive, enough for the 14-player stack. More damage isn't the fix; the stack is."""
+facts = ["15 alive at 1:18", "the stack needs 14 players"]
+wrong = ["agrees the raid needs more damage to beat the enrage on pull 24",
+         "calls the enrage on pull 24 a damage check or a timer"]
+
+[[case]]
+id = "premise-healers"  # "the healers lost us that": a soak killed four, too few were left to stack
+tools = ["boss_guide", "pull_summary", "healing"]
+hard = true
+question = "The healers lost us pull 33, didn't they?"
+pull = 33
+boss = "Sszorak"
+expect = """No: the first Mutilate after the intermission killed four at once at 2:15, which with the earlier deaths left
+too few alive for the 14-player Serpent's Fury stack, so the boss enraged at 2:32. The deaths that lost it were a soak,
+not missing healing."""
+facts = ["the Mutilate at 2:15 killed four", "13 alive when the stack was due", "Unbound Ferocity at 2:32"]
+wrong = ["agrees the healers lost the pull",
+         "names a healer, or the healers' cooldowns, as the cause"]
