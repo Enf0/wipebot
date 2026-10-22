@@ -21,6 +21,7 @@ from ..knowledge import KnowledgeError, spaced
 from ..pulls import (
     DIFFICULTIES,
     NO_KILLING_BLOW,
+    Decided,
     GuildBest,
     end_buffs,
     first_by_name,
@@ -568,29 +569,29 @@ class Report(Fetched):
         that boss brings."""
         return [(name, at) for name, at in await self.end_buffs(fight) if not await self._partner_died(fight, at)]
 
-    async def decided_at(self, fight: dict) -> tuple[float, str] | None:
-        """(ms from the pull, why) when a wipe was decided: the boss gaining a buff it kept to the end (an
+    async def decided_at(self, fight: dict) -> Decided | None:
+        """When a wipe was decided, and by what: the boss gaining a buff it kept to the end (an
         enrage), or half the raid dead (a battle res brings one back), whichever came first, moved to the last death
         of the moment it falls in (deaths DEATH_GAP_MS apart, within DEATH_BURST_MS): one hit's deaths are never
         split into counted and fallout. Deaths up to the moment count; later ones are fallout. None for a kill or a
         wipe with neither."""
         if fight["kill"]:
             return None
-        found = [(at, f"the boss gained {name}") for name, at in await self.enrages(fight)]
+        found = [(at, name) for name, at in await self.enrages(fight)]
         deaths, raid = await self.deaths(fight), await self.raid_size(fight)
         backs = (await self.resurrects([fight]))[fight["id"]]
         if raid and (half := half_dead(deaths, backs, raid)) is not None:
-            found.append((half - fight["startTime"], "half the raid was dead"))
+            found.append((half - fight["startTime"], ""))
         if not found:
             return None
-        at, why = min(found)
+        at, enrage = min(found)
         end = fight["startTime"] + at
         if any(end - DEATH_GAP_MS <= d["timestamp"] <= end for d in deaths):
             cap = end + DEATH_BURST_MS
             for d in deaths:
                 if end < d["timestamp"] <= min(end + DEATH_GAP_MS, cap):
                     end = d["timestamp"]
-        return end - fight["startTime"], why
+        return Decided(end - fight["startTime"], enrage)
 
     async def _partner_died(self, fight: dict, gained: float) -> bool:
         """Whether a buff gained at `gained` (ms from the pull) came as another boss of a council died: what
@@ -615,7 +616,7 @@ class Report(Fetched):
         await self.resurrects(fights)
         if council := [f for f in fights if self._council(f) and await self.end_buffs(f)]:
             await self.events_for([(f["id"], {}) for f in council], "Deaths", hostilityType="Enemies")
-        return {f["id"]: f["startTime"] + d[0] for f in fights if (d := await self.decided_at(f))}
+        return {f["id"]: f["startTime"] + d.at_ms for f in fights if (d := await self.decided_at(f))}
 
     async def raid_size(self, fight: dict) -> int:
         """Players in a pull."""
@@ -626,9 +627,8 @@ class Report(Fetched):
         decided = None if whole_pull else await self.decided_at(fight)
         if not decided:
             return {}, ""
-        at, why = decided
-        return ({"endTime": fight["startTime"] + at},
-                f" until {clock(at)}, when the wipe was decided ({why}; whole_pull for the rest)")
+        return ({"endTime": fight["startTime"] + decided.at_ms},
+                f" until {clock(decided.at_ms)}, when the wipe was decided ({decided.why}; whole_pull for the rest)")
 
     async def details(self, fight: dict) -> dict[int, dict]:
         """A pull's player details by player id (item level, combatant info: talents, gear)."""
@@ -715,7 +715,7 @@ class Report(Fetched):
         decided = await self.decided_at(fight)
         return format_summary(summarize(fight, same, await self.deaths(fight), self.names, self.abilities,
                                      await self.boss_buffs(fight), await self.routine_buffs(fight),
-                                     await self.guild_best(fight), *(decided or (None, ""))))
+                                     await self.guild_best(fight), decided))
 
     async def guild_best(self, fight: dict) -> GuildBest | None:
         """The guild's furthest wipe on the fight's boss and difficulty in its logs of the weeks before this one

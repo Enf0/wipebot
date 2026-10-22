@@ -3,6 +3,7 @@ import time
 
 from tests.support import CODE, RESTO_SPELLS, FakeWCL, Night
 from wipebot.core import server
+from wipebot.core.pulls import Decided
 from wipebot.core.report import Player, adds, coaching, deaths, healing, mechanics, tables
 
 
@@ -39,7 +40,7 @@ def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_
     deaths = [{"timestamp": 50_000}, {"timestamp": 150_000}]  # battle-ressed at 80 s; the second is fallout
     casts = [{"timestamp": 10_000}, {"timestamp": 80_000}]
     line = coaching.time_lost(f, deaths, casts, [(20_000, 25_000)], "Energy", [(85_000, 130_000)],
-                              (120_000, "half the raid was dead"))
+                              Decided(120_000))
     assert line == ("Time lost until 2:00, when the wipe was decided, biggest first: Energy at its cap (only its gain "
                     "lost) 35 s (29%), dead (no output at all) 30 s (25%), casting gaps (no cast begun) 5 s (4%).")
     assert coaching.time_lost(f, [], casts, [], "", [], None) == "Time lost over the 3:20 pull, biggest first: none."

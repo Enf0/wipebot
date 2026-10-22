@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..knowledge import KnowledgeError
+from ..pulls import Decided
 from ..text import clock, plural, short
 from . import saved
 from .adds import interruptible_casts, kicked_tonight
@@ -200,7 +201,7 @@ class KickCheck:
 class PullCheck:
     f: dict
     note: Note
-    decided: tuple[float, str] | None
+    decided: Decided | None
     until: float
     soaks: list[Soaks]
     planned: Planned | None
@@ -263,7 +264,7 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
             return f"dead since {clock(since)}"
         return "alive"
 
-    until = decided[0] if decided else end  # what came after the wipe was decided is only counted
+    until = decided.at_ms if decided else end  # what came after the wipe was decided is only counted
     kicks = await _kicks(rep, f, note, players, state, when, until)
     try:
         callouts, why = await _callouts(rep, f, note, players, died, when, until, {id(k.callout) for k in kicks}), ""
@@ -295,7 +296,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
     f, end = c.f, c.f["endTime"] - c.f["startTime"]
     lines = [_head(c.note).replace("the boss", f["name"]) + (f", {source}" if source else "")
              + f", checked against {rep.label(f)} ({clock(end)}, " + ("KILL" if f["kill"] else "wipe")
-             + f", {rep.url(f)})" + (f"; the wipe was decided at {clock(c.decided[0])} ({c.decided[1]})"
+             + f", {rep.url(f)})" + (f"; the wipe was decided at {clock(c.decided.at_ms)} ({c.decided.why})"
                                     if c.decided else "")
              + ". Note times count from the pull's start (ph:1) or from the phase's first start."]
     lines += _assignments(c.note)

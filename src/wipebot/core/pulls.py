@@ -19,6 +19,18 @@ END_SLACK_MS = 1_000  # a buff removed this close to the end was still up when t
 END_BUFF_WINDOW_MS = 30_000
 
 
+@dataclass(frozen=True)
+class Decided:
+    """When a wipe was decided, and what decided it: the boss gaining a buff it kept to the end (`enrage`, its name),
+    or half the raid dead. Deaths up to it count; later ones are its fallout."""
+    at_ms: float  # from the pull's start
+    enrage: str = ""  # the buff that decided it; "" when half the raid dead did
+
+    @property
+    def why(self) -> str:
+        return f"the boss gained {self.enrage}" if self.enrage else "half the raid was dead"
+
+
 @dataclass
 class Death:
     player: str
@@ -56,8 +68,7 @@ class PullSummary:
     reset: bool = False  # a wipe with the boss untouched: a reset, not an attempt
     boss_buffs: list[tuple[str, float]] = field(default_factory=list)  # (buff, gained at ms): kept to the end
     guild_best: GuildBest | None = None  # the best wipe in the guild's earlier logs
-    decided_ms: float | None = None  # when the wipe was decided, if it was
-    decided_why: str = ""  # what decided it: "half the raid was dead", "the boss gained <its enrage>"
+    decided: Decided | None = None  # when the wipe was decided, and by what, if it was
     live: bool = False  # still being logged: neither a kill nor a wipe yet
 
 
@@ -131,14 +142,12 @@ def summarize(
     boss_buff_events: Sequence[dict] = (),
     routine_buffs: Collection[int] = (),
     guild_best: GuildBest | None = None,
-    decided_ms: float | None = None,
-    decided_why: str = "",
+    decided: Decided | None = None,
 ) -> PullSummary:
     """Build the summary for `fight`, using earlier pulls in `report_fights` for history. `boss_buff_events` are
     the bosses' buff events in this fight, for the buffs the boss still had at the end (e.g. an enrage);
     `routine_buffs` are buffs the boss lost during earlier pulls (see `end_buffs`); `guild_best` is the best wipe in
-    the guild's earlier logs; `decided_ms` when the wipe was decided (ms from the pull), later deaths its fallout, and
-    `decided_why` what decided it."""
+    the guild's earlier logs; `decided` when the wipe was decided, later deaths its fallout."""
     same_boss = sorted(
         (f for f in report_fights
          if f["encounterID"] == fight["encounterID"] and f.get("difficulty") == fight.get("difficulty")
@@ -154,7 +163,7 @@ def summarize(
             ability=abilities.get(e["killingAbilityGameID"], f"spell {e['killingAbilityGameID']}")
             if e.get("killingAbilityGameID") else NO_KILLING_BLOW,
             at_ms=e["timestamp"] - fight["startTime"],
-            fallout=decided_ms is not None and e["timestamp"] - fight["startTime"] > decided_ms,
+            fallout=decided is not None and e["timestamp"] - fight["startTime"] > decided.at_ms,
         )
         for e in sorted(death_events, key=lambda e: e["timestamp"])
         if e["targetID"] in players
@@ -175,8 +184,7 @@ def summarize(
         boss_buffs=[] if fight["kill"] or fight.get("inProgress") else first_by_name(
             (abilities.get(a, f"spell {a}"), at) for a, at in end_buffs(fight, list(boss_buff_events), routine_buffs)),
         guild_best=guild_best,
-        decided_ms=decided_ms,
-        decided_why=decided_why,
+        decided=decided,
         live=bool(fight.get("inProgress")),
     )
 
@@ -237,12 +245,11 @@ def format_summary(s: PullSummary) -> str:
         first = " · ".join(f"{d.player} ({d.ability}, {clock(d.at_ms)})" for d in s.deaths[:FIRST_DEATHS])
         lines.append(f"First deaths: {first}")
         counted = [d for d in s.deaths if not d.fallout]
-        if s.decided_ms is None or len(counted) == len(s.deaths):
+        if s.decided is None or len(counted) == len(s.deaths):
             lines.append("Killed by: " + killers_text(counted))
         else:
             later = plural(len(s.deaths) - len(counted), "later death")
-            why = f" ({s.decided_why})" if s.decided_why else ""
-            lines.append(f"Killed by, until the wipe was decided at {clock(s.decided_ms)}{why}: "
+            lines.append(f"Killed by, until the wipe was decided at {clock(s.decided.at_ms)} ({s.decided.why}): "
                          + (killers_text(counted) or "none") + f" ({later}: fallout)")
     if len(s.trend) > 1 and not s.reset and not s.live:
         lines.append(f"Last {len(s.trend)}: " + " → ".join(f"{p:.1f}" for p in s.trend))

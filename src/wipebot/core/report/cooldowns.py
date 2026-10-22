@@ -36,7 +36,7 @@ async def cooldown_lines(rep: Report, f: dict, p: Player, casts: list[dict]) -> 
         own = [d for d in await rep.deaths(f) if d["targetID"] == p.id]
         _, alive_until = alive(rep, f, p, own, casts)
         decided = await rep.decided_at(f)
-        cut = f["startTime"] + decided[0] if decided else f["endTime"]
+        cut = f["startTime"] + decided.at_ms if decided else f["endTime"]
         lines.append("Major cooldowns (list from Lorrgs; uses / possible if pressed on cooldown from the pull until "
                      "they died or the wipe was decided, ignoring charges, cooldown reduction and holding for a burst "
                      "window; one already up at the pull counts as used at 0:00"
@@ -172,7 +172,7 @@ async def cooldown_use(rep: Report, p: Player, f: dict, casts: list[dict], early
     player died (for good) or the wipe was decided."""
     _, alive_until = alive(rep, f, p, [d for d in await rep.deaths(f) if d["targetID"] == p.id], casts)
     decided = await rep.decided_at(f)
-    end_ms = min(alive_until, f["startTime"] + decided[0] if decided else f["endTime"]) - f["startTime"]
+    end_ms = min(alive_until, f["startTime"] + decided.at_ms if decided else f["endTime"]) - f["startTime"]
     dur_s = end_ms / 1000
     talents = ((await rep.details(f)).get(p.id, {}).get("combatantInfo") or {}).get("talentTree") or []
     tree = await knowledge.tree_for(p.class_name, p.spec) if talents else None

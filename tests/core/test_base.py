@@ -7,6 +7,7 @@ import pytest
 
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import knowledge, server
+from wipebot.core.pulls import Decided
 from wipebot.core.report import FactError, Report, casting, cooldowns, deaths, fight, ranks
 from wipebot.core.report.base import alive_after, alive_at, half_dead
 from wipebot.core.wcl import WCL, WCLError
@@ -78,10 +79,10 @@ async def test_a_player_who_changed_role_is_their_main_spec_but_each_pull_has_it
 
 
 async def test_a_wipe_is_decided_by_the_enrage_or_half_the_raid_dead(rep):
-    assert await rep.decided_at(rep.fight(13)) == (152_966, "the boss gained Unbound Ferocity")  # 2:32
-    at, why = await rep.decided_at(rep.fight(12))  # no enrage: decided when the 10th of 20 died
-    assert why == "half the raid was dead"
-    assert at == (await rep.deaths(rep.fight(12)))[9]["timestamp"] - rep.fight(12)["startTime"]
+    assert await rep.decided_at(rep.fight(13)) == Decided(152_966, "Unbound Ferocity")  # 2:32
+    decided = await rep.decided_at(rep.fight(12))  # no enrage: decided when the 10th of 20 died
+    assert decided and decided.why == "half the raid was dead"
+    assert decided.at_ms == (await rep.deaths(rep.fight(12)))[9]["timestamp"] - rep.fight(12)["startTime"]
     assert await rep.decided_at(rep.fight(2, "vashnik")) is None  # a kill
 
 
@@ -89,7 +90,7 @@ async def test_one_burst_of_deaths_is_never_split_into_counted_and_fallout(rep):
     # Pull 16: 17 players die to one Virulence within a second at 0:28, the 10th of them half the raid; the last
     # player standing dies 3 s later.
     f = rep.fight(16)
-    at, _ = await rep.decided_at(f)
+    at = (await rep.decided_at(f)).at_ms
     deaths = await rep.deaths(f)
     assert at == deaths[-2]["timestamp"] - f["startTime"]
     assert deaths[-1]["timestamp"] - f["startTime"] > at + 1000
@@ -98,7 +99,7 @@ async def test_one_burst_of_deaths_is_never_split_into_counted_and_fallout(rep):
 async def test_deaths_seconds_apart_after_half_the_raid_died_are_fallout_not_one_burst(rep):
     # Pull 28: the 10th of 20 dies at 1:38 with the 11th 1 ms later; the next six die over the 3 s after it.
     f = rep.fight(28)
-    at, _ = await rep.decided_at(f)
+    at = (await rep.decided_at(f)).at_ms
     deaths = await rep.deaths(f)
     assert at == deaths[10]["timestamp"] - f["startTime"]
     text = await fight.pull_summary(rep, 28)
@@ -116,7 +117,7 @@ async def test_a_councils_boss_deaths_are_read_for_every_pull_in_one_query(rep, 
     cuts = await rep.decided_cuts(fights)
     assert wcl.queries.count("events_many Deaths") == 1  # the pulls whose boss kept a buff, together
     wcl.queries.clear()
-    assert cuts == {f["id"]: f["startTime"] + d[0] for f in fights if (d := await rep.decided_at(f))}
+    assert cuts == {f["id"]: f["startTime"] + d.at_ms for f in fights if (d := await rep.decided_at(f))}
     assert wcl.queries == []
 
 
@@ -303,7 +304,7 @@ async def test_the_moment_a_wipe_was_decided_takes_in_the_deaths_of_that_moment(
                                                          for i, at in enumerate(deaths)]))
     monkeypatch.setattr(rep, "raid_size", lambda f: answer(raid))
     monkeypatch.setattr(rep, "resurrects", lambda fs: answer({1: {}}))
-    assert (await rep.decided_at(f))[0] == decided
+    assert (await rep.decided_at(f)).at_ms == decided
     assert await rep.until_decided(f, whole_pull=True) == ({}, "")
 
 
