@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Agent` A late taunt is no longer called one tank's fault: the log shows who taunted when, not whose turn it was. Asked what stats to aim for, Wipebot gives the spec guide's priority and treats what the top players wear as a note beside it, not a new priority.
 - `Agent` Comparing your talents with the top players says which part of the tree each is in (class, spec or hero), so it no longer suggests swapping a class talent for a spec talent.
 - `Discord` In a DM, Wipebot knows you by your nickname in the guild's server, so a character named there is found without asking.
 - `Agent` When Warcraft Logs is down, questions about a raid night Wipebot has already read are still answered from what it kept, instead of failing on the first step.

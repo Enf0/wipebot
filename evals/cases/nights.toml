@@ -140,7 +140,9 @@ facts = ["104 of 113 Exploding Infections were dispelled over the 8 pulls; 35 of
 # On the kill a totem went off at the 6:00 Imbibe (Malignance on 19 players at 6:05, Krøpling among them), and
 # Sveini's Infection reached 12 stacks at 6:04 before it was dispelled: holding through an Imbibe is what the guide's
 # "when the raid is stable" means, so neither is a fault to state. No raid note shows who had which dispel.
-wrong = ["says the dispels caused the wipes",
+# Pull 4: Martin's Exploding Infection reached 11 stacks and went off at 1:51, after the Imbibe; Caustic Explosion
+# killed him and three more. Saying an infection held into the Imbibe cost that pull is fair (22 October).
+wrong = ["says slow dispels caused most of the wipes",
          "says Congealing Bolt needed dispelling (most ran out undispelled)",
          "blames a named healer for Krøpling's death"]
 [[case]]
@@ -235,15 +237,17 @@ where = "in a DM"
 question = "What are the three things we most need to fix on Sszorak from last night?"
 asker = "Enfo"
 boss = "Sszorak"
-expect = """Ranked by the pulls each ended: first the Serpent's Fury stacks that let the boss enrage (Unbound
-Ferocity, the first thing that ended 11 of the 42 pulls and kept to the end on more), then the Mutilate soak (8),
-then staying alive through the stretches of deaths, Tempest above all; most important first, each with a change."""
+expect = """Three priorities, most important first, ranked by the pulls each ended: the Serpent's Fury stacks that
+let the boss enrage (Unbound Ferocity, the first thing that ended 11 of the 42 pulls) and the Mutilate soak (8) as the
+top two, in either order (a Mutilate that kills four often leaves too few for the stack), then staying alive through
+the stretches of deaths, Tempest above all; each with a change."""
 facts = ["Unbound Ferocity ended 11 pulls first",
          "Mutilate killing many ended 8, deaths one after another 8",
          "Tempest the night's killer: 58 deaths, the first death on 12 pulls",
          "the best wipe, 34.1% on pull 42"]
 # progress counts the pulls by the first thing that ended each; the night's killer counts deaths, so Tempest tops it
-# while the stacks lost more pulls. Leading with Tempest is the tempting misreading.
+# while the stacks and the soak lost more pulls. Leading with Tempest is the tempting misreading. Mutilate first, with
+# the enrage as what it often leads to, is a raid leader's reading too (22 October: every such answer argued it).
 wrong = ["leads with Tempest, or with damage, as the most important thing to fix",
          "gives more than three priorities, or none in order"]
 
@@ -273,12 +277,14 @@ where = "in a DM"
 question = "Make us a healing cooldown plan for Sszorak from tonight's pulls."
 asker = "Enfo"
 boss = "Sszorak"
-expect = """Plans a healing cooldown for the spike that came back most, Virulence and Mutilated Gash at about
-0:23-0:28 (6 pulls, a healing cooldown ready and unused in all 6), naming cooldowns that were ready then; and treats
-the Viscous Cyst spikes at 1:41-1:43 (no cooldown, 15 deaths in 3 pulls) as a mechanic to handle, not only a
-cooldown to add. Says the log can't show who was assigned."""
+expect = """A plan of healing cooldowns by time over the fight, which cooldown when, built from the night's kill and its
+spikes: it covers the Virulence and Mutilated Gash wave around 0:23-0:28 (a healing cooldown ready and unused on each
+of the 6 pulls it came), treats the Viscous Cyst bursts at 1:41-1:43 as a mechanic to handle rather than only a
+cooldown to add, and says the log can't show who was assigned."""
 facts = ["the 0:23-0:28 spike: 3.55M/s taken, 0.8 healing cooldowns per spike, 17 deaths",
          "Spirit Link Totem (Enfo) the cooldown most often ready and unused, 10 times",
          "the 1:41-1:43 Viscous Cyst spikes: 4.74M/s taken, healing 2.29M/s"]
+# 22 October: every answer built its plan from the kill's own timeline (pull 14) and fixed its one late set, a raid
+# leader's way to plan farm; the case asked first for the spike that came back most, which none led with.
 wrong = ["names a healer as having failed an assigned cooldown (there is no raid note)",
          "plans no cooldown for the 0:23-0:28 spike"]

@@ -20,4 +20,5 @@ Wutroll:
     Provoke (8 s cooldown) cast at 0:00, 0:38; ready again at 0:08, 0:46
   died at 1:03 to Ravage [1277101]
 Boss aggro in order (who took it, and with what): 0:00 Wutroll (Provoke); 0:13 Deathadim (Dark Command); 0:38 Wutroll (Provoke); 1:05 Deathadim (Dark Command); 1:14 Zebinomage (Melee); 1:20 Pomaa (Melee); 1:22 Fenryr (Melee); 1:24 Martin (Melee)
+Whose turn it was to taunt, and at how many stacks, isn't in the log: the raid note or the tanks' own call holds it, and tanks often trade the boss back and forth, so a late taunt is a fact, not one tank's fault.
 Spells each tank took a boss's aggro with on the guild's 8 raid nights of the 4 weeks up to this one (every boss; times, and the last time): Deathadim: Dark Command 496 (last Sszorak pull 33, Mon 5 Oct), Death Grip 19 (last Sszorak pull 28, Mon 5 Oct); Wutroll: Provoke 809 (last Sszorak pull 33, Mon 5 Oct)

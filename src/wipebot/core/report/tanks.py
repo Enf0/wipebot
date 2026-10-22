@@ -7,6 +7,11 @@ from ..knowledge import KnowledgeError
 from ..text import clock, date, day, plural
 from .base import Player, PullRef, Report
 
+# After who taunted when: what the log can't show of a swap.
+SWAPS_NOT_LOGGED = ("Whose turn it was to taunt, and at how many stacks, isn't in the log: the raid note or the "
+                    "tanks' own call holds it, and tanks often trade the boss back and forth, so a late taunt is a "
+                    "fact, not one tank's fault.")
+
 
 async def tank_swaps(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
     """Tank swaps on one pull: who had the boss's aggro when and what took it (usually a taunt), and per tank
@@ -66,7 +71,7 @@ async def tank_swaps(rep: Report, pull: PullRef = None, boss: str | None = None)
     lines.append("Boss aggro in order (who took it, and with what): " + ("; ".join(
         f"{clock(at - t0)} {who}{f' on {boss}' if several else ''} ({how})" for at, who, how, boss in aggro)
         or "none"))
-    return "\n".join(lines)
+    return "\n".join([*lines, SWAPS_NOT_LOGGED])
 
 
 async def _taunts(rep: Report, f: dict, p: Player, aggro: list[tuple[float, str, str, str]]) -> list[str]:
