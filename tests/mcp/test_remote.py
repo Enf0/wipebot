@@ -733,6 +733,7 @@ def test_the_consent_page_names_the_app_and_where_it_sends_the_user_back(client)
     page = client.get(consent(client, r.json()["client_id"]))
     assert page.status_code == 200 and "&lt;script&gt;" in page.text and "<script>" not in page.text
     assert "<b>claude.ai</b>" in page.text
+    assert '<a href="https://github.com/Enf0/wipebot">its source</a>' in page.text  # the AGPL's §13
     csp = page.headers["content-security-policy"]
     assert "default-src 'none'" in csp and "frame-ancestors 'none'" in csp and "script-src" not in csp
     assert page.headers["referrer-policy"] == "no-referrer" and page.headers["x-content-type-options"] == "nosniff"

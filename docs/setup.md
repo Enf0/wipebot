@@ -41,6 +41,7 @@ In `.env` (copy [.env.example](../.env.example)):
 | `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku` |
 | `WIPEBOT_CHANNEL_CONTEXT` | bot | `1`: answers also read the channel's last 15 messages (needs the Message Content intent) |
 | `WIPEBOT_RECORD_ANSWERS` | bot | `1`: keep questions and answers for 90 days, for reviewing them |
+| `WIPEBOT_SOURCE_URL` | both | where users get your copy's source, shown on the sign-in page and in `/wipebot settings` (default this repository): set it if you changed the code, as the AGPL asks |
 
 Each app says at start which of its required settings are missing. Rarely needed: `WIPEBOT_MCP_MEMORY` and
 `WIPEBOT_BOT_MEMORY`, Docker's memory limit per container (default `2g` and `4g`), and `WIPEBOT_CACHE_MAX_MB`,

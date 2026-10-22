@@ -26,6 +26,7 @@ import base64
 import functools
 import inspect
 import logging
+import os
 import re
 import secrets
 import time
@@ -77,6 +78,15 @@ SKILL = resources.files("wipebot.core").joinpath("skills/raid-log-analysis")  # 
 TITLES = {"compare_with_top": "Compare with top players",
           "save_note_or_plan": "Save raid note or plan",
           "wcl_query": "Warcraft Logs query"}
+
+
+# The AGPL (section 13): whoever uses a copy over the network can get its source. A host who changed the code points
+# WIPEBOT_SOURCE_URL at theirs.
+SOURCE = "https://github.com/Enf0/wipebot"
+
+
+def source_url() -> str:
+    return os.environ.get("WIPEBOT_SOURCE_URL") or SOURCE
 
 
 def title(name: str) -> str:
