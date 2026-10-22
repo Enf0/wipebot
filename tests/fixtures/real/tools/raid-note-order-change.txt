@@ -1,0 +1,99 @@
+The raid note for Twin Fangs (Mythic), checked against every The Twin Fangs pull (39), each until its wipe was decided (the boss's enrage or half the raid dead) and against the note as it was saved before it began. "p3 1:15" is pull 3 at 1:15.
+The note's kick order fits pulls 12-39, not 1-11, which had another: there, Kick #2 left was kicked by Dragepie (15 of its 19 casts), Kick #5 left was kicked by Slushmania (10 of its 13 casts), and Attractîv, named in the note, was in none of them (tanks' kicks on others' assignments left out as backup). Kicks are counted for pulls 12-39 only; soaks and cooldowns for every pull.
+Assignments in the note's text:
+  Ravenous Feast and Tainted Blood Groups: Right: Peggerino Krøpling Zebinomage Enfo Cptola Namsus; Left: Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ; Center: Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll
+  Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Karadim; Kick #2 left: Attractîv; Kick #2 right: Enfo; Kick #3 left: Algmor; Kick #3 right: Krøpling; Kick #4 left: Dscopi; Kick #4 right: Peggerino; Kick #5 left: Dragepie; Kick #5 right: Zebinomage
+Ravenous Feast and Tainted Blood Groups: 85 hits of Ravenous Feast [1290662] over 35 pulls (3 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
+  Agonco (Center): hit by 48 of 56; missed 8: p8 1:03, p10 2:04, p16 1:03, p19 1:03, p21 2:02, p22 1:03, p27 1:03, p31 2:02; dead for 1 more; in the other group's 2
+  Draiman (Center): hit by 54 of 57; missed 3: p18 1:01, p25 3:38, p27 1:03; in the other group's 1
+  Slushmania (Center): hit by 54 of 56; missed 2: p10 2:04, p12 1:01; dead for 1 more; in the other group's 3
+  Wutroll (Center): hit by 55 of 57; missed 2: p10 3:36, p21 2:02; in the other group's 3
+  Cptola (Right): hit by 26 of 27; missed 1: p29 3:36; in the other group's 31
+  Karadim (Center): hit by 56 of 57; missed 1: p21 2:02; in the other group's 3
+  Algmor (Left): hit by 1 of 1; in the other group's 56
+  Dragepie (Left): hit by 1 of 1; in the other group's 58
+  Dscopi (Left): hit by 1 of 1; in the other group's 52
+  Enfo (Right): hit by 27 of 27; in the other group's 32
+  Krøpling (Right): hit by 26 of 26; dead for 1 more; in the other group's 31
+  Lïzårðmâñ (Left): hit by 1 of 1; in the other group's 56
+  Nalaxd (Center): hit by 54 of 54; dead for 3 more; in the other group's 1
+  Namsus (Right): hit by 27 of 27; in the other group's 32
+  Nexsozz (Center): hit by 57 of 57; in the other group's 2
+  Peggerino (Right): hit by 27 of 27; in the other group's 30
+  Pomaa (Center): hit by 54 of 54; dead for 3 more; in the other group's 3
+  Sonyosh (Left): hit by 1 of 1; in the other group's 58
+  Zebinomage (Right): hit by 26 of 26; dead for 1 more; in the other group's 31
+  Hit, in no group: Grusarn 14
+Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
+  Attractîv: 60 planned uses; on time 1, early 1 (2 s), late 1 (29 s), not cast 40, dead 1
+    0:58 Stampeding Roar [106898], 35 pulls: on time 1, not cast 24 (p12, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24 and 12 more)
+    2:00 Stampeding Roar [106898], 16 pulls: not cast 11 (p14, p17, p20, p21, p22, p24, p25, p29, p31, p37, p38), dead 1
+    3:35 Stampeding Roar [106898], 6 pulls: early 1 (2 s), not cast 3 (p17, p29, p37)
+    4:36 Stampeding Roar [106898], 2 pulls: late 1 (29 s), not cast 1 (p25)
+    6:10 Stampeding Roar [106898], 1 pull: not cast 1 (p37)
+  Sonyosh: 18 planned uses; on time 1, early 7 (2 s), not cast 10
+    1:58 Wind Rush Totem [192077], 16 pulls: on time 1, early 7 (2 s), not cast 8 (p5, p8, p21, p22, p24, p29, p31, p33)
+    4:33 Wind Rush Totem [192077], 2 pulls: not cast 2 (p25, p37)
+  Cptola: 73 planned uses; on time 2, early 57 (6 s), late 4 (3 s), not cast 9, dead 1
+    0:43 Avenging Wrath [31884], 37 pulls: on time 1, early 31 (4 s), late 1 (6 s), not cast 4 (p3, p11, p17, p25)
+    1:48 Aura Mastery [31821], 24 pulls: on time 1, early 18 (7 s), late 3 (2 s), not cast 1 (p29), dead 1
+    3:18 Avenging Wrath [31884], 10 pulls: early 6 (6 s), not cast 4 (p11, p17, p25, p38)
+    5:53 Avenging Wrath [31884], 1 pull: early 1 (23 s)
+    5:57 Aura Mastery [31821], 1 pull: early 1 (6 s)
+  Enfo: 76 planned uses; on time 52, early 2 (1 s), late 12 (3 s), not cast 9, dead 1
+    0:37 Ascendance [114052], 37 pulls: on time 30, early 1 (1 s), late 3 (2 s), not cast 3 (p10, p15, p23)
+    2:00 Spirit Link Totem [98008], 16 pulls: on time 13, not cast 2 (p5, p21), dead 1
+    2:14 Wind Rush Totem [192077], 13 pulls: on time 3, late 6 (3 s), not cast 4 (p11, p22, p25, p29)
+    3:37 Ascendance [114052], 6 pulls: on time 3, late 3 (4 s)
+    4:49 Wind Rush Totem [192077], 2 pulls: on time 2
+    6:10 Spirit Link Totem [98008], 1 pull: on time 1
+    6:40 Ascendance [114052], 1 pull: early 1 (1 s)
+  Lïzårðmâñ: 145 planned uses; on time 68, early 12 (1 s), late 56 (2 s), not cast 8, dead 1
+    0:16 Rewind [363534], 39 pulls: on time 16, late 20 (3 s), not cast 2 (p9, p30), dead 1
+    1:01 Zephyr [374227], 35 pulls: on time 23, early 1 (1 s), late 8 (1 s), not cast 3 (p25, p32, p36)
+    1:10 Time Dilation [357170], 35 pulls: on time 21, early 2 (2 s), late 12 (2 s)
+    2:14 Time Spiral [374968], 13 pulls: on time 2, late 11 (2 s)
+    3:28 Rewind [363534], 7 pulls: on time 1, early 6 (1 s)
+    3:36 Zephyr [374227], 6 pulls: on time 1, early 2 (7 s), not cast 3 (p10, p25, p37)
+    3:45 Time Dilation [357170], 6 pulls: on time 3, early 1 (1 s), late 2 (2 s)
+    4:48 Time Spiral [374968], 2 pulls: late 2 (3 s)
+    6:11 Zephyr [374227], 1 pull: on time 1
+    6:20 Time Dilation [357170], 1 pull: late 1 (3 s)
+  Nexsozz: 39 planned uses; on time 5, early 26 (3 s), not cast 8
+    0:43 Anti-Magic Zone [51052], 37 pulls: on time 5, early 26 (3 s), not cast 6 (p2, p7, p19, p22, p26, p34)
+    4:19 Anti-Magic Zone [51052], 2 pulls: not cast 2 (p25, p37)
+  Dscopi: 16 planned uses; on time 2, early 3 (1 s), late 2 (2 s), not cast 7, dead 2
+    2:02 Darkness [196718], 15 pulls: on time 2, early 3 (1 s), late 2 (2 s), not cast 6 (p8, p14, p17, p31, p37, p38), dead 2
+    6:11 Darkness [196718], 1 pull: not cast 1 (p37)
+  Dragepie: 59 planned uses; on time 6, early 45 (3 s), late 2 (4 s), not cast 6
+    0:57 Time Spiral [374968], 35 pulls: on time 1, early 31 (3 s), late 2 (4 s), not cast 1 (p5)
+    2:02 Zephyr [374227], 15 pulls: on time 3, early 7 (3 s), not cast 5 (p5, p11, p14, p21, p22)
+    3:33 Time Spiral [374968], 6 pulls: on time 1, early 5 (3 s)
+    4:37 Zephyr [374227], 2 pulls: on time 1, early 1 (2 s)
+    6:08 Time Spiral [374968], 1 pull: early 1 (2 s)
+  Karadim: 42 planned uses; on time 25, early 11 (1 s), late 3 (2 s), not cast 3
+    1:10 Blessing of Sacrifice [6940], 35 pulls: on time 20, early 10 (1 s), late 3 (2 s), not cast 2 (p2, p3)
+    3:45 Blessing of Sacrifice [6940], 6 pulls: on time 4, early 1 (1 s), not cast 1 (p10)
+    6:20 Blessing of Sacrifice [6940], 1 pull: on time 1
+  Namsus: 80 planned uses; on time 28, early 34 (2 s), late 15 (2 s), not cast 3
+    0:38 Apotheosis [200183], 37 pulls: on time 17, early 13 (2 s), late 7 (2 s)
+    1:39 Divine Hymn [64843], 28 pulls: on time 10, early 11 (3 s), late 6 (2 s), not cast 1 (p6)
+    3:13 Apotheosis [200183], 11 pulls: on time 1, early 7 (6 s), late 1 (2 s), not cast 2 (p20, p38)
+    4:14 Divine Hymn [64843], 2 pulls: early 2 (3 s)
+    5:48 Apotheosis [200183], 1 pull: early 1 (2 s)
+    6:49 Divine Hymn [64843], 1 pull: late 1 (4 s)
+  Pomaa: 37 planned uses; on time 13, early 20 (2 s), late 2 (8 s), not cast 2
+    1:01 Rallying Cry [97462], 35 pulls: on time 13, early 19 (2 s), late 1 (1 s), not cast 2 (p2, p31)
+    4:57 Rallying Cry [97462], 2 pulls: early 1 (20 s), late 1 (16 s)
+Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss that night). Which side's add begins first varies, so a note timed for one side is a second off for the other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking their own, and a kick on another cast begun within 1.5 s of the callout counts too. Over the pulls, per player, most missed first: of their kicks while alive, how many they made, the ones they didn't with what became of their cast, dead for how many more:
+  Algmor (Kick #3 left): kicked 33 of 58; no kick at 25: p12 1:42 (kicked by Wutroll), p14 0:41 (kicked by Wutroll), p14 1:42 (kicked by Attractîv), p15 0:41 (kicked by Wutroll), p17 0:41 (kicked by Wutroll), p17 1:42 (kicked by Wutroll), p19 1:42 (went through), p24 0:41 (kicked by Wutroll), p24 3:16 (kicked by Wutroll), p25 3:16 (kicked by Wutroll), p25 4:17 (kicked by Attractîv), p26 0:41 (kicked by Wutroll) and 13 more; dead for 1 more
+  Zebinomage (Kick #5 right): kicked 31 of 54; no kick at 23: p12 1:47 (kicked by Karadim), p13 0:46 (kicked by Karadim), p14 3:21 (went through), p15 0:46 (kicked by Dragepie), p17 0:46 (kicked by Karadim), p20 1:47 (kicked by Karadim), p22 1:47 (kicked by Karadim), p24 0:46 (kicked by Pomaa), p24 3:21 (kicked by Karadim), p25 1:47 (kicked by Dragepie), p25 3:21 (kicked by Karadim), p25 4:22 (kicked by Karadim) and 11 more; dead for 1 more
+  Dragepie (Kick #5 left): kicked 35 of 55; no kick at 20: p12 1:46 (went through), p13 0:45 (went through), p14 1:46 (kicked by Algmor), p16 0:45 (kicked by Wutroll), p18 1:46 (kicked by Dscopi), p20 1:46 (kicked by Wutroll), p22 0:45 (kicked by Wutroll), p22 1:46 (kicked by Wutroll), p24 1:46 (kicked by Wutroll), p27 1:46 (went through), p28 1:46 (kicked by Algmor), p29 1:46 (kicked by Wutroll) and 8 more
+  Attractîv (Kick #2 left): kicked 43 of 59; no kick at 16: p12 1:40 (went through), p13 0:39 (kicked by Wutroll), p14 1:40 (kicked by Wutroll), p20 3:14 (went through), p21 1:40 (kicked by Wutroll), p25 1:40 (kicked by Wutroll), p25 4:15 (kicked by Wutroll), p26 0:39 (went through), p27 1:40 (kicked by Wutroll), p32 0:39 (kicked by Wutroll), p32 1:40 (went through), p33 0:39 (kicked by Wutroll) and 4 more
+  Dscopi (Kick #4 left): kicked 45 of 56; no kick at 11: p14 0:43 (kicked by Algmor), p15 0:43 (kicked by Algmor), p18 0:43 (kicked by Wutroll), p18 1:44 (went through), p19 1:44 (kicked by Algmor), p21 1:44 (went through), p24 3:18 (went through), p33 1:44 (kicked by Algmor), p34 1:44 (went through), p35 1:44 (kicked by Wutroll), p37 1:44 (kicked by Wutroll)
+  Enfo (Kick #2 right): kicked 50 of 59; no kick at 9: p12 1:41 (kicked by Karadim), p13 0:40 (went through), p14 0:40 (kicked by Karadim), p20 3:15 (went through), p22 1:41 (kicked by Karadim), p28 0:40 (kicked by Karadim), p32 1:41 (went through), p37 6:51 (went through), p38 3:15 (kicked by Karadim)
+  Peggerino (Kick #4 right): kicked 48 of 55; no kick at 7: p12 0:44 (kicked by Karadim), p17 3:19 (kicked by Wutroll), p18 0:44 (kicked by Karadim), p19 1:45 (kicked by Karadim), p28 1:45 (went through), p38 0:44 (kicked by Karadim), p38 3:19 (kicked by Karadim); dead for 1 more
+  Krøpling (Kick #3 right): kicked 50 of 56; no kick at 6: p22 0:42 (kicked by Karadim), p25 0:42 (kicked by Karadim), p25 1:43 (kicked by Karadim), p29 1:43 (kicked by Karadim), p35 1:43 (went through), p37 6:53 (went through); dead for 1 more
+  Karadim (Kick #1 right): kicked 56 of 57; no kick at 1: p32 1:39 (went through); dead for 2 more
+  Sonyosh (Kick #1 left): kicked 57 of 58; no kick at 1: p20 0:37 (kicked by Wutroll); dead for 1 more
+  Their casts that went through, per assignment: "Kick #3 left" 6, "Kick #2 left" 5, "Kick #2 right" 4, "Kick #4 left" 4, "Kick #1 right" 3, "Kick #5 left" 3, "Kick #3 right" 2, "Kick #4 right" 2, "Kick #1 left" 1, "Kick #5 right" 1

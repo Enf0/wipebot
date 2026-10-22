@@ -1,6 +1,9 @@
 """Reading a raid note (report/note.py; NSRT's format). How it's checked against real pulls is pinned by the tool
 cases (test_tools.py)."""
 from collections import Counter
+from collections.abc import Mapping
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -45,3 +48,52 @@ def test_a_player_hit_by_almost_none_of_their_groups_soaks_is_named_as_likely_no
     line = note._few_soaks(took, alive)
     assert "likely not soaking with this group" in line and line.endswith(": Torvek (1 of 8)")
     assert note._few_soaks(Counter(Mirelle=3), Counter(Mirelle=4)) == ""
+
+
+def _kicks_by(*pulls: Mapping[str, str | None], missing: tuple[str, ...] = ()) -> list:
+    """Night checks with one kick per assignment and pull, {"Kick #1 left": who kicked its cast, or None when it went
+    through}, each assignment its player's in the note (Kick #1 left: Sonyosh, Kick #2 left: Dragepie); `missing`,
+    named in the note, absent from pulls 1-4."""
+    owners = {"Kick #1 left": "Sonyosh", "Kick #2 left": "Dragepie"}
+
+    def kick(text: str, by: str | None) -> note.KickCheck:
+        cast = (0, "kicked", by) if by else (0, "went through", None)
+        return note.KickCheck(0, note.Callout(0, 1, (owners[text],), text), owners[text], cast, by == owners[text],
+                              "alive")
+    return [SimpleNamespace(missing=list(missing) if i < 4 else [], kicks=[kick(t, by) for t, by in p.items()])
+            for i, p in enumerate(pulls)]
+
+
+def test_a_kick_order_the_pulls_before_had_is_found_and_a_backup_kicker_isnt_one():
+    """Pulls 1-4 had Attractîv on Kick #1 left (and Zebinomage, whom the note names, absent), pulls 5-8 the note's
+    order; a player who takes a few of a slot's casts all night is a backup, not another order."""
+    early = {"Kick #1 left": "Attractîv", "Kick #2 left": "Dragepie"}
+    late = {"Kick #1 left": "Sonyosh", "Kick #2 left": "Dragepie"}
+    checks = _kicks_by(early, early, {**early, "Kick #2 left": "Karadim"}, early, late, late, late, late,
+                       missing=("Zebinomage",))
+    change = note._order_change(checks)
+    assert change == note.OrderChange(4, [("Kick #1 left", "Attractîv", 4, 4)], ["Zebinomage"])
+    backup = _kicks_by(*[{**late, "Kick #2 left": "Karadim" if i % 3 == 0 else "Dragepie"} for i in range(9)])
+    assert note._order_change(backup) is None
+    tank = _kicks_by(*[{**late, "Kick #1 left": "Wutroll"}] * 4, late, late, late, late)
+    assert note._order_change(tank, tanks={"Wutroll"}) is None and note._order_change(tank)  # a tank backs up
+
+
+def test_a_player_kicking_a_cast_not_theirs_pull_after_pull_is_a_mistake_and_not_another_order():
+    """Dragepie, whom the note gives Kick #2 left, kicked Kick #1 left's cast in pulls 1-4 while their own went
+    through, and the note's player for it was there: one player's mistake, which the kicks show."""
+    sniped = {"Kick #1 left": "Dragepie", "Kick #2 left": None}
+    late = {"Kick #1 left": "Sonyosh", "Kick #2 left": "Dragepie"}
+    assert note._order_change(_kicks_by(sniped, sniped, sniped, sniped, late, late, late, late)) is None
+
+
+def test_pulls_checked_against_a_note_saved_after_they_began_are_named():
+    """A note saved only after the night (its first version, so the pulls are checked against it) may not be the one
+    those pulls had; a pasted note has no time."""
+    rep = SimpleNamespace(start_ms=1_000_000, pull_no=lambda f: f["id"])
+    fights = [{"id": i, "startTime": i * 100_000} for i in (1, 2, 3)]
+    saved = note.Version([], saved_at=1_250, saved_by="Rowan")  # between pulls 2 and 3
+    assert note._saved_late(cast(Any, rep), fights, {i: saved for i in (1, 2, 3)}) == [
+        "The note was saved after pulls 1-2 began, with none saved before them: the plan for them may have been "
+        "different."]
+    assert note._saved_late(cast(Any, rep), fights, {i: note.Version([]) for i in (1, 2, 3)}) == []

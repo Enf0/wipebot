@@ -11,12 +11,13 @@ import re
 import statistics
 from collections import Counter, defaultdict
 from collections.abc import Callable
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import Any
 
 from ..knowledge import KnowledgeError
 from ..pulls import Decided
-from ..text import clock, plural, short
+from ..text import clock, plural, ranges, short
 from . import saved
 from .adds import interruptible_casts, kicked_tonight
 from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since, unavailable
@@ -34,6 +35,14 @@ KICK_SLOT_MS = 1_500
 FEW_SOAKS = 0.2
 FEW_SOAKS_MIN = 3
 KICK_WAVE_GAP_MS = 5_000  # kick assignments this close together are one wave of adds
+# The note's kick order came in at a pull when, in the pulls before, an assignment's casts were kicked by one other
+# player (at least ORDER_KICKS of them, ORDER_SHARE of its casts) and by its player at most ASSIGNEE_SHARE, and from
+# that pull on by its player (ORDER_SHARE): another order before, not one player missing. A tank kicking another's
+# cast is a backup and doesn't count, nor does a backup who takes a few of a slot's casts all night. And it's another
+# order only when the change is whole: the one who kicked the casts has no kick in the note, or their own was kicked
+# by another before too, or the assignment's player wasn't in those pulls. Otherwise one player kicked a cast not
+# theirs, pull after pull: a mistake the kicks show.
+ORDER_KICKS, ORDER_SHARE, ASSIGNEE_SHARE = 4, 0.5, 0.25
 KICKS_ARE = ("Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss "
              "that night). Which side's add begins first varies, so a note timed for one side is a second off for the "
              "other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking "
@@ -195,6 +204,13 @@ class KickCheck:
     cast: tuple[float, str, str | None]  # the cast that was theirs: (ms it began, how it ended, who kicked it)
     kicked: bool
     state: str  # the player's, at the callout
+
+
+@dataclass
+class OrderChange:
+    start: int  # the first pull (an index into the night's checks) the note's kick order fits
+    slots: list[tuple[str, str, int, int]]  # (assignment, who kicked its casts before, how many, of how many)
+    absent: list[str]  # named in the note, in none of the pulls before and in some after
 
 
 @dataclass
@@ -631,10 +647,15 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
         lines.append("Versions of the note: " + "; ".join(
             f"{v.source()}: pulls " + ", ".join(str(rep.pull_no(f)) for f in fights if by_pull[f["id"]] is v)
             for v in usable if id(v) in used))
+    lines += _saved_late(rep, fights, by_pull)
+    tanks = {p.name for f in fights for p in rep.pull_players(f).values() if p.role == "tank"}
+    change = _order_change(checks, tanks) if len(used) == 1 else None
+    if change:
+        lines.append(_change_text(rep, fights, change))
     lines += _assignments(latest)
     lines += _night_soaks(rep, checks)
     lines += _night_cooldowns(rep, checks)
-    lines += _night_kicks(rep, checks)
+    lines += _night_kicks(rep, checks[change.start:] if change else checks)
     lines += _night_callouts(rep, checks)
     lines += list(dict.fromkeys(c.unavailable for c in checks if c.unavailable))
     return "\n".join(lines)
@@ -835,6 +856,63 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
                     line += " (ready: " + ", ".join(f"{t} {k}" for t, k in _by_count(ready[n])) + ")"
             out.append(line)
     return out
+
+
+def _saved_late(rep: Report, fights: list[dict], by_pull: dict[int, Version]) -> list[str]:
+    """The pulls checked against a note saved after they began, there being none saved before (saved.pick)."""
+    late = [rep.pull_no(f) for f in fights
+            if (by_pull[f["id"]].saved_at or 0) > (rep.start_ms + f["startTime"]) / 1000]
+    if not late:
+        return []
+    return [f"The note was saved after pulls {ranges(late)} began, with none saved before them: the plan for them may "
+            "have been different."]
+
+
+def _order_change(checks: list[PullCheck], tanks: AbstractSet[str] = frozenset()) -> OrderChange | None:
+    """The pull the note's kick order came in at, when the pulls before it had another (ORDER_KICKS): the split
+    where most kicks fit, the note's order from it on and the other before it (each assignment's player kicks the
+    same either way, so a split counts the other order's kicks over its player's, before it). None when every pull
+    fits the note's. `tanks` kicking an assignment not theirs are left out (ORDER_KICKS)."""
+    def tally(cs: list[PullCheck]) -> dict[tuple[str, str], Counter]:
+        by: dict[tuple[str, str], Counter] = defaultdict(Counter)  # (assignment, its player) -> who kicked its casts
+        for c in cs:
+            for k in c.kicks:
+                by_ = k.cast[2] if k.cast[1] == "kicked" else None
+                if by_ not in tanks or by_ == k.player:
+                    by[(k.callout.text, k.player)][by_] += 1
+        return by
+    kickers = {k.player for c in checks for k in c.kicks}  # the players the note gives a kick
+    best: tuple[int, int, list[tuple[str, str, int, int]]] | None = None
+    for s in range(1, len(checks)):
+        before, after = tally(checks[:s]), tally(checks[s:])
+        away = set.intersection(*(set(c.missing) for c in checks[:s]))
+        moved = []  # (assignment, its player, who kicked its casts instead, how many, of how many, its player's)
+        for (text, who), kicked in before.items():
+            total, later = sum(kicked.values()), after.get((text, who), Counter())
+            other, n = next(((p, n) for p, n in kicked.most_common() if p not in (who, None)), ("", 0))
+            if (n >= ORDER_KICKS and n >= ORDER_SHARE * total and kicked[who] <= ASSIGNEE_SHARE * total
+                    and later[who] >= ORDER_SHARE * sum(later.values())):
+                moved.append((text, who, other, n, total, kicked[who]))
+        whole = [m for m in moved if m[2] not in kickers or m[2] in {m[1] for m in moved} or m[1] in away]
+        score = sum(n - own for *_, n, _, own in whole)
+        if whole and (best is None or score > best[0]):
+            best = (score, s, [(text, other, n, total) for text, _, other, n, total, _ in whole])
+    if best is None:
+        return None
+    _, s, slots = best
+    absent = set.intersection(*(set(c.missing) for c in checks[:s])) - set.intersection(
+        *(set(c.missing) for c in checks[s:]))
+    return OrderChange(s, sorted(slots), sorted(absent))
+
+
+def _change_text(rep: Report, fights: list[dict], change: OrderChange) -> str:
+    fits, before = ([rep.pull_no(f) for f in part] for part in (fights[change.start:], fights[:change.start]))
+    slots = ", ".join(f"{text} was kicked by {who} ({n} of its {total} casts)" for text, who, n, total in change.slots)
+    return (f"The note's kick order fits pulls {ranges(fits)}, not {ranges(before)}, which had another: there, {slots}"
+            + (f", and {', '.join(change.absent)}, named in the note, {'was' if len(change.absent) == 1 else 'were'} "
+               "in none of them" if change.absent else "")
+            + f" (tanks' kicks on others' assignments left out as backup). Kicks are counted for pulls {ranges(fits)} "
+            "only; soaks and cooldowns for every pull.")
 
 
 def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
