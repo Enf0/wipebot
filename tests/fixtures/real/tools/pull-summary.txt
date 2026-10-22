@@ -5,6 +5,7 @@ Killed by, until the wipe was decided at 2:32 (the boss gained Unbound Ferocity)
 Last 5: 68.1 → 79.5 → 70.8 → 70.4 → 62.6
 Warcraft Logs: https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21
 Ended by (from the log, earliest first): the boss gained Unbound Ferocity at 2:32 and kept it to the end, 16 of 20 alive (look it up: an enrage makes every later death fallout).
+This pull ended the way 3 earlier pulls on Sszorak in this log did (pulls 1-3): the boss gaining Unbound Ferocity and keeping it to the end.
 Phases: P1 Sszorak 0:00 → P2 Howling Maelstrom 1:39 → P1 Sszorak 2:05
 
 Raid size 20. Deaths in order (time from pull start, players alive after it, a battle res or self-res counted):

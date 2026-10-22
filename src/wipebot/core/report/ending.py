@@ -251,5 +251,5 @@ def kind_of_end(e: Ending | None) -> str:
         case MassDeath(ability=name):  # at once or in pulses: one ability's way of ending pulls
             return f"{name} killing many"
         case KeptBuff(name=name):
-            return f"the boss gaining {name} (kept to the end)"
+            return f"the boss gaining {name} and keeping it to the end"
     return "half the raid dead"
