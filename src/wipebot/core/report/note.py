@@ -396,7 +396,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
             lines.append("    dead: " + ", ".join(k.dead))
     if c.kicks:
         lines.append(KICKS_ARE + ", each with the cast that was theirs and what became of it (covered: another "
-                     "player kicked it, so it was handled):")
+                     "player kicked it first, so it was handled and was no one's miss):")
     for k in c.kicks:
         line = f"  {clock(k.at)} {k.player} \"{k.callout.text}\": "
         if k.kicked:
@@ -931,8 +931,8 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
     if not rows:
         return []
     out = [KICKS_ARE + ". Over the pulls, per player, most casts that went through first: of their kicks while alive, "
-           "how many they made, how many another player covered (kicked their cast: handled, by whom), and the casts "
-           "of theirs that weren't kicked, with what became of them; dead for how many more:"]
+           "how many they made, how many another player covered (kicked their cast first: handled, no one's miss; by "
+           "whom), and the casts of theirs that weren't kicked, with what became of them; dead for how many more:"]
     alive: Counter = Counter()
     made: Counter = Counter()
     covered: dict[str, Counter] = defaultdict(Counter)
