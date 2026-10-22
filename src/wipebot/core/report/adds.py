@@ -201,13 +201,16 @@ def _no_deaths(names: list[str]) -> str:
             "order, only how many came, the damage they took and their casts.")
 
 
-NIGHT_KINDS = 4  # with all_pulls, the most damaged kinds of add named on each pull's line
+NIGHT_KINDS = 4  # with all_pulls, the most damaged kinds of add named on each pull's line, and given by player
+WAVE_GAP_MS = 20_000  # deaths of a kind of add this far apart are two waves
 
 
 async def enemies_night(rep: Report, boss: str | None = None) -> str:
     """The adds over every pull on a boss: per kind how many came and died over the pulls and the damage they
-    took, their casts with a cast bar (begun, kicked and by whom, gone through), then each pull in a line. Each
-    pull's deaths, damage by enemy and casts are fetched in one query each for all the pulls."""
+    took, their casts with a cast bar (begun, kicked and by whom, gone through), then each pull in a line; for the
+    NIGHT_KINDS most damaged kinds also when each wave died and each player's damage on them. Each pull's deaths,
+    damage by enemy and casts are fetched in one query each for all the pulls, and a kind's damage by player in one
+    over all of them."""
     pulls = rep.by_boss[rep.boss(boss)]
     fights, going = rep.ended(pulls), rep.still_going(pulls)
     items = [(f["id"], {}) for f in fights]
@@ -219,6 +222,7 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     taken: dict[str, float] = defaultdict(float)
     pulls_with: Counter = Counter()
     casts: dict[tuple[str, str], list[tuple[float, str, str | None, int]]] = defaultdict(list)
+    waves: dict[str, list[list[list[float]]]] = defaultdict(list)  # kind -> each pull's waves of death times
     per_pull = []
     for f, died_events, done in zip(fights, died_all, done_all, strict=True):
         bosses = boss_units(rep, f)
@@ -233,6 +237,7 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
             died[name] += len(deaths[n["id"]])
             taken[name] += hurt.get(n["id"], 0)
             pulls_with[name] += 1
+            waves[name].append(_waves(sorted(deaths[n["id"]])))
             here.append(f"{name} {k} came, {len(deaths[n['id']])} died")
         pull_casts = await interruptible_casts(rep, f)
         for key, these in pull_casts.items():
@@ -247,13 +252,16 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     if not came:
         return going + f"No enemies other than the boss on any {fights[0]['name']} pull."
     kickable = await kicked_tonight(rep, fights[0]) if casts else set()
+    by_player = await _dealt_on(rep, fights, sorted(came, key=lambda n: -taken[n])[:NIGHT_KINDS])
     lines = [f"Enemies other than the boss on all {plural(len(fights), rep.boss_key(fights[0]) + ' pull')}, each "
              "whole pull, most damaged first (how many came and died over the pulls, in how many pulls, damage "
-             "taken; then their casts with a cast bar: begun, kicked and by whom, gone through):"]
+             "taken; for the most damaged, when each wave died and who damaged them; then their casts with a cast "
+             "bar: begun, kicked and by whom, gone through):"]
     for name in sorted(came, key=lambda n: -taken[n])[:10]:
         lines.append(f"  {name}: {came[name]} came over {plural(pulls_with[name], 'pull')}, {died[name]} died"
                      + (f", {came[name] - died[name]} with no death recorded" if came[name] > died[name] else "")
                      + f", took {short(taken[name])}")
+        lines += _kind_lines(waves[name], by_player[name]) if name in by_player else []
         for (add, ability), these in sorted(casts.items()):
             if add == name:
                 how = Counter(c[1] for c in these)
@@ -271,6 +279,50 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     if unrecorded := [n for n in shown if came[n] > 1 and not died[n] and taken[n]]:
         lines.append(_no_deaths(unrecorded))
     return going + "\n".join([*lines, "By pull (the most damaged kinds):", *per_pull])
+
+
+def _waves(times: list[float]) -> list[list[float]]:
+    """A pull's death times of one kind of add (sorted) in waves: WAVE_GAP_MS or more apart starts the next."""
+    out: list[list[float]] = []
+    for t in times:
+        if out and t - out[-1][-1] < WAVE_GAP_MS:
+            out[-1].append(t)
+        else:
+            out.append([t])
+    return out
+
+
+def _wave_line(pulls: list[list[list[float]]]) -> str:
+    """When each wave of a kind of add died, over the pulls that reached it: its first and last death, the median
+    and the range. The log has no spawn time: the boss's cast that brings them is in the timeline."""
+    parts = []
+    for i in range(max((len(w) for w in pulls), default=0)):
+        reached = [w[i] for w in pulls if len(w) > i]
+        firsts, lasts = sorted(w[0] for w in reached), sorted(w[-1] for w in reached)
+        parts.append(f"wave {i + 1} ({plural(len(reached), 'pull')}): first died {clock(firsts[len(firsts) // 2])} "
+                     f"({clock(firsts[0])}-{clock(firsts[-1])}), last {clock(lasts[len(lasts) // 2])} "
+                     f"({clock(lasts[0])}-{clock(lasts[-1])})")
+    return ("    died by wave (deaths 20 s or more apart start a new one; the median over the pulls that reached it, "
+            "and the range; when they came isn't logged): " + "; ".join(parts)) if parts else ""
+
+
+def _kind_lines(waves: list[list[list[float]]], dealers: Counter) -> list[str]:
+    """For one of the most damaged kinds of add over the night: when each wave died, and who damaged them."""
+    lines = [text] if (text := _wave_line(waves)) else []
+    if dealers:
+        lines.append("    damage on them by player, all pulls summed (one who died early or missed pulls has less): "
+                     + ", ".join(f"{who} {short(v)}" for who, v in dealers.most_common()))
+    return lines
+
+
+async def _dealt_on(rep: Report, fights: list[dict], names: list[str]) -> dict[str, Counter]:
+    """Each player's damage on each of these kinds of add (by name) over the pulls, in one table a kind."""
+    async def one(name: str) -> Counter:
+        escaped = name.replace("\\", "\\\\").replace('"', '\\"')
+        table = await rep.table([f["id"] for f in fights], "DamageDone",
+                                filterExpression=f'target.name = "{escaped}"')
+        return Counter({e["name"]: e.get("total", 0) for e in table.get("entries") or [] if e.get("total")})
+    return dict(zip(names, await asyncio.gather(*(one(n) for n in names)), strict=True))
 
 
 def _cast_line(ability: str, these: list[tuple[float, str, str | None, int]], kickable: set[int],

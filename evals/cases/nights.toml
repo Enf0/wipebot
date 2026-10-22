@@ -201,3 +201,24 @@ facts = ["five Imbibes: 0:23, 1:48, 3:12, 4:36, 6:00",
          "the deaths on the kill were to Plague Wave, Burning Presence and the tank's own hits"]
 wrong = ["says an Imbibe from 1:48 on got no healing or raid cooldown",
          "says players died to Imbibe or Malignance on the kill"]
+[[case]]
+id = "night-adds-damage-and-waves"  # from the raiders' own question about the night's adds (answers #599-#604)
+tools = ["enemies"]
+report = "fvkH4hGZwDRVnyXJ"
+where = "in a DM"  # damage by player names players; a server channel gets no names but praise
+question = "Can you go through the damage done on the three adds that spawn on the Twin Fangs tonight, and how fast or slow they die?"
+asker = "Enfo"
+boss = "The Twin Fangs"
+expect = """Only the Spawn of Vexhul have deaths in the log, and each wave dies steadily: the first by about
+0:42-0:47 on every pull that reached it, the second by about 1:45-1:48; most of their Corrosive Spits still went
+through (99 of 175). The Barbed Bulwarks and the Broodlings of Ithraz have no death recorded, so the log can't show how
+fast they were killed; the Broodlings took no damage at all, their Visceral Burst kicked most of the time."""
+facts = ["Spawn of Vexhul: 105 came over 24 pulls, 95 died",
+         "the first wave on 24 pulls, the second on 9",
+         "Pomaa did the most damage on the Spawns (137.51M), then Dscopi and Nalaxd (about 100M each)",
+         "512 Barbed Bulwarks came and took only 1.51M in all",
+         "Visceral Burst: 392 begun, 309 kicked, 66 went through"]
+# Method's guide has one Spawn burst before its first Corrosive Spit and the other two killed before their second; the
+# first spits land 1-2 s after a wave comes (pull 26: 0:38, 0:39), before any Spawn dies. Whether that's too slow is
+# a judgement no item rests on: a kill at the raid's item level (compare_pulls) kills its waves about as fast.
+wrong = ["states, as something the log shows, when the Barbed Bulwarks or the Broodlings of Ithraz died or how fast they were killed"]

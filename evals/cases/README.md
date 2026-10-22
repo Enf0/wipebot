@@ -1,7 +1,7 @@
 # Eval cases
 
 Eval cases: the questions raiders and raid leaders ask after a pull and after a night, on the logs of The
-Dragonfell Tribe (EU-Kazzak), the maintainers' guild (11 reports, nine bosses). Each has the main point a right
+Dragonfell Tribe (EU-Kazzak), the maintainers' guild (12 reports, nine bosses). Each has the main point a right
 answer makes, and what would make it wrong: often the tempting misreading of the log.
 
   question  what is asked, with the context a Discord message gives (asker, discord_name, pull, boss);

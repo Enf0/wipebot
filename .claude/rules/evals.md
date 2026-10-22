@@ -17,6 +17,6 @@ paths:
 - `just evals` asks as Claude with the plugin (the connector and the skill); `--connector-only` as a client with
   only the connector; `--bot` as the Discord bot, the only mode that runs `bot_only` cases. It lists the cases that
   moved against that mode's baseline; run `--trials 3` before believing a difference.
-- The cases cover eleven reports and several ways to lose a pull: check a change against the other bosses too, not
+- The cases cover twelve reports and several ways to lose a pull: check a change against the other bosses too, not
   only Sszorak.
 - Record what a run costs per model in docs/models.md when it changes the picture.
