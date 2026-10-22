@@ -65,7 +65,9 @@ it (pyproject.toml). import-linter checks both in `just check`.
   parameter of that tool (a scope, a topic, an aspect); a new tool is for a new subject, and comes with a snapshot case
   and an eval case. Overlapping tools make the model pick the wrong one (why: docs/reference/mcp-clients.md).
 - **Test against real reports, across bosses**, not only Sszorak: facts with `just call`, answers with `just ask` or
-  `just evals` (`evals/cases/`; its rules load with it).
+  `just evals` (`evals/cases/`; its rules load with it). At each new tier or major patch, a live smoke check on its
+  first logs: `just call` across the new bosses, the guide sites and Lorrgs read live. Tests and evals run on frozen
+  data, so they can't see a source that lags or changes.
 - **Run as few evals as the change needs.** A full run is about $14 and 30 min per mode with one trial (three: about $40), so:
   - a refactor whose snapshots don't change: no evals (the snapshots prove the outputs are the same);
   - a change to a tool's output or to cases: only the cases that call that tool or were changed (`-k`), 3 trials;

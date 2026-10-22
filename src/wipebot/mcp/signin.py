@@ -53,7 +53,7 @@ from pydantic import AnyUrl
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
-from wipebot.core import accounts
+from wipebot.core import accounts, server
 from wipebot.core.wcl import WCL, WCLError
 
 log = logging.getLogger(__name__)
@@ -575,7 +575,8 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
 
 STYLE = ("body{font:16px/1.5 system-ui,sans-serif;background:#0b101e;color:#ecf0f8;margin:0;padding:15vh 16px}"
          "main{max-width:34rem;margin:auto}h1{font-size:1.4rem}button{font:inherit;padding:.5em 1.2em;"
-         "border:0;border-radius:6px;background:#3b6fd8;color:#fff;cursor:pointer}")
+         "border:0;border-radius:6px;background:#3b6fd8;color:#fff;cursor:pointer}"
+         "footer{margin-top:3em;font-size:.85rem;color:#9aa3b8}footer a{color:inherit}")
 # The page's own style only, a form posting here and on to Warcraft Logs, never in a frame, no referrer.
 PAGE_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'sha256-"
@@ -590,7 +591,9 @@ def _page(title: str, text: str, status: int) -> HTMLResponse:
     return HTMLResponse(f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Wipebot: {title}</title>
 <style>{STYLE}</style></head>
-<body><main><h1>{title}</h1><p>{text}</p></main></body></html>""", status, headers=PAGE_HEADERS)
+<body><main><h1>{title}</h1><p>{text}</p>
+<footer>Wipebot is free software (AGPL-3.0): <a href="{html.escape(server.source_url())}">its source</a>.</footer>
+</main></body></html>""", status, headers=PAGE_HEADERS)
 
 
 def _expired() -> HTMLResponse:

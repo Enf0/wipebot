@@ -115,6 +115,7 @@ async def test_settings_show_the_setup_and_whats_saved_and_notes_are_saved_by_pa
     save_pasted(bot.store, 1001, NOTE.read_text(encoding="utf-8"), "Rowan", at=1000.0)
     await show(interaction)
     assert "Raid notes saved here (the newest per boss):\n- **Sszorak**, by Rowan" in interaction.said[-1]
+    assert interaction.said[-1].endswith("its source is at <https://github.com/Enf0/wipebot>.")  # the AGPL's §13
 
 
 def test_names_are_turned_on_and_off_in_a_channel_and_its_threads(bot, settings):

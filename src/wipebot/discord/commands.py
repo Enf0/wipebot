@@ -263,6 +263,7 @@ def build(bot: WipeBot) -> app_commands.Group:
         s = bot.store.settings(gid)
         text = (describe(s, bot.store.naming_channels(gid)) + "\n\n" + describe_notes(bot.store, gid) if s
                 else "wipebot isn't set up here yet: run `/wipebot setup`.")
+        text += f"\n\nwipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>."
         await interaction.response.send_message(text, ephemeral=True)
 
     return group
