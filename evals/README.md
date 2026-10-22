@@ -40,7 +40,9 @@ Every number in a case comes from a tool's output, checked with `just call` agai
 ## A run
 
 `just evals` asks every case as Claude does with the plugin, the way the README sets members up: the connector, and
-the raid-log-analysis skill in its prompt; four at a time. `--connector-only` asks as a client with only the
+the plugin's raid-log-analysis skill, which Claude loads itself when a question calls for it (and may read only the
+skill's files); four at a time. The run says in how many answers it loaded the skill, which of its files it read,
+and which cases it answered without it. `--connector-only` asks as a client with only the
 connector (ChatGPT, or Claude without the plugin): no skill, no server instructions. `--bot` asks as the Discord bot
 does (its prompt, with the skill), and only it runs the cases marked `bot_only` (the bot's channels). Each mode has
 its own baseline (`baseline.json`, `baseline-connector-only.json`, `baseline-bot.json`).

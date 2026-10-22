@@ -324,3 +324,46 @@ async def test_with_only_the_connector_raid_notes_are_the_cores(monkeypatch):
     await Session(library, "R1", system_prompt="connector only").__aenter__()
     await Session(library, "R1").__aenter__()
     assert finders[0] == (None, None) and None not in finders[1]
+
+
+async def test_with_a_plugin_the_model_loads_its_skills_and_reads_only_its_files(monkeypatch, tmp_path):
+    """The evals' plugin mode: Claude loads the plugin's skill when a question calls for it, as Claude does with the
+    plugin, and may read the skill's files, nothing else."""
+    seen = []
+
+    class Client:
+        def __init__(self, options):
+            seen.append(options)
+
+        async def connect(self):
+            pass
+
+    async def no_tools(*args):
+        return []
+
+    async def report(code, max_age_s=0):
+        return SimpleNamespace(code=code)
+    monkeypatch.setattr(host, "ClaudeSDKClient", Client)
+    monkeypatch.setattr(host, "sdk_tools", no_tools)
+    (tmp_path / "skills").mkdir()
+    session = Session(cast(server.Library, SimpleNamespace(report=report)), "R1", system_prompt="x",
+                      plugin=str(tmp_path))
+    await session.__aenter__()
+    options = seen[0]
+    assert options.tools == ["Skill", "Read"] and options.skills == "all" and options.setting_sources == []
+    assert options.plugins == [{"type": "local", "path": str(tmp_path)}]
+    allowed = await session._in_plugin("Read", {"file_path": str(tmp_path / "skills" / "SKILL.md")}, None)
+    assert allowed.behavior == "allow"
+    for name, args in (("Read", {"file_path": "/etc/passwd"}), ("Read", {"file_path": str(tmp_path) + "-other/x"}),
+                       ("Bash", {"command": "ls"})):
+        assert (await session._in_plugin(name, args, None)).behavior == "deny"
+
+
+async def test_an_answer_says_which_skill_it_loaded_and_which_files_it_read(session):
+    session._client = cast(ClaudeSDKClient, FakeClient(
+        [AssistantMessage([ToolUseBlock("t1", "Skill", {"skill": "wipebot:raid-log-analysis"}),
+                           ToolUseBlock("t2", "Read", {"file_path": "/p/skills/s/reading-a-wipe.md"})],
+                          "claude-opus-5-5"),
+         AssistantMessage([TextBlock("Wiped to the enrage.")], "claude-opus-5-5"), result(0.1, 10)]))
+    answer = await session.ask("why did we wipe?", Context())
+    assert answer.loaded == ["skill:wipebot:raid-log-analysis", "read:reading-a-wipe.md"]
