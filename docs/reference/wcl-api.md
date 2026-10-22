@@ -275,7 +275,9 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
   `currentRequest` shows user and database points without opting in, so any query's cost can be measured now.
 - A key not opted in keeps 3,600 points an hour; `databaseLimitPerHour` reads 250 but isn't enforced (the counter
   went past it and rankings still answered), and points `currentRequest` counts as `user` are charged to the
-  application, user token or not. `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
+  application, user token or not. A client made on 22 October 2026 on the same account wasn't in the beta despite
+  the post ("new keys ... will be opted into the beta"): 3,600 points an hour, and the same counters as the old key
+  (101 points spent through it moved both). `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
   @onlySpendUserPoints { ... }`) is refused: "cannot require only user points be spent without authenticating a user
   and opting into the new point system".
 - User points are per Warcraft Logs account, shared "across all applications the user authenticates with" (the
