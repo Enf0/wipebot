@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `MCP` `Discord` A raid note changed during a raid no longer carries over to the next raid night: the night's pulls before a note pasted late used the last night's note instead of that night's.
+- `Agent` Asked who got caught by a mechanic that only puts a debuff on players, such as a wave that stacks one, Wipebot now ranks them by how often it caught them instead of by the little damage it dealt.
 
 ## [0.2.0] - 2026-10-22
 

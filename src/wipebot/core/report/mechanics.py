@@ -48,15 +48,22 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
         scope += (" until the wipe was decided (the boss's enrage or half the raid dead"
                   + (" in each pull" if all_pulls else f", {clock(cut[fights[0]['id']] - fights[0]['startTime'])}")
                   + "; whole_pull for the rest)")
-    lines = [going + f"{name} on {scope}. Per player: hits (and periodic ticks), damage incl. absorbed and ticks, "
+    h = found
+    # a debuff that lands more often than the ability deals damage (a wave that only stacks a debuff): its
+    # applications are what tell who got caught
+    by_debuff = sum(h.debuffs.values()) > sum(h.hits.values()) + sum(h.ticks.values())
+    lines = [going + f"{name} on {scope}. Per player"
+             + (", most debuff applications first (it was applied more often than it dealt damage, so the "
+                "applications count who it caught)" if by_debuff else "")
+             + ": hits (and periodic ticks), damage incl. absorbed and ticks, "
              f"times the debuff was applied (applications over the whole {'night' if all_pulls else 'pull'}, not "
              f"stacks), deaths of any cause within {HIT_THEN_DEATH_MS // 1000} s after a hit or tick, deaths with "
              f"{name} itself as the killing blow (what it leaves behind, a spawn or a debuff that kills later, "
              "counts under that ability's name); then, if any, hits while the debuff from an earlier hit was "
              "still up and how long after the hit before:"]
-    h = found
-    for who in sorted(set(h.hits) | set(h.ticks) | set(h.debuffs), key=lambda w: (-h.hits[w], -h.ticks[w],
-                                                                                  -h.debuffs[w])):
+    for who in sorted(set(h.hits) | set(h.ticks) | set(h.debuffs),
+                      key=lambda w: (-h.debuffs[w], -h.hits[w], -h.ticks[w]) if by_debuff
+                      else (-h.hits[w], -h.ticks[w], -h.debuffs[w])):
         lines.append(_player_line(rep, h, who))
     lines.append(f"Total with {name} as the killing blow: {sum(h.killed_by.values())}"
                  + (f" ({n} death{'s' if n > 1 else ''} within {HIT_THEN_DEATH_MS // 1000} s of a hit: the "
