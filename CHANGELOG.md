@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Agent` Comparing your talents with the top players says which part of the tree each is in (class, spec or hero), so it no longer suggests swapping a class talent for a spec talent.
+- `Discord` In a DM, Wipebot knows you by your nickname in the guild's server, so a character named there is found without asking.
 - `Agent` When Warcraft Logs is down, questions about a raid night Wipebot has already read are still answered from what it kept, instead of failing on the first step.
 - `Agent` Comparing your talents with the top players no longer lists a spell with two versions on one choice node (such as Earthquake, Blizzard or Rain of Fire) as a talent you lack: Wipebot says you took the other version, and how the two differ.
 - `Agent` Asked about the whole night while the next pull is under way, defensives, healing, damage and healing breakdowns, the adds, and checks against the raid note or plan no longer count that unfinished pull: they leave it out and say so, as the other answers about the night already did.
