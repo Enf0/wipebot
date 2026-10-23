@@ -6,13 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `MCP` **The plugin in Codex and ChatGPT.** The same plugin, the connector with the method for reading raid logs, now also installs in Codex and the ChatGPT desktop app: `codex plugin marketplace add` with the plugin's repository, then install it from the Plugins directory and sign in with Warcraft Logs.
+
 ## [0.4.0] - 2026-10-23
 
 ### Added
 
 - `Discord` **What Wipebot is looking at.** When an answer takes a while, a small line under your question shows which parts of the log Wipebot has read so far. It goes away when the answer is posted, and you're notified of the answer, not of the line.
 - `Agent` **A realistic target against the top players.** Asked what the top players of a spec do on a boss, Wipebot now also says where the spec's kills spread (the 90th, 75th, 50th and 25th percentile), so you have a level to aim at rather than the single best parse. For a healer, it shows how many healers each top log had and how much of their healing the top healer did, next to your own raid's, since a healer's numbers depend on the healers around them.
-
 - `MCP` **A public copy for any guild.** Wipebot now also runs at [wipebot.enfo.dev](https://wipebot.enfo.dev) for anyone with a Warcraft Logs account, free and best effort: in Claude, add the marketplace `Enf0/wipebot-plugin`; elsewhere, add `https://wipebot.enfo.dev/mcp` as a connector. It shares one Warcraft Logs allowance, so each user gets part of it per hour, and questions that need new data can wait for the next hour.
 
 ### Changed
