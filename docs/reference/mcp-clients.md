@@ -49,6 +49,23 @@ Adding a plugin from it (its page's **Add**) doesn't connect its connector: the 
 the server's sign-in ("Sign in now") and its support for Claude's published client identity (CIMD). After signing in
 it shows "Connected · Custom". The plugin page shows a revision ("v2"), not the manifest's version.
 
+## ChatGPT and Codex as plugin hosts
+
+Not yet tried; from OpenAI's docs, read 2026-10-23 (https://developers.openai.com/plugins/build/plugins and
+https://help.openai.com/en/articles/20001504):
+- A plugin's portable manifest is the root `plugin.json`, its MCP servers in root `mcp.json` with a transport `type`;
+  `.codex-plugin/plugin.json` is only a fallback for OpenAI's settings. Sign-in goes in each server's
+  `extensions["com.openai"].auth`: `type: "oauth"`, `client: {"mode": "dcr"}`, and `registrationUrl` beside
+  `client` (left out when discovery supplies it).
+- A marketplace is `.agents/plugins/marketplace.json` (or a Claude-compatible `.claude-plugin/marketplace.json`);
+  each entry needs `name`, `source` (a path from the repository root, starting `./`), `policy` and `category`.
+- A workspace admin imports a GitHub marketplace in Admin Console → Plugins → Add → Import marketplace (the
+  repository URL, a path only when the manifest isn't at the root); it syncs daily or on **Sync now**. Import ignores
+  the entries' `policy`: the admin sets installation per plugin, and importing connects no one's account.
+- ChatGPT labels a plugin that declares MCP servers "Desktop only", even a remote HTTPS one, so it doesn't run in
+  ChatGPT on the web; there the connector alone is the way (Plugins → Add → Add custom MCP server). An `.app.json`
+  pointing at an existing app doesn't lift the label.
+
 ## Server instructions, tool metadata and skills
 
 - What each client does with the server's instructions (2026-10-14): claude.ai and Claude Desktop drop them, as
