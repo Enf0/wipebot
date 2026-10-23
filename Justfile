@@ -41,6 +41,11 @@ eval-data action="fetch" *args:
 evals *args:
     {{py}} -m evals.run "$@"
 
+# Release (maintainers): CHANGELOG.md's Unreleased becomes the version, tagged, pushed and on GitHub; no version
+# says which one the changelog calls for, e.g. just release 0.3.0 --summary "what it brings"
+release *args:
+    {{py}} -m scripts.release "$@"
+
 # Run one tool without an AI, e.g. just call pull_summary '{"report": "KBYT4xXn7VNjDgh8", "pull": 13}'
 call tool json="{}":
     {{py}} -m wipebot call "$1" "$2"
