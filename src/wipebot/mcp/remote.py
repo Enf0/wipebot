@@ -86,7 +86,8 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                            "raid_plan": "In Claude, for one pull the user gets the replay of the pull with the plan's "
                                         "spots on it and a button per moment, instead of the picture."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",
-                 title=server.title("my_characters"), annotations=server.READ_ONLY, structured_output=False)
+                 title=server.title("my_characters"), annotations=server.READ_ONLY, structured_output=False,
+                 meta={"openai/profile": True})  # who the signed-in user is: ChatGPT tells connected accounts apart
     server.allow_saving(mcp, setup, _officer(signin))
     _any_pull_map_address(mcp, public)
     mcp.custom_route(CALLBACK_PATH, ["GET"])(signin.callback)
@@ -270,7 +271,9 @@ def _pull_map_app(public_url: str, setup: server.Setup) -> Apps:
     apps.add_html_resource(PULL_MAP_APP, PULL_MAP_HTML, name=PULL_MAP_APP.removeprefix("ui://"), title="Pull map",
                            csp=_viewer_csp(public_url), prefers_border=False)
 
-    @apps.tool(resource_uri=PULL_MAP_APP, visibility=["app"], structured_output=False, name="pull_replay")
+    # Both only read (the log note changes nothing a user sees): ChatGPT lists a tool not marked so as Write
+    @apps.tool(resource_uri=PULL_MAP_APP, visibility=["app"], structured_output=False, name="pull_replay",
+               annotations=server.READ_ONLY)
     @functools.partial(server.guarded, setup=setup)
     async def pull_replay(report: str, pull: int, boss: str, at_ms: int = 0,
                           players: list[str] | None = None) -> CallToolResult:
@@ -285,7 +288,8 @@ def _pull_map_app(public_url: str, setup: server.Setup) -> Apps:
         return CallToolResult(content=[TextContent(type="text", text=f"the replay of {data['title']}")],
                               structured_content=data)
 
-    @apps.tool(resource_uri=PULL_MAP_APP, visibility=["app"], structured_output=False, name="viewer_log")
+    @apps.tool(resource_uri=PULL_MAP_APP, visibility=["app"], structured_output=False, name="viewer_log",
+               annotations=server.READ_ONLY)
     @functools.partial(server.guarded, setup=setup)  # which logs the note with its user
     async def viewer_log(note: Annotated[str, Field(max_length=500)]) -> str:
         """A note from the viewer for the server's log: script errors, and where a replay opened."""
