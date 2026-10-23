@@ -56,12 +56,14 @@ log = logging.getLogger(__name__)
 Site = Callable[[Access, str], list[Route]]
 
 
-def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = None, site: Site | None = None
-        ) -> Starlette:
+def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = None, site: Site | None = None,
+        limits: server.UserLimits | None = None) -> Starlette:
     """The HTTP app: /mcp behind sign-in, the sign-in endpoints, /img/ and `site`'s pages. Each tool call goes to
-    `record`, when given."""
+    `record`, when given, and counts against the user's `limits`."""
     public = signin.public_url
     def guilds() -> list[tuple[str, str, str]]:  # as looked up: a guild given by id has its name once found
+        if signin.access.anyone:  # open to anyone: the signed-in user's own guilds
+            return _own_guilds(signin)
         return [(g.display_name(), g.realm, g.region) for g in signin.access.guilds if g.name]
     library = server.Library()
     library.latest = _latest_raid(library, signin)
@@ -69,7 +71,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
         guilds=guilds, user_name=lambda subject: (signin.user(int(subject)) or (f"account {subject}", []))[0],
         record=record,
         guild_ids=lambda subject: _guild_ids(signin, subject),
-        wcl_token=lambda subject: signin.wcl_token(int(subject))))
+        wcl_token=lambda subject: signin.wcl_token(int(subject)), limits=limits))
     mcp = server.new_server(
         website_url=public,
         auth=AuthSettings(issuer_url=public, resource_server_url=signin.resource,  # type: ignore[arg-type]
@@ -124,6 +126,10 @@ def serve(host: str, port: int, public_url: str | None = None, site: Site | None
         access = Access.from_env()
     except ValueError as e:
         problems.append(str(e))
+    try:
+        limits = user_limits()
+    except ValueError as e:
+        problems.append(str(e))
     if problems:
         raise SystemExit("Not set or not right (.env.example says what each is):\n" + "\n".join(
             f"  {p}" for p in problems))
@@ -131,11 +137,31 @@ def serve(host: str, port: int, public_url: str | None = None, site: Site | None
     for name in ("wipebot.mcp.signin", "wipebot.calls", __name__):  # who signed in or was turned away, called what
         logging.getLogger(name).setLevel(logging.INFO)
     signin = SignIn(public_url, access, *credentials)
-    log.info("serving on %s:%d as %s, for %d allowed guilds", host, port, public_url, len(signin.access.guilds))
+    log.info("serving on %s:%d as %s, for %s", host, port, public_url, signin.access)
     # Only the reverse proxy in front (WIPEBOT_TRUSTED_PROXIES, comma-separated IPs or networks) may say which client
     # and scheme a request came from.
-    uvicorn.run(app(signin, host, record, site), host=host, port=port, log_level="warning", proxy_headers=True,
+    uvicorn.run(app(signin, host, record, site, limits), host=host, port=port, log_level="warning", proxy_headers=True,
                 forwarded_allow_ips=os.environ.get("WIPEBOT_TRUSTED_PROXIES") or "127.0.0.1")
+
+
+def user_limits() -> server.UserLimits | None:
+    """WIPEBOT_POINTS_PER_USER and WIPEBOT_CALLS_PER_USER: what one user may ask in an hour, for a server many guilds
+    share (unset: no limit); on the new point system (WIPEBOT_WCL_USER_POINTS) only the points the account pays
+    count. ValueError says what's wrong with them."""
+    found: dict[str, float] = {}
+    for name in ("WIPEBOT_POINTS_PER_USER", "WIPEBOT_CALLS_PER_USER"):
+        if raw := os.environ.get(name, "").strip():
+            try:
+                found[name] = float(raw)
+            except ValueError:
+                found[name] = 0
+            if found[name] <= 0:
+                raise ValueError(f"{name}: how many one user may spend in an hour, e.g. 200, not {raw!r}")
+    if not found:
+        return None
+    calls = found.get("WIPEBOT_CALLS_PER_USER")
+    return server.UserLimits(found.get("WIPEBOT_POINTS_PER_USER"), int(calls) if calls else None,
+                             wcl.Budget.from_env().user_points)
 
 
 def _public_url(url: str | None, host: str, port: int) -> str:
@@ -155,6 +181,16 @@ def _public_url(url: str | None, host: str, port: int) -> str:
     return url.rstrip("/")
 
 
+def _own_guilds(signin: SignIn) -> list[tuple[str, str, str]]:
+    """The signed-in user's guilds (name, realm, region), as their characters were at sign-in or the last check."""
+    from mcp.server.auth.middleware.auth_context import get_access_token
+
+    token = get_access_token()
+    chars = (signin.user(int(token.subject)) or ("", []))[1] if token and token.subject else []
+    return list(dict.fromkeys((c.guild, c.guild_realm, c.guild_region) for c in chars
+                              if c.guild and c.guild_realm and c.guild_region))
+
+
 def _guild_ids(signin: SignIn, subject: str) -> set[int]:
     """The Warcraft Logs ids of a signed-in user's allowed guilds."""
     return {c.guild_id for c in (signin.user(int(subject)) or ("", []))[1] if c.guild_id}
@@ -170,7 +206,7 @@ def _latest_raid(library: server.Library, signin: SignIn):
 
         token = get_access_token()
         ids = _guild_ids(signin, token.subject) if token and token.subject else set()
-        if not ids:  # a sign-in from before guild ids were kept
+        if not ids and not signin.access.anyone:  # a sign-in from before guild ids were kept
             await signin.access.resolve()
             ids = {g.id for g in signin.access.guilds if g.id is not None}
         return await raids.of(ids) if ids else None
@@ -188,10 +224,12 @@ def _my_characters(signin: SignIn):
 
         token = get_access_token()
         found = signin.user(int(token.subject)) if token and token.subject else None
+        where = "claimed on Warcraft Logs" if signin.access.anyone else "in the guild"
         if not found or not found[1]:
-            raise FactError("the signed-in user has no character in the guild: ask which character is theirs")
-        chars = ", ".join(c.where() for c in found[1])
-        return (f"The user's characters in the guild: {chars}. With several, the one in the report is the one "
+            raise FactError(f"the signed-in user has no character {where}: ask which character is theirs")
+        chars = ", ".join(c.where() + (f" of {c.guild}" if signin.access.anyone and c.guild else "")
+                          for c in found[1])
+        return (f"The user's characters {where}: {chars}. With several, the one in the report is the one "
                 "meant; if more than one or none of them is in it, ask which.")
     return my_characters
 
@@ -268,7 +306,7 @@ def _any_pull_map_address(mcp: MCPServer, public_url: str) -> None:
 
 def _plugin(signin: SignIn) -> Callable[[Request], Awaitable[Response]]:
     """/plugin.zip: this connector and the skill as a Claude plugin (plugin.py), built once."""
-    zipped = plugin.plugin_zip("Wipebot", " and ".join(str(g) for g in signin.access.guilds), signin.resource)
+    zipped = plugin.plugin_zip("Wipebot", str(signin.access), signin.resource)
 
     async def download(_request: Request) -> Response:
         return Response(zipped, media_type="application/zip",

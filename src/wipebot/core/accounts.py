@@ -2,12 +2,12 @@
 characters they claimed are in.
 
 The remote MCP server (`wipebot serve`) lets a user in when a character they claimed on Warcraft Logs is in an
-allowed guild at an allowed rank. The login is the authorization code flow (with PKCE) of the confidential client
-the server reads with (WCL_CLIENT_ID, WCL_CLIENT_SECRET), whose redirect URLs include
-the server's callback. The user's token is kept (its scope reads only what the client credentials read), so their
-own Warcraft Logs points pay first for what they ask (`wcl.reading_as`). Membership is checked again with the client
-credentials, which read any character's guild and rank. Facts verified live are in docs/reference/wcl-api.md,
-"Sign-in" and "Point types".
+allowed guild at an allowed rank, or anyone, when it's open to every guild. The login is the authorization code
+flow (with PKCE) of the confidential client the server reads with (WCL_CLIENT_ID, WCL_CLIENT_SECRET), whose redirect
+URLs include the server's callback. The user's token is kept (its scope reads only what the client credentials
+read), so their own Warcraft Logs points pay first for what they ask (`wcl.reading_as`). Membership is checked again
+with the client credentials, which read any character's guild and rank. Facts verified live are in
+docs/reference/wcl-api.md, "Sign-in" and "Point types".
 """
 import base64
 import hashlib
@@ -109,6 +109,9 @@ class Character:
     region: str
     rank: int | None = None  # in an allowed guild
     guild_id: int | None = None  # that guild's id on Warcraft Logs (none in sign-ins before 17 October 2026)
+    guild: str = ""  # that guild's name, realm (slug) and region (none in sign-ins before 24 October 2026)
+    guild_realm: str = ""
+    guild_region: str = ""
 
     def where(self) -> str:
         return f"{self.name} ({place(self.realm)}-{self.region.upper()})"
@@ -123,19 +126,26 @@ class Account:
     expires: float = 0.0  # when it lapses (Warcraft Logs gives about 360 days)
 
 
-def members(characters: list[dict], guilds: list[Guild]) -> list[Character]:
-    """The characters in an allowed guild at an allowed rank, each with its rank and guild."""
+def members(characters: list[dict], guilds: list[Guild] | None) -> list[Character]:
+    """The characters in an allowed guild at an allowed rank, each with its rank and guild; with `guilds` None
+    (anyone may sign in), every character, with its guild if it has one."""
     out = []
     for c in characters:
         rank = c.get("guildRank")
-        found = next((found for g in guilds for found in c.get("guilds") or []
-                      if isinstance(rank, int) and g.has(found) and (g.max_rank is None or rank <= g.max_rank)), None)
-        if found is None:
-            continue
-        server = c.get("server") or {}
+        if guilds is None:
+            found = next(iter(c.get("guilds") or []), None)
+        else:
+            found = next((found for g in guilds for found in c.get("guilds") or [] if isinstance(rank, int)
+                          and g.has(found) and (g.max_rank is None or rank <= g.max_rank)), None)
+            if found is None:
+                continue
+        server, home = c.get("server") or {}, (found or {}).get("server") or {}
         out.append(Character(int(c["id"]), str(c.get("name", "?")), str(server.get("slug", "")),
-                             str((server.get("region") or {}).get("slug", "")).lower(), rank,
-                             int(found["id"]) if isinstance(found.get("id"), int) else None))
+                             str((server.get("region") or {}).get("slug", "")).lower(),
+                             rank if found and isinstance(rank, int) else None,
+                             int(found["id"]) if found and isinstance(found.get("id"), int) else None,
+                             str((found or {}).get("name") or ""), str(home.get("slug") or ""),
+                             str((home.get("region") or {}).get("slug") or "").lower()))
     return out
 
 

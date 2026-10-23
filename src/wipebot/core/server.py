@@ -26,13 +26,15 @@ import base64
 import functools
 import inspect
 import logging
+import math
 import os
 import re
 import secrets
 import time
+from collections import deque
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import resources
 from typing import Annotated, Any, Literal
 
@@ -114,6 +116,41 @@ Record = Callable[[str | None, str | None, str, dict, float, float, bool, str, d
 
 
 @dataclass
+class UserLimits:
+    """How much one signed-in user may ask of a server in an hour, so no one spends the Warcraft Logs points everyone
+    on it shares: at most `points` (on the new point system, `own_points`: only those the account pays, not the
+    user's own) and `calls` tool calls, over the last hour; None is no limit."""
+    points: float | None = None
+    calls: int | None = None
+    own_points: bool = False
+    _spent: dict[str, deque[tuple[float, float]]] = field(default_factory=dict)  # user -> (when, points) per call
+
+    def refusal(self, user: str) -> str | None:
+        """Why the user's next call isn't answered, or None."""
+        now, calls = time.time(), self._spent.get(user)
+        while calls and calls[0][0] < now - 3600:
+            calls.popleft()
+        if not calls:
+            self._spent.pop(user, None)
+            return None
+        spent = sum(p for _, p in calls)
+        if self.calls is not None and len(calls) >= self.calls:
+            what = plural(len(calls), "tool call")
+        elif self.points is not None and spent >= self.points:
+            what = f"{spent:,.0f} Warcraft Logs points"
+        else:
+            return None
+        minutes = math.ceil((calls[0][0] + 3600 - now) / 60)
+        return (f"not answered: this user has asked for {what} in the last hour, the most this server gives one "
+                f"user; ask again in {minutes} min")
+
+    def add(self, user: str, points: dict) -> None:
+        """A call the user made, with what its Warcraft Logs queries cost (wcl.Points.record)."""
+        cost = points.get("application" if self.own_points else "total", 0)
+        self._spent.setdefault(user, deque()).append((time.time(), float(cost)))
+
+
+@dataclass
 class Remote:
     """Serving many signed-in users (remote.py): what the tools do differently then."""
     guilds: Callable[[], list[tuple[str, str, str]]]  # (name, realm, region): who may use it, find_reports' default
@@ -123,6 +160,7 @@ class Remote:
     guild_ids: Callable[[str], set[int]] = lambda subject: set()
     # A signed-in user -> their Warcraft Logs token, which their calls read with (wcl.reading_as), or None
     wcl_token: Callable[[str], str | None] = lambda subject: None
+    limits: UserLimits | None = None  # how much one user may ask in an hour
 
 
 @dataclass
@@ -154,6 +192,16 @@ def _log_call(remote: Remote, tool: str, args: dict) -> tuple[str | None, str | 
     who = remote.user_name(token.subject) if token and token.subject else "someone"
     log.info("%s: %s %s", who, tool, args)
     return (token.subject, token.client_id) if token else (None, None)
+
+
+def _limited(remote: Remote, user: str | None) -> UserLimits | None:
+    """The limits a call by `user` counts against, if any; a ToolError when they're reached (a refused call isn't
+    counted)."""
+    if not (remote.limits and user):
+        return None
+    if refused := remote.limits.refusal(user):
+        raise ToolError(refused)
+    return remote.limits
 
 
 def _text(result: object) -> str:
@@ -227,8 +275,9 @@ def guarded(fn, setup: Setup = DEFAULT):
         shown = {k: v for k, v in kwargs.items() if v is not None and k != "ctx"}
         user, client = _log_call(remote, fn.__name__, shown)
         started, began, failed, out = time.time(), time.monotonic(), True, ""
-        points = wcl.Points()
+        points, limited = wcl.Points(), None
         try:
+            limited = _limited(remote, user)
             # the user's own points pay first; what the call cost is kept with it
             with wcl.reading_as(remote.wcl_token(user) if user else None), wcl.counting_points() as points:
                 result = await run(*args, **kwargs)
@@ -243,6 +292,8 @@ def guarded(fn, setup: Setup = DEFAULT):
             out = repr(e)
             raise
         finally:
+            if limited and user:
+                limited.add(user, points.record())
             if remote.record:
                 remote.record(user, client, fn.__name__, shown, started, time.monotonic() - began, failed, out,
                               points.record())
@@ -1321,7 +1372,10 @@ SAVING = {"raid_note": "An officer of the guild keeps a pasted note for the guil
           "raid_plan": "An officer of the guild keeps a pasted plan for the guild with save_note_or_plan."}
 
 
-async def save_note_or_plan(pasted: Annotated[str, Field(description=(
+MAX_PASTE = 100_000  # characters of a note or plan to save (a real raid's note is about 13,000)
+
+
+async def save_note_or_plan(pasted: Annotated[str, Field(max_length=MAX_PASTE, description=(
         "the raid note or plan as the user pasted it: the NSRT note from Viserio (EncounterID lines included) or "
         "raidstrats.gg's export (the text starting raidstrats-addon-)"))],
         from_pull: Annotated[int | None, Field(description=(

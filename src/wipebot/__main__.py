@@ -184,7 +184,7 @@ def write_plugin(out: Path, repo: str, name: str) -> None:
     except ValueError as e:
         raise SystemExit(f"set {e}") from None
     asyncio.run(access.resolve())  # the name of a guild given by its id
-    files = plugin.marketplace(name, " and ".join(str(g) for g in access.guilds), url.rstrip("/") + "/mcp", repo)
+    files = plugin.marketplace(name, str(access), url.rstrip("/") + "/mcp", repo)
     for old in out.iterdir() if out.exists() else []:
         if old.name != ".git":
             shutil.rmtree(old) if old.is_dir() else old.unlink()

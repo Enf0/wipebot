@@ -7,10 +7,11 @@ Warcraft Logs upstream for who the user is (core/accounts.py).
                                                                   client <── our code ─┘ ──> /token ──> our token
 
 Who may use it: WIPEBOT_ALLOWED_GUILDS (`eu/argent-dawn/the-copper-lanterns:5`, comma-separated; `:5` lets in
-ranks 0 to 5), each guild matched by its Warcraft Logs id; its officers, ranks 0 to WIPEBOT_OFFICER_RANK (default
-1). The Warcraft Logs login uses the client the server reads with, WCL_CLIENT_ID and WCL_CLIENT_SECRET (the
-authorization code flow with PKCE; its redirect URLs include <public URL>/wcl/callback). Membership is checked again
-on every token refresh (an access token lasts an hour), so someone who leaves the guild loses access within about an
+ranks 0 to 5), each guild matched by its Warcraft Logs id, or `*`: anyone with a Warcraft Logs account (a public
+server); officers, ranks 0 to WIPEBOT_OFFICER_RANK (default 1), save raid notes and plans for their guild. The
+Warcraft Logs login uses the client the server reads with, WCL_CLIENT_ID and WCL_CLIENT_SECRET (the authorization code
+flow with PKCE; its redirect URLs include <public URL>/wcl/callback). Membership is checked again on every token
+refresh (an access token lasts an hour), so someone who leaves the guild loses access within about an
 hour of Warcraft Logs seeing it.
 
 Clients: Claude and ChatGPT name themselves by a client ID metadata document (CIMD), an HTTPS URL on their own
@@ -155,28 +156,33 @@ def document_client(url: str, doc: object) -> DocumentClient | None:
 
 
 class Access:
-    """Who may sign in: guilds, each with a highest rank. Each guild is matched by its Warcraft Logs id alone, looked
-    up on first use (`find`: name, realm, region -> the guild or None), and again every GUILD_RETRY_S until it's
-    found; meanwhile who isn't in another allowed guild can't be checked. Officers, who save raid notes and plans for
-    their guild, are the ranks 0 to `officer_rank`."""
+    """Who may sign in: guilds, each with a highest rank, or anyone (`anyone`, no guilds). Each guild is matched by
+    its Warcraft Logs id alone, looked up on first use (`find`: name, realm, region -> the guild or None), and again
+    every GUILD_RETRY_S until it's found; meanwhile who isn't in another allowed guild can't be checked. Officers, who
+    save raid notes and plans for their guild, are the ranks 0 to `officer_rank`."""
 
     def __init__(self, guilds: list[accounts.Guild],
                  find: Callable[[str, str, str], Awaitable[dict | None]] | None = None,
-                 find_id: Callable[[int], Awaitable[dict | None]] | None = None, officer_rank: int = OFFICER_RANK):
-        self.guilds, self.officer_rank = guilds, officer_rank
+                 find_id: Callable[[int], Awaitable[dict | None]] | None = None, officer_rank: int = OFFICER_RANK,
+                 anyone: bool = False):
+        self.guilds, self.officer_rank, self.anyone = guilds, officer_rank, anyone
         self._find, self._find_id = find, find_id
         self._looked_up = 0.0
+
+    def __str__(self) -> str:
+        """Whom it's for, as a page says it."""
+        return "any guild" if self.anyone else " and ".join(str(g) for g in self.guilds)
 
     @classmethod
     def from_env(cls) -> Access:
         """WIPEBOT_ALLOWED_GUILDS' guilds and WIPEBOT_OFFICER_RANK; ValueError says what's wrong with them."""
-        allowed = os.environ.get("WIPEBOT_ALLOWED_GUILDS", "")
+        allowed = os.environ.get("WIPEBOT_ALLOWED_GUILDS", "").strip()
         problems, guilds = [], []
         try:
-            guilds = [accounts.Guild.parse(g) for g in allowed.split(",") if g.strip()]
-            if not guilds:
+            guilds = [accounts.Guild.parse(g) for g in allowed.split(",") if g.strip()] if allowed != "*" else []
+            if not guilds and allowed != "*":
                 problems.append("WIPEBOT_ALLOWED_GUILDS: whose members may sign in, e.g. eu/argent-dawn/"
-                                "the-copper-lanterns:5 or the guild's warcraftlogs.com address")
+                                "the-copper-lanterns:5 or the guild's warcraftlogs.com address, or * for anyone")
         except ValueError as e:
             problems.append(f"WIPEBOT_ALLOWED_GUILDS: {e}")
         officer_rank = (os.environ.get("WIPEBOT_OFFICER_RANK") or str(OFFICER_RANK)).strip()
@@ -185,7 +191,7 @@ class Access:
                             f"{OFFICER_RANK} (0 is the guild master), not {officer_rank!r}")
         if problems:
             raise ValueError("\n  ".join(problems))
-        return cls(guilds, officer_rank=int(officer_rank))
+        return cls(guilds, officer_rank=int(officer_rank), anyone=allowed == "*")
 
     async def resolve(self) -> None:
         """Each guild's Warcraft Logs id, and the name of one given by its id, for the guilds that lack them."""
@@ -212,9 +218,11 @@ class Access:
                           "members can't sign in)", g)
 
     async def check(self, characters: list[dict]) -> list[accounts.Character] | None:
-        """The characters (as Warcraft Logs gives them) in an allowed guild, or None when there are none. While an
-        allowed guild isn't found, someone in none of the others may be in it: that raises AccountError, as
-        Warcraft Logs down does."""
+        """The characters (as Warcraft Logs gives them) in an allowed guild, or None when there are none; open to
+        anyone, all of them (perhaps none). While an allowed guild isn't found, someone in none of the others may be
+        in it: that raises AccountError, as Warcraft Logs down does."""
+        if self.anyone:
+            return accounts.members(characters, None)
         await self.resolve()
         if found := accounts.members(characters, self.guilds):
             return found
@@ -435,7 +443,8 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                      f"sends you back to <b>{html.escape(where)}</b> once you're signed in. Go on only if you started "
                      f'this from that app.</p><form method="post" action="{CONSENT_PATH}"><input type="hidden" '
                      f'name="login" value="{html.escape(state)}"><button>Sign in with Warcraft Logs</button></form>'
-                     "<p>Wipebot reads which characters you claimed on Warcraft Logs, to check they're in the guild.",
+                     "<p>Wipebot reads which characters you claimed on Warcraft Logs, "
+                     + ("so it knows which are yours." if self.access.anyone else "to check they're in the guild."),
                      200)
         page.set_cookie(COOKIE, nonce, max_age=LOGIN_TTL_S, path="/wcl", secure=self.public_url.startswith("https:"),
                         httponly=True, samesite="lax")
