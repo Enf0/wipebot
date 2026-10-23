@@ -242,6 +242,7 @@ Every query adds to how long a raider waits in chat, and all of them spend the a
 - Loading a report is four queries (fights, actors, abilities, player details): about 1.3 s, 0.5 s with its
   names from disk. A tool that read ten raid nights took about 90 s the first time and 12 s with the per-pull
   data on disk, against 1 s for the same tool on one pull; with past nights loading from disk, about 2 s.
+- Events over several fights in one alias come in pages by time, not by count: one player's casts over a 39-pull night took 41 pages, each a query one after another (16 s, 41 points); a fight an alias, the same in one query of 39 aliases and one for a later page (3 s, 3 points; p7jRwgv8b1rY6LBd, verified 2026-10-23). `WCL.events_many` asks a fight an alias.
 - Many pulls' tables go in one query with aliases (`i0: table(fightIDs: [1], ...) i1: ...`, `Report.tables`):
   one round trip for a whole night instead of forty.
 - What a query costs in points (measured 2026-10-21 on a 20-player Mythic night with `rateLimitData` before and
@@ -317,7 +318,7 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
   | Tool | Points (database) | Queries |
   |---|---|---|
   | `healing` with `all_pulls` | 245 | 10 |
-  | `player_night` | 199 | 84 |
+  | `player_night` (before its night's events came a pull an alias: 199 points, 84 queries, 31 s) | 131 | 11 |
   | `enemies` with `all_pulls` | 89 | 9 |
   | `compare_with_top` (build and casts) | 44 (2) | 22 |
   | `defensives` over the night | 33 | 3 |

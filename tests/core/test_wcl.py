@@ -160,6 +160,23 @@ async def test_events_come_in_one_query_per_forty_items_then_each_later_page(mon
     assert [g[0]["fight"] for g in got] == list(range(items)) and all(len(g) == 1 for i, g in enumerate(got) if i != 3)
 
 
+async def test_a_nights_events_are_asked_a_fight_an_alias_and_come_back_in_time_order(monkeypatch):
+    """Over several fights in one alias, Warcraft Logs pages by time (a night's casts of one player in forty
+    queries one after another); a fight an alias, they come in one."""
+    w = WCL()
+    asked = []
+
+    async def query(q, cache_for=None, **variables):
+        asked.append(q)
+        found = re.findall(r"(f\d+): events\(fightIDs: \[(\d+)\]", q)
+        return {"reportData": {"report": {alias: {"data": [{"fight": int(f), "timestamp": 1000 - int(f)}],
+                                                  "nextPageTimestamp": None} for alias, f in found}}}
+    monkeypatch.setattr(w, "query", query)
+    got = await w.events_many("ABC", [([1, 2, 3], {}), (4, {}), ([], {})], "Casts", sourceID=7)
+    assert len(asked) == 1 and len(re.findall(r"f\d+: events", asked[0])) == 4
+    assert [e["fight"] for e in got[0]] == [3, 2, 1] and got[1] == [{"fight": 4, "timestamp": 996}] and got[2] == []
+
+
 async def test_guild_reports_follow_every_page(monkeypatch):
     w = WCL()
     pages = {1: ([{"code": "A"}, {"code": "B"}], True), 2: ([{"code": "C"}], False)}
