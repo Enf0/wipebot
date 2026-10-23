@@ -314,6 +314,17 @@ def test_a_users_warcraft_logs_token_goes_when_they_leave_the_guild_or_have_no_g
     assert users._db.execute("SELECT wcl_token FROM users WHERE id = 5").fetchone() == (None,)
 
 
+def test_a_user_with_no_grant_left_is_forgotten_after_a_while(client, users):
+    """On a server open to anyone, strangers who stopped using it aren't kept for good."""
+    tokens(client, register(client), "officer")
+    users._db.execute("UPDATE users SET signed_in = 0, checked = 0")
+    users._purge(now_=True)
+    assert users.user(5)  # still signed in somewhere: kept
+    users._db.execute("DELETE FROM tokens")
+    users._purge(now_=True)
+    assert users.user(5) is None
+
+
 def test_a_user_who_says_no_goes_back_to_the_app_with_access_denied(client):
     client_id = register(client)
     state = to_warcraft_logs(client, consent(client, client_id))
@@ -781,7 +792,7 @@ def test_a_sign_in_database_from_before_is_opened_and_kept(tmp_path):
     """)
     db.execute("INSERT INTO clients VALUES ('c1', ?, 1e12)",
                (json.dumps({"client_id": "c1", "redirect_uris": [BACK]}),))
-    db.execute("INSERT INTO users VALUES (1, 'Raider', '[]', 0)")
+    db.execute("INSERT INTO users VALUES (1, 'Raider', '[]', 1e12)")
     db.commit()
     db.close()
     for _ in range(2):  # and again, as it is now
@@ -801,7 +812,7 @@ def test_a_sign_in_database_half_brought_up_to_date_is_finished(tmp_path):
         CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, characters TEXT NOT NULL, signed_in REAL);
         PRAGMA user_version = 1;
     """)
-    db.execute("INSERT INTO users VALUES (1, 'Raider', '[]', 0)")
+    db.execute("INSERT INTO users VALUES (1, 'Raider', '[]', 1e12)")
     db.commit()
     db.close()
     users = SignIn(PUBLIC, Access([GUILD], find_guild), CLIENT, SECRET, path)
