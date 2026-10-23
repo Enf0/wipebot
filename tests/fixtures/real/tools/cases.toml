@@ -113,6 +113,10 @@ compare-with-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn
 cooldowns-vs-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo", pull = 13, aspects = ["cooldowns"] }
 # a boss the report never pulled; none ranked on Mythic yet, so Heroic
 top-builds = { tool = "compare_with_top", local = true, spec = "balance druid", boss = "Kith'ix", aspects = ["build"] }
+# a healer against top healers: the healers in their raid and in each top parse's, beside the casts
+compare-with-top-healer = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Cptola", pull = 13, aspects = ["casts"] }
+# a healer's top parses with their raids' healers, and where the spec's kills spread ("a realistic target?")
+top-builds-healer = { tool = "compare_with_top", local = true, spec = "holy priest", boss = "The Twin Fangs", difficulty = "Mythic", aspects = ["build"] }
 # what the fastest kills brought ("is it a 4-heal fight?"), the boss named as a raider wrote it
 top-kills = { tool = "compare_with_top", local = true, boss = "vashnik" }
 player-history = { tool = "player_history", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo" }

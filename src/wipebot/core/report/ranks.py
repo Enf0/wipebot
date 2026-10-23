@@ -56,6 +56,60 @@ def benchmark_line(f: dict, p: Player, per_s: float, spread: Spread | str) -> st
                else ""))
 
 
+def spread_line(spread: Spread, label: str, boss: str, metric: str) -> str | None:
+    """Where a spec's ranked kills of a boss spread, for a raider to aim at (not the single best)."""
+    if not spread.points:
+        return None
+    return (f"Where the {spread.n if spread.exact else f'more than {spread.n}'} ranked {label} kills of {boss} "
+            "spread (each character's best): " + ", ".join(f"{lbl} {short(v)} {metric}" for lbl, v in spread.points)
+            + ".")
+
+
+HEALERS_READING = ("A healer's hps depends on the raid around them: healing is capped by the damage the raid takes "
+                   "and shared among the healers, so a parse with fewer healers, or with the others healing less, "
+                   "runs high. A share well above an even one is the raid around them as much as their play.")
+
+
+def healer_share(name: str, healing: dict[str, float], percentiles: dict[str, int] | None = None) -> str | None:
+    """How a healer's healing stood among their raid's healers ({name: healing} of everyone healing as a healer
+    there): how many there were, their share against an even one, and (with `percentiles`) the others' parses."""
+    total = sum(healing.values())
+    if name not in healing or not total or len(healing) < 2:
+        return None
+    n = len(healing)
+    out = f"{n} healers, {100 * healing[name] / total:.0f}% of their healing (even: {100 / n:.0f}%)"
+    others = [ordinal(v) for v in sorted(v for other, v in (percentiles or {}).items()
+                                         if other != name and other in healing)]
+    return out + (", the others at the " + ", ".join(others) if others else "")
+
+
+HEALERS_HEAD = ("Healers in each raid (how many, this healer's share of their healing against an even share, and "
+                "the other healers' percentiles against their specs):")
+
+
+def ranked_healers(ranked: list[dict]) -> tuple[dict[str, float], dict[str, int]]:
+    """The healers of a ranked kill (`WCL.rankings`): ({name: hps}, {name: percentile})."""
+    healing, percent = {}, {}
+    for fight in ranked[:1]:
+        for c in ((fight.get("roles") or {}).get("healers") or {}).get("characters") or []:
+            healing[c["name"]] = float(c.get("amount") or 0)
+            if (rank := _percent(c.get("rankPercent"))) is not None:
+                percent[c["name"]] = rank
+    return healing, percent
+
+
+async def top_healer_shares(wcl: WCL, top: list[dict]) -> list[str | None]:
+    """`healer_share` of each top parse (WCL's characterRankings rows) in its own raid, in one query; None for one
+    that can't be told (Warcraft Logs not answering, an anonymous log)."""
+    rows = [r for r in top if r.get("report")]
+    try:
+        ranked = await wcl.rankings_many([(r["report"]["code"], r["report"]["fightID"]) for r in rows], "hps")
+    except WCLError:
+        return [None] * len(top)
+    by_row = {id(r): healer_share(r.get("name") or "", *ranked_healers(k)) for r, k in zip(rows, ranked, strict=True)}
+    return [by_row.get(id(r)) for r in top]
+
+
 def _percent(x) -> int | None:
     """A kill's percentile from Warcraft Logs, or None for "-" (nothing to rank against yet) or none at all."""
     return round(x) if isinstance(x, int | float) else None

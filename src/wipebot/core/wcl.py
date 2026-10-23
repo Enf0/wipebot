@@ -939,6 +939,20 @@ class WCL:
             data = await self.query(RANKINGS, code=code, fight=fight_id, metric=metric)
         return (data["reportData"]["report"]["rankings"] or {}).get("data") or []
 
+    async def rankings_many(self, kills: list[tuple[str, int]], metric: str) -> list[list[dict]]:
+        """`rankings` of several kills of any reports (report code, fight id), in order, in one query. Kept: a
+        ranked kill's historical rankings don't change."""
+        if not kills:
+            return []
+        if bad := [code for code, _ in kills if not re.fullmatch(r"\w+", code)]:
+            raise WCLError(f"not a report code: {bad[0]!r}")
+        body = " ".join(f'k{i}: report(code: "{code}") {{ rankings(fightIDs: [{int(fight)}], playerMetric: $metric, '
+                        "timeframe: Historical) }" for i, (code, fight) in enumerate(kills))
+        data = await self.query(f"query($metric: ReportRankingMetricType!) {{ reportData {{ {body} }} }}", FOREVER,
+                                metric=metric)
+        return [((data["reportData"].get(f"k{i}") or {}).get("rankings") or {}).get("data") or []
+                for i in range(len(kills))]
+
     async def top_rankings(self, encounter_id: int, class_name: str, spec: str, difficulty: int,
                            metric: str) -> list[dict]:
         """The top 100 parses of one spec on one boss, with their talents and gear; from the partition before

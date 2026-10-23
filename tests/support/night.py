@@ -63,6 +63,9 @@ class FakeWCL:
     async def rankings(self, code, fight_id, metric):
         return []  # not captured: no parses
 
+    async def rankings_many(self, kills, metric):
+        return [[] for _ in kills]
+
     async def guild_progress(self, guild_id, zone_id):
         return {}
 

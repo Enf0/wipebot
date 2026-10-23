@@ -17,7 +17,19 @@ from .base import FactError, Player, PullRef, Report, unavailable
 from .build import MAX_BUILD_TALENTS, SAME_HERO_MIN, TOP_PARSES, hero_of
 from .casting import GAP_MS, GCD_MAX_MS, Casting, alive, cast_rows, casting
 from .coaching import cap_stretches, resource_of, resource_points, resource_use
-from .ranks import NO_TOP, metric_of, readable, top_parses
+from .ranks import (
+    HEALERS_HEAD,
+    HEALERS_READING,
+    NO_TOP,
+    Spread,
+    healer_share,
+    metric_of,
+    readable,
+    spec_distribution,
+    spread_line,
+    top_healer_shares,
+    top_parses,
+)
 
 REFERENCE_PARSES = 5  # top parses a player's casts are compared with
 FAR_MORE_PER_MIN = 2.0  # casts per minute above the top median that mean something (one cast on a short pull doesn't)
@@ -153,12 +165,7 @@ async def top_builds(wcl: WCL, spec: str, boss: str, difficulty: str | None = No
         trinkets.update({g["name"] for slot, g in enumerate(r.get("gear") or []) if slot in (12, 13) and g.get("name")})
     lines.append("Trinkets: " + ", ".join(f"{t} ({100 * c // n}%)" for t, c in sorted(
         trinkets.items(), key=lambda tc: (-tc[1], tc[0]))[:6]))
-    lines.append("The top logs: " + "; ".join(
-        f"{r['name']} {short(float(r.get('amount') or 0))} {metric}, {clock(float(r.get('duration') or 0))}, "
-        f"item level {float(r.get('bracketData') or 0):.0f}"
-        + (f", {r['guild']['name']}" if r.get("guild") else "")
-        + " " + fight_url(r["report"]["code"], r["report"]["fightID"])
-        for r in top[:3] if r.get("report")))
+    lines += await _top_logs(wcl, top, eid, (class_name, spec_name, label), ids[diff], boss_name, metric)
     if code := await _typical_code(wcl, top, talents, groups[0][1]):
         lines.append(code)
     lines.append("Top parses are the highest-damage kills, mostly by the first guilds to kill it; what they take is "
@@ -166,6 +173,36 @@ async def top_builds(wcl: WCL, spec: str, boss: str, difficulty: str | None = No
                  f"https://www.warcraftlogs.com/zone/rankings/{zone}?boss={eid}, talent names from Raidbots "
                  "https://www.raidbots.com")
     return "\n".join(lines)
+
+
+async def _top_logs(wcl: WCL, top: list[dict], eid: int, spec: tuple[str, str, str], difficulty: int, boss: str,
+                    metric: str) -> list[str]:
+    """The top three logs linked (a healer's with their raids' healers), and where the spec's ranked kills spread;
+    `spec` is (class, spec, label)."""
+    class_name, spec_name, label = spec
+    listed = [r for r in top[:3] if r.get("report")]
+    spread, shares = await asyncio.gather(
+        _spread(wcl, eid, class_name, spec_name, difficulty, metric),
+        top_healer_shares(wcl, listed) if metric == "hps" else asyncio.sleep(0, [None] * len(listed)))
+    lines = ["The top logs: " + "; ".join(
+        f"{r['name']} {short(float(r.get('amount') or 0))} {metric}, {clock(float(r.get('duration') or 0))}, "
+        f"item level {float(r.get('bracketData') or 0):.0f}"
+        + (f", {r['guild']['name']}" if r.get("guild") else "")
+        + " " + fight_url(r["report"]["code"], r["report"]["fightID"]) for r in listed)]
+    if any(shares):
+        lines += [HEALERS_HEAD, *(f"  {r['name']}: {share}" for r, share in zip(listed, shares, strict=True) if share),
+                  HEALERS_READING]
+    if line := spread_line(spread, label, boss, metric) if isinstance(spread, Spread) else spread:
+        lines.append(line)
+    return lines
+
+
+async def _spread(wcl: WCL, eid: int, class_name: str, spec: str, difficulty: int, metric: str) -> Spread | str:
+    """How the spec's ranked kills of the boss spread, or the line saying it's unavailable."""
+    try:
+        return Spread(*await spec_distribution(wcl, eid, class_name, spec, difficulty, metric))
+    except WCLError as e:
+        return unavailable("Where the spec's ranked kills spread", e)
 
 
 async def _guide_builds(class_name: str, spec: str) -> list[dict]:
@@ -312,6 +349,8 @@ async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: st
                  f"{clock(x.ranking.get('duration') or 0)}, "
                  f"{fight_url(x.ranking['report']['code'], x.ranking['report']['fightID'])})" for x in found),
              "Spell: theirs / top median (top range), per minute:" + merged]
+    if p.role == "healer":
+        lines[1:1] = await _healers_lines(rep, f, p, details, found)
     my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
     lines += _rate_lines(names, mine, my_cpm, found, lust_casts)
     lines.append(f"Total: {sum(v or 0 for v in my_cpm.values()):.0f} / "
@@ -327,6 +366,21 @@ async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: st
                      f"({theirs[0]:.0f}-{theirs[-1]:.0f}%). The top parses meet the same fight: as much time at the "
                      "cap as theirs is the fight's (movement, knockbacks, an intermission); more is gain lost.")
     return "\n".join(lines)
+
+
+async def _healers_lines(rep: Report, f: dict, p: Player, details: dict[int, dict],
+                         found: list[Reference]) -> list[str]:
+    """For a healer: how their healing stood among their raid's healers on the pull, and each top parse's in its
+    own raid."""
+    table, shares = await asyncio.gather(rep.table(f["id"], "Healing"),
+                                         top_healer_shares(rep.wcl, [x.ranking for x in found]))
+    healers = {d["name"] for d in details.values() if d.get("role") == "healers"}
+    own = healer_share(p.name, {e["name"]: float(e.get("total") or 0) for e in table.get("entries") or []
+                                if e.get("name") in healers})
+    told = [f"  {x.ranking['name']}: {share}" for x, share in zip(found, shares, strict=True) if share]
+    if not own and not told:
+        return []
+    return [HEALERS_HEAD, f"  {p.name} on this pull: {own or 'unknown'}", *told, HEALERS_READING]
 
 
 def _median(values: list[float]) -> float:
