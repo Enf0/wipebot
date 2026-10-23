@@ -9,6 +9,7 @@ ask (`reading_as`).
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -17,6 +18,7 @@ from collections import Counter
 from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Any
 
 from warcraft_core.auth import load_provider_auth_state
@@ -349,8 +351,62 @@ def reading_as(token: str | None) -> Generator[None]:
 
 
 COST_ALIAS = "wipebotCost"  # the query's own cost and the hour's points, asked alongside every query (free)
-HOUR_FIELDS = "limitPerHour pointsSpentThisHour pointsResetIn databasePointsSpentThisHour currentRequest"
+HOUR_FIELDS = ("limitPerHour pointsSpentThisHour pointsResetIn databaseLimitPerHour databasePointsSpentThisHour "
+               "currentRequest")
 _keep_share = 0.0  # of the hour's points, left to others: past it, this process waits (keep_for_others)
+
+
+@dataclass(frozen=True)
+class Budget:
+    """How much of the account's Warcraft Logs points this process may spend in an hour, for a server sharing the
+    account with others (a public instance beside a guild's own): past it, its queries are refused until the hour
+    ends, and what it read before still answers from disk. Read from the environment (`from_env`)."""
+    share: float = 1.0  # of the hour's points, and of its database points, this process's at most
+    leave: float = 0.0  # of the account's hour, left to the others: past it, this process reads nothing more
+    user_points: bool = False  # the account is on the new point system: users' own points aren't this process's
+
+    @classmethod
+    def from_env(cls) -> Budget:
+        """WIPEBOT_WCL_SHARE and WIPEBOT_WCL_LEAVE, each a share from 0 to 1 (unset: no limit), and
+        WIPEBOT_WCL_USER_POINTS, set once the account is opted into the new point system; ValueError says what's
+        wrong with them."""
+        def share(name: str, default: float) -> float:
+            raw = os.environ.get(name, "").strip()
+            if not raw:
+                return default
+            try:
+                value = float(raw)
+            except ValueError:
+                value = -1.0
+            if not 0 <= value <= 1:
+                raise ValueError(f"{name}: a share of the hour's Warcraft Logs points from 0 to 1, e.g. 0.1, "
+                                 f"not {raw!r}")
+            return value
+        user_points = os.environ.get("WIPEBOT_WCL_USER_POINTS", "").strip().lower() in ("1", "true", "yes", "on")
+        return cls(share("WIPEBOT_WCL_SHARE", 1.0), share("WIPEBOT_WCL_LEAVE", 0.0), user_points)
+
+    def refusal(self, rate: dict | None, fresh: bool, own: Counter, minutes: int) -> str | None:
+        """Why the next query isn't sent, or None: `rate` is the account's hour as last read (`fresh` if within
+        RATE_S), `own` this process's points this hour by kind."""
+        if not rate:
+            return None
+        later = f"ask again in {minutes} min; what was read before still answers"
+        limit, db_limit = rate.get("limitPerHour"), rate.get("databaseLimitPerHour")
+        if self.share < 1 and isinstance(limit, int | float):
+            # the application points include the database points; on the old system every point is the app's
+            spent = own["application"] if self.user_points else own["total"]
+            if spent >= limit * self.share:
+                return (f"not read from Warcraft Logs: this server has spent its share of this hour's points "
+                        f"({spent:,.0f} of {limit * self.share:,.0f}); {later}")
+            if isinstance(db_limit, int | float) and own["database"] >= db_limit * self.share:
+                return (f"not read from Warcraft Logs: this server has spent its share of this hour's database "
+                        f"points, which rankings and report lists cost ({own['database']:,.0f} of "
+                        f"{db_limit * self.share:,.0f}); {later}")
+        if self.leave and fresh and isinstance(limit, int | float) \
+                and limit - rate.get("pointsSpentThisHour", 0) < limit * self.leave:
+            return (f"not read from Warcraft Logs: {rate.get('pointsSpentThisHour', 0):,.0f} of the account's "
+                    f"{limit:,} points this hour are spent, and the rest is kept for others sharing it; {later}")
+        return None
 
 
 def keep_for_others(share: float) -> None:
@@ -391,6 +447,17 @@ class Hour:
         """The account's points as last read, if read in the last `max_age_s`."""
         with self._lock:
             return self.rate if self.rate and time.monotonic() - self._read_at < max_age_s else None
+
+    def now(self) -> tuple[dict | None, bool, Counter, int]:
+        """The hour so far, for a Budget: the account's points as last read (None once that hour has ended, which a
+        process refusing every query wouldn't otherwise see), whether read in the last RATE_S, this process's own
+        points by kind, and the minutes until the hour ends."""
+        with self._lock:
+            now = time.time()
+            if self._ends is None or now > self._ends:
+                return None, False, Counter(), 0
+            return (self.rate, time.monotonic() - self._read_at < RATE_S, Counter(self._own),
+                    math.ceil((self._ends - now) / 60))
 
     def _log(self, ended: float) -> None:
         rate = self.rate or {}
@@ -475,6 +542,7 @@ class WCL:
         use_wcl_env_names()
         self._local = threading.local()
         self._hour = Hour()
+        self._budget = Budget.from_env()
 
     def _client(self) -> WarcraftLogsClient:
         if not hasattr(self._local, "client"):
@@ -487,6 +555,8 @@ class WCL:
         couldn't rank right then): an answer meant for the cache, or whole (`keep`), is then refused rather than
         kept, so an empty ranking never sticks for a day and gets told to raiders as "no ranked kills"."""
         self._wait_for_points()
+        if refused := self._budget.refusal(*self._hour.now()):
+            raise WCLError(refused)
         query, points = _with_cost(query), _points.get()
         try:
             try:
