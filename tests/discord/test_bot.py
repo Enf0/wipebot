@@ -638,3 +638,58 @@ async def test_asked_in_a_channel_to_answer_in_a_dm_it_answers_there_as_if_asked
     assert (key, question, ctx.where) == (("dm", 7), "who missed their kicks on Twin Fangs tonight?", "in a DM")
     assert dm.sent == ["**Wiped.**"] and msg.replies == ["**Wiped.**"]  # the channel's own answer, and the DM's
     assert await ctx.tools["answer_in_dm"]({"question": "x"}) == "This is their DM already: answer here."
+
+
+class Sent:
+    """A message the bot sent, that keeps its edits and whether it was deleted."""
+
+    def __init__(self, content, **kwargs):
+        self.contents, self.kwargs, self.deleted = [content], kwargs, False
+
+    async def edit(self, content):
+        self.contents.append(content)
+
+    async def delete(self):
+        self.deleted = True
+
+
+async def test_a_long_answer_shows_what_it_looks_at_until_it_is_posted(bot, message, asked, monkeypatch):
+    """A progress line under the question, edited as tools are called and deleted after the answer, which comes as
+    its own reply so the asker is notified of it. It names tools only, never their arguments (a player)."""
+    monkeypatch.setattr("wipebot.discord.bot.PROGRESS_AFTER_S", 0)
+    monkeypatch.setattr("wipebot.discord.bot.PROGRESS_EDIT_S", 0)
+    msg = message("<@99> how did Torvek do?")
+    sent: list[Sent] = []
+
+    async def reply(content, **kwargs):
+        if kwargs.get("silent"):
+            sent.append(Sent(content, **kwargs))
+            return sent[-1]
+        msg.replies.append(content)
+        return SimpleNamespace(id=200 + len(msg.replies))
+    msg.reply = reply
+
+    async def answering(key, code, question, ctx, *args, **kwargs):
+        for name in ("player_pull", "Skill", "death_recap", "player_pull"):
+            ctx.on_tool(name)
+            await asyncio.sleep(0.01)
+        assert sent and not sent[0].deleted  # shown while it works
+        return Answer("**Torvek did fine.**")
+    monkeypatch.setattr(bot.conversations, "ask", answering)
+    await bot.on_message(msg)
+    assert msg.replies == ["**Torvek did fine.**"] and len(sent) == 1
+    line = sent[0]
+    assert line.contents[0] == "-# Looking at player pull…" and line.contents[-1] == (
+        "-# Looking at player pull, death recap…")
+    assert line.kwargs == {"silent": True, "mention_author": False} and line.deleted
+
+
+async def test_a_quick_answer_shows_no_progress_line(bot, message, monkeypatch):
+    msg = message()
+
+    async def answering(key, code, question, ctx, *args, **kwargs):
+        ctx.on_tool("pull_summary")
+        return Answer("**Wiped.**")
+    monkeypatch.setattr(bot.conversations, "ask", answering)
+    await bot.on_message(msg)
+    assert msg.replies == ["**Wiped.**"]
