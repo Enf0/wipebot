@@ -101,3 +101,17 @@ async def test_a_pug_logged_to_the_guilds_page_is_not_followed(night, live_wcl, 
     monkeypatch.setattr(wcl, "guild_members", everyone)
     follower._last_report_check = 0  # the next check: now it's the guild's
     assert await follower.poll() and follower.code == CODE
+
+
+async def test_with_nothing_live_a_look_is_not_repeated_within_the_check_interval(night, live_wcl, monkeypatch):
+    """Questions and requests ask for the live report too: each look costs a Warcraft Logs database point."""
+    wcl, follower = make(live_wcl)
+    looks = []
+
+    async def pick(now_ms):
+        looks.append(now_ms)
+    monkeypatch.setattr(follower, "_pick_report", pick)
+    assert await follower.live() is None and await follower.live() is None and len(looks) == 1
+    follower._last_report_check = 0  # REPORT_CHECK_S later
+    await follower.live()
+    assert len(looks) == 2

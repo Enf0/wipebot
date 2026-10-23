@@ -84,14 +84,19 @@ class Follower:
             if now_ms - (report.start_ms + f["endTime"]) > BACKLOG_S * 1000:
                 self.store.mark_posted(report.code, f["id"], latency_s=None)
 
-    async def poll(self) -> list[Pull]:
-        """The pulls that finished since the last poll. Call `done` once each is handled."""
+    async def live(self) -> str | None:
+        """The live report followed, None when nothing is being logged. Looked for again once the last look is
+        REPORT_CHECK_S old, also while nothing is live: each look asks Warcraft Logs for the guild's reports, a
+        database point."""
         now_ms = time.time() * 1000
-        stale_check = self.code is None or now_ms / 1000 - self._last_report_check > REPORT_CHECK_S
-        if stale_check and not self.test_report:
+        if not self.test_report and now_ms / 1000 - self._last_report_check > REPORT_CHECK_S:
             self._last_report_check = now_ms / 1000
             await self._pick_report(now_ms)
-        if self.code is None:
+        return self.code
+
+    async def poll(self) -> list[Pull]:
+        """The pulls that finished since the last poll. Call `done` once each is handled."""
+        if await self.live() is None:
             return []
 
         report = await self.library.report(self.code, max_age_s=0)

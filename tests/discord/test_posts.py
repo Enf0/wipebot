@@ -1,4 +1,5 @@
 """Who asked for posts after each wipe, where, and which posts a poll's pulls make due."""
+import time
 from typing import cast
 
 import pytest
@@ -8,8 +9,9 @@ from wipebot.discord.follower import Pull
 from wipebot.discord.posts import FOLLOW_WAIT_S, Following, Posts
 
 SERVER = 1001
-WIPE, KILL, RESET = (Pull("LIVE1", 30, "Sszorak", 12, 0.0), Pull("LIVE1", 31, "Sszorak", 13, 0.0, kill=True),
-                     Pull("LIVE1", 32, "Sszorak", 14, 0.0, reset=True))
+ENDED = (time.time() + 3600) * 1000  # the pulls end after the tests' requests
+WIPE, KILL, RESET = (Pull("LIVE1", 30, "Sszorak", 12, ENDED), Pull("LIVE1", 31, "Sszorak", 13, ENDED, kill=True),
+                     Pull("LIVE1", 32, "Sszorak", 14, ENDED, reset=True))
 
 
 @pytest.fixture
@@ -40,8 +42,17 @@ async def test_after_a_gap_only_the_latest_wipe_gets_a_post(posts, rowan):
     """A restart or Warcraft Logs being down leaves several wipes for one poll: a post about each would come pulls
     late, one after the other."""
     await posts.follow_pulls(SERVER, rowan, "Rowan", {"character": "torvek"}, "LIVE1", "LIVE1")
-    later = Pull("LIVE1", 33, "Sszorak", 15, 0.0)
+    later = Pull("LIVE1", 33, "Sszorak", 15, ENDED)
     assert await posts.due(SERVER, "LIVE1", [WIPE, KILL, later, RESET]) == [(posts.by_server[SERVER][7], later)]
+
+
+async def test_wipes_from_before_the_request_get_no_post(posts, rowan):
+    """Nothing polls the live report while nobody asked for posts, so the first poll after a request may find wipes
+    from before it."""
+    await posts.follow_pulls(SERVER, rowan, "Rowan", {"character": "torvek"}, "LIVE1", "LIVE1")
+    before = Pull("LIVE1", 29, "Sszorak", 11, (time.time() - 600) * 1000)
+    assert await posts.due(SERVER, "LIVE1", [before]) == []
+    assert await posts.due(SERVER, "LIVE1", [before, WIPE]) == [(posts.by_server[SERVER][7], WIPE)]
 
 
 async def test_a_character_not_in_the_live_report_is_refused(posts, rowan):
@@ -67,7 +78,7 @@ async def test_a_request_that_waited_too_long_for_the_raid_ends(posts, store, ro
 
 async def test_posts_end_with_the_report_they_follow(posts, store, rowan):
     await posts.follow_pulls(SERVER, rowan, "Rowan", {"character": "torvek"}, "LIVE1", "LIVE1")
-    assert await posts.due(SERVER, "NEXTNIGHT", [Pull("NEXTNIGHT", 1, "Sszorak", 1, 0.0)]) == []
+    assert await posts.due(SERVER, "NEXTNIGHT", [Pull("NEXTNIGHT", 1, "Sszorak", 1, ENDED)]) == []
     assert not places(posts) and store.all_following() == []
 
 

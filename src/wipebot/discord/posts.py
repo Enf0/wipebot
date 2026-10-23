@@ -147,8 +147,10 @@ class Posts:
             elif f.code is not None and f.code != live:
                 self.end(guild_id, key)
                 log.info("stopped posts after wipes for %s: report %s ended", self._shown(f.name), f.code)
-        # After a gap (a restart, Warcraft Logs down) a poll finds several wipes: only the latest is worth a post.
-        latest = {id(f): (f, pull) for pull in pulls if pull.wipe for f in following.values() if f.code == pull.report}
+        # After a gap (a restart, Warcraft Logs down) a poll finds several wipes: only the latest is worth a post. The
+        # first poll after a request may find wipes from before it (nothing polls while nobody asked): those aren't.
+        latest = {id(f): (f, pull) for pull in pulls if pull.wipe for f in following.values()
+                  if f.code == pull.report and pull.ended_ms >= f.asked * 1000}
         return list(latest.values())
 
     async def _attach(self, f: Following, code: str) -> None:
