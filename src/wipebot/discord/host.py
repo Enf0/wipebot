@@ -38,7 +38,7 @@ from wipebot.core import raidstrats, server, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
 
-from . import prompt
+from . import config, prompt
 from .discord_text import polish
 
 log = logging.getLogger(__name__)
@@ -329,6 +329,7 @@ class Session:
             max_turns=MAX_TURNS,
             max_budget_usd=2 * ANSWER_BUDGET_USD,
             model=self.model or None,
+            effort=config.effort(),
             # Opus leaves its thinking out of what it returns unless asked: summarised, the reviews can read it
             thinking={"type": "adaptive", "display": "summarized"},
         )

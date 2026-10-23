@@ -40,6 +40,7 @@ In `.env` (copy [.env.example](../.env.example)):
 | `WIPEBOT_TRUSTED_PROXIES` | connector | the reverse proxy's address, if you want real client IPs in the log |
 | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required |
 | `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku` |
+| `WIPEBOT_EFFORT` | bot | how hard the model thinks: `low`, `medium`, `high`, `xhigh` or `max`; unset, the model's default |
 | `WIPEBOT_CHANNEL_CONTEXT` | bot | `1`: answers also read the channel's last 15 messages (needs the Message Content intent) |
 | `WIPEBOT_RECORD_ANSWERS` | bot | `1`: keep questions and answers for 90 days, for reviewing them |
 | `WIPEBOT_SOURCE_URL` | both | where users get your copy's source, shown on the sign-in page and in `/wipebot settings` (default this repository): set it if you changed the code, as the AGPL asks |

@@ -1,6 +1,10 @@
 """What the person running wipebot sets, from the environment. Everything about a Discord server (its WCL
 guild, channels, role) is set in Discord with /wipebot setup and kept in the store."""
 import os
+from typing import Literal
+
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
 def check_settings() -> None:
@@ -19,6 +23,15 @@ def model() -> str:
     """The Claude model for answers (WIPEBOT_MODEL). Opus by default: it answers best in the evals, at a higher
     cost (docs/models.md; `just evals --model sonnet` compares again)."""
     return os.environ.get("WIPEBOT_MODEL") or "opus"  # .env.example leaves it empty
+
+
+def effort() -> Effort | None:
+    """How hard the model thinks before it answers (WIPEBOT_EFFORT: one of EFFORTS); unset, the model's own default
+    (medium for Opus). Lower is faster and cheaper (`just evals --bot --effort low` compares)."""
+    value = os.environ.get("WIPEBOT_EFFORT") or None
+    if value is not None and value not in EFFORTS:
+        raise ValueError(f"WIPEBOT_EFFORT is {value!r}: it takes {', '.join(EFFORTS)}")
+    return value
 
 
 
