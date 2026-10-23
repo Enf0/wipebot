@@ -66,6 +66,17 @@ def users() -> SignIn:
 @pytest.fixture
 def client(monkeypatch, now, users):
     """The HTTP app as `wipebot serve` serves it, on a server of its own."""
+    yield from _serving(monkeypatch, now, users)
+
+
+@pytest.fixture
+def open_client(monkeypatch, now):
+    """The same, open to anyone with a Warcraft Logs account (WIPEBOT_ALLOWED_GUILDS=*), as a public server."""
+    yield from _serving(monkeypatch, now, SignIn(PUBLIC, Access([], anyone=True, officer_rank=9), CLIENT, SECRET,
+                                                 ":memory:"))
+
+
+def _serving(monkeypatch, now, users):
     verifiers: dict[str, str] = {}
 
     async def login(client_id, secret, code, verifier, redirect_uri):
@@ -181,6 +192,43 @@ def test_only_guild_characters_are_kept(client, users):
     tokens(client, register(client))
     name, chars = users.user(1) or ("", [])
     assert name == "Raider" and [(c.where(), c.rank) for c in chars] == [("Torvek (Silvermoon-EU)", 4)]
+
+
+@pytest.mark.parametrize("who", ["social", "stranger", "unclaimed"])
+def test_open_to_anyone_whoever_has_a_warcraft_logs_account_signs_in(open_client, who):
+    t = tokens(open_client, register(open_client), who)
+    assert initialize(open_client, t["access_token"]).status_code == 200
+
+
+def test_open_to_anyone_every_claimed_character_is_kept_with_its_guild(open_client):
+    call, _ = session(open_client)
+    text = call("tools/call", {"name": "my_characters", "arguments": {}})["content"][0]["text"]
+    assert ("The user's characters claimed on Warcraft Logs: Torvek (Silvermoon-EU) of The Copper Lanterns, "
+            "Alt (Argent Dawn-EU) of The Copper Lanterns.") in text
+
+
+def test_open_to_anyone_the_consent_page_says_why_it_reads_the_characters(open_client):
+    r = open_client.get(consent(open_client, register(open_client)))
+    assert "so it knows which are yours" in r.text and "in the guild" not in r.text
+
+
+def test_open_to_anyone_a_users_own_guilds_are_where_find_reports_looks(monkeypatch):
+    from mcp.server.auth.middleware import auth_context
+    users = SignIn(PUBLIC, Access([], anyone=True), CLIENT, SECRET, ":memory:")
+    chars = accounts.members(ACCOUNTS["raider"].characters + ACCOUNTS["stranger"].characters, None)
+    users._db.execute("INSERT INTO users (id, name, characters, signed_in) VALUES (1, 'Raider', ?, 0)",
+                      (json.dumps([c.__dict__ for c in chars]),))
+    monkeypatch.setattr(auth_context, "get_access_token", lambda: type("T", (), {"subject": "1"})())
+    assert remote._own_guilds(users) == [("The Copper Lanterns", "argent-dawn", "eu")]
+    assert [(c.name, c.guild_id, c.rank) for c in chars] == [("Torvek", LANTERNS_ID, 4), ("Alt", LANTERNS_ID, 8),
+                                                             ("Pug", None, None)]
+
+
+def test_anyone_may_sign_in_with_a_star(monkeypatch):
+    monkeypatch.setenv("WIPEBOT_ALLOWED_GUILDS", "*")
+    monkeypatch.setenv("WIPEBOT_OFFICER_RANK", "9")
+    access = Access.from_env()
+    assert access.anyone and access.guilds == [] and access.officer_rank == 9 and str(access) == "any guild"
 
 
 @pytest.mark.parametrize("who", ["social", "stranger", "unclaimed"])
@@ -896,7 +944,7 @@ def test_the_server_needs_its_public_url_unless_it_listens_on_this_machine_alone
     assert serving == {}
     caplog.set_level("INFO")
     remote.serve("127.0.0.1", 8123, None)  # trying it out
-    assert "as http://localhost:8123, for 1 allowed guilds" in caplog.text
+    assert "as http://localhost:8123, for The Copper Lanterns (Argent Dawn-EU)" in caplog.text
     remote.serve("0.0.0.0", 8000, PUBLIC + "/")
     assert serving["host"] == "0.0.0.0" and f"as {PUBLIC}," in caplog.text
 
@@ -948,3 +996,17 @@ async def test_the_default_report_is_the_signed_in_users_own_guilds_latest_raid(
     assert await latest() == f"R{LANTERNS_ID}" and asked == [LANTERNS_ID]  # not the first allowed guild's
     auth_context_var.set(None)
     assert await latest() == "R777"  # no user (or one from before guild ids were kept): every allowed guild's
+
+
+def test_the_limits_per_user_are_read_from_the_settings(monkeypatch):
+    for name in ("WIPEBOT_POINTS_PER_USER", "WIPEBOT_CALLS_PER_USER", "WIPEBOT_WCL_USER_POINTS"):
+        monkeypatch.delenv(name, raising=False)
+    assert remote.user_limits() is None  # unset: no limit
+    monkeypatch.setenv("WIPEBOT_POINTS_PER_USER", "200")
+    monkeypatch.setenv("WIPEBOT_CALLS_PER_USER", "60")
+    monkeypatch.setenv("WIPEBOT_WCL_USER_POINTS", "1")
+    limits = remote.user_limits()
+    assert limits and (limits.points, limits.calls, limits.own_points) == (200, 60, True)
+    monkeypatch.setenv("WIPEBOT_CALLS_PER_USER", "lots")
+    with pytest.raises(ValueError, match="WIPEBOT_CALLS_PER_USER: how many one user may spend in an hour"):
+        remote.user_limits()

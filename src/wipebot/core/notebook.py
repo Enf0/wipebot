@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_PATH = Path.home() / ".local" / "share" / "wipebot" / "notes.sqlite"
+MAX_VERSIONS = 500  # of a guild's notes, and of its plans, the newest kept: on a server open to anyone, any member
+# of any guild saves, and every version would otherwise be kept for good
 
 
 def default_path() -> Path:
@@ -70,7 +72,7 @@ SCHEMA = """
         wcl_guild_id INTEGER NOT NULL,
         encounter_id INTEGER NOT NULL,  -- the boss, from the note's EncounterID line
         boss TEXT NOT NULL,
-        note TEXT NOT NULL,      -- the boss's part of the note, as pasted; every version is kept
+        note TEXT NOT NULL,      -- the boss's part of the note, as pasted; every version is kept (MAX_VERSIONS)
         saved_by TEXT NOT NULL,
         saved_at REAL NOT NULL
     );
@@ -126,6 +128,13 @@ class Notebook:
         except sqlite3.OperationalError:  # read-only, before the bot made the tables
             return []
 
+    def _keep_newest(self, table: str, guild_id: int) -> None:
+        """Only a guild's MAX_VERSIONS newest rows of `table`."""
+        assert self._db is not None
+        self._db.execute(f"DELETE FROM {table} WHERE wcl_guild_id = ? AND id NOT IN (SELECT id FROM {table} WHERE "
+                         "wcl_guild_id = ? ORDER BY saved_at DESC, id DESC LIMIT ?)",
+                         (guild_id, guild_id, MAX_VERSIONS))
+
     # ---------- notes ----------
 
     def save_note(self, guild_id: int, encounter_id: int, boss: str, note: str, saved_by: str,
@@ -134,6 +143,7 @@ class Notebook:
         self._db.execute("INSERT INTO raid_notes (wcl_guild_id, encounter_id, boss, note, saved_by, saved_at) "
                          "VALUES (?, ?, ?, ?, ?, ?)",
                          (guild_id, encounter_id, boss, note, saved_by, time.time() if at is None else at))
+        self._keep_newest("raid_notes", guild_id)
         self._db.commit()
 
     def note_for(self, guild_id: int, encounter_id: int, at: float, night: tuple[float, float] = (0, math.inf)
@@ -168,6 +178,7 @@ class Notebook:
         self._db.execute("INSERT INTO raid_plans (wcl_guild_id, boss, plan_id, name, plan, saved_by, saved_at) "
                          "VALUES (?, ?, ?, ?, ?, ?, ?)",
                          (guild_id, boss, plan_id, name, plan, saved_by, time.time() if at is None else at))
+        self._keep_newest("raid_plans", guild_id)
         self._db.commit()
 
     def plans(self, guild_id: int) -> list[SavedPlan]:

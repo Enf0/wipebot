@@ -282,3 +282,44 @@ async def test_serving_many_users_an_unexpected_error_is_told_by_an_id_and_kept_
     assert error_id and "/srv/secret" not in str(told.value)
     assert f"error id {error_id[1]}" in caplog.text and "/srv/secret/path" in caplog.text
     assert kept[0][6] and "RuntimeError: /srv/secret/path is gone" in kept[0][7]
+
+
+def test_one_user_is_held_to_their_points_and_calls_in_the_last_hour(monkeypatch):
+    """So one user of a server many guilds share can't spend everyone's Warcraft Logs points."""
+    now = [1000.0]
+    monkeypatch.setattr(server.time, "time", lambda: now[0])
+    limits = server.UserLimits(points=100, calls=3)
+    limits.add("1", {"total": 60, "application": 5})
+    assert limits.refusal("1") is None and limits.refusal("2") is None
+    now[0] += 600
+    limits.add("1", {"total": 50, "application": 5})
+    assert limits.refusal("1") == ("not answered: this user has asked for 110 Warcraft Logs points in the last "
+                                   "hour, the most this server gives one user; ask again in 50 min")
+    assert limits.refusal("2") is None
+    now[0] += 3001  # the first call is over an hour old
+    assert limits.refusal("1") is None
+    limits.add("1", {})
+    limits.add("1", {})
+    assert "asked for 3 tool calls" in (limits.refusal("1") or "")
+    # on the new point system, the user's own points are theirs: only what the account pays counts
+    own = server.UserLimits(points=100, own_points=True)
+    for _ in range(10):
+        own.add("1", {"total": 60, "application": 5})
+    assert own.refusal("1") is None
+
+
+async def test_a_call_past_the_users_limit_is_refused_and_not_counted(monkeypatch):
+    from mcp.server.auth.middleware import auth_context
+    monkeypatch.setattr(auth_context, "get_access_token", lambda: type("T", (), {"subject": "1", "client_id": "c"})())
+    kept = []
+    limits = server.UserLimits(calls=1)
+    setup = server.Setup(remote=server.Remote(guilds=list, user_name=str, limits=limits,
+                                              record=lambda *a: kept.append(a[6:8])))
+
+    async def tool() -> str:
+        return "ok"
+    guarded = server.guarded(tool, setup)
+    assert await guarded() == "ok"
+    with pytest.raises(ToolError, match="asked for 1 tool call in the last hour"):
+        await guarded()
+    assert len(limits._spent["1"]) == 1 and kept == [(False, "ok"), (True, kept[1][1])]

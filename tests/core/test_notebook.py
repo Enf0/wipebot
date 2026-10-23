@@ -5,6 +5,7 @@ from typing import cast
 import pytest
 
 from tests.support import NOTE, PLAN
+from wipebot.core import notebook as notebook_module
 from wipebot.core import server
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
@@ -192,3 +193,16 @@ async def test_a_note_pasted_after_the_pulls_it_was_for_counts_from_the_pull_nam
     with pytest.raises(FactError, match="isn't the guild's"):
         server.save_pasted(book, 555, text, "Rowan", from_pull=(rep, 1))
     assert len(book.notes(14169, 3420)) == 2
+
+
+def test_only_a_guilds_newest_versions_are_kept(monkeypatch):
+    """On a server open to anyone, any member saves: a guild keeps its MAX_VERSIONS newest notes, and of plans."""
+    monkeypatch.setattr(notebook_module, "MAX_VERSIONS", 3)
+    book = Notebook(":memory:")
+    for i in range(5):
+        book.save_note(14169, 3420, "Sszorak", f"v{i}", "Rowan", at=1000.0 + i)
+        book.save_plan(14169, "Sszorak", "p1", "Plan", f"raidstrats-addon-v{i}", "Rowan", at=1000.0 + i)
+    book.save_note(555, 3420, "Sszorak", "another guild's", "X", at=900.0)
+    assert [n.note for n in book.notes(14169, 3420)] == ["v2", "v3", "v4"]
+    assert [p.plan for p in book.plans(14169)] == ["raidstrats-addon-v2", "raidstrats-addon-v3", "raidstrats-addon-v4"]
+    assert [n.note for n in book.notes(555, 3420)] == ["another guild's"]

@@ -36,7 +36,7 @@ In `.env` (copy [.env.example](../.env.example)):
 |---|---|---|
 | `WCL_CLIENT_ID`, `WCL_CLIENT_SECRET` | both | required |
 | `WIPEBOT_PUBLIC_URL` | connector | required: the address members reach, e.g. `https://wipebot.example.com` |
-| `WIPEBOT_ALLOWED_GUILDS` | connector | required: whose members may sign in (below) |
+| `WIPEBOT_ALLOWED_GUILDS` | connector | required: whose members may sign in (below), or `*` for anyone |
 | `WIPEBOT_OFFICER_RANK` | connector | the highest guild rank of officers, who save raid notes and plans (default 1, [below](#officers-and-admins)) |
 | `WIPEBOT_TRUSTED_PROXIES` | connector | the reverse proxy's address, if you want real client IPs in the log |
 | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required |
@@ -62,6 +62,12 @@ again when the hour ends, and what was read before still answers.
 `WIPEBOT_ALLOWED_GUILDS` takes the guild's warcraftlogs.com address as copied from the browser, its id there, or
 `region/realm/guild` (e.g. `eu/argent-dawn/the-copper-lanterns`), comma-separated for several. Add `:<highest rank>`
 to let in only ranks up to it (0 is the guild master): `eu/argent-dawn/the-copper-lanterns:5`.
+
+`*` lets in anyone with a Warcraft Logs account, for a connector many guilds share. Each user's own guilds are then
+where `find_reports` looks and whose saved notes they read; `WIPEBOT_OFFICER_RANK=9` lets any member save their
+guild's raid note (each saved version names who saved it). Hold each user to part of the server's points with
+`WIPEBOT_POINTS_PER_USER` and `WIPEBOT_CALLS_PER_USER` (an hour each; on the new point system only the points the
+account pays count), and the server to part of the account's with the `WIPEBOT_WCL_*` settings above.
 
 The server listens on `127.0.0.1:8000`; point the reverse proxy at it. Elsewhere than Claude, such as ChatGPT,
 members add `https://<your host>/mcp` as a connector (the address must end in `/mcp`).
