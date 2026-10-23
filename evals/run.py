@@ -338,7 +338,9 @@ async def run(args) -> None:
     print(f"Answers and judging on {args.billed_to}.", flush=True)
     frozen()
     model = args.model  # empty: the bot's own, for chat and for live answers
-    shown = model or config.model()
+    if args.effort:
+        os.environ["WIPEBOT_EFFORT"] = args.effort  # read by the answers' sessions only
+    shown = (model or config.model()) + (f", effort {e}" if (e := config.effort()) else "")
     cases = [c for c in load_cases() if picked(c, args.filter)
              and not (args.mode != "bot" and c.get("bot_only"))  # the bot's channel rules mean nothing in claude.ai
              and not (args.mode == "bot" and c.get("client_only"))  # nor the connector's saving in Discord
@@ -695,6 +697,8 @@ def main() -> None:
                         help="only cases whose id contains this (several, comma-separated: any of them)")
     parser.add_argument("--trials", type=int, default=1, help="answers per case (default 1)")
     parser.add_argument("--model", default="", help="model for the answers (default: the bot's)")
+    parser.add_argument("--effort", default="", choices=["", "low", "medium", "high", "xhigh", "max"],
+                        help="the answers' effort (default: the bot's, WIPEBOT_EFFORT); the judge's stays")
     parser.add_argument("--judge-model", default="sonnet", help="model for the judge (default sonnet)")
     modes = parser.add_mutually_exclusive_group()  # default: as Claude with the plugin (the connector and the skill)
     modes.add_argument("--connector-only", dest="mode", action="store_const", const="connector", default="plugin",
