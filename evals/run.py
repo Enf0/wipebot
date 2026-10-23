@@ -130,6 +130,7 @@ class Trial:
     facts: dict = field(default_factory=dict)  # Facts: how many supporting facts it states (never fails it)
     warnings: list[str] = field(default_factory=list)
     calls: list[dict] = field(default_factory=list)  # {name, args, result, failed}
+    uncalled: list[str] = field(default_factory=list)  # the case's `calls` the answer didn't make: it fails
     loaded: list[str] = field(default_factory=list)  # with the plugin: the skills loaded and files read (Answer.loaded)
 
 
@@ -146,7 +147,7 @@ def load_cases(folder: Path = CASES) -> list[dict]:
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "wrong_in_channel", "derived",
-                                       "drifts", "hard", "report", "tools", "cause", *CONTEXT}:
+                                       "drifts", "hard", "report", "tools", "calls", "cause", *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
             only = {"bot": {"bot_only": True}, "connector": {"client_only": True}}.get(path.stem, {})
             cases.append({"report": spec["defaults"]["report"], **case} | only | {"kind": path.stem})
@@ -248,7 +249,8 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
         judge_majority(wrong_prompt(asked(case, client), wrongs(case, client), t.answer), judge_model),
         facts(asked(case, client), case["facts"], t.answer, judge_model) if case.get("facts")
         else asyncio.sleep(0))
-    t.passed = expect.ok is True and wrong.ok is True
+    t.uncalled = uncalled(case, calls)
+    t.passed = expect.ok is True and wrong.ok is True and not t.uncalled
     t.expect, t.wrong = asdict(expect), asdict(wrong)
     t.cost_usd += expect.cost_usd + wrong.cost_usd + (stated.cost_usd if stated else 0.0)
     if stated:
@@ -257,6 +259,13 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
     if why := broken(t):
         t.errored, t.passed, t.error = True, False, why
     return t
+
+
+def uncalled(case: dict, calls: list[dict]) -> list[str]:
+    """The tools the case says a right answer calls (`calls`: a step of the method no answer's text shows, such as
+    reading the spec's guide before advising) that the answer's conversation didn't call."""
+    made = {c.get("name") for c in calls}
+    return [name for name in case.get("calls") or [] if name not in made]
 
 
 def answers(cases: list[dict], results: dict[str, list[Trial]]) -> dict:
@@ -316,6 +325,8 @@ def show(case_id: str, t: Trial) -> None:
     for name, v in (("expect", t.expect), ("wrong", t.wrong)):
         if v and v["ok"] is not True:
             lines.append(f"{name}: {v['reason'][:300]}")
+    if t.uncalled:
+        lines.append("didn't call " + ", ".join(t.uncalled))
     if t.facts and t.facts["missing"]:
         lines.append(f"facts {t.facts['stated']}/{t.facts['of']}, missing: " + "; ".join(t.facts["missing"])[:300])
     lines += [f"warning: {w}" for w in t.warnings]

@@ -22,6 +22,29 @@ wrong = ["faults their overhealing",
          "says they died on the kill (their death was on pull 1)"]
 
 [[case]]
+id = "me-healer-holy-power"
+report = "p7jRwgv8b1rY6LBd"
+tools = ["compare_with_top", "player_night", "player_pull", "spec_guide"]
+calls = ["spec_guide"]  # advice on how to play a spec comes from its guide
+question = "What could I have done better on Twin Fangs last night?"
+asker = "Cptola"
+expect = """Besides staying alive longer (Cptola died before the wipe was decided on 29 of 39 pulls), the main thing to
+fix in how they play is Holy Power lost at the cap: a quarter of it over the night, spent too late. The fix is the
+guide's: spend Holy Power before it caps, and press Divine Toll with little of it."""
+drifts = ["11%", "1.8"]
+facts = ["833 of 3288 Holy Power lost at the cap over the night (25%)",
+         "Holy Power at its cap for 34% of their time alive on pull 37, against about 11% for the top parses",
+         "most of it from Holy Shock (573 of 2057 lost)",
+         "among the first 3 deaths on 17 pulls",
+         "Divine Toll 1.3 a minute against the top parses' 1.8"]
+# Holding Holy Power for the damage is what the bot first advised, against both guides; Method says not to play
+# around Mastery, and to put Infusion of Light Flashes on Beacon of Virtue targets with Moment of Compassion.
+wrong = ["tells them to hold or save Holy Power for the next damage instead of spending it before it caps",
+         "tells them to avoid healing players who have their beacon",
+         "makes standing closer to players for Mastery a main fix",
+         "faults their overhealing on its own, without a change to how they play"]
+
+[[case]]
 id = "me-low-dps"
 tools = ["compare_with_top", "player_night", "player_pull"]
 question = "Why is my DPS so low on Sszorak, and what should I fix?"
