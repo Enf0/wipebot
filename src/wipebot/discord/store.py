@@ -80,7 +80,8 @@ class SavedFollowing:
 # Columns of older versions that new rows can't leave empty: the posts channel of the answer after each wipe.
 DROPPED_COLUMNS = {"server_settings": ("posts_channel_id",)}
 # Columns added since a table was made: (table, column, type).
-ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "officer_role_id", "INTEGER")]
+ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "officer_role_id", "INTEGER"),
+                 ("interactions", "wcl_points", "TEXT")]
 
 
 class Store:
@@ -151,7 +152,9 @@ class Store:
                 thinking TEXT,           -- JSON: list of thinking blocks
                 tool_calls TEXT,         -- JSON: list of {name, args, result, failed, images, started_s, duration_s}
                                          -- (the last two from 13 Oct 2026: seconds from the question)
-                fight INTEGER            -- feedback after a wipe: the pull's fight id (from 13 Oct 2026)
+                fight INTEGER,           -- feedback after a wipe: the pull's fight id (from 13 Oct 2026)
+                wcl_points TEXT          -- JSON: the Warcraft Logs points its tool calls cost, by kind (from 23 Oct
+                                         -- 2026; each tool call's under wcl_points in tool_calls)
             );
             CREATE TABLE IF NOT EXISTS answer_messages (
                 message_id INTEGER PRIMARY KEY,  -- a Discord message holding (part of) an answer
@@ -310,8 +313,8 @@ class Store:
 
     def record_interaction(self, *, messages: Sequence[int] = (), **row) -> int:
         """Keep one answer (or a question that got none) and the Discord `messages` it was posted in; returns its
-        id. `row` holds the interactions columns; usage, thinking and tool_calls are stored as JSON."""
-        for column in ("usage", "thinking", "tool_calls"):
+        id. `row` holds the interactions columns; usage, thinking, tool_calls and wcl_points are stored as JSON."""
+        for column in ("usage", "thinking", "tool_calls", "wcl_points"):
             if row.get(column) is not None:
                 row[column] = json.dumps(row[column], ensure_ascii=False, default=str)
         row["at"] = time.time()

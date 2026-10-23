@@ -108,8 +108,9 @@ def skill() -> str:
 _log = logging.getLogger(__name__)
 
 
-# Takes a tool call: (user, client, tool, args, started, duration_s, failed, result)
-Record = Callable[[str | None, str | None, str, dict, float, float, bool, str], None]
+# Takes a tool call: (user, client, tool, args, started, duration_s, failed, result, its Warcraft Logs points as
+# wcl.Points.record gives them)
+Record = Callable[[str | None, str | None, str, dict, float, float, bool, str, dict], None]
 
 
 @dataclass
@@ -226,8 +227,10 @@ def guarded(fn, setup: Setup = DEFAULT):
         shown = {k: v for k, v in kwargs.items() if v is not None and k != "ctx"}
         user, client = _log_call(remote, fn.__name__, shown)
         started, began, failed, out = time.time(), time.monotonic(), True, ""
+        points = wcl.Points()
         try:
-            with wcl.reading_as(remote.wcl_token(user) if user else None):  # the user's own points pay first
+            # the user's own points pay first; what the call cost is kept with it
+            with wcl.reading_as(remote.wcl_token(user) if user else None), wcl.counting_points() as points:
                 result = await run(*args, **kwargs)
             failed, out = False, _text(result)
             return result
@@ -241,7 +244,8 @@ def guarded(fn, setup: Setup = DEFAULT):
             raise
         finally:
             if remote.record:
-                remote.record(user, client, fn.__name__, shown, started, time.monotonic() - began, failed, out)
+                remote.record(user, client, fn.__name__, shown, started, time.monotonic() - began, failed, out,
+                              points.record())
 
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):

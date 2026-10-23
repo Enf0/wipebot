@@ -18,7 +18,7 @@ from wipebot.core import server
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
 from wipebot.discord import host
-from wipebot.discord.host import Context, ModelError, Session, ToolCall, context_size, sdk_tools
+from wipebot.discord.host import Answer, Context, ModelError, Session, ToolCall, context_size, sdk_tools
 from wipebot.discord.prompt import FOLLOW_PULLS, REMEMBER
 
 GUILD = "The Copper Lanterns, argent-dawn, eu"
@@ -60,6 +60,23 @@ async def test_a_tool_error_goes_to_the_model_as_a_failed_call(monkeypatch):
     result = await tools["pull_summary"].handler({"pull": 99})
     assert result["is_error"] and result["content"][0]["text"] == "no pull 99 of Sszorak"
     assert [(c.name, c.failed) for c in recorded] == [("pull_summary", True)]
+
+
+async def test_each_tool_call_keeps_what_its_warcraft_logs_queries_cost(monkeypatch):
+    from wipebot.core import wcl
+
+    async def costing(name, args):
+        points = wcl._points.get()
+        assert points is not None  # counted during the call
+        points.add({"total": 3, "database": 1})  # as a query run during the call adds its cost
+        return "Sszorak pull 13", False, []
+    monkeypatch.setattr("wipebot.core.server.call_with_images", costing)
+    recorded: list[ToolCall] = []
+    tools = {t.name: t for t in await sdk_tools("R", recorded.append)}
+    await tools["pull_summary"].handler({"pull": 13})
+    await tools["pull_summary"].handler({"pull": 14})
+    assert recorded[0].record(0)["wcl_points"] == {"total": 3, "database": 1, "queries": 1}
+    assert Answer("", calls=recorded).wcl_points() == {"total": 6, "database": 2, "queries": 2}
 
 
 async def test_raid_note_in_discord_gets_the_saved_note_not_one_from_the_model(core_calls):

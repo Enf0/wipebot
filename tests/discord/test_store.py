@@ -89,13 +89,15 @@ def test_answers_are_recorded_with_their_reactions(store, monkeypatch):
     answer_id = store.record_interaction(
         kind="chat", report="KBYT4xXn7VNjDgh8", question="why did we wipe?", answer="**Enraged.**",
         asker="Rowan", usage={"output_tokens": 12}, thinking=["Check the timeline."], tool_calls=[vars(call)],
-        messages=[501, 502])
+        wcl_points={"total": 6, "database": 2, "queries": 2}, messages=[501, 502])
     store.record_interaction(kind="follow", report="KBYT4xXn7VNjDgh8", question="Why?", error="timeout after 120 s")
     row = store._db.execute("SELECT kind, asker, answer, usage, thinking, tool_calls FROM interactions "
                             "WHERE id = ?", (answer_id,)).fetchone()
     assert row[:3] == ("chat", "Rowan", "**Enraged.**")
     assert json.loads(row[3]) == {"output_tokens": 12} and json.loads(row[4]) == ["Check the timeline."]
     assert json.loads(row[5])[0]["args"]["pull"] == 13
+    points = store._db.execute("SELECT wcl_points FROM interactions WHERE id = ?", (answer_id,)).fetchone()[0]
+    assert json.loads(points) == {"total": 6, "database": 2, "queries": 2}
 
     assert store.add_reaction(502, 7, "👎") == answer_id
     assert store.add_reaction(999, 7, "👍") is None  # not an answer: not kept

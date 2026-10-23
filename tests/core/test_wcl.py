@@ -242,3 +242,30 @@ async def test_a_report_s_pulls_are_read_anew_but_the_last_copy_serves_when_warc
     assert (await w.report_fights("abc", PULLS_FRESH_S))["fights"] == [{"id": 2}]  # read anew: a pull came
     kept._db.execute("UPDATE cache SET stored_at = stored_at - 60")
     assert (await w.report_fights("abc", PULLS_FRESH_S))["fights"] == [{"id": 2}]  # down: the last copy
+
+
+async def test_while_points_are_counted_each_query_asks_its_cost_and_adds_it_up(monkeypatch):
+    """A tool call's Warcraft Logs points, for the records: each query also asks rateLimitData's currentRequest,
+    which leaves the answer it came with; outside the count, queries go as written."""
+    w = WCL()
+    asked = []
+
+    class Client:
+        def raw_graphql(self, operation_name, query, variables):
+            asked.append(query)
+            cost = {"currentRequest": {"application": 1, "database": 2, "user": 3, "total": 3}}
+            return {"reportData": {"report": {"title": "x"}},
+                    **({wcl_module.COST_ALIAS: cost} if wcl_module.COST_ALIAS in query else {})}, "public"
+    monkeypatch.setattr(w, "_client", lambda: Client())
+    q = "query($code: String!) { reportData { report(code: $code) { title } } }"
+    with wcl_module.counting_points() as points:
+        assert await w.query(q, code="A") == {"reportData": {"report": {"title": "x"}}}
+        await w.query(q, code="B")
+    assert asked[0] == ("query($code: String!) { wipebotCost: rateLimitData { currentRequest }  reportData { "
+                        "report(code: $code) { title } } }")
+    assert points.record() == {"application": 2, "database": 4, "user": 6, "total": 6, "queries": 2}
+    await w.query(q, code="C")
+    assert asked[-1] == q and points.record()["queries"] == 2
+    # A raw query with fragments goes as written: where its first selection is isn't plain
+    assert wcl_module._with_cost("fragment F on Report { title } query { a }") == (
+        "fragment F on Report { title } query { a }")

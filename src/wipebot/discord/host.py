@@ -12,6 +12,7 @@ import re
 import tempfile
 import time
 import warnings
+from collections import Counter
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 
@@ -33,7 +34,7 @@ from claude_agent_sdk import (
 )
 from mcp.server.mcpserver.exceptions import ToolError
 
-from wipebot.core import raidstrats, server
+from wipebot.core import raidstrats, server, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
 
@@ -116,13 +117,14 @@ class ToolCall:
     images: list[bytes] = field(default_factory=list)  # images the tool drew (pull_map), for the answer
     started: float = 0.0  # time.monotonic() when it started
     duration_s: float = 0.0
+    wcl_points: dict = field(default_factory=dict)  # what its Warcraft Logs queries cost (wcl.Points.record)
 
     def record(self, asked: float) -> dict:
         """For the interaction record, with when it started counted from `asked` (the question's time.monotonic()):
         the images stay out."""
         return {"name": self.name, "args": self.args, "result": self.result, "failed": self.failed,
                 "images": len(self.images), "started_s": round(self.started - asked, 2),
-                "duration_s": round(self.duration_s, 2)}
+                "duration_s": round(self.duration_s, 2), "wcl_points": self.wcl_points}
 
 
 async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], None] | None = None,
@@ -152,20 +154,22 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
             if name == "find_reports" and guild and (own := guild()):
                 args = with_own_guild(args, own)
             started = time.monotonic()
-            try:
-                found = await find(args) if find else None
-                if isinstance(found, str):
-                    text, failed, images = found, False, []
-                else:
-                    text, failed, images = await server.call_with_images(
-                        name, {**args, arg: found[0]} if found else args)
-                    if found and found[1] and not failed:
-                        text = f"(The {arg} was {found[1]}.)\n{text}"
-            except (ToolError, FactError) as e:
-                log.warning("tool %s failed: %s", name, e)  # the model only paraphrases it
-                text, failed, images = str(e), True, []
+            with wcl.counting_points() as points:
+                try:
+                    found = await find(args) if find else None
+                    if isinstance(found, str):
+                        text, failed, images = found, False, []
+                    else:
+                        text, failed, images = await server.call_with_images(
+                            name, {**args, arg: found[0]} if found else args)
+                        if found and found[1] and not failed:
+                            text = f"(The {arg} was {found[1]}.)\n{text}"
+                except (ToolError, FactError) as e:
+                    log.warning("tool %s failed: %s", name, e)  # the model only paraphrases it
+                    text, failed, images = str(e), True, []
             if on_result:  # without the note or plan, which is the same in every call
-                on_result(ToolCall(name, args, text, failed, images, started, time.monotonic() - started))
+                on_result(ToolCall(name, args, text, failed, images, started, time.monotonic() - started,
+                                   points.record()))
             # The model gets the text; an image goes to the user with the answer (Answer.images).
             return {"content": [{"type": "text", "text": text}], "is_error": failed}
         # Read-only tools may run side by side: the model often asks for several at once.
@@ -217,6 +221,13 @@ class Answer:
     def records(self) -> list[dict]:
         """The tool calls for the interaction record."""
         return [c.record(self.asked) for c in self.calls]
+
+    def wcl_points(self) -> dict:
+        """The Warcraft Logs points the answer's tool calls cost, by kind (wcl.Points.record summed)."""
+        spent: Counter = Counter()
+        for c in self.calls:
+            spent.update(c.wcl_points)
+        return {k: round(v, 2) for k, v in spent.items()}
 
     @property
     def images(self) -> list[bytes]:

@@ -307,6 +307,25 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
 
   So the database points go mostly to character pages (`zoneRankings`, 5 a character), and a ranking page costs one
   however deep; the user-eligible points mostly to a guild's report list with its pulls.
+- What a tool call costs is recorded (`wcl.counting_points`: each query then asks `rateLimitData { currentRequest }`
+  in its first selection, which costs nothing more): the bot keeps it with each tool call and answer, the remote
+  server with each call, and the dashboard shows it per answer, per tool and by hour. warcraft_cli's own guild and
+  character lookups, and work outside tool calls (following a live raid, loading a report before an answer), aren't
+  counted. Whole tools on a 39-pull Mythic night (p7jRwgv8b1rY6LBd), cold, each after the report was loaded
+  (2026-10-23):
+
+  | Tool | Points (database) | Queries |
+  |---|---|---|
+  | `healing` with `all_pulls` | 245 | 10 |
+  | `player_night` | 199 | 84 |
+  | `enemies` with `all_pulls` | 89 | 9 |
+  | `compare_with_top` (build and casts) | 44 (2) | 22 |
+  | `defensives` over the night | 33 | 3 |
+  | `player_pull` on a wipe (its place among the spec's kills) | 19 (11) | 19 |
+  | `mechanic_hits` with `all_pulls` | 15 | 5 |
+
+  The same call warm costs nothing: a finished pull's data stays on disk, so the first question about a night
+  pays for the rest of its questions.
 
 ## Adds, interrupts and dispels (verified 2026-10-13)
 
