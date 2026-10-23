@@ -402,8 +402,7 @@ async def _night_lost_at_cap(rep: Report, p: Player, fights: list[dict]) -> str 
 
 async def _night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[NightPull], set[str], str]:
     """Each pull of a player's night; the cooldowns their talents leave out; why the cooldowns are unavailable."""
-    await rep.all_deaths(fights)
-    await rep.boss_buff_events(fights)
+    await rep.decided_cuts(fights)  # every pull's deaths, boss buffs and battle res, in a query each
     # A table per pull (ranks are per pull), healing or damage by the spec played in it. The tables, each pull's
     # talents (cooldown_use) and every pull's casts come in one query each.
     played = [rep.in_pull(f, p) for f in fights]

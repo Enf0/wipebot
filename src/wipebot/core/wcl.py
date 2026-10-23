@@ -921,27 +921,33 @@ class WCL:
                           **filters) -> list[list[dict]]:
         """`events` for each of several items (a fight or several, and their own filters, e.g. a time window; a
         fight may come up more than once), in order: the first page of each in as few queries as possible, the
-        rare later pages (10,000 events each) one by one."""
-        specs = []
+        rare later pages (10,000 events each) one by one. An item of several fights is asked a fight an alias:
+        Warcraft Logs pages events over several fights by time, a page every fight or so when filtered to a player,
+        so a night's casts came in forty queries one after another."""
+        specs, parts = [], []  # each alias's (ids, filters, start, end); each item's aliases
         for fid, own in fights:
             f = {**filters, **own}
             ids = fid if isinstance(fid, list) else [fid]
             # Without an end, WCL's next page comes back empty.
-            specs.append((ids, f, f.pop("startTime", None), f.pop("endTime", None) or END_OF_REPORT))
+            start, end = f.pop("startTime", None), f.pop("endTime", None) or END_OF_REPORT
+            parts.append(range(len(specs), len(specs) + len(ids)))
+            specs += [([i], f, start, end) for i in ids]
 
         def field(ids: list[int], f: dict, start: float | None, end: float) -> str:
             return ("events(" + _args(fightIDs=ids, dataType=data_type, startTime=start, endTime=end, limit=10000,
                                       **f) + ") { data nextPageTimestamp }")
         got = await self._aliased(code, {f"f{i}": field(*spec) for i, spec in enumerate(specs)})
-        out = []
+        each = []
         for i, (ids, f, _start, end) in enumerate(specs):
             page = got[f"f{i}"]
             data = list(page["data"] or [])
             while page.get("nextPageTimestamp"):
                 page = (await self._aliased(code, {"f0": field(ids, f, page["nextPageTimestamp"], end)}))["f0"]
                 data += page["data"] or []
-            out.append(data)
-        return out
+            each.append(data)
+        # An item's fights back in time order, as one query over them gave them
+        return [each[part[0]] if len(part) == 1 else sorted((e for i in part for e in each[i]),
+                                                            key=lambda e: e.get("timestamp", 0)) for part in parts]
 
     async def boss_buffs(self, code: str, fight_id: int | list[int], bosses: set[int]) -> list[dict]:
         """Buffs gained and lost by the bosses (applybuff and removebuff events) in one fight or several."""

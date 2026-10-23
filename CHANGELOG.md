@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `Agent` The first "how did I do tonight?" about a night now answers about 20 seconds sooner: a player's night of 40 pulls is read in a few requests instead of eighty one after another.
 - `MCP` `Discord` A saved raid note now counts only for the raid night it was pasted for, since the note changes each night with who comes: a night nothing was pasted for asks for the note instead of using another night's.
 - `Agent` A kick on someone's cast that another player took, such as a tank backing up, now counts as covered instead of missed: the cast was handled. Who missed most is now whose casts went through, and the pulls lost within seconds of kicks going through are named, with which assignments they were.
 
