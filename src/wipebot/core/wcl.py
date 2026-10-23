@@ -348,7 +348,57 @@ def reading_as(token: str | None) -> Generator[None]:
         _user.reset(reset)
 
 
-COST_ALIAS = "wipebotCost"  # the query's own cost, asked alongside it while points are counted
+COST_ALIAS = "wipebotCost"  # the query's own cost and the hour's points, asked alongside every query (free)
+HOUR_FIELDS = "limitPerHour pointsSpentThisHour pointsResetIn databasePointsSpentThisHour currentRequest"
+_keep_share = 0.0  # of the hour's points, left to others: past it, this process waits (keep_for_others)
+
+
+def keep_for_others(share: float) -> None:
+    """From now on, this process waits for the next hour rather than spend the account's points past (1 - share)
+    of the hour: for the evals, which share the account's points with the bot and the remote server."""
+    global _keep_share
+    _keep_share = share
+
+
+class Hour:
+    """This hour's Warcraft Logs points: the account's, as the latest answer gave them, and this process's own,
+    added up from each query's cost. When an hour ends, both are logged, so a host sees how much of the account's
+    points went elsewhere (the other app, the evals, a developer's calls)."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.rate: dict | None = None  # limitPerHour, pointsSpentThisHour, pointsResetIn, ...
+        self._read_at = 0.0  # time.monotonic() of `rate`
+        self._ends: float | None = None  # time.time() the hour ends
+        self._own: Counter = Counter()  # this process's points this hour, by kind
+
+    def saw(self, answer: dict) -> None:
+        """Take a query's COST_ALIAS answer."""
+        now = time.time()
+        with self._lock:
+            if self._ends is not None and now > self._ends + 1:
+                self._log(self._ends)
+                self._own.clear()
+                self.rate = None
+            if isinstance(answer.get("pointsResetIn"), int | float):
+                self._ends = now + answer["pointsResetIn"]
+                self.rate, self._read_at = {k: v for k, v in answer.items() if k != "currentRequest"}, time.monotonic()
+            for kind, points in (answer.get("currentRequest") or {}).items():
+                if isinstance(points, int | float):
+                    self._own[kind] += points
+
+    def fresh(self, max_age_s: float) -> dict | None:
+        """The account's points as last read, if read in the last `max_age_s`."""
+        with self._lock:
+            return self.rate if self.rate and time.monotonic() - self._read_at < max_age_s else None
+
+    def _log(self, ended: float) -> None:
+        rate = self.rate or {}
+        account = (f"the account had spent at least {rate['pointsSpentThisHour']:,.0f} of {rate['limitPerHour']:,} "
+                   f"({rate.get('databasePointsSpentThisHour', 0):,.0f} database)" if rate else "")
+        log.info("Warcraft Logs points, the hour to %s: %s by this process (%s database)%s",
+                 time.strftime("%H:%M", time.localtime(ended)), f"{self._own['total']:,.0f}",
+                 f"{self._own['database']:,.0f}", f"; {account}" if account else "")
 
 
 class Points:
@@ -392,8 +442,8 @@ def counting_points() -> Generator[Points]:
 
 
 def _with_cost(query: str) -> str:
-    """The query with its own cost asked in its first selection, or as it is when that can't be placed (a query
-    with fragments, as a raw query may have)."""
+    """The query with its own cost and the hour's points asked in its first selection (it costs nothing more), or as
+    it is when that can't be placed (a query with fragments, as a raw query may have)."""
     if "fragment " in query:
         return query
     depth = 0
@@ -403,7 +453,7 @@ def _with_cost(query: str) -> str:
         elif ch == ")":
             depth -= 1
         elif ch == "{" and depth == 0:
-            return f"{query[:i + 1]} {COST_ALIAS}: rateLimitData {{ currentRequest }} {query[i + 1:]}"
+            return f"{query[:i + 1]} {COST_ALIAS}: rateLimitData {{ {HOUR_FIELDS} }} {query[i + 1:]}"
     return query
 
 
@@ -424,7 +474,7 @@ class WCL:
     def __init__(self):
         use_wcl_env_names()
         self._local = threading.local()
-        self._rate: tuple[float, dict] | None = None  # (when read, rateLimitData)
+        self._hour = Hour()
 
     def _client(self) -> WarcraftLogsClient:
         if not hasattr(self._local, "client"):
@@ -436,8 +486,8 @@ class WCL:
         """One query. Warcraft Logs answers some queries only in part (an error next to the data, e.g. a fight it
         couldn't rank right then): an answer meant for the cache, or whole (`keep`), is then refused rather than
         kept, so an empty ranking never sticks for a day and gets told to raiders as "no ranked kills"."""
-        if (points := _points.get()) is not None:
-            query = _with_cost(query)
+        self._wait_for_points()
+        query, points = _with_cost(query), _points.get()
         try:
             try:
                 data, _endpoint = self._client().raw_graphql(operation_name=None, query=query, variables=variables)
@@ -451,8 +501,10 @@ class WCL:
         except WarcraftLogsClientError as e:
             raise WCLError(f"{e.code}: {e}") from e
         data = dict(data or {})
-        if (cost := data.pop(COST_ALIAS, None)) and points is not None:
-            points.add(cost.get("currentRequest") or {})
+        if cost := data.pop(COST_ALIAS, None):
+            self._hour.saw(cost)
+            if points is not None:
+                points.add(cost.get("currentRequest") or {})
         if warnings := data.pop(GRAPHQL_WARNINGS_KEY, None):
             if "permission" in str(warnings).lower() and "code" in variables:
                 raise WCLError(UNREADABLE.format(code=variables["code"]))
@@ -480,15 +532,26 @@ class WCL:
     async def points(self) -> dict | None:
         """This hour's points (limitPerHour, pointsSpentThisHour, pointsResetIn), read at most every RATE_S; None
         when Warcraft Logs doesn't say."""
-        if self._rate and time.monotonic() - self._rate[0] < RATE_S:
-            return self._rate[1]
+        if rate := self._hour.fresh(RATE_S):  # every query's answer brings them
+            return rate
         try:
             rate = (await self.query(RATE))["rateLimitData"]
         except (WCLError, KeyError) as e:
             log.info("reading the hour's points failed: %s", e)
             return None
-        self._rate = (time.monotonic(), rate)
+        self._hour.saw(rate)
         return rate
+
+    def _wait_for_points(self) -> None:
+        """With points kept for others (keep_for_others), wait for the next hour once this hour has less left."""
+        if not _keep_share or not (rate := self._hour.fresh(RATE_S)):
+            return
+        limit = rate["limitPerHour"]
+        if limit - rate["pointsSpentThisHour"] < limit * _keep_share:
+            log.warning("%.0f of this hour's %d Warcraft Logs points are spent, the rest kept for the bot and the "
+                        "server: waiting %d min for the next hour", rate["pointsSpentThisHour"], limit,
+                        rate["pointsResetIn"] // 60 + 1)
+            time.sleep(rate["pointsResetIn"] + 5)
 
     async def ensure_points(self, need: float, what: str) -> None:
         """Refuse an opt-in heavy read (`what`, about `need` points) that would leave less than RESERVE_SHARE of the

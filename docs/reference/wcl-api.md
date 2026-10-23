@@ -308,11 +308,22 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
 
   So the database points go mostly to character pages (`zoneRankings`, 5 a character), and a ranking page costs one
   however deep; the user-eligible points mostly to a guild's report list with its pulls.
-- What a tool call costs is recorded (`wcl.counting_points`: each query then asks `rateLimitData { currentRequest }`
-  in its first selection, which costs nothing more): the bot keeps it with each tool call and answer, and the remote
-  server passes it with each call to whoever records them. warcraft_cli's own guild and
-  character lookups, and work outside tool calls (following a live raid, loading a report before an answer), aren't
-  counted. Whole tools on a 39-pull Mythic night (p7jRwgv8b1rY6LBd), cold, each after the report was loaded
+- Report data costs by the field, not by what it reads (KBYT4xXn7VNjDgh8, 35 boss pulls, 2026-10-23): a table costs
+  1 for one pull and 1 summed over all 35, but 3 as three aliases of one pull each; `events` costs 1 a page whatever
+  its `limit` (300 or 10,000), `filterExpression` or `sourceID`, and a night's Deaths in one field 9.5 (against 35 as
+  a pull an alias); a graph 1; `fights`, `phases` and `masterData` together 2. None of it costs database points. A
+  guild's report list costs 1 database point a page, plus about 1 user-eligible point per report whose `fights` it
+  includes (a week, 5 reports: 6). So batching pulls as aliases saves time, not points: a summed table, or one events
+  field over the pulls for a sparse kind of event, is cheaper where the answer allows it.
+- Every query asks the hour's points with its own cost (`wcl.HOUR_FIELDS` under `wcl.COST_ALIAS`, free inside a
+  query), so the quota guard reads them without a query of its own, and each process logs, when an hour ends, what it
+  spent and what the account had spent: the gap went elsewhere. The evals wait for the next hour past half of one
+  (`wcl.keep_for_others`). Before the bot polled only while someone followed a raid, it spent about 180 points and 180
+  database points an hour looking for a live report, with nobody asking (measured 2026-10-23).
+- What a tool call costs is recorded (`wcl.counting_points` adds up each query's `currentRequest`): the bot keeps it
+  with each tool call and answer, and the remote server passes it with each call to whoever records them.
+  warcraft_cli's own guild and character lookups, and work outside tool calls (following a live raid, loading a report
+  before an answer), aren't counted. Whole tools on a 39-pull Mythic night (p7jRwgv8b1rY6LBd), cold, each after the report was loaded
   (2026-10-23):
 
   | Tool | Points (database) | Queries |

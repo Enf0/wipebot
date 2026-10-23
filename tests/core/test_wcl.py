@@ -1,6 +1,7 @@
 """Warcraft Logs access (wcl.py): a request that hangs, answers in part or about a report gone private; several
 fields in one query, and every page of a long answer."""
 import re
+import time
 
 import httpx
 import pytest
@@ -263,7 +264,7 @@ async def test_a_report_s_pulls_are_read_anew_but_the_last_copy_serves_when_warc
 
 async def test_while_points_are_counted_each_query_asks_its_cost_and_adds_it_up(monkeypatch):
     """A tool call's Warcraft Logs points, for the records: each query also asks rateLimitData's currentRequest,
-    which leaves the answer it came with; outside the count, queries go as written."""
+    which leaves the answer it came with; outside the count, it isn't added up."""
     w = WCL()
     asked = []
 
@@ -278,11 +279,54 @@ async def test_while_points_are_counted_each_query_asks_its_cost_and_adds_it_up(
     with wcl_module.counting_points() as points:
         assert await w.query(q, code="A") == {"reportData": {"report": {"title": "x"}}}
         await w.query(q, code="B")
-    assert asked[0] == ("query($code: String!) { wipebotCost: rateLimitData { currentRequest }  reportData { "
+    assert asked[0] == ("query($code: String!) { wipebotCost: rateLimitData { limitPerHour pointsSpentThisHour "
+                        "pointsResetIn databasePointsSpentThisHour currentRequest }  reportData { "
                         "report(code: $code) { title } } }")
     assert points.record() == {"application": 2, "database": 4, "user": 6, "total": 6, "queries": 2}
     await w.query(q, code="C")
-    assert asked[-1] == q and points.record()["queries"] == 2
+    assert wcl_module.COST_ALIAS in asked[-1] and points.record()["queries"] == 2
     # A raw query with fragments goes as written: where its first selection is isn't plain
     assert wcl_module._with_cost("fragment F on Report { title } query { a }") == (
         "fragment F on Report { title } query { a }")
+
+
+def _hourly(w, monkeypatch, spent: float, reset_in: int, cost: float = 1) -> list[str]:
+    """Answer w's queries as if `spent` of the hour's 3600 points were gone, `reset_in` s before the next hour."""
+    asked = []
+
+    class Client:
+        def raw_graphql(self, operation_name, query, variables):
+            asked.append(query)
+            return {"a": 1, wcl_module.COST_ALIAS: {"limitPerHour": 3600, "pointsSpentThisHour": spent,
+                                                    "pointsResetIn": reset_in, "databasePointsSpentThisHour": 9,
+                                                    "currentRequest": {"total": cost, "database": 0}}}, "public"
+    monkeypatch.setattr(w, "_client", lambda: Client())
+    return asked
+
+
+async def test_when_an_hour_ends_its_points_are_logged_this_processs_and_the_accounts(monkeypatch, caplog):
+    """So a host sees how much of the account's points went elsewhere: the other app, the evals, a developer."""
+    w = WCL()
+    _hourly(w, monkeypatch, 2500, 1, cost=3)
+    await w.query("query { a }")
+    await w.query("query { a }")
+    assert await w.points() == {"limitPerHour": 3600, "pointsSpentThisHour": 2500, "pointsResetIn": 1,
+                                "databasePointsSpentThisHour": 9}  # no query of its own: the last answer's
+    now = time.time()
+    monkeypatch.setattr(wcl_module.time, "time", lambda: now + 5)  # the next hour
+    with caplog.at_level("INFO", "wipebot.core.wcl"):
+        await w.query("query { a }")
+    assert "the hour to" in caplog.text and ": 6 by this process (0 database); the account had spent at least " \
+        "2,500 of 3,600 (9 database)" in caplog.text
+
+
+async def test_kept_for_others_a_process_waits_for_the_next_hour_once_its_share_is_spent(monkeypatch):
+    """The evals share the account's points with the bot and the server: past half the hour they wait."""
+    w = WCL()
+    asked = _hourly(w, monkeypatch, 2000, 600)
+    slept = []
+    monkeypatch.setattr(wcl_module.time, "sleep", slept.append)
+    monkeypatch.setattr(wcl_module, "_keep_share", 1 / 2)
+    await w.query("query { a }")  # nothing known yet: it goes
+    await w.query("query { a }")  # 1600 left, 1800 kept: waits first
+    assert slept == [605] and len(asked) == 2
