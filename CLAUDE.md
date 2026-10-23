@@ -73,8 +73,12 @@ it (pyproject.toml). import-linter checks both in `just check`.
 - **Run as few evals as the change needs.** A full run is about $14 and 30 min per mode with one trial (three: about $40), so:
   - a refactor whose snapshots don't change: no evals (the snapshots prove the outputs are the same);
   - a change to a tool's output or to cases: only the cases that call that tool or were changed (`-k`), 3 trials;
-  - a change to the skill or tool descriptions: the full suite (plugin mode, the default); to the bot's prompt or
-    its own tools: the full suite with `--bot`;
+  - a change to one part of the skill (one kind of question) or to a few tools' descriptions: the cases of that
+    kind and those calling the tools (`-k`), 3 trials: three where the change can matter tell more than one over
+    everything, for about the same cost;
+  - a change to the skill's general rules (how every answer is built, what it may name), the server instructions or
+    most tools' descriptions: the full suite (plugin mode, the default); to the bot's prompt or its own tools: the
+    full suite with `--bot`;
   - new baselines (all three modes: plugin, `--connector-only`, `--bot`): only when the judge or the cases changed,
     or before a big deploy.
 

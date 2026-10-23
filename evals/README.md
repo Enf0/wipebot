@@ -145,7 +145,8 @@ just evals --recheck results/X.json # a saved run's answers again: claims its to
 A run is on your Claude Code login: it ignores an `ANTHROPIC_API_KEY` in `.env` (the bot's), so it's never billed
 to the API by accident; `--api-key` bills it there instead. It says which at the start and keeps it in its results.
 A full run is about $14 at API prices and 30 minutes per mode with one trial (about $40 with `--trials 3`), so run what a change needs: the cases that call a
-changed tool, or the whole suite for a change to the skill, the bot's prompt or the tool descriptions.
+changed tool, the cases of a kind of question for a change to that part of the skill, or the whole suite for a
+change to the skill's general rules, the bot's prompt or most tool descriptions.
 
 ## Files
 
