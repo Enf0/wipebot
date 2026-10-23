@@ -6,6 +6,13 @@ its own copy.
 
 It can also run as a Discord bot, answering in the guild's channels and DMs and posting after each wipe.
 
+## Try it
+
+A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and best effort, for any guild: add
+`https://wipebot.enfo.dev/mcp` to Claude or ChatGPT as a custom connector and sign in with Warcraft Logs. It's shared
+by everyone on one Warcraft Logs API allowance, so questions that need new data can wait for the next hour; for your
+guild alone, run your own copy ([Setup](#setup)).
+
 ## What you can ask
 
 - **Why did we wipe?** What ended the pull and what led up to it, on one pull or across the night.
