@@ -257,6 +257,25 @@ facts = ["Voracious Heart of Ula'tek (92% of the top) and Zul'jin's Guillotine T
 wrong = ["calls pull 19 a wipe", "says Warcraft Logs has no ranked Retribution kills of Vashnik",
          "says their talents or trinkets aren't in the log",
          "says their trinkets differ from the top's"]
+
+[[case]]
+id = "me-healer-realistic-target"  # a healer's #1 parse is the raid around them too: aim at the spread, not #1
+tools = ["compare_with_top", "player_pull"]
+report = "p7jRwgv8b1rY6LBd"
+question = "The #1 Holy Priest on Twin Fangs Mythic does 537k HPS. What's a realistic HPS for me to aim at?"
+asker = "Namsus"
+expect = """Not the #1 parse: its raid's other three healers parsed low, so it took a third of their healing. A
+realistic target is a point of the spec's spread, around the 75th percentile (about 425k), which Namsus already
+reached on the 0.9% wipe, a wipe being weak evidence on its own."""
+drifts = ["537.21k", "442.62k", "424.79k", "403.48k", "33%", "12th", "20th", "42nd", "1376"]
+facts = ["the #1 parse's raid had 4 healers and it did 33% of their healing, against an even 25%",
+         "the other healers on that kill at the 12th, 20th and 42nd percentiles",
+         "the spread of ranked Holy Priest kills: 90th percentile 442.62k, 75th 424.79k, median 403.48k",
+         "428.33k per second alive on pull 37, above the 75th percentile"]
+wrong = ["sets 537k or the #1 parse as the target",
+         "says the other healers on the #1 kill held back on purpose",
+         "treats the wipe's healing per second as proof they heal at a top level"]
+
 [[case]]
 id = "healers-kill-cooldowns"  # cooldowns against the damage pattern, on a kill
 tools = ["boss_guide", "breakdown", "healing", "pull_summary", "pull_timeline"]
