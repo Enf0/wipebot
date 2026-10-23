@@ -54,9 +54,10 @@ it shows "Connected · Custom". The plugin page shows a revision ("v2"), not the
 Not yet tried; from OpenAI's docs, read 2026-10-23 (https://developers.openai.com/plugins/build/plugins and
 https://help.openai.com/en/articles/20001504):
 - A plugin's portable manifest is the root `plugin.json`, its MCP servers in root `mcp.json` with a transport `type`;
-  `.codex-plugin/plugin.json` is only a fallback for OpenAI's settings. Sign-in goes in each server's
-  `extensions["com.openai"].auth`: `type: "oauth"`, `client: {"mode": "dcr"}`, and `registrationUrl` beside
-  `client` (left out when discovery supplies it).
+  `.codex-plugin/plugin.json` is only a fallback for OpenAI's settings. The docs put sign-in settings in each
+  server's `extensions["com.openai"].auth`, but Codex (which the ChatGPT desktop app's plugins run on) drops a server
+  with any key beyond `type`, `url` and `headers` (its source, 23 October 2026), so leave them out: it finds the
+  sign-in from the server's OAuth metadata. With a root `plugin.json` it reads only `mcp.json`, not `.mcp.json`.
 - A marketplace is `.agents/plugins/marketplace.json` (or a Claude-compatible `.claude-plugin/marketplace.json`);
   each entry needs `name`, `source` (a path from the repository root, starting `./`), `policy` and `category`.
 - A workspace admin imports a GitHub marketplace in Admin Console → Plugins → Add → Import marketplace (the
@@ -68,9 +69,8 @@ https://help.openai.com/en/articles/20001504):
 
 Seen in the ChatGPT desktop app (Windows), 2026-10-23: Settings → Plugins → Add → **Add plugin marketplace** takes a
 GitHub `owner/repo`, a git ref and sparse paths, no terminal needed. The plugin then lists under Personal with its
-example prompts, skill, version, website and privacy links, and installs; its installed page lists the skill but no
-connected account, and the server saw no sign-in from ChatGPT, so whether the plugin's own connector connects is still
-open. ChatGPT on the web doesn't list the marketplace's plugin at all.
+example prompts, skill, version, website and privacy links, and installs. Its server shows under Settings → Plugins →
+MCPs, "From plugins", only when Codex could read it (above). ChatGPT on the web doesn't list the marketplace's plugin at all.
 
 ## Server instructions, tool metadata and skills
 
