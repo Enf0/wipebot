@@ -20,6 +20,8 @@ it (pyproject.toml). import-linter checks both in `just check`.
   cases test the stored copy, so they fail until then);
   `just evals` checks answers (how: evals/README.md); `just evals --lint` checks the cases' numbers against the
   tools' output now (no model, a minute): run it after a snapshot changes.
+- `just release` says which version CHANGELOG.md's Unreleased calls for; `just release <version> --summary "..."`
+  makes it that version: changelog, pyproject.toml and uv.lock, a commit, the tag, pushed, and the GitHub release.
 
 ## Rules
 
