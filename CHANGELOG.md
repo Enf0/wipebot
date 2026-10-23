@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-23
+
 ### Added
 
 - `Discord` **What Wipebot is looking at.** When an answer takes a while, a small line under your question shows which parts of the log Wipebot has read so far. It goes away when the answer is posted, and you're notified of the answer, not of the line.
