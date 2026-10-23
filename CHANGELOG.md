@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `MCP` **ChatGPT no longer counts the replay viewer as a write.** The two tools only the pull replay calls were listed under Write in ChatGPT, beside saving a raid note, as tools that may change something; they only read.
+
 ## [0.5.1] - 2026-10-23
 
 ### Fixed

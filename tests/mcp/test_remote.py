@@ -513,7 +513,8 @@ def test_my_characters_names_the_signed_in_users_guild_characters(client):
     text = call("tools/call", {"name": "my_characters", "arguments": {}})["content"][0]["text"]
     assert "Torvek (Silvermoon-EU)" in text and "Alt" not in text
     tools = call("tools/list", {})["tools"]
-    assert {t["name"]: t.get("title") for t in tools}["my_characters"] == "My characters"
+    mine = {t["name"]: t for t in tools}["my_characters"]
+    assert mine["title"] == "My characters" and mine["_meta"] == {"openai/profile": True}
     assert all(t.get("title") for t in tools if "app" not in t.get("_meta", {}).get("ui", {}).get("visibility", []))
 
 
@@ -530,9 +531,8 @@ def test_an_officer_saves_a_pasted_note_for_the_guild_and_no_one_else_does(clien
     assert list(save["inputSchema"]["properties"]) == ["pasted", "from_pull", "report"]
     assert save["annotations"] == {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False,
                                    "openWorldHint": False}
-    model_sees = {n: t for n, t in tools.items() if "app" not in t.get("_meta", {}).get("ui", {}).get("visibility", [])}
-    assert [n for n, t in model_sees.items() if not t.get("annotations", {}).get("readOnlyHint")] == [
-        "save_note_or_plan"]
+    # the viewer's own tools too: ChatGPT lists every tool not marked read-only as Write
+    assert [n for n, t in tools.items() if not t.get("annotations", {}).get("readOnlyHint")] == ["save_note_or_plan"]
     assert tools["raid_note"]["description"].endswith("keeps a pasted note for the guild with save_note_or_plan.")
     assert tools["raid_plan"]["description"].endswith("keeps a pasted plan for the guild with save_note_or_plan.")
     note = NOTE.read_text(encoding="utf-8")
