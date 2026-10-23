@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- `MCP` **The plugin's connector in the ChatGPT desktop app and Codex.** Installed from its marketplace, the plugin brought only the method for reading raid logs, without the connector to sign in to; it now brings both.
+- `MCP` **The plugin's connector in Codex.** Installed from its marketplace in Codex, also inside the ChatGPT desktop app, the plugin brought only the method for reading raid logs, without the connector to sign in to; it now brings both. ChatGPT's chats take the connector on its own.
 
 ## [0.5.0] - 2026-10-23
 

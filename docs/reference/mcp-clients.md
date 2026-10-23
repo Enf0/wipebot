@@ -70,7 +70,9 @@ https://help.openai.com/en/articles/20001504):
 Seen in the ChatGPT desktop app (Windows), 2026-10-23: Settings → Plugins → Add → **Add plugin marketplace** takes a
 GitHub `owner/repo`, a git ref and sparse paths, no terminal needed. The plugin then lists under Personal with its
 example prompts, skill, version, website and privacy links, and installs. Its server shows under Settings → Plugins →
-MCPs, "From plugins", only when Codex could read it (above). ChatGPT on the web doesn't list the marketplace's plugin at all.
+MCPs, "From plugins", only when Codex could read it (above); signing in there works, and its tools then answer in
+the app's Codex part only, not in its ChatGPT chats, which use connectors registered in ChatGPT (an `.app.json` can
+point a plugin at one only by its app id, which a directory listing gets). ChatGPT on the web doesn't list the marketplace's plugin at all.
 
 ## Server instructions, tool metadata and skills
 
