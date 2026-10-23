@@ -107,6 +107,8 @@ raid-plan-player = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", all_pulls 
 # ---- one player ----
 player-pull = { tool = "player_pull", local = true, report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13 }
 player-night = { tool = "player_night", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo" }
+# a healer who spends Holy Power: mana, and Holy Power at its cap and lost by source
+player-pull-holy-power = { tool = "player_pull", local = true, report = "KBYT4xXn7VNjDgh8", player = "Cptola", pull = 13 }
 compare-with-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13, aspects = ["build", "casts"] }
 cooldowns-vs-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo", pull = 13, aspects = ["cooldowns"] }
 # a boss the report never pulled; none ranked on Mythic yet, so Heroic

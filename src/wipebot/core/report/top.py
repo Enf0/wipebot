@@ -297,11 +297,10 @@ async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: st
         names, merged = SpellNames([]), " " + unavailable("Lorrgs' spell list, which merges a spell's ids", e)
     landed = [c for c in events if c["type"] == "cast"]
     kind, most = await resource_of(p, landed)
-    kind = kind or None  # mana isn't a resource that caps
     found, lust_casts, (_, resource, my_capped) = await asyncio.gather(
         asyncio.gather(*(_reference(rep, r, names, (kind, most) if kind else None) for r in refs)),
         _lust_casts(rep, f, p),
-        resource_use(rep, f, p, landed, alive_s, alive_until) if kind else asyncio.sleep(0, (None, "", [])))
+        resource_use(rep, f, p, landed, alive_s, alive_until) if kind else asyncio.sleep(0, ([], "", [])))
     found = [x for x in found if x]
     if not found:
         return "Couldn't read the casts of any top parse."

@@ -858,8 +858,9 @@ async def player_pull(player: Player, pull: Pull = None, boss: Boss = None, repo
     One player on one pull: hero talents, the WCL parse on a kill or, on a wipe, where their throughput per
     second alive falls among the spec's ranked kills; rank in their role, active time, damage by target, deaths
     (before or after the wipe was decided), damage taken, casts per ability, major cooldowns against possible uses
-    and the defensives they used, Bloodlust and phases, uptime of their DoTs and own buffs, resource capping or
-    mana, healthstones and potions, and consumables at the pull.
+    and the defensives they used, Bloodlust and phases, uptime of their DoTs and own buffs, mana for a healer,
+    the resource they spend (a healer's Holy Power or Essence too: time at its cap, and how much each source
+    gained and lost there), healthstones and potions, and consumables at the pull.
     Reading it: "Time lost" is seconds until the wipe was decided spent dead (no output at all), in casting gaps
     (no cast begun) or with the resource at its cap (only its gain lost); how much of that the fight forces shows
     against top players of the spec, who meet the same fight (compare_with_top casts). Cooldown uses / possible
@@ -950,8 +951,9 @@ async def player_night(player: Player, boss: Boss = None, report: Report_ = None
     """For "how did I do tonight?": start here for a night on one boss.
     One player across every pull on a boss: rank among their role, their best pull, when and to what they died
     (before or after each wipe was decided), time dead before each wipe was decided, and major cooldown use
-    against possible uses, per pull and summed over the night; and the trend ("am I getting better?"): deaths and
-    output per second alive over the first, middle and last third of the pulls.
+    against possible uses, per pull and summed over the night; the resource they spend lost at the cap over the
+    night, by source; and the trend ("am I getting better?"): deaths and output per second alive over the first,
+    middle and last third of the pulls.
     Reading it: a death after a wipe was decided is marked as fallout and left out of the counts. Cooldown uses /
     possible assume pressing on cooldown from the pull until the player died or the wipe was decided."""
     return await coaching.player_night(await lib().report(report), player, boss)
