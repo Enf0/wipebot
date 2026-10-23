@@ -52,6 +52,9 @@ DEATHS = ["1. 0:48 Brightleaf - Tempest [1287083] (19 alive)", "Mutilated Gash [
                  f"Lycara's Inspiration, {spell('Typhoon', 61391)}, Improved Stampeding Roar. Roar: "
                  f"{spell('Stampeding Roar', 106898)} at 1:02.",
                  id="not inside a talent the results name"),
+    pytest.param(ABILITIES, DEATHS, "```\nTempest  you ███ 3\n```\nDodge `Tempest`, then Tempest.",
+                 f"```\nTempest  you ███ 3\n```\nDodge `Tempest`, then {spell('Tempest', 1287083)}.",
+                 id="not in code: a link there shows as its markdown"),
 ])
 def test_abilities_link_to_wowhead(abilities, results, text, expected):
     assert link_abilities(text, results, abilities) == expected
