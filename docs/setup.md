@@ -50,6 +50,13 @@ Each app says at start which of its required settings are missing. Rarely needed
 `WIPEBOT_BOT_MEMORY`, Docker's memory limit per container (default `2g` and `4g`), and `WIPEBOT_CACHE_MAX_MB`,
 past which the oldest cached entries go (default 2000).
 
+For a copy that shares its Warcraft Logs account with another (a public connector beside a guild's own), each
+process can be held to part of the account's hour: `WIPEBOT_WCL_SHARE` (e.g. `0.1`: at most a tenth of the hour's
+points, and of its database points), `WIPEBOT_WCL_LEAVE` (e.g. `0.3`: it reads nothing more once the account has
+less than 30% of the hour left, whoever spent it), and `WIPEBOT_WCL_USER_POINTS=1` once the account is opted into
+the new point system, so signed-in users' own points don't count against the share. Past either, a tool says to ask
+again when the hour ends, and what was read before still answers.
+
 ## The connector
 
 `WIPEBOT_ALLOWED_GUILDS` takes the guild's warcraftlogs.com address as copied from the browser, its id there, or

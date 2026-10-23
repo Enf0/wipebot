@@ -280,7 +280,7 @@ async def test_while_points_are_counted_each_query_asks_its_cost_and_adds_it_up(
         assert await w.query(q, code="A") == {"reportData": {"report": {"title": "x"}}}
         await w.query(q, code="B")
     assert asked[0] == ("query($code: String!) { wipebotCost: rateLimitData { limitPerHour pointsSpentThisHour "
-                        "pointsResetIn databasePointsSpentThisHour currentRequest }  reportData { "
+                        "pointsResetIn databaseLimitPerHour databasePointsSpentThisHour currentRequest }  reportData { "
                         "report(code: $code) { title } } }")
     assert points.record() == {"application": 2, "database": 4, "user": 6, "total": 6, "queries": 2}
     await w.query(q, code="C")
@@ -290,16 +290,19 @@ async def test_while_points_are_counted_each_query_asks_its_cost_and_adds_it_up(
         "fragment F on Report { title } query { a }")
 
 
-def _hourly(w, monkeypatch, spent: float, reset_in: int, cost: float = 1) -> list[str]:
-    """Answer w's queries as if `spent` of the hour's 3600 points were gone, `reset_in` s before the next hour."""
+def _hourly(w, monkeypatch, spent: float, reset_in: int, cost: float = 1, **request) -> list[str]:
+    """Answer w's queries as if `spent` of the hour's 3600 points were gone, `reset_in` s before the next hour; each
+    query costs `cost` in all, and `request` adds its other kinds (application, database, user)."""
     asked = []
 
     class Client:
         def raw_graphql(self, operation_name, query, variables):
             asked.append(query)
             return {"a": 1, wcl_module.COST_ALIAS: {"limitPerHour": 3600, "pointsSpentThisHour": spent,
-                                                    "pointsResetIn": reset_in, "databasePointsSpentThisHour": 9,
-                                                    "currentRequest": {"total": cost, "database": 0}}}, "public"
+                                                    "pointsResetIn": reset_in, "databaseLimitPerHour": 250,
+                                                    "databasePointsSpentThisHour": 9,
+                                                    "currentRequest": {"total": cost, "database": 0,
+                                                                       **request}}}, "public"
     monkeypatch.setattr(w, "_client", lambda: Client())
     return asked
 
@@ -310,8 +313,9 @@ async def test_when_an_hour_ends_its_points_are_logged_this_processs_and_the_acc
     _hourly(w, monkeypatch, 2500, 1, cost=3)
     await w.query("query { a }")
     await w.query("query { a }")
+    # no query of its own: the last answer's
     assert await w.points() == {"limitPerHour": 3600, "pointsSpentThisHour": 2500, "pointsResetIn": 1,
-                                "databasePointsSpentThisHour": 9}  # no query of its own: the last answer's
+                                "databaseLimitPerHour": 250, "databasePointsSpentThisHour": 9}
     now = time.time()
     monkeypatch.setattr(wcl_module.time, "time", lambda: now + 5)  # the next hour
     with caplog.at_level("INFO", "wipebot.core.wcl"):
@@ -330,3 +334,66 @@ async def test_kept_for_others_a_process_waits_for_the_next_hour_once_its_share_
     await w.query("query { a }")  # nothing known yet: it goes
     await w.query("query { a }")  # 1600 left, 1800 kept: waits first
     assert slept == [605] and len(asked) == 2
+
+
+def _budgeted(monkeypatch, **env: str) -> WCL:
+    for name in ("WIPEBOT_WCL_SHARE", "WIPEBOT_WCL_LEAVE", "WIPEBOT_WCL_USER_POINTS"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(f"WIPEBOT_WCL_{name.upper()}", value)
+    return WCL()
+
+
+async def test_a_server_with_a_share_of_the_points_is_refused_past_it_until_the_hour_ends(monkeypatch):
+    """A public instance on a guild's account: a tenth of the hour is 360 points; past it, nothing is read, and
+    the refusal says when to ask again. Before the account is opted in, every point it spends is the account's."""
+    w = _budgeted(monkeypatch, share="0.1")
+    asked = _hourly(w, monkeypatch, 1000, 600, cost=200, application=20, user=180)
+    await w.query("query { a }")
+    await w.query("query { a }")  # 200 of 360 spent: it goes
+    with pytest.raises(WCLError, match=r"spent its share of this hour's points \(400 of 360\); ask again in 10 min"):
+        await w.query("query { a }")
+    assert len(asked) == 2
+    now = time.time()
+    monkeypatch.setattr(wcl_module.time, "time", lambda: now + 601)  # the next hour
+    await w.query("query { a }")
+    assert len(asked) == 3
+
+
+async def test_on_the_new_point_system_a_share_counts_only_what_the_account_pays(monkeypatch):
+    """Opted in, a signed-in user's own points pay first: only the application points (database points among
+    them) are the account's."""
+    w = _budgeted(monkeypatch, share="0.1", user_points="1")
+    asked = _hourly(w, monkeypatch, 1000, 600, cost=200, application=20, user=180)
+    for _ in range(5):
+        await w.query("query { a }")  # 1000 in all, 100 of them the account's
+    assert len(asked) == 5
+
+
+async def test_a_share_of_the_database_points_is_refused_past_it_too(monkeypatch):
+    w = _budgeted(monkeypatch, share="0.1", user_points="1")
+    asked = _hourly(w, monkeypatch, 1000, 600, cost=13, application=13, database=13)
+    await w.query("query { a }")
+    await w.query("query { a }")  # 13 of 25 database points: it goes
+    with pytest.raises(WCLError, match=r"share of this hour's database points.*\(26 of 25\)"):
+        await w.query("query { a }")
+    assert len(asked) == 2
+
+
+async def test_a_server_leaving_part_of_the_accounts_hour_to_others_stops_short_of_it(monkeypatch):
+    """So a public instance gives way to the guild's raid night: with 30% left to others, it reads nothing once
+    the account has less than 1080 of its 3600 points left, however little it spent itself."""
+    w = _budgeted(monkeypatch, leave="0.3")
+    asked = _hourly(w, monkeypatch, 2600, 600)
+    await w.query("query { a }")  # nothing known yet: it goes
+    with pytest.raises(WCLError, match="2,600 of the account's 3,600 points this hour are spent, and the rest is "
+                                       "kept for others"):
+        await w.query("query { a }")
+    assert len(asked) == 1
+
+
+def test_a_share_that_isnt_one_is_refused_at_start(monkeypatch):
+    with pytest.raises(ValueError, match="WIPEBOT_WCL_SHARE: a share .* from 0 to 1, e.g. 0.1, not '10%'"):
+        _budgeted(monkeypatch, share="10%")
+    assert _budgeted(monkeypatch)._budget.refusal({"limitPerHour": 3600, "pointsSpentThisHour": 3599}, True,
+                                          wcl_module.Counter(total=3599), 5) is None  # unset: no limit
