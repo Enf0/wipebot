@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-23
+
 ### Added
 
 - `MCP` **The plugin in Codex and ChatGPT.** The same plugin, the connector with the method for reading raid logs, now also installs in Codex and the ChatGPT desktop app: `codex plugin marketplace add` with the plugin's repository, then install it from the Plugins directory and sign in with Warcraft Logs.
