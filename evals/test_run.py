@@ -17,6 +17,7 @@ from evals.run import (
     skill_use,
     spread,
     summary,
+    uncalled,
 )
 
 CASE = {"id": "a", "report": "R", "question": "Why did we wipe?", "expect": "An enrage.", "wrong": ["deaths"]}
@@ -170,3 +171,12 @@ def test_a_recheck_leads_with_answers_stating_something_misleading():
     assert recheck_summary(out) == [
         "answers stating something misleading their tool outputs don't back: 1/3 (1 of them passed; 1 claims)",
         "verdict_first: 2/3 (67%)", "concrete_fix: 1/1 (100%)", "few_changes: 2/2 (100%)"]
+
+
+def test_an_answer_without_a_call_its_case_requires_fails():
+    """The judge sees only the answer: a step of the method its text doesn't show, such as reading the spec's guide
+    before advising, is checked from the calls of the whole conversation."""
+    case = {"id": "me-healer", "calls": ["spec_guide"]}
+    assert uncalled(case, [{"name": "player_pull"}, {"name": "spec_guide", "turn": 0}]) == []
+    assert uncalled(case, [{"name": "player_pull"}]) == ["spec_guide"]
+    assert uncalled({"id": "wipe"}, []) == []

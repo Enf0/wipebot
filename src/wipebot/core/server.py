@@ -1252,8 +1252,10 @@ async def spec_guide(spec: Annotated[str, Field(description="spec and class, e.g
                      page: Annotated[str | None, Field(description="a page URL listed by an earlier call")] = None
                      ) -> str:
     """A class guide from Method, Wowhead or Icy Veins: the sections on a topic (rotation, talents, stats, gear),
-    or an overview, plus its other pages and its last update. Topic "cooldowns": the spec's cooldowns with spell
-    ids, cooldown lengths and tags (defensive, raid_cd, dps, tank, move), from Lorrgs."""
+    or an overview, plus its other pages and its last update. Call it before advising a player how to play their
+    spec (what to cast or spend and when, procs, targets, cooldowns), on the topic of the advice. Topic
+    "cooldowns": the spec's cooldowns with spell ids, cooldown lengths and tags (defensive, raid_cd, dps, tank,
+    move), from Lorrgs."""
     if topic and topic.strip().lower() in ("cooldowns", "cooldown"):
         return await knowledge.spec_cooldowns_text(spec)
     return await knowledge.spec_guide_text(spec, topic, source, page)
