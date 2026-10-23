@@ -284,7 +284,10 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
   went past it and rankings still answered), and points `currentRequest` counts as `user` are charged to the
   application, user token or not. A client made on 22 October 2026 on the same account wasn't in the beta despite
   the post ("new keys ... will be opted into the beta"): 3,600 points an hour, and the same counters as the old key
-  (101 points spent through it moved both). `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
+  (101 points spent through it moved both). The opt-in is the account's, not a key's: the API clients page has one
+  "Use New Limits" button and one table of points for all the account's clients ("Combined allowance for all your
+  API clients"), and both keys still read 3,600 and one counter on 2026-10-23. So a second key can't try the beta
+  while the first stays out of it. `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
   @onlySpendUserPoints { ... }`) is refused: "cannot require only user points be spent without authenticating a user
   and opting into the new point system".
 - User points are per Warcraft Logs account, shared "across all applications the user authenticates with" (the
@@ -338,6 +341,12 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
 
   The same call warm costs nothing: a finished pull's data stays on disk, so the first question about a night
   pays for the rest of its questions.
+- A connector session on a night it hadn't read (fvkH4hGZwDRVnyXJ, 2026-10-23): five questions asked as a raider
+  would (the night, the best wipe, one player's night, against top players, a follow-up) took 23 tool calls, 124
+  queries and 454 points: 444 user-eligible, 9 application and 12 database. `progress` and `player_night` cost about
+  90 each, `compare_with_top` 61 with 1 database point, a pull-level follow-up 4-15. So a signed-in member's user
+  points could pay for nearly all of the report data; the database points go to character pages, not to these
+  tools.
 
 ## Adds, interrupts and dispels (verified 2026-10-13)
 

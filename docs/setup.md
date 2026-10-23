@@ -20,9 +20,10 @@ unticked so it gets a secret. For the connector, give it the redirect URL `https
 (several redirect URLs are comma-separated).
 
 Warcraft Logs allows 3,600 points an hour per developer account, shared by every client of that account, so the
-connector and the bot of one copy share it; keys made since 29 September 2026 get less for now. A first question
-about a new pull costs tens of points and a follow-up a point or two: roughly 40 new questions an hour, or hundreds
-of follow-ups. Posting after wipes costs the bot about 300 points an hour while a raider has asked for it; otherwise
+connector and the bot of one copy share it. An account on Warcraft Logs' new point system (in beta, opted into for
+the whole account on that page) gets 1,000 unsubscribed. A first question about a night nobody has asked about yet
+costs about 100-170 points, one about a pull tens, and a follow-up on what was already read a few or none: five
+questions on a fresh night came to about 450, and later askers about the same night pay little. Posting after wipes costs the bot about 300 points an hour while a raider has asked for it; otherwise
 the bot reads nothing between questions. The few questions that read many nights
 at once are refused when the hour is nearly used up, with when to ask again. Details:
 [reference/wcl-api.md](reference/wcl-api.md).
