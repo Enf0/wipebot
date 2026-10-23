@@ -348,6 +348,65 @@ def reading_as(token: str | None) -> Generator[None]:
         _user.reset(reset)
 
 
+COST_ALIAS = "wipebotCost"  # the query's own cost, asked alongside it while points are counted
+
+
+class Points:
+    """The Warcraft Logs points a tool call's queries cost, by kind (`application`, `database`, `user`, `total`, as
+    `rateLimitData.currentRequest` gives them; docs/reference/wcl-api.md, "Point types"). Queries run in threads
+    side by side, so adding up takes a lock."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.spent: Counter = Counter()
+        self.queries = 0
+
+    def add(self, cost: dict) -> None:
+        with self._lock:
+            self.queries += 1
+            for kind, points in cost.items():
+                if isinstance(points, int | float):
+                    self.spent[kind] += points
+
+    def record(self) -> dict:
+        """{"total": ..., "database": ..., "queries": n} for a record, rounded; {} when nothing was asked."""
+        with self._lock:
+            if not self.queries:
+                return {}
+            return {**{k: round(v, 2) for k, v in self.spent.items() if v}, "queries": self.queries}
+
+
+_points: ContextVar[Points | None] = ContextVar("wcl_points", default=None)
+
+
+@contextmanager
+def counting_points() -> Generator[Points]:
+    """Within it, each query also asks what it cost and adds it to the Points it yields: a tool call's Warcraft Logs
+    points, for the records. warcraft_cli's own guild and character lookups aren't counted."""
+    points = Points()
+    reset = _points.set(points)
+    try:
+        yield points
+    finally:
+        _points.reset(reset)
+
+
+def _with_cost(query: str) -> str:
+    """The query with its own cost asked in its first selection, or as it is when that can't be placed (a query
+    with fragments, as a raw query may have)."""
+    if "fragment " in query:
+        return query
+    depth = 0
+    for i, ch in enumerate(query):
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif ch == "{" and depth == 0:
+            return f"{query[:i + 1]} {COST_ALIAS}: rateLimitData {{ currentRequest }} {query[i + 1:]}"
+    return query
+
+
 class _ClientOnly(WarcraftLogsClient):
     """warcraft_cli's client that never sees a saved user login: its own requests (`guild`, `character`) and
     `raw_graphql` all ask the client endpoint then, or the user endpoint with the token `reading_as` gave."""
@@ -377,6 +436,8 @@ class WCL:
         """One query. Warcraft Logs answers some queries only in part (an error next to the data, e.g. a fight it
         couldn't rank right then): an answer meant for the cache, or whole (`keep`), is then refused rather than
         kept, so an empty ranking never sticks for a day and gets told to raiders as "no ranked kills"."""
+        if (points := _points.get()) is not None:
+            query = _with_cost(query)
         try:
             try:
                 data, _endpoint = self._client().raw_graphql(operation_name=None, query=query, variables=variables)
@@ -390,6 +451,8 @@ class WCL:
         except WarcraftLogsClientError as e:
             raise WCLError(f"{e.code}: {e}") from e
         data = dict(data or {})
+        if (cost := data.pop(COST_ALIAS, None)) and points is not None:
+            points.add(cost.get("currentRequest") or {})
         if warnings := data.pop(GRAPHQL_WARNINGS_KEY, None):
             if "permission" in str(warnings).lower() and "code" in variables:
                 raise WCLError(UNREADABLE.format(code=variables["code"]))

@@ -625,7 +625,7 @@ class WipeBot(discord.Client):
         if answer:
             row.update(prompt=answer.prompt, answer=answer.text or None, model=answer.model,
                        session_id=answer.session_id, cost_usd=answer.cost_usd, turns=answer.turns, usage=answer.usage,
-                       thinking=answer.thinking, tool_calls=answer.records())
+                       thinking=answer.thinking, tool_calls=answer.records(), wcl_points=answer.wcl_points() or None)
         try:
             return self.store.record_interaction(messages=sent or [], **row)
         except Exception:
