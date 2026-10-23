@@ -8,8 +8,9 @@ It can also run as a Discord bot, answering in the guild's channels and DMs and 
 
 ## Try it
 
-A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and best effort, for any guild: add
-`https://wipebot.enfo.dev/mcp` to Claude or ChatGPT as a custom connector and sign in with Warcraft Logs. It's shared
+A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and best effort, for any guild. In Claude,
+add the plugin marketplace `Enf0/wipebot-plugin` (the connector with the raid-log-analysis skill); elsewhere, add
+`https://wipebot.enfo.dev/mcp` as a custom connector. Then sign in with Warcraft Logs. It's shared
 by everyone on one Warcraft Logs API allowance, so questions that need new data can wait for the next hour; for your
 guild alone, run your own copy ([Setup](#setup)).
 
