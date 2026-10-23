@@ -66,6 +66,12 @@ https://help.openai.com/en/articles/20001504):
   ChatGPT on the web; there the connector alone is the way (Plugins → Add → Add custom MCP server). An `.app.json`
   pointing at an existing app doesn't lift the label.
 
+Seen in the ChatGPT desktop app (Windows), 2026-10-23: Settings → Plugins → Add → **Add plugin marketplace** takes a
+GitHub `owner/repo`, a git ref and sparse paths, no terminal needed. The plugin then lists under Personal with its
+example prompts, skill, version, website and privacy links, and installs; its installed page lists the skill but no
+connected account, and the server saw no sign-in from ChatGPT, so whether the plugin's own connector connects is still
+open. ChatGPT on the web doesn't list the marketplace's plugin at all.
+
 ## Server instructions, tool metadata and skills
 
 - What each client does with the server's instructions (2026-10-14): claude.ai and Claude Desktop drop them, as
