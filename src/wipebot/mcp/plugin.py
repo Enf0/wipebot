@@ -1,10 +1,11 @@
 """The connector as a plugin for Claude, and for ChatGPT and Codex: the remote server's connector plus the core's
 raid-log-analysis skill, so the model gets the method too (a connector alone brings only the tools). One folder
-carries both formats: Claude's manifest in `.claude-plugin/`, and OpenAI's portable one (`plugin.json` and `mcp.json`
-at its root, the Agent Plugins schema). The server serves it at /plugin.zip, to upload in Claude (Customize >
-Plugins) or by a ChatGPT workspace admin, and `wipebot plugin DIR` writes it as a marketplace for a repository, with
-a catalogue for each (`.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`), which Claude, Codex and
-ChatGPT desktop keep up to date; it names this server, so each host's plugin is its own."""
+carries both formats: Claude's manifest in `.claude-plugin/`, and OpenAI's: the portable `plugin.json` at its root
+(the Agent Plugins schema) and the server in `.mcp.json`, as OpenAI's own plugins have it. The server serves it at
+/plugin.zip, to upload in Claude (Customize > Plugins) or by a ChatGPT workspace admin, and `wipebot plugin DIR`
+writes it as a marketplace for a repository, with a catalogue for each (`.claude-plugin/marketplace.json`,
+`.agents/plugins/marketplace.json`), which Claude, Codex and ChatGPT desktop keep up to date; it names this server,
+so each host's plugin is its own."""
 import hashlib
 import io
 import json
@@ -28,11 +29,10 @@ def plugin_files(name: str, guild: str, mcp_url: str) -> dict[str, bytes]:
              if f.is_file() and f.name.endswith(".md")}
     manifest = _filled("plugin.json", name, guild, mcp_url)
     files["README.md"] = _filled("README.md", name, guild, mcp_url).encode()
-    files["mcp.json"] = _json({"$schema": f"{AGENT_PLUGINS}/mcp.schema.json", "mcpServers": {_slug(name): {
-        "type": "streamable-http", "url": mcp_url,
-        # sign-in with Warcraft Logs, through the server's own OAuth: clients register themselves (/register)
-        "extensions": {"com.openai": {"auth": {"type": "oauth", "client": {"mode": "dcr"},
-                                               "registrationUrl": mcp_url.removesuffix("/mcp") + "/register"}}}}}})
+    # The server for ChatGPT desktop and Codex, which read `.mcp.json` (not the portable `mcp.json`, seen 23 October
+    # 2026) and find the sign-in from the server's own OAuth metadata. Claude Code reads this file too: it's the
+    # server Claude's manifest declares, under the same name, so both name one connector.
+    files[".mcp.json"] = _json({"mcpServers": json.loads(manifest)["mcpServers"]})
     version = hashlib.sha256(b"".join(files[k] for k in sorted(files)) + manifest.encode()).hexdigest()[:8]
     files[".claude-plugin/plugin.json"] = manifest.replace("{version}", version).encode()
     files["plugin.json"] = _portable(name, guild, mcp_url, version)
