@@ -109,7 +109,7 @@ class Character:
     region: str
     rank: int | None = None  # in an allowed guild
     guild_id: int | None = None  # that guild's id on Warcraft Logs (none in sign-ins before 17 October 2026)
-    guild: str = ""  # that guild's name, realm (slug) and region (none in sign-ins before 24 October 2026)
+    guild: str = ""  # that guild's name, realm (slug) and region (none in sign-ins before 23 October 2026)
     guild_realm: str = ""
     guild_region: str = ""
 
