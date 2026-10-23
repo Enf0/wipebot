@@ -315,6 +315,7 @@ async def test_a_session_attaches_no_file_a_prompt_names(monkeypatch):
     assert json.loads(options.settings)["permissions"]["deny"] == ["Read"]
     assert options.tools == [] and options.setting_sources == []
     assert options.max_budget_usd == 2 * host.ANSWER_BUDGET_USD
+    assert options.thinking == {"type": "adaptive", "display": "summarized"}  # for the reviews
     assert os.listdir(options.cwd) == []
 
 
