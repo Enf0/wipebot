@@ -1,7 +1,7 @@
-# {name} for Claude
+# {name} for Claude, ChatGPT and Codex
 
-The {name} connector at {mcp_url} and its raid-log-analysis skill, as a Claude plugin for {guild}. With the skill,
-Claude reads raid logs the way the method says; a connector alone brings only the tools.
+The {name} connector at {mcp_url} and its raid-log-analysis skill, as a plugin for {guild}. With the skill,
+the model reads raid logs the way the method says; a connector alone brings only the tools.
 
 ## Add it
 
@@ -10,5 +10,10 @@ the {name} plugin and sign in with Warcraft Logs. With **Sync automatically** on
 marketplace's **Refresh** updates it at once.
 
 In Claude Code: `/plugin marketplace add {repo}`, then `/plugin install {slug}@{slug}`.
+
+In Codex and the ChatGPT desktop app: `codex plugin marketplace add {repo}`, then install {name} from the
+Plugins directory and sign in with Warcraft Logs. A ChatGPT workspace admin can import this repository as a
+marketplace (Admin console → Plugins). In ChatGPT on the web or a phone without a workspace, add {mcp_url} as a
+custom connector instead (the tools without the skill).
 
 Made with [Wipebot](https://github.com/Enf0/wipebot): `wipebot plugin DIR` writes this repository.
