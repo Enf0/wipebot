@@ -131,7 +131,9 @@ spender that overheals, a resource that caps), give it. A fix added to an answer
   a targeted player takes more by design.
 - Throughput against the right reference: on a kill, the parse. On a wipe, where their output per second alive
   falls among the spec's ranked kills (below the 25th percentile is a real gap; above it proves little, as short
-  pulls run high), and their own best pull. Only against the same spec, never by totals across pulls.
+  pulls run high), and their own best pull. Only against the same spec, never by totals across pulls. A target
+  is a point of the spread (the 75th percentile, say), never the #1 parse; a healer's top parse is read with its
+  raid's healers (how many, their share) before it's held up as a level to reach.
 - Build and prep (`compare_with_top`, build): a gap that changes output (talents nearly every top player and the
   guides take, an AoE build on a single-target boss), checked against the spec guide's build for that kind of
   fight. One utility talent for another is a choice; a different hero tree only when asked. A missing consumable

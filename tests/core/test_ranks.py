@@ -77,3 +77,39 @@ async def test_a_wipe_benchmark_says_the_percentile_it_means_and_a_healers_cavea
     dps = Player(p.id, p.name, p.class_name, "Elemental", "dps")
     line = ranks.benchmark_line(f, dps, 100.0, spread)
     assert line and "below the 2000th best of the more than 2000" in line and "capped by damage taken" not in line
+
+
+def test_a_healers_share_is_told_against_an_even_one_with_the_others_parses():
+    healing = {"Tobii": 537.0, "Exorzist": 398.0, "Ophrys": 365.0, "Thunderdebbo": 329.0}
+    line = ranks.healer_share("Tobii", healing, {"Tobii": 100, "Exorzist": 42, "Ophrys": 11, "Thunderdebbo": 20})
+    assert line == "4 healers, 33% of their healing (even: 25%), the others at the 11th, 20th, 42nd"
+    assert ranks.healer_share("Tobii", healing) == "4 healers, 33% of their healing (even: 25%)"
+    assert ranks.healer_share("Nobody", healing) is None
+    assert ranks.healer_share("Tobii", {"Tobii": 537.0}) is None  # alone: no share to tell
+
+
+async def test_top_healer_shares_come_from_one_query_and_skip_what_cant_be_told():
+    def kill(*healers: tuple[str, float, int]) -> list[dict]:
+        return [{"roles": {"healers": {"characters": [
+            {"name": n, "amount": a, "rankPercent": r} for n, a, r in healers]}}}]
+    asked = []
+
+    class Ranked:
+        async def rankings_many(self, kills, metric):
+            asked.append((kills, metric))
+            return [kill(("A", 300.0, 99), ("B", 100.0, 50)), []]
+    top = [{"name": "A", "report": {"code": "x", "fightID": 1}}, {"name": "C", "report": {"code": "y", "fightID": 2}},
+           {"name": "Anonymous"}]
+    shares = await ranks.top_healer_shares(cast(WCL, Ranked()), top)
+    assert shares == ["2 healers, 75% of their healing (even: 50%), the others at the 50th", None, None]
+    assert asked == [([("x", 1), ("y", 2)], "hps")]
+
+
+def test_the_spread_line_names_the_percentiles_or_the_ranks():
+    exact = ranks.Spread(1376, True, [("90th percentile", 442620.0), ("50th percentile", 403480.0)])
+    assert ranks.spread_line(exact, "Holy Priest", "The Twin Fangs", "hps") == (
+        "Where the 1376 ranked Holy Priest kills of The Twin Fangs spread (each character's best): 90th percentile "
+        "442.62k hps, 50th percentile 403.48k hps.")
+    capped = ranks.Spread(2000, False, [("100th best", 300000.0)])
+    assert "more than 2000 ranked" in (ranks.spread_line(capped, "Fury Warrior", "Vashnik", "dps") or "")
+    assert ranks.spread_line(ranks.Spread(0, True, []), "x", "y", "dps") is None

@@ -968,10 +968,12 @@ async def compare_with_top(
     - build: their talents, item level, trinkets, enchants, gems, stats and consumables against the top 50 parses
       (talents against those of their hero tree; stats against the top 10's own logs) and the guides' builds;
     - casts: casts per minute of every spell against the 5 top parses of their spec and hero tree closest in item
-      level: spells they cast far less or more often, or never; casting gaps and time at the resource cap;
+      level: spells they cast far less or more often, or never; casting gaps and time at the resource cap; for a
+      healer, how many healers each raid had and the healer's share of their healing;
     - cooldowns: their cooldown casts in one phase against Lorrgs' top parses of the spec on the boss, with when.
     Without a player: the top 50 parses of `spec` on `boss`: hero trees, the talents where they differ, the guides'
-    builds against them, trinkets, item level, kill time, links to the top logs and a typical build's import
+    builds against them, trinkets, item level, kill time, links to the top logs (a healer's with their raid's
+    healers), where the spec's ranked kills spread ("what's a realistic target?") and a typical build's import
     string; and their major cooldowns: how many pressed each, and when the top 5 did beside the boss's casts
     ("where do I want my cooldowns?"). With only `boss`: the 50 fastest kills' tanks, healers, melee and ranged,
     how many kills brought each count, kill time and item level by healers brought, and links to the fastest.
