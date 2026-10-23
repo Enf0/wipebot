@@ -58,7 +58,7 @@ from evals.checks import (
     rubric,
     wrong_prompt,
 )
-from wipebot.core import server
+from wipebot.core import server, wcl
 from wipebot.core.cache import cache
 from wipebot.discord import config
 from wipebot.discord.checks import warnings
@@ -91,6 +91,7 @@ def baseline(mode: str) -> Path:
                    "bot": "baseline-bot.json"}[mode]
 CONTEXT = ["asker", "discord_name", "pull", "boss", "where"]  # case keys that go to the question's Context
 JOBS = 4  # answers at a time
+KEEP_FOR_OTHERS = 1 / 2  # of each hour's Warcraft Logs points, left to the bot and the server (same account)
 # With only the connector, as claude.ai has it today: no skill (that comes with a plugin, or MCP-served skills) and no
 # server instructions (claude.ai drops them, anthropics/claude-ai-mcp#93), so only the tools guide the answer. The
 # app's own system prompt isn't public; a plain one stands in.
@@ -743,10 +744,11 @@ def frozen() -> None:
     """CACHE as the tools' cache, frozen: what's missing is fetched once and kept, nothing is refreshed."""
     if not CACHE.exists():
         print(f"No data at {CACHE} yet: this run fetches what the cases read and keeps it there (Warcraft Logs keys "
-              "needed). A first full run can pass Warcraft Logs' hourly limit (3600 points): answers then fail as "
-              "errors; what was fetched is kept, so run again after the hour, or a few cases at a time (-k).",
-              flush=True)
+              "needed). A first full run spends more than an hour's Warcraft Logs points: it waits for the next "
+              "hour once half of one is spent (the rest is the bot's and the server's), and what was fetched is "
+              "kept.", flush=True)
     os.environ["WIPEBOT_CACHE"], os.environ["WIPEBOT_CACHE_FROZEN"] = str(CACHE), "1"  # read at first use
+    wcl.keep_for_others(KEEP_FOR_OTHERS)
     # No saved raid notes or plans: the cases paste theirs, and this machine's own (the connector reads them) stay out.
     os.environ["WIPEBOT_NOTES_DB"] = str(Path(tempfile.mkdtemp(prefix="wipebot-evals-")) / "notes.sqlite")
     cache().recorded_at(first=RECORDED_AT)  # kept in the file: "now" for the tools
