@@ -328,6 +328,8 @@ class Session:
             max_turns=MAX_TURNS,
             max_budget_usd=2 * ANSWER_BUDGET_USD,
             model=self.model or None,
+            # Opus leaves its thinking out of what it returns unless asked: summarised, the reviews can read it
+            thinking={"type": "adaptive", "display": "summarized"},
         )
         if self.plugin:  # its skills, and Read for their files only: the folder is all can_use_tool lets it read
             options.tools, options.settings, options.skills = ["Skill", "Read"], None, "all"
@@ -368,7 +370,7 @@ class Session:
                 for block in msg.content:
                     if isinstance(block, TextBlock):
                         step.append(block.text)
-                    elif isinstance(block, ThinkingBlock):
+                    elif isinstance(block, ThinkingBlock) and block.thinking:
                         answer.thinking.append(block.thinking)
                     elif isinstance(block, ToolUseBlock):
                         name = block.name.removeprefix(f"mcp__{SERVER}__")
