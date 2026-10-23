@@ -12,7 +12,8 @@ from wipebot.core.report import Report
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\([^)]*\)|<?https?://\S+")
 BOLD = re.compile(r"\*\*.+?\*\*")  # on one line
-CODE_OR_HEADING = re.compile(r"`[^`]*`|^#{1,3} .*$", re.M)
+CODE = re.compile(r"^```.*?^```|`[^`\n]*`", re.M | re.S)  # a code block, or code inline: markdown shows as typed
+CODE_OR_HEADING = re.compile(rf"{CODE.pattern}|^#{{1,3}} [^\n]*$", re.M | re.S)
 ABILITY_ID = re.compile(r"\[(\d{2,9})\]")  # "Tempest [1287083]" in a tool result
 # boss_guide's loot: "- Twisted Horror's Tendril (item 281215), ..."
 ITEM_ID = re.compile(r"(?m)^\s*- (.+?) \(item (\d+)\)")
@@ -39,8 +40,8 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report]) -> str:
 
 
 def _link_first(text: str, name: str, url: str, longer: Iterable[str] = ()) -> str:
-    """`text` with the first mention of `name` linked to `url`; not one inside a link or inside a `longer` name."""
-    taken = [m.span() for m in MARKDOWN_LINK.finditer(text)]
+    """`text` with the first mention of `name` linked to `url`; not one inside a link, code or a `longer` name."""
+    taken = [m.span() for pattern in (MARKDOWN_LINK, CODE) for m in pattern.finditer(text)]
     inside = [m.span() for n in longer for m in re.finditer(re.escape(n), text)]
     for m in re.finditer(rf"(?<![\w\[]){re.escape(name)}(?![\w\]])", text):
         if not any(a <= m.start() < b for a, b in taken) and \

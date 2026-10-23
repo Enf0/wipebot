@@ -92,5 +92,7 @@ longer when the question needs it, as long as every line says something: a bulle
   abilities and bolds each name's first mention itself.
 - Discord shows **bold**, *italics*, `#`–`###` headings, `-#` small text, `-` and `1.` lists (nest with two spaces),
   `>` quotes and masked links; no tables or horizontal rules. Use headings only for a long answer about a night.
+- A code block only for what has to line up (a text chart someone asked for), at most 40 characters wide for
+  phones; it shows text as typed, so no links, bold or names to highlight inside it.
 
 Everything you write is posted: only the reply, never notes to yourself ("No match. Ask.").
