@@ -72,6 +72,9 @@ class FakeFollower:
     pulls: list[Pull] = field(default_factory=list)
     handled: list[Pull] = field(default_factory=list)
 
+    async def live(self) -> str | None:
+        return self.code
+
     async def poll(self) -> list[Pull]:
         return self.pulls
 

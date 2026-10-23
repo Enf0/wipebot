@@ -416,6 +416,14 @@ async def test_a_poll_posts_after_wipes_and_marks_every_pull_handled(bot, settin
     assert posted == [(7, 12)] and len(follower.handled) == 2
 
 
+async def test_nothing_polls_the_live_report_while_nobody_asked_for_posts(bot, settings, follower):
+    """Each look for a new live report costs a Warcraft Logs database point: polled around the clock, that was most
+    of an hour's database points with nobody asking."""
+    follower.pulls = [Pull("LIVE1", 30, "Sszorak", 12, 0.0)]
+    await bot._new_pulls(settings)
+    assert follower.handled == []
+
+
 async def test_a_raiders_feedback_goes_to_their_dms_and_replies_to_it_are_about_the_pull(bot, settings, asked, member):
     dm = FakeDM()
     rowan = member(7, "Rowan")

@@ -393,7 +393,10 @@ class WipeBot(discord.Client):
             log.exception("refreshing the raidstrats.gg logins failed")
 
     async def _new_pulls(self, s: ServerSettings) -> None:
-        """Every pull that finished since the last poll; after a wipe, the post each person asked for."""
+        """Every pull that finished since the last poll; after a wipe, the post each person asked for. Only while
+        someone asked for posts: questions look for the live report themselves (current_report)."""
+        if not self.posts.by_server.get(s.discord_guild_id):
+            return
         follower = self._follower(s)
         pulls = await follower.poll()
         due = await self.posts.due(s.discord_guild_id, follower.code, pulls)
@@ -529,8 +532,7 @@ class WipeBot(discord.Client):
         raider = self.store.raider(user.id)
 
         async def follow_pulls(args: dict) -> str:
-            follower = self.followers.get(s.discord_guild_id)
-            live = follower.code if follower else None  # None: nothing logged yet tonight
+            live = await self._follower(s).live()  # None: nothing logged yet tonight
             officer = channel is not None and is_officer(s, cast(discord.Member, user))  # a member, in a channel
             return await self.posts.follow_pulls(s.discord_guild_id, user, name, args, live, code, channel, officer)
 
@@ -709,11 +711,8 @@ class WipeBot(discord.Client):
                 "planned": list(dict.fromkeys(p.boss for p in book.latest_plans(guild)))}
 
     async def current_report(self, s: ServerSettings) -> str | None:
-        """The live report the server's follower is on, or else its guild's latest raid night (`latest_raid`)."""
-        follower = self.followers.get(s.discord_guild_id)
-        if follower and follower.code:
-            return follower.code
-        return await self.latest_raids.of([s.wcl_guild_id])
+        """The guild's live report, or else its latest raid night (`latest_raid`)."""
+        return await self._follower(s).live() or await self.latest_raids.of([s.wcl_guild_id])
 
     async def _settings_for_dm(self, user: discord.abc.User) -> ServerSettings | None:
         """For a DM: the first set-up server the user is in and may chat in."""
