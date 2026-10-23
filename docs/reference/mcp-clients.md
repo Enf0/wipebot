@@ -74,6 +74,17 @@ MCPs, "From plugins", only when Codex could read it (above); signing in there wo
 the app's Codex part only, not in its ChatGPT chats, which use connectors registered in ChatGPT (an `.app.json` can
 point a plugin at one only by its app id, which a directory listing gets). ChatGPT on the web doesn't list the marketplace's plugin at all.
 
+The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
+- Added at the bare domain it signs in and then says "Authentication succeeded, action discovery failed", with no
+  tools: as in Claude, the URL must end in `/mcp`.
+- Its tool list groups the tools by annotation and puts every tool not marked read-only under Write, the viewer's
+  app-only tools too.
+- It notes "These private tools can't render their widgets: pull_replay, viewer_log": the viewer's own tools carry
+  its `ui://` address (the SDK's `Apps.tool` sets it), which ChatGPT expects only on a tool the model calls. The
+  viewer calls them, so nothing is lost.
+- `openai/profile` on `my_characters` changed nothing on the connector's page: the account is still named from the
+  sign-in ("<name>'s Wipebot account").
+
 ## Server instructions, tool metadata and skills
 
 - What each client does with the server's instructions (2026-10-14): claude.ai and Claude Desktop drop them, as
