@@ -26,8 +26,8 @@ def test_the_version_changes_only_with_what_is_in_the_plugin():
 
 
 def test_the_same_plugin_carries_openais_portable_format_for_chatgpt_and_codex():
-    """Codex and ChatGPT desktop read the root plugin.json and mcp.json (the Agent Plugins schema) and the marketplace
-    in .agents/plugins; the server signs in with OAuth that registers clients itself."""
+    """Codex and ChatGPT desktop read the root plugin.json (the Agent Plugins schema), the server in .mcp.json (the
+    same as Claude's, which Claude Code reads too) and the marketplace in .agents/plugins."""
     files = plugin.marketplace("Wipebot", "any guild", URL, "someone/wipebot-plugin")
     catalogue = json.loads(files[".agents/plugins/marketplace.json"])
     [entry] = catalogue["plugins"]
@@ -38,10 +38,9 @@ def test_the_same_plugin_carries_openais_portable_format_for_chatgpt_and_codex()
     assert manifest["name"] == "wipebot" and manifest["version"].endswith("+" + claude["version"])
     interface = manifest["extensions"]["com.openai"]["interface"]
     assert interface["privacyPolicyURL"] == "https://wipebot.test/privacy" and interface["defaultPrompt"]
-    server = json.loads(files[f"{root}/mcp.json"])["mcpServers"]["wipebot"]
-    assert (server["type"], server["url"]) == ("streamable-http", URL)
-    assert server["extensions"]["com.openai"]["auth"] == {"type": "oauth", "client": {"mode": "dcr"},
-                                                          "registrationUrl": "https://wipebot.test/register"}
+    assert json.loads(files[f"{root}/.mcp.json"])["mcpServers"] == claude["mcpServers"] == {
+        "Wipebot": {"type": "http", "url": URL}}
+    assert f"{root}/mcp.json" not in files
     assert f"{root}/skills/raid-log-analysis/SKILL.md" in files
     readme = files["README.md"].decode()
     assert "codex plugin marketplace add someone/wipebot-plugin" in readme and "{" not in readme

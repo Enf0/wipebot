@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `MCP` **The plugin's connector in ChatGPT and Codex.** Installed from its marketplace, the plugin brought only the method for reading raid logs, without the connector to sign in to; it now brings both.
+
 ## [0.5.0] - 2026-10-23
 
 ### Added
