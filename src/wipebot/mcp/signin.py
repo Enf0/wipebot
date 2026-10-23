@@ -22,7 +22,8 @@ a cookie the callback asks for: a sign-in finishes only in the browser it was st
 
 Tokens are stored as their SHA-256 in SQLite (WIPEBOT_SIGNIN_DB, default ~/.local/share/wipebot/signin.sqlite), with
 the registered clients and each user's Warcraft Logs user id, name and guild characters, and their Warcraft Logs
-token, encrypted with a key made from WCL_CLIENT_SECRET, nothing else. Their tool calls read Warcraft Logs with that
+token, encrypted with a key made from WCL_CLIENT_SECRET, nothing else; a user with no grant left is forgotten after
+GONE_USER_S. Their tool calls read Warcraft Logs with that
 token (`wcl_token`), so their own Warcraft Logs points pay first; it goes when they lose access or have no grant left.
 """
 import base64
@@ -87,6 +88,7 @@ REGISTERED_REDIRECTS = ("https://claude.ai/api/mcp/auth_callback", "https://chat
 PURGE_EVERY_S = 600
 UNUSED_CLIENT_S = 30 * 86400  # a registered client that hasn't got a token in this long is dropped,
 NEVER_USED_CLIENT_S = 86400  # one that never got a token in this long
+GONE_USER_S = 90 * 86400  # a user with no grant left (signed out, revoked, lapsed) is forgotten after this long
 # Anyone may register a client or start a sign-in, so what's kept of each is small and their number capped: past
 # the cap the oldest go (`_make_room`), so a flood can't turn everyone else away.
 MAX_NEW_CLIENTS = MAX_LOGINS = 1000  # registered clients that never got a token; sign-ins under way
@@ -309,6 +311,9 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         # back from Warcraft Logs is still exchanging their code for one
         self._db.execute("UPDATE users SET wcl_token = NULL, wcl_expires = NULL WHERE wcl_token IS NOT NULL AND "
                          "id NOT IN (SELECT user FROM tokens) AND signed_in < ?", (now - CODE_TTL_S,))
+        # ...and is forgotten once they haven't signed in or been checked for GONE_USER_S
+        self._db.execute("DELETE FROM users WHERE id NOT IN (SELECT user FROM tokens) AND "
+                         "COALESCE(checked, signed_in) < ?", (now - GONE_USER_S,))
 
     def _make_room(self, table: str, rows: str, first: str, most: int) -> None:
         """Room for one more of `table`'s `rows` (a condition), kept to `most`: when full after dropping what has
