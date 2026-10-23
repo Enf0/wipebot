@@ -14,25 +14,63 @@ async def test_the_resource_judged_is_the_one_the_spec_spends(rep, patch_wcl, fa
     # A cast carries the resource it spends: Lava Burst mana, Elemental Blast Maelstrom.
     casts = [{"abilityGameID": 51505, "timestamp": t0 + 1000, "classResources": [{"type": 0, "max": 260000}]},
              {"abilityGameID": 117014, "timestamp": t0 + 2000, "classResources": [{"type": 11, "max": 125}]}]
-    asked = []
+    asked, tables = [], []
 
     async def graph(code, fight, data_type, **filters):
         asked.append(filters["abilityID"])
         return {"series": [{"id": p.id, "data": [[t0, 100], [t0 + 10_000, 125], [t0 + 20_000, 10]]}]}
-    patch_wcl(rep, graph=graph)
+
+    async def table(code, fight_id, data_type, **filters):
+        tables.append((data_type, filters["abilityID"]))
+        return {"resources": [{"name": "Elemental Blast", "gains": 40, "wasted": 0},
+                              {"name": "Lava Burst", "gains": 200, "wasted": 30}]}
+    patch_wcl(rep, graph=graph, table=table)
     fake_knowledge(heals=lambda class_name, spec: spec == "Restoration")
-    line, _, _ = await coaching.resource_use(rep, f, p, casts, 100, f["endTime"])
-    assert asked == [100] and line and line.startswith("Mana over the pull: ")  # a healer: mana, whatever else is spent
+    lines, _, _ = await coaching.resource_use(rep, f, p, casts, 100, f["endTime"])
+    # A healer: mana; Maelstrom isn't built in units as a healer's Holy Power is, so it isn't theirs
+    assert asked == [100] and len(lines) == 1 and lines[0].startswith("Mana over the pull: ")
     elemental = Player(p.id, p.name, p.class_name, "Elemental", "dps")
-    line, name, capped = await coaching.resource_use(rep, f, elemental, casts, 100, f["endTime"])
-    assert asked == [100, 111]
-    assert line == ("Maelstrom at its cap (125) for 10% of their time alive (what it gained then was lost); longest "
-                    "stretches: 0:10-0:20 (10 s).")
+    lines, name, capped = await coaching.resource_use(rep, f, elemental, casts, 100, f["endTime"])
+    assert asked == [100, 111] and tables == [("Resources", 111)]
+    assert lines == ["Maelstrom at its cap (125) for 10% of their time alive (what it gained then was lost); longest "
+                     "stretches: 0:10-0:20 (10 s).",
+                     "Maelstrom gained 240, of it lost at the cap 30 (12%); by source (Warcraft Logs' names), lost "
+                     "of gained: Lava Burst 30 of 200, Elemental Blast 0 of 40"]
     assert (name, capped) == ("Maelstrom", [(t0 + 10_000, t0 + 20_000)])
     essence = Player(p.id, p.name, "Evoker", "Devastation", "dps")
     casts[1]["classResources"] = [{"type": 19, "max": 6}]
-    line, _, _ = await coaching.resource_use(rep, f, essence, casts, 100, f["endTime"])
-    assert line and line.startswith("Essence at its cap (6)")
+    lines, _, _ = await coaching.resource_use(rep, f, essence, casts, 100, f["endTime"])
+    assert lines[0].startswith("Essence at its cap (6)")
+
+
+async def test_a_healer_who_spends_holy_power_is_judged_on_mana_and_on_holy_power(rep, patch_wcl, fake_knowledge):
+    f = rep.fight(13)
+    p = rep.player("Enfo")
+    holy = Player(p.id, p.name, "Paladin", "Holy", "healer")
+    t0 = f["startTime"]
+    # Holy Shock spends mana, Eternal Flame Holy Power; a few Holy Power spenders among many mana casts
+    casts = ([{"abilityGameID": 20473, "timestamp": t0 + i, "classResources": [{"type": 0, "max": 250000}]}
+              for i in range(10)]
+             + [{"abilityGameID": 156322, "timestamp": t0 + 20, "classResources": [{"type": 9, "max": 5}]}])
+
+    async def graph(code, fight, data_type, **filters):
+        if filters["abilityID"] == 100:
+            return {"series": [{"id": p.id, "data": [[t0, 100], [t0 + 50_000, 60]]}]}
+        return {"series": [{"id": p.id, "data": [[t0, 2], [t0 + 10_000, 5], [t0 + 40_000, 1]]}]}
+    patch_wcl(rep, graph=graph, table={"resources": [{"name": "Holy Shock", "gains": 150, "wasted": 52},
+                                                      {"name": "Beacon of Light", "gains": 68, "wasted": 24}]})
+    fake_knowledge(heals=lambda class_name, spec: spec in ("Holy", "Restoration"))
+    lines, name, capped = await coaching.resource_use(rep, f, holy, casts, 100, f["endTime"])
+    assert lines[0].startswith("Mana over the pull: 0:00 100%")
+    assert lines[1].startswith("Holy Power at its cap (5) for 30% of their time alive")
+    assert lines[2] == ("Holy Power gained 218, of it lost at the cap 76 (35%); by source (Warcraft Logs' names), "
+                        "lost of gained: Holy Shock 52 of 150, Beacon of Light 24 of 68")
+    assert (name, capped) == ("Holy Power", [(t0 + 10_000, t0 + 40_000)])
+    # A cat-weaving druid's Energy isn't the healer's resource: only mana is judged
+    casts[-1]["classResources"] = [{"type": 3, "max": 100}]
+    lines, name, _ = await coaching.resource_use(rep, f, Player(p.id, p.name, "Druid", "Restoration", "healer"),
+                                                 casts, 100, f["endTime"])
+    assert len(lines) == 1 and lines[0].startswith("Mana") and name == ""
 
 
 def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_decided():

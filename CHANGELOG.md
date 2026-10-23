@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `MCP` `Discord` **A raid note pasted late.** Forgot to paste the note before the raid? Paste it afterwards with the pull it was used from, such as "from pull 7", and that pull and the later ones are checked against it, while the earlier ones keep that night's note saved before, if there was one.
 - `Agent` **When the kick order changed.** Checking the night's kicks against a note that only fits the later pulls, Wipebot says from which pull it fits and who had the slots before, and counts the kicks from there, so no one is blamed for a slot that wasn't theirs yet. Tanks covering someone's kick are read as backup, not as another order.
+- `Agent` **Holy Power lost at the cap.** Asked how a Holy Paladin or Preservation Evoker did, Wipebot now looks at their Holy Power or Essence as well as their mana: how long it sat full, how much was lost there and from which spells, on a pull and over the night, and how long the top players of the spec sit full on the same boss.
 - `Agent` **Whose kick lost the pull.** Over a night, Wipebot counts per player whose cast went through first on each pull lost to kicks, since the casts after it come too late to matter, and lists every such pull.
 
 ### Changed

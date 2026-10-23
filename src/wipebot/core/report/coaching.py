@@ -24,6 +24,8 @@ POWER_TYPES = {0: "Mana", 1: "Rage", 2: "Focus", 3: "Energy", 4: "Combo Points",
 AT_CAP = 0.98  # a resource this close to its maximum is capped: what it gains now is lost
 CAP_STRETCHES = 4  # the longest stretches at the cap named, with their times
 CAP_STRETCH_MS = 2000  # a shorter one is a cast's worth
+LOST_SOURCES = 5  # the sources of a resource named with what they gained and lost at the cap
+HEALER_SPENDER_MAX = 10  # a healer's resource besides mana is their spec's when built in this few units
 
 
 async def player_pull(rep: Report, player: str, pull: PullRef = None, boss: str | None = None) -> str:
@@ -60,9 +62,7 @@ async def player_pull(rep: Report, player: str, pull: PullRef = None, boss: str 
     lines.append(f"Casts: {len(casts)} ({60 * len(casts) / max(alive_s, 1):.0f} per minute alive; every cast "
                  "event, procs and items included): " + ", ".join(f"{a} {n}" for a, n in counts.most_common(18)))
     lines += casting_lines(rep, f, flow, alive_s, pauses)
-    lines += cooldowns + uptimes
-    if resource:
-        lines.append(resource)
+    lines += cooldowns + uptimes + resource
     lines.append(f"Healthstones and healing potions: {stones}, combat potions: {potions}")
     lines.append(ready)
     return "\n".join(lines)
@@ -220,65 +220,104 @@ async def _uptimes(rep: Report, f: dict, p: Player, alive_s: float, until_ts: fl
     return lines
 
 
-async def resource_use(rep: Report, f: dict, p: Player, casts: list[dict], alive_s: float, until_ts: float  # noqa: C901
-                       ) -> tuple[str | None, str, list[tuple[float, float]]]:
-    """(line, resource name, stretches at the cap): mana over the pull for a healer; for a spender, the share of
-    their time alive their resource sat at its cap, where what it gained was lost. A cast carries the resource it
-    spends (a shaman's Lava Burst mana, their Elemental Blast Maelstrom), so the spec's resource is the first one
-    in their casts that isn't mana, unless the spec heals."""
+async def resource_use(rep: Report, f: dict, p: Player, casts: list[dict], alive_s: float, until_ts: float
+                       ) -> tuple[list[str], str, list[tuple[float, float]]]:
+    """(lines, the capped resource's name, its stretches at the cap): mana over the pull for a healer, or for a
+    player who spends nothing else; for the resource they spend (a healer's Holy Power or Essence too), the share
+    of their time alive it sat at its cap, where what it gained was lost, and how much each source gained and lost.
+    A cast carries the resource it spends (a shaman's Lava Burst mana, their Elemental Blast Maelstrom)."""
     kind, top = await resource_of(p, casts)
-    if kind is None:
-        return None, "", []
-    try:
-        graph = await rep.keep(("graph", f["id"], "Resources", p.id, kind), [f["id"]], lambda: rep.wcl.graph(
-            rep.code, f, "Resources", sourceID=p.id, abilityID=100 + kind), FOREVER)
-    except WCLError:
-        return None, "", []
-    end = until_ts
-    points = resource_points(graph, p.id, end)
+    lines = []
+    spends_mana = any(r.get("type") == 0 for c in casts for r in c.get("classResources") or [])
+    if spends_mana and (kind is None or await _heals(p)) and (mana := await _mana_line(rep, f, p, until_ts)):
+        lines.append(mana)
+    if kind is None or not top:
+        return lines, "", []
+    points = await _resource_points(rep, f, p, kind, until_ts)
     if not points:
-        return None, "", []
+        return lines, "", []
     name = POWER_TYPES[kind]
-    if kind == 0:  # WCL draws mana in percent
-        marks, last = [], None
-        for t, v in points:
-            if last is None or abs(v - last) >= 10:
-                marks.append(f"{clock(t - f['startTime'])} {v:.0f}%")
-                last = v
-        marks.append(f"{clock(points[-1][0] - f['startTime'])} {points[-1][1]:.0f}% (last)")
-        return "Mana over the pull: " + " · ".join(marks), name, []
-    if not top:
-        return None, "", []
     # The stretches at the cap, so "when do I cap?" has an answer: the opener, a movement, an intermission
-    stretches = cap_stretches(points, top, end)
+    stretches = cap_stretches(points, top, until_ts)
     capped = sum(b - a for a, b in stretches)
     longest = sorted((x for x in stretches if x[1] - x[0] >= CAP_STRETCH_MS), key=lambda x: x[0] - x[1])[:CAP_STRETCHES]
     when = ", ".join(f"{clock(a - f['startTime'])}-{clock(b - f['startTime'])} ({(b - a) / 1000:.0f} s)"
                      for a, b in sorted(longest))
-    return (f"{name} at its cap ({top}) for {100 * capped / 1000 / max(alive_s, 1):.0f}% of their time alive "
-            "(what it gained then was lost)" + (f"; longest stretches: {when}." if when else "."), name,
-            [(a, b) for a, b in stretches])
+    lines.append(f"{name} at its cap ({top}) for {100 * capped / 1000 / max(alive_s, 1):.0f}% of their time alive "
+                 "(what it gained then was lost)" + (f"; longest stretches: {when}." if when else "."))
+    if lost := await lost_at_cap(rep, [f["id"]], p, kind, until_ts):
+        lines.append(lost)
+    return lines, name, [(a, b) for a, b in stretches]
+
+
+async def _resource_points(rep: Report, f: dict, p: Player, kind: int, end: float) -> list[tuple[float, float]]:
+    try:
+        graph = await rep.keep(("graph", f["id"], "Resources", p.id, kind), [f["id"]], lambda: rep.wcl.graph(
+            rep.code, f, "Resources", sourceID=p.id, abilityID=100 + kind), FOREVER)
+    except WCLError:
+        return []
+    return resource_points(graph, p.id, end)
+
+
+async def _mana_line(rep: Report, f: dict, p: Player, end: float) -> str | None:
+    """Mana over the pull, at each change of 10% or more (WCL draws mana in percent)."""
+    points = await _resource_points(rep, f, p, 0, end)
+    if not points:
+        return None
+    marks, last = [], None
+    for t, v in points:
+        if last is None or abs(v - last) >= 10:
+            marks.append(f"{clock(t - f['startTime'])} {v:.0f}%")
+            last = v
+    marks.append(f"{clock(points[-1][0] - f['startTime'])} {points[-1][1]:.0f}% (last)")
+    return "Mana over the pull: " + " · ".join(marks)
+
+
+async def lost_at_cap(rep: Report, fight_ids: list[int], p: Player, kind: int, until_ts: float | None = None
+                      ) -> str | None:
+    """How much of a resource the player gained and lost at the cap, by source, from WCL's Resources table (one
+    pull up to `until_ts`, or several pulls whole, summed): the cap's cost in units, which time at the cap doesn't
+    give (at 5 Holy Power, a Holy Shock's is lost)."""
+    until = {"endTime": until_ts} if until_ts is not None else {}
+    try:
+        t = await rep.table(fight_ids, "Resources", sourceID=p.id, abilityID=100 + kind, **until)
+    except WCLError:
+        return None
+    rows = sorted((r for r in t.get("resources") or [] if r.get("gains")), key=lambda r: -r["gains"])
+    gained, lost = sum(r["gains"] for r in rows), sum(r.get("wasted") or 0 for r in rows)
+    if not gained:
+        return None
+    return (f"{POWER_TYPES[kind]} gained {gained:.0f}, of it lost at the cap {lost:.0f} "
+            f"({100 * lost / gained:.0f}%); by source (Warcraft Logs' names), lost of gained: "
+            + ", ".join(f"{r['name']} {r.get('wasted') or 0:.0f} of {r['gains']:.0f}" for r in rows[:LOST_SOURCES]))
+
+
+async def _heals(p: Player) -> bool:
+    try:
+        return await knowledge.heals(p.class_name, p.spec)
+    except KnowledgeError:
+        return p.role == "healer"
 
 
 async def resource_of(p: Player, casts: list[dict]) -> tuple[int | None, float]:
-    """(the power type resource_use reads, its maximum) from a player's casts: the spec's spender, or mana for a
-    healer; (None, 0) when the casts carry neither."""
-    seen: dict[int, dict] = {}
+    """(the power type a player spends besides mana, its maximum) from their casts: the first one that isn't mana,
+    or for a healer the one most of their casts carry when it's built in units (Holy Power, Essence; a cat-weaving
+    druid's Energy isn't their spec's); (None, 0) without one."""
+    first: dict[int, dict] = {}
+    counts: Counter = Counter()
     for c in casts:
         for r in c.get("classResources") or []:
-            if r.get("type") in POWER_TYPES:
-                seen.setdefault(r["type"], r)
-    if not seen:
+            if r.get("type") in POWER_TYPES and r["type"] != 0:
+                first.setdefault(r["type"], r)
+                counts[r["type"]] += 1
+    if not first:
         return None, 0
-    try:
-        healer = await knowledge.heals(p.class_name, p.spec)
-    except KnowledgeError:
-        healer = p.role == "healer"
-    spender = next((t for t in seen if t != 0), None)
-    kind = 0 if healer or spender is None else spender
-    if kind not in seen:
-        return None, 0
-    return kind, seen[kind].get("max") or 0
+    if await _heals(p):
+        kind = counts.most_common(1)[0][0]
+        top = first[kind].get("max") or 0
+        return (kind, top) if 0 < top <= HEALER_SPENDER_MAX else (None, 0)
+    kind = next(iter(first))
+    return kind, first[kind].get("max") or 0
 
 
 def resource_points(graph: dict, player_id: int, end: float) -> list[tuple[float, float]]:
@@ -346,7 +385,19 @@ async def player_night(rep: Report, player: str, boss: str | None = None) -> str
     if not fights:
         raise FactError(f"{p.name}'s only pull on {b} is still going: ask again once it has ended")
     pulls, skipped, unavailable_why = await _night_pulls(rep, p, fights)
-    return _night_text(rep, p, b, pulls, _night_cooldowns(pulls, skipped, unavailable_why))
+    return _night_text(rep, p, b, pulls, _night_cooldowns(pulls, skipped, unavailable_why),
+                       await _night_lost_at_cap(rep, p, fights))
+
+
+async def _night_lost_at_cap(rep: Report, p: Player, fights: list[dict]) -> str | None:
+    """The resource the player spends lost at the cap over the night, by source: one table over every pull,
+    whole. Which resource, their longest pull's casts say (the night's are read without their resources)."""
+    longest = max(fights, key=lambda f: f["endTime"] - f["startTime"])
+    kind, _ = await resource_of(rep.in_pull(longest, p), await rep.casts(longest, p))
+    if kind is None:
+        return None
+    lost = await lost_at_cap(rep, [f["id"] for f in fights], p, kind)
+    return f"Over the night (every pull to its end): {lost}" if lost else None
 
 
 async def _night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[NightPull], set[str], str]:
@@ -430,7 +481,8 @@ def _night_trend(pulls: list[NightPull], role: str, what: str) -> str | None:
             f"{deaths}; {what} per second alive, median, {' / '.join(rate(part) for part in parts)}.")
 
 
-def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: NightCooldowns) -> str:
+def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: NightCooldowns,
+                lost: str | None = None) -> str:
     main_role = Counter(pull.played.role for pull in pulls).most_common(1)[0][0]
     what = "healing" if main_role == "healer" else "damage"
     died = sum(pull.death is not None for pull in pulls)
@@ -471,6 +523,8 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
     if cds.moments:
         lines.append("Defensive, tank and movement spells used over the night (for a moment, not on cooldown, "
                      "so not judged by count): " + ", ".join(f"{n} {c}" for n, c in cds.moments.items() if c))
+    if lost:
+        lines.append(lost)
     return "\n".join(lines + [_night_row(rep, p, pull, cds) for pull in pulls])
 
 
