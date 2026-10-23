@@ -77,6 +77,7 @@ class Context:
     follow_up: bool = False  # `earlier` is what was said since the conversation's previous question (SINCE)
     notes: list[str] = field(default_factory=list)  # the asker's standing preferences, remembered across conversations
     tools: dict[str, Callable[[dict], Awaitable[str]]] = field(default_factory=dict)  # follow_pulls, remember
+    on_tool: Callable[[str], None] | None = None  # each tool the model calls for this question, by name, as it calls it
     # raid_note and raid_plan: where the server's raid notes and plans are saved, and its guild's Warcraft Logs id
     # they're saved under; None where none are kept (they take no note or plan from the model)
     notebook: Notebook | None = None
@@ -350,6 +351,17 @@ class Session:
         if self._client:
             await self._client.disconnect()
 
+    def _called(self, name: str, args: dict, ctx: Context, answer: Answer) -> None:
+        """The model called tool `name`: tell who's watching, and note a skill or file it loaded."""
+        if self.on_tool:
+            self.on_tool(name, args)
+        if ctx.on_tool:
+            ctx.on_tool(name)
+        if name == "Skill":
+            answer.loaded.append(f"skill:{args.get('skill', '')}")
+        elif name == "Read":
+            answer.loaded.append(f"read:{os.path.basename(str(args.get('file_path', '')))}")
+
     async def ask(self, question: str, ctx: Context) -> Answer:
         assert self._client, "use 'async with Session(...)'"
         self.report = await self.library.report(self.code)  # picks up new pulls of a live report
@@ -373,13 +385,7 @@ class Session:
                     elif isinstance(block, ThinkingBlock) and block.thinking:
                         answer.thinking.append(block.thinking)
                     elif isinstance(block, ToolUseBlock):
-                        name = block.name.removeprefix(f"mcp__{SERVER}__")
-                        if self.on_tool:
-                            self.on_tool(name, block.input)
-                        if name == "Skill":
-                            answer.loaded.append(f"skill:{block.input.get('skill', '')}")
-                        elif name == "Read":
-                            answer.loaded.append(f"read:{os.path.basename(str(block.input.get('file_path', '')))}")
+                        self._called(block.name.removeprefix(f"mcp__{SERVER}__"), block.input, ctx, answer)
                 if step:
                     texts.append("".join(step))
             elif isinstance(msg, ResultMessage):
