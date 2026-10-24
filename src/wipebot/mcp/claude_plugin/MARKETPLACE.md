@@ -6,8 +6,8 @@ the model reads raid logs the way the method says; a connector alone brings only
 ## Add it
 
 In Claude (claude.ai or Claude Desktop): **Customize → Plugins → Add → Add marketplace**, enter `{repo}`, then add
-the {name} plugin and sign in with Warcraft Logs. With **Sync automatically** on, Claude keeps it up to date; the
-marketplace's **Refresh** updates it at once.
+the {name} plugin and sign in with Warcraft Logs. No GitHub account is needed. For a new version, press
+**Check for updates** in Manage marketplaces.
 
 In Claude Code: `/plugin marketplace add {repo}`, then `/plugin install {slug}@{slug}`.
 

@@ -79,8 +79,8 @@ def plugin_zip(name: str, guild: str, mcp_url: str) -> bytes:
 
 def marketplace(name: str, guild: str, mcp_url: str, repo: str) -> dict[str, bytes]:
     """A marketplace holding the plugin, by path: a repository's whole contents. Pushed to `repo` (owner/name on
-    GitHub, public), members add it in Claude (Customize > Plugins > Add marketplace), and Claude updates the plugin
-    when its version changes (marketplaces added from claude.ai auto-update); in Codex and ChatGPT desktop, from
+    GitHub, public, so members need no GitHub account), members add it in Claude (Customize > Plugins > Add
+    marketplace) and get a changed version with Check for updates; in Codex and ChatGPT desktop, from
     `codex plugin marketplace add`, the same plugin through OpenAI's catalogue."""
     slug = _slug(name)
     files = {f"plugins/{slug}/{path}": data for path, data in plugin_files(name, guild, mcp_url).items()}
