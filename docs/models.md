@@ -31,6 +31,24 @@ Effort in the bot, the same cases on 0.5.3 (the medium row is the run above; its
 - Low is twice as fast, but 13 answers behind, beyond the noise: it calls half the tools, and the night summaries,
   a healer's night and follow-ups suffer most.
 - Sonnet at high is 28 answers behind Opus at medium for a little over half the price: not the bot's model.
+- By kind of question, Sonnet keeps up only on what the log can't tell (18/18); on wipes it is 12 behind (41/53
+  against 53/54). Picking a model per question would take a step guessing the kind first, for no case it wins.
+
+The posts after a wipe (`posts.toml`, 9 cases, three times), the one kind of answer the bot can give another model
+without guessing (it asks for them itself):
+
+| Model | Passed | Median s | Slowest s | Per answer |
+|---|---|---|---|---|
+| Opus 5.5 (medium) | 26/27 | 19 | 36 | $0.15 |
+| Sonnet 5.5 | 11/27 | 13 | 22 | $0.09 |
+| Haiku 5.5 | 14/27 | 15 | 21 | $0.06 |
+
+Sonnet and Haiku miss the point the post exists for (8 and 10 of 27): a Water Jet death they turn into "press a
+defensive" instead of standing out of the tank's line. Opus stays for posts too.
+
+Two lines in the bot's prompt (independent tools in one turn, nothing written before the answer), on the 10 cases
+with the most tool rounds: 26/30 against 28, 4.9 rounds an answer against 5.1, 40 s against 45, same cost. Not
+worth a full run.
 
 - With the connector alone, a case needing the spec's guide read first failed on that step only: the step is the
   skill's, so a case's required calls now count only where the skill is.
