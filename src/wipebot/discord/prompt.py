@@ -12,6 +12,7 @@ from importlib import resources
 from typing import TYPE_CHECKING
 
 from wipebot.core.report import FactError, Report
+from wipebot.core.report.ending import ending_ability, pull_ending
 
 if TYPE_CHECKING:
     from .host import Context
@@ -111,12 +112,28 @@ Already called for this: {tool}, which returned:
 {result}"""
 
 
-def post_prefetch(boss: str, pull: int, character: str | None, request: str) -> list[tuple[str, dict]]:
-    """The tool a post after a wipe starts from, run before the model is asked: the pull's summary for what someone
-    asked to have posted, the player's pull for their own feedback."""
-    if request:
-        return [("pull_summary", {"boss": boss, "pull": pull})]
-    return [("player_pull", {"player": character, "boss": boss, "pull": pull})] if character else []
+async def post_prefetch(rep: Report, boss: str, pull: int, character: str | None,
+                        request: str) -> list[tuple[str, dict]]:
+    """The tools a post after a wipe starts from, run before the model is asked: the pull's summary for what someone
+    asked to have posted, the player's pull for their own feedback; then the guides on the mechanic that ended the
+    pull, or that killed the player first, when one did. Reading the report fails only the guide part."""
+    first = (("pull_summary", {"boss": boss, "pull": pull}) if request
+             else ("player_pull", {"player": character, "boss": boss, "pull": pull}) if character else None)
+    if first is None:
+        return []
+    try:
+        f = rep.fight(pull, boss)
+        if request:
+            mechanic = ending_ability(await pull_ending(rep, f))
+        else:
+            me = rep.player(character or "")
+            died = [d for d in await rep.deaths(f) if d.get("targetID") == me.id]
+            killed_by = died[0].get("killingAbilityGameID") if died else None
+            mechanic = rep.ability(killed_by) if killed_by else None
+    except Exception:  # the guide is only a head start: without it the model looks the mechanic up itself
+        mechanic = None
+    guide = [("boss_guide", {"boss": boss, "mechanic": mechanic})] if mechanic and mechanic != "Melee" else []
+    return [first, *guide]
 
 
 def post_question(boss: str, pull: int, name: str, character: str | None, request: str) -> str:

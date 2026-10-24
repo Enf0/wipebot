@@ -216,6 +216,17 @@ def lead(e: Ending | None) -> str:
     return e.kind
 
 
+def ending_ability(e: Ending | None) -> str | None:
+    """The ability or buff a wipe's ending leads with (as `lead` names it), the mechanic to read up on first; None
+    when no single one ended it: deaths one after another, half the raid dead, a hit with no name, or a kill."""
+    if e is None or e.kind != "moments" or (e.lead_in and e.lead_in.deaths >= e.mass):
+        return None
+    match e.moments[0]:
+        case MassDeath(ability=name) | KeptBuff(name=name):
+            return name or None
+    return None
+
+
 def ruled_out(e: Ending | None, kept: list[tuple[str, float]], decided: Decided | None) -> str | None:
     """What a wipe no enrage buff decided wasn't: a buff gained near the end (`kept`: every one the boss kept to the
     end, Report.end_buffs), or a damage check, unless the guide names an enrage that is a cast (the log can't tell one
