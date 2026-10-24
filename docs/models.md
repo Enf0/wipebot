@@ -3,6 +3,26 @@
 How the Claude models answer the eval cases (`evals/cases/`), in each way Wipebot is used, with what an answer costs
 and how long it takes. Each section is a snapshot of the suite and the judge that day.
 
+## 24 October 2026
+
+The 77 cases of 24 October (73 outside the bot; all three times, 8 in the hard set), judged by Sonnet 5.5, on the
+code before that day's tank-swap fix. These runs are the baselines.
+
+| Model | Run as | Passed | Cases right every trial | Median s | Slowest s | Per answer, judge included | One run |
+|---|---|---|---|---|---|---|---|
+| Opus 5.5 | plugin | 209/219 (95%) | 66/73 | 36 | 162 | $0.30 | $65.72 |
+| Opus 5.5 | bot (medium effort) | 214/231 (93%) | 65/77 | 25 | 81 | $0.21 | $47.39 |
+| Opus 5.5 | connector only | 201/219 (92%) | 61/73 | 30 | 95 | $0.22 | $47.77 |
+
+On the cases both days have, each mode passed 5 or 6 more answers than on 22 October, beyond the noise. The bot's
+row is the medium-effort reference that other efforts and models are compared with on the same cases.
+
+- With the connector alone, a case needing the spec's guide read first failed on that step only: the step is the
+  skill's, so a case's required calls now count only where the skill is.
+- The grounded recheck of the plugin run (Opus, $51) found a claim the tool outputs don't back in 174 of 219
+  answers, 398 in all, most often a cause the outputs don't show ("that run of deaths is what lost it"), then fixes
+  ranked with nothing ranking them, assignments the log doesn't hold, and dropped hedges ("if talented").
+
 ## 22 October 2026
 
 The 70 cases of 22 October (all three times; 8 of them in the hard set, the questions a raid leader asks beyond
