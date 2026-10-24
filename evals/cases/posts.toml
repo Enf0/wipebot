@@ -1,0 +1,138 @@
+[defaults]
+report = "KBYT4xXn7VNjDgh8"
+
+# ---- The bot's posts after each wipe (follow_pulls): asked as the bot asks itself when a pull ends, from what the
+#      raider asked for (`request`) or, without one, for the asker's own feedback. Run only with --bot. Each is a
+#      wipe case of wipes.toml or players.toml, kept to what a post has room for: how the pull ended, what to do on
+#      the next. ----
+
+[[case]]
+id = "post-enrage-hidden-by-deaths"  # wipe-enrage-hidden-by-deaths as a post
+tools = ["pull_summary"]
+boss = "Sszorak"
+pull = 13
+discord_name = "enfo"
+request = "why we wiped and what to fix"
+expect = """Says the boss enraged (Unbound Ferocity) at 2:32 because the Serpent's Fury after the intermission wasn't
+popped, though enough were alive for it, and that the next pull has to pop it; in a few short lines."""
+wrong = ["the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the pull",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+
+[[case]]
+id = "post-unkicked-add"  # wipe-unkicked-add as a post
+tools = ["pull_summary"]
+report = "ZRNhqaprvfmBgMkH"
+boss = "Nek'zali the Soulcoiler"
+pull = 1
+discord_name = "enfo"
+request = "why we wiped and what to fix"
+expect = """Says the intermission's Drowned Echo wasn't handled: its Soulcoiler's Curse casts went through unkicked
+(two), and the deaths that followed lost the pull; the fix is kicking every Curse and killing the Echo; in a few
+short lines."""
+wrong = ["her energy bar filling (Uncoiled Rage) ended the pull",
+         "says a named player should have kicked or missed their kick",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+
+[[case]]
+id = "post-adds"  # wipe-adds as a post
+tools = ["pull_summary"]
+report = "GM8XdBHaqpFgxK9Q"
+boss = "Nymrissa Wavecaller"
+pull = 3
+discord_name = "enfo"
+request = "why we wiped and what to fix"
+expect = """Says Bubblefin Berserkers (the murlocs) that got into the bubble killed most of the raid with Pulsing Tides
+after 3:50, and that the fix is stopping the murlocs before the bubble; in a few short lines."""
+wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
+         "the Swirling Whirlpools deaths (at 3:48-3:49) lost the pull",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+wrong_in_channel = ["names a player who died"]
+
+[[case]]
+id = "post-tank-death"  # wipe-tank-death as a post
+tools = ["pull_summary"]
+report = "dTQMvNbBcPh6mDrA"
+boss = "The Twin Fangs"
+pull = 5
+discord_name = "enfo"
+request = "why we wiped and what to fix"
+expect = """Says a tank death at 7:00 (Caustic Deluge) started it: with one tank left, the next Stone Breaker set
+(7:13-7:19), which a tank soaks, went off on the raid and killed half of it; in a few short lines."""
+wrong = ["says the tank's first death at 2:51 lost the pull",
+         "says the players who died to Stone Breaker stood in it, or blames the DPS for those deaths",
+         "says a named player failed a soak or the swap",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+wrong_in_channel = ["names the tank who died"]
+
+[[case]]
+id = "post-droplet-explosion"  # wipe-droplet-explosion as a post
+tools = ["pull_summary"]
+report = "GM8XdBHaqpFgxK9Q"
+boss = "Entombed Sentinels"
+pull = 16
+discord_name = "enfo"
+request = "why we wiped and what to fix"
+expect = """Says Toxic Droplets from the 2:21 set were left to erupt: their Noxious Blasts hit the whole raid at
+2:35-2:36 and killed half of it; the fix is clearing that set before the intermission; in a few short lines."""
+wrong = ["says the death at 2:26 lost the pull",
+         "the raid lacked damage, or Mark of Blood / Mark of Acid stacks lost the pull",
+         "says a named player failed to clear the droplets or set them off",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+wrong_in_channel = ["names the players who died"]
+
+[[case]]
+id = "post-imbibe-totems"  # wipe-imbibe-totems as a post
+tools = ["pull_summary"]
+report = "kTMfFRQ324Hvx6G7"
+boss = "Vashnik the Malignant"
+pull = 6
+discord_name = "enfo"
+request = "why we wiped and what to fix"
+expect = """Says Malignant Totems left uncleared went off at the 1:48 Imbibe (Malignance hit the whole raid and killed
+7 within 2 s), and that the fix is clearing every totem before the Imbibe; in a few short lines."""
+wrong = ["the raid lacked damage or hit a damage check",
+         "says the healers saved no cooldowns for the Imbibe, or caused the wipe",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+wrong_in_channel = ["names who died first, or who should have aimed the Plague Froth waves at the totems"]
+
+[[case]]
+id = "post-heroic-failed-soak"  # wipe-heroic-failed-soak as a post
+tools = ["pull_summary"]
+report = "PjKR7hQwtYpd8WDz"
+boss = "Ula'tek"
+pull = 6
+discord_name = "miralupa"
+request = "why we wiped and what to fix"
+expect = """Says a Serpent's Bite wasn't soaked off: kept the full 15 s, it became a Calcified Corpse at 7:58 that
+killed most of the raid; the fix is filling every Serpent's Bite soak; in a few short lines."""
+wrong = ["says the tank's death at 7:54, the Caustic Waves or the platform break (Circling Prey) ended the pull",
+         "blames the player who carried the unsoaked Serpent's Bite",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+wrong_in_channel = ["names the player who carried the unsoaked Serpent's Bite, or a player who died"]
+
+[[case]]
+id = "post-own-tank-mechanic"  # me-dps-hit-by-tank-mechanic as their own feedback
+tools = ["player_pull", "death_recap"]
+where = "in a DM"
+report = "br1n93cNZ67pGCvh"
+boss = "Nymrissa Wavecaller"
+pull = 23
+asker = "Peggerino"
+expect = """Says what cost them most was their death at 1:37 to Water Jet, cast on a tank, so they stood in its line,
+and that the one thing for the next pull is staying out of the line between the boss and that tank."""
+wrong = ["says the boss aimed Water Jet at Peggerino (it was cast on a tank)",
+         "says the Water Jet hit was unavoidable for them",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
+
+[[case]]
+id = "post-own-ravage"  # wipe-dps-in-ravage as their own feedback
+tools = ["player_pull", "death_recap"]
+where = "in a DM"
+boss = "Sszorak"
+pull = 29
+asker = "Martin"
+expect = """Says Ravage, the tank frontal, killed them, so they stood in the cone, and that the one thing for the next
+pull is staying out of the frontal."""
+wrong = ["a healing gap or a missing defensive is what killed them",
+         "says this death lost the pull",
+         "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]

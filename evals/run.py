@@ -63,6 +63,7 @@ from wipebot.core.cache import cache
 from wipebot.discord import config
 from wipebot.discord.checks import warnings
 from wipebot.discord.host import Context, Session
+from wipebot.discord.prompt import post_question
 from wipebot.mcp.plugin import plugin_files
 
 HERE = Path(__file__).resolve().parent
@@ -136,21 +137,29 @@ class Trial:
 
 
 # One file per kind of question; bot.toml's cases are the bot's own rules, run only with --bot, and connector.toml's
-# the connector's own (an officer saving a note), run only without.
+# the connector's own (an officer saving a note), run only without. posts.toml's are the bot's posts after a wipe
+# (follow_pulls), asked as the bot asks for one: --bot only.
 CASES = HERE / "cases"
 
 
 def load_cases(folder: Path = CASES) -> list[dict]:
     """Every case in the folder's files (each with its `[defaults]`); a case in bot.toml is `bot_only`, one in
-    connector.toml `client_only`."""
+    connector.toml `client_only`. A post's case (posts.toml) is `bot_only` too, and its question is the one the bot
+    asks itself after the wipe: the asker's own feedback, or what they asked for (`request`)."""
     cases = []
     for path in sorted(folder.glob("*.toml")):
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "wrong_in_channel", "derived",
-                                       "drifts", "hard", "report", "tools", "calls", "cause", *CONTEXT}:
+                                       "drifts", "hard", "report", "tools", "calls", "cause", "request",
+                                       *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
-            only = {"bot": {"bot_only": True}, "connector": {"client_only": True}}.get(path.stem, {})
+            only = {"bot": {"bot_only": True}, "posts": {"bot_only": True},
+                    "connector": {"client_only": True}}.get(path.stem, {})
+            if path.stem == "posts":
+                name = case.get("discord_name") or case.get("asker") or "a raider"
+                case = case | {"question": post_question(case["boss"], case["pull"], name, case.get("asker"),
+                                                         case.get("request", ""))}
             cases.append({"report": spec["defaults"]["report"], **case} | only | {"kind": path.stem})
     if len({c["id"] for c in cases}) != len(cases):
         raise SystemExit("two cases share an id")
