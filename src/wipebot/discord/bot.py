@@ -29,7 +29,7 @@ from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
 from .posts import Following, Posts
-from .prompt import plain, post_question
+from .prompt import plain, post_prefetch, post_question
 from .store import INTERACTION_DAYS, ServerSettings, Store
 
 log = logging.getLogger(__name__)
@@ -485,6 +485,7 @@ class WipeBot(discord.Client):
         question = post_question(pull.boss, pull.pull_no, f.name, f.character, f.request)
         ctx = self._context(s, f.user, f.name, pull.report, where, f.channel, asker=f.character, pull=pull.pull_no,
                             boss=pull.boss)
+        ctx.prefetch = post_prefetch(pull.boss, pull.pull_no, f.character, f.request)
 
         async def send(answer: Answer) -> list[int]:
             sent = await self._send(f.channel or await f.user.create_dm(), answer)

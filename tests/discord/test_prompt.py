@@ -9,7 +9,16 @@ import pytest
 from wipebot.core import server
 from wipebot.core.report import FactError, Report
 from wipebot.discord.host import Context
-from wipebot.discord.prompt import BOT_TOOLS, HOST_PROMPT, POST_CHARS, asker_line, message, post_question, report_line
+from wipebot.discord.prompt import (
+    BOT_TOOLS,
+    HOST_PROMPT,
+    POST_CHARS,
+    asker_line,
+    message,
+    post_prefetch,
+    post_question,
+    report_line,
+)
 
 TZ = datetime.timezone(datetime.timedelta(hours=2))
 WEDNESDAY = datetime.datetime(2026, 10, 7, 19, 59, tzinfo=TZ)
@@ -120,6 +129,15 @@ def test_a_post_after_a_wipe_asks_for_the_raiders_feedback_or_their_request():
     assert asked.startswith("Sszorak pull 12 just ended, and Rowan asked for this here after each wipe: who died "
                             "first and why.")
     assert all(f"about {POST_CHARS} characters" in q for q in (own, asked))
+
+
+def test_a_post_comes_with_the_tool_it_starts_from_already_run():
+    """A post is asked with its first tool's result, saving the model a turn: the pull's summary for what someone
+    asked for, the player's pull for their own feedback, and nothing without a character to look up."""
+    assert post_prefetch("Sszorak", 12, None, "why we wiped") == [("pull_summary", {"boss": "Sszorak", "pull": 12})]
+    assert post_prefetch("Sszorak", 12, "Torvek", "") == [
+        ("player_pull", {"player": "Torvek", "boss": "Sszorak", "pull": 12})]
+    assert post_prefetch("Sszorak", 12, None, "") == []
 
 
 async def test_the_host_prompt_names_only_tools_the_bot_has():

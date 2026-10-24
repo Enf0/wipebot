@@ -78,6 +78,9 @@ class Context:
     notes: list[str] = field(default_factory=list)  # the asker's standing preferences, remembered across conversations
     tools: dict[str, Callable[[dict], Awaitable[str]]] = field(default_factory=dict)  # follow_pulls, remember
     on_tool: Callable[[str], None] | None = None  # each tool the model calls for this question, by name, as it calls it
+    # tools run for the question before the model sees it, (name, arguments): their results come with it (a post's
+    # pull_summary, which it would call first anyway), saving the model a turn
+    prefetch: list[tuple[str, dict]] = field(default_factory=list)
     # raid_note and raid_plan: where the server's raid notes and plans are saved, and its guild's Warcraft Logs id
     # they're saved under; None where none are kept (they take no note or plan from the model)
     notebook: Notebook | None = None
@@ -365,13 +368,15 @@ class Session:
 
     async def ask(self, question: str, ctx: Context) -> Answer:
         assert self._client, "use 'async with Session(...)'"
+        asked = time.monotonic()
         self.report = await self.library.report(self.code)  # picks up new pulls of a live report
+        ran = [await self._prefetched(name, args) for name, args in ctx.prefetch]
+        question += "".join(prompt.PREFETCHED.format(tool=c.name, result=c.result) for c in ran if not c.failed)
         text = no_paths(prompt.message(question, ctx, self.report, await self.report.guild_run_doubt(),
                                        raids=await self.report.raids()))
         self._ctx = ctx
-        asked = time.monotonic()
         await self._client.query(text)
-        self._calls.clear()
+        self._calls[:] = ran
         answer = Answer("", prompt=text, asked=asked)
         texts: list[str] = []
         error = None
@@ -404,6 +409,18 @@ class Session:
         answer.text = polish(text, [c.result for c in answer.calls if not c.failed],
                              await self._reports_read(answer.calls))
         return answer
+
+    async def _prefetched(self, name: str, args: dict) -> ToolCall:
+        """One of a question's `prefetch` tools, run as the model's own call would be, on the session's report."""
+        args = {"report": self.code, **args}
+        started = time.monotonic()
+        with wcl.counting_points() as points:
+            try:
+                text, failed, images = await server.call_with_images(name, args)
+            except (ToolError, FactError) as e:
+                log.warning("tool %s failed: %s", name, e)
+                text, failed, images = str(e), True, []
+        return ToolCall(name, args, text, failed, images, started, time.monotonic() - started, points.record())
 
     async def _reports_read(self, calls: Sequence[ToolCall]) -> list[Report]:
         """The session's report, then the others the tool calls read (a question about another night), for

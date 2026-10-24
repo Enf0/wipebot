@@ -63,7 +63,7 @@ from wipebot.core.cache import cache
 from wipebot.discord import config
 from wipebot.discord.checks import warnings
 from wipebot.discord.host import Context, Session
-from wipebot.discord.prompt import post_question
+from wipebot.discord.prompt import post_prefetch, post_question
 from wipebot.mcp.plugin import plugin_files
 
 HERE = Path(__file__).resolve().parent
@@ -237,6 +237,8 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
             client = mode != "bot"
             # the bot's own place for a channel ("in #raid"), or in a client, the asker's chat
             ctx = Context(where=IN_CLAUDE if client else case.get("where", "in #raid"), **given)
+            if case["kind"] == "posts":  # as the bot asks for a post: with the tool it starts from already run
+                ctx.prefetch = post_prefetch(case["boss"], case["pull"], case.get("asker"), case.get("request", ""))
             # None: the bot's own, with the skill
             prompt = {"plugin": PLUGIN, "connector": CONNECTOR_ONLY, "bot": None}[mode]
             calls, prompts = [], []
