@@ -15,7 +15,7 @@ it (pyproject.toml, checked by `just check`).
 - `just call <tool> '<json>'`: one tool without the model. `just ask <report> --as <character> -q "..."`: an answer
   end to end, as Discord gets it. The tests' report, KBYT4xXn7VNjDgh8, is a good default for both.
 - `just snapshot` rewrites the pinned tool outputs; then run `just evals --lint` (no model, a minute) for cases it
-  left stale. Recording and the local fixtures: tests/README.md.
+  left stale. Recording a tool test's data: tests/README.md.
 - `just evals`: evals/README.md. `just release`: says which version CHANGELOG.md calls for, and with a version makes
   the release (changelog, version, commit, tag, push, GitHub release).
 
