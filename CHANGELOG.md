@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A late taunt is no longer read as no missed taunt.** The tank swaps now name a swap debuff that stacked past one while a tank held the boss, and when the other tank took it over, so "did I miss a taunt?" gets the late swap the log shows, still without calling it one tank's fault.
+
 ## [0.5.2] - 2026-10-23
 
 ### Fixed
