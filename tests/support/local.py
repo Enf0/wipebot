@@ -2,7 +2,7 @@
 asset of a private repository, reached with `gh` signed in to an account that may read it. Anyone else records them
 afresh with `just record-tools` (tests/README.md).
 
-`python -m tests.support.local fetch` (`just local-fixtures`) puts them in LOCAL; `push`, after `just record-tools`
+`python -m tests.support.local fetch` puts them in LOCAL; `push`, after `just record-tools`
 or a changed local snapshot, replaces the stored copy."""
 import subprocess
 import sys
@@ -47,7 +47,7 @@ def push() -> None:
                 tar.add(f, arcname=f"{LOCAL.name}/{f.name}")
         if _gh("release", "view", TAG).returncode:
             made = _gh("release", "create", TAG, "--title", "The local test cases' recordings and snapshots",
-                       "--notes", "Fetched by `just local-fixtures` in Wipebot.")
+                       "--notes", "Fetched by tests/support/local.py in Wipebot.")
             if made.returncode:
                 sys.exit(made.stderr)
         sent = _gh("release", "upload", TAG, str(archive), "--clobber")

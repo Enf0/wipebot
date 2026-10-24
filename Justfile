@@ -29,14 +29,6 @@ snapshot $UPDATE_SNAPSHOTS="1":
 record-tools source="evals/cache.sqlite":
     {{py}} -m tests.support.recorded "$1"
 
-# The local test cases' recordings and snapshots (tests/README.md): fetch them, or push them after record-tools
-local-fixtures action="fetch":
-    {{py}} -m tests.support.local "$1"
-
-# The evals' frozen data (evals/README.md): fetch it (--replace an older copy), or push this machine's (maintainers)
-eval-data action="fetch" *args:
-    {{py}} -m evals.data "$@"
-
 # Check answers against the cases in evals/cases/ (e.g. just evals, just evals --model opus --trials 3)
 evals *args:
     {{py}} -m evals.run "$@"

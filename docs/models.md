@@ -75,7 +75,7 @@ that day. Checked against the real answers, not the model's own claims.
 
 ### Results
 
-Cost is at each provider's API list price for the answers, without the judge. "Why did we wipe?" is the mean of
+Cost is at each provider's API list price of that day for the answers, without the judge. "Why did we wipe?" is the mean of
 the single-question `wipe-*` cases; "why is my DPS low?" is `me-low-dps`, which compares the player with top logs.
 
 | Model | Run in | Trials | Passed | Median s | One "why did we wipe?" | One "why is my DPS low?" | One run (48 cases) |
@@ -94,26 +94,6 @@ the single-question `wipe-*` cases; "why is my DPS low?" is `me-low-dps`, which 
 | Kimi K3 | MCP | 1 | 29/48 (60%) | 65 | $0.26 | $0.17 | $10.23 |
 | Sonnet 5.5 | MCP | 1 | 24/48 (50%) | 13 | $0.08 | $0.05 | $3.41 |
 | GPT-6 Luna | MCP | 1 | 23/48 (48%) | 27 | $0.003 | $0.003 | $0.15 |
-
-### List prices used
-
-Per million tokens, input / output, as of 14 October 2026. Anthropic's from its API reference; the others from
-the providers' pages as quoted by price aggregators. A cache write costs 1.25x input at Anthropic and plain input
-elsewhere.
-
-| Model | Price |
-|---|---|
-| Fable 5.1 | $10 / $50 (cache read $0.25) |
-| Opus 5.5 | $4 / $20 (cache read $0.20) |
-| Sonnet 5.5 | $2 / $10 (cache read $0.20) |
-| Haiku 5.5 | $0.10 / $0.50 for prompts up to 100K tokens |
-| GPT-6 Astra | $10 / $50 |
-| GPT-6.1 Sol, GPT-6 Sol | $2 / $10 |
-| GPT-6 Luna | $0.10 / $0.50 |
-| Gemini 4 Argon | $2 / $10 until 30 November 2026, then $4 / $20 |
-| Gemini 3.8 Flash | $0.75 / $3.75 until 31 December 2026 |
-| Grok 4.7 | $2 / $6 (cache read $0.50) |
-| Kimi K3 | $3 / $15 at Moonshot; other hosts from about $0.56 / $14 |
 
 ### What it means
 

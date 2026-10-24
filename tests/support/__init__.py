@@ -3,7 +3,7 @@
 - night.py: the captured night and a fake Warcraft Logs serving it.
 - recorded.py: Warcraft Logs' and the guides' recorded answers, for the tool tests.
 - standins.py: what stands in for the guide sites' writing and Warcraft Logs' images in the recordings.
-- local.py: the local cases' recordings and snapshots, fetched and pushed (`just local-fixtures`).
+- local.py: the local cases' recordings and snapshots, fetched and pushed (the maintainers').
 - `assert_snapshot`: an output against the file that pins it.
 - defensives.py: not a test, a script to run after a patch: which defensives the death recap can't read.
 Fixtures are in the conftest.py files."""

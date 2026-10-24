@@ -66,5 +66,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.WIPEBOT_LOCAL_FIXTURES_TOKEN }}  # this step only: the tests run without it
       # A public repository's logs are public: no tracebacks or diffs, which would print what the local cases hold.
-      # A failure names the case; `just local-fixtures` and `just test -k <case>` show the diff locally.
+      # A failure names the case; with the local fixtures fetched, `just test -k <case>` shows the diff.
       - run: uv run pytest tests/core/test_tools.py -v --tb=no -rN -p no:logging

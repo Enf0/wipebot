@@ -79,10 +79,8 @@ Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and trou
   of keys yet (the timer, trash, affixes) and its guides and comparisons are for raids. Classic logs are on Warcraft
   Logs' separate Classic sites, which it doesn't read yet.
 - The method, how to read a raid log, is a [skill](src/wipebot/core/skills/raid-log-analysis): the bot and Claude
-  (with the plugin) use it; other assistants get the tools, whose output carries what code can decide of it (how a
-  pull ended, and what it wasn't), for now. MCP has a
-  [standard](https://modelcontextprotocol.io/extensions/skills/overview) for a server to serve its skills itself, but
-  the major assistants [don't load them yet](https://modelcontextprotocol.io/extensions/client-matrix)
+  with the plugin use it. Other assistants get only the tools, whose output carries what code can decide of the
+  method, since they don't yet load skills from a server
   ([docs/reference/mcp-clients.md](docs/reference/mcp-clients.md)).
 - The Discord bot runs on Claude only, for now (an Anthropic API key); the connector works with
   any assistant that takes MCP connectors.
@@ -90,10 +88,9 @@ Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and trou
 
 ## Development
 
-Needs [uv](https://docs.astral.sh/uv/) and [just](https://just.systems): `uv sync`, then `just` lists the commands
-and `just check` runs the tests, lint, types and layers. Tests run offline ([tests/README.md](tests/README.md));
-evals need Claude and Warcraft Logs keys and cost money ([evals/README.md](evals/README.md)). Maintained on a
-best-effort basis; for a feature, open an issue before a pull request ([CONTRIBUTING.md](CONTRIBUTING.md)).
+[CONTRIBUTING.md](CONTRIBUTING.md): setting up (uv and just), the checks, and how the tests
+([tests/README.md](tests/README.md)) and evals ([evals/README.md](evals/README.md)) work. Maintained on a best-effort
+basis; for a feature, open an issue before a pull request.
 
 ## Contact
 

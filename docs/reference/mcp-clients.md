@@ -41,10 +41,9 @@ Claude GitHub App given the repository, which the dialog asks for (https://claud
 needs the Claude GitHub App to have access to the repository, public or not. The plugin page shows its version,
 skills and connectors; the marketplace's page, the synced commit and any warnings. Its menu's Refresh syncs at once:
 the plugin moved to the pushed version, with a notice that "executable files or settings may differ from the version
-you were using before this sync". On its own it hadn't synced a push 8 minutes later, with Sync automatically on
-and the Claude GitHub App granted the repository (a push changing only the repository's README, 08:46; still the
-earlier commit at 08:54). It hadn't synced that push two days later either, nor a change to the plugin itself (pushed
-2026-10-21 14:59 UTC, still the old commit an hour later). So members press Check for updates in Manage marketplaces.
+you were using before this sync". On its own it never synced a push, with Sync automatically on and the Claude GitHub
+App granted the repository (checked from minutes to two days after a push, 2026-10-19 to 21), so members press Check
+for updates in Manage marketplaces.
 
 Adding a plugin from it (its page's **Add**) doesn't connect its connector: the plugin's Connectors tab lists it as
 "Not added" with a **Connect** button, which opens "Add custom connector" with the name and URL filled in and detects
@@ -53,7 +52,7 @@ it shows "Connected · Custom". The plugin page shows a revision ("v2"), not the
 
 ## ChatGPT and Codex as plugin hosts
 
-Not yet tried; from OpenAI's docs, read 2026-10-23 (https://developers.openai.com/plugins/build/plugins and
+From OpenAI's docs, read 2026-10-23 (https://developers.openai.com/plugins/build/plugins and
 https://help.openai.com/en/articles/20001504):
 - A plugin's portable manifest is the root `plugin.json`, its MCP servers in root `mcp.json` with a transport `type`;
   `.codex-plugin/plugin.json` is only a fallback for OpenAI's settings. The docs put sign-in settings in each
@@ -136,7 +135,7 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
 - One catch-all tool is the other extreme: Sentry's single agent tool steered worse and took about twice as long
   (https://cra.mr/a-bigger-toolbox-for-mcp).
 - Ours: 44 tools became 26 on 15 October by merging tools that answer one kind of question at different scopes; the
-  connector-only evals went from 118/150 to 129/150. There are 28 now.
+  connector-only evals went from 118/150 to 129/150.
 - Overlap that merging leaves: OpenAI's guidance names what a tool is not for ("Do not use for...",
   https://developers.openai.com/apps-sdk/guides/optimize-metadata), and MCP has no field for example arguments
   (Anthropic's API has `input_examples`). Ours: the tools that answer a similar question say "Not for ... (the other
