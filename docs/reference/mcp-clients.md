@@ -35,7 +35,9 @@ A plugin with the remote connector and the `raid-log-analysis` skill, uploaded o
   the plugin: "unrecognized key in plugin.json: 'icon' (stripped)", so the plugin has none.
 
 A marketplace added on claude.ai (Customize → Plugins → Add → Add marketplace, 2026-10-19): a GitHub `owner/repo` or
-a git URL. Its "Sync automatically" toggle keeps the plugins up to date "when the repository changes on GitHub", and
+a git URL. A public repository needs no GitHub account; a private one needs the member's GitHub connected and the
+Claude GitHub App given the repository, which the dialog asks for (https://claude.com/docs/plugins/overview, read
+2026-10-24). Its "Sync automatically" toggle keeps the plugins up to date "when the repository changes on GitHub", and
 needs the Claude GitHub App to have access to the repository, public or not. The plugin page shows its version,
 skills and connectors; the marketplace's page, the synced commit and any warnings. Its menu's Refresh syncs at once:
 the plugin moved to the pushed version, with a notice that "executable files or settings may differ from the version

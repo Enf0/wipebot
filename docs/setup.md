@@ -79,9 +79,9 @@ they then press **Connect** on the plugin's connector and sign in with Warcraft 
   Customize → Plugins. Nothing to set up, but when the skill changes they download it again.
 - **A marketplace**, so updates reach members: `python -m wipebot plugin <dir> --repo <owner>/<name>` writes the plugin
   for a GitHub repository; push it, and push again after an upgrade that changes the skill. Members add it under
-  Customize → Plugins → Add → Add marketplace, and press Check for updates in Manage marketplaces. Claude needs its
-  GitHub app to have access to the repository, public or not, so each member needs a GitHub account connected in
-  Claude.
+  Customize → Plugins → Add → Add marketplace, and press Check for updates in Manage marketplaces. A public
+  repository needs no GitHub account; a private one needs each member's GitHub connected in Claude, with the Claude
+  GitHub App given the repository.
 
 ## The Discord bot
 
