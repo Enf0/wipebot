@@ -2,7 +2,7 @@
 test cases' are (tests/support/local.py): a release asset of a private repository, zstd-compressed, reached with
 `gh` signed in to an account that may read it. It holds rankings and the guide sites' pages, so it's never public.
 
-`python -m evals.data fetch` (`just eval-data`) puts it at evals/cache.sqlite, there not being one yet (`--replace`
+`python -m evals.data fetch` puts it at evals/cache.sqlite, there not being one yet (`--replace`
 replaces one); `push` stores this machine's copy. Without access, a run fetches what the cases read (README.md)."""
 import shutil
 import sqlite3
@@ -58,7 +58,7 @@ def unpack(archive: Path, db: Path) -> int:
 
 def fetch(replace: bool = False) -> None:
     if CACHE.exists() and not replace:
-        sys.exit(f"{CACHE} is here already: `just eval-data fetch --replace` replaces it")
+        sys.exit(f"{CACHE} is here already: `python -m evals.data fetch --replace` replaces it")
     with tempfile.TemporaryDirectory() as tmp:
         got = _gh("release", "download", TAG, "--pattern", ASSET, "--dir", tmp)
         if got.returncode:
@@ -78,7 +78,7 @@ def push() -> None:
             sys.exit(f"{ASSET} is {size // 1024**2} MB, over GitHub's {MAX_ASSET // 1024**3} GB for a release asset")
         if _gh("release", "view", TAG).returncode:
             made = _gh("release", "create", TAG, "--title", "The evals' frozen data",
-                       "--notes", "Fetched by `just eval-data` in Wipebot.")
+                       "--notes", "Fetched by evals/data.py in Wipebot.")
             if made.returncode:
                 sys.exit(made.stderr)
         sent = _gh("release", "upload", TAG, str(archive), "--clobber")

@@ -49,15 +49,15 @@ be either: its terms forbid reproducing them. So a case that reads any of these 
 cases.toml: its answers (`fixtures/real/tools/local/recorded.sqlite`) and its snapshot (`local/<name>.txt`) are
 untracked, and without them it's skipped. Recording stops if a case that isn't local asks for or is answered with
 rankings, another guild's report or a Raidbots file, and `core/test_recorded.py` checks every published answer the
-same way. Running the local cases:
-- **Anyone**: put your own Warcraft Logs keys in `.env` (`.env.example`), then `just record-tools`, which without
-  `evals/cache.sqlite` starts from the published answers and fetches only what the local cases need (about a minute
-  and some 450 Warcraft Logs points, measured on a fresh clone), and `just snapshot`, which writes the local
-  snapshots and fails once for each new one; `just test` then passes. Rankings and other guilds' kills move, so
-  these snapshots are your own baseline, not the maintainers': make it before a change and compare after.
-- **Maintainers**: `just local-fixtures` fetches the shared copy from their private store (a release of a private
-  repository, `gh` signed in to an account that may read it); `just local-fixtures push` replaces it after
-  `just record-tools` or a changed local snapshot. CI tests that copy too.
+same way.
+
+To run the local cases, put your own Warcraft Logs keys in `.env` (`.env.example`), then `just record-tools`, which
+without `evals/cache.sqlite` starts from the published answers and fetches only what the local cases need (about a
+minute and some 450 Warcraft Logs points, measured on a fresh clone), and `just snapshot`, which writes the local
+snapshots and fails once for each new one; `just test` then passes. Rankings and other guilds' kills move, so these
+snapshots are your own baseline: make it before a change and compare after. The repository's CI runs the local cases
+against a copy the maintainers keep privately, and prints only which failed (`.github/workflows/checks.yml`; skipped
+in a fork).
 
 A whole guide page never goes in. What the guide sites and Warcraft Logs' images give gets a stand-in when recording
 (`support/standins.py`):
@@ -74,10 +74,9 @@ from Raidbots' files, so a test that needs one makes up a small tree of the same
 
 ## Snapshots
 
-A snapshot pins an output: every pull's summary (`fixtures/real/<code>.summaries.md`, core/test_pulls.py) and each
-tool case (`fixtures/real/tools/<name>.txt`). After an intended change to an output, `just snapshot` rewrites them;
-read the diff before keeping it, since a snapshot pins what's in it, right or wrong. Don't repeat a snapshot's
-wording in a test: test a fact it can't hold (a made-up situation, a rule) as a structured assert.
+Every pull's summary (`fixtures/real/<code>.summaries.md`) and each tool case (`fixtures/real/tools/<name>.txt`).
+After an intended change to an output, `just snapshot` rewrites them: read the diff before keeping it. Don't repeat a
+snapshot's wording in a test: test a fact it can't hold (a made-up situation, a rule) as a structured assert.
 
 ## Adding a tool's case
 
@@ -86,9 +85,6 @@ wording in a test: test a fact it can't hold (a made-up situation, a rule) as a 
    was recorded before (which wins), fetches only what neither has, and keeps exactly the answers the cases asked
    for.
 3. `just test -k <name>` writes the new snapshot and fails once: read it, then run again.
-4. A case reading rankings, another guild's report or a Raidbots file: `local = true`, then (maintainers)
-   `just local-fixtures push`.
+4. A case reading rankings, another guild's report or a Raidbots file: `local = true`.
 
 `core/test_server.py` checks that every tool has a case, or says in `TESTED_ELSEWHERE` where it's tested.
-
-The tests check the tools; the evals check the answers a model gives with them: `evals/README.md`.

@@ -8,8 +8,7 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   login). Every request needs a token, even for public reports (no token: HTTP 404).
 - Wipebot reads with client credentials (`WCL_CLIENT_ID`/`WCL_CLIENT_SECRET`: public reports only). warcraft_cli
   uses a user login saved in its store (`~/.local/state/warcraft/providers/warcraftlogs.json`) instead when there is
-  one, so `wipebot serve` refuses to start with one. Wipebot had its own browser login until 19 October 2026 (PKCE,
-  a public client); a user token lasts about 360 days. `wipebot serve` reads a signed-in user's tool calls with the
+  one, so `wipebot serve` refuses to start with one. A user token lasts about 360 days. `wipebot serve` reads a signed-in user's tool calls with the
   token their sign-in gave (`wcl.reading_as`), at `/api/v2/user`, so their own points pay first ("Point types").
 - Realm slugs aren't one rule: Warcraft Logs keeps some word breaks (`tarren-mill`, `area-52`), runs others together
   (`azjolnerub`; `azjol-nerub` finds nothing) and slugs some Russian realms in English (`Ревущий фьорд` is
@@ -242,7 +241,10 @@ Every query adds to how long a raider waits in chat, and all of them spend the a
 - Loading a report is four queries (fights, actors, abilities, player details): about 1.3 s, 0.5 s with its
   names from disk. A tool that read ten raid nights took about 90 s the first time and 12 s with the per-pull
   data on disk, against 1 s for the same tool on one pull; with past nights loading from disk, about 2 s.
-- Events over several fights in one alias come in pages by time, not by count: one player's casts over a 39-pull night took 41 pages, each a query one after another (16 s, 41 points); a fight an alias, the same in one query of 39 aliases and one for a later page (3 s, 3 points; p7jRwgv8b1rY6LBd, verified 2026-10-23). `WCL.events_many` asks a fight an alias.
+- Events over several fights in one alias come in pages by time, not by count: one player's casts over a 39-pull
+  night took 41 pages, each a query one after another (16 s, 41 points); a fight an alias, the same in one query of 39
+  aliases and one for a later page (3 s, 3 points; p7jRwgv8b1rY6LBd, verified 2026-10-23). `WCL.events_many` asks a
+  fight an alias.
 - Many pulls' tables go in one query with aliases (`i0: table(fightIDs: [1], ...) i1: ...`, `Report.tables`):
   one round trip for a whole night instead of forty.
 - What a query costs in points (measured 2026-10-21 on a 20-player Mythic night with `rateLimitData` before and
@@ -282,12 +284,10 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
   `currentRequest` shows user and database points without opting in, so any query's cost can be measured now.
 - A key not opted in keeps 3,600 points an hour; `databaseLimitPerHour` reads 250 but isn't enforced (the counter
   went past it and rankings still answered), and points `currentRequest` counts as `user` are charged to the
-  application, user token or not. A client made on 22 October 2026 on the same account wasn't in the beta despite
-  the post ("new keys ... will be opted into the beta"): 3,600 points an hour, and the same counters as the old key
-  (101 points spent through it moved both). The opt-in is the account's, not a key's: the API clients page has one
-  "Use New Limits" button and one table of points for all the account's clients ("Combined allowance for all your
-  API clients"), and both keys still read 3,600 and one counter on 2026-10-23. So a second key can't try the beta
-  while the first stays out of it. `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
+  application, user token or not. The opt-in is the account's, not a key's, despite the post ("new keys ... will be
+  opted into the beta"): a key made on 22 October 2026 had 3,600 points and the old key's counters, and the API
+  clients page has one "Use New Limits" button for all the account's clients. So a second key can't try the beta while
+  the first stays out of it. `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
   @onlySpendUserPoints { ... }`) is refused: "cannot require only user points be spent without authenticating a user
   and opting into the new point system".
 - User points are per Warcraft Logs account, shared "across all applications the user authenticates with" (the
@@ -321,8 +321,7 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
 - Every query asks the hour's points with its own cost (`wcl.HOUR_FIELDS` under `wcl.COST_ALIAS`, free inside a
   query), so the quota guard reads them without a query of its own, and each process logs, when an hour ends, what it
   spent and what the account had spent: the gap went elsewhere. The evals wait for the next hour past half of one
-  (`wcl.keep_for_others`). Before the bot polled only while someone followed a raid, it spent about 180 points and 180
-  database points an hour looking for a live report, with nobody asking (measured 2026-10-23).
+  (`wcl.keep_for_others`).
 - What a tool call costs is recorded (`wcl.counting_points` adds up each query's `currentRequest`): the bot keeps it
   with each tool call and answer, and the remote server passes it with each call to whoever records them.
   warcraft_cli's own guild and character lookups, and work outside tool calls (following a live raid, loading a report

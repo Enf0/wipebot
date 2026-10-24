@@ -23,9 +23,10 @@ Warcraft Logs allows 3,600 points an hour per developer account, shared by every
 connector and the bot of one copy share it. An account on Warcraft Logs' new point system (in beta, opted into for
 the whole account on that page) gets 1,000 unsubscribed. A first question about a night nobody has asked about yet
 costs about 100-170 points, one about a pull tens, and a follow-up on what was already read a few or none: five
-questions on a fresh night came to about 450, and later askers about the same night pay little. Posting after wipes costs the bot about 300 points an hour while a raider has asked for it; otherwise
-the bot reads nothing between questions. The few questions that read many nights
-at once are refused when the hour is nearly used up, with when to ask again. Details:
+questions on a fresh night came to about 450, and later askers about the same night pay little. Posting after wipes
+costs the bot about 300 points an hour while a raider has asked for it; otherwise the bot reads nothing between
+questions. The few questions that read many nights at once are refused when the hour is nearly used up, with when to
+ask again. Details:
 [reference/wcl-api.md](reference/wcl-api.md).
 
 ## Settings
@@ -141,9 +142,8 @@ and the preferences they ask it to remember. With `WIPEBOT_RECORD_ANSWERS=1`, th
 prompt (with the channel's messages it read), answer and tool calls for 90 days, for reviewing answers. All of it
 stays in `./data`; only what an answer needs goes to the model. Tell your guild.
 
-The bot's answers cost about $0.25 each with Claude Opus, the default (median $0.23, 90th percentile $0.37 in the
-evals of October 2026), and at most $2; Haiku (`WIPEBOT_MODEL=haiku`) costs under a cent and answers less well
-([models.md](models.md)).
+The bot's answers cost about $0.25 each with Claude Opus, the default, and at most $2; Haiku
+(`WIPEBOT_MODEL=haiku`) costs about a cent and answers less well ([models.md](models.md)).
 
 ## Upgrading and backups
 
@@ -160,8 +160,8 @@ Outside Docker, the database, the raid notes and the sign-ins are in `~/.local/s
 Wipebot uses the Warcraft Logs API with your clients, under
 [its terms](https://www.archon.gg/wow/articles/help/rpg-logs-api-terms-of-service). Guide lookups go through
 [warcraft_cli](https://github.com/aurokin/warcraft_cli), which reads Wowhead, Method, Icy Veins and Lorrgs, and
-Wipebot downloads Raidbots' game data files. Some of these sites' may terms limit automated access; hosts are responsible for their use of them. Wipebot caches what it reads, links to the source and
-doesn't republish pages.
+Wipebot downloads Raidbots' game data files. Some of these sites' terms may limit automated access; hosts are
+responsible for their use of them. Wipebot caches what it reads, links to the source and doesn't republish pages.
 
 ## If something's wrong
 

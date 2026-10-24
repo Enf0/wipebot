@@ -9,7 +9,7 @@ A case marked `local` reads what may not be published: Warcraft Logs' rankings a
 parses, the fastest kills), which Warcraft Logs asks to keep out of public tests, and Raidbots' data files, whose terms
 forbid reproducing them. Its answers and its snapshot are in local/ instead, untracked; without them it's skipped.
 `just record-tools` with your own Warcraft Logs keys records them afresh; the maintainers' copy comes from their
-private store (`just local-fixtures`, which pushes it there too after recording).
+private store (local.py).
 
 `just record-tools` (`python -m tests.support.recorded evals/cache.sqlite`) records again: it runs every case on a
 copy of the evals' frozen cache plus what was recorded before (which wins, so a snapshot never moves because the
@@ -48,7 +48,7 @@ LOCAL = TOOLS / "local"  # untracked: the local cases' answers and snapshots
 LOCAL_RECORDED = LOCAL / "recorded.sqlite"
 NOT_LOCAL = ("the local cases' recordings aren't here (they can't be published; tests/README.md): `just record-tools` "
              "with your own Warcraft Logs keys in .env records them afresh, then `just snapshot` makes your baseline "
-             "to compare a change against; maintainers: `just local-fixtures`")
+             "to compare a change against")
 # The clock the cases run at, so "the last N days" counts back from when they were recorded (find-reports' guild list).
 NOW = SimpleNamespace(time=lambda: datetime(2026, 10, 13, 15, 16, tzinfo=UTC).timestamp(), monotonic=time.monotonic)
 REPLAY_CASE = "pull-map"  # the replay viewer's data (maps.replay) is tested on this case's pull and player

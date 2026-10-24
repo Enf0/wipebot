@@ -127,8 +127,8 @@ Only a pasted export is saved, not typed text, a screenshot or a link. Every ver
 Each pull is checked against the note saved before it started, so changing the note mid-night doesn't affect earlier
 pulls. A note counts only for the raid night it was saved for, as officers change it each night with who comes: one
 saved before the guild's last night on the boss, or more than 12 hours after a night's log ended, isn't used for that
-night (a night with none asks for the paste). A note pasted after the pulls it was for counts from the pull the officer names: "from pull 7" in the
-message with the paste in Discord (the night's report, or a report link in the message), or said in the chat in
+night (a night with none asks for the paste). A note pasted after the pulls it was for counts from the pull the
+officer names: "from pull 7" in the message with the paste in Discord (the night's report, or a report link in the message), or said in the chat in
 Claude or ChatGPT. Both apps read what's saved for the guild, wherever it was saved, so no one needs to paste it
 again.
 
@@ -145,9 +145,9 @@ again.
 
   Over the whole night, it counts per player: soaks missed while alive, cooldowns on time or not, kicks made,
   covered or let through, how often they answered each callout, and the pulls whose wipe came within seconds of
-  casts on kick assignments going through. When the note's kick order only fits the later
-  pulls (a raider joined or the order was changed, and the note was pasted afterwards), it says from which pull, what
-  the pulls before had, and counts the kicks from that pull on. A note saved only after the pulls it's checked against is said to be so.
+  casts on kick assignments going through. When the note's kick order only fits the later pulls (a raider joined or
+  the order was changed, and the note was pasted afterwards), it says from which pull, what the pulls before had, and
+  counts the kicks from that pull on. A note saved only after the pulls it's checked against is said to be so.
 - **The plan** ("was everyone on their spot?"): at each moment of the plan's mechanic, who was off their spot and by
   how far, whose spot they stood at instead, who was dead, and who was hit by the debuff from whom. Since the plan has
   no room coordinates, it is fitted to where the raid stood, so a player is off relative to the rest of the raid. A
@@ -183,8 +183,8 @@ Wipebot finds who was hit or who stood where on its own. The note and the plan a
 
 The connector brings the tools to Claude.ai, ChatGPT or similar, signed in with Warcraft Logs. It knows your
 characters from the ones you claimed there, and "my guild" means the guilds they're in. It reads the guild's saved
-notes and plans, officers save a pasted one there, and in Claude it shows the pull replay. In Claude, the plugin adds the skill, so Claude reads logs
-the same way the bot does. Other clients get only the tools ([reference/mcp-clients.md](reference/mcp-clients.md)).
+notes and plans, officers save a pasted one there, and in Claude it shows the pull replay. In Claude, the plugin adds
+the skill, so Claude reads logs the same way the bot does. Other clients get only the tools ([reference/mcp-clients.md](reference/mcp-clients.md)).
 
 ## In Discord
 

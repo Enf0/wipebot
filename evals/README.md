@@ -17,110 +17,60 @@ raider's question about a real raid night, end to end with a model, and a second
 | Result | pass or fail | a pass rate, compared with a baseline |
 
 They meet in two places. `just record-tools` records the tool tests' data from the evals' cache, so both read the
-same frozen nights. `just evals --lint` replays the tool calls the eval answers made, with today's code, and flags a
-number in a case that no tool prints any more: a snapshot changing (`just snapshot`) can leave a case stale. It
-checks only the cases some run in `results/` answered, says how many, and fails when none were.
+same frozen nights. `just evals --lint` replays the tool calls the saved eval answers made, with today's code, and
+flags a number in a case that no tool prints any more, as a snapshot change can leave a case stale.
 
 ## A case
 
-`cases/` holds them, one file per kind of question (`bot.toml`: the bot's own rules, run only with `--bot`;
-`connector.toml`: the connector's own, an officer saving a pasted note, run only without), each on
-a report of The Dragonfell Tribe (EU-Kazzak), the maintainers' guild, whose uploader agreed to their use
-(`cases/README.md` lists the reports and explains every field):
-
-- `question`: what a raider asks, with what a Discord message tells the bot (who asks, where, which pull).
-  A list is a conversation; the last answer is judged.
-- `expect`: the main point a right answer gets across. Missing it fails the answer.
-- `wrong`: what would make the answer wrong, often the tempting misreading of the log (blaming the deaths after
-  an enrage, calling a soak a damage check). Stating any of it fails the answer.
-- `facts`: supporting points a full answer states. Counted, never failing.
-
-Every number in a case comes from a tool's output, checked with `just call` against the frozen data.
+`cases/` holds them, one file per kind of question, each on a report of The Dragonfell Tribe (EU-Kazzak), the
+maintainers' guild, whose uploader agreed to their use. A case is a `question` (with what a Discord message tells the
+bot), the `expect`ed main point (missing it fails the answer), what would make it `wrong` (stating any of it fails
+the answer, often the tempting misreading of the log), and supporting `facts` (counted, never failing). Every number
+in a case comes from a tool's output. Every field: `cases/README.md`.
 
 ## A run
 
-`just evals` asks every case as Claude does with the plugin, the way the README sets members up: the connector, and
-the plugin's raid-log-analysis skill, which Claude loads itself when a question calls for it (and may read only the
-skill's files); four at a time. The run says in how many answers it loaded the skill, which of its files it read,
-and which cases it answered without it. `--connector-only` asks as a client with only the
-connector (ChatGPT, or Claude without the plugin): no skill, no server instructions. `--bot` asks as the Discord bot
-does (its prompt, with the skill), and only it runs the cases marked `bot_only` (the bot's channels). Each mode has
-its own baseline (`baseline.json`, `baseline-connector-only.json`, `baseline-bot.json`).
+`just evals` asks every case as Claude does with the plugin: the connector, and the raid-log-analysis skill, which
+Claude loads itself when a question calls for it; four at a time. The run says in how many answers it loaded the
+skill. `--connector-only` asks as a client with only the connector (ChatGPT, or Claude without the plugin): no skill,
+no server instructions. `--bot` asks as the Discord bot does, and only it runs the cases marked `bot_only`. Each mode
+has its own baseline (`baseline.json`, `baseline-connector-only.json`, `baseline-bot.json`).
 
 The judge (Sonnet by default, `checks.py`) asks one question for `expect`, one for `wrong` and one to count the
-`facts`. A failed check is asked twice more and the majority kept, since the judge's usual error is failing a
-right answer on a detail. Code adds warnings that never fail an answer: numbers no tool gave, a site credited for a
-fact. A trial that says nothing about the answer is an error, counted in neither passes nor trials: a crash, a judge
-with no verdict, or a failed answer with a call Warcraft Logs or a site didn't answer (down, a 503).
+`facts`. A failed check is asked twice more and the majority kept, since the judge's usual error is failing a right
+answer on a detail. Code adds warnings that never fail an answer: numbers no tool gave, a site credited for a fact. A
+trial that says nothing about the answer is an error, counted in neither passes nor trials: a crash, a judge with no
+verdict, or a failed answer with a call Warcraft Logs or a site didn't answer.
 
 Warcraft Logs and the guide sites come from `cache.sqlite`, frozen: what a run asks that isn't there is fetched once
-and kept, so every run on a machine reads the same data, with the clock set to when it was recorded. It holds
-rankings and the sites' pages, so it's never in the repo. Runs go to `results/`, with every answer and tool call.
-Two ways to get the data:
+and kept, with the clock set to when it was recorded. It holds rankings and the sites' pages, so it's never in the
+repo. Runs go to `results/`, with every answer and tool call.
 
-- **Maintainers**: `just eval-data` fetches the copy the cases were written against (a compressed release asset of
-  their private repository, about 360 MB; `gh` signed in to an account that may read it), `--replace` over an older
-  one; `just eval-data push` stores this machine's after a run fetched what a new case reads.
-- **Anyone else**: the first run fetches what the cases read with your own Warcraft Logs keys, and keeps it. The
-  guild's finished reports read the same, but what moves is that day's: the 14 cases with `drifts` (rankings,
-  percentiles, the top parses: `compare_with_top`, `player_history`'s ranks, a kill's percentile) and the cases that
-  lean on a guide (`boss_guide`, `spec_guide`, `web_lookup`, `hotfixes`: pages are rewritten, patches change
-  tuning) can pass or fail on your copy for a reason other than your change. Make your own baseline
-  (`--save-baseline`) before a change and compare after.
+Your first run fetches what the cases read with your own Warcraft Logs keys. The guild's finished reports read the
+same as the maintainers' copy, but the cases with `drifts` (rankings, percentiles, the top parses) and those that lean
+on a guide can pass or fail on yours for a reason other than your change. Make your own baseline (`--save-baseline`)
+before a change and compare after.
+
+A run is on your Claude Code login: it ignores an `ANTHROPIC_API_KEY` in `.env` (the bot's), so it's never billed to
+the API by accident; `--api-key` bills it there instead. What a run costs per model: [docs/models.md](../docs/models.md).
 
 ## Reading a run
 
-A run is compared with its baseline only on the cases unchanged since (each case and the judge carry a hash; a
-changed judge gets a warning). A case is listed as moved only when its pass rate moved beyond noise, and the total
-comes with its expected spread: one trial can be off by several points, so run `--trials 3` before believing a
-difference. Cases marked `hard` (the bot still gets them wrong often) are counted apart, so the total shows a
-regression and the hard set an improvement.
+A run is compared with its baseline only on the cases unchanged since (each case and the judge carry a hash). A case
+is listed as moved only when its pass rate moved beyond noise; one trial can be off by several points, so run
+`--trials 3` before believing a difference. Cases marked `hard` are counted apart, so the total shows a regression and
+the hard set an improvement. A run also compares the supporting facts its answers stated, their tool calls per answer,
+and how often the first call was one of the case's `tools`. Read the transcripts before trusting a moved number: a
+fail can be the judge's.
 
-A pass rate near the top can't show an answer getting fuller or finding its tools faster, so a run also counts, and
-compares with the baseline: the supporting facts its answers stated, their tool calls per answer, and how often the
-first call was one of the case's `tools`.
+The judge sees the question and the answer, not what the tools returned, so it can't catch a claim no case foresaw.
+`just evals --recheck results/X.json` checks a saved run's answers again, without asking again (about $0.20 an
+answer), and keeps what it finds in `results/rechecks/`. Neither check fails an answer:
 
-## Checking saved answers again
-
-The judge sees the question and the answer, not what the tools returned, so it can't catch a claim no case foresaw:
-a wrong time, a cause the log doesn't show. `just evals --recheck results/X.json` checks a saved run's answers again
-without asking again, and keeps what it finds in `results/rechecks/X.json`. Neither check fails an answer:
-
-- **Grounded** (`checks.grounded`, Opus): the judge reads the answer's tool calls and their outputs, and lists each
-  claim that would mislead a raider and that they don't back: a cause, fault or job the log doesn't show, where
-  players stood, a cooldown's length or when it's ready, a comparison no output makes, a contradicted number. Against
-  a Claude council's labels of 26 answers it flagged every answer the council found such a claim in, and half the
-  rest: a list to read and compare between runs, not a verdict.
-- **Rubric** (`checks.RUBRIC`): how the answer is built, by the skill's rules for every answer, one question each:
-  does it open with its main finding, does a recommended change say who does what and when, and are the changes few
-  and ordered. Each rule's yes rate where it applied.
-
-`-k` picks cases as in a run. A recheck costs the judges' tokens only, about $0.20 an answer.
-
-## How the engine reads a pull
-
-The tools work out how a pull ended before the model reads it (pull_summary's "Ended by"). A wipe case may name what an
-experienced raid leader names first for its pull (`cause`), and `just evals --endings` says, with no model and in
-seconds, on how many pulls "Ended by" leads with the same. Where it doesn't, the model has to find the cause from the
-rest of the output: a list of what the tools should work out next, not a pass rate to fit.
-
-## Coverage
-
-Evals measure answers, not code, so they have no line coverage; `just evals --coverage` says what the cases cover
-instead, with no model: each tool's cases (a case's `tools`, the tools its right answers call), the kinds of
-question (a cases file each), where they're asked and the bosses, and from each mode's latest run the tagged tools
-no answer called. `just check` fails when a core tool has no case and isn't in `coverage.py`'s `NO_CASE_YET`, so a
-new tool comes with one.
-
-## In the usual terms
-
-A case is a task; each answer to it a trial, saved with its transcript (every tool call) in `results/`. The judge
-is a model-based grader with a rubric (`expect`, `wrong`, `facts`), and the majority vote on a fail a small
-consensus. Its agreement with human marks (`--label`, `--agreement`) is how it's calibrated: read the transcripts of
-a run before trusting a moved number, since a fail can be the judge's. The regular cases are regression evals,
-expected to pass and watched for slips; the hard set is the capability evals, low pass rates to improve. "Right on
-every trial" over `--trials 3` is consistency (pass^k), which matters more for a bot raiders ask once than a lucky
-best of three.
+- **Grounded** (Opus): reads the answer's tool calls and outputs, and lists each claim that would mislead a raider
+  and that they don't back. A list to read and compare between runs, not a verdict.
+- **Rubric**: does the answer open with its main finding, does a recommended change say who does what and when, and
+  are the changes few and ordered.
 
 ## Commands
 
@@ -135,24 +85,17 @@ just evals --lint                   # the cases' numbers against the tools now (
 just evals --coverage               # what the cases cover: tools, kinds of question, places, bosses (no model)
 just evals --endings                # pull_summary's "Ended by" against each case's `cause` (no model)
 just evals --held-out --trials 3    # the held-out cases alone, at a milestone (never while changing the method)
-just eval-data                      # the frozen data the cases were written against (maintainers)
+just evals --recheck results/X.json # a saved run's answers again: claims its tools don't back, and the rubric
 just evals --label results/X.json   # mark a run's answers yourself (labels.jsonl)
 just evals --agreement              # how often the judge agrees with your marks
 just evals --api-key                # bill the run to ANTHROPIC_API_KEY, not your Claude login
-just evals --recheck results/X.json # a saved run's answers again: claims its tools don't back, and the rubric
 ```
-
-A run is on your Claude Code login: it ignores an `ANTHROPIC_API_KEY` in `.env` (the bot's), so it's never billed
-to the API by accident; `--api-key` bills it there instead. It says which at the start and keeps it in its results.
-A full run is about $14 at API prices and 30 minutes per mode with one trial (about $40 with `--trials 3`), so run what a change needs: the cases that call a
-changed tool, the cases of a kind of question for a change to that part of the skill, or the whole suite for a
-change to the skill's general rules, the bot's prompt or most tool descriptions.
 
 ## Files
 
-- `cases/`: the cases, and in its README the cases' format and rules. `run.py`: running, comparing, labelling. `checks.py`: the judge. `lint.py`: the
-  numbers check. `coverage.py`: what the cases cover.
-- `baseline.json`, `baseline-connector-only.json`, `baseline-bot.json`: the runs others are compared with, one per
-  mode.
-- `test_*.py`: tests of the eval code itself, run with the rest by `just check`.
+- `cases/`: the cases, and in its README their format. `run.py`: running, comparing, labelling. `checks.py`: the
+  judge. `lint.py`: the numbers check. `coverage.py`: what the cases cover (`just check` fails when a core tool has
+  no case and isn't in its `NO_CASE_YET`).
+- `baseline*.json`: the runs others are compared with, one per mode.
+- `test_*.py`: tests of the eval code itself, run by `just check`.
 - Untracked: `cache.sqlite` (the frozen data), `results/` (runs), `labels.jsonl` (your marks).
