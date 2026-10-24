@@ -104,6 +104,21 @@ ended and what decided it, the last what to do on the next pull; leave out what 
 anything at the end."""
 
 
+# A tool run for the question before the model sees it (Context.prefetch), with its result.
+PREFETCHED = """
+
+Already called for this: {tool}, which returned:
+{result}"""
+
+
+def post_prefetch(boss: str, pull: int, character: str | None, request: str) -> list[tuple[str, dict]]:
+    """The tool a post after a wipe starts from, run before the model is asked: the pull's summary for what someone
+    asked to have posted, the player's pull for their own feedback."""
+    if request:
+        return [("pull_summary", {"boss": boss, "pull": pull})]
+    return [("player_pull", {"player": character, "boss": boss, "pull": pull})] if character else []
+
+
 def post_question(boss: str, pull: int, name: str, character: str | None, request: str) -> str:
     """The question behind a post after a wipe: what `name` asked for (`request`), else `character`'s own
     feedback."""

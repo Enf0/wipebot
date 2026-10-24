@@ -46,6 +46,11 @@ without guessing (it asks for them itself):
 Sonnet and Haiku miss the point the post exists for (8 and 10 of 27): a Water Jet death they turn into "press a
 defensive" instead of standing out of the tank's line. Opus stays for posts too.
 
+With the post's first tool run before the model is asked (`pull_summary`, or `player_pull` for a raider's own
+feedback): 25/27 against 26/27 (within noise), median 14 s against 19, slowest 23 s against 36, $0.12 a post against
+$0.15. The one case that moved, the unkicked add, passed when an answer also read the enemies' casts, which the
+prefetched answers called less.
+
 Two lines in the bot's prompt (independent tools in one turn, nothing written before the answer), on the 10 cases
 with the most tool rounds: 26/30 against 28, 4.9 rounds an answer against 5.1, 40 s against 45, same cost. Not
 worth a full run.
