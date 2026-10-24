@@ -17,6 +17,21 @@ code before that day's tank-swap fix. These runs are the baselines.
 On the cases both days have, each mode passed 5 or 6 more answers than on 22 October, beyond the noise. The bot's
 row is the medium-effort reference that other efforts and models are compared with on the same cases.
 
+Effort in the bot, the same cases on 0.5.3 (the medium row is the run above; its tank cases rerun on 0.5.3 passed
+23/24 against 22):
+
+| Model | Effort | Passed | Cases right every trial | Median s | 90% within s | Slowest s | Tool calls | Per answer | One run |
+|---|---|---|---|---|---|---|---|---|---|
+| Opus 5.5 | low | 201/228 (88%) | 58/76 | 15 | 23 | 35 | 2.2 | $0.14 | $31.47 |
+| Opus 5.5 | medium | 214/231 (93%) | 65/77 | 25 | 45 | 81 | 4.6 | $0.21 | $47.39 |
+| Opus 5.5 | high | 212/228 (93%) | 63/76 | 33 | 62 | 195 | 6.1 | $0.25 | $57.39 |
+| Sonnet 5.5 | high | 185/227 (81%) | 51/76 | 17 | 38 | 109 | 4.9 | $0.15 | $34.04 |
+
+- Medium stays the bot's effort. High passes no more (-2, within noise) for a third more time and a slower tail.
+- Low is twice as fast, but 13 answers behind, beyond the noise: it calls half the tools, and the night summaries,
+  a healer's night and follow-ups suffer most.
+- Sonnet at high is 28 answers behind Opus at medium for a little over half the price: not the bot's model.
+
 - With the connector alone, a case needing the spec's guide read first failed on that step only: the step is the
   skill's, so a case's required calls now count only where the skill is.
 - The grounded recheck of the plugin run (Opus, $51) found a claim the tool outputs don't back in 174 of 219
