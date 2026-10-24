@@ -15,12 +15,17 @@ answer makes, and what would make it wrong: often the tempting misreading of the
   tools     the tools its right answers call (tagged from the runs: those at least two in three passing answers
             called); `just evals --coverage` counts them, and a check fails when a core tool has no case
   calls     tools an answer must call, or it fails: a step of the method its text doesn't show (`spec_guide`
-            before advising a player how to play their spec); the judge sees only the answer
+            before advising a player how to play their spec); the judge sees only the answer;
+            not checked with the connector only, which has no skill to give it the step
+  request   for a post after a wipe (`posts.toml`): what the raider asked to have posted; without it, the
+            asker's own feedback. The question is built as the bot builds it, so a post case has none
   cause     for a wipe: what an experienced raid leader names first ("enrage: Unbound Ferocity", "ability: Mutilate",
             "deaths from 0:46", "reset"), which `just evals --endings` checks pull_summary's "Ended by" against
 
 One file per kind of question; `bot.toml` holds the cases on the Discord bot's own rules, which only `--bot` runs,
 and `connector.toml` the connector's own (an officer saving a pasted note), which every mode but `--bot` runs.
+`posts.toml` holds the bot's posts after a wipe (`follow_pulls`), asked as the bot asks itself when a pull ends:
+`--bot` only.
 `heldout.toml` holds cases written blind on a night nothing else was built on; only `--held-out` runs them, alone,
 and only at milestones (a release), never while changing the method: a gap between them and the regular cases is the
 method fitted to its own cases.
