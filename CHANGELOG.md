@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-24
+
 ### Changed
 
 - `Discord` **Posts after a wipe come sooner.** A post starts from the pull, and the guides on what ended it, already looked up, so a typical one arrives about seven seconds sooner and the slowest about fifteen.
