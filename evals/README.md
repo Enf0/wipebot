@@ -64,7 +64,7 @@ and how often the first call was one of the case's `tools`. Read the transcripts
 fail can be the judge's.
 
 The judge sees the question and the answer, not what the tools returned, so it can't catch a claim no case foresaw.
-`just evals --recheck results/X.json` checks a saved run's answers again, without asking again (about $0.20 an
+`just evals --recheck evals/results/X.json` checks a saved run's answers again, without asking again (about $0.20 an
 answer), and keeps what it finds in `results/rechecks/`. Neither check fails an answer:
 
 - **Grounded** (Opus): reads the answer's tool calls and outputs, and lists each claim that would mislead a raider
@@ -85,7 +85,7 @@ just evals --lint                   # the cases' numbers against the tools now (
 just evals --coverage               # what the cases cover: tools, kinds of question, places, bosses (no model)
 just evals --endings                # pull_summary's "Ended by" against each case's `cause` (no model)
 just evals --held-out --trials 3    # the held-out cases alone, at a milestone (never while changing the method)
-just evals --recheck results/X.json # a saved run's answers again: claims its tools don't back, and the rubric
+just evals --recheck evals/results/X.json # a saved run's answers again: claims its tools don't back, and the rubric
 just evals --label results/X.json   # mark a run's answers yourself (labels.jsonl)
 just evals --agreement              # how often the judge agrees with your marks
 just evals --api-key                # bill the run to ANTHROPIC_API_KEY, not your Claude login
