@@ -28,6 +28,7 @@ async def tank_swaps(rep: Report, pull: PullRef = None, boss: str | None = None)
         _aggro(rep, f), rep.events_for([(f["id"], {"sourceID": p.id}) for p in tanks], "Debuffs",
                                        hostilityType="Friendlies"),
         asyncio.gather(*(rep.casts(f, p) for p in tanks)))  # for _taunts
+    every: dict[str, dict[str, list[list]]] = {}  # tank -> debuff -> stints, for _over_one
     for p, events in zip(tanks, debuffs, strict=True):
         stints: dict[str, list[list]] = defaultdict(list)  # debuff -> [start, peak stack, peak time, end]
         up: Counter = Counter()  # debuff -> copies on the tank now (two bosses, or two casts, can each put one)
@@ -55,6 +56,7 @@ async def tank_swaps(rep: Report, pull: PullRef = None, boss: str | None = None)
         lines.append(f"{p.name}:")
         # A stack change or removal with no application seen first leaves an empty entry: nothing to show.
         stints = {name: runs for name, runs in stints.items() if runs}
+        every[p.name] = stints
         for name, runs in sorted(stints.items(), key=lambda kv: kv[1][0][0]):
             lines.append(f"  {name}: " + "; ".join(
                 f"{clock(start)}-{clock(end) if end is not None else 'end'}, peak {peak} at {clock(peak_at)}"
@@ -71,7 +73,38 @@ async def tank_swaps(rep: Report, pull: PullRef = None, boss: str | None = None)
     lines.append("Boss aggro in order (who took it, and with what): " + ("; ".join(
         f"{clock(at - t0)} {who}{f' on {boss}' if several else ''} ({how})" for at, who, how, boss in aggro)
         or "none"))
-    return "\n".join([*lines, SWAPS_NOT_LOGGED])
+    return "\n".join([*lines, *_over_one(every, aggro, t0), SWAPS_NOT_LOGGED])
+
+
+def _over_one(every: dict[str, dict[str, list[list]]], aggro: list[tuple[float, str, str, str]],
+              t0: float) -> list[str]:
+    """A swap debuff (one most of its stints on the tanks peak at 1: the other tank takes the boss before a second;
+    and never on two tanks at once, as one on the raid is) that went past 1 while the tank it was on held the boss:
+    who had it, since when, and when the other took over."""
+    peaks, starts = defaultdict(list), defaultdict(list)
+    for tank, stints in every.items():
+        for name, runs in stints.items():
+            peaks[name] += [peak for _, peak, _, _ in runs]
+            starts[name] += [(start, tank) for start, *_ in runs]
+    together = {name for name, ss in starts.items()
+                if any(a != b and abs(x - y) <= 2000 for x, a in ss for y, b in ss)}
+    swaps = {name for name, ps in peaks.items() if 2 * ps.count(1) > len(ps) and name not in together}
+    found = []
+    for tank, stints in every.items():
+        for name, runs in stints.items():
+            for _, peak, peak_at, _ in runs if name in swaps else ():
+                held = [(at - t0, who) for at, who, _, _ in aggro if at - t0 <= peak_at]
+                if peak < 2 or not held or held[-1][1] != tank:
+                    continue
+                after = next(((at - t0, who) for at, who, _, _ in aggro if at - t0 > peak_at and who != tank), None)
+                found.append((peak_at, f"{tank} {name} {peak} at {clock(peak_at)} (had the boss since "
+                              f"{clock(held[-1][0])}; " + (f"{after[1]} took it at {clock(after[0])})" if after
+                                                           else "nobody took it after)")))
+    if not found:
+        return []
+    return ["Swap debuffs past 1 stack while that tank held the boss (most of their stints on the tanks end at 1, and "
+            "they come on one tank at a time): "
+            + "; ".join(text for _, text in sorted(found)) + "."]
 
 
 async def _taunts(rep: Report, f: dict, p: Player, aggro: list[tuple[float, str, str, str]]) -> list[str]:
