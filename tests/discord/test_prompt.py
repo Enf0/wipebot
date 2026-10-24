@@ -131,13 +131,16 @@ def test_a_post_after_a_wipe_asks_for_the_raiders_feedback_or_their_request():
     assert all(f"about {POST_CHARS} characters" in q for q in (own, asked))
 
 
-def test_a_post_comes_with_the_tool_it_starts_from_already_run():
+async def test_a_post_comes_with_the_tool_it_starts_from_already_run():
     """A post is asked with its first tool's result, saving the model a turn: the pull's summary for what someone
-    asked for, the player's pull for their own feedback, and nothing without a character to look up."""
-    assert post_prefetch("Sszorak", 12, None, "why we wiped") == [("pull_summary", {"boss": "Sszorak", "pull": 12})]
-    assert post_prefetch("Sszorak", 12, "Torvek", "") == [
+    asked for, the player's pull for their own feedback, and nothing without a character to look up. A report that
+    can't be read for the guide leaves out only the guide."""
+    unread = cast(Report, SimpleNamespace(fight=lambda pull, boss: (_ for _ in ()).throw(FactError("no such pull"))))
+    assert await post_prefetch(unread, "Sszorak", 12, None, "why we wiped") == [
+        ("pull_summary", {"boss": "Sszorak", "pull": 12})]
+    assert await post_prefetch(unread, "Sszorak", 12, "Torvek", "") == [
         ("player_pull", {"player": "Torvek", "boss": "Sszorak", "pull": 12})]
-    assert post_prefetch("Sszorak", 12, None, "") == []
+    assert await post_prefetch(unread, "Sszorak", 12, None, "") == []
 
 
 async def test_the_host_prompt_names_only_tools_the_bot_has():

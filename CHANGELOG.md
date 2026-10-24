@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- `Discord` **Posts after a wipe come sooner.** A post starts from the pull already looked up, so it arrives about five seconds sooner, and the slowest ones well before the next pull.
+- `Discord` **Posts after a wipe come sooner.** A post starts from the pull, and the guides on what ended it, already looked up, so a typical one arrives about seven seconds sooner and the slowest about fifteen.
 
 ## [0.5.3] - 2026-10-24
 

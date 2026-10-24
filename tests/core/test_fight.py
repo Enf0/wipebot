@@ -9,7 +9,7 @@ from tests.support import CODE, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.pulls import Decided
 from wipebot.core.report import fight
-from wipebot.core.report.ending import ending, ending_text, lead
+from wipebot.core.report.ending import ending, ending_ability, ending_text, lead
 
 T0 = 1_000_000  # a pull late in the log: times in the text are from its start
 PULL = {"id": 1, "kill": False, "fightPercentage": 40.0, "startTime": T0, "endTime": T0 + 120_000}
@@ -88,12 +88,15 @@ def test_the_deaths_leading_into_a_moment_are_named_and_lead_when_they_are_many(
     assert lead(e) == "deaths from 1:10"  # four is a fifth of 20
     fewer = ending(rep, PULL, died[4:], backs, 20, [], None)  # two deaths before it: named, but don't lead
     assert fewer and fewer.lead_in and fewer.lead_in.deaths == 2 and lead(fewer) == "ability: Venom Burst"
+    # the mechanic a post reads up on first: the one ending it, none when the deaths before it lead
+    assert ending_ability(fewer) == "Venom Burst" and ending_ability(e) is None
 
 
 def test_a_cascade_starts_at_the_first_death_that_stayed(rep, deaths):
     died = died_as((10.0, SWIPE, 901), (50.0, SWIPE, 902), (55.0, CRASH, 903), (60.0, SWIPE, 904))
     e = ending(rep, PULL, died, {901: [T0 + 15_000.0]}, 6, [], Decided(60_000))
     assert e and e.kind == "cascade" and e.first_death_ms == 50_000
+    assert ending_ability(e) is None
 
 async def test_a_pull_still_going_has_no_buffs_at_the_end_and_is_logged_so_far():
     night = Night()

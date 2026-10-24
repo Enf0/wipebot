@@ -485,7 +485,11 @@ class WipeBot(discord.Client):
         question = post_question(pull.boss, pull.pull_no, f.name, f.character, f.request)
         ctx = self._context(s, f.user, f.name, pull.report, where, f.channel, asker=f.character, pull=pull.pull_no,
                             boss=pull.boss)
-        ctx.prefetch = post_prefetch(pull.boss, pull.pull_no, f.character, f.request)
+        try:  # Warcraft Logs not answering is the answer's to report, not the head start's
+            ctx.prefetch = await post_prefetch(await self.library.report(pull.report), pull.boss, pull.pull_no,
+                                               f.character, f.request)
+        except WCLError:
+            pass
 
         async def send(answer: Answer) -> list[int]:
             sent = await self._send(f.channel or await f.user.create_dm(), answer)
