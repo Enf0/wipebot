@@ -250,7 +250,7 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
         judge_majority(wrong_prompt(asked(case, client), wrongs(case, client), t.answer), judge_model),
         facts(asked(case, client), case["facts"], t.answer, judge_model) if case.get("facts")
         else asyncio.sleep(0))
-    t.uncalled = uncalled(case, calls)
+    t.uncalled = uncalled(case, calls, mode)
     t.passed = expect.ok is True and wrong.ok is True and not t.uncalled
     t.expect, t.wrong = asdict(expect), asdict(wrong)
     t.cost_usd += expect.cost_usd + wrong.cost_usd + (stated.cost_usd if stated else 0.0)
@@ -262,9 +262,12 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
     return t
 
 
-def uncalled(case: dict, calls: list[dict]) -> list[str]:
+def uncalled(case: dict, calls: list[dict], mode: str = "plugin") -> list[str]:
     """The tools the case says a right answer calls (`calls`: a step of the method no answer's text shows, such as
-    reading the spec's guide before advising) that the answer's conversation didn't call."""
+    reading the spec's guide before advising) that the answer's conversation didn't call. Only where the method is
+    read: a client with only the connector has no skill to give it the step."""
+    if mode == "connector":
+        return []
     made = {c.get("name") for c in calls}
     return [name for name in case.get("calls") or [] if name not in made]
 

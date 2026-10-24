@@ -179,4 +179,5 @@ def test_an_answer_without_a_call_its_case_requires_fails():
     case = {"id": "me-healer", "calls": ["spec_guide"]}
     assert uncalled(case, [{"name": "player_pull"}, {"name": "spec_guide", "turn": 0}]) == []
     assert uncalled(case, [{"name": "player_pull"}]) == ["spec_guide"]
+    assert uncalled(case, [{"name": "player_pull"}], "connector") == []  # no skill there to give the step
     assert uncalled({"id": "wipe"}, []) == []

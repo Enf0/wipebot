@@ -6,7 +6,8 @@ def test_the_cases_load():
     assert len({c["id"] for c in cases}) == len(cases)
     assert all(c["expect"].strip() and c["wrong"] for c in cases)
     assert all(isinstance(f, str) and f.strip() for c in cases for f in c.get("facts", []))
-    assert {c["id"] for c in cases if c.get("client_only")} == {"officer-saves-note", "plan-spots-at-virulence"}
+    assert {c["id"] for c in cases if c.get("client_only")} == {"officer-saves-note", "plan-spots-at-virulence",
+                                                                  "night-kicks-order-changed"}
 
 
 def test_a_broken_trial_is_an_error_not_a_wrong_answer():
