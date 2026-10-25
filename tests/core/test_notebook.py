@@ -225,7 +225,7 @@ def test_only_a_guilds_newest_versions_are_kept(monkeypatch):
 
 
 def test_a_note_for_a_boss_not_pulled_yet_is_given_as_it_is(book):
-    assert not server._pulled(night(), "Vashnik") and server._pulled(night(), "Sszorak")
+    assert not server.pulled(night(), "Vashnik") and server.pulled(night(), "Sszorak")
     text = server._unpulled_note(night(), "Sszorak")
     assert text.startswith("Sszorak has no pull in this report, so here is the newest raid note")
     assert "saved by Rowan" in text and text.endswith("\nthe note")

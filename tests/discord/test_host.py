@@ -163,6 +163,29 @@ async def test_raid_plan_gets_every_version_the_server_saved_for_the_pulls_boss(
     told = await session._saved_plan({})
     assert isinstance(told, str) and "or have the plans fetched from raidstrats.gg with /wipebot raidstrats" in told
     assert "no raidstrats.gg login is connected" in told
+    session._ctx = Context(notebook=book, guild_id=14169)
+    every = ("[saved 1000 by Rowan] raidstrats-addon-A\n[saved 1500 by Rowan] raidstrats-addon-V\n"
+             "[saved 2000 by Ha)lvard] raidstrats-addon-B")
+    # the plan as it is needs no pull: every plan, and raid_plan picks the boss's
+    assert (await session._saved_plan({"boss": "Vashnik"}))[0] == every  # not pulled in the report
+    assert (await session._saved_plan({"show": True}))[0] == every
+
+
+async def test_raid_note_for_a_boss_not_pulled_yet_gets_the_newest_one_saved():
+    def boss(name):
+        if name != "Sszorak":
+            raise FactError(f"no boss matching {name!r}")
+        return name
+    session = session_on(SimpleNamespace(boss=boss, guild_name="The Copper Lanterns"))
+    book = Notebook(":memory:")
+    book.save_note(14169, 3418, "Vashnik", "EncounterID:3418;old", "Rowan", at=1000.0)
+    book.save_note(14169, 3418, "Vashnik", "EncounterID:3418;new", "Rowan", at=2000.0)
+    session._ctx = Context(notebook=book, guild_id=14169)
+    told = await session._saved_note({"boss": "Vashnik"})
+    assert isinstance(told, str) and told.startswith("Vashnik has no pull in this report, so here is the newest")
+    assert told.endswith("EncounterID:3418;new")
+    told = await session._saved_note({"boss": "Coiled Altar"})
+    assert isinstance(told, str) and "has no raid note saved for it" in told
 
 
 async def test_the_bots_own_tools_run_the_questions_handler():
