@@ -72,6 +72,9 @@ API: `wcl-api.md`.
 
 ## warcraft_cli (v0.6.0)
 
+- Its own agent skill, for working on Wipebot: `.claude/skills/warcraft/` is warcraft_cli's `skills/warcraft/` at the
+  tag Wipebot pins (copied with the owner's consent; its agent configs left out). Copy it again from the new tag
+  whenever pyproject.toml's warcraft_cli version changes, since a newer one describes commands the pinned CLI lacks.
 - Every command prints one JSON envelope (`ok`, `data`, `error`). Wipebot runs commands as
   `python -c "from <module>.main import run; run()" ...` (`wowhead_cli`, `method_cli`, `lorrgs_cli`, ...).
 - It keeps its own HTTP cache under `~/.cache/warcraft`.
