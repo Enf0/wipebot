@@ -270,9 +270,9 @@ def _either(names: Iterable[str]) -> str:
 
 def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[str, str]) -> str:
     """The bot's emojis in an answer: a raid marker's for every {skull} or {rt8} and before every "skull marker",
-    and a spec's before the first mention of each player (`specs`: name -> WCL's class and spec), spec ("Holy
-    Paladin") and class ("Paladins"). A player's icon counts as their spec's and class's first mention. Links and
-    code are left alone; without an emoji, the text stays as it is."""
+    a spec's before every mention of a player (`specs`: name -> WCL's class and spec), and before the first mention
+    of a spec ("Holy Paladin") or class ("Paladins"). A player's icon counts as their spec's and class's first
+    mention. Links and code are left alone; without an emoji, the text stays as it is."""
     if not icons:
         return text
 
@@ -303,9 +303,10 @@ def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[st
             return said
         if m.lastgroup == "marker":
             return f"{icons[e]} {said}" if (e := marker_emoji(said.lower())) in icons else said
-        if m.lastgroup == "player":
+        if m.lastgroup == "player":  # every time
             c, s = players[said]
-            found, keys = icons.get(spec_emoji(c, s)) or icons.get(spec_emoji(c)), (said, (c, s), c)
+            seen.update(((c, s), c))
+            return f"{found} {said}" if (found := icons.get(spec_emoji(c, s)) or icons.get(spec_emoji(c))) else said
         elif m.lastgroup == "spec":
             c, s = by_spec[m.group("spec").lower()]
             found, keys = icons.get(spec_emoji(c, s)), ((c, s), c)
