@@ -246,7 +246,7 @@ def made_up_player(top: bool) -> dict:
         "standing": {"kind": "kills", "n": 900, "exact": False, "mine": 290_000,
                      "points": [["100th best", 360_000], ["500th best", 320_000], ["900th best", 250_000]]},
         "lost": {"until_ms": 140000, "dead_s": 0.0, "gaps_s": 4.0, "capped_s": 0.0, "resource": ""},
-        "alive_s": 143, "alive_until_ms": 143000, "gaps": [[100000, 104000]], "capped": [],
+        "alive_s": 143, "alive_until_ms": 143000, "gaps": [[100000, 104000]], "capped": [], "dead": [[143000, 150000]],
         "died": [{"ms": 143000, "by": "Molten Fury", "fallout": True}],
         "cooldowns": [{"name": "Ascendance", "uses": [60000], "possible": 1},
                       {"name": "Spirit Link Totem", "uses": [], "possible": 1}],

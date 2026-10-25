@@ -131,7 +131,8 @@ views.player = (() => {
     o += `<rect x="${x(0)}" y="${bar}" width="${x(end) - x(0)}" height="${h}" rx="3" fill="var(--blue)" opacity=".45"/>`;
     for (const [a, b] of D.gaps) o += `<rect x="${x(a)}" y="${bar}" width="${Math.max(1.5, x(b) - x(a))}" height="${h}" fill="var(--bg)" stroke="var(--muted)" stroke-width=".8"><title>no cast ${kit.clock(a)}–${kit.clock(b)}</title></rect>`;
     for (const [a, b] of D.capped) o += `<rect x="${x(a)}" y="${bar}" width="${Math.max(1.5, x(b) - x(a))}" height="${h / 2}" fill="var(--decided)" opacity=".85"><title>${kit.esc(D.lost.resource)} at its cap ${kit.clock(a)}–${kit.clock(b)}</title></rect>`;
-    for (const d of D.died) o += `<rect x="${x(d.ms)}" y="${bar}" width="${Math.max(1.5, x(D.duration_ms) - x(d.ms))}" height="${h}" fill="url(#pl-hatch)"><title>dead from ${kit.clock(d.ms)} (${kit.esc(d.by)})</title></rect>`;
+    // dead until they were back (a battle res, Reincarnation: their next cast) or the pull's end
+    for (const [a, b] of D.dead) o += `<rect x="${x(a)}" y="${bar}" width="${Math.max(1.5, x(b) - x(a))}" height="${h}" fill="url(#pl-hatch)"><title>dead ${kit.clock(a)}–${kit.clock(b)}</title></rect>`;
     if (D.decided) {
       o += kit.line(x(D.decided.ms), bar - 4, x(D.decided.ms), bar + h + 4, "var(--decided)", 'stroke-width="1.6" stroke-dasharray="3 3"');
       if (lanes) o += kit.text(x(D.decided.ms) - 4, bar - 6, `decided ${kit.clock(D.decided.ms)}`, "to", 'text-anchor="end" font-size="10"');
