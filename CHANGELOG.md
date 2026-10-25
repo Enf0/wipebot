@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A raid plan missing because the guild's raidstrats.gg login stopped working now says so.** Instead of "none saved", the answer says the plans can't be fetched and an officer has to connect again. A login refused only because Wipebot's own app settings changed is kept, and works again once they're fixed.
+
 ## [0.6.0] - 2026-10-24
 
 ### Changed

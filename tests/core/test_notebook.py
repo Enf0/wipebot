@@ -81,6 +81,22 @@ async def test_without_a_paste_a_tool_reads_what_the_reports_guild_saved(book):
     assert plans == ("[saved 1200 by Halvard] raidstrats-addon-x", "")  # Sszorak's only; pasted, no login
 
 
+
+async def test_with_none_saved_and_a_broken_login_the_tool_says_the_login_stopped_working(book, monkeypatch):
+    book.save_login(14169, "Enfo-2581", {"access_token": "a", "refresh_token": "r", "expires_in": 3600}, "Rowan")
+    book.fetched(14169, "raidstrats.gg no longer accepts the login: an officer connects again")
+    monkeypatch.setattr(server.raidstrats, "sync", lambda *a: _done())
+    assert book._db is not None
+    book._db.execute("DELETE FROM raid_plans")  # the boss's plan was made after the login broke
+    book._db.commit()
+    with pytest.raises(FactError, match="its plans are fetched from raidstrats.gg as Enfo-2581.*an officer connects "
+                                        "again"):
+        await server._saved_plans(night(), None, None)
+
+
+async def _done() -> None:
+    pass
+
 async def test_a_member_of_the_reports_guild_reads_its_notes_on_the_remote_server_and_no_one_else(book, monkeypatch):
     signed_in(monkeypatch, {14169})
     assert (await server._saved_note(night(), None, None, all_pulls=False))[0] == "the note"

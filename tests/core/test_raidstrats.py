@@ -54,7 +54,7 @@ def test_a_week_old_login_is_refreshed_to_keep_it_alive_and_a_refused_one_stops_
     expire(book)
     assert book.access_token(14169, lambda t: None) is None
     login = book.login(14169)
-    assert login and not login.working and "connect again" in login.problem and book.logins() == []
+    assert login and not login.working and "connects again" in login.problem and book.logins() == []
 
 
 def fake_raidstrats(monkeypatch, exports: dict[str, str]) -> list[str]:
@@ -123,6 +123,22 @@ async def test_when_raidstrats_fails_the_saved_plans_are_used_and_the_problem_ke
     assert login and login.working and "didn't answer" in login.problem and login.fetched_at is None
     assert "the last fetch failed: raidstrats.gg didn't answer" in raidstrats.source(login)
 
+
+
+async def test_a_refused_app_keeps_the_login_for_when_its_secret_is_fixed_and_a_refused_login_stops(book,
+                                                                                                  monkeypatch):
+    expire(book)
+    refusal = httpx.Response(401, json={"error": "invalid_client",
+                                        "error_description": "The client_id or secret is wrong."})
+    monkeypatch.setattr(raidstrats.httpx, "post", lambda *a, **kw: refusal)
+    await raidstrats.sync(book, 14169)
+    login = book.login(14169)
+    assert login and login.working and "refuses this Wipebot's app" in login.problem and book.logins() == [14169]
+    refusal = httpx.Response(400, json={"error": "invalid_grant",
+                                        "error_description": "The refresh token is not valid for this app."})
+    await raidstrats.sync(book, 14169)
+    login = book.login(14169)
+    assert login and not login.working and "an officer connects again" in login.problem
 
 async def test_the_login_address_must_carry_this_logins_state_and_code():
     with pytest.raises(raidstrats.RaidstratsError, match="cancelled"):
