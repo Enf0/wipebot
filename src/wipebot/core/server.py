@@ -842,9 +842,9 @@ def _unpulled_note(rep: Report, boss: str) -> str:
     guild = _saved_guild(rep, "raid note")
     found = [n for n in notebook.Notebook(readonly=True).latest_notes(guild)
              if knowledge.matches_boss(boss, n.boss) or knowledge.matches_boss(n.boss, boss)]
-    if not found:
-        raise FactError(f"{boss} has no pull in this report, and {rep.guild_name} has no raid note saved for it: ask "
-                        "the user to paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
+    if not found:  # an answer, not a failure: before the raid, no note is saved yet
+        return (f"{boss} has no pull in this report, and {rep.guild_name} has no raid note saved for it: the user can "
+                "paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
     n = found[0]
     return (f"{boss} has no pull in this report, so here is the newest raid note {rep.guild_name} saved for "
             f"{n.boss} ({saved.source(n.saved_at, n.saved_by)}), as it is, not checked against a pull:\n{n.note}")
