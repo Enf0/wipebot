@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-25
+
 ### Added
 
 - `Discord` **Link your own notes in a question.** Ask "how do we do Coiled Altar? <link>" with a link to a message, thread or channel, and the answer goes by what your guild wrote there over the guides. It reads only what you can read yourself, and needs the bot to read channel messages (`WIPEBOT_CHANNEL_CONTEXT=1`).
