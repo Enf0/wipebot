@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `Agent` **See the pull, not only read it, in Claude and ChatGPT.** Asking why a pull wiped shows it drawn under the answer: boss health against the raid's damage taken, the phases, the boss's casts, and each death up to the moment the wipe was decided. Open it for lanes of raid and healer cooldowns and the list of deaths, and click a death to replay the pull from just before it.
+- `Agent` **See a player's pull, and how they cast against the top.** Asking how someone did on a pull shows a card in Claude and ChatGPT: their healing or damage per second alive, their rank and where it stands among the spec's ranked kills (or their parse on a kill), the time they lost, a ribbon of when they cast, sat capped or were dead with their cooldowns on it, and one click compares their casts per minute with top players of their spec. In Discord the same card comes as a picture, with the biggest differences against the top when you ask for that comparison.
 - `Discord` **The pull as a picture with the answer.** Asking about a pull, and the post after each wipe, come with the same picture of the pull as in Claude and ChatGPT: boss health against the raid's damage taken, phases, the boss's casts and each death.
 
 ### Changed

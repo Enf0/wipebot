@@ -81,23 +81,7 @@ views.pull = (() => {
     });
   }
 
-  function niceMax(v) {
-    const step = 10 ** Math.floor(Math.log10(Math.max(v, 1)));
-    for (const m of [1, 2, 2.5, 5, 10]) if (m * step >= v) return m * step;
-    return 10 * step;
-  }
-
-  // Labels left to right after their marks, each only where it fits before the next mark of its lane (`marks`, the
-  // lane's x positions) and after the label before it; the rest stay a mark with a tooltip.
-  function labels(items, x, y, cls, marks, right, size = 9.5) {
-    let end = -Infinity, out = "";
-    const xs = marks.slice().sort((a, b) => a - b);
-    for (const [ms, s] of items) {
-      const at = x(ms) + 6, w = kit.width(s, size), next = xs.find((m) => m > x(ms) + 1) ?? right;
-      if (at > end && at + w < next - 3) { out += kit.text(at, y, s, cls, `font-size="${size}"`); end = at + w + 4; }
-    }
-    return out;
-  }
+  const { labels, niceMax } = kit;
 
   function chart({ W, L, R, plotH, lanes }) {
     const x = (ms) => L + ms / D.duration_ms * (W - L - R);

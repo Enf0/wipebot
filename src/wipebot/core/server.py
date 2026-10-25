@@ -414,14 +414,8 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     to after an intermission. The post compares the wipe with this log's earlier pulls and with the guild's best
     in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded" means the log names no
     killing hit (death_recap shows the damage before it and where the player was last)."""
-    rep = await lib().report(report)
-    text = await fight.pull_summary(rep, pull, boss)
-    if setup().remote is None:
-        return text
-    # Serving many users, the host may draw the pull (remote.py's views): it reads which pull from structuredContent.
-    return CallToolResult(content=[TextContent(type="text", text=text)],
-                          structured_content=await view_key("pull_summary", {"pull": pull, "boss": boss,
-                                                                             "report": report}))
+    text = await fight.pull_summary(await lib().report(report), pull, boss)
+    return await _shown("pull_summary", {"pull": pull, "boss": boss, "report": report}, text)
 
 
 @_tool
@@ -562,25 +556,47 @@ def _supports_apps(ctx: Context) -> bool:
 
 # ---------- what the views draw (report/views.py): remote.py's app-only tools, and the views' harness ----------
 
-VIEW_TOOLS = {"pull_summary": "pull"}  # the tools a view draws (the replay is pull_map's own: its picture is maps')
+# The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
+# with their casts against top players, for one player's casts
+VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player"}
 
 
 async def view_key(tool: str, args: dict) -> dict | None:
-    """What a view needs to draw a tool's answer: the view and the pull the call was about, resolved (the latest
-    pull, a report's code), as a host reads it from the result's structuredContent. None for a tool without one."""
+    """What a view needs to draw a tool's answer: the view, and the pull and player the call was about, resolved
+    (the latest pull, a report's code, the player's name as logged), as a host reads it from the result's
+    structuredContent. None for a tool, or a call, without one."""
     view = VIEW_TOOLS.get(tool)
-    if view is None:
+    if view is None or (tool == "compare_with_top" and not (args.get("player")
+                                                          and "casts" in (args.get("aspects") or ["casts"]))):
         return None
     rep = await lib().report(args.get("report"))
     f = rep.fight(args.get("pull"), args.get("boss"))
-    return {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
+    key: dict = {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
+    if view == "player":
+        key["player"] = rep.in_pull(f, rep.player(args["player"])).name
+        if tool == "compare_with_top":
+            key["top"] = True
+    return key
 
-async def view_data(view: Annotated[str, Field(description="which view: pull")],
-                    pull: Pull = None, boss: Boss = None, report: Report_ = None) -> CallToolResult:
-    """What a view draws, for the pull its tool was asked about."""
+
+async def _shown(tool: str, args: dict, text: str) -> str | CallToolResult:
+    """A tool's text, and serving many users, the key its view draws from (remote.py's views): a host reads it from
+    structuredContent."""
+    if setup().remote is None or (key := await view_key(tool, args)) is None:
+        return text
+    return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=key)
+
+
+async def view_data(view: Annotated[str, Field(description="which view: pull or player")],
+                    pull: Pull = None, boss: Boss = None, report: Report_ = None,
+                    player: Annotated[str | None, Field(description="the player view's player")] = None,
+                    top: Annotated[bool, Field(description="the player view with their casts against top players "
+                                                           "(slower: reads the top parses)")] = False
+                    ) -> CallToolResult:
+    """What a view draws, for the pull (and player) its tool was asked about."""
     rep = await lib().report(report)
     try:
-        data = await views.view_data(rep, view, pull, boss)
+        data = await views.view_data(rep, view, pull, boss, player, top)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],
@@ -1082,7 +1098,8 @@ async def _boss_over_weeks(rep: Report, boss: str | None, weeks: int) -> str:
 # ---------- players ----------
 
 @_tool
-async def player_pull(player: Player, pull: Pull = None, boss: Boss = None, report: Report_ = None) -> str:
+async def player_pull(player: Player, pull: Pull = None, boss: Boss = None,
+                      report: Report_ = None) -> str | CallToolResult:
     """For "how did I do?", "why is my damage or healing low?": start here for one pull.
     One player on one pull: hero talents, the WCL parse on a kill or, on a wipe, where their throughput per
     second alive falls among the spec's ranked kills; rank in their role, active time, damage by target, deaths
@@ -1096,7 +1113,8 @@ async def player_pull(player: Player, pull: Pull = None, boss: Boss = None, repo
     assume pressing on cooldown from the pull until the player died or the wipe was decided. A wipe's percentile
     against kills runs high on a short pull (Bloodlust and every cooldown come at the start); healing on a wipe
     is capped by the damage taken."""
-    return await coaching.player_pull(await lib().report(report), player, pull, boss)
+    text = await coaching.player_pull(await lib().report(report), player, pull, boss)
+    return await _shown("player_pull", {"player": player, "pull": pull, "boss": boss, "report": report}, text)
 
 
 async def _parts(parts: dict[str, Awaitable[str]]) -> str:

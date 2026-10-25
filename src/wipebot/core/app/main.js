@@ -3,7 +3,7 @@
   const root = document.getElementById("app");
   // A host that hands back a stored result without its structuredContent (Claude Desktop on reopening a chat) still
   // has the tool's name and arguments: these views can be drawn again from them.
-  const BY_TOOL = { pull_summary: "pull" };
+  const BY_TOOL = { pull_summary: "pull", player_pull: "player" };
   const SKELETON = document.getElementById("status").outerHTML;
   let args = null, started = "", stack = [], current = null;
 
@@ -48,7 +48,8 @@
     let key = sc && sc.report ? sc : null;
     if (!key) {
       const tool = app.context().toolInfo?.tool?.name;
-      if (args && BY_TOOL[tool]) key = { view: BY_TOOL[tool], report: args.report, pull: args.pull, boss: args.boss };
+      if (args && BY_TOOL[tool]) key = { view: BY_TOOL[tool], report: args.report, pull: args.pull, boss: args.boss,
+                                         player: args.player };
     }
     if (!key) { fail(result && result.isError ? "The tool failed: nothing to show." : "Nothing to show here: ask again to see it."); return; }
     const view = key.view || (key.at_ms !== undefined ? "replay" : "pull");  // a stored result from before views
