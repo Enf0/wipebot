@@ -196,13 +196,15 @@ async def test_the_bots_own_tools_run_the_questions_handler():
     async def keep(args):
         remembered.append(args)
         return "Remembered."
-    session._ctx = Context(tools={"remember": keep})
+    returned = []
+    session._ctx = Context(tools={"remember": keep}, on_done=lambda name, args: returned.append((name, args)))
     assert (await remember.handler({"note": "answer in English"}))["content"][0]["text"] == "Remembered."
     assert remembered == [{"note": "answer in English"}]
     text = (await follow.handler({"stop": True}))["content"][0]["text"]
     assert text == FOLLOW_PULLS.elsewhere  # no handler for this question: not in Discord
     assert [(c.name, c.result) for c in session._calls] == [("remember", "Remembered."),
                                                              ("follow_pulls", FOLLOW_PULLS.elsewhere)]
+    assert returned == [("remember", {"note": "answer in English"}), ("follow_pulls", {"stop": True})]
 
 
 def test_context_size_is_what_the_last_api_call_read_and_wrote():

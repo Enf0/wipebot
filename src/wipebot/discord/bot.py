@@ -29,6 +29,7 @@ from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
 from .posts import Following, Posts
+from .progress import FALLBACK_SPINNER, Progress, spinner
 from .prompt import plain, post_prefetch, post_question
 from .store import INTERACTION_DAYS, ServerSettings, Store
 
@@ -46,9 +47,6 @@ EARLIER_MESSAGES = 15  # a question comes with up to this many messages its conv
 EARLIER_HOURS = 12  # for a new conversation from this many hours back,
 EARLIER_CHARS = 1500  # each cut to this many characters
 EARLIER_SCANNED = 100  # messages looked through for them
-PROGRESS_AFTER_S = 5.0  # an answer's progress line shows once it has taken this long
-PROGRESS_EDIT_S = 2.0  # and is edited at most this often
-NOT_SHOWN = ("Skill", "Read")  # tools the progress line leaves out: reading the skill isn't looking at the log
 QUESTION_CHARS = 2000  # a longer question isn't answered (Discord's limit for a message, without Nitro)
 # What a raider is told when there's no answer: Claude's API refused the question (host.ModelError's kind), it took
 # too long, or something else went wrong.
@@ -159,68 +157,6 @@ async def respond(message: discord.Message, text: str) -> None:
         await message.reply(text)
 
 
-class Progress:
-    """While an answer is written: a small reply under the question naming what it has looked at so far, edited as
-    the model calls more tools (at most every PROGRESS_EDIT_S, Discord limits edits) and deleted once the answer is
-    posted. It's sent silently and the answer as a new message, so the asker is notified of the answer. It names tools
-    only, never their arguments, so no player is named where names are off."""
-
-    def __init__(self, message: discord.Message):
-        self._message = message
-        self._looked: list[str] = []
-        self._shown, self._sent, self._task = "", None, None
-        # time.monotonic() of the last edit: as if PROGRESS_AFTER_S from now, so a quick answer shows none
-        self._edited = time.monotonic() + PROGRESS_AFTER_S - PROGRESS_EDIT_S
-        self._closed = self._sending = False
-
-    def tool(self, name: str) -> None:
-        """Context.on_tool: the model called `name`."""
-        looked = server.title(name).lower()
-        if name in NOT_SHOWN or looked in self._looked:
-            return
-        self._looked.append(looked)
-        if self._task is None or self._task.done():
-            self._task = asyncio.create_task(self._show())
-
-    def _text(self) -> str:
-        return f"-# Looking at {', '.join(self._looked)}…"
-
-    async def _show(self) -> None:
-        while not self._closed and self._text() != self._shown:
-            await asyncio.sleep(self._edited + PROGRESS_EDIT_S - time.monotonic())
-            if self._closed:
-                return
-            text = self._text()  # with what came in meanwhile
-            self._sending = True
-            try:
-                if self._sent is None:
-                    if isinstance(self._message.channel, discord.DMChannel):
-                        self._sent = await self._message.channel.send(text, silent=True)
-                    else:
-                        self._sent = await self._message.reply(text, silent=True, mention_author=False)
-                else:
-                    await self._sent.edit(content=text)
-            except discord.HTTPException as e:  # the answer matters, not this
-                log.info("showing an answer's progress failed: %s", e)
-                return
-            finally:
-                self._sending = False
-            self._shown, self._edited = text, time.monotonic()
-
-    async def close(self) -> None:
-        """Stop showing progress and delete the line: after a send under way, so none is left behind."""
-        self._closed = True
-        if self._task:
-            if not self._sending:  # only waiting for its turn
-                self._task.cancel()
-            await asyncio.gather(self._task, return_exceptions=True)
-        if self._sent is not None:
-            try:
-                await self._sent.delete()
-            except discord.HTTPException as e:
-                log.info("deleting an answer's progress line failed: %s", e)
-
-
 async def pasted_note(message: discord.Message) -> str | None:
     """A raid note or raid plan in a message to the bot: its text, or a text file (Discord turns a long paste into
     message.txt)."""
@@ -315,6 +251,7 @@ class WipeBot(discord.Client):
         # After Claude's API refused a question or Warcraft Logs didn't answer, the conversation goes on.
         self.conversations = Conversations(self._open_session, survives=(ModelError, WCLError))
         self.latest_raids = LatestRaids(library, RECENT_REPORT_CHECK_S)
+        self.spinner = FALLBACK_SPINNER  # the progress line's, the bot's own emoji once logged in
         self._started = False
         self.stopping = False  # after SIGTERM: no new questions or posts, finish the answers in progress
         self._answering = 0
@@ -324,6 +261,7 @@ class WipeBot(discord.Client):
     # ---------- starting and stopping ----------
 
     async def setup_hook(self) -> None:
+        self.spinner = await spinner(self)
         if not self.trying:
             self.poll.start()
             self.keep_logins.start()
@@ -588,8 +526,8 @@ class WipeBot(discord.Client):
 
         async def send(answer: Answer) -> list[int]:
             return await self._send(message.channel, answer, reply_to=None if is_dm else message)
-        progress = Progress(message)
-        ctx.on_tool = progress.tool
+        progress = Progress(message, self.spinner)
+        ctx.on_tool, ctx.on_done = progress.tool, progress.done
         async with message.channel.typing():
             try:
                 failed = await self._answer("chat", key, code, question, ctx, name, send, message)
