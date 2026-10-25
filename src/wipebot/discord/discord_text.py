@@ -42,10 +42,12 @@ PLAN_SPOT = re.compile(r"#\d+ ([^():#\n]+?)(?: \(([^()\n]+)\))? \(([a-z]+)\):")
 BLANK_BEFORE_LIST = re.compile(r"^(?![ \t]*(?:[-*]|\d+\.) )(\S.*)\n[ \t]*\n(?=[ \t]*(?:[-*]|\d+\.) )", re.M)
 
 
-def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: Mapping[str, str] = {}) -> str:
+def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: Mapping[str, str] = {},
+           roster: Mapping[str, tuple[str, str]] = {}) -> str:
     """The answer as posted, from what the tools returned (`results`) and the reports they read, the session's
-    first, with the bot's emojis (`icons`, by name) where it has them. A broken link is undone first, so the ability
-    in it gets a proper one."""
+    first, with the bot's emojis (`icons`, by name) where it has them. A player's spec for their icon is the
+    report's, else what a tool result says of them, else the guild's `roster` (name -> WCL's class and spec). A
+    broken link is undone first, so the ability in it gets a proper one."""
     abilities = {spell: name for r in reports[::-1] for spell, name in r.abilities.items()}  # the first report wins
     text = link_items(link_abilities(unlink_broken(unlink_elsewhere(text)), results, abilities), results)
     text = link_scenes(text, results)
@@ -53,10 +55,24 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
     for report in reports:
         text = fix_pull_links(text, report)
     if icons:
-        specs = planned_classes(results, {name.lower(): name for name in icons if "_" not in name})
+        specs = dict(roster) | planned_classes(results, {name.lower(): name for name in icons if "_" not in name})
+        specs |= specs_in(results, icons)
         specs |= {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()}
         text = add_icons(text, specs, icons)
     return tight_lists(text)
+
+
+def specs_in(results: Sequence[str], icons: Mapping[str, str]) -> dict[str, tuple[str, str]]:
+    """The players tool results name with their spec or class in brackets after them ("Grusarn (Fury Warrior)",
+    "Torvek (Hunter, ...)"): name -> WCL's class and spec ("" for a class alone), for the specs and classes the bot
+    has an icon for."""
+    pairs = [name.split("_", 1) for name in icons if "_" in name and not name.startswith("marker_")
+             and name != SPINNER]
+    known = {f"{spaced(s)} {spaced(c)}": (c, s) for c, s in pairs} | {spaced(c): (c, "") for c, _ in pairs}
+    if not known:
+        return {}
+    pattern = re.compile(rf"(?<![\w'’-])([^\W\d_][\w'’-]{{2,}}) \(({_either(known)})(?=[,)])")
+    return {name: known[said] for result in results for name, said in pattern.findall(result)}
 
 
 def _link_first(text: str, name: str, url: str, longer: Iterable[str] = ()) -> str:
