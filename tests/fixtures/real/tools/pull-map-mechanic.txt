@@ -28,4 +28,4 @@ Distance to Sszorak (yd), and degrees off the way it faced (0 straight in front,
 - Scopidruid (dps): 31, 47°
 - Martin (dps): 34, 0°
 - Wutroll (tank): 34, 137°
-Whose job it was (a soak, a kick, a spot) isn't in the log: the raid note holds the jobs, and who did it on other pulls isn't an assignment (raids swap spots and keep reserves).
+Whose job it was (a soak, a kick, a spot) isn't in the log, and The Dragonfell Tribe has no raid note saved for Sszorak that night; who did it on other pulls isn't an assignment (raids swap spots and keep reserves).

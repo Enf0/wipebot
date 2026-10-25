@@ -148,7 +148,7 @@ class MapAnswer:
 
 async def pull_map(rep: Report, pull: PullRef = None, boss: str | None = None, at_: str | None = None,
                    players: list[str] | None = None, event: Event | None = None, all_pulls: bool = False,
-                   draw_it: bool = True) -> MapAnswer:
+                   draw_it: bool = True, jobs: str = JOBS_NOT_LOGGED) -> MapAnswer:
     """Where everyone stood at `at_`: a time (m:ss), or each time an ability happened; by default the first death of
     `players`, else the pull's first death. With an ability and `all_pulls`, every pull on the boss."""
     f = rep.fight(pull, boss)
@@ -163,7 +163,7 @@ async def pull_map(rep: Report, pull: PullRef = None, boss: str | None = None, a
             ans.text = rep.still_going(pulls) + ans.text
         else:
             ans = await _pull_mechanic(rep, f, mech, {p.id for p in focus}, draw_it, focus[0].name if focus else None)
-        ans.text += "\n" + JOBS_NOT_LOGGED
+        ans.text += "\n" + jobs
         return ans
     if all_pulls:
         raise FactError("all_pulls needs an ability in `at`: the moments to look at on every pull")

@@ -32,7 +32,7 @@ class Hits:
 
 async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: str | None = None,
                         all_pulls: bool = False, whole_pull: bool = False, start: str | None = None,
-                        end: str | None = None) -> str:
+                        end: str | None = None, jobs: str = JOBS_NOT_LOGGED) -> str:
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
     fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = {} if whole_pull else await rep.decided_cuts(fights)  # later hits are fallout
@@ -69,7 +69,7 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                  + (f" ({n} death{'s' if n > 1 else ''} within {HIT_THEN_DEATH_MS // 1000} s of a hit: the "
                     "deaths it set up, by any killing blow)" if (n := sum(h.died_after.values())) else ""))
     return "\n".join(lines[:31] + await _applications(rep, fights, h, _counting(fights, cut, window), name)
-                     + [JOBS_NOT_LOGGED])
+                     + [jobs])
 
 
 def _window(start: str | None, end: str | None) -> tuple[float, float] | None:

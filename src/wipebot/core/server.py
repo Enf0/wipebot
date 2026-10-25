@@ -75,6 +75,7 @@ from .report import healing as heals
 from .report import note as notes
 from .report import plan as plans
 from .report import query as queries
+from .report.base import JOBS_NOT_LOGGED, NOT_AN_ASSIGNMENT
 from .text import day, name_key, plural
 from .wcl import WCLError
 
@@ -475,7 +476,8 @@ async def mechanic_hits(ability: Annotated[str | None, Field(description=(
     Example: ability="Tempest", all_pulls=true."""
     rep = await lib().report(report)
     if ability:
-        return await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull, start, end)
+        return await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull, start, end,
+                                             jobs=await _jobs(rep, pull, boss, all_pulls))
     return await mechanics.mechanic_outliers(rep, pull, boss, all_pulls)
 
 
@@ -514,7 +516,8 @@ async def pull_map(pull: Pull = None, boss: Boss = None,
     # the host's capabilities from us, so the picture is left out only when the host surely shows the viewer.
     serving_many = setup().remote is not None
     viewer = serving_many and _supports_apps(ctx) and not all_pulls
-    ans = await maps.pull_map(rep, pull, boss, at, players, event, all_pulls, draw_it=not viewer)
+    jobs = await _jobs(rep, pull, boss, all_pulls) if at else JOBS_NOT_LOGGED  # said with an ability's moments
+    ans = await maps.pull_map(rep, pull, boss, at, players, event, all_pulls, draw_it=not viewer, jobs=jobs)
     content: list[TextContent | ImageContent] = [TextContent(type="text", text=ans.text)]
     if ans.image:
         content.append(ImageContent(type="image", data=base64.b64encode(ans.image).decode(), mime_type="image/webp"))
@@ -686,7 +689,31 @@ async def enemies(pull: Pull = None, boss: Boss = None,
     rep = await lib().report(report)
     if all_pulls:
         return await adds.enemies_night(rep, boss)
-    return await adds.enemies(rep, pull, boss)
+    return await adds.enemies(rep, pull, boss, await _jobs(rep, pull, boss, kicks=True))
+
+
+async def _jobs(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool = False, kicks: bool = False) -> str:
+    """What a tool says after who was hit, carried a debuff or had a kick ready: whose job it was isn't in the log,
+    and whether the guild saved a raid note for the pull (for the boss that night, with `all_pulls`), which may
+    assign it; with `kicks`, whether that note assigns kicks. JOBS_NOT_LOGGED where the guild's notes can't be read."""
+    if not rep.guild_id or not _a_member(rep.guild_id):
+        return JOBS_NOT_LOGGED
+    f = rep.fight(pull, boss)
+    found = await saved_note(notebook.Notebook(readonly=True), rep.guild_id, rep, f, all_pulls)
+    whose = "Whose kick it was" if kicks else "Whose job it was (a soak, a kick, a spot)"
+    night = f"{f['name']} that night"
+    if found is None:
+        return (f"{whose} isn't in the log, and {rep.guild_name} has no raid note saved for {night}; "
+                f"{NOT_AN_ASSIGNMENT}.")
+    if not kicks:
+        return (f"{whose} isn't in the log; {rep.guild_name} saved a raid note for {night}, which may assign it: "
+                f"raid_note shows what it assigns, checked against the pull. And {NOT_AN_ASSIGNMENT}.")
+    if await notes.assigns_kicks(rep, f, found[0]):
+        return (f"Whose kick it was isn't in the log, but {rep.guild_name}'s raid note saved for {night} assigns "
+                "kicks (a callout to one player as an add begins a cast): raid_note shows whose each cast was and "
+                "who kicked it.")
+    return (f"Whose kick it was isn't in the log, and {rep.guild_name}'s raid note saved for {night} assigns none "
+            f"(no callout to one player as an add begins a cast); {NOT_AN_ASSIGNMENT}.")
 
 
 # Said with every "no note or plan": what the model is tempted to put in its place.

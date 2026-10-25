@@ -101,7 +101,7 @@ def add_wave(f: dict, name: str, ability: str, wave: list[tuple[float, str, str 
     return f"{name} casts {ability} x{len(wave)}: " + ", ".join(parts)
 
 
-async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
+async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jobs: str = JOBS_NOT_LOGGED) -> str:
     """The enemies other than the boss in a pull (adds): how many came, when they died, what became of the rest
     (alive at the end, or gone without a death: despawned, transformed or removed), the damage they took and who
     did it, and their interruptible casts (begun, kicked, gone through). A boss-type unit that comes several
@@ -164,7 +164,7 @@ async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None) ->
         lines.append("Kick ready: alive with an interrupt (any spell they kicked with on this boss that night) off "
                      "its base cooldown when the cast began; range and stuns not checked"
                      + (f"; never kicked on this boss that night, so not counted: {', '.join(unknown)}." if unknown
-                        else ".") + " " + JOBS_NOT_LOGGED)
+                        else ".") + " " + jobs)
     if no_kicks:
         lines.append(no_kicks)
     if unrecorded := [rep.actor(n["id"]) for n in shown if came_of(n, deaths) > 1 and not deaths[n["id"]]
