@@ -207,3 +207,25 @@ async def test_raidstrats_login_status_and_connecting_from_discord(store, settin
     assert "Connected as **Enfo-2581**" in reply and "**Spread** (Sszorak)" in reply and synced == [14169]
     status = commands.describe_login(store, 1001)
     assert "as **Enfo-2581**, connected by Rowan" in status and "last fetched" in status
+
+
+async def test_viserio_key_status_and_connecting_from_discord(store, settings, monkeypatch):
+    from wipebot.core import viserio
+    store.save_settings(settings)
+    assert "aren't read from Viserio Cooldowns" in commands.describe_viserio(store, 1001)
+
+    async def connect(book, guild, key, named, by):
+        assert named == ("The Copper Lanterns", "argent-dawn", "eu")
+        if key != "key-1":
+            raise viserio.ViserioError("the key is for another group")
+        book.save_viserio_key(guild, key, "Lanterns", by)
+        return viserio.Group("g1", "Lanterns", "the copper lanterns", "argent-dawn", "eu")
+
+    async def upcoming(key):
+        return None, [viserio.Night({"date": "2026-10-26", "name": "Raid"}, [])]
+    monkeypatch.setattr(viserio, "connect", connect)
+    monkeypatch.setattr(viserio, "upcoming", upcoming)
+    assert "Not connected: the key is for another group" in await commands.connect_viserio(store, 1001, "x", "Rowan")
+    reply = await commands.connect_viserio(store, 1001, "key-1", "Rowan")
+    assert "Connected to **Lanterns**" in reply and "2026-10-26 Raid" in reply
+    assert "group **Lanterns**, connected by Rowan" in commands.describe_viserio(store, 1001)

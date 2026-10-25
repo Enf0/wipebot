@@ -43,7 +43,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import CallToolResult, ImageContent, TextContent, ToolAnnotations
 from pydantic import Field
 
-from . import clock, knowledge, notebook, raidstrats, wcl
+from . import clock, knowledge, notebook, raidstrats, viserio, wcl
 from .knowledge import KnowledgeError
 from .library import Library, ensure_wcl_access, latest_raid, report_code  # noqa: F401 (imported from here too)
 from .report import (
@@ -375,12 +375,22 @@ async def _report_guild(report: str | None) -> tuple[int, str] | None:
 @_tool
 async def roster(weeks: Annotated[int | None, Field(description=(
                      "attendance over this many weeks back instead (1-26)"), ge=1, le=26)] = None,
+                 upcoming: Annotated[bool, Field(description=(
+                     "the guild's raid nights coming up instead, as planned in Viserio Cooldowns"))] = False,
+                 boss: Annotated[str | None, Field(description=(
+                     "with `upcoming`: only this boss's setup (name, or part of it)"))] = None,
                  report: Report_ = None) -> str:
     """Who was in the raid: every player in the report with class, spec and role (to work out which character a
     person is). With `weeks`, attendance: which raiders came on which of the guild's raid nights in this raid over
     the last weeks ("who's been raiding?", "how often does X come?"; Warcraft Logs' attendance, two logs of one
-    night count once), with each night's reports."""
+    night count once), with each night's reports. With `upcoming`, the nights to come as the guild's officers plan
+    them in Viserio Cooldowns ("am I in on X tomorrow?", "who's benched?", "who's coming Monday?"): each night's
+    time and sign-ups (absent, late, tentative), and per boss planned who's in the setup, by role, and who's out.
+    Reading it: a setup is a plan for the week and can still change; the roster's name for a player is in brackets
+    after their character's."""
     rep = await lib().report(report)
+    if upcoming:
+        return await _upcoming(rep, boss)
     if weeks:
         await lib().wcl.ensure_points(ATTENDANCE_WEEK_POINTS * weeks, "attendance over weeks")
     return await (night.attendance(rep, weeks) if weeks else night.roster(rep))
@@ -629,15 +639,36 @@ def _saved_guild(rep: Report, what: str) -> int:
     if not rep.guild_id:
         raise FactError(f"no {what} was given, and this report is a personal log, not a guild's: ask the user to "
                         f"paste the {what}." + NO_JOBS)
-    remote = setup().remote
-    if remote:
-        from mcp.server.auth.middleware.auth_context import get_access_token
-
-        token = get_access_token()
-        if not (token and token.subject and rep.guild_id in remote.guild_ids(token.subject)):
-            raise FactError(f"no {what} was given, and the ones {rep.guild_name} saved are for its members only: "
-                            f"ask the user to paste the {what}." + NO_JOBS)
+    if not _a_member(rep.guild_id):
+        raise FactError(f"no {what} was given, and the ones {rep.guild_name} saved are for its members only: "
+                        f"ask the user to paste the {what}." + NO_JOBS)
     return rep.guild_id
+
+
+async def _upcoming(rep: Report, boss: str | None) -> str:
+    """roster's `upcoming`: the report's guild's nights to come, from Viserio with the key its officers gave."""
+    if not rep.guild_id:
+        raise FactError("this report is a personal log, not a guild's: the nights to come are a guild's")
+    found = notebook.Notebook(readonly=True).viserio_key(rep.guild_id)
+    if not found or not _a_member(rep.guild_id):
+        raise viserio.no_key(rep.guild_name) if not found else FactError(
+            f"{rep.guild_name}'s raid nights are for its members only")
+    try:
+        return viserio.nights_text(*await viserio.upcoming(found[0]), boss=boss)
+    except viserio.ViserioError as e:
+        raise FactError(f"{rep.guild_name}'s raid nights can't be read from Viserio Cooldowns: {e}") from e
+
+
+def _a_member(guild_id: int) -> bool:
+    """Whether the user may read what the guild keeps: on the remote server, a member signed in; anywhere else, yes
+    (the host serves its own guilds)."""
+    remote = setup().remote
+    if not remote:
+        return True
+    from mcp.server.auth.middleware.auth_context import get_access_token
+
+    token = get_access_token()
+    return bool(token and token.subject and guild_id in remote.guild_ids(token.subject))
 
 
 NIGHT_APART_S = 12 * 3600  # a log begun this long before another is another raid night; a note saved this long after

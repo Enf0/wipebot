@@ -11,6 +11,7 @@
     wipebot ask CODE                     developer chat: ask about a report as a raider would in Discord
     wipebot note FILE --at TIME          save a raid note or plan as if an officer pasted it then (FILE - for stdin)
     wipebot raidstrats-login --guild ID  fetch a guild's raid plans from raidstrats.gg with your login there
+    wipebot viserio --guild ID           read a guild's raid nights to come from Viserio Cooldowns with its key
 """
 import argparse
 import asyncio
@@ -171,6 +172,34 @@ def raidstrats_login(guild: int, by: str, disconnect: bool) -> None:
         print(f"- {p.name} ({p.boss})")
 
 
+def viserio_key(guild: int, by: str, disconnect: bool) -> None:
+    """A guild's Viserio Cooldowns key (WOWUTILS_API_KEY, else typed), saved in the notebook both apps read once
+    Viserio says its group is that guild's."""
+    import getpass
+
+    from wipebot.core import server, viserio
+    from wipebot.core.notebook import Notebook
+
+    book = Notebook()
+    if disconnect:
+        book.drop_viserio_key(guild)
+        print("Disconnected: the raid nights to come are no longer read from Viserio.")
+        return
+    key = os.environ.get("WOWUTILS_API_KEY") or getpass.getpass("The group's API key: ")
+
+    async def connect() -> str:
+        found = await server.configure().wcl.guild_by_id(guild)
+        if not found:
+            raise SystemExit(f"Warcraft Logs has no guild {guild}")
+        realm = found["server"]
+        g = await viserio.connect(book, guild, key, (found["name"], realm["slug"], realm["region"]["slug"]), by)
+        return g.name
+    try:
+        print(f"Connected to {asyncio.run(connect())}.")
+    except viserio.ViserioError as e:
+        raise SystemExit(f"Not connected: {e}.") from None
+
+
 def write_plugin(out: Path, repo: str, name: str) -> None:
     """`wipebot plugin`: the marketplace for this server (WIPEBOT_PUBLIC_URL, WIPEBOT_ALLOWED_GUILDS) in `out`,
     replacing what was there but .git, for its owner to push."""
@@ -213,6 +242,11 @@ def _tool_commands(sub) -> None:
                                                              "warcraftlogs.com/guild/id/<id>)")
     rs.add_argument("--by", default="the command line", help="who connected it, as /wipebot raidstrats shows")
     rs.add_argument("--disconnect", action="store_true", help="stop fetching and forget the login")
+    vs = sub.add_parser("viserio", help="read a guild's raid nights to come from Viserio Cooldowns with its group's "
+                                        "key (WOWUTILS_API_KEY, else asked)")
+    vs.add_argument("--guild", type=int, required=True, help="the guild's id on Warcraft Logs")
+    vs.add_argument("--by", default="the command line", help="who connected it, as /wipebot viserio shows")
+    vs.add_argument("--disconnect", action="store_true", help="stop reading them and forget the key")
     c = sub.add_parser("call", help="run one tool and print its result")
     c.add_argument("tool")
     c.add_argument("args", nargs="?", default="{}", help="tool arguments as JSON")
@@ -288,6 +322,8 @@ def main() -> None:  # noqa: C901
         save_note(args.file, args.at, args.by, args.server)
     elif args.cmd == "raidstrats-login":
         raidstrats_login(args.guild, args.by, args.disconnect)
+    elif args.cmd == "viserio":
+        viserio_key(args.guild, args.by, args.disconnect)
 
 
 if __name__ == "__main__":

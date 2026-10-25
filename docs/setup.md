@@ -108,6 +108,12 @@ pulls against them, takes an officer ([below](#officers-and-admins)) pasting one
 while asking to save it. Both apps read and write the same notes (`./data/wipebot-notes`). More:
 [features.md](features.md).
 
+**The raid nights to come from Viserio Cooldowns**, optional: a group admin turns on API sharing and makes the group's
+key in its settings on wowutils.com, and an officer gives it to the bot with `/wipebot viserio` (or `wipebot viserio
+--guild <id>` on the command line, with the key in `WOWUTILS_API_KEY` or typed). Both apps then answer "am I in on
+the next boss?" and "who's coming Monday?" from the calendar's sign-ups and the week's setups. The key is used only
+for the guild its group names, and what it reads is kept in memory for two minutes, never on disk.
+
 **Fetching plans from raidstrats.gg** instead of pasting them, optional: create an app on
 [raidstrats.gg/developers](https://raidstrats.gg/developers) with the data Plans and In-game import and the redirect
 URL `http://localhost:8765/callback`, and set `RAIDSTRATS_CLIENT_ID` and `RAIDSTRATS_CLIENT_SECRET` in `.env`. The

@@ -86,7 +86,7 @@ type = "layers"
 containers = ["wipebot.core"]
 layers = [
     "server",
-    "raidstrats | library",
+    "raidstrats | viserio | library",
     "report",
     "knowledge | accounts | notebook | pulls",
     "wcl | clock",

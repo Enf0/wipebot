@@ -1,6 +1,6 @@
 """Slash commands for server admins: /wipebot setup, /wipebot settings (with the raid notes and plans saved),
-/wipebot names, /wipebot raidstrats (the login the guild's raid plans are fetched with, where the host set up a
-raidstrats.gg app). Officers save a note or plan
+/wipebot names, /wipebot viserio (the key the raid nights to come are read with), /wipebot raidstrats (the login
+the guild's raid plans are fetched with, where the host set up a raidstrats.gg app). Officers save a note or plan
 by pasting it to the bot (bot.py).
 
 Only members with Manage Server see them (Discord enforces this), and server owners can change that in
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import discord
 from discord import app_commands
 
-from wipebot.core import raidstrats, server
+from wipebot.core import raidstrats, server, viserio
 from wipebot.core.accounts import parse_guild_link
 from wipebot.core.report import FactError
 from wipebot.core.report import note as notes
@@ -165,6 +165,78 @@ async def raidstrats_command(store: Store, interaction: discord.Interaction, dis
         "Paste the address.", view=RaidstratsLogin(store, url, state), ephemeral=True)
 
 
+def describe_viserio(store: Store, discord_guild_id: int) -> str:
+    """The guild's Viserio Cooldowns key, for /wipebot viserio."""
+    found = store.notebook.viserio_key(_guild(store, discord_guild_id))
+    if found is None:
+        return ("The raid nights to come aren't read from Viserio Cooldowns. A group admin turns on API sharing and "
+                "makes the group's key in its settings on wowutils.com; paste it below, and wipebot reads the "
+                "nights, sign-ups and setups whenever an answer needs them.")
+    _, group, by, at = found
+    return (f"The raid nights to come are read from Viserio Cooldowns' group **{group}**, connected by {by} "
+            f"<t:{int(at)}:R>.\nPaste a new key below if the group made one, or use `disconnect: True` to stop.")
+
+
+async def connect_viserio(store: Store, discord_guild_id: int, key: str, by: str) -> str:
+    """The group's key saved for the server's guild, and the nights to come read with it; what happened."""
+    guild = _guild(store, discord_guild_id)
+    s = store.settings(discord_guild_id)
+    assert s is not None  # _guild checked
+    try:
+        g = await viserio.connect(store.notebook, guild, key, (s.wcl_guild, s.wcl_server, s.wcl_region), by)
+        nights = (await viserio.upcoming(key.strip()))[1]
+    except viserio.ViserioError as e:
+        return f"Not connected: {e}."
+    return (f"Connected to **{g.name}**. Raid nights in the next {viserio.DAYS_AHEAD} days: "
+            + (", ".join(f"{n.event.get('date')} {n.event.get('name')}" for n in nights) or "none yet") + ".")
+
+
+class PasteKey(discord.ui.Modal, title="Viserio Cooldowns key"):
+    key: discord.ui.TextInput = discord.ui.TextInput(
+        label="The group's API key", placeholder="from the group's settings on wowutils.com, API sharing",
+        style=discord.TextStyle.short, max_length=200)
+
+    def __init__(self, store: Store):
+        super().__init__()
+        self.store = store
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        reply = await connect_viserio(self.store, in_guild(interaction).id, str(self.key.value),
+                                      interaction.user.display_name)
+        await interaction.followup.send(reply, ephemeral=True)
+
+
+class ViserioKey(discord.ui.View):
+    """The button that opens the box to paste the key in: a key typed as a command option would show in the
+    server's audit log."""
+
+    def __init__(self, store: Store):
+        super().__init__(timeout=600)
+        self.store = store
+
+    @discord.ui.button(label="Paste the key", style=discord.ButtonStyle.primary)
+    async def paste(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_modal(PasteKey(self.store))
+
+
+async def viserio_command(store: Store, interaction: discord.Interaction, disconnect: bool) -> None:
+    """/wipebot viserio: the key's status with a button to paste one, or with `disconnect`, the key forgotten."""
+    gid = in_guild(interaction).id
+    try:
+        if disconnect:
+            store.notebook.drop_viserio_key(_guild(store, gid))
+            await interaction.response.send_message(
+                "Disconnected: the raid nights to come are no longer read from Viserio, and the key is forgotten. "
+                "To revoke it too, make a new key in the group's settings on wowutils.com.", ephemeral=True)
+            return
+        status = describe_viserio(store, gid)
+    except FactError as e:
+        await interaction.response.send_message(str(e), ephemeral=True)
+        return
+    await interaction.response.send_message(status, view=ViserioKey(store), ephemeral=True)
+
+
 def names_command(store: Store, gid: int, channel: object, on: bool) -> str:
     """/wipebot names in a channel (or a thread: its channel): names on or off there; what to tell the admin."""
     if not store.settings(gid):
@@ -263,6 +335,12 @@ def build(bot: WipeBot) -> app_commands.Group:
         @app_commands.describe(disconnect="Stop fetching the plans and forget the login")
         async def raidstrats_login(interaction: discord.Interaction, disconnect: bool = False) -> None:
             await raidstrats_command(bot.store, interaction, disconnect)
+
+    @group.command(name="viserio", description="Read the raid nights to come (sign-ups, setups) from Viserio "
+                                               "Cooldowns with the group's API key")
+    @app_commands.describe(disconnect="Stop reading them and forget the key")
+    async def viserio_key(interaction: discord.Interaction, disconnect: bool = False) -> None:
+        await viserio_command(bot.store, interaction, disconnect)
 
     @group.command(name="names", description="Whether wipebot names players in this channel, as in DMs")
     @app_commands.describe(on="On: in this channel and its threads, wipebot says who made the costly mistakes")

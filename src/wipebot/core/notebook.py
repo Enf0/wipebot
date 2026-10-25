@@ -98,6 +98,13 @@ SCHEMA = """
         fetched_at REAL,
         problem TEXT NOT NULL DEFAULT ''
     );
+    CREATE TABLE IF NOT EXISTS viserio_keys (
+        wcl_guild_id INTEGER PRIMARY KEY,
+        api_key TEXT NOT NULL,   -- the group's key for Viserio Cooldowns' API
+        group_name TEXT NOT NULL,
+        connected_by TEXT NOT NULL,
+        connected_at REAL NOT NULL
+    );
 """
 
 
@@ -191,6 +198,26 @@ class Notebook:
         """Each plan's newest version, newest first."""
         newest: dict[str, SavedPlan] = {p.plan_id: p for p in self.plans(guild_id)}
         return sorted(newest.values(), key=lambda p: -p.saved_at)
+
+    # ---------- the Viserio Cooldowns key ----------
+
+    def save_viserio_key(self, guild_id: int, key: str, group_name: str, connected_by: str) -> None:
+        """The group's key for the guild, replacing its old one."""
+        assert self._db is not None
+        self._db.execute("INSERT OR REPLACE INTO viserio_keys (wcl_guild_id, api_key, group_name, connected_by, "
+                         "connected_at) VALUES (?, ?, ?, ?, ?)", (guild_id, key, group_name, connected_by, time.time()))
+        self._db.commit()
+
+    def viserio_key(self, guild_id: int) -> tuple[str, str, str, float] | None:
+        """The guild's key, its group's name, who connected it and when; None without one."""
+        rows = self._rows("SELECT api_key, group_name, connected_by, connected_at FROM viserio_keys "
+                          "WHERE wcl_guild_id = ?", (guild_id,))
+        return rows[0] if rows else None
+
+    def drop_viserio_key(self, guild_id: int) -> None:
+        assert self._db is not None
+        self._db.execute("DELETE FROM viserio_keys WHERE wcl_guild_id = ?", (guild_id,))
+        self._db.commit()
 
     # ---------- the raidstrats.gg login ----------
 
