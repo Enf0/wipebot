@@ -282,8 +282,10 @@ class Session:
         if not (self._ctx and self._ctx.notebook):
             return "Raid notes are only kept in Discord: there's none here."
         report = await self.library.report(args.get("report") or self.code)
-        f = report.fight(args.get("pull"), args.get("boss"))
         book, guild = self._ctx.notebook, self._ctx.guild_id
+        if (boss := args.get("boss")) and not server.pulled(report, boss):  # not pulled yet: the note as it is
+            return server.unpulled_note(book, guild, report, boss)
+        f = report.fight(args.get("pull"), boss)
         if found := await server.saved_note(book, guild, report, f, bool(args.get("all_pulls"))):
             return found
         other = server.OTHER_NIGHTS if book.notes(guild, f["encounterID"]) else ""
@@ -298,15 +300,20 @@ class Session:
             return "Raid plans are only kept in Discord: there's none here."
         book, guild = self._ctx.notebook, self._ctx.guild_id
         report = await self.library.report(args.get("report") or self.code)
-        f = report.fight(args.get("pull"), args.get("boss"))
+        boss = args.get("boss")
+        # The plan as it is (`show`, or a boss not pulled yet) needs no pull: every plan, raid_plan picks the boss's
+        whole = bool(args.get("show")) or bool(boss and not server.pulled(report, boss))
+        f = None if whole else report.fight(args.get("pull"), boss)
         await raidstrats.sync(book, guild)
         login = book.login(guild)
         fetching = raidstrats.client() is not None  # /wipebot raidstrats exists only then
         source = raidstrats.source(login) if login else "saved from pastes" + (
             ": no raidstrats.gg login is connected (an officer connects one with /wipebot raidstrats)" if fetching
             else "")
-        if not (found := server.saved_plans(book, guild, report, f)):
-            return (f"No raid plan is saved for {report.boss_key(f)} in this server. Officers save one by pasting the "
+        found = server.every_plan(book, guild) if f is None else server.saved_plans(book, guild, report, f)
+        if not found:
+            named = boss if f is None else report.boss_key(f)
+            return (f"No raid plan is saved for {named} in this server. Officers save one by pasting the "
                     "plan's export from raidstrats.gg (the planner's Export button) to the bot"
                     + (f", or have the plans fetched from raidstrats.gg with /wipebot raidstrats (the plans are "
                        f"{source})" if fetching else "") + "." + server.NO_JOBS)

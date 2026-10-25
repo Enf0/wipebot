@@ -813,11 +813,16 @@ async def _saved_plans(rep: Report, pull: PullRef, boss: str | None) -> tuple[st
     return "\n".join(found), source
 
 
+def every_plan(book: notebook.Notebook, guild: int) -> list[str]:
+    """Every version of every plan `guild` saved, each after its mark (saved.py): raid_plan picks the boss's."""
+    return [f"{saved.mark(p.saved_at, p.saved_by)} {p.plan}" for p in book.plans(guild)]
+
+
 async def _every_plan(rep: Report) -> tuple[str, str]:
     """Every version of every plan the report's guild saved, each after its mark (saved.py), and where they're
     from."""
     book, guild, source, broken = await _guild_plans(rep)
-    if not (found := [f"{saved.mark(p.saved_at, p.saved_by)} {p.plan}" for p in book.plans(guild)]):
+    if not (found := every_plan(book, guild)):
         raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved{broken}: ask the user to paste "
                         "the plan's export from raidstrats.gg.")
     return "\n".join(found), source
@@ -847,14 +852,14 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     a night's question needs no call per pull. Asked about a boss the report has no pull on, it gives the newest
     note saved for it, as it is."""
     rep, source = await lib().report(report), ""
-    if not note and boss and not _pulled(rep, boss):
+    if not note and boss and not pulled(rep, boss):
         return _unpulled_note(rep, boss)
     if not note:
         note, source = await _saved_note(rep, pull, boss, all_pulls)
     return await notes.note_check(rep, note, pull, boss, source=source, all_pulls=all_pulls)
 
 
-def _pulled(rep: Report, boss: str) -> bool:
+def pulled(rep: Report, boss: str) -> bool:
     """Whether the report has a pull on the boss."""
     try:
         rep.boss(boss)
@@ -866,8 +871,12 @@ def _pulled(rep: Report, boss: str) -> bool:
 def _unpulled_note(rep: Report, boss: str) -> str:
     """The newest note the report's guild saved for a boss the report has no pull on (not pulled yet): as it is,
     with nothing to check it against."""
-    guild = _saved_guild(rep, "raid note")
-    found = [n for n in notebook.Notebook(readonly=True).latest_notes(guild)
+    return unpulled_note(notebook.Notebook(readonly=True), _saved_guild(rep, "raid note"), rep, boss)
+
+
+def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: str) -> str:
+    """The newest note `guild` saved for `boss`, which the report has no pull on, as it is (the apps' shared rule)."""
+    found = [n for n in book.latest_notes(guild)
              if knowledge.matches_boss(boss, n.boss) or knowledge.matches_boss(n.boss, boss)]
     if not found:  # an answer, not a failure: before the raid, no note is saved yet
         return (f"{boss} has no pull in this report, and {rep.guild_name} has no raid note saved for it: the user can "
@@ -915,7 +924,7 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     draws them, not in the room; a spot without a name is filled by the night's assignment, which the plan doesn't
     have. Asked about a boss the report has no pull on, it shows the plan."""
     rep, source, unpulled = await lib().report(report), "", ""
-    if boss and not show and not _pulled(rep, boss):  # not pulled yet: there's only the plan to show
+    if boss and not show and not pulled(rep, boss):  # not pulled yet: there's only the plan to show
         show, unpulled = True, f"{boss} has no pull in this report, so the plan is shown as it is.\n"
     if show:
         if not plan:
