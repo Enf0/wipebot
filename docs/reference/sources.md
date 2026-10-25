@@ -45,7 +45,10 @@ API: `wcl-api.md`.
   (by hand or the API) is the plan as last saved. The NSRT note Viserio exports keeps a mechanic section's lists as
   `Name: raiders` lines but not the general Raidplan section's numbering (25 October 2026).
 - Viserio's default plans (the Wowutils ones an assignment note links unless changed) can't be read with a guild
-  officer's login: `addon-export` answers 403 `access_denied` ("This account cannot open that plan"). A duplicate in
+  officer's login: `addon-export` and `thumbnail` answer 403 `access_denied` ("This account cannot open that plan"),
+  with or without a `public=true` parameter, though `POST /plans/{id}/embed` answers 200 for them (`private: false`,
+  `guildPlan: false`). The plan REST API, with a key from raidstrats.gg's Discord, serves non-guild plans; without a
+  key it stops at Cloudflare's bot check. A duplicate in
   the officer's account can, once saved on raidstrats.gg (until then 404 `addon_export_missing`), checked 25 October
   2026. A refresh with a wrong client secret answers 401 `invalid_client`; a refused login 400 `invalid_grant`.
 - raidstrats.gg's API (`/api/oauth/v1`, its developers page) reads only as a person who logged in and approved the
