@@ -770,10 +770,13 @@ async def _saved_plans(rep: Report, pull: PullRef, boss: str | None) -> tuple[st
         await raidstrats.sync(notebook.Notebook(), guild)
     book = notebook.Notebook(readonly=True)
     login = book.login(guild)
+    source = raidstrats.source(login) if login else ""
     if not (found := saved_plans(book, guild, rep, f)):
-        raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved for {rep.boss_key(f)}: ask the "
-                        "user to paste the plan's export from raidstrats.gg." + NO_JOBS)
-    return "\n".join(found), raidstrats.source(login) if login else ""
+        # A login that stopped working is why a plan made since is missing: the officer who can fix it must hear it.
+        broken = f" (its plans are {source})" if login and login.problem else ""
+        raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved for {rep.boss_key(f)}{broken}: "
+                        "ask the user to paste the plan's export from raidstrats.gg." + NO_JOBS)
+    return "\n".join(found), source
 
 
 @_tool

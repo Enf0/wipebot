@@ -91,11 +91,23 @@ def _why(r: httpx.Response) -> str:
         return str(r.status_code)
 
 
+def _error(r: httpx.Response) -> str:
+    """The OAuth error code of a refusal ("invalid_client", "invalid_grant"), or ""."""
+    try:
+        return str(r.json().get("error") or "")
+    except ValueError:
+        return ""
+
+
 def _refresh(refresh_token: str) -> dict | None:
-    """raidstrats.gg's token reply for a refresh token; None when it refuses it (revoked, lapsed)."""
+    """raidstrats.gg's token reply for a refresh token; None when it refuses it (revoked, lapsed). Raises
+    RaidstratsError when it refuses the app instead, so the login is kept for when the app's secret is fixed."""
     cid, secret = client() or ("", "")
     r = httpx.post(BASE + "/oauth/token", headers=UA, timeout=TIMEOUT_S, data=dict(
         grant_type="refresh_token", refresh_token=refresh_token, client_id=cid, client_secret=secret))
+    if r.status_code == 401 and _error(r) == "invalid_client":
+        raise RaidstratsError("raidstrats.gg refuses this Wipebot's app: whoever runs it sets the app's current "
+                              "RAIDSTRATS_CLIENT_SECRET")
     if r.status_code in (400, 401):
         log.warning("raidstrats.gg refused a login's refresh token: %s", _why(r))
         return None
@@ -145,6 +157,9 @@ async def sync(book: Notebook, guild_id: int) -> None:
                 book.save_plan(guild_id, p.boss, p.plan_id, p.name, p.export, SAVED_BY)
                 log.info("raidstrats.gg plan %r (%s) saved for guild %s", p.name, p.boss, guild_id)
         book.fetched(guild_id)
+    except RaidstratsError as e:
+        log.warning("fetching guild %s's plans from raidstrats.gg failed: %s", guild_id, e)
+        book.fetched(guild_id, str(e))
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
         log.warning("fetching guild %s's plans from raidstrats.gg failed: %r", guild_id, e)
         book.fetched(guild_id, f"raidstrats.gg didn't answer ({type(e).__name__})")

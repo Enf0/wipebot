@@ -255,7 +255,7 @@ class Notebook:
             token = refresh(refresh_token)
             if token is None:
                 db.execute("UPDATE raidstrats_logins SET refresh_token = '', problem = ? WHERE wcl_guild_id = ?",
-                           ("raidstrats.gg no longer accepts the login: connect again with /wipebot raidstrats",
+                           ("raidstrats.gg no longer accepts the login: an officer connects again",
                             guild_id))
                 db.execute("COMMIT")
                 return None
