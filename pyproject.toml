@@ -18,7 +18,8 @@ dependencies = [
 [project.optional-dependencies]
 # the remote server (wipebot.mcp); all come with mcp, named for what it imports
 mcp = ["starlette", "uvicorn", "cryptography"]
-discord = ["discord.py>=2.7", "claude-agent-sdk>=0.2"]  # the Discord bot (wipebot.discord)
+# the Discord bot (wipebot.discord); playwright draws the views as pictures (viewhost.Painter)
+discord = ["discord.py>=2.7", "claude-agent-sdk>=0.2", "playwright>=1.64"]
 
 [project.scripts]
 wipebot = "wipebot.__main__:main"
@@ -41,7 +42,6 @@ dev = [
     "ruff>=0.6",
     "ty==0.0.90",
     "import-linter>=2.1",
-    "playwright>=1.64.1",
 ]
 
 [tool.pytest.ini_options]

@@ -20,6 +20,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--font); }
 #app { padding: 10px 0 4px; }
+:root[data-picture] #app { padding: 16px 18px 12px; }  /* a picture has no host's margin around it */
 button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
          height: 32px; min-width: 36px; padding: 0 12px; cursor: pointer; }
 button:hover { border-color: var(--muted); }

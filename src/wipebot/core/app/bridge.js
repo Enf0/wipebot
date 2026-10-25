@@ -1,8 +1,9 @@
 // ---- the MCP Apps bridge: JSON-RPC over postMessage with the host (spec 2026-01-26) ----
 // The page asks ui/initialize, says ui/notifications/initialized, then gets the tool's input and result. It calls our
 // server's tools through the host (tools/call), asks for fullscreen (ui/request-display-mode) and reports its size.
+const PICTURE_HOST = "wipebot-picture";  // viewhost.py's painter, which takes a still picture of a view
 const app = (() => {
-  let nextId = 1, context = {}, capabilities = {};
+  let nextId = 1, context = {}, capabilities = {}, host = {};
   const pending = new Map(), listeners = { input: [], result: [], cancelled: [], context: [], teardown: [] };
   const emit = (what, value) => listeners[what].forEach((fn) => fn(value));
 
@@ -38,6 +39,12 @@ const app = (() => {
     context = { ...context, ...part };
     const vars = part.styles && part.styles.variables;
     if (vars) for (const [k, v] of Object.entries(vars)) if (v) document.documentElement.style.setProperty(k, v);
+    const fonts = part.styles && part.styles.css && part.styles.css.fonts;  // the host's @font-face rules
+    if (fonts && !document.getElementById("host-fonts")) {
+      const style = document.createElement("style");
+      style.id = "host-fonts"; style.textContent = fonts;
+      document.head.appendChild(style);
+    }
     if (part.theme) {
       document.documentElement.dataset.theme = part.theme;
       document.documentElement.style.colorScheme = part.theme;
@@ -55,6 +62,8 @@ const app = (() => {
       const r = await request("ui/initialize", { appInfo, protocolVersion: "2026-01-26",
                                                 appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] } });
       capabilities = (r && r.hostCapabilities) || {};
+      host = (r && r.hostInfo) || {};
+      if (host.name === PICTURE_HOST) document.documentElement.dataset.picture = "";
       merge((r && r.hostContext) || {});
     } finally {
       notify("ui/notifications/initialized", {});
@@ -95,6 +104,7 @@ const app = (() => {
 
   return {
     connect, callTool, requestDisplayMode, canGoFullscreen, sendMessage, log,
+    picture: () => host.name === PICTURE_HOST,  // drawn as a still picture (the Discord bot's): no buttons
     on: (what, fn) => listeners[what].push(fn),
     context: () => context,
     capabilities: () => capabilities,

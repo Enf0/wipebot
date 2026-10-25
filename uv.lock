@@ -1519,6 +1519,7 @@ dependencies = [
 discord = [
     { name = "claude-agent-sdk" },
     { name = "discord-py" },
+    { name = "playwright" },
 ]
 mcp = [
     { name = "cryptography" },
@@ -1529,7 +1530,6 @@ mcp = [
 [package.dev-dependencies]
 dev = [
     { name = "import-linter" },
-    { name = "playwright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -1545,6 +1545,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "mcp", specifier = ">=2.3" },
     { name = "pillow", specifier = ">=13" },
+    { name = "playwright", marker = "extra == 'discord'", specifier = ">=1.64" },
     { name = "starlette", marker = "extra == 'mcp'" },
     { name = "tzdata" },
     { name = "uvicorn", marker = "extra == 'mcp'" },
@@ -1555,7 +1556,6 @@ provides-extras = ["mcp", "discord"]
 [package.metadata.requires-dev]
 dev = [
     { name = "import-linter", specifier = ">=2.1" },
-    { name = "playwright", specifier = ">=1.64.1" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "ruff", specifier = ">=0.6" },

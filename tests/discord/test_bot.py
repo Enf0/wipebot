@@ -533,7 +533,7 @@ async def test_a_long_answer_is_cut_after_four_messages(channel):
 async def test_a_map_goes_with_the_last_message_of_its_answer(channel):
     drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
     await WipeBot._send(channel, Answer("x" * 2500, calls=[ToolCall("pull_summary", {}, "", False), drawn]))
-    assert channel.files == [[], ["map-1.webp"]]
+    assert channel.files == [[], ["wipebot-1.webp"]]
     assert drawn.record(0)["images"] == 1  # the record of the answer keeps the count, not the image
 
 

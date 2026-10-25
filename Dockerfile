@@ -9,6 +9,18 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --all-extras --no-install-project
 
+# Chromium's headless shell, for the bot's pictures of the views (viewhost.Painter), where every user finds it; with the
+# dependencies, so only a new Playwright installs it again. Its system libraries are the ones its binary links to
+# (ldd), not Playwright's --with-deps, which are full Chromium's and fonts for every script (twice the size); the
+# pictures bring their own font (Inter), DejaVu covers the rest.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatomic1 libatspi2.0-0t64 libdbus-1-3 libdrm2 libexpat1 \
+        libgbm1 libglib2.0-0t64 libnspr4 libnss3 libx11-6 libxau6 libxcb1 libxcomposite1 libxdamage1 libxdmcp6 \
+        libxext6 libxfixes3 libxi6 libxkbcommon0 libxrandr2 libxrender1 fontconfig fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && /app/.venv/bin/python -m playwright install --only-shell chromium
+
 COPY src src
 COPY CHANGELOG.md LICENSE ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --all-extras

@@ -419,9 +419,9 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     if setup().remote is None:
         return text
     # Serving many users, the host may draw the pull (remote.py's views): it reads which pull from structuredContent.
-    f = rep.fight(pull, boss)
-    return CallToolResult(content=[TextContent(type="text", text=text)], structured_content={
-        "view": "pull", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)})
+    return CallToolResult(content=[TextContent(type="text", text=text)],
+                          structured_content=await view_key("pull_summary", {"pull": pull, "boss": boss,
+                                                                             "report": report}))
 
 
 @_tool
@@ -561,6 +561,19 @@ def _supports_apps(ctx: Context) -> bool:
 
 
 # ---------- what the views draw (report/views.py): remote.py's app-only tools, and the views' harness ----------
+
+VIEW_TOOLS = {"pull_summary": "pull"}  # the tools a view draws (the replay is pull_map's own: its picture is maps')
+
+
+async def view_key(tool: str, args: dict) -> dict | None:
+    """What a view needs to draw a tool's answer: the view and the pull the call was about, resolved (the latest
+    pull, a report's code), as a host reads it from the result's structuredContent. None for a tool without one."""
+    view = VIEW_TOOLS.get(tool)
+    if view is None:
+        return None
+    rep = await lib().report(args.get("report"))
+    f = rep.fight(args.get("pull"), args.get("boss"))
+    return {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
 
 async def view_data(view: Annotated[str, Field(description="which view: pull")],
                     pull: Pull = None, boss: Boss = None, report: Report_ = None) -> CallToolResult:
