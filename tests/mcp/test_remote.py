@@ -585,7 +585,7 @@ def test_an_officer_in_several_guilds_saves_nowhere(monkeypatch):
 def test_pull_tools_open_the_views_which_read_the_app_only_tools(client):
     call, _ = session(client)
     tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
-    for shown in ("pull_map", "pull_summary", "player_pull"):
+    for shown in ("pull_map", "pull_summary", "player_pull", "player_night"):
         assert tools[shown]["_meta"]["ui"]["resourceUri"] == remote.VIEWS_APP
         assert tools[shown]["_meta"]["openai/outputTemplate"] == remote.VIEWS_APP
     # compare_with_top has no view of its own (a host shows it on every call, and most have no player): the player

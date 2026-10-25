@@ -8,9 +8,9 @@ its private reports to everyone, so the server won't start with one, nor read wi
 - `save_note_or_plan` (server.allow_saving): a raid note or plan an officer pasted, saved for their guild. Officers
   are the characters at guild rank 0 to WIPEBOT_OFFICER_RANK (signin.Access; by default WoW's Guild Master and
   Officer ranks), as Warcraft Logs had them at sign-in or the last membership check (within the hour).
-- The views, an MCP App (core/report/views.py, the page in core/app/): `pull_summary` draws the pull and
-  `player_pull` the player, asking the app-only `view_data` for what to draw (the player's casts against top players
-  on a click); `pull_map` opens the replay, which asks the app-only `pull_replay` for the
+- The views, an MCP App (core/report/views.py, the page in core/app/): `pull_summary` draws the pull, `player_pull`
+  the player and `player_night` the player's night, asking the app-only `view_data` for what to draw (the player's
+  casts against top players on a click); `pull_map` opens the replay, which asks the app-only `pull_replay` for the
   whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets). `pull_map` with `plan`
   on one pull opens it with the plan's spots at each moment it checked.
 - The connector and the skill as a Claude plugin to download, at /plugin.zip (plugin.py).
@@ -80,13 +80,17 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     shown = {"ui": {"resourceUri": VIEWS_APP}, "openai/outputTemplate": VIEWS_APP}
     # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull, and
     # compare_with_top no player: the player view asks for its comparison itself).
-    server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown},
+    server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
+                                       "player_night": shown},
                     notes={"pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
                                        "(not with all_pulls); with plan, the plan's spots on it and a button per "
                                        "moment.",
                            "pull_summary": "In Claude and ChatGPT, the user also sees the pull drawn: boss health "
                                            "and raid damage taken over time, phases, cooldowns and deaths, with its "
                                            "replay a click away.",
+                           "player_night": "In Claude and ChatGPT, the user also sees the player's night drawn: "
+                                           "their output and deaths pull by pull, the trend, and their cooldowns "
+                                           "summed, each pull's own view a click away.",
                            "player_pull": "In Claude and ChatGPT, the user also sees the player's pull drawn: their "
                                           "output and where it stands, time lost, when they cast, capped or died, "
                                           "and their cooldowns, with their casts against top players a click away.",

@@ -388,8 +388,8 @@ async def player_night(rep: Report, player: str, boss: str | None = None) -> str
     fights = [f for f in rep.pulls_with(p, rep.by_boss[b]) if not f.get("inProgress")]
     if not fights:
         raise FactError(f"{p.name}'s only pull on {b} is still going: ask again once it has ended")
-    pulls, skipped, unavailable_why = await _night_pulls(rep, p, fights)
-    return _night_text(rep, p, b, pulls, _night_cooldowns(pulls, skipped, unavailable_why),
+    pulls, skipped, unavailable_why = await night_pulls(rep, p, fights)
+    return _night_text(rep, p, b, pulls, night_cooldowns(pulls, skipped, unavailable_why),
                        await _night_lost_at_cap(rep, p, fights))
 
 
@@ -404,7 +404,7 @@ async def _night_lost_at_cap(rep: Report, p: Player, fights: list[dict]) -> str 
     return f"Over the night (every pull to its end): {lost}" if lost else None
 
 
-async def _night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[NightPull], set[str], str]:
+async def night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[NightPull], set[str], str]:
     """Each pull of a player's night; the cooldowns their talents leave out; why the cooldowns are unavailable."""
     await rep.decided_cuts(fights)  # every pull's deaths, boss buffs and battle res, in a query each
     # A table per pull (ranks are per pull), healing or damage by the spec played in it. The tables, each pull's
@@ -448,7 +448,7 @@ async def _night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list
     return out, skipped, why
 
 
-def _night_cooldowns(pulls: list[NightPull], skipped: set[str], why: str) -> NightCooldowns:
+def night_cooldowns(pulls: list[NightPull], skipped: set[str], why: str) -> NightCooldowns:
     cds = NightCooldowns(unavailable=why)
     for pull in pulls:
         for sp, times, possible in pull.cooldowns:
@@ -466,22 +466,38 @@ def _night_cooldowns(pulls: list[NightPull], skipped: set[str], why: str) -> Nig
     return cds
 
 
-def _night_trend(pulls: list[NightPull], role: str, what: str) -> str | None:
+@dataclass(frozen=True)
+class NightThird:
+    """A third of a player's night (`night_trend`): its pulls (resets left out), the deaths before the wipe was
+    decided, and the median of their output per second alive (None without any)."""
+    pulls: list[int]  # indices into the night's pulls
+    died: int
+    rate: float | None
+
+
+def night_trend(pulls: list[NightPull], role: str) -> list[NightThird] | None:
     """How the night went for the player, first third of the pulls against the middle and the last (the thirds
-    `progress` gives the raid's wipes in): deaths before the wipe was decided, and the median of their output per
-    second alive. None for fewer than six pulls."""
+    `progress` gives the raid's wipes in). None for fewer than six pulls."""
     counted = [pull for pull in pulls if not is_reset(pull.f)]
     if len(counted) < 6:
         return None
     third = len(counted) // 3
-    parts = [counted[:third], counted[third:-third], counted[-third:]]
-    deaths = " / ".join(f"{sum(bool(x.death) and not x.fallout for x in part)} of {len(part)}" for part in parts)
-
-    def rate(part: list[NightPull]) -> str:
+    out = []
+    for part in (counted[:third], counted[third:-third], counted[-third:]):
         rates = sorted(x.mine["total"] / max(x.alive_s, 1) for x in part if x.mine and x.played.role == role)
-        return short(rates[len(rates) // 2]) + "/s" if rates else "-"
+        out.append(NightThird([pulls.index(x) for x in part], sum(bool(x.death) and not x.fallout for x in part),
+                              rates[len(rates) // 2] if rates else None))
+    return out
+
+
+def _night_trend(pulls: list[NightPull], role: str, what: str) -> str | None:
+    """The trend over the night (`night_trend`) as player_night's line."""
+    if (thirds := night_trend(pulls, role)) is None:
+        return None
+    deaths = " / ".join(f"{t.died} of {len(t.pulls)}" for t in thirds)
+    rates = " / ".join(short(t.rate) + "/s" if t.rate is not None else "-" for t in thirds)
     return (f"Over the night (the pulls in thirds: first / middle / last): died before the wipe was decided on "
-            f"{deaths}; {what} per second alive, median, {' / '.join(rate(part) for part in parts)}.")
+            f"{deaths}; {what} per second alive, median, {rates}.")
 
 
 def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: NightCooldowns,

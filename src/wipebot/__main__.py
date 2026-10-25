@@ -284,7 +284,8 @@ def _tool_commands(sub) -> None:
     v.add_argument("--width", default="430,760", help="inline widths in px, comma-separated")
     v.add_argument("--mode", default="inline", help="inline, fullscreen or both (inline,fullscreen)")
     v.add_argument("--click", action="append", default=[], help="a button to click after the first shot, by its "
-                                                                 "text; repeat for more, each shot in turn")
+                                                                 "text, or css:<selector>; repeat for more, each "
+                                                                 "shot in turn")
     v.add_argument("--tokens", default="none", choices=["none", "claude"], help="the host's style variables")
 
 

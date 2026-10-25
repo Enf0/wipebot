@@ -149,7 +149,7 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
                 widths: tuple[int, ...] = (430, 760), modes: tuple[str, ...] = ("inline",),
                 clicks: tuple[str, ...] = (), tokens: str = "none") -> list[Shot]:
     """Screenshots of the tool's view in each theme, width and mode, after clicking each of `clicks` (a button's
-    text) in turn: <out>/<theme>-<width>-<mode>[-<n>].png."""
+    text, or "css:" and a selector) in turn: <out>/<theme>-<width>-<mode>[-<n>].png."""
     from playwright.async_api import async_playwright
 
     out.mkdir(parents=True, exist_ok=True)
@@ -168,7 +168,7 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
                         page = await _open(browser, setup, errors)
                         for n in range(len(clicks) + 1):
                             if n:
-                                await page.frame_locator("iframe").get_by_role("button", name=clicks[n - 1]).click()
+                                await _click(page, clicks[n - 1])
                                 await page.wait_for_timeout(300)
                             try:
                                 await _settled(page)
@@ -187,6 +187,14 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
         finally:
             await browser.close()
     return shots
+
+
+async def _click(page: Any, what: str) -> None:
+    """Click in the view: a button by its text, or with "css:" anything by a CSS selector (a pull's row)."""
+    view = page.frame_locator("iframe")
+    target = (view.locator(what.removeprefix("css:")) if what.startswith("css:")
+              else view.get_by_role("button", name=what))
+    await target.first.click()
 
 
 async def watch(tool: str, args: dict, theme: str = "dark", width: int = 430, mode: str = "inline") -> None:
