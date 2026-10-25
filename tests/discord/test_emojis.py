@@ -62,29 +62,41 @@ def specs(monkeypatch):
         if "Paladin-Holy" in path:
             raise KnowledgeError("not there")
         return f"image {path}".encode()
+
     async def boss_spells():
-        return [1290001, 1290002]
+        return {1290001: "Guillotine", 1290002: "Sever"}
 
     async def spell_icon(spell):
         if spell == 1290002:
             raise KnowledgeError("Wowhead has no icon")
         return f"icon {spell}".encode()
+
+    async def game_file(file_id):
+        if file_id != emojis.MARKER_FILES[0]:
+            raise KnowledgeError("wago.tools is down")
+        buf = io.BytesIO()
+        Image.new("RGBA", (64, 64), (255, 214, 0, 255)).save(buf, "PNG")  # a stand-in for the game's star
+        return buf.getvalue()
     monkeypatch.setattr(emojis.knowledge, "talent_trees", trees)
     monkeypatch.setattr(emojis.knowledge, "wcl_image", image)
     monkeypatch.setattr(emojis.knowledge, "raid_boss_spells", boss_spells)
     monkeypatch.setattr(emojis.knowledge, "spell_icon", spell_icon)
+    monkeypatch.setattr(emojis.knowledge, "game_file", game_file)
 
 
 async def test_the_emojis_missing_are_uploaded_once(specs):
-    client, found = FakeClient({SPINNER: 1, "marker_star": 2}, fail={"marker_skull"}), {}
+    client, found = FakeClient({SPINNER: 1, "raid_moon": 2}, fail={"raid_skull"}), {}
     await sync(cast(discord.Client, client), found)
     created = dict(client.created)
     assert created["DeathKnight_Blood"] == b"image icons/DeathKnight-Blood.jpg"
     assert created["Paladin"] == b"image icons/Paladin.jpg" and "Paladin_Holy" not in created  # no image
-    assert SPINNER not in created and "marker_star" not in created and "marker_moon" in created
-    assert found[SPINNER] == "<:wipebot_spinner:1>" and "marker_skull" not in found  # Discord said no
+    assert SPINNER not in created and "raid_moon" not in created
+    assert Image.open(io.BytesIO(created["raid_star"])).size == (64, 64)  # the game's texture
+    assert created["raid_circle"] == emojis.marker_png("circle")  # drawn, without the game's
+    assert found[SPINNER] == "<:wipebot_spinner:1>" and "raid_skull" not in found  # Discord said no
     assert found["DeathKnight"].startswith("<:DeathKnight:")
     assert created["spell_1290001"] == b"icon 1290001" and "spell_1290002" not in found  # a boss ability's
+    assert found["ability:guillotine"] == found["spell_1290001"]  # and by its name
 
 
 async def test_without_discord_there_are_no_emojis(specs):
