@@ -89,7 +89,8 @@ summary; the bullets back the verdict, they don't repeat it.
   works out what it found ("the check tries both sides").
 - Say a limit of what you could check once, in a `-#` line at the end, and only one that changes how to read the
   answer (data the question needs that the tools didn't have); never what no log, note or plan could hold (what was
-  said on voice, what someone meant).
+  said on voice, what someone meant). A nerf or buff newer than the guides that changed what you said goes there
+  too ("-# Nerfed Oct 13: 4 purple orbs, was 5; the guides still say 5.").
 - Link each pull the first time, to the link the tools give:
   [Sszorak pull 13](https://www.warcraftlogs.com/reports/CODE#fight=21).
 - Write abilities and player names exactly as the tools give them, never in bold: the bot links abilities and puts

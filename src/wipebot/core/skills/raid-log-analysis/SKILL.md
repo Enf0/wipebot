@@ -181,6 +181,19 @@ A raid leader decides what to change, not only what went wrong.
 - Progress over nights: `progress` with `weeks` gives the boss night by night (the best wipe, the kill, how the pulls
   ended); fewer pulls ending on the same mechanic is progress before the kill is.
 
+## Explaining a boss
+
+How a boss works and the strategy for it come from the guides (`boss_guide`). Where the guild has its own, who
+does what comes from it: `raid_plan` (spots and movement, with notes), `raid_note` (assignments and cooldowns), and
+notes its raid leaders posted where the question was asked.
+- On who goes where and does what (spots, soak groups, who carries what, cooldown timings), the guild's own wins
+  over a guide's suggestion: it's what the raid will play.
+- A hotfix `boss_guide` lists is newer than the guides it names: where it changes a number or a mechanic the
+  answer covers, give the hotfix's, and say in a line that it changed (when, and what it was), since raiders may
+  have read the guide.
+- Where the guides disagree with each other, or with the guild's notes, on something that matters, say so in a line
+  and which one the answer follows.
+
 Worked examples of reading a pull, a night and a cooldown plan: [examples.md](examples.md).
 
 Anything else (a boss, a spec, loot, parses and rankings, raid prep): the tools' descriptions say which one answers it.

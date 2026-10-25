@@ -96,15 +96,22 @@ def cut(text: str, chars: int) -> str:
     return head[:head.rfind("\n") if "\n" in head[chars // 2:] else chars].rstrip() + " ..."
 
 
+def updated_on(when: str | None) -> datetime | None:
+    """A guide's last update as the site gives it ('2026-10-03', '2026-08-26T15:49:22-05:00'), None when unreadable."""
+    try:
+        day = datetime.fromisoformat((when or "").replace("Z", "+00:00")[:25])
+    except ValueError:
+        return None
+    return day if day.tzinfo else day.replace(tzinfo=UTC)
+
+
 def updated(when: str | None) -> str:
     """'last updated 2026-08-13 (58 days ago)', so a stale guide is plain to see."""
     if not when:
         return "last update unknown"
-    try:
-        day = datetime.fromisoformat(when.replace("Z", "+00:00")[:25])
-    except ValueError:
+    day = updated_on(when)
+    if day is None:
         return f"last updated {when}"
-    day = day if day.tzinfo else day.replace(tzinfo=UTC)
     days = (datetime.fromtimestamp(clock.now(), UTC) - day).days  # below 0 for a later day in another time zone
     return f"last updated {day:%Y-%m-%d} ({plural(days, 'day') + ' ago' if days > 0 else 'today'})"
 

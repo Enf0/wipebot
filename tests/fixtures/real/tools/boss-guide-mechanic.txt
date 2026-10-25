@@ -1,5 +1,7 @@
 Virulence on Sszorak: its tooltip, then the parts of each guide that name it (boss_guide without `mechanic` reads the whole guides).
 
+# No hotfix to Sszorak since 2026-08-13. Source: Blizzard's hotfix posts on Wowhead's blue tracker https://www.wowhead.com/blue-tracker/topic/us/world-of-warcraft-midnight-hotfixes-october-23-2382684
+
 Tooltip (Wowhead, spell 1297707): Virulence.
 
 # Method's Mythic guide for Sszorak (The Venomous Abyss), last updated 2026-10-02 (11 days ago). Source: Method https://www.method.gg/guides/the-venomous-abyss/sszorak
@@ -10,6 +12,6 @@ Sha veethzo sha liskaka lisumve ve dorqu mibri ve umnor migar umdor tel rorolis 
 ## Handling Virulence
 Qu dor veeth kaqu ve sha dor nor dor telbridor bri brilisro shaququ mianka ro roum brinor nor umbrieth ro zoroqu quro qutel andor ummium ro lisro bri shagarnor garlisnor mikalis brive teltellis robri brieth andornor ethbrieth zo gar gar dorbrive anethka venorro roanan um ka liskatel zo ethmi dorka kave an qu eth anlis antelve mi shatel
 
-# Wowhead's guide for Sszorak (cheat sheet, strategy, dungeon journal; difficulties as marked): names no Virulence. Source: Wowhead https://www.wowhead.com/guide/midnight/raids/venomous-abyss-sszorak-boss-strategy-abilities
+# Wowhead's guide for Sszorak (cheat sheet, strategy, the dungeon journal on Mythic): names no Virulence. Source: Wowhead https://www.wowhead.com/guide/midnight/raids/venomous-abyss-sszorak-boss-strategy-abilities
 
 # Icy Veins' guide for Sszorak (every difficulty; Mythic changes at the end): names no Virulence. Source: Icy Veins https://www.icy-veins.com/wow/sszorak-raid-guide

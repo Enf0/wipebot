@@ -50,6 +50,9 @@ def made_up_text(text: str, *seed: object) -> str:
             words = len(chunk.split())
             filler = " ".join(_word(*seed, i, j, w) for w in range(words))
             lead, trail = chunk[:len(chunk) - len(chunk.lstrip())], chunk[len(chunk.rstrip()):]
+            # beside a date, a space: made-up words glued to it ("2026: The" as "2026Telro") hide it the next time
+            if filler:
+                lead, trail = lead or " " * (j > 0), trail or " " * (j < len(dates))
             piece.append(lead + (filler[:1].upper() + filler[1:] if filler else "") + (trail if filler else ""))
             if j < len(dates):
                 piece.append(dates[j])

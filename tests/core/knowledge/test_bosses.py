@@ -1,7 +1,8 @@
+import datetime
 import json
 
 from tests.support import FIXTURES
-from wipebot.core.knowledge import bosses, fetch
+from wipebot.core.knowledge import bosses, fetch, news
 from wipebot.core.knowledge.fetch import KnowledgeError
 from wipebot.core.knowledge.guides import Guide
 
@@ -184,3 +185,57 @@ def test_an_enrage_is_found_under_either_name():
     for asked in ("Berserk", "enrage"):
         assert dict(bosses.mechanic_sections(g, asked)) == {
             "Overview": "There's no DPS enrage to race against.", "Mythic": "The boss goes berserk at 8:00."}
+
+
+def test_the_journal_keeps_the_entries_on_the_difficulty_asked():
+    """Wowhead's journal lists an ability once per difficulty it differs on, its abilities in the list under it; an
+    entry on no difficulty is on all of them."""
+    raw = ("<ul><li><div>Fangs: all players.</div></li>"
+           "<li><div>Deluge: spews venom. (Normal, Raid Finder)</div></li>"
+           "<ul><li><div>Venom: pulses.</div></li><ul><li><div>Rupture: explodes.</div></li></ul></ul>"
+           "<li><div>Deluge: spews venom. (Heroic, Mythic)</div></li>"
+           "<ul><li><div>Mutation: on Mythic. (Mythic)</div></li></ul></ul>")
+    mythic = bosses.journal_on(raw, "mythic")
+    assert "Fangs" in mythic and "(Heroic, Mythic)" in mythic and "Mutation" in mythic
+    assert "Normal" not in mythic and "Venom:" not in mythic and "Rupture" not in mythic
+    heroic = bosses.journal_on(raw, "heroic")
+    assert "(Heroic, Mythic)" in heroic and "Mutation" not in heroic and "Rupture" not in heroic
+
+
+def test_the_strategy_guides_come_whole_and_wowhead_gets_the_rest():
+    def guide(source):
+        return Guide(source, source, f"https://{source}", None, [])
+    guides = [guide("method"), guide("wowhead"), guide("icy-veins")]
+    assert bosses._budgets(guides, ["m" * 20000, "w" * 39000, "i" * 11000]) == [20000, 9000, 11000]
+    # strategy guides too long together share what Wowhead's least leaves, by length
+    room = bosses.GUIDES_CHARS - bosses.WOWHEAD_MIN_CHARS
+    method, wowhead, icy = bosses._budgets(guides, ["m" * 30000, "w" * 30000, "i" * 30000])
+    assert method == icy == room // 2 and wowhead == bosses.WOWHEAD_MIN_CHARS
+    assert bosses._budgets([guide("method")], ["m" * 50000]) == [bosses.GUIDES_CHARS]
+
+
+def test_a_cut_guide_names_what_was_cut_and_a_repeated_ability_keeps_its_name():
+    text = bosses._repeats_out("# Guide\n\n## Phase 1\n" + "x" * 300 + "\n\n- Deluge: " + "venom " * 20
+                               + "\n\n## Phase 3\n- Stage Three: Union\n\n- Deluge: " + "venom " * 20)
+    assert text.endswith("- Stage Three: Union\n\n- Deluge: as above")
+    cut = bosses._cut(Guide("method", "M", "https://m", None, []), text, 200)
+    assert cut.endswith("(Cut here: Phase 3, Stage Three: Union and the rest; web_lookup with https://m "
+                        "reads the whole guide.)")
+
+
+def test_hotfixes_are_listed_against_the_guides_written_before_them():
+    """By day, as the posts give no time: a hotfix on the day of a guide's update may be newer than it."""
+    def fix(day, text):
+        return news.Hotfix(f"October {day}, 2026", "The Venomous Abyss › The Coiled Altar", text,
+                           datetime.datetime(2026, 10, day, tzinfo=datetime.UTC).timestamp())
+    guides = [Guide("method", "M", "https://m", "2026-10-13", []),
+              Guide("icy-veins", "I", "https://i", "2026-08-13T12:30:00+00:00", [])]
+    text = bosses.hotfixes_after("The Coiled Altar", guides, (["https://post"], [fix(13, "Orbs reduced to 4."),
+                                                                                  fix(2, "Old.")]))
+    assert text.splitlines()[1:] == [
+        "- October 13, 2026 (Method, Icy Veins): The Venomous Abyss › The Coiled Altar: Orbs reduced to 4.",
+        "- October 2, 2026 (Icy Veins): The Venomous Abyss › The Coiled Altar: Old."]
+    newest = [Guide("method", "M", "https://m", "2026-10-14", [])]
+    assert bosses.hotfixes_after("The Coiled Altar", newest, (["https://post"], [fix(13, "x")])).startswith(
+        "# No hotfix to The Coiled Altar since 2026-10-14.")
+    assert "unknown" in bosses.hotfixes_after("The Coiled Altar", newest, KnowledgeError("down"))

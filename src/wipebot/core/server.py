@@ -1349,13 +1349,15 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
                      report: Report_ = None) -> str:
     """How to beat a raid boss and how each of its mechanics works (who it targets, whether it can be avoided, what
     happens when it fails); also its abilities' exact tooltip numbers and its loot.
-    strategy (the default): three guides side by side, each with its last update: Method's (raid setup, strategy,
-    the usual wipe causes), Wowhead's cheat sheet (assignments per phase, the dungeon journal) and Icy Veins'
-    (every mechanic, a quick guide, the Mythic changes). With `mechanic`, for judging one mechanic: its tooltip
-    and only the guides' sections and paragraphs that name it, a tenth of the whole. tooltips: only Wowhead's
-    tooltip of every ability (exact damage and effects), without the strategy. loot: each drop's slot, stats and
-    effect, the item level per difficulty, the other rewards; with a spec, which drops its best-in-slot lists and
-    trinket advice (Wowhead, Method, Icy Veins) name."""
+    strategy (the default): Blizzard's hotfixes to the boss since the oldest guide's last update, each naming the
+    guides older than it, then three guides side by side, each with its last update: Method's (raid setup,
+    strategy, the usual wipe causes), Wowhead's cheat sheet (assignments per phase, the dungeon journal on the
+    difficulty) and Icy Veins' (every mechanic, a quick guide, the Mythic changes). Method's and Icy Veins' come
+    whole; a cut says which phases and sections it left out. With `mechanic`, for judging one mechanic: the
+    hotfixes, its tooltip and only the guides' sections and paragraphs that name it, a tenth of the whole.
+    tooltips: only Wowhead's tooltip of every ability (exact damage and effects), without the strategy. loot: each
+    drop's slot, stats and effect, the item level per difficulty, the other rewards; with a spec, which drops its
+    best-in-slot lists and trinket advice (Wowhead, Method, Icy Veins) name."""
     boss = await top.boss_name(lib().wcl, boss)
     try:
         return await _boss_guide(boss, topic, difficulty, raid, spec, report, mechanic)
