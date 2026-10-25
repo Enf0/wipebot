@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Agent` **Boss strategy that keeps up with nerfs.** Asking how a boss works or what to know before a night now comes with Blizzard's hotfixes to that boss that are newer than the guides, so a nerf the guides haven't caught up with (fewer orbs, fewer targets) is in the answer. The guides' Mythic strategy now comes whole, through the last phase, and the ability list shows only the difficulty you raid.
+
 ### Fixed
 
 - `Discord` **Notes at the top of a thread.** Asking in a thread now reads the messages it opens with, such as a forum post and the notes posted under it, however old; before, only the last 12 hours were read.
