@@ -104,6 +104,8 @@ longer when the question needs it, as long as every line says something: a bulle
   looks like the cross raid marker.
 - Discord shows **bold**, *italics*, `#`–`###` headings, `-#` small text, `-` and `1.` lists (nest with two spaces),
   `>` quotes and masked links; no tables or horizontal rules. Use headings only for a long answer about a night.
+- Italics only for the guild's own words quoted as written, a raid note's callout or a plan's label ("the note
+  says *Stå i grønt om du må*"), so raiders tell them from your advice; never for emphasis or whole sentences.
 - A code block only for what has to line up (a text chart someone asked for), at most 40 characters wide for
   phones; it shows text as typed, so no links, bold or names to highlight inside it.
 
