@@ -255,12 +255,13 @@ class Painter:
                 self._browser = await self._pw.chromium.launch(args=["--disable-dev-shm-usage"])
             return self._browser
 
-    async def picture(self, tool: str, args: dict) -> bytes | None:
-        """The view of the tool's answer to `args` (as the tool was called: report, pull, boss), or None for a tool
-        without one. Raises what went wrong: a view that didn't draw, or drew with errors."""
+    async def pictures(self, tool: str, args: dict) -> list[bytes]:
+        """The view of the tool's answer to `args` (as the tool was called: report, pull, boss): one picture, or one
+        per panel for a view drawn in panels (its [data-panel] parts, the player's night); none for a tool without a
+        view. Raises what went wrong: a view that didn't draw, or drew with errors."""
         key = await server.view_key(tool, args)
         if key is None:
-            return None
+            return []
         browser = await self._ready()
         errors: list[str] = []
         setup = {"tool": tool, "args": args, "result": {"content": [], "structuredContent": key}, "theme": "dark",
@@ -276,10 +277,12 @@ class Painter:
             await page.frames[-1].evaluate("document.fonts.ready.then(() => true)")
             if errors:
                 raise RuntimeError("; ".join(errors))
-            png = await page.locator("iframe").screenshot(type="png")
+            panels = page.frames[-1].locator("[data-panel]")
+            shots = ([await panels.nth(i).screenshot(type="png") for i in range(await panels.count())]
+                     or [await page.locator("iframe").screenshot(type="png")])
         finally:
             await context.close()
-        return await asyncio.to_thread(_webp, png)
+        return [await asyncio.to_thread(_webp, png) for png in shots]
 
     async def close(self) -> None:
         if self._browser is not None:

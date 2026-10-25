@@ -143,14 +143,15 @@ async def pictures_drawn(calls: Sequence[ToolCall]) -> None:
 
 
 async def picture(name: str, args: dict) -> list[bytes]:
-    """The tool's view as a picture (viewhost.Painter), or nothing when it can't be drawn: the answer goes without."""
+    """The tool's view as pictures (viewhost.Painter: one, or one per panel), or none when it can't be drawn: the
+    answer goes without."""
     global _painter, _no_pictures
     if _no_pictures:
         return []
     started = time.monotonic()
     try:
         _painter = _painter or viewhost.Painter()
-        drawn = await _painter.picture(name, args)
+        drawn = await _painter.pictures(name, args)
     except ImportError as e:
         _no_pictures = f"Playwright isn't installed ({e})"
     except Exception as e:  # noqa: BLE001 (a picture never fails an answer)
@@ -163,7 +164,7 @@ async def picture(name: str, args: dict) -> list[bytes]:
         log.warning("answers go without the views' pictures: %s", _no_pictures)
         return []
     log.info("drew %s's view in %.1f s", name, time.monotonic() - started)
-    return [drawn] if drawn else []
+    return drawn
 
 
 @dataclass

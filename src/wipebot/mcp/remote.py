@@ -89,8 +89,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                                            "and raid damage taken over time, phases, cooldowns and deaths, with its "
                                            "replay a click away.",
                            "player_night": "In Claude and ChatGPT, the user also sees the player's night drawn: "
-                                           "their output and deaths pull by pull, the trend, and their cooldowns "
-                                           "summed, each pull's own view a click away.",
+                                           "what killed them, ranked, with the pulls where a ready defensive or a "
+                                           "healthstone would have kept them alive, then their output and deaths "
+                                           "pull by pull, each pull's own view a click away.",
                            "player_pull": "In Claude and ChatGPT, the user also sees the player's pull drawn: their "
                                           "output and where it stands, time lost, when they cast, capped or died, "
                                           "and their cooldowns, with their casts against top players a click away.",

@@ -1,5 +1,6 @@
-// ---- the player's night on a boss: their output and death pull by pull, the trend in thirds, their cooldowns
-// summed; a pull's column opens that pull's player view ----
+// ---- the player's night on a boss: what killed them, ranked, and whether a ready defensive or a healthstone would
+// have kept them alive; their output and death pull by pull, the trend in thirds, their cooldowns summed. Two panels
+// (data-panel), each its own picture in Discord; a pull's chip or column opens that pull's player view ----
 views.player_night = (() => {
   let D = null, root = null, open = null, drawnWidth = 0;
 
@@ -14,36 +15,74 @@ views.player_night = (() => {
   const times = (n) => n === 0 ? "never" : n === 1 ? "once" : n === 2 ? "twice" : `${n} times`;
 
   function stats() {
-    const n = D.pulls.length, [used, possible] = D.cooldowns_total;
+    const n = D.pulls.length, L = D.lived;
     return kit.stats([
       ["Died before the wipe was decided", `${D.died} of ${n}`, D.died ? "dead" : "",
        `${D.first ? `first to die ${times(D.first)}` : "never first to die"}, ${times(D.early)} among the first ${D.early_n}`],
+      L.of ? ["Could have lived", `${L.saved} of ${L.of}`, L.saved ? "good" : "",
+              [L.by.length ? L.by.slice(0, 2).map(([s, k]) => `${s} at ${k}`).join(", ") : "nothing ready would have saved them",
+               L.unknown ? `can't tell for ${L.unknown}` : ""].filter(Boolean).join("; ")] : null,
       ["Time dead", `${D.dead_s} s`, "", `${D.dead_pct}% of the time before each wipe was decided`],
-      possible ? ["Cooldowns", `${used} of ${possible}`, used < possible ? "decided" : "", "pressed on cooldown, all pulls"] : null,
       D.best ? ["Best pull", `${D.best.pull}: ${kit.short(D.best.per_s_alive)}`, "", `${what().toLowerCase()} per s alive`] : null,
     ]);
+  }
+
+  const KILLERS_SHOWN = 5;
+  // What killed them before each wipe was decided, the most deaths first: a chip per pull, green where a ready
+  // defensive or a healthstone would have kept them alive (the defensives tool's replay), grey where it can't tell
+  function killers() {
+    if (!D.killers.length) return "";
+    const shown = D.killers.slice(0, KILLERS_SHOWN), rest = D.killers.slice(KILLERS_SHOWN);
+    const chip = (k, x) => {
+      const cls = x.saved === true ? "saved" : x.saved === false ? "" : "unknown";
+      const how = x.saved === true ? "a ready defensive or a healthstone would have kept them alive"
+        : x.saved === false ? "nothing ready would have kept them alive" : "can't tell: no overkill or health logged";
+      return `<button class="chip ${cls}" data-pull-chip="${x.pull}"${kit.tip(`Pull ${x.pull}: died ${kit.clock(x.ms)} (#${x.place}) to ${k.by}; ${how}`)}>${x.pull}</button>`;
+    };
+    const rows = shown.map((k) => `<li><span class="kn">${kit.iconImg(D.img_base, k.icon)}${kit.esc(k.by)}</span>`
+      + `<span class="kc">${k.pulls.length}</span><span class="chips">${k.pulls.map((x) => chip(k, x)).join("")}</span></li>`).join("");
+    const more = rest.length ? `<div class="note">and ${rest.length} other abilit${rest.length === 1 ? "y" : "ies"}, `
+      + `${rest.reduce((n, k) => n + k.pulls.length, 0)} deaths</div>` : "";
+    return `<div class="section-title">What killed ${kit.esc(D.player.name)} before each wipe was decided</div>`
+      + `<ul class="killers">${rows}</ul>${more}`
+      + `<div class="note"><span class="chip saved sample">12</span> a pull where a ready defensive or a healthstone would have kept them alive</div>`;
+  }
+
+  function cooldownsNote() {
+    const [used, possible] = D.cooldowns_total;
+    return possible ? `<div class="note">Major cooldowns: ${used} of ${possible} uses if pressed each time they were ready, all pulls (until they died or the wipe was decided).</div>` : "";
+  }
+
+  // The two panels: who they are and what killed them; the night pull by pull
+  function panels(W, lanes) {
+    return `<div data-panel="killers">${head()}${stats()}${killers()}</div>`
+      + `<div data-panel="pulls"><div class="section-title">Pull by pull</div>${chart(W, lanes)}${cooldownsNote()}</div>`;
+  }
+
+  function head() {
+    const p = D.player;
+    const sub = [`${p.spec} ${p.class}`, D.boss,
+                 D.pulls.length === D.total_pulls ? `${D.pulls.length} pulls` : `${D.pulls.length} of ${D.total_pulls} pulls`].join(" · ");
+    return `<div class="head"><h1 style="color:${kit.esc(p.color)}">${kit.esc(p.name)}</h1><span class="sub">${kit.esc(sub)}</span></div>`;
   }
 
   function render() {
     if (!D || !root) return;
     const full = app.context().displayMode === "fullscreen", picture = app.picture();
     drawnWidth = root.clientWidth;
-    const width = Math.max(300, drawnWidth || 640), p = D.player;
-    const sub = [`${p.spec} ${p.class}`, D.boss,
-                 D.pulls.length === D.total_pulls ? `${D.pulls.length} pulls` : `${D.pulls.length} of ${D.total_pulls} pulls`].join(" · ");
-    const head = `<div class="head"><h1 style="color:${kit.esc(p.color)}">${kit.esc(p.name)}</h1><span class="sub">${kit.esc(sub)}</span></div>`;
-    if (picture) { root.innerHTML = head + stats() + chart(width, false); return; }
+    const width = Math.max(300, drawnWidth || 640);
+    if (picture) { root.innerHTML = panels(width, false); return; }
     if (!full) {
-      root.innerHTML = head + stats() + chart(width, false)
+      root.innerHTML = panels(width, false)
         + `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="ng-open">Open night</button>' : ""}</div>`;
       const o = root.querySelector("#ng-open");
       if (o) o.onclick = () => app.requestDisplayMode("fullscreen").then(render);
     } else {
-      root.innerHTML = head + stats() + chart(width, true)
-        + `<div class="full"><div>${table()}</div>${side()}</div>`;
+      root.innerHTML = panels(width, true) + `<div class="full"><div>${table()}</div>${side()}</div>`;
       root.querySelectorAll("tr[data-pull]").forEach((tr) => tr.onclick = () => openPull(+tr.dataset.pull));
     }
     root.querySelectorAll("[data-pull-col]").forEach((el) => el.addEventListener("click", () => openPull(+el.dataset.pullCol)));
+    root.querySelectorAll("[data-pull-chip]").forEach((el) => el.addEventListener("click", () => openPull(+el.dataset.pullChip)));
   }
 
   function openPull(pull) {

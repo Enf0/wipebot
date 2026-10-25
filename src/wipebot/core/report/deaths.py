@@ -181,7 +181,7 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
             taken = sum(h.get("amount", 0) for h in covered)
             saved = taken if effect.kind == "immunity" else (effect.pct or 0) / 100 * taken
             how = f"{short(saved)} less of the {short(taken)} it covers"
-        verdict = "would have kept them alive" if saved > overkill else "not enough on its own"
+        verdict = SAVED if saved > overkill else "not enough on its own"
         if saved > overkill and effect.sure_s:  # only a moment of it is sure (Cloak of Shadows' tooltip)
             sure = sum(h.get("amount", 0) for h in covered if h["timestamp"] <= start + 1000 * effect.sure_s)
             if sure <= overkill:
@@ -380,9 +380,18 @@ async def _kits(rep: Report, played: dict[int, dict[int, Player]]
                 unavailable("Defensive lists", e) + " Only healthstones and potions are counted.")
 
 
-async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pull: bool) -> str:
-    """Each of a player's deaths on a boss before its wipe was decided, with what a ready defensive or a
-    healthstone would have changed (if_pressed, the death recap's replay)."""
+SAVED = "would have kept them alive"  # if_pressed's verdict for a spell that would have
+
+
+def savers(replayed: list[str]) -> list[str]:
+    """What would have kept them alive, from a death's if_pressed lines: each spell's name ("a healthstone")."""
+    return [line.strip().split(" (")[0] for line in replayed[1:] if f": {SAVED}" in line]
+
+
+async def replay_deaths(rep: Report, p: Player, fights: list[dict],
+                        whole_pull: bool = False) -> list[tuple[dict, dict, list[str]]]:
+    """Each of a player's deaths on `fights` (before each wipe was decided, unless `whole_pull`), with its
+    if_pressed lines: empty when it can't tell (no overkill or health logged)."""
     fights = rep.pulls_with(p, fights)
     await rep.all_deaths(fights)
     decided = {} if whole_pull else await rep.decided_cuts(fights)
@@ -397,8 +406,15 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
 
     async def one(f: dict, d: dict, hits: list[dict]) -> tuple[dict, dict, list[str]]:
         return f, d, await if_pressed(rep, f, rep.in_pull(f, p), d, hits)
-    done = await asyncio.gather(*(one(f, d, h) for (f, d), h in zip(todo, hits, strict=True)))
-    saved = sum(any("would have kept them alive" in line for line in more) for _, _, more in done)
+    return list(await asyncio.gather(*(one(f, d, h) for (f, d), h in zip(todo, hits, strict=True))))
+
+
+async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pull: bool) -> str:
+    """Each of a player's deaths on a boss before its wipe was decided, with what a ready defensive or a
+    healthstone would have changed (if_pressed, the death recap's replay)."""
+    fights = rep.pulls_with(p, fights)
+    done = await replay_deaths(rep, p, fights, whole_pull)
+    saved = sum(bool(savers(more)) for _, _, more in done)
     scope = "before each wipe was decided" if not whole_pull else "in the whole pulls"
     lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, each replayed with "
              f"what was ready (secondary to what killed them): a ready defensive or a healthstone would have kept "

@@ -86,7 +86,7 @@ async def test_a_picture_that_cannot_be_drawn_leaves_the_answer_without_it(monke
         def __init__(self, error):
             self.error, self.asked = error, 0
 
-        async def picture(self, name, args):
+        async def pictures(self, name, args):
             self.asked += 1
             raise self.error
     monkeypatch.setattr(host, "_no_pictures", "")
