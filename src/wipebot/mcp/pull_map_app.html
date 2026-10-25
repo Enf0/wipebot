@@ -119,7 +119,7 @@ function applyContext(ctx) {
 }
 handlers["ui/notifications/host-context-changed"] = applyContext;
 handlers["ui/resource-teardown"] = () => { playing = false; return {}; };
-handlers["ui/notifications/tool-result"] = (result) => load(result.structuredContent || {});
+handlers["ui/notifications/tool-result"] = (result) => load(result.structuredContent || {}, result.content || []);
 
 new ResizeObserver(() => {
   notify("ui/notifications/size-changed", { width: document.documentElement.scrollWidth,
@@ -146,9 +146,9 @@ window.addEventListener("error", (e) => report(`error: ${e.message} at ${e.linen
 window.addEventListener("unhandledrejection", (e) => report(`rejection: ${e.reason && e.reason.message || e.reason}`));
 
 let loaded = "";
-async function load(given) {
-  const { plan, ...asked } = given;  // raid_plan's result carries the plan's moments; the replay is the pull's
-  if (!asked.report) { collapse(); return; }  // an answer with no pull (a plan shown as it is, an error): nothing to play
+async function load(given, content = []) {
+  const { plan, ...asked } = given;  // with plan, the result carries the plan's moments; the replay is the pull's
+  if (!asked.report) { still(content); return; }  // no pull to play (over a night, an error): the answer's picture
   const key = JSON.stringify(given);
   if (key === loaded) return;
   loaded = key;
@@ -164,8 +164,11 @@ async function load(given) {
 }
 
 function fail(text) { $("status").classList.add("failed"); $("status-msg").textContent = text; }
-function collapse() {  // one line, not nothing: a host keeps its own height for a page that asks for none
-  document.body.innerHTML = '<p style="margin: 6px 2px; color: var(--muted); font-size: 13px">No pull to replay: the answer is in the text.</p>';
+function still(content) {  // the picture the answer carries; else one line, not nothing (a host keeps its height)
+  const pic = content.find((c) => c.type === "image");
+  document.body.innerHTML = pic
+    ? `<img alt="" style="display: block; width: 100%; height: auto" src="data:${pic.mimeType};base64,${pic.data}">`
+    : '<p style="margin: 6px 2px; color: var(--muted); font-size: 13px">No pull to replay: the answer is in the text.</p>';
 }
 
 function decode(b64) {

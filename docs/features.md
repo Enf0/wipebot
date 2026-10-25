@@ -173,8 +173,9 @@ scenes (one per set of orbs, one per phase) is told in order.
 - **The plan** ("was everyone on their spot?"): at each moment of the plan's mechanic, who was off their spot and by
   how far, whose spot they stood at instead, who was dead, and who was hit by the debuff from whom. Since the plan has
   no room coordinates, it is fitted to where the raid stood, so a player is off relative to the rest of the raid. A
-  map shows the plan's spots over where everyone stood, with lines to those off their spot. Over the night, it counts
-  per player how often they were off, and where.
+  map shows the plan's spots over where everyone stood, with lines to those off their spot ("show me the pull
+  against the plan"; in Claude, the pull's replay with the plan's spots and a button per moment). Over the night, it
+  counts per player how often they were off, and where.
 
 ![Sszorak pull 42 at 2:37: the raid plan's spots as small labelled dots over where the players stood, with red rings and lines from each spot to a player away from it](images/map-raid-plan.webp)
 
