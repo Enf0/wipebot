@@ -104,7 +104,8 @@ async def test_the_death_view_states_what_death_recap_states(recorded):
     listed = re.findall(r"^  (\d+:\d\d) (.+?) from ", text, re.MULTILINE)
     assert [(clock(h["ms"]), h["by"]) for h in data["hits"]] == listed
     for d in data["defensives"]:
-        assert f"  {d['name']}: " in text and ("on cooldown" in text) == any(x["state"] == "cooldown" for x in data["defensives"])
+        assert f"  {d['name']}: " in text
+    assert ("on cooldown" in text) == any(d["state"] == "cooldown" for d in data["defensives"])
     for saver in data["saved_by"]:
         assert re.search(rf"^  {re.escape(saver)} \(.*: would have kept them alive", text, re.MULTILINE)
     assert f"Healthstones and healing potions before death: {data['stones']}" in text
