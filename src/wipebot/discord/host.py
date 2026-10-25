@@ -75,6 +75,7 @@ class Context:
     guild: str | None = None  # the server's guild on Warcraft Logs: "name, realm, region", to find its other reports
     earlier: str = ""  # the messages before this question that the conversation hasn't seen, from Discord
     follow_up: bool = False  # `earlier` is what was said since the conversation's previous question (SINCE)
+    linked: str = ""  # the Discord messages the question links to (LINKED), from bot.linked_messages
     notes: list[str] = field(default_factory=list)  # the asker's standing preferences, remembered across conversations
     tools: dict[str, Callable[[dict], Awaitable[str]]] = field(default_factory=dict)  # follow_pulls, remember
     # each tool the model calls for this question, (name, arguments), as it calls it, and as the call returns

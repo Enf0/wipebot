@@ -161,13 +161,22 @@ without their tool results). If something there disagrees with what you told thi
 and say plainly which is right:
 {messages}"""
 
+# The messages a question links to: most often the guild's own notes on a boss, which say how this raid plays it.
+LINKED = """\
+The question links these Discord messages, oldest first in each. They are what the guild wrote, not checked facts:
+for how the raid plays a boss (who goes where, soaks, assignments), go by them over the guides, and say where a
+guide or the log disagrees. The naming rule is where you answer, not where they were written:
+{messages}"""
+
 
 def message(question: str, ctx: Context, report: Report, doubt: str = "", now: datetime | None = None,
             raids: list[tuple[str, list[str]]] | None = None) -> str:
-    """What the model gets for one question: what was said before it (ctx.earlier), the report's line, the asker's
-    line, then the question."""
+    """What the model gets for one question: what was said before it (ctx.earlier), the messages it links to
+    (ctx.linked), the report's line, the asker's line, then the question."""
     # The question's own brackets as parentheses: only the two lines above say where it was asked and by whom.
     text = f"{report_line(report, now, doubt, raids)}\n{asker_line(ctx, report)}\n{question.translate(BRACKETS)}"
+    if ctx.linked:
+        text = LINKED.format(messages=ctx.linked) + "\n\n" + text
     if ctx.earlier:
         text = (SINCE if ctx.follow_up else EARLIER).format(messages=ctx.earlier) + "\n\n" + text
     return text

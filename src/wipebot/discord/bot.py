@@ -47,6 +47,12 @@ EARLIER_MESSAGES = 15  # a question comes with up to this many messages its conv
 EARLIER_HOURS = 12  # for a new conversation from this many hours back,
 EARLIER_CHARS = 1500  # each cut to this many characters
 EARLIER_SCANNED = 100  # messages looked through for them
+# A link to a message, thread or channel in a server, which the question comes with (the guild's notes on a boss)
+MESSAGE_LINK = re.compile(r"https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com/channels/(\d+)/(\d+)(?:/(\d+))?")
+LINKS = 3  # links read per question
+LINKED_MESSAGES = 30  # messages read from a linked thread (its first) or channel (its latest)
+LINKED_CHARS = 4000  # each cut to this many characters (Discord's limit with Nitro)
+LINKED_TOTAL = 12_000  # all of a question's linked text, cut to this many characters
 # A server's or the bot's own emoji as a message writes it, with the space after it
 CUSTOM_EMOJI = re.compile(r"<a?:(\w+):\d+>( ?)")
 QUESTION_CHARS = 2000  # a longer question isn't answered (Discord's limit for a message, without Nitro)
@@ -114,7 +120,7 @@ def names_on(channel: object, channels: set[int]) -> bool:
     return bool(channels & {getattr(channel, "id", None), getattr(channel, "parent_id", None)})
 
 
-def format_earlier(messages: list[tuple[str, datetime.datetime, str]]) -> str:
+def format_earlier(messages: list[tuple[str, datetime.datetime, str]], chars: int = EARLIER_CHARS) -> str:
     """Earlier messages, oldest first, as (author, sent, text) lines; the bot's small print (`-#` lines) and
     server or bot emojis (`<:name:id>`) dropped, but for a raid marker's, written {skull} as raid notes do. A
     message's further lines are indented, so only a message's first line starts with who wrote it."""
@@ -122,8 +128,8 @@ def format_earlier(messages: list[tuple[str, datetime.datetime, str]]) -> str:
     for author, sent, text in messages:
         text = "\n".join(line for line in text.splitlines() if not line.startswith("-# "))
         text = CUSTOM_EMOJI.sub(lambda m: f"{{{m[1][7:]}}}{m[2]}" if m[1].startswith("marker_") else "", text).strip()
-        if len(text) > EARLIER_CHARS:
-            text = text[:EARLIER_CHARS].rstrip() + " …"
+        if len(text) > chars:
+            text = text[:chars].rstrip() + " …"
         if text:
             lines.append(f"{plain(author)} ({sent:%a %H:%M} UTC): " + text.replace("\n", "\n  "))
     return "\n".join(lines)
@@ -151,6 +157,101 @@ async def earlier_messages(message: discord.Message, bot_user: discord.abc.User,
         if len(found) == EARLIER_MESSAGES:
             break
     return format_earlier(found[::-1])
+
+
+async def may_read(channel: discord.abc.GuildChannel | discord.Thread, member: discord.Member) -> bool:
+    """Whether `member` may read a channel's messages: see it and its history, and, for a private thread, be in it
+    or manage threads."""
+    perms = channel.permissions_for(member)
+    if not (perms.view_channel and perms.read_message_history):
+        return False
+    if isinstance(channel, discord.Thread) and channel.type == discord.ChannelType.private_thread \
+            and not perms.manage_threads:
+        try:
+            await channel.fetch_member(member.id)
+        except discord.NotFound:
+            return False
+    return True
+
+
+async def read_link(guild: discord.Guild, asker: discord.Member, channel_id: int,
+                    message_id: int | None) -> list[discord.Message] | str:
+    """The messages behind one link in `guild`, oldest first: the message, with its thread when it starts one; a
+    thread's first LINKED_MESSAGES; a channel's latest. Else why they weren't read. Only what the asker may read
+    themselves, so a link can't show them a channel that's closed to them."""
+    channel = guild.get_channel_or_thread(channel_id)
+    if channel is None:
+        try:  # an archived thread isn't in the cache
+            channel = await guild.fetch_channel(channel_id)
+        except discord.HTTPException:
+            channel = None
+    if not isinstance(channel, discord.Thread | discord.TextChannel | discord.VoiceChannel | discord.ForumChannel) \
+            or not await may_read(channel, asker):
+        return "not found, or the asker can't read it"
+    if not await may_read(channel, guild.me):
+        return "I'm not allowed to read that channel"
+    try:
+        if isinstance(channel, discord.ForumChannel):  # its posts are threads, linked one by one
+            return "a link to a whole forum: link one of its posts"
+        if message_id is not None and message_id != channel.id:  # a thread's own id is its first message's
+            first = await channel.fetch_message(message_id)
+            thread = first.thread
+            if thread is None and first.flags.has_thread:  # archived, so not in the cache
+                thread = await guild.fetch_channel(first.id)
+            if not isinstance(thread, discord.Thread) or not await may_read(thread, asker):
+                return [first]
+            return [first, *[m async for m in thread.history(limit=LINKED_MESSAGES - 1, oldest_first=True)]]
+        if isinstance(channel, discord.Thread):
+            return [m async for m in channel.history(limit=LINKED_MESSAGES, oldest_first=True)]
+        return [m async for m in channel.history(limit=LINKED_MESSAGES)][::-1]
+    except discord.NotFound:
+        return "that message is gone"
+    except discord.HTTPException:
+        return "Discord wouldn't give it"
+
+
+def where_linked(message: discord.Message, named: set[int]) -> str:
+    """Where a linked message is, for its heading: "#channel", or "thread "name" in #channel", marked when names
+    are on there (`named`: the server's channels with names on)."""
+    channel = message.channel
+    if isinstance(channel, discord.Thread):
+        parent = f" in #{plain(channel.parent.name)}" if channel.parent else ""
+        where = f"thread \"{plain(channel.name)}\"{parent}"
+    else:
+        where = f"#{plain(getattr(channel, 'name', ''))}"
+    return where + (NAMES_ON if names_on(channel, named) else "")
+
+
+async def linked_messages(question: str, guild: discord.Guild, asker: discord.Member, named: set[int] | None = None,
+                          readable: bool = True) -> str:
+    """The messages a question links to in the asker's server (`guild`), each link under a heading, or why it
+    wasn't read. `named`: the server's channels with names on. `readable`: the bot has the Message Content intent,
+    without which Discord gives no message's text."""
+    parts, total = [], 0
+    for link in list(MESSAGE_LINK.finditer(question))[:LINKS]:
+        url, (server_id, channel_id, message_id) = link[0], link.groups()
+        if int(server_id) != guild.id:
+            parts.append(f"{url}: not read, it's in another server")
+            continue
+        found = await read_link(guild, asker, int(channel_id), int(message_id) if message_id else None)
+        if isinstance(found, str):
+            parts.append(f"{url}: not read, {found}")
+            continue
+        if not readable:
+            parts.append(f"{url}: not read, I'm not set up to read messages that don't mention me")
+            continue
+        lines = []
+        for m in found:
+            text = m.content
+            if m.attachments:
+                text += f" [{len(m.attachments)} attachment(s) or image(s), not read]"
+            lines.append((display(m.author), m.created_at, text))
+        text = format_earlier(lines, LINKED_CHARS)
+        if total + len(text) > LINKED_TOTAL:
+            text = text[:max(0, LINKED_TOTAL - total)].rstrip() + " … (cut: too long)"
+        total += len(text)
+        parts.append(f"{url} ({where_linked(found[0], named or set())}):\n{text}")
+    return "\n\n".join(parts)
 
 
 async def respond(message: discord.Message, text: str) -> None:
@@ -515,6 +616,8 @@ class WipeBot(discord.Client):
         guild = self.get_guild(s.discord_guild_id) if is_dm else None
         name = display((guild.get_member(author.id) if guild else None) or author)
         ctx = self._context(s, author, name, code, where, None if is_dm else message.channel)
+        if MESSAGE_LINK.search(question):
+            ctx.linked = await self._linked(question, s, author)
         if message.reference and (posted := self.store.pull_for_message(message.reference.message_id)):
             try:
                 await self._about_pull(ctx, code, *posted)
@@ -666,6 +769,21 @@ class WipeBot(discord.Client):
             return await earlier_messages(message, self.user, after, seen)
         except discord.HTTPException:
             log.warning("couldn't read the messages before %s", message.jump_url)
+            return ""
+
+    async def _linked(self, question: str, s: ServerSettings, user: discord.User | discord.Member) -> str:
+        """The messages a question links to in server `s` that the asker may read; none when Discord won't say who
+        they are there."""
+        guild = self.get_guild(s.discord_guild_id)
+        if guild is None:
+            return ""
+        try:
+            member = user if isinstance(user, discord.Member) else (
+                guild.get_member(user.id) or await guild.fetch_member(user.id))
+            return await linked_messages(question, guild, member, self.store.naming_channels(s.discord_guild_id),
+                                         self.intents.message_content)
+        except discord.HTTPException:
+            log.warning("couldn't read the messages a question links to")
             return ""
 
     async def _about_pull(self, ctx: Context, code: str, report_code: str, fight_id: int) -> None:

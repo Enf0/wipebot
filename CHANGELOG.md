@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `Discord` **Link your own notes in a question.** Ask "how do we do Coiled Altar? <link>" with a link to a message, thread or channel, and the answer goes by what your guild wrote there over the guides. It reads only what you can read yourself, and needs the bot to read channel messages (`WIPEBOT_CHANNEL_CONTEXT=1`).
 - `Agent` `Discord` **Who's in for the coming raid nights, from Viserio Cooldowns.** Ask "am I in on Coiled Altar tomorrow?", "who's benched?" or "who's coming Monday?": the answer reads the calendar's sign-ups and the week's setup per boss. An officer connects the group's key once with `/wipebot viserio`.
 - `Agent` **A raid plan's scenes come with their links.** An answer about a scene can link it on raidstrats.gg instead of naming its number.
 - `Discord` **Raid markers, spec and boss ability icons in answers.** A raid marker shows as its icon, whether the answer quotes a note's {skull} or says "the star marker"; each mention of a raider gets their spec's icon instead of bold; and a boss ability gets the icon you know from your boss mod. Lists of who does what go one raider per line. Answers also mark what was done with ✅ and the thing to fix first with ⚠️.
