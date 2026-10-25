@@ -62,6 +62,7 @@ from .report import (
     maps,
     mechanics,
     night,
+    plan_export,
     saved,
     tables,
     tanks,
@@ -670,7 +671,7 @@ def save_pasted(book: notebook.Notebook, guild_id: int, text: str, saved_by: str
     """A pasted raid note (each boss's part) or raid plan (each plan in it) saved for the guild (as saved `at`,
     default now, or with `from_pull` as saved just before that pull on its boss began: one pasted after the pulls it
     was for); what was saved, for the officer. A paste that's neither raises FactError."""
-    if plans.EXPORT.search(text) and not notes.HEADER.search(text):
+    if plan_export.EXPORT.search(text) and not notes.HEADER.search(text):
         return _save_plans(book, guild_id, text, saved_by, at, from_pull)
     return _save_notes(book, guild_id, text, saved_by, at, from_pull)
 
@@ -711,7 +712,7 @@ def _saved_for(what: str, kept: str, starts: list[str]) -> str:
 def _save_plans(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None,
                 from_pull: FromPull | None) -> str:
     """A plan saved before gets a new version."""
-    parsed = plans.parse(text)
+    parsed = plan_export.parse(text)
     known = {p.plan_id for p in book.plans(guild_id)}
     when = [_pull_start(guild_id, from_pull, at, boss=p.boss) for p in parsed]  # all checked before any is saved
     lines = []
@@ -761,21 +762,37 @@ async def _saved_note(rep: Report, pull: PullRef, boss: str | None, all_pulls: b
     return found
 
 
-async def _saved_plans(rep: Report, pull: PullRef, boss: str | None) -> tuple[str, str]:
-    """Every version of the plans the report's guild saved for the pull's boss, fetched from raidstrats.gg first
-    when the guild has a login there, and where they're from ("" without a login: each version's text says)."""
+async def _guild_plans(rep: Report) -> tuple[notebook.Notebook, int, str, str]:
+    """The notebook with the report's guild's plans, fetched from raidstrats.gg first when the guild has a login
+    there; the guild, where the plans are from ("" without a login: each version's text says), and why that login
+    stopped working ("" when it works) for a FactError's text."""
     guild = _saved_guild(rep, "raid plan")
-    f = rep.fight(pull, boss)
     if notebook.Notebook(readonly=True).login(guild):
         await raidstrats.sync(notebook.Notebook(), guild)
     book = notebook.Notebook(readonly=True)
     login = book.login(guild)
     source = raidstrats.source(login) if login else ""
+    # A login that stopped working is why a plan made since is missing: the officer who can fix it must hear it.
+    return book, guild, source, f" (its plans are {source})" if login and login.problem else ""
+
+
+async def _saved_plans(rep: Report, pull: PullRef, boss: str | None) -> tuple[str, str]:
+    """Every version of the plans the report's guild saved for the pull's boss, and where they're from."""
+    f = rep.fight(pull, boss)
+    book, guild, source, broken = await _guild_plans(rep)
     if not (found := saved_plans(book, guild, rep, f)):
-        # A login that stopped working is why a plan made since is missing: the officer who can fix it must hear it.
-        broken = f" (its plans are {source})" if login and login.problem else ""
         raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved for {rep.boss_key(f)}{broken}: "
                         "ask the user to paste the plan's export from raidstrats.gg." + NO_JOBS)
+    return "\n".join(found), source
+
+
+async def _every_plan(rep: Report) -> tuple[str, str]:
+    """Every version of every plan the report's guild saved, each after its mark (saved.py), and where they're
+    from."""
+    book, guild, source, broken = await _guild_plans(rep)
+    if not (found := [f"{saved.mark(p.saved_at, p.saved_by)} {p.plan}" for p in book.plans(guild)]):
+        raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved{broken}: ask the user to paste "
+                        "the plan's export from raidstrats.gg.")
     return "\n".join(found), source
 
 
@@ -822,9 +839,13 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
                     latest: Annotated[bool, Field(description=(
                         "check against the newest version of the plan, not the one each pull was planned "
                         "with"))] = False,
+                    show: Annotated[bool, Field(description=(
+                        "the plan itself, every scene, with no pull: for \"what's our plan?\", \"where do I "
+                        "stand?\"; with player, their spot first"))] = False,
                     report: Report_ = None, *, ctx: Context) -> CallToolResult:
     """For "was everyone on their spot?", "who stood in the wrong place for the spread?", "show me where people
-    stood against the plan".
+    stood against the plan"; with `show`, "what's our plan for this boss?", "where do I stand in P2?", "who takes
+    the orbs?".
     The raid's positioning plan from raidstrats.gg against where each player stood at each moment of its
     mechanic (the moments pull_map finds: a debuff running out, a boss cast): per moment, who was off their spot by
     how far and whose spot they stood at, who was dead, and who was hit by the debuff from whose; with all_pulls,
@@ -834,8 +855,19 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     Reading it: the plan is laid over where the raid stood each time, so a player is off relative to the rest of
     the raid, and the whole raid standing elsewhere in the room isn't. A plan's side panel (players who stay
     out, notes) isn't in the room. A pull is checked against the version of the plan saved last before it began
-    (with `latest`, the newest); the output names a newer version when one is saved."""
+    (with `latest`, the newest); the output names a newer version when one is saved.
+    With `show`: each plan for the boss as it is now, every scene in words, with no pull: each numbered spot with
+    the name typed on it (and the raider it matches), its role, and where it is by the boss and the raid markers;
+    the notes, adds, ability icons with their labels, shapes with what's in them, and arrows. Places are as the plan
+    draws them, not in the room; a spot without a name is filled by the night's assignment, which the plan doesn't
+    have."""
     rep, source = await lib().report(report), ""
+    if show:
+        if not plan:
+            plan, source = await _every_plan(rep)
+        text = await plans.plan_show(rep, plan, boss, player)
+        return CallToolResult(content=[TextContent(type="text", text=f"(The plans were {source}.)\n{text}"
+                                                   if source else text)])
     if not plan:
         plan, source = await _saved_plans(rep, pull, boss)
     # As pull_map: on one pull, a host that shows the replay viewer gets the plan's spots on it, not the picture.

@@ -1,131 +1,28 @@
 """A raid plan drawn on raidstrats.gg, checked against pulls: where each player stood at each moment of the plan's
-mechanic (positions.mechanic), against their spot on the plan.
-
-The planner's Export gives `raidstrats-addon-` and base64: one version byte (1), then the plan as JSON, deflated (raw,
-no header). The JSON has the plan's name, raid and boss, and `scenes`, each with `items`: `kind` (`icon`, `boss`,
-`text`, `shape`), `label` (a player's name as typed, often its first letters), `x`, `y`, `w`, `h` (the item's top left
-corner and size, in % of the plan's width and height), a player's `icon` (their role, `roles/rdps.svg`) and a boss
-ability's `spellId`. A filled shape with icons inside is a side panel (players who stay out, notes), not the room.
+mechanic (positions.mechanic), against their spot on the plan; or shown as it is, with no pull. The plan itself, as
+raidstrats.gg exports it, is plan_export.py.
 
 The plan has no coordinates of the room. At each moment it is laid over where the raid stood (turned, scaled, moved,
 and mirrored when that fits better: a raid uses a plan on either side of the room), fitted again without the worst
 quarter so players away from their spot don't pull it. A player is off their spot when further from it than the
 tolerance: half the median distance between neighbouring spots, in the room after the fit.
 """
-import base64
-import binascii
-import json
 import math
-import re
 import statistics
-import zlib
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 from .. import knowledge
 from ..classes import class_rgb
-from ..text import clock, parse_clock, plural
+from ..text import clock, fold, parse_clock, plural
 from . import maps, saved
 from .base import FactError, Player, PullRef, Report
+from .plan_export import Plan, Scene, describe, parse
 from .positions import Facts, Mechanic, Moment, facts, mechanic, pull_positions, window, window_positions
 
-EXPORT = re.compile(r"raidstrats-addon-([A-Za-z0-9+/=]+)")
 MIN_FIT = 4  # a fit turns, scales and moves the plan (four numbers): it needs more players than that to mean anything
 MIN_TOLERANCE_YD = 3  # positions are interpolated between samples a second or two apart: nearer than this is noise
-
-
-@dataclass
-class Spot:
-    label: str  # as typed on the plan; "" for an open spot
-    role: str  # the icon's name: "tank", "mdps", "rdps", "healer", or a class
-    x: float  # in % of the plan's height, from its left (so x and y have the same scale)
-    y: float  # down
-
-
-@dataclass
-class Scene:
-    name: str
-    spots: list[Spot]  # in the room
-    aside: list[str]  # names in a side panel
-    spells: list[int]  # boss abilities drawn on the scene
-    notes: list[tuple[list[str], str]]  # (the side panel's names it's about, or none), text
-
-
-@dataclass
-class Plan:
-    plan_id: str
-    name: str
-    boss: str
-    raid: str
-    link: str
-    scenes: list[Scene]
-    export: str  # raidstrats-addon-..., as pasted (what the bot saves)
-    saved_at: float | None = None  # epoch seconds, when the bot was given it
-    saved_by: str = ""
-
-
-def parse(text: str) -> list[Plan]:
-    """Every plan in a paste, each with the version mark before it (saved.py). A paste without one is an error."""
-    plans = [decode(m[1], at, by) for chunk, at, by in saved.split(text) for m in EXPORT.finditer(chunk)]
-    if not plans:
-        raise FactError("no raid plan in that: paste the plan's export from raidstrats.gg (the planner's Export "
-                        "button), the text starting raidstrats-addon-")
-    return plans
-
-
-def decode(blob: str, saved_at: float | None = None, saved_by: str = "") -> Plan:
-    try:
-        raw = base64.b64decode(blob + "=" * (-len(blob) % 4))
-        data = json.loads(zlib.decompress(raw[1:], -15))
-    except (binascii.Error, zlib.error, ValueError) as e:
-        raise FactError("the raid plan's export doesn't decode: copy it again from raidstrats.gg's Export, "
-                        "whole") from e
-    return Plan(data.get("planId") or data.get("planName") or "", data.get("planName") or "", data.get("boss") or "",
-                data.get("raid") or "", data.get("planLink") or "", [_scene(s) for s in data.get("scenes") or []],
-                "raidstrats-addon-" + blob, saved_at, saved_by)
-
-
-def _scene(s: dict) -> Scene:
-    items = s.get("items") or []
-    icons = [i for i in items if i.get("kind") == "icon" and i.get("w") and i.get("h")]
-    aspect = statistics.median(i["h"] / i["w"] for i in icons) if icons else 16 / 9  # icons are round: the plan's shape
-    panels = [i for i in items if i.get("kind") == "shape" and _filled(i.get("fill"))]
-
-    def middle(i: dict) -> tuple[float, float]:
-        return i.get("x", 0) + i.get("w", 0) / 2, i.get("y", 0) + i.get("h", 0) / 2
-
-    def aside(i: dict) -> bool:
-        x, y = middle(i)
-        return any(p["x"] <= x <= p["x"] + p.get("w", 0) and p["y"] <= y <= p["y"] + p.get("h", 0) for p in panels)
-    spots, beside, rows = [], [], defaultdict(list)  # rows: the side panel's names by the row they're in
-    for i in items:
-        if i.get("kind") != "icon" or i.get("spellId"):
-            continue
-        label = (i.get("label") or "").strip()
-        label = "" if label.isdigit() else label  # the planner numbers a spot nobody is named for
-        if aside(i):
-            if label:
-                rows[round(middle(i)[1])].append(label)
-                beside.append(label)
-        else:
-            x, y = middle(i)
-            spots.append(Spot(label, (i.get("icon") or "").rsplit("/", 1)[-1].rsplit(".", 1)[0], x * aspect, y))
-    spells = list(dict.fromkeys(int(i["spellId"]) for i in items if str(i.get("spellId", "")).isdigit()))
-    notes = []
-    for i in items:
-        if i.get("kind") == "text" and (text := " ".join((i.get("label") or "").split())):
-            # a side panel's note is about the row of names nearest it
-            row = min(rows, key=lambda y: abs(y - middle(i)[1]), default=None) if aside(i) else None
-            notes.append((rows[row] if row is not None else [], text))
-    return Scene(str(s.get("name") or ""), spots, beside, spells, notes)
-
-
-def _filled(fill: str | None) -> bool:
-    """A fill that hides what's under it: a colour without transparency, or an rgba with alpha 0.5 or more."""
-    if not fill or fill in ("transparent", "none"):
-        return False
-    m = re.match(r"rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)", fill)
-    return float(m[1]) >= 0.5 if m else True
+ROLES = {"tank", "healer", "mdps", "rdps", "dps", ""}  # a plan's player icon is one of these or a class
 
 
 # ---------- laying the plan over the room ----------
@@ -397,6 +294,51 @@ async def plan_check(rep: Report, text: str, pull: PullRef = None, boss: str | N
         return PlanAnswer(rep.still_going(rep.by_boss[key]) + "\n".join(out), images)
     return PlanAnswer("\n".join(out), images, f, {"at_ms": overlays[0]["at_ms"], "moments": sorted(
         (m for o in overlays for m in o["moments"]), key=lambda m: m["ms"])} if overlays else None)
+
+
+async def plan_show(rep: Report, text: str, boss: str | None = None, player: str | None = None) -> str:
+    """The newest version of each plan for `boss` (else the latest pull's boss), every scene in words (describe),
+    with no pull. The report names the raiders the plan's labels mean; `player`'s spot is listed first."""
+    plans = parse(text)
+    wanted = boss or rep.boss(None)
+    found = [p for p in plans if p.boss and (knowledge.matches_boss(wanted, p.boss)
+                                             or knowledge.matches_boss(p.boss, wanted))]
+    if not found:
+        kept = ", ".join(dict.fromkeys(f'"{p.name}" ({p.boss or "no boss"})' for p in plans))
+        raise FactError(f"no raid plan for {wanted}" + (" (the latest pull's boss)" if not boss else "")
+                        + f"; the plans are {kept}: ask for one of their bosses")
+    newest: dict[str, Plan] = {}
+    for p in sorted(found, key=lambda p: p.saved_at or 0):
+        newest[p.plan_id] = p
+    shown = sorted(newest.values(), key=lambda p: -(p.saved_at or 0))
+    await rep.name_spells({s for p in shown for sc in p.scenes for s in sc.spells})
+    asked = rep.find_player(player) if player else None
+
+    def who(label: str, icon: str) -> str | None:
+        """The raider a label means, among those of the icon's class when it's one ("demonhunter", "DemonHunter")."""
+        among = [p for p in rep.players.values() if icon in ROLES or icon.replace("-", "") == p.class_name.lower()]
+        return p.name if label and (p := rep.find_player(label, among)) else None
+
+    def is_asked(label: str, icon: str) -> bool:
+        return bool(player and label and (asked and who(label, icon) == asked.name
+                                          or fold(label).lower() == fold(player).lower()))
+    lines = []
+    if len(shown) > 1:
+        lines.append(f"{len(shown)} plans for {shown[0].boss}, newest first: "
+                     + ", ".join(f'"{p.name}"' for p in shown) + ".")
+    for p in shown:
+        lines.append(_head(p) + f": {plural(len(p.scenes), 'scene')}, shown as drawn, with no pull. Places are as "
+                     "the plan draws them (above is toward the top of the picture), by the boss and the raid markers. "
+                     "#N is a spot's number on the plan, which an assignment note fills with a raider; a name is as "
+                     "typed on the plan, with the raider it matches in brackets.")
+        for sc in p.scenes:
+            if len(p.scenes) > 1:
+                lines.append(f"Scene {sc.name}:")
+            lines += ["  " + line for line in describe(sc, who, rep.ability_ref, is_asked)]
+        if player and not any(is_asked(s.label, s.role) for sc in p.scenes for s in sc.spots):
+            lines.append(f"{player} isn't named on this plan: spots are by number, filled by the night's "
+                         "assignment.")
+    return "\n".join(lines)
 
 
 def _boss_of(rep: Report, plan: Plan) -> str | None:

@@ -17,7 +17,7 @@ from wipebot.core import raidstrats, server
 from wipebot.core.accounts import parse_guild_link
 from wipebot.core.report import FactError
 from wipebot.core.report import note as notes
-from wipebot.core.report import plan as plans
+from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
 from .store import ServerSettings, Store

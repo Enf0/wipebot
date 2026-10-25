@@ -18,8 +18,10 @@ API: `wcl-api.md`.
 - Raidbots' generated game data (`https://www.raidbots.com/static/data/live/<file>`, `metadata.json` lists the
   files and the game build) isn't in warcraft_cli; `knowledge.raidbots` fetches it: `talents.json`,
   `flasks.json`, `augments.json`, `temp-enchants.json` (weapon oils by enchant id).
-- Viserio Cooldowns' API (`api.wowutils.com/v1`) gives a note's metadata but not its text (October 2026), so
-  officers paste the NSRT note it exports. A line's `time:` counts from the pull's start, through the
+- Viserio Cooldowns' API (`api.wowutils.com/v1`, OpenAPI at `api.wowutils.com/openapi.json`) gives a note's and an
+  assignment's metadata but not their text, nor the raid plans embedded in them (checked 25 October 2026), so
+  officers paste the NSRT note it exports. A setup in full (`/groups/{id}/latest-reset/setups/{id}/full`) has, per
+  boss, who's in for it with class, spec and role (`bossAssignments`), not who stands on which spot of a plan. A line's `time:` counts from the pull's start, through the
   intermissions. A `bossSpell:` id can be one the boss never casts: it labels the mechanic the cooldown is for.
 - raidstrats.gg's planner Export (no key, any plan you can open) gives `raidstrats-addon-` and base64: one version
   byte (1), then raw deflate (`zlib.decompress(b[1:], -15)`) of JSON: `v` 2, `planName`, `raid`, `boss`, `planId`,
@@ -29,6 +31,23 @@ API: `wcl-api.md`.
   the name as typed (often shortened, accents kept); a boss ability carries `spellId`. A side panel is a filled
   `rect` with icons and text inside, nothing marking it as one. A plan may be drawn on one side of a symmetric
   room and played on the other: fit it mirrored too.
+- More of the export, verified on the guild's plans 25 October 2026: a player icon's `icon` is `classes/<class>`
+  (`demonhunter`) or `roles/<role>.svg`, and `slotIndex` is its number on the plan; a raid marker is an icon
+  `markers/<name>`; `boss` and `trash` items carry a portrait; an ability icon's `label` says what it's for ("Gloom 1",
+  "Grim to star", a raider carrying it); a `triangle` has its three `corners`; a `line` (`shape` `line` or `arrow`)
+  runs from `x1`, `y1` to `x2`, `y2`, except that an arrow attached to objects in the planner is exported with both
+  ends at its start, so where it points is lost. Labels drawn on the plan in the planner may not be in the export
+  until the plan is saved.
+- Plans the guild uses are templates: Viserio's assignment note embeds a plan and fills each numbered spot with the
+  raider assigned to that number, the same on every scene of the embed (`players=`), so a number must mean the same
+  raider on every scene. Each embed (the general Raidplan section, a section per mechanic) has its own lists. Its
+  "RSGG Addon" button exports the plan with that section's raiders' names on its spots; raidstrats.gg's own export
+  (by hand or the API) is the plan as last saved. The NSRT note Viserio exports keeps a mechanic section's lists as
+  `Name: raiders` lines but not the general Raidplan section's numbering (25 October 2026).
+- Viserio's default plans (the Wowutils ones an assignment note links unless changed) can't be read with a guild
+  officer's login: `addon-export` answers 403 `access_denied` ("This account cannot open that plan"). A duplicate in
+  the officer's account can, once saved on raidstrats.gg (until then 404 `addon_export_missing`), checked 25 October
+  2026. A refresh with a wrong client secret answers 401 `invalid_client`; a refused login 400 `invalid_grant`.
 - raidstrats.gg's API (`/api/oauth/v1`, its developers page) reads only as a person who logged in and approved the
   app: the authorization code flow, no `client_credentials` (`unsupported_grant_type`, 19 October 2026). Access
   tokens last an hour; the refresh token 30 days, replaced on each refresh. `/plans` lists `plans` (theirs) and

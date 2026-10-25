@@ -8,7 +8,7 @@ import zlib
 import pytest
 
 from tests.support import PLAN
-from wipebot.core.report import FactError
+from wipebot.core.report import FactError, plan_export
 from wipebot.core.report import plan as plans
 from wipebot.core.report.base import Player, match_player
 
@@ -23,7 +23,7 @@ def export(data: dict) -> str:
 
 
 def test_the_planners_export_gives_the_spots_in_the_room_and_leaves_out_the_side_panel():
-    [p] = plans.parse(f"here's tonight's plan: {EXPORT} thanks")
+    [p] = plan_export.parse(f"here's tonight's plan: {EXPORT} thanks")
     assert (p.name, p.boss, p.raid) == ("Wowutils - Sszorak Mythic Spread", "Sszorak", "The Venomous Abyss")
     [scene] = p.scenes
     named = [s.label for s in scene.spots if s.label]
@@ -40,14 +40,14 @@ def test_the_planners_export_gives_the_spots_in_the_room_and_leaves_out_the_side
 
 def test_a_paste_without_a_plan_or_with_a_broken_one_is_an_error():
     with pytest.raises(FactError, match="raidstrats-addon-"):
-        plans.parse("EncounterID:3420;Name:Sszorak")
+        plan_export.parse("EncounterID:3420;Name:Sszorak")
     with pytest.raises(FactError, match="doesn't decode"):
-        plans.parse("raidstrats-addon-AAAA")
+        plan_export.parse("raidstrats-addon-AAAA")
 
 
 def test_a_paste_of_saved_versions_gives_each_oldest_first():
     one = export({"planId": "a", "planName": "Spread", "boss": "Sszorak", "scenes": []})
-    versions = plans.parse(f"[saved 2000 by Mirelle] {one}\n[saved 1000 by Torvek] {one}")
+    versions = plan_export.parse(f"[saved 2000 by Mirelle] {one}\n[saved 1000 by Torvek] {one}")
     assert [(v.saved_at, v.saved_by) for v in versions] == [(1000.0, "Torvek"), (2000.0, "Mirelle")]
 
 
@@ -91,5 +91,5 @@ def test_a_spot_numbered_by_the_planner_is_open():
     icon = {"kind": "icon", "w": 2.24, "h": 3.99, "icon": "roles/rdps.svg"}
     data = {"planId": "a", "planName": "P", "boss": "Sszorak", "scenes": [{"items": [
         {**icon, "label": "Brøndal", "x": 10, "y": 10}, {**icon, "label": "17", "x": 20, "y": 10}]}]}
-    [p] = plans.parse(export(data))
+    [p] = plan_export.parse(export(data))
     assert [s.label for s in p.scenes[0].spots] == ["Brøndal", ""]

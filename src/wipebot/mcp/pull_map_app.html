@@ -148,7 +148,7 @@ window.addEventListener("unhandledrejection", (e) => report(`rejection: ${e.reas
 let loaded = "";
 async function load(given) {
   const { plan, ...asked } = given;  // raid_plan's result carries the plan's moments; the replay is the pull's
-  if (!asked.report) { fail("No pull to show."); return; }
+  if (!asked.report) { collapse(); return; }  // an answer with no pull (a plan shown as it is, an error): nothing to play
   const key = JSON.stringify(given);
   if (key === loaded) return;
   loaded = key;
@@ -164,6 +164,10 @@ async function load(given) {
 }
 
 function fail(text) { $("status").classList.add("failed"); $("status-msg").textContent = text; }
+function collapse() {
+  document.body.style.display = "none";
+  notify("ui/notifications/size-changed", { width: document.documentElement.scrollWidth, height: 0 });
+}
 
 function decode(b64) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
