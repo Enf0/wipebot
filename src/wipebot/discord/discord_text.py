@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 from wipebot.core.knowledge import spaced
 from wipebot.core.report import Report
 
-from .emojis import MARKERS, SPINNER, marker_emoji, spec_emoji
+from .emojis import MARKERS, SPINNER, marker_emoji, spec_emoji, spell_emoji
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\([^)]*\)|<?https?://\S+")
 BOLD = re.compile(r"\*\*.+?\*\*")  # on one line
@@ -32,6 +32,7 @@ LINKED_SITES = ("warcraftlogs.com", "wowhead.com", "method.gg", "icy-veins.com",
 # A raid marker as raid notes write it: {skull}, {rt8}
 MARKER_TOKEN = re.compile(r"\{(rt[1-8]|x|" + "|".join(MARKERS) + r")\}", re.I)
 SKIPPED = (MARKDOWN_LINK, CODE)  # where add_icons adds none
+SPELL_LINK = re.compile(r"\[[^\]]+\]\(https://www\.wowhead\.com/spell=(\d+)\)")  # [Tempest](...spell=1287083)
 # A raid plan's scene with its link: "Scene 2 (https://raidstrats.gg/planner?view=<plan>/2):"
 SCENE_LINK = re.compile(r"^\s*Scene (\d+) \((https://raidstrats\.gg/\S+?)\):", re.M)
 SCENE = re.compile(r"(?<![\w\[])scene (\d+)(?![\w\]])", re.I)
@@ -51,7 +52,8 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
     abilities = {spell: name for r in reports[::-1] for spell, name in r.abilities.items()}  # the first report wins
     text = link_items(link_abilities(unlink_broken(unlink_elsewhere(text)), results, abilities), results)
     text = link_scenes(text, results)
-    text = bold_players(text, {p.name for r in reports for p in r.players.values()})
+    if not icons:  # with icons, each name is marked by its icon: bold on top of them is noise
+        text = bold_players(text, {p.name for r in reports for p in r.players.values()})
     for report in reports:
         text = fix_pull_links(text, report)
     if icons:
@@ -66,8 +68,7 @@ def specs_in(results: Sequence[str], icons: Mapping[str, str]) -> dict[str, tupl
     """The players tool results name with their spec or class in brackets after them ("Grusarn (Fury Warrior)",
     "Torvek (Hunter, ...)"): name -> WCL's class and spec ("" for a class alone), for the specs and classes the bot
     has an icon for."""
-    pairs = [name.split("_", 1) for name in icons if "_" in name and not name.startswith("marker_")
-             and name != SPINNER]
+    pairs = _spec_pairs(icons)
     known = {f"{spaced(s)} {spaced(c)}": (c, s) for c, s in pairs} | {spaced(c): (c, "") for c, _ in pairs}
     if not known:
         return {}
@@ -269,10 +270,10 @@ def _either(names: Iterable[str]) -> str:
 
 
 def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[str, str]) -> str:
-    """The bot's emojis in an answer: a raid marker's for every {skull} or {rt8} and before every "skull marker",
-    a spec's before every mention of a player (`specs`: name -> WCL's class and spec), and before the first mention
-    of a spec ("Holy Paladin") or class ("Paladins"). A player's icon counts as their spec's and class's first
-    mention. Links and code are left alone; without an emoji, the text stays as it is."""
+    """The bot's emojis in an answer: a raid marker's for every {skull} or {rt8} and before every "skull marker", a
+    spec's before every mention of a player (`specs`: name -> WCL's class and spec), and a boss ability's before
+    its Wowhead link. Not before a spec or class named as such ("the shaman cooldowns"): one icon per player is
+    enough to read. Code is left alone, and links but for that; without an emoji, the text stays as it is."""
     if not icons:
         return text
 
@@ -286,35 +287,27 @@ def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[st
     text = MARKER_TOKEN.sub(token, text)
     spans = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
 
-    pairs = [name.split("_", 1) for name in icons if "_" in name and not name.startswith("marker_")
-             and name != SPINNER]
-    by_spec = {f"{spaced(s)} {spaced(c)}".lower(): (c, s) for c, s in pairs}
-    by_class = {spaced(c).lower(): c for c, _ in pairs}
     players = {name: cs for name, cs in specs.items() if len(name) >= 3}
     parts = [f"(?P<player>{_either(players)})"] if players else []
-    if pairs:
-        parts += [f"(?i:(?P<spec>{_either(by_spec)})s?)", f"(?i:(?P<cls>{_either(by_class)})s?)"]
     parts.append(f"(?i:(?P<marker>{'|'.join(MARKERS)})(?= markers?\\b))")
-    seen: set = set()
 
     def icon(m: re.Match) -> str:
-        found, keys, said = None, cast(tuple, ()), m.group(0)
+        said = m.group(0)
         if skipped(m.start(), spans):
             return said
         if m.lastgroup == "marker":
-            return f"{icons[e]} {said}" if (e := marker_emoji(said.lower())) in icons else said
-        if m.lastgroup == "player":  # every time
+            found = icons.get(marker_emoji(said.lower()))
+        else:
             c, s = players[said]
-            seen.update(((c, s), c))
-            return f"{found} {said}" if (found := icons.get(spec_emoji(c, s)) or icons.get(spec_emoji(c))) else said
-        elif m.lastgroup == "spec":
-            c, s = by_spec[m.group("spec").lower()]
-            found, keys = icons.get(spec_emoji(c, s)), ((c, s), c)
-        elif m.lastgroup == "cls":
-            c = by_class[m.group("cls").lower()]
-            found, keys = icons.get(spec_emoji(c)), (c,)
-        if not found or keys[0] in seen:
-            return said
-        seen.update(keys)
-        return f"{found} {said}"
-    return re.sub(rf"(?<![\w\[])(?:{'|'.join(parts)})(?![\w\]])", icon, text)
+            found = icons.get(spec_emoji(c, s)) or icons.get(spec_emoji(c))
+        return f"{found} {said}" if found else said
+    text = re.sub(rf"(?<![\w\[])(?:{'|'.join(parts)})(?![\w\]])", icon, text)
+    # a boss ability's icon before its Wowhead link
+    return SPELL_LINK.sub(lambda m: f"{icons[e]} {m.group(0)}" if (e := spell_emoji(m.group(1))) in icons
+                          else m.group(0), text)
+
+
+def _spec_pairs(icons: Mapping[str, str]) -> list[tuple[str, str]]:
+    """The (class, spec) of each spec's emoji the bot has."""
+    return [cast(tuple[str, str], tuple(name.split("_", 1))) for name in icons
+            if "_" in name and not name.startswith(("marker_", "spell_")) and name != SPINNER]

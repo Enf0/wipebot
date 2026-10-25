@@ -87,6 +87,13 @@ async def boss_spells(boss: str) -> list[dict]:
     return [s for s in data.values() if isinstance(s, dict)]
 
 
+async def raid_boss_spells() -> list[int]:
+    """The spell ids of the boss abilities Lorrgs tracks, over every boss of the current expansion's raids."""
+    bosses = [b for _, names in await raids() for b in names]
+    found = await asyncio.gather(*(boss_spells(b) for b in bosses))
+    return list(dict.fromkeys(s["spell_id"] for spells in found for s in spells if s.get("spell_id")))
+
+
 async def raids() -> list[tuple[str, list[str]]]:
     """The current expansion's raids, each with its bosses in the game's order, from Raider.IO. Warcraft Logs files a
     single-boss raid's boss under the tier's raid (Kith'ix under The Venomous Abyss); the game doesn't."""

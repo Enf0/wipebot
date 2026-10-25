@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Agent` `Discord` **Who's in for the coming raid nights, from Viserio Cooldowns.** Ask "am I in on Coiled Altar tomorrow?", "who's benched?" or "who's coming Monday?": the answer reads the calendar's sign-ups and the week's setup per boss. An officer connects the group's key once with `/wipebot viserio`.
 - `Agent` **A raid plan's scenes come with their links.** An answer about a scene can link it on raidstrats.gg instead of naming its number.
-- `Discord` **Raid markers and spec icons in answers.** A raid marker shows as its icon, whether the answer quotes a note's {skull} or says "the star marker", and a player, spec or class gets its icon the first time an answer names them. Answers also mark what was done and not done with ✅ and ❌, and the thing to fix first with ⚠️.
+- `Discord` **Raid markers, spec and boss ability icons in answers.** A raid marker shows as its icon, whether the answer quotes a note's {skull} or says "the star marker"; each mention of a raider gets their spec's icon instead of bold; and a boss ability gets the icon you know from your boss mod. Lists of who does what go one raider per line. Answers also mark what was done and not done with ✅ and ❌, and the thing to fix first with ⚠️.
 
 ### Changed
 

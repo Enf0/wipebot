@@ -165,7 +165,8 @@ def test_no_way_of_writing_a_masked_link_gets_past(link, text):
 
 ICONS = {"marker_skull": "<:marker_skull:8>", "marker_star": "<:marker_star:1>", "Paladin": "<:Paladin:20>",
          "Paladin_Holy": "<:Paladin_Holy:21>", "DeathKnight": "<:DeathKnight:30>",
-         "DeathKnight_Blood": "<:DeathKnight_Blood:31>", "wipebot_spinner": "<a:wipebot_spinner:9>"}
+         "DeathKnight_Blood": "<:DeathKnight_Blood:31>", "wipebot_spinner": "<a:wipebot_spinner:9>",
+         "spell_1290001": "<:spell_1290001:40>"}
 SPECS = {"Brightleaf": ("Paladin", "Holy"), "Torvek": ("DeathKnight", "Frost"), "Al": ("Paladin", "Holy")}
 
 
@@ -180,12 +181,11 @@ SPECS = {"Brightleaf": ("Paladin", "Holy"), "Torvek": ("DeathKnight", "Frost"), 
                  "**<:Paladin_Holy:21> Brightleaf** heals; <:Paladin_Holy:21> Brightleaf again.",
                  id="a player's spec, every time"),
     pytest.param("Torvek died.", "<:DeathKnight:30> Torvek died.", id="no icon for the spec: the class's"),
-    pytest.param("Holy Paladins and death knights, then a Paladin.",
-                 "<:Paladin_Holy:21> Holy Paladins and <:DeathKnight:30> death knights, then a Paladin.",
-                 id="specs and classes, the first time"),
-    pytest.param("Brightleaf (Holy Paladin) and a Blood Death Knight.",
-                 "<:Paladin_Holy:21> Brightleaf (Holy Paladin) and a <:DeathKnight_Blood:31> Blood Death Knight.",
-                 id="a player's icon is their spec's"),
+    pytest.param("Holy Paladins and the shaman cooldowns.", "Holy Paladins and the shaman cooldowns.",
+                 id="none for a spec or class named as such"),
+    pytest.param(f"Kick {spell('Visceral Burst', 1290001)}, use {spell('Ascendance', 114052)}.",
+                 f"Kick <:spell_1290001:40> {spell('Visceral Burst', 1290001)}, use {spell('Ascendance', 114052)}.",
+                 id="a boss ability's before its link; none for a spell without one"),
     pytest.param("[Brightleaf](https://x) and `{skull}` stay.", "[Brightleaf](https://x) and `{skull}` stay.",
                  id="not in links or code"),
     pytest.param("Al is short; {moon} has no emoji.", "Al is short; {moon} has no emoji.", id="left alone"),
@@ -248,4 +248,4 @@ def test_a_players_spec_is_the_reports_then_the_tools_then_the_rosters():
              "Priest_Holy": "<:Priest_Holy:5>"}
     roster = {"Brightleaf": ("Paladin", "Retribution"), "Grusarn": ("Warrior", "Arms"), "Miralupa": ("Priest", "Holy")}
     text = polish("Brightleaf, Grusarn and Miralupa.", ["Grusarn (Fury Warrior)"], [report], icons, roster)
-    assert text == "**<:Paladin_Holy:1> Brightleaf**, <:Warrior_Fury:3> Grusarn and <:Priest_Holy:5> Miralupa."
+    assert text == "<:Paladin_Holy:1> Brightleaf, <:Warrior_Fury:3> Grusarn and <:Priest_Holy:5> Miralupa."  # no bold
