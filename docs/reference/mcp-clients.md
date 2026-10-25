@@ -18,9 +18,14 @@ Seen live on 2026-10-13 with claude.ai and the deployed remote server:
   server was found at the provided URL": the URL must end in `/mcp`.
 - claude.ai keeps a connector's tool list from when it connected: a tool added later shows up only after
   **Refresh tools** in the connector's settings (restarting the app doesn't do it). Until then its tool search
-  picks other tools.
+  picks other tools. The same holds for a tool's `_meta`: after `pull_summary` gained a view (25 October), Claude
+  Desktop called it without loading the page (no `view_data` call) until Refresh tools; in a plugin, the connector's
+  page under Settings → Connectors has it.
 - Claude caches an MCP App's page by its `ui://` address: a changed page under the same address kept showing
-  the old one after Refresh tools. The address carries a hash of the page (`remote.PULL_MAP_APP`).
+  the old one after Refresh tools. The address carries a hash of the page (`views.page_uri()`).
+- Claude Desktop (Windows, 25 October) sizes an inline view's frame a few pixels short of the page, which then
+  shows a scrollbar of its own, as claude-ai-mcp#69 describes (it measures the page rather than reading
+  `ui/notifications/size-changed`): the views' page hides its overflow inline.
 - Claude's tool search picks tools by name and description; the server's instructions weigh less, so a tool's
   description says when to call it.
 

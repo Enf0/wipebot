@@ -19,6 +19,8 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--font); }
+/* Inline, the host sizes the frame to the page (Claude by measuring it, a few px short): it never scrolls itself */
+:root:not([data-mode="fullscreen"]), :root:not([data-mode="fullscreen"]) body { overflow: hidden; }
 #app { padding: 10px 0 4px; }
 :root[data-picture] #app { padding: 16px 18px 12px; }  /* a picture has no host's margin around it */
 button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px;

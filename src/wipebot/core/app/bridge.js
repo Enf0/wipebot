@@ -49,6 +49,7 @@ const app = (() => {
       document.documentElement.dataset.theme = part.theme;
       document.documentElement.style.colorScheme = part.theme;
     }
+    if (part.displayMode) document.documentElement.dataset.mode = part.displayMode;
     emit("context", context);
   }
 
