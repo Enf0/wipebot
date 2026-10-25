@@ -11,6 +11,7 @@ import discord
 import pytest
 
 from tests.support import NOTE
+from tests.support.messages import shown
 from wipebot.core import server
 from wipebot.core.wcl import WCLError
 from wipebot.discord import bot as wipebot
@@ -159,7 +160,7 @@ class FakeDM(discord.DMChannel):
         self.id, self.sent = 5, []
 
     async def send(self, content=None, **kwargs):
-        self.sent.append(content)
+        self.sent.append(shown(content, kwargs.get("view")))
         return SimpleNamespace(id=100 + len(self.sent))
 
     def typing(self):
@@ -175,8 +176,8 @@ class FakeMessage:
         self.jump_url, self.replies = "https://discord.com/x", []
         self.created_at = datetime.datetime.now(datetime.UTC)
 
-    async def reply(self, content, **kwargs):
-        self.replies.append(content)
+    async def reply(self, content=None, **kwargs):
+        self.replies.append(shown(content, kwargs.get("view")))
         return SimpleNamespace(id=200 + len(self.replies))
 
 
@@ -517,33 +518,40 @@ async def test_posts_after_wipes_outlive_a_restart(bot, store, library, member, 
 # ---------- sending ----------
 
 
-async def test_answers_are_plain_messages_with_an_optional_footer(channel):
+async def test_answers_are_components_v2_messages_with_an_optional_footer(channel):
     await WipeBot._send(channel, Answer("Hey! Ask me about a pull."))
     await WipeBot._send(channel, Answer("**Mutilate at 2:15...**"), footer="🧪 TEST")
     assert channel.sent == ["Hey! Ask me about a pull.", "**Mutilate at 2:15...**\n-# 🧪 TEST"]
-    assert await WipeBot._send(channel, Answer("x" * 2500)) == [3, 4]  # split; the ids of the messages sent
+    assert all(v.has_components_v2() for v in channel.views)
+    assert await WipeBot._send(channel, Answer("x" * 2500)) == [3]  # a message holds 4000 characters
+    assert await WipeBot._send(channel, Answer("x" * 4500)) == [4, 5]  # split; the ids of the messages sent
 
 
 async def test_a_long_answer_is_cut_after_four_messages(channel):
-    assert len(await WipeBot._send(channel, Answer("x " * 5000))) == 4
-    assert all(len(m) <= 2000 for m in channel.sent)
+    assert len(await WipeBot._send(channel, Answer("x " * 10000))) == 4
+    assert all(len(m) <= wipebot.TEXT_LIMIT for m in channel.sent)
     assert channel.sent[-1].endswith(" …\n-# The answer was cut here: it ran past four messages.")
 
 
-async def test_a_map_goes_with_the_last_message_of_its_answer(channel):
+async def test_pictures_go_whole_with_the_last_message_of_their_answer(channel):
     drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
-    await WipeBot._send(channel, Answer("x" * 2500, calls=[ToolCall("pull_summary", {}, "", False), drawn]))
-    assert channel.files == [[], ["wipebot-1.webp"]]
+    view = ToolCall("pull_summary", {}, "", False, [b"WEBP"])
+    await WipeBot._send(channel, Answer("x" * 4500, calls=[drawn, view]))
+    assert channel.files == [[], ["wipebot-1.webp", "wipebot-2.webp"]]
+    # a gallery each: several attachments, or several pictures in one gallery, are a grid of cropped tiles
+    galleries = [c for c in channel.views[-1].walk_children() if isinstance(c, discord.ui.MediaGallery)]
+    assert [[i.media.url for i in g.items] for g in galleries] == [["attachment://wipebot-1.webp"],
+                                                                   ["attachment://wipebot-2.webp"]]
     assert drawn.record(0)["images"] == 1  # the record of the answer keeps the count, not the image
 
 
 async def test_without_attach_files_an_answer_goes_without_its_map(channel):
     sent = channel.send
 
-    async def send(content=None, suppress_embeds=False, files=()):
+    async def send(content=None, *, view=None, files=()):
         if files:
             raise discord.Forbidden(cast(Any, SimpleNamespace(status=403, reason="")), "Missing Permissions")
-        return await sent(content, suppress_embeds)
+        return await sent(content, view=view)
     channel.send = send
     drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
     assert await WipeBot._send(channel, Answer("**Spread out.**", calls=[drawn])) == [1]
@@ -698,11 +706,11 @@ async def test_a_long_answer_shows_what_it_looks_at_until_it_is_posted(bot, mess
     since = int(msg.created_at.timestamp())
     sent: list[Sent] = []
 
-    async def reply(content, **kwargs):
+    async def reply(content=None, **kwargs):
         if kwargs.get("silent"):
             sent.append(Sent(content, **kwargs))
             return sent[-1]
-        msg.replies.append(content)
+        msg.replies.append(shown(content, kwargs.get("view")))
         return SimpleNamespace(id=200 + len(msg.replies))
     msg.reply = reply
 

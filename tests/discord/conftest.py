@@ -12,6 +12,7 @@ from typing import Any, cast
 import discord
 import pytest
 
+from tests.support.messages import shown
 from wipebot.core.report import FactError
 from wipebot.discord.follower import Pull
 from wipebot.discord.store import ServerSettings, Store
@@ -48,10 +49,12 @@ class FakeChannel:
         self.permissions_for: Any = None
         self.sent: list[str | None] = []
         self.files: list[list[str]] = []
+        self.views: list[Any] = []
 
-    async def send(self, content=None, suppress_embeds=False, files=()):
-        self.sent.append(content)
+    async def send(self, content=None, *, view=None, files=(), **kwargs):
+        self.sent.append(shown(content, view))
         self.files.append([f.filename for f in files])
+        self.views.append(view)
         return SimpleNamespace(id=len(self.sent))
 
     def typing(self):
