@@ -34,7 +34,7 @@ from claude_agent_sdk import (
 )
 from mcp.server.mcpserver.exceptions import ToolError
 
-from wipebot.core import raidstrats, server, wcl
+from wipebot.core import raidstrats, server, viserio, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
 
@@ -423,8 +423,21 @@ class Session:
             raise ModelError(error, answer)
         text = texts[-1].strip() if texts else "(no answer)"  # the last text is the answer
         answer.text = polish(text, [c.result for c in answer.calls if not c.failed],
-                             await self._reports_read(answer.calls), ctx.icons)
+                             await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx))
         return answer
+
+    @staticmethod
+    async def _roster(ctx: Context) -> dict[str, tuple[str, str]]:
+        """The server's guild's roster from Viserio, name -> class and spec, for the icons of players the answer's
+        reports and tool results don't give; none without icons or a key, or when Viserio doesn't answer."""
+        found = ctx.notebook.viserio_key(ctx.guild_id) if ctx.icons and ctx.notebook and ctx.guild_id else None
+        if not found:
+            return {}
+        try:
+            return await viserio.roster_specs(found[0])
+        except viserio.ViserioError as e:
+            log.info("no roster from Viserio for the icons: %s", e)
+            return {}
 
     async def _prefetched(self, name: str, args: dict) -> ToolCall:
         """One of a question's `prefetch` tools, run as the model's own call would be, on the session's report."""

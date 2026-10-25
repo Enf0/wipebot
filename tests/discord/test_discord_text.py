@@ -16,6 +16,7 @@ from wipebot.discord.discord_text import (
     link_scenes,
     planned_classes,
     polish,
+    specs_in,
     tight_lists,
     unlink_broken,
     unlink_elsewhere,
@@ -227,3 +228,23 @@ def test_a_raid_plans_raiders_have_their_class():
         "Ape Goalkeeper": ("Evoker", "")}
     assert add_icons("Med Martin.", planned_classes([PLAN_RESULT], classes), {"Hunter": "<:Hunter:5>"}) == (
         "Med <:Hunter:5> Martin.")
+
+
+def test_tool_results_give_the_specs_of_the_players_they_name():
+    results = ["Out: Grusarn (Fury Warrior), Lïzårðmâñ (Preservation Evoker, Ape)", "Tanks: Deathadim (Blood Death "
+               "Knight)", "Rowan (Paladin) and Torvek (the hunter)"]
+    icons = {"Warrior_Fury": "<:a:1>", "Evoker_Preservation": "<:b:2>", "DeathKnight_Blood": "<:c:3>",
+             "Paladin_Holy": "<:d:4>"}
+    assert specs_in(results, icons) == {"Grusarn": ("Warrior", "Fury"), "Lïzårðmâñ": ("Evoker", "Preservation"),
+                                        "Deathadim": ("DeathKnight", "Blood"), "Rowan": ("Paladin", "")}
+
+
+def test_a_players_spec_is_the_reports_then_the_tools_then_the_rosters():
+    report = cast(Report, SimpleNamespace(players={1: SimpleNamespace(name="Brightleaf", class_name="Paladin",
+                                                                      spec="Holy")}, abilities={}, code="x"))
+    icons = {"Paladin_Holy": "<:Paladin_Holy:1>", "Paladin_Retribution": "<:Paladin_Retribution:2>",
+             "Warrior_Fury": "<:Warrior_Fury:3>", "Warrior_Arms": "<:Warrior_Arms:4>",
+             "Priest_Holy": "<:Priest_Holy:5>"}
+    roster = {"Brightleaf": ("Paladin", "Retribution"), "Grusarn": ("Warrior", "Arms"), "Miralupa": ("Priest", "Holy")}
+    text = polish("Brightleaf, Grusarn and Miralupa.", ["Grusarn (Fury Warrior)"], [report], icons, roster)
+    assert text == "**<:Paladin_Holy:1> Brightleaf**, <:Warrior_Fury:3> Grusarn and <:Priest_Holy:5> Miralupa."

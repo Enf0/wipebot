@@ -20,6 +20,7 @@ from .report import FactError
 
 API = "https://api.wowutils.com/v1"
 FRESH_S = 120  # an answer asked this soon after the last reuses it (a group has 60 points an hour)
+ROSTER_FRESH_S = 3600  # the roster, which rarely changes, is reused this long (it's read for every answer)
 TIMEOUT_S = 10
 DAYS_AHEAD = 8  # the nights coming up that `upcoming` gives
 ROLES = ("tank", "healer", "melee", "ranged")
@@ -43,10 +44,10 @@ class Group:
 _answers: dict[tuple[str, str], tuple[str, dict, float]] = {}
 
 
-async def _get(key: str, path: str) -> dict:
-    """One of the API's answers, reused for FRESH_S and then asked again with its ETag."""
+async def _get(key: str, path: str, fresh_s: float | None = None) -> dict:
+    """One of the API's answers, reused for `fresh_s` (FRESH_S) and then asked again with its ETag."""
     etag, body, at = _answers.get((key, path), ("", {}, 0.0))
-    if body and time.time() - at < FRESH_S:
+    if body and time.time() - at < (FRESH_S if fresh_s is None else fresh_s):
         return body
     headers = {"Authorization": f"Bearer {key}", "User-Agent": "Wipebot"} | ({"If-None-Match": etag} if etag else {})
     try:
@@ -71,7 +72,7 @@ async def _get(key: str, path: str) -> dict:
 
 async def group(key: str) -> Group:
     """The group the key is for."""
-    found = ((await _get(key, "/groups")).get("data") or [None])[0]
+    found = ((await _get(key, "/groups", ROSTER_FRESH_S)).get("data") or [None])[0]
     if not found:
         raise ViserioError("the key opens no group")
     guild = found.get("guild") or {}
@@ -108,6 +109,23 @@ async def upcoming(key: str, days: int = DAYS_AHEAD) -> tuple[Group, list[Night]
             continue
         nights.append(Night(e, [s for s in setups if (s.get("eventRef") or {}).get("eventId") == e.get("eventId")]))
     return g, nights
+
+
+async def roster_specs(key: str) -> dict[str, tuple[str, str]]:
+    """Every character on the group's roster, alts and inactive ones too, and each player's roster name for their
+    main: name -> (class, spec) in Warcraft Logs' form ("DeathKnight", "BeastMastery"). A character's own name wins
+    over a roster name that's the same."""
+    g = await group(key)
+    found: dict[str, tuple[str, str]] = {}
+    mains: dict[str, tuple[str, str]] = {}
+    for m in (await _get(key, f"/groups/{g.id}/roster", ROSTER_FRESH_S)).get("members") or []:
+        for c in m.get("characters") or []:
+            if c.get("name") and c.get("class"):
+                spec = ((c.get("class") or "").replace(" ", ""), (c.get("spec") or "").replace(" ", ""))
+                found[c["name"]] = spec
+                if c.get("playerId") == m.get("mainCharacter") and m.get("displayName"):
+                    mains[m["displayName"]] = spec
+    return mains | found
 
 
 def _who(entry: dict) -> str:
