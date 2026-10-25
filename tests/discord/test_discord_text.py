@@ -8,6 +8,7 @@ from tests.support import CODE, FakeWCL
 from wipebot.core import server
 from wipebot.core.report import Report
 from wipebot.discord.discord_text import (
+    add_icons,
     bold_players,
     fix_pull_links,
     link_abilities,
@@ -157,3 +158,34 @@ def test_a_masked_link_to_a_site_the_tools_dont_link_to_keeps_only_its_text():
 ])
 def test_no_way_of_writing_a_masked_link_gets_past(link, text):
     assert unlink_elsewhere(f"see {link} now") == f"see {text} now"
+
+
+ICONS = {"marker_skull": "<:marker_skull:8>", "marker_star": "<:marker_star:1>", "Paladin": "<:Paladin:20>",
+         "Paladin_Holy": "<:Paladin_Holy:21>", "DeathKnight": "<:DeathKnight:30>",
+         "DeathKnight_Blood": "<:DeathKnight_Blood:31>", "wipebot_spinner": "<a:wipebot_spinner:9>"}
+SPECS = {"Brightleaf": ("Paladin", "Holy"), "Torvek": ("DeathKnight", "Frost"), "Al": ("Paladin", "Holy")}
+
+
+@pytest.mark.parametrize("text, expected", [
+    pytest.param("Stack on {skull}, then {rt1} and {RT8}.",
+                 "Stack on <:marker_skull:8>, then <:marker_star:1> and <:marker_skull:8>.",
+                 id="a raid note's markers, every one"),
+    pytest.param("Go to the skull marker, then the Star marker; skull.",
+                 "Go to the <:marker_skull:8> skull marker, then the <:marker_star:1> Star marker; skull.",
+                 id="before a marker named as one"),
+    pytest.param("**Brightleaf** heals; Brightleaf again.",
+                 "**<:Paladin_Holy:21> Brightleaf** heals; Brightleaf again.", id="a player's spec, the first time"),
+    pytest.param("Torvek died.", "<:DeathKnight:30> Torvek died.", id="no icon for the spec: the class's"),
+    pytest.param("Holy Paladins and death knights, then a Paladin.",
+                 "<:Paladin_Holy:21> Holy Paladins and <:DeathKnight:30> death knights, then a Paladin.",
+                 id="specs and classes, the first time"),
+    pytest.param("Brightleaf (Holy Paladin) and a Blood Death Knight.",
+                 "<:Paladin_Holy:21> Brightleaf (Holy Paladin) and a <:DeathKnight_Blood:31> Blood Death Knight.",
+                 id="a player's icon is their spec's"),
+    pytest.param("[Brightleaf](https://x) and `{skull}` stay.", "[Brightleaf](https://x) and `{skull}` stay.",
+                 id="not in links or code"),
+    pytest.param("Al is short; {moon} has no emoji.", "Al is short; {moon} has no emoji.", id="left alone"),
+])
+def test_icons_go_where_the_bot_has_them(text, expected):
+    assert add_icons(text, SPECS, ICONS) == expected
+    assert add_icons(text, SPECS, {}) == text

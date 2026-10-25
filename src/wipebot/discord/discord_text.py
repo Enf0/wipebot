@@ -5,10 +5,14 @@ can't colour text). The others repair what the model gets wrong now and then: a 
 spell id goes, a pull link with a made-up fight, a blank line above a list; and a masked link to a site the tools
 don't link to keeps only its text."""
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import cast
 from urllib.parse import urlsplit
 
+from wipebot.core.knowledge import spaced
 from wipebot.core.report import Report
+
+from .emojis import MARKERS, SPINNER, marker_emoji, spec_emoji
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\([^)]*\)|<?https?://\S+")
 BOLD = re.compile(r"\*\*.+?\*\*")  # on one line
@@ -25,17 +29,24 @@ PULL_LINK = re.compile(r"\[([^\]]*?\bpull (\d+)[^\]]*)\]\(https?://www\.warcraft
 # read (a raider's name, a question) to someone's server in its address: only its text is kept.
 LINKED_SITES = ("warcraftlogs.com", "wowhead.com", "method.gg", "icy-veins.com", "warcraft.wiki.gg", "raidstrats.gg",
                 "raider.io", "lorrgs.io", "raidbots.com")
+# A raid marker as raid notes write it: {skull}, {rt8}
+MARKER_TOKEN = re.compile(r"\{(rt[1-8]|x|" + "|".join(MARKERS) + r")\}", re.I)
+SKIPPED = (MARKDOWN_LINK, CODE)  # where add_icons adds none
 BLANK_BEFORE_LIST = re.compile(r"^(?![ \t]*(?:[-*]|\d+\.) )(\S.*)\n[ \t]*\n(?=[ \t]*(?:[-*]|\d+\.) )", re.M)
 
 
-def polish(text: str, results: Sequence[str], reports: Sequence[Report]) -> str:
+def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: Mapping[str, str] = {}) -> str:
     """The answer as posted, from what the tools returned (`results`) and the reports they read, the session's
-    first. A broken link is undone first, so the ability in it gets a proper one."""
+    first, with the bot's emojis (`icons`, by name) where it has them. A broken link is undone first, so the ability
+    in it gets a proper one."""
     abilities = {spell: name for r in reports[::-1] for spell, name in r.abilities.items()}  # the first report wins
     text = link_items(link_abilities(unlink_broken(unlink_elsewhere(text)), results, abilities), results)
     text = bold_players(text, {p.name for r in reports for p in r.players.values()})
     for report in reports:
         text = fix_pull_links(text, report)
+    if icons:
+        text = add_icons(text, {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()},
+                         icons)
     return tight_lists(text)
 
 
@@ -186,3 +197,65 @@ def fix_pull_links(text: str, report: Report) -> str:
 def tight_lists(text: str) -> str:
     """No blank line between a line and the list under it: Discord already puts space above a list."""
     return BLANK_BEFORE_LIST.sub(r"\1\n", text)
+
+
+def _marker(token: str) -> str:
+    """{rt8}, {x}, {skull} -> 'skull', 'cross', 'skull'."""
+    token = token.lower()
+    return list(MARKERS)[int(token[2]) - 1] if token.startswith("rt") else "cross" if token == "x" else token
+
+
+def _either(names: Iterable[str]) -> str:
+    """A regex for any of `names`, the longest first so "Death Knight" wins over a shorter name inside it."""
+    return "|".join(map(re.escape, sorted(names, key=len, reverse=True)))
+
+
+def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[str, str]) -> str:
+    """The bot's emojis in an answer: a raid marker's for every {skull} or {rt8} and before every "skull marker",
+    and a spec's before the first mention of each player (`specs`: name -> WCL's class and spec), spec ("Holy
+    Paladin") and class ("Paladins"). A player's icon counts as their spec's and class's first mention. Links and
+    code are left alone; without an emoji, the text stays as it is."""
+    if not icons:
+        return text
+
+    def skipped(at: int, spans: list[tuple[int, int]]) -> bool:
+        return any(a <= at < b for a, b in spans)
+    spans = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
+
+    def token(m: re.Match) -> str:
+        icon = icons.get(marker_emoji(_marker(m.group(1))))
+        return icon if icon and not skipped(m.start(), spans) else m.group(0)
+    text = MARKER_TOKEN.sub(token, text)
+    spans = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
+
+    pairs = [name.split("_", 1) for name in icons if "_" in name and not name.startswith("marker_")
+             and name != SPINNER]
+    by_spec = {f"{spaced(s)} {spaced(c)}".lower(): (c, s) for c, s in pairs}
+    by_class = {spaced(c).lower(): c for c, _ in pairs}
+    players = {name: cs for name, cs in specs.items() if len(name) >= 3}
+    parts = [f"(?P<player>{_either(players)})"] if players else []
+    if pairs:
+        parts += [f"(?i:(?P<spec>{_either(by_spec)})s?)", f"(?i:(?P<cls>{_either(by_class)})s?)"]
+    parts.append(f"(?i:(?P<marker>{'|'.join(MARKERS)})(?= markers?\\b))")
+    seen: set = set()
+
+    def icon(m: re.Match) -> str:
+        found, keys, said = None, cast(tuple, ()), m.group(0)
+        if skipped(m.start(), spans):
+            return said
+        if m.lastgroup == "marker":
+            return f"{icons[e]} {said}" if (e := marker_emoji(said.lower())) in icons else said
+        if m.lastgroup == "player":
+            c, s = players[said]
+            found, keys = icons.get(spec_emoji(c, s)) or icons.get(spec_emoji(c)), (said, (c, s), c)
+        elif m.lastgroup == "spec":
+            c, s = by_spec[m.group("spec").lower()]
+            found, keys = icons.get(spec_emoji(c, s)), ((c, s), c)
+        elif m.lastgroup == "cls":
+            c = by_class[m.group("cls").lower()]
+            found, keys = icons.get(spec_emoji(c)), (c,)
+        if not found or keys[0] in seen:
+            return said
+        seen.update(keys)
+        return f"{found} {said}"
+    return re.sub(rf"(?<![\w\[])(?:{'|'.join(parts)})(?![\w\]])", icon, text)

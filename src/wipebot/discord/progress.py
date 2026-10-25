@@ -1,15 +1,12 @@
 """The line under a question while its answer is written: what the answer has looked at, what it's looking at now,
 and how long it has taken."""
 import asyncio
-import io
 import logging
-import math
 import re
 import time
 from collections import Counter
 
 import discord
-from PIL import Image, ImageDraw
 
 from wipebot.core import server
 
@@ -20,7 +17,6 @@ PROGRESS_EDIT_S = 2.0  # and is edited at most this often
 NOT_SHOWN = ("Skill", "Read")  # tools the progress line leaves out: reading the skill isn't looking at the log
 SHOWN_DONE = 8  # tools done the line names, the latest
 SHOWN_NOW = 3  # tools under way it names
-SPINNER = "wipebot_spinner"  # the bot's own (application) emoji: a new drawing needs a new name
 FALLBACK_SPINNER = "⏳"
 
 # What a tool under way does, for the people waiting: a tool missing here shows its title
@@ -55,43 +51,6 @@ def doing(name: str, args: dict) -> str:
         PULLS.get(str(pull).lower(), f"pull {_clean(pull)}") if pull not in (None, "") else None)
     about = [s for s in (_clean(args.get("boss") or ""), pull, _clean(args.get("spec") or "")) if s]
     return DOING.get(name, server.title(name)) + (f" ({', '.join(about)})" if about else "")
-
-
-def spinner_gif() -> bytes:
-    """The spinner: eight gold dots in a ring, shrinking towards the tail, turning one dot a frame. Drawn at four
-    times the size and scaled down; a GIF's pixel is either clear or not, so the edges are cut at half."""
-    size, big, dots = 128, 512, 8
-    frames = []
-    for frame in range(dots):
-        image = Image.new("L", (big, big), 0)
-        draw = ImageDraw.Draw(image)
-        for i in range(dots):
-            angle = 2 * math.pi * (frame - i) / dots - math.pi / 2
-            r = 52 * (1 - i / dots) + 12
-            x, y = big / 2 + 180 * math.cos(angle), big / 2 + 180 * math.sin(angle)
-            draw.ellipse((x - r, y - r, x + r, y + r), fill=255)
-        mask = image.resize((size, size), Image.Resampling.LANCZOS).point(lambda v: 1 if v >= 128 else 0)
-        out = mask.convert("P")
-        out.putpalette([0, 0, 0, 240, 178, 50] + [0, 0, 0] * 254)
-        frames.append(out)
-    buf = io.BytesIO()
-    frames[0].save(buf, "GIF", save_all=True, append_images=frames[1:], duration=90, loop=0, transparency=0,
-                   disposal=2)
-    return buf.getvalue()
-
-
-async def spinner(client: discord.Client) -> str:
-    """The bot's spinner emoji, uploaded as its own (application) emoji the first time; FALLBACK_SPINNER if
-    Discord says no."""
-    try:
-        emoji = next((e for e in await client.fetch_application_emojis() if e.name == SPINNER), None)
-        if emoji is None:
-            emoji = await client.create_application_emoji(name=SPINNER, image=spinner_gif())
-            log.info("uploaded the progress line's spinner emoji")
-        return str(emoji)
-    except discord.HTTPException as e:
-        log.warning("no spinner emoji for the progress line: %s", e)
-        return FALLBACK_SPINNER
 
 
 class Progress:
