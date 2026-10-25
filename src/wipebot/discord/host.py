@@ -4,6 +4,7 @@ The tools are the core's MCP server, run in-process (no subprocess, one set of l
 (prompt.BOT_TOOLS), whose handlers come with each question. What the model reads is in prompt.py; what's made of its
 answer for Discord in discord_text.py. Only this module knows about the SDK.
 """
+import asyncio
 import functools
 import json
 import logging
@@ -34,7 +35,7 @@ from claude_agent_sdk import (
 )
 from mcp.server.mcpserver.exceptions import ToolError
 
-from wipebot.core import raidstrats, server, viserio, wcl
+from wipebot.core import raidstrats, server, viewhost, viserio, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
 
@@ -94,7 +95,7 @@ class Context:
 
 
 SERVER = "wipebot"  # the tools' MCP server: the model calls mcp__wipebot__<tool>
-MAX_IMAGES = 4  # maps sent with one answer
+MAX_IMAGES = 4  # pictures sent with one answer (maps, views)
 # A conversation's context (every tool result so far) is read again on every turn of every later answer, so a
 # long one makes each answer slower and dearer. Past this many tokens, the session is worn out: the bot closes it
 # after the answer, and the next question starts a new one with the place's recent messages (EARLIER) instead.
@@ -115,6 +116,56 @@ def context_size(usage: dict | None) -> int:
                ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens"))
 
 
+_painter: viewhost.Painter | None = None  # draws the views' pictures; opened on the first one
+_no_pictures = ""  # why views can't be drawn here (no Playwright or no Chromium): said once, then not tried
+
+
+PICTURE_WAIT_S = 20  # an answer waits this long at most for its pictures still being drawn, then goes without
+
+
+async def tool_call(name: str, args: dict) -> tuple[str, bool, list[bytes], asyncio.Task | None]:
+    """One of the core's tools, run in-process: its text, whether it failed, the pictures for the answer (what the
+    tool drew: pull_map's map) and, for a tool with a view, the task drawing the view as Claude and ChatGPT show it
+    (`picture`) into those pictures. The model goes on meanwhile; the answer waits for it (`pictures_drawn`)."""
+    text, failed, images = await server.call_with_images(name, args)
+    drawing = None
+    if not failed and name in server.VIEW_TOOLS and not _no_pictures:
+        async def draw() -> None:
+            images.extend(await picture(name, args))
+        drawing = asyncio.create_task(draw())
+    return text, failed, images, drawing
+
+
+async def pictures_drawn(calls: Sequence[ToolCall]) -> None:
+    """Until the calls' pictures still being drawn are done, for PICTURE_WAIT_S at most."""
+    if pending := [c.drawing for c in calls if c.drawing and not c.drawing.done()]:
+        await asyncio.wait(pending, timeout=PICTURE_WAIT_S)
+
+
+async def picture(name: str, args: dict) -> list[bytes]:
+    """The tool's view as a picture (viewhost.Painter), or nothing when it can't be drawn: the answer goes without."""
+    global _painter, _no_pictures
+    if _no_pictures:
+        return []
+    started = time.monotonic()
+    try:
+        _painter = _painter or viewhost.Painter()
+        drawn = await _painter.picture(name, args)
+    except ImportError as e:
+        _no_pictures = f"Playwright isn't installed ({e})"
+    except Exception as e:  # noqa: BLE001 (a picture never fails an answer)
+        if "Executable doesn't exist" in str(e):
+            _no_pictures = "Playwright's Chromium isn't installed (python -m playwright install --only-shell chromium)"
+        else:
+            log.warning("couldn't draw %s's view: %s", name, e)
+            return []
+    if _no_pictures:
+        log.warning("answers go without the views' pictures: %s", _no_pictures)
+        return []
+    log.info("drew %s's view in %.1f s", name, time.monotonic() - started)
+    return [drawn] if drawn else []
+
+
 @dataclass
 class ToolCall:
     """A tool call as the tool ran it (with the session's report filled in) and what it returned."""
@@ -122,10 +173,11 @@ class ToolCall:
     args: dict
     result: str
     failed: bool
-    images: list[bytes] = field(default_factory=list)  # images the tool drew (pull_map), for the answer
+    images: list[bytes] = field(default_factory=list)  # pictures for the answer: a map, a view (tool_call)
     started: float = 0.0  # time.monotonic() when it started
     duration_s: float = 0.0
     wcl_points: dict = field(default_factory=dict)  # what its Warcraft Logs queries cost (wcl.Points.record)
+    drawing: asyncio.Task | None = None  # its view being drawn into `images` (tool_call)
 
     def record(self, asked: float) -> dict:
         """For the interaction record, with when it started counted from `asked` (the question's time.monotonic()):
@@ -162,14 +214,15 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
             if name == "find_reports" and guild and (own := guild()):
                 args = with_own_guild(args, own)
             started = time.monotonic()
+            drawing = None
             with wcl.counting_points() as points:
                 try:
                     found = await find(args) if find else None
                     if isinstance(found, str):
                         text, failed, images = found, False, []
                     else:
-                        text, failed, images = await server.call_with_images(
-                            name, {**args, arg: found[0]} if found else args)
+                        text, failed, images, drawing = await tool_call(name, {**args, arg: found[0]} if found
+                                                                        else args)
                         if found and found[1] and not failed:
                             text = f"(The {arg} was {found[1]}.)\n{text}"
                 except (ToolError, FactError) as e:
@@ -177,7 +230,7 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                     text, failed, images = str(e), True, []
             if on_result:  # without the note or plan, which is the same in every call
                 on_result(ToolCall(name, args, text, failed, images, started, time.monotonic() - started,
-                                   points.record()))
+                                   points.record(), drawing))
             # The model gets the text; an image goes to the user with the answer (Answer.images).
             return {"content": [{"type": "text", "text": text}], "is_error": failed}
         # Read-only tools may run side by side: the model often asks for several at once.
@@ -239,7 +292,7 @@ class Answer:
 
     @property
     def images(self) -> list[bytes]:
-        """The images the answer's tool calls drew (pull_map), to send with it; the last few."""
+        """The pictures of the answer's tool calls (maps, views), to send with it; the last few."""
         return [i for c in self.calls if not c.failed for i in c.images][-MAX_IMAGES:]
 
 
@@ -422,6 +475,7 @@ class Session:
         answer.calls = list(self._calls)
         if error:
             raise ModelError(error, answer)
+        await pictures_drawn(answer.calls)
         text = texts[-1].strip() if texts else "(no answer)"  # the last text is the answer
         answer.text = polish(text, [c.result for c in answer.calls if not c.failed],
                              await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx))
@@ -443,14 +497,15 @@ class Session:
     async def _prefetched(self, name: str, args: dict) -> ToolCall:
         """One of a question's `prefetch` tools, run as the model's own call would be, on the session's report."""
         args = {"report": self.code, **args}
-        started = time.monotonic()
+        started, drawing = time.monotonic(), None
         with wcl.counting_points() as points:
             try:
-                text, failed, images = await server.call_with_images(name, args)
+                text, failed, images, drawing = await tool_call(name, args)
             except (ToolError, FactError) as e:
                 log.warning("tool %s failed: %s", name, e)
                 text, failed, images = str(e), True, []
-        return ToolCall(name, args, text, failed, images, started, time.monotonic() - started, points.record())
+        return ToolCall(name, args, text, failed, images, started, time.monotonic() - started, points.record(),
+                        drawing)
 
     async def _reports_read(self, calls: Sequence[ToolCall]) -> list[Report]:
         """The session's report, then the others the tool calls read (a question about another night), for

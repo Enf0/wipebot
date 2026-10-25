@@ -33,6 +33,10 @@ views.pull = (() => {
     const startAt = D.deaths.length ? Math.max(0, D.deaths[0].ms - 3000) : 0;
     drawnWidth = root.clientWidth;
     const width = Math.max(300, drawnWidth || 640);
+    if (app.picture()) {  // a still picture: the card without its buttons
+      root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 46, plotH: 130 })}</div>`;
+      return;
+    }
     if (!full) {
       root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 46, plotH: width < 500 ? 100 : 120 })}</div>`
         + `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="pv-open">Open pull</button>' : ""}`

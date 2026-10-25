@@ -62,6 +62,44 @@ async def test_a_tool_error_goes_to_the_model_as_a_failed_call(monkeypatch):
     assert [(c.name, c.failed) for c in recorded] == [("pull_summary", True)]
 
 
+async def test_a_tools_view_goes_with_the_answer_as_a_picture(core_calls, monkeypatch):
+    drawn = []
+
+    async def picture(name, args):
+        drawn.append((name, args))
+        return [b"WEBP"]
+    monkeypatch.setattr(host, "picture", picture)
+    recorded: list[ToolCall] = []
+    monkeypatch.setattr(host, "_no_pictures", "")
+    tools = {t.name: t for t in await sdk_tools("R", recorded.append)}
+    await tools["pull_summary"].handler({"pull": 13})  # returns at once: the model goes on while it's drawn
+    await tools["spell_info"].handler({"spell": "1277027"})  # no view
+    assert [c.drawing is not None for c in recorded] == [True, False]
+    await host.pictures_drawn(recorded)  # what an answer waits for before it's sent
+    assert drawn == [("pull_summary", {"pull": 13, "report": "R"})]
+    assert [c.images for c in recorded] == [[b"WEBP"], []]
+    assert Answer("", calls=recorded).images == [b"WEBP"]
+
+
+async def test_a_picture_that_cannot_be_drawn_leaves_the_answer_without_it(monkeypatch):
+    class Painter:
+        def __init__(self, error):
+            self.error, self.asked = error, 0
+
+        async def picture(self, name, args):
+            self.asked += 1
+            raise self.error
+    monkeypatch.setattr(host, "_no_pictures", "")
+    broken = Painter(RuntimeError("not drawn: Timeout 60000ms exceeded"))
+    monkeypatch.setattr(host, "_painter", broken)
+    assert await host.picture("pull_summary", {}) == [] and await host.picture("pull_summary", {}) == []
+    assert broken.asked == 2  # one view that didn't draw: the next is tried
+    missing = Painter(Exception("BrowserType.launch: Executable doesn't exist at /ms-playwright/chromium"))
+    monkeypatch.setattr(host, "_painter", missing)
+    assert await host.picture("pull_summary", {}) == [] and await host.picture("pull_summary", {}) == []
+    assert missing.asked == 1 and "Chromium isn't installed" in host._no_pictures  # said once, then not tried
+
+
 async def test_each_tool_call_keeps_what_its_warcraft_logs_queries_cost(monkeypatch):
     from wipebot.core import wcl
 

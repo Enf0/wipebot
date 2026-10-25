@@ -1,6 +1,7 @@
 """The views (report/views.py, the page in app/): each view's data on a real pull, against its tool's text and its
 snapshot; the page drawn in the mock host (viewhost.py, Chromium); the replay's JavaScript against the tracks
 maps.replay packs (Node)."""
+import io
 import json
 import re
 import shutil
@@ -137,6 +138,29 @@ async def test_the_replay_opens_from_the_pull_view(recorded, tmp_path):
     assert not replay.errors and "← Sszorak pull 13" in replay.text and "0:45 / 2:42" in replay.text
     calls = [m["msg"]["params"]["name"] for m in replay.messages if m["msg"].get("method") == "tools/call"]
     assert calls[:2] == ["view_data", "pull_replay"]
+
+
+async def test_the_painter_draws_the_pull_view_as_a_picture_for_the_bot(recorded, monkeypatch):
+    pytest.importorskip("playwright")
+    from PIL import Image
+    from playwright.async_api import Error
+
+    from wipebot.core import viewhost
+    monkeypatch.setattr(server.DEFAULT, "remote", None)  # as the bot runs the tools: in-process
+    painter = viewhost.Painter()
+    try:
+        drawn = await painter.picture("pull_summary", PULL_CASE.args)
+        assert await painter.picture("pull_map", PULL_CASE.args) is None  # its picture is its own map
+    except Error as e:
+        if "Executable doesn't exist" in str(e):
+            pytest.skip("needs Playwright's Chromium (python -m playwright install chromium-headless-shell)")
+        raise
+    finally:
+        await painter.close()
+    assert drawn is not None
+    img = Image.open(io.BytesIO(drawn))
+    assert img.format == "WEBP" and img.width == viewhost.PICTURE_WIDTH * viewhost.PICTURE_SCALE
+    assert 300 < img.height < 1000 and len(drawn) < 200_000  # the card alone, without its buttons
 
 
 # ---- the replay's JavaScript (Node) ----

@@ -140,7 +140,7 @@ async def _answer(session: Session, question: str, ctx: Context) -> None:
         return
     print(f"\nwipebot: {a.text}")
     for image in a.images:  # what Discord would attach
-        with tempfile.NamedTemporaryFile("wb", prefix="wipebot-map-", suffix=".webp", delete=False) as fh:
+        with tempfile.NamedTemporaryFile("wb", prefix="wipebot-picture-", suffix=".webp", delete=False) as fh:
             fh.write(image)
         print("  " + _dim(f"[image: {fh.name}]"))
     if a.cost_usd is not None:

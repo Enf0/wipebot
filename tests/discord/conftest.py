@@ -87,6 +87,12 @@ def follower() -> FakeFollower:
     return FakeFollower()
 
 
+@pytest.fixture(autouse=True)
+def no_pictures(monkeypatch):
+    """No views drawn as pictures (a browser; test_host.py's picture tests turn them on)."""
+    monkeypatch.setattr("wipebot.discord.host._no_pictures", "off in the tests")
+
+
 @pytest.fixture
 def core_calls(monkeypatch) -> list[tuple[str, dict]]:
     """The core's tools, faked: each call is kept as (name, arguments) and returns "checked"."""

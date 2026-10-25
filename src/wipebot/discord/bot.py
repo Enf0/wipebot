@@ -933,7 +933,7 @@ class WipeBot(discord.Client):
     async def _send(channel: discord.abc.Messageable, answer: Answer, reply_to: discord.Message | None = None,
                     footer: str | None = None) -> list[int]:
         """An answer, as a reply to `reply_to` or else a plain send, without link previews, in at most MAX_MESSAGES
-        messages, with `footer` in a small line at the end and the images its tools drew (maps) on its last message.
+        messages, with `footer` in a small line at the end and the pictures for it (maps, views) on its last message.
         Returns the ids of the messages sent."""
         chunks = split_message(answer.text, DISCORD_LIMIT)
         if len(chunks) > MAX_MESSAGES:
@@ -948,12 +948,12 @@ class WipeBot(discord.Client):
         sent: list[discord.Message] = []
         for i, chunk in enumerate(chunks):
             last = i == len(chunks) - 1
-            files = [discord.File(io.BytesIO(image), filename=f"map-{n + 1}.webp")
+            files = [discord.File(io.BytesIO(image), filename=f"wipebot-{n + 1}.webp")
                      for n, image in enumerate(answer.images)] if last else []
             post = reply_to.reply if i == 0 and reply_to else channel.send
             try:
                 sent.append(await post(chunk, suppress_embeds=True, files=files))
-            except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its maps
+            except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its pictures
                 if not files:
                     raise
                 log.warning("couldn't attach the answer's maps: the bot lacks Attach Files there")

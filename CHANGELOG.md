@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `Agent` **See the pull, not only read it, in Claude and ChatGPT.** Asking why a pull wiped shows it drawn under the answer: boss health against the raid's damage taken, the phases, the boss's casts, and each death up to the moment the wipe was decided. Open it for lanes of raid and healer cooldowns and the list of deaths, and click a death to replay the pull from just before it.
+- `Discord` **The pull as a picture with the answer.** Asking about a pull, and the post after each wipe, come with the same picture of the pull as in Claude and ChatGPT: boss health against the raid's damage taken, phases, the boss's casts and each death.
 
 ### Changed
 
