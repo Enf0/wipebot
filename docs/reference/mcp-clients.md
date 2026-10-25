@@ -2,8 +2,9 @@
 
 What Claude and ChatGPT do as clients of Wipebot's remote server, and where the MCP, Anthropic and OpenAI
 guidance says each kind of guidance for the model goes. This is why tool descriptions say what and when, the
-raid-log-analysis skill holds the method, what code can decide of the method is in the tools' output (the one channel
-every client reads), and `instructions.md` stays under 512 characters.
+raid-log-analysis skill holds the method (what an answer holds, never how it looks), what code can decide of the
+method is in the tools' output (the one channel every client reads), and `instructions.md` stays under 512
+characters.
 
 ## Claude as a client of the remote server
 
@@ -114,6 +115,14 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
     digests, approval bound to content; its early tests saw models skip skills and call tools directly
     (https://aaif.io/blog/skills-over-mcp).
   - Why claude.ai drops server instructions isn't stated anywhere; the issue is open as a backlog enhancement.
+  - How an answer looks (length, prose style, formatting) has no place in any of these (concluded 2026-10-25): the
+    review criteria above reject descriptions that tell Claude how to behave, OpenAI keeps personality out of server
+    instructions, the user sets their own style in Claude and ChatGPT, and a server can't know where the answer is
+    shown (a chat on a phone, voice, a document, another agent). What a server controls is its tools' output,
+    which shapes the answer's content (what decided a pull comes first), and a skill's judgement of what an answer
+    holds. The one documented exception is an app that draws its own view telling the model not to repeat it
+    (https://docs.workato.com/en/mcp/mcp-app-development). The Discord bot is the app itself, so its prompt sets
+    the answer's look there.
 - ChatGPT treats a tool without `readOnlyHint` as a write action and asks the user before each call
   (https://developers.openai.com/api/docs/guides/developer-mode); every tool carries it but the remote server's
   `save_note_or_plan`, the one write, which is a tool of its own so that only saving asks (`raid_note` stays

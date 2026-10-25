@@ -39,6 +39,9 @@ The Wipebot tools compute the facts from the log and fetch the guides; this is h
   fixing. A second problem never leads because the question named it.
 - About one pull, give at most one change for the next pull; about a night or a player, up to three, the most
   important first. A change says who does what and when (a cast, a phase, a time).
+- Keep to what decided the question. A cooldown, mechanic or player that didn't is left out, however interesting,
+  or offered in a line; so is the rest of a big question (a whole fight, every raider's job) after the part asked
+  for or the first one. Say each fact once.
 
 ## Reading a wipe
 
