@@ -150,8 +150,8 @@ def post_question(boss: str, pull: int, name: str, character: str | None, reques
 # and a follow-up ("how did he do on Wednesday?") needs what it follows.
 EARLIER = """\
 Earlier messages here, oldest first (you no longer have their tool results, and they may be about another
-report). Use them to tell what the new question refers to, e.g. who "he" is; check any fact again with the
-tools:
+report; in a thread, its opening comes first, before a "…", however old). Use them to tell what the new question
+refers to, e.g. who "he" is; check any fact again with the tools:
 {messages}"""
 # The messages since a conversation's previous question, by anyone: other people's questions here, your answers to
 # them, and what they said. One person's correction reaches the others' answers.

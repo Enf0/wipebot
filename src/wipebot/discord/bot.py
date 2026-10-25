@@ -47,6 +47,10 @@ EARLIER_MESSAGES = 15  # a question comes with up to this many messages its conv
 EARLIER_HOURS = 12  # for a new conversation from this many hours back,
 EARLIER_CHARS = 1500  # each cut to this many characters
 EARLIER_SCANNED = 100  # messages looked through for them
+# and, in a thread, however old: its opening, up to this many messages its author posted first, one after another
+# (a forum post and the notes that follow it),
+OPENING_MESSAGES = 5
+OPENING_CHARS = 4000  # each cut to this many characters (Discord's longest message)
 # A link to a message, thread or channel in a server, which the question comes with (the guild's notes on a boss)
 MESSAGE_LINK = re.compile(r"https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com/channels/(\d+)/(\d+)(?:/(\d+))?")
 LINKS = 3  # links read per question
@@ -139,12 +143,17 @@ def format_earlier(messages: list[tuple[str, datetime.datetime, str]], chars: in
 async def earlier_messages(message: discord.Message, bot_user: discord.abc.User, after: int | None = None,
                            seen: set[int] | None = None) -> str:
     """What was said before `message` in its place that its conversation hasn't seen (`seen`): since the
-    conversation's previous question `after`, or else from the last EARLIER_HOURS. Everyone's messages, the bot's
-    answers to other people included, so one person's correction reaches the next answer."""
+    conversation's previous question `after`, or else from the last EARLIER_HOURS, after a thread's opening.
+    Everyone's messages, the bot's answers to other people included, so one person's correction reaches the next
+    answer."""
+    opening = []
+    if after is None and isinstance(message.channel, discord.Thread):
+        opening = await thread_opening(message.channel, message, bot_user)
+    seen = (seen or set()) | {m.id for m in opening}
     start = discord.Object(id=after) if after else message.created_at - datetime.timedelta(hours=EARLIER_HOURS)
     found = []
     async for m in message.channel.history(limit=EARLIER_SCANNED, before=message, after=start, oldest_first=False):
-        if m.id in (seen or ()):
+        if m.id in seen:
             continue
         from_bot = m.author.id == bot_user.id
         text = strip_mention(m.content, bot_user.id)
@@ -157,7 +166,21 @@ async def earlier_messages(message: discord.Message, bot_user: discord.abc.User,
         found.append((author, m.created_at, text))
         if len(found) == EARLIER_MESSAGES:
             break
-    return format_earlier(found[::-1])
+    first = format_earlier([(display(m.author), m.created_at, strip_mention(m.content, bot_user.id))
+                            for m in opening], OPENING_CHARS)
+    return "\n…\n".join(part for part in (first, format_earlier(found[::-1])) if part)
+
+
+async def thread_opening(thread: discord.Thread, message: discord.Message,
+                         bot_user: discord.abc.User) -> list[discord.Message]:
+    """The messages a thread opens with, before `message`: its author's first ones, one after another (a forum post
+    and the notes that follow it), which a question in it is often about however old they are."""
+    found = []
+    async for m in thread.history(limit=OPENING_MESSAGES, oldest_first=True):
+        if m.author.id != thread.owner_id or m.author.id == bot_user.id or m.id >= message.id:
+            break
+        found.append(m)
+    return found
 
 
 async def may_read(channel: discord.abc.GuildChannel | discord.Thread, member: discord.Member) -> bool:
