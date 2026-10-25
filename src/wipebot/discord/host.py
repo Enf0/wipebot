@@ -77,7 +77,9 @@ class Context:
     follow_up: bool = False  # `earlier` is what was said since the conversation's previous question (SINCE)
     notes: list[str] = field(default_factory=list)  # the asker's standing preferences, remembered across conversations
     tools: dict[str, Callable[[dict], Awaitable[str]]] = field(default_factory=dict)  # follow_pulls, remember
-    on_tool: Callable[[str], None] | None = None  # each tool the model calls for this question, by name, as it calls it
+    # each tool the model calls for this question, (name, arguments), as it calls it, and as the call returns
+    on_tool: Callable[[str, dict], None] | None = None
+    on_done: Callable[[str, dict], None] | None = None
     # tools run for the question before the model sees it, (name, arguments): their results come with it (a post's
     # pull_summary, which it would call first anyway), saving the model a turn
     prefetch: list[tuple[str, dict]] = field(default_factory=list)
@@ -272,8 +274,8 @@ class Session:
             run = self._ctx.tools.get(spec.name) if self._ctx else None
             started = time.monotonic()
             text = await run(args) if run else spec.elsewhere
-            self._calls.append(ToolCall(spec.name, args, text, False, started=started,
-                                        duration_s=time.monotonic() - started))
+            self._returned(ToolCall(spec.name, args, text, False, started=started,
+                                    duration_s=time.monotonic() - started))
             return {"content": [{"type": "text", "text": text}]}
         return tool(spec.name, spec.description, spec.schema)(handler)
 
@@ -322,7 +324,7 @@ class Session:
     async def __aenter__(self) -> Session:
         self.report = await self.library.report(self.code)
         bot = self.system_prompt is None  # else a client with only the connector: the core's raid_note and raid_plan
-        tools = await sdk_tools(self.code, self._calls.append, lambda: self._ctx.guild if self._ctx else None,
+        tools = await sdk_tools(self.code, self._returned,lambda: self._ctx.guild if self._ctx else None,
                                 self._saved_note if bot else None, self._saved_plan if bot else None)
         if bot:
             tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
@@ -362,12 +364,18 @@ class Session:
         if self._client:
             await self._client.disconnect()
 
+    def _returned(self, call: ToolCall) -> None:
+        """A tool call of the current question returned: keep it, and tell who's watching."""
+        self._calls.append(call)
+        if self._ctx and self._ctx.on_done:
+            self._ctx.on_done(call.name, call.args)
+
     def _called(self, name: str, args: dict, ctx: Context, answer: Answer) -> None:
         """The model called tool `name`: tell who's watching, and note a skill or file it loaded."""
         if self.on_tool:
             self.on_tool(name, args)
         if ctx.on_tool:
-            ctx.on_tool(name)
+            ctx.on_tool(name, args)
         if name == "Skill":
             answer.loaded.append(f"skill:{args.get('skill', '')}")
         elif name == "Read":
