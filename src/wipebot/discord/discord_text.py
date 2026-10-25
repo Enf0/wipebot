@@ -279,9 +279,10 @@ def _either(names: Iterable[str]) -> str:
 def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[str, str]) -> str:
     """The bot's emojis in an answer: a raid marker's for every {skull} or {rt8} and before every "skull marker", a
     spec's before every mention of a player (`specs`: name -> WCL's class and spec), and a boss ability's before
-    its Wowhead link. Not before a spec or class named as such ("the shaman cooldowns", a plan's spot labelled
-    "Priest"): one icon per player is enough to read. A marker in a link's text goes after the link, as Discord
-    shows no emoji there. Code is left alone, and links but for that; without an emoji, the text stays as it is."""
+    its Wowhead link and before every mention of it, capitalised, without one. Not before a spec or class named as
+    such ("the shaman cooldowns", a plan's spot labelled "Priest"): one icon per player is enough to read. A marker
+    in a link's text goes after the link, as Discord shows no emoji there. Code is left alone, and links but for
+    that; without an emoji, the text stays as it is."""
     if not icons:
         return text
 
@@ -317,11 +318,20 @@ def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[st
             found = icons.get(spec_emoji(c, s)) or icons.get(spec_emoji(c))
         return f"{found} {said}" if found else said
     text = re.sub(rf"(?<![\w\[])(?:{'|'.join(parts)})(?![\w\]])", icon, text)
-    # a boss ability's icon before its Wowhead link
+    # a boss ability's icon before its Wowhead link, and before every mention of it without one
     def ability(m: re.Match) -> str:  # by its id, else by its name (a cast and its debuff have different ids)
         found = icons.get(spell_emoji(m.group(2))) or icons.get(ability_key(m.group(1)))
         return f"{found} {m.group(0)}" if found else m.group(0)
-    return SPELL_LINK.sub(ability, text)
+    text = SPELL_LINK.sub(ability, text)
+    abilities = [key.split(":", 1)[1] for key in icons if key.startswith("ability:")]
+    if not abilities:
+        return text
+    spans = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
+
+    def plain(m: re.Match) -> str:  # capitalised: a name, not the word ("sever")
+        said = m.group(0)
+        return said if not said[0].isupper() or skipped(m.start(), spans) else f"{icons[ability_key(said)]} {said}"
+    return re.sub(rf"(?<![\w\[])(?i:{_either(abilities)})(?![\w\]])", plain, text)
 
 
 def _spec_pairs(icons: Mapping[str, str]) -> list[tuple[str, str]]:
