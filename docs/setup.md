@@ -123,6 +123,12 @@ services:
       RAIDSTRATS_CLIENT_SECRET: ${RAIDSTRATS_CLIENT_SECRET}
 ```
 
+The fetch reads the plans the officer's account can open: their own and the guild's. A plan Viserio's assignment
+note links by default belongs to its author: duplicate it on raidstrats.gg and save the copy once (raidstrats.gg makes
+its export on save), or paste it. Pasting Viserio's export of a section (its RSGG Addon button) also brings the
+night's raiders on their numbers. If the app's secret is changed on raidstrats.gg, set the new one in `.env`: the
+officer's login is kept and works again.
+
 ## Officers and admins
 
 Every member can ask questions. These can also change what Wipebot does for the whole guild:

@@ -14,7 +14,7 @@ from wipebot.core import server
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError
 from wipebot.core.report import note as raid_notes
-from wipebot.core.report import plan as raid_plans
+from wipebot.core.report import plan_export as raid_plans
 
 from .config import model
 from .host import Context, Session

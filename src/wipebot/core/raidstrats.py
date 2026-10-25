@@ -22,7 +22,7 @@ import httpx
 
 from .notebook import Notebook, RaidstratsLogin
 from .report import FactError
-from .report import plan as plans
+from .report import plan_export as plans
 from .text import day
 
 log = logging.getLogger(__name__)

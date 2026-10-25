@@ -103,6 +103,8 @@ raid-plan-versions = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", pull = 4
 raid-plan-latest = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", all_pulls = true, latest = true, plan = { file = "plans/sszorak-versions.txt" } }
 # one player at every moment against their spot, drawn
 raid-plan-player = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", all_pulls = true, player = "Scopidruid", plan = { file = "plans/sszorak-2026-10-14.txt" } }
+# the plan as it is, with no pull: each spot by the boss and the markers, the asker's first
+raid-plan-show = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", show = true, player = "Krøpling", plan = { file = "plans/sszorak-2026-10-14.txt" } }
 
 # ---- one player ----
 player-pull = { tool = "player_pull", local = true, report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13 }

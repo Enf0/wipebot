@@ -6,9 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **Ask about the guild's raid plan, with no pull to check it against.** "What's our plan for Coiled Altar?", "Where do I stand in P2?" or "Who takes the orbs?" is answered from the plan as drawn on raidstrats.gg, scene by scene: each spot by the boss and the raid markers, the notes, and what's drawn around them. A plan exported from Viserio with the night's names filled in answers for each raider by name.
+
 ### Fixed
 
-- `Agent` **A raid plan missing because the guild's raidstrats.gg login stopped working now says so.** Instead of "none saved", the answer says the plans can't be fetched and an officer has to connect again. A login refused only because Wipebot's own app settings changed is kept, and works again once they're fixed.
+- `Agent` **A raid plan missing because the guild's raidstrats.gg login stopped working now says so.** Instead of "none saved", the answer says the plans can't be fetched and an officer has to connect again.
+- `MCP` **The pull replay no longer opens empty** when an answer has no pull to show.
 
 ## [0.6.0] - 2026-10-24
 

@@ -97,9 +97,10 @@ distance to the boss and how far off its facing they stood.
 *"Who exploded on whom?" on Sszorak pull 42: Virulence ran out on 16 players at 1:20. The arrows show who was hit by
 someone else's: Sonyosh and Draiman by Agonco's. The shaded cone is the boss's facing.*
 
-## Raid notes and plans: did we follow the plan?
+## Raid notes and plans: what's the plan, and did we follow it?
 
-The officers save the raid's note and positioning plan once, and Wipebot checks pulls against them.
+The officers save the raid's note and positioning plan once. Wipebot tells raiders what the plan asks of them, and
+checks pulls against both.
 
 ### Saving them
 
@@ -117,11 +118,15 @@ What can be saved:
 
 - **Raid note:** the whole note exported from Viserio (NSRT format), with its `EncounterID` line for each boss. It
   holds the assignments (soak groups, spreads, single-player jobs), timed cooldowns and callouts.
-- **Raid plan:** the export from raidstrats.gg's planner (Export, `raidstrats-addon-...`). It holds each player's
-  spot on the room for a mechanic.
+- **Raid plan:** a raidstrats.gg plan's export (`raidstrats-addon-...`), every scene of it: the numbered spots, the
+  raid markers, the boss and adds, shapes, arrows, labels and the side panel with its groups and instructions. From
+  raidstrats.gg's planner (Export) it's the plan as drawn, its spots numbered. From Viserio's assignment note (the
+  RSGG Addon button) it's the same plan with the night's raiders on their numbers.
 
 Raid plans can also be fetched from raidstrats.gg instead of pasted, where the host set it up
-([setup.md](setup.md#raid-notes-and-plans)).
+([setup.md](setup.md#raid-notes-and-plans)): every plan the officer who connected can open, fetched again when
+someone asks, so an edit on raidstrats.gg counts from the next question. A pasted export with the night's raiders
+stays the one used until the plan itself changes on raidstrats.gg.
 
 Only a pasted export is saved, not typed text, a screenshot or a link. Every version is kept, with who saved it.
 Each pull is checked against the note saved before it started, so changing the note mid-night doesn't affect earlier
@@ -131,6 +136,23 @@ night (a night with none asks for the paste). A note pasted after the pulls it w
 officer names: "from pull 7" in the message with the paste in Discord (the night's report, or a report link in the message), or said in the chat in
 Claude or ChatGPT. Both apps read what's saved for the guild, wherever it was saved, so no one needs to paste it
 again.
+
+### The plan itself
+
+Asked about the plan rather than a pull ("what's our plan for Coiled Altar?", "where do I stand in P3?", "who carries
+the purple orbs?"), Wipebot reads the guild's newest plan for the boss and answers from it, with no log needed: before
+the raid, or for a boss not pulled yet.
+
+- **Scene by scene:** each numbered spot with its role, and the raider on it when the plan has the night's raiders.
+  Where it is, by the boss and the raid markers ("above right of the boss, by the triangle marker"), and which shape
+  it's in (the frontal's cone, a soak circle). Then the adds and ability icons with their labels ("Gloom 1"), the
+  labels in the room, the shapes and what's in each, and the arrows from where to where.
+- **What each number does:** the side panel's groups and instructions with the numbers in them ("Purple Orb
+  Carriers: 1-4, prioritise your corner").
+- **Your spot first:** asked by a raider, or about one, their spot leads each scene.
+
+Places are as the plan draws them, not measured in the room: the plan has no room coordinates. A plan with several
+scenes (one per set of orbs, one per phase) is told in order.
 
 ### What gets checked
 
