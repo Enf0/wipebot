@@ -17,7 +17,7 @@ from ..pulls import DIFFICULTIES
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, casting, raid_pauses, without
-from .coaching import resource_use, time_lost
+from .coaching import dead_spans, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .ending import HalfDead, KeptBuff, MassDeath, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
@@ -170,7 +170,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
         "lost": {"until_ms": round(lost.until_ms), "dead_s": round(lost.dead_s, 1), "gaps_s": round(lost.gaps_s, 1),
                  "capped_s": round(lost.capped_s, 1), "resource": resource},
         "alive_s": round(alive_s), "alive_until_ms": round(alive_until - t0),
-        "gaps": span(flow.gaps), "capped": span(capped),
+        "gaps": span(flow.gaps), "capped": span(capped), "dead": span(dead_spans(f, own, casts)),
         "died": [{"ms": round(d["timestamp"] - t0), "by": rep.ability(d.get("killingAbilityGameID")),
                   "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms)} for d in own],
         "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible}

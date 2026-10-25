@@ -146,12 +146,16 @@ def _decided_ts(f: dict, decided: Decided | None) -> float:
     return f["startTime"] + decided.at_ms if decided else f["endTime"]
 
 
+def dead_spans(f: dict, deaths: list[dict], casts: list[dict]) -> list[tuple[float, float]]:
+    """When a player was dead, (from, to) report ms: one brought back (a battle res, Reincarnation) is alive from
+    their next cast, not a fake one."""
+    return [(d["timestamp"], next((c["timestamp"] for c in casts if c["timestamp"] > d["timestamp"]
+                                   and not c.get("fake")), f["endTime"])) for d in deaths]
+
+
 def _dead_s(f: dict, deaths: list[dict], casts: list[dict], end: float) -> float:
-    """Seconds a player was dead before `end`; one brought back (a battle res) is alive from their next cast, not a
-    fake one."""
-    spans = [(d["timestamp"], next((c["timestamp"] for c in casts if c["timestamp"] > d["timestamp"]
-                                    and not c.get("fake")), f["endTime"])) for d in deaths]
-    return sum(max(0.0, min(b, end) - a) for a, b in spans if a < end) / 1000
+    """Seconds a player was dead before `end` (`dead_spans`)."""
+    return sum(max(0.0, min(b, end) - a) for a, b in dead_spans(f, deaths, casts) if a < end) / 1000
 
 
 @dataclass(frozen=True)
