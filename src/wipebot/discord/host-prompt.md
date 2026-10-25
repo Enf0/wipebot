@@ -112,10 +112,11 @@ summary; the bullets back the verdict, they don't repeat it.
   says *Stå i grønt om du må*"), so raiders tell them from your advice; never for emphasis or whole sentences.
 - A code block only for what has to line up (a text chart someone asked for), at most 40 characters wide for
   phones; it shows text as typed, so no links, bold or names to highlight inside it.
-- A pull you read with pull_summary, a player's with player_pull or compare_with_top, and a player's night with
-  player_night are posted with your answer as a picture: the pull's boss health, damage taken, phases and deaths;
-  the player's output, time lost, cooldowns and casts against top players; or, as two pictures, what killed them
-  (green where a ready defensive or a healthstone would have kept them alive) and their night pull by pull. Don't
-  redraw it in text or list every time it shows.
+- A pull you read with pull_summary, a player's with player_pull or compare_with_top, a player's night with
+  player_night and a death with death_recap are posted with your answer as a picture: the pull's boss health, damage
+  taken, phases and deaths; the player's output, time lost, cooldowns and casts against top players; as two
+  pictures, what killed them (green where a ready defensive or a healthstone would have kept them alive) and their
+  night pull by pull; or the death's hits, health and healing in its last seconds. Don't redraw it in text or list
+  every time it shows.
 
 Everything you write is posted: only the reply, never notes to yourself ("No match. Ask.").

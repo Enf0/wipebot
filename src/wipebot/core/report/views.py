@@ -21,7 +21,7 @@ from .build import hero_of
 from .casting import alive, casting, raid_pauses, without
 from .coaching import dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
-from .deaths import replay_deaths, savers
+from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
 from .ending import HalfDead, KeptBuff, MassDeath, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
 from .ranks import Spread, kill_parses, kills_spread, metric_of
@@ -29,9 +29,9 @@ from .top import cast_comparison
 
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
-SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "replay.js", "main.js"]
+SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "replay.js", "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
-VIEWS = ("pull", "player", "player_night")  # what view_data draws (the replay is maps.replay)
+VIEWS = ("pull", "player", "player_night", "death")  # what view_data draws (the replay is maps.replay)
 
 
 @functools.cache
@@ -49,10 +49,10 @@ def page_uri() -> str:
 
 
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
-                    player: str | None = None, top: bool = False) -> dict:
+                    player: str | None = None, top: bool = False, death: int = 1) -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
-    player's night view's `player` on `boss`."""
+    player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`)."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
     if view != "pull" and not player:
@@ -62,6 +62,8 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
     f = rep.fight(pull, boss)
     if view == "pull":
         return await pull_view(rep, f)
+    if view == "death":
+        return await death_view(rep, f, player or "", death)
     return await player_view(rep, f, player or "", top)
 
 
@@ -347,6 +349,66 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         "cooldowns_unavailable": cds.unavailable,
         "thirds": [{"pulls": [rows[i]["pull"] for i in t.pulls], "died": t.died,
                     "rate": round(t.rate) if t.rate is not None else None} for t in night_trend(pulls, role) or []],
+    }
+
+
+async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
+    """One death, as death_recap states it, from the same answers: the hits in the window before it with their
+    health after each, the healing they received per second, the killing blow and whether it killed outright, their
+    defensives then and what a ready one or a healthstone would have changed, and who died within BURST_MS."""
+    p = rep.player(player)
+    rep.require_in(f, p)
+    deaths = await rep.deaths(f)
+    own = [d for d in deaths if d["targetID"] == p.id]
+    if not own:
+        raise ValueError(f"{p.name} did not die on {rep.label(f)}")
+    if not 1 <= death <= len(own):
+        raise ValueError(f"{p.name} died {len(own)} time(s) on {rep.label(f)}")
+    p = rep.in_pull(f, p)
+    d = own[death - 1]
+    t0, at = f["startTime"], d["timestamp"]
+    hits, heals, casts, (stones, _), decided = await asyncio.gather(
+        rep.events(f["id"], "DamageTaken", sourceID=p.id, hostilityType="Friendlies", startTime=at - RECAP_WINDOW_MS,
+                   endTime=at + 1, includeResources=True),
+        rep.events(f["id"], "Healing", targetID=p.id, startTime=at - RECAP_WINDOW_MS, endTime=at + 1),
+        rep.casts(f, p, until=at), rep.potions(f, p, until=at), rep.decided_at(f))
+    try:
+        spells = await rep.defensive_spells(p)
+    except KnowledgeError:
+        spells = None
+    per_s: Counter = Counter()
+    for e in heals:
+        if e["type"] == "heal":
+            per_s[(e["timestamp"] - t0) // 1000 * 1000] += e.get("amount", 0)
+    defs = None
+    if spells is not None:
+        defs = []
+        for sp in spells:
+            kind, last = defensive_state(rep, casts, sp, at)
+            defs.append({"name": sp["name"], "icon": icon(sp.get("spell_id")), "state": kind,
+                         "last_ms": None if last is None else round(last - t0), "cooldown_s": sp.get("cooldown")})
+    hp = lambda h: (round(100 * h["hitPoints"] / h["maxHitPoints"])  # noqa: E731
+                    if h.get("resourceActor") == 2 and h.get("maxHitPoints") else None)
+    kid = d.get("killingAbilityGameID")
+    killer = lambda x: rep.ability(k) if (k := x.get("killingAbilityGameID")) else NO_KILLING_BLOW  # noqa: E731
+    return {
+        "view": "death", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "title": rep.label(f),
+        "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""), "url": rep.url(f),
+        "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
+                   "color": class_hex(p.class_name), "role": p.role},
+        "death": death, "deaths": len(own), "at_ms": round(at - t0), "window_ms": RECAP_WINDOW_MS,
+        "by": killer(d), "icon": icon(kid),
+        "fallout": bool(decided and at - t0 > decided.at_ms),
+        "outright": bool(kid and killed_outright(rep, f, d, hits)),
+        "hits": [{"ms": round(h["timestamp"] - t0), "by": rep.ability(h["abilityGameID"]),
+                  "icon": icon(h["abilityGameID"]), "amount": h.get("amount", 0), "absorbed": h.get("absorbed", 0),
+                  "overkill": h.get("overkill", 0), "hp": hp(h)} for h in hits],
+        "healing": [[ms, round(v)] for ms, v in sorted(per_s.items())],
+        "defensives": defs, "stones": stones,
+        "saved_by": savers(await if_pressed(rep, f, p, d, hits)),
+        "with": [{"name": rep.names.get(x["targetID"], "?"), "ms": round(x["timestamp"] - t0),
+                  "by": killer(x)}
+                 for x in deaths if x is not d and abs(x["timestamp"] - at) <= BURST_MS],
     }
 
 
