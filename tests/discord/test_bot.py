@@ -42,12 +42,13 @@ from wipebot.discord.store import Store
 def test_format_earlier_drops_small_print_and_cuts_long_messages():
     sent = datetime.datetime(2026, 10, 7, 20, 31, tzinfo=datetime.UTC)
     text = format_earlier([("Rowan", sent, "Can you check Torvek's death on pull 13?"),
-                           ("Wipebot", sent, "**Yes.**\n-# Sources: Warcraft Logs"),
+                           ("Wipebot", sent,
+                            "**Yes.** <:DeathKnight:30> Torvek, <:marker_skull:8> skull marker.\n-# Sources: Wowhead"),
                            ("Wipebot", sent, "-# Sources: Wowhead"),
                            ("Rowan", sent, "x" * 2000)])
     lines = text.splitlines()
     assert lines[:2] == ["Rowan (Wed 20:31 UTC): Can you check Torvek's death on pull 13?",
-                         "Wipebot (Wed 20:31 UTC): **Yes.**"]
+                         "Wipebot (Wed 20:31 UTC): **Yes.** Torvek, {skull} skull marker."]
     assert len(lines) == 3 and lines[2].endswith("x …") and len(lines[2]) < 1600
 
 
@@ -658,7 +659,7 @@ async def test_a_long_answer_shows_what_it_looks_at_until_it_is_posted(bot, mess
     comes as its own reply so the asker is notified of it. It names the boss and pull, never a player."""
     monkeypatch.setattr("wipebot.discord.progress.PROGRESS_AFTER_S", 0)
     monkeypatch.setattr("wipebot.discord.progress.PROGRESS_EDIT_S", 0)
-    bot.spinner = "<a:wipebot_spinner:5>"
+    bot.icons["wipebot_spinner"] = "<a:wipebot_spinner:5>"
     msg = message("<@99> how did Torvek do?")
     since = int(msg.created_at.timestamp())
     sent: list[Sent] = []

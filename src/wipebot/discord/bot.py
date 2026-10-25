@@ -24,12 +24,12 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import commands
+from . import commands, emojis
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
 from .posts import Following, Posts
-from .progress import FALLBACK_SPINNER, Progress, spinner
+from .progress import FALLBACK_SPINNER, Progress
 from .prompt import plain, post_prefetch, post_question
 from .store import INTERACTION_DAYS, ServerSettings, Store
 
@@ -47,6 +47,8 @@ EARLIER_MESSAGES = 15  # a question comes with up to this many messages its conv
 EARLIER_HOURS = 12  # for a new conversation from this many hours back,
 EARLIER_CHARS = 1500  # each cut to this many characters
 EARLIER_SCANNED = 100  # messages looked through for them
+# A server's or the bot's own emoji as a message writes it, with the space after it
+CUSTOM_EMOJI = re.compile(r"<a?:(\w+):\d+>( ?)")
 QUESTION_CHARS = 2000  # a longer question isn't answered (Discord's limit for a message, without Nitro)
 # What a raider is told when there's no answer: Claude's API refused the question (host.ModelError's kind), it took
 # too long, or something else went wrong.
@@ -113,11 +115,13 @@ def names_on(channel: object, channels: set[int]) -> bool:
 
 
 def format_earlier(messages: list[tuple[str, datetime.datetime, str]]) -> str:
-    """Earlier messages, oldest first, as (author, sent, text) lines; the bot's small print (`-#` lines) dropped.
-    A message's further lines are indented, so only a message's first line starts with who wrote it."""
+    """Earlier messages, oldest first, as (author, sent, text) lines; the bot's small print (`-#` lines) and
+    server or bot emojis (`<:name:id>`) dropped, but for a raid marker's, written {skull} as raid notes do. A
+    message's further lines are indented, so only a message's first line starts with who wrote it."""
     lines = []
     for author, sent, text in messages:
-        text = "\n".join(line for line in text.splitlines() if not line.startswith("-# ")).strip()
+        text = "\n".join(line for line in text.splitlines() if not line.startswith("-# "))
+        text = CUSTOM_EMOJI.sub(lambda m: f"{{{m[1][7:]}}}{m[2]}" if m[1].startswith("marker_") else "", text).strip()
         if len(text) > EARLIER_CHARS:
             text = text[:EARLIER_CHARS].rstrip() + " …"
         if text:
@@ -251,7 +255,7 @@ class WipeBot(discord.Client):
         # After Claude's API refused a question or Warcraft Logs didn't answer, the conversation goes on.
         self.conversations = Conversations(self._open_session, survives=(ModelError, WCLError))
         self.latest_raids = LatestRaids(library, RECENT_REPORT_CHECK_S)
-        self.spinner = FALLBACK_SPINNER  # the progress line's, the bot's own emoji once logged in
+        self.icons: dict[str, str] = {}  # the bot's own, by name, once logged in (emojis.sync)
         self._started = False
         self.stopping = False  # after SIGTERM: no new questions or posts, finish the answers in progress
         self._answering = 0
@@ -261,7 +265,7 @@ class WipeBot(discord.Client):
     # ---------- starting and stopping ----------
 
     async def setup_hook(self) -> None:
-        self.spinner = await spinner(self)
+        self._syncing = asyncio.create_task(emojis.sync(self, self.icons))  # the first time, a minute
         if not self.trying:
             self.poll.start()
             self.keep_logins.start()
@@ -526,7 +530,7 @@ class WipeBot(discord.Client):
 
         async def send(answer: Answer) -> list[int]:
             return await self._send(message.channel, answer, reply_to=None if is_dm else message)
-        progress = Progress(message, self.spinner)
+        progress = Progress(message, self.icons.get(emojis.SPINNER, FALLBACK_SPINNER))
         ctx.on_tool, ctx.on_done = progress.tool, progress.done
         async with message.channel.typing():
             try:
@@ -563,7 +567,7 @@ class WipeBot(discord.Client):
         return Context(asker=asker or raider.character, discord_name=name, where=where, pull=pull, boss=boss,
                        notes=raider.notes, guild=f"{s.wcl_guild}, {s.wcl_server}, {s.wcl_region}",
                        tools={"follow_pulls": follow_pulls, "remember": remember, "answer_in_dm": answer_in_dm},
-                       **self._raid_notes(s))
+                       icons=self.icons, **self._raid_notes(s))
 
     @answering
     async def _in_dm(self, s: ServerSettings, user: discord.User | discord.Member, name: str, code: str,

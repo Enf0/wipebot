@@ -13,7 +13,7 @@ import tempfile
 import time
 import warnings
 from collections import Counter
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from claude_agent_sdk import (
@@ -80,6 +80,7 @@ class Context:
     # each tool the model calls for this question, (name, arguments), as it calls it, and as the call returns
     on_tool: Callable[[str, dict], None] | None = None
     on_done: Callable[[str, dict], None] | None = None
+    icons: Mapping[str, str] = field(default_factory=dict)  # the bot's emojis by name, for polish
     # tools run for the question before the model sees it, (name, arguments): their results come with it (a post's
     # pull_summary, which it would call first anyway), saving the model a turn
     prefetch: list[tuple[str, dict]] = field(default_factory=list)
@@ -422,7 +423,7 @@ class Session:
             raise ModelError(error, answer)
         text = texts[-1].strip() if texts else "(no answer)"  # the last text is the answer
         answer.text = polish(text, [c.result for c in answer.calls if not c.failed],
-                             await self._reports_read(answer.calls))
+                             await self._reports_read(answer.calls), ctx.icons)
         return answer
 
     async def _prefetched(self, name: str, args: dict) -> ToolCall:

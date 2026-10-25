@@ -13,7 +13,7 @@ from .names import matches_boss, names_boss, spaced
 from .news import hotfixes_text
 from .pages import read_text, search_text
 from .players import character_experience_text
-from .raidbots import choice_versions, consumable_items, enchant_names, talent_names, talent_parts
+from .raidbots import choice_versions, consumable_items, enchant_names, talent_names, talent_parts, talent_trees
 from .specs import heals, spec_cooldowns_text, spec_guide_text, spec_spells
 from .spells import (
                      defensive_effect,
@@ -37,5 +37,6 @@ __all__ = [
     "names_boss", "raids", "read_text", "search_text",
     "spaced",
     "spec_cooldowns_text", "spec_guide_text", "spec_spells", "spell_cooldown", "spell_name",
-    "spell_text", "talent_names", "talent_parts", "tree_for", "untaken_spells", "versions_difference", "wcl_image",
+    "spell_text", "talent_names", "talent_parts", "talent_trees", "tree_for", "untaken_spells", "versions_difference",
+    "wcl_image",
 ]
