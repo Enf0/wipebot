@@ -291,9 +291,13 @@ class Answer:
         return {k: round(v, 2) for k, v in spent.items()}
 
     @property
+    def pictures(self) -> list[tuple[bytes, ToolCall]]:
+        """The pictures of the answer's tool calls (maps, views), to send with it, each with its call; the last few."""
+        return [(i, c) for c in self.calls if not c.failed for i in c.images][-MAX_IMAGES:]
+
+    @property
     def images(self) -> list[bytes]:
-        """The pictures of the answer's tool calls (maps, views), to send with it; the last few."""
-        return [i for c in self.calls if not c.failed for i in c.images][-MAX_IMAGES:]
+        return [i for i, _ in self.pictures]
 
 
 class Session:

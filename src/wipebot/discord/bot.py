@@ -13,6 +13,7 @@ import re
 import signal
 import time
 from collections.abc import Awaitable, Callable, Hashable, Sequence
+from dataclasses import dataclass
 from typing import cast
 
 import discord
@@ -27,7 +28,7 @@ from wipebot.core.wcl import WCLError
 from . import commands, emojis
 from .chat import Conversations, SlowStart, split_message
 from .follower import Follower, Pull
-from .host import CAPPED, Answer, Context, ModelError, Session
+from .host import CAPPED, Answer, Context, ModelError, Session, ToolCall
 from .posts import Following, Posts
 from .progress import FALLBACK_SPINNER, Progress
 from .prompt import plain, post_prefetch, post_question
@@ -84,13 +85,35 @@ CUT = "-# The answer was cut here: it ran past four messages."
 TEXT_LIMIT = 4000
 
 
-def answer_layout(text: str, pictures: Sequence[str] = ()) -> discord.ui.LayoutView:
+PULL_LINK = re.compile(r"https://www\.warcraftlogs\.com/reports/\w+#fight=\d+")
+GUILD_BEST = "**new guild best!**"  # pull_summary's post marks a wipe that beat every earlier log so (pulls.best_marks)
+
+
+@dataclass(frozen=True)
+class Picture:
+    """A picture sent with an answer: its attachment's name, the pull it shows on Warcraft Logs, and whether that
+    pull was a new guild best."""
+    name: str
+    link: str | None = None
+    best: bool = False
+
+    @classmethod
+    def of(cls, name: str, call: ToolCall) -> Picture:
+        link = PULL_LINK.search(call.result)
+        return cls(name, link[0] if link else None, call.name == "pull_summary" and GUILD_BEST in call.result)
+
+
+def answer_layout(text: str, pictures: Sequence[Picture] = ()) -> discord.ui.LayoutView:
     """An answer's message as Components V2: its text, then each picture (an attachment by its name) whole in a
-    gallery of its own. Several attachments on a plain message are shown as a grid, each cropped to its tile."""
+    gallery of its own, boxed with a button to its pull on Warcraft Logs, the box edged gold for a new guild best.
+    Several attachments on a plain message are shown as a grid, each cropped to its tile."""
     view = discord.ui.LayoutView(timeout=None)
     view.add_item(discord.ui.TextDisplay(text))
-    for name in pictures:
-        view.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{name}")))
+    for p in pictures:
+        items: list[discord.ui.Item] = [discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{p.name}"))]
+        if p.link:
+            items.append(discord.ui.ActionRow(discord.ui.Button(label="Open in Warcraft Logs", url=p.link)))
+        view.add_item(discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None))
     return view
 
 
@@ -975,12 +998,13 @@ class WipeBot(discord.Client):
         sent: list[discord.Message] = []
         for i, chunk in enumerate(chunks):
             last = i == len(chunks) - 1
-            images = answer.images if last else []
-            names = [f"wipebot-{n + 1}.webp" for n in range(len(images))]
-            files = [discord.File(io.BytesIO(image), filename=name) for name, image in zip(names, images, strict=True)]
+            drawn = answer.pictures if last else []
+            pictures = [Picture.of(f"wipebot-{n + 1}.webp", call) for n, (_, call) in enumerate(drawn)]
+            files = [discord.File(io.BytesIO(image), filename=p.name) for p, (image, _) in zip(pictures, drawn,
+                                                                                              strict=True)]
             post = reply_to.reply if i == 0 and reply_to else channel.send
             try:
-                sent.append(await post(view=answer_layout(chunk, names), files=files))
+                sent.append(await post(view=answer_layout(chunk, pictures), files=files))
             except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its pictures
                 if not files:
                     raise
