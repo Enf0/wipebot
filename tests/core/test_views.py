@@ -81,6 +81,45 @@ async def test_the_pull_view_states_what_pull_summary_states(recorded):
     assert len(json.dumps(data)) < 150_000 // 10  # far under Claude's limit for a tool result
 
 
+DEATH_CASE = CASES["death-recap"]  # Scopidruid's death on the same pull
+
+
+async def death_data() -> dict:
+    key = await server.view_key("death_recap", DEATH_CASE.args)
+    assert key is not None and key["death"] == 1
+    result = await server.view_data(**key)
+    assert result.structured_content is not None
+    return result.structured_content
+
+
+async def test_the_death_view_matches_its_snapshot(recorded):
+    assert_snapshot(REAL / "views" / "death.txt", readable(await death_data()))
+
+
+async def test_the_death_view_states_what_death_recap_states(recorded):
+    data = await death_data()
+    text, failed = await server.call("death_recap", DEATH_CASE.args)
+    assert not failed
+    assert f"died at {clock(data['at_ms'])}" in text and f"Killing blow: {data['by']} [" in text
+    listed = re.findall(r"^  (\d+:\d\d) (.+?) from ", text, re.MULTILINE)
+    assert [(clock(h["ms"]), h["by"]) for h in data["hits"]] == listed
+    for d in data["defensives"]:
+        assert f"  {d['name']}: " in text and ("on cooldown" in text) == any(x["state"] == "cooldown" for x in data["defensives"])
+    for saver in data["saved_by"]:
+        assert re.search(rf"^  {re.escape(saver)} \(.*: would have kept them alive", text, re.MULTILINE)
+    assert f"Healthstones and healing potions before death: {data['stones']}" in text
+    assert "Killed outright" not in text and not data["outright"]
+
+
+async def test_the_death_view_draws_in_a_host_without_errors(recorded, tmp_path):
+    taken = await shots(tmp_path, "death_recap", DEATH_CASE.args, themes=("dark", "light"), widths=(320, 760),
+                        modes=("inline", "fullscreen"))
+    for s in taken:
+        assert not s.errors, (s.path.name, s.errors)
+        assert "Scopidruid" in s.text and "Ula'tek's Presence" in s.text and "would have kept them alive" in s.text
+    assert "hits in the 10 s before the death" in taken[-1].text.lower()  # fullscreen: the hits, one per row
+
+
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):
     # a client without MCP Apps (Claude Code) gives the model structuredContent instead of the text: none for it
     no_apps = await server.mcp.call_tool("pull_summary", PULL_CASE.args)

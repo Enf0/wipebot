@@ -440,7 +440,7 @@ async def pull_timeline(pull: Pull = None, boss: Boss = None,
 @_tool
 async def death_recap(player: Player, pull: Pull = None, boss: Boss = None,
                       death: Annotated[int, Field(description="which death of this player in the pull")] = 1,
-                      report: Report_ = None) -> str:
+                      report: Report_ = None, *, ctx: Context) -> str | CallToolResult:
     """For "what killed X?", "could they have lived?": the first deaths of a wipe.
     One death in detail: every damage taken event in the 10 s before it with health after each hit, the
     killing blow, the healing they received and what each healer cast in the last 5 s (on them or others, no
@@ -450,7 +450,9 @@ async def death_recap(player: Player, pull: Pull = None, boss: Boss = None,
     defensives and external cooldowns; whether the hit could be avoided, boss_guide says.
     Not for everyone's defensives and healthstones over a boss's pulls (defensives).
     Example: player="Scopidruid", pull=42."""
-    return await deaths.death_recap(await lib().report(report), player, pull, boss, death)
+    text = await deaths.death_recap(await lib().report(report), player, pull, boss, death)
+    return await _shown("death_recap", {"player": player, "pull": pull, "boss": boss, "death": death,
+                                        "report": report}, text, ctx)
 
 
 @_tool
@@ -563,7 +565,7 @@ def _supports_apps(ctx: Context) -> bool:
 # The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
 # with their casts against top players, for one player's casts
 VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player",
-              "player_night": "player_night"}
+              "player_night": "player_night", "death_recap": "death"}
 
 
 async def view_key(tool: str, args: dict) -> dict | None:
@@ -580,10 +582,12 @@ async def view_key(tool: str, args: dict) -> dict | None:
                 "player": rep.player(args["player"]).name}
     f = rep.fight(args.get("pull"), args.get("boss"))
     key: dict = {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
-    if view == "player":
+    if view in ("player", "death"):
         key["player"] = rep.in_pull(f, rep.player(args["player"])).name
         if tool == "compare_with_top":
             key["top"] = True
+        if view == "death":
+            key["death"] = args.get("death") or 1
     return key
 
 
@@ -597,16 +601,17 @@ async def _shown(tool: str, args: dict, text: str, ctx: Context) -> str | CallTo
     return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=key)
 
 
-async def view_data(view: Annotated[str, Field(description="which view: pull or player")],
+async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night or death")],
                     pull: Pull = None, boss: Boss = None, report: Report_ = None,
                     player: Annotated[str | None, Field(description="the player view's player")] = None,
                     top: Annotated[bool, Field(description="the player view with their casts against top players "
-                                                           "(slower: reads the top parses)")] = False
+                                                           "(slower: reads the top parses)")] = False,
+                    death: Annotated[int, Field(description="the death view's death of the player in the pull")] = 1,
                     ) -> CallToolResult:
     """What a view draws, for the pull (and player) its tool was asked about."""
     rep = await lib().report(report)
     try:
-        data = await views.view_data(rep, view, pull, boss, player, top)
+        data = await views.view_data(rep, view, pull, boss, player, top, death)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],

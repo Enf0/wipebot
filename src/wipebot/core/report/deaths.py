@@ -11,6 +11,7 @@ from . import positions
 from .base import FactError, Player, PullRef, Report, unavailable
 
 RECAP_WINDOW_MS = 10_000  # damage shown before a death
+OUTRIGHT_FROM_PCT = 50  # a killing blow with no hit logged, after health at least this high: it killed outright
 HEALTHSTONE_SPELL = 6262  # the Healthstone item's spell: its tooltip says what it heals
 CASCADE_MS = 15_000       # deaths this close together are probably linked
 DEATH_STRIP_MS = 250  # a dying player's auras are removed just before the death event
@@ -75,8 +76,23 @@ async def _hits(rep: Report, f: dict, p: Player, d: dict) -> tuple[list[dict], l
     if not d.get("killingAbilityGameID"):
         if moved := await positions.last_moves(rep, f, p.id, at):
             lines.append("No killing blow recorded. " + moved)
+    elif line := killed_outright(rep, f, d, hits):
+        lines.append(line)
     lines.append(f"Total {short(sum(h.get('amount', 0) for h in hits))} damage in the window.")
     return hits, lines
+
+
+def killed_outright(rep: Report, f: dict, d: dict, hits: list[dict]) -> str:
+    """'' unless the killing blow left no hit and their last logged health was OUTRIGHT_FROM_PCT or more: then the
+    line saying it killed outright, not damage that outpaced healing."""
+    if any(h.get("overkill") or h["abilityGameID"] == d["killingAbilityGameID"] for h in hits):
+        return ""
+    last = next((h for h in reversed(hits) if h.get("resourceActor") == 2 and h.get("maxHitPoints")), None)
+    if last is None or (pct := 100 * last["hitPoints"] / last["maxHitPoints"]) < OUTRIGHT_FROM_PCT:
+        return ""
+    return (f"Killed outright: no hit of {rep.ability(d['killingAbilityGameID'])} is logged, and they were at "
+            f"{pct:.0f}% health at {clock(last['timestamp'] - f['startTime'])}, so it wasn't damage that outpaced "
+            "their healing.")
 
 
 async def _aura_lines(rep: Report, f: dict, p: Player, at: float) -> list[str]:
@@ -283,13 +299,12 @@ async def _defensives(rep: Report, f: dict, p: Player, at: float) -> list[str]:
     elif defs:
         lines.append("Personal defensives (list and cooldowns from Lorrgs; use times from the log):")
         for sp in defs:
-            times = [c["timestamp"] for c in casts if rep.is_spell(c, sp)]
-            if not times:
+            kind, last = defensive_state(rep, casts, sp, at)
+            if last is None:
                 state = "not used this pull, so ready if talented"
             else:
-                ready = (at - times[-1]) / 1000 >= sp["cooldown"]
-                state = (f"last used at {clock(times[-1] - t0)} ({sp['cooldown']:.0f} s cooldown), "
-                         + ("ready again" if ready else "on cooldown"))
+                state = (f"last used at {clock(last - t0)} ({sp['cooldown']:.0f} s cooldown), "
+                         + ("ready again" if kind == "ready" else "on cooldown"))
             if sp["name"] in active:
                 state += ", active at death"
             lines.append(f"  {sp['name']}: {state}")
@@ -297,6 +312,15 @@ async def _defensives(rep: Report, f: dict, p: Player, at: float) -> list[str]:
     lines.append(f"Healthstones and healing potions before death: {stones}"
                  + (f"; combat potions (they don't heal): {potions}" if potions else ""))
     return lines
+
+
+def defensive_state(rep: Report, casts: list[dict], sp: dict, at: float) -> tuple[str, float | None]:
+    """A defensive at a moment, from the player's casts before it: "unused" this pull (ready if talented), "ready"
+    again or on "cooldown", and when it was last cast (None if never)."""
+    times = [c["timestamp"] for c in casts if rep.is_spell(c, sp)]
+    if not times:
+        return "unused", None
+    return ("ready" if (at - times[-1]) / 1000 >= sp["cooldown"] else "cooldown"), times[-1]
 
 
 async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = False,  # noqa: C901

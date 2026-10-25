@@ -81,7 +81,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull, and
     # compare_with_top no player: the player view asks for its comparison itself).
     server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
-                                       "player_night": shown},
+                                       "player_night": shown, "death_recap": shown},
                     notes={"pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
                                        "(not with all_pulls); with plan, the plan's spots on it and a button per "
                                        "moment.",
@@ -95,6 +95,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                            "player_pull": "In Claude and ChatGPT, the user also sees the player's pull drawn: their "
                                           "output and where it stands, time lost, when they cast, capped or died, "
                                           "and their cooldowns, with their casts against top players a click away.",
+                           "death_recap": "In Claude and ChatGPT, the user also sees the death drawn: the hits and "
+                                          "their health in the seconds before it, the healing they got, the killing "
+                                          "blow, and their defensives then.",
                            "raid_plan": "In Claude, the user sees no map from raid_plan: for the pull against the "
                                         "plan, call pull_map with plan, which shows its replay."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",
@@ -287,11 +290,11 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
     @apps.tool(resource_uri=VIEWS_APP, visibility=["app"], structured_output=False, name="view_data",
                annotations=server.READ_ONLY)
     @functools.partial(server.guarded, setup=setup)
-    async def view_data(view: Annotated[str, Field(description="which view: pull or player")],
+    async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night or death")],
                         pull: server.Pull = None, boss: server.Boss = None, report: server.Report_ = None,
-                        player: str | None = None, top: bool = False) -> CallToolResult:
+                        player: str | None = None, top: bool = False, death: int = 1) -> CallToolResult:
         """What a view draws, for the pull (and player) its tool was asked about."""
-        result = await server.view_data(view, pull, boss, report, player, top)
+        result = await server.view_data(view, pull, boss, report, player, top, death)
         if (data := result.structured_content) is not None:
             data["img_base"] = public_url + "/img/"  # its spells' icons (views.icon), served once it named them
             _handed_out.update(views.icons(data))
