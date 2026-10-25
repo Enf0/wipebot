@@ -18,7 +18,7 @@ from typing import Any
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import CallToolResult
 
-from . import knowledge, server
+from . import server
 from .report import maps, views
 
 ORIGIN = "https://wipebot.local"  # never fetched: every request to it is answered here
@@ -63,6 +63,8 @@ async def answer(name: str, args: dict) -> dict:
     try:
         if name == "view_data":
             result = await server.guarded(server.view_data)(**args)
+            if result.structured_content is not None:
+                result.structured_content["img_base"] = ORIGIN + "/img/"  # its spells' icons (views.icon)
         elif name == "pull_replay":
             data = await server.guarded(server.replay_data)(**args)
             data["img_base"] = ORIGIN + "/img/"
@@ -94,9 +96,11 @@ async def _serve(route) -> None:
     elif path.startswith("/img/"):
         try:
             data, media_type = await maps.asset(path.removeprefix("/img/"))
-            await route.fulfill(status=200, content_type=media_type, body=data)
-        except (knowledge.KnowledgeError, OSError):
+        except Exception as e:  # noqa: BLE001 (an image that can't be had is left out, as the server's /img/ does)
+            log.info("no image %s: %s", path, e)
             await route.fulfill(status=404)
+            return
+        await route.fulfill(status=200, content_type=media_type, body=data)
     else:
         await route.abort()
 
@@ -114,7 +118,9 @@ async def _wire(page: Any, setup: dict, errors: list[str]) -> None:
     await page.route("**/*", _serve)
     await page.expose_function("wipebotCall", answer)
     await page.add_init_script(f"window.__setup = {json.dumps(setup)};")
-    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    # An image that couldn't be had (an icon Wowhead hasn't) is the browser's "Failed to load resource": not the view's
+    page.on("console", lambda m: errors.append(m.text) if m.type == "error"
+            and not m.text.startswith("Failed to load resource") else None)
     page.on("pageerror", lambda e: errors.append(f"script error: {e}"))
     loading: set = set()  # requests in flight, for _settled (Playwright's networkidle fires once per page)
     page.on("request", lambda r: loading.add(r))

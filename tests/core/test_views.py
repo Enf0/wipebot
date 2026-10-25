@@ -21,11 +21,25 @@ from wipebot.core.text import clock
 PULL_CASE = CASES["pull-summary"]  # the pull the views are tested on: its summary and timeline are recorded
 
 
+def made_up_icon() -> bytes:
+    """A spell's icon, made up (Wowhead's art isn't published here): a plain square."""
+    from PIL import Image
+    out = io.BytesIO()
+    Image.new("RGB", (56, 56), (80, 140, 200)).save(out, "JPEG")
+    return out.getvalue()
+
+
 @pytest.fixture
 def recorded(monkeypatch):
-    """The tools answer from the recorded answers, serving many users as remote.py does (the views' key)."""
+    """The tools answer from the recorded answers, serving many users as remote.py does (the views' key); spells'
+    icons are made up."""
+    from wipebot.core import knowledge
     serve_from(monkeypatch, Replay())
     monkeypatch.setattr(server.DEFAULT, "remote", server.Remote(guilds=list, user_name=str))
+
+    async def spell_icon(spell_id):
+        return made_up_icon()
+    monkeypatch.setattr(knowledge, "spell_icon", spell_icon)
 
 
 async def pull_data() -> dict:
@@ -248,8 +262,8 @@ def made_up_player(top: bool) -> dict:
         "lost": {"until_ms": 140000, "dead_s": 0.0, "gaps_s": 4.0, "capped_s": 0.0, "resource": ""},
         "alive_s": 143, "alive_until_ms": 143000, "gaps": [[100000, 104000]], "capped": [], "dead": [[143000, 150000]],
         "died": [{"ms": 143000, "by": "Molten Fury", "fallout": True}],
-        "cooldowns": [{"name": "Ascendance", "uses": [60000], "possible": 1},
-                      {"name": "Spirit Link Totem", "uses": [], "possible": 1}],
+        "cooldowns": [{"name": "Ascendance", "uses": [60000], "possible": 1, "icon": "spells/114052.jpg"},
+                      {"name": "Spirit Link Totem", "uses": [], "possible": 1, "icon": "spells/98008.jpg"}],
         "casts": [{"name": "Chain Heal", "n": 30, "per_min": 12.6}, {"name": "Riptide", "n": 25, "per_min": 10.5}],
         "phases": [{"ms": 0, "id": 1}],
         "tracked": [{"ms": 30000, "name": "Slag Wave"}, {"ms": 90000, "name": "Slag Wave"}],
@@ -262,8 +276,12 @@ def made_up_player(top: bool) -> dict:
 
 @pytest.fixture
 def made_up(monkeypatch):
-    """The player view drawn from made-up data: its key and its data answered without a report."""
-    from wipebot.core import viewhost
+    """The player view drawn from made-up data: its key and its data answered without a report, its icons made up."""
+    from wipebot.core import knowledge, viewhost
+
+    async def spell_icon(spell_id):
+        return made_up_icon()
+    monkeypatch.setattr(knowledge, "spell_icon", spell_icon)
     key = {"view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge", "player": "Mirelle"}
 
     async def tool_result(tool, args):
@@ -292,6 +310,34 @@ async def test_the_player_view_draws_and_asks_for_the_top_on_a_click(made_up, tm
              and m["msg"]["params"]["name"] == "view_data"]
     assert [c.get("top") for c in calls] == [False, True]  # the comparison read only when asked for
     assert "Astral Shift" in clicked.text and "0.0 / 0.4" in clicked.text
+
+
+async def test_a_mark_shows_its_tooltip_on_hover_and_icons_draw(made_up):
+    pytest.importorskip("playwright")
+    from playwright.async_api import Error, async_playwright
+
+    from wipebot.core import viewhost
+    result = await viewhost.tool_result("player_pull", {"player": "Mirelle"})
+    setup = {"tool": "player_pull", "args": {}, "result": result, "theme": "dark", "width": 760, "mode": "inline",
+             "tokens": "none", "bare": True, "fullWidth": viewhost.FULL_WIDTH, "fullHeight": viewhost.FULL_HEIGHT}
+    async with async_playwright() as pw:
+        try:
+            browser = await pw.chromium.launch()
+        except Error as e:
+            pytest.skip(f"needs Playwright's Chromium: {e}")
+        errors: list[str] = []
+        page = await viewhost._open(browser, setup, errors)
+        await viewhost._settled(page)
+        view = page.frame_locator("iframe")
+        assert await view.locator("image[href$='spells/114052.jpg']").count() == 1  # Ascendance at its use
+        assert await view.locator("image").evaluate_all("els => els.every((e) => e.getBBox().width > 0)")
+        await view.locator("image[href$='spells/114052.jpg']").hover()
+        tip = view.locator("#tooltip")
+        assert await tip.is_visible() and await tip.inner_text() == "Ascendance 1:00"
+        await view.locator("h1").hover()
+        assert not await tip.is_visible()
+        assert not errors
+        await browser.close()
 
 
 async def test_the_painter_draws_compare_with_tops_player_view_with_the_biggest_differences(made_up):

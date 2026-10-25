@@ -65,7 +65,7 @@ views.pull = (() => {
       if (d.fallout && !cutShown && D.decided) { cut = `<li class="cut">${kit.esc(kit.clock(D.decided.ms))}: ${kit.esc(D.decided.why)}; later deaths are fallout</li>`; cutShown = true; }
       return cut + `<li class="${d.fallout ? "fallout" : ""}"><button data-ms="${d.ms}" title="Replay from just before">`
         + `<span class="at">${kit.clock(d.ms)}</span><span><span class="who" style="color:${kit.esc(d.color)}">${kit.esc(d.name)}</span>`
-        + `<span class="by">${kit.esc(d.by)} · ${d.alive} alive</span></span></button></li>`;
+        + `<span class="by">${kit.iconImg(D.img_base, d.icon)}${kit.esc(d.by)} · ${d.alive} alive</span></span></button></li>`;
     }).join("");
     return `<div class="deaths"><h2>Deaths (${D.deaths.length})</h2><ol>${rows || '<li class="cut">none</li>'}</ol></div>`;
   }
@@ -102,22 +102,33 @@ views.pull = (() => {
     const tracked = D.casts.filter((c) => c.tracked);
     if (lanes) {
       o += label("Boss casts", y + 12);
-      for (const c of D.casts) if (!c.tracked) o += `<rect x="${x(c.ms) - 1}" y="${y + 5}" width="2" height="9" fill="var(--muted)" opacity=".7"><title>${kit.esc(c.name)} ${kit.clock(c.ms)}</title></rect>`;
-      for (const c of tracked) o += `<path d="M${x(c.ms)} ${y + 3} l5 6 l-5 6 l-5 -6z" fill="var(--gold)"><title>${kit.esc(c.name)} ${kit.clock(c.ms)}</title></path>`;
-      o += labels(tracked.map((c) => [c.ms, c.name]), x, y + 13, "tg", D.casts.map((c) => x(c.ms)), W);
+      for (const c of D.casts) {
+        if (c.tracked) continue;
+        o += `<rect x="${x(c.ms) - 1}" y="${y + 5}" width="2" height="9" fill="var(--muted)" opacity=".7"/>`
+          + kit.hit(x(c.ms) - 4, y + 2, 8, 15, `${c.name} ${kit.clock(c.ms)}`);
+      }
+      for (const c of tracked) {
+        const tip = `${c.name} ${kit.clock(c.ms)}, one of the boss's main casts`;
+        o += kit.icon(D.img_base, c.icon, x(c.ms) - 7, y + 2, 14, tip)
+          || `<path d="M${x(c.ms)} ${y + 3} l5 6 l-5 6 l-5 -6z" fill="var(--gold)"${kit.tip(tip)}/>`;
+      }
+      o += labels(tracked.map((c) => [c.ms, c.name]), x, y + 13, "tg", D.casts.map((c) => x(c.ms)), W, 9.5, 9);
       y += 22;
       for (const [kind, title, color] of [["raid", "Raid cooldowns", "var(--blue)"], ["healing", "Healer cooldowns", "var(--green)"]]) {
         const list = D.cooldowns.filter((c) => c.kind === kind).map((c) => [c.ms, c.name, c.player]);
         if (kind === "raid") for (const ms of D.lusts) list.push([ms, "Bloodlust", ""]);
         list.sort((a, b) => a[0] - b[0]);
         o += label(title, y + 12);
-        for (const [ms, name, who] of list) o += `<circle cx="${x(ms)}" cy="${y + 9}" r="3.2" fill="${color}"><title>${kit.esc(name)}${who ? " (" + kit.esc(who) + ")" : ""} ${kit.clock(ms)}</title></circle>`;
+        for (const [ms, name, who] of list) {
+          o += `<circle cx="${x(ms)}" cy="${y + 9}" r="3.2" fill="${color}"/>`
+            + `<circle cx="${x(ms)}" cy="${y + 9}" r="7" fill="transparent"${kit.tip(`${name}${who ? ` (${who})` : ""} ${kit.clock(ms)}`)}/>`;
+        }
         o += labels(list.map(([ms, name]) => [ms, name]), x, y + 13, "t", list.map(([ms]) => x(ms)), W);
         y += 20;
       }
       y += 4;
     } else if (tracked.length) {
-      for (const c of tracked) o += `<path d="M${x(c.ms)} ${y} l4 5 l-4 5 l-4 -5z" fill="var(--gold)"/>`;
+      for (const c of tracked) o += `<path d="M${x(c.ms)} ${y} l4 5 l-4 5 l-4 -5z" fill="var(--gold)"${kit.tip(`${c.name} ${kit.clock(c.ms)}`)}/>`;
       y += 14;
     }
     const top = y, bottom = y + plotH;
@@ -167,7 +178,8 @@ views.pull = (() => {
     for (const ds of groups) {  // several at once: how many, in the mark; a mark right after another moves over
       const d = ds[0], r = ds.length > 1 ? 7 : 4.2, cx = Math.max(x(d.ms), lastEdge + r + 1);
       lastEdge = cx + r;
-      o += `<circle cx="${cx}" cy="${dy}" r="${r}" fill="${d.fallout ? "var(--muted)" : "var(--dead)"}" opacity="${d.fallout ? 0.65 : 1}"><title>${ds.map((e) => `${e.name} (${e.by})`).map(kit.esc).join(", ")} ${kit.clock(d.ms)}</title></circle>`;
+      const tip = (d.fallout ? "After the wipe was decided:\n" : "") + ds.map((e) => `${kit.clock(e.ms)} ${e.name}: ${e.by}`).join("\n");
+      o += `<circle cx="${cx}" cy="${dy}" r="${r}" fill="${d.fallout ? "var(--muted)" : "var(--dead)"}" opacity="${d.fallout ? 0.65 : 1}"${kit.tip(tip)}/>`;
       if (ds.length > 1) o += kit.text(cx, dy + 3.5, ds.length, "", 'text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--bg)"');
     }
     const ay = bottom + 40;

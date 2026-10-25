@@ -396,8 +396,11 @@ _webp_maps: dict[str, bytes] = {}  # the room maps, converted once
 
 
 async def asset(path: str) -> tuple[bytes, str]:
-    """A Warcraft Logs asset a replay names (`replay`), as (bytes, media type): a room's map as WebP, a spec's or a
-    boss's icon. Raises KnowledgeError, or OSError for what isn't an image."""
+    """An image a view names, as (bytes, media type): from Warcraft Logs, what a replay names (`replay`): a room's map
+    as WebP, a spec's or a boss's icon; from Wowhead, a spell's icon (spells/<id>.jpg, views.icon). Raises
+    KnowledgeError, or OSError for what isn't an image."""
+    if path.startswith("spells/"):
+        return await knowledge.spell_icon(int(path.removeprefix("spells/").removesuffix(".jpg"))), "image/jpeg"
     data = await knowledge.wcl_image(path + ("?v=2" if path.startswith("maps/") else ""))
     if not path.startswith("maps/"):
         return data, "image/jpeg"

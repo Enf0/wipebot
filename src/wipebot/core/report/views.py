@@ -65,7 +65,7 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
     t0, length = f["startTime"], f["endTime"] - f["startTime"]
     deaths, raid, decided = await rep.deaths(f), await rep.raid_size(f), await rep.decided_at(f)
     backs = (await rep.resurrects([f]))[f["id"]]
-    casts, _ = await boss_casts(rep, f)
+    casts, found = await boss_casts(rep, f)
     health, kept = [], None
     for t, v in (await tracks(rep, f)).get("health") or []:
         if kept is None or abs(v - kept) >= HEALTH_STEP:
@@ -83,7 +83,9 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         at = d["timestamp"] - t0
         out_deaths.append({"ms": round(at), "name": name, "spec": p.spec if p else "",
                            "color": class_hex(p.class_name) if p else "#9aa3b8",
-                           "by": rep.ability(d.get("killingAbilityGameID")), "alive": left,
+                           "by": rep.ability(d.get("killingAbilityGameID")),
+                           "icon": icon(d.get("killingAbilityGameID")),
+                           "alive": left,
                            "fallout": bool(decided and at > decided.at_ms)})
     return {
         "view": "pull", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
@@ -97,7 +99,8 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
                    for t in f.get("phaseTransitions") or []],
         "health": health,
         "damage": {"step_ms": DAMAGE_BUCKET_MS, "per_s": [[b * DAMAGE_BUCKET_MS, round(v)] for b, v in damage.items()]},
-        "casts": [{"ms": round(c.at - t0), "name": c.name, "tracked": c.tracked} for c in casts],
+        "casts": [{"ms": round(c.at - t0), "name": c.name, "tracked": c.tracked, "icon": icon(found.ids.get(c.name))}
+                  for c in casts],
         "cooldowns": [{"ms": round(at - t0), "kind": kind.split()[0], "name": name, "player": who}
                       for at, kind, name, who in await raid_cooldown_casts(rep, f)],
         "lusts": lusts,
@@ -126,7 +129,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
     flow = casting(events, alive_until, [d["timestamp"] for d in own])
     flow.gaps = without(flow.gaps, [(a, min(b, alive_until)) for a, b in pauses if a < alive_until])
     what = "healing" if p.role == "healer" else "damage"
-    decided, table, (_, resource, capped), early, (boss, _) = await asyncio.gather(
+    decided, table, (_, resource, capped), early, (boss, found) = await asyncio.gather(
         rep.decided_at(f), rep.table(f["id"], "Healing" if what == "healing" else "DamageDone"),
         resource_use(rep, f, p, casts, alive_s, alive_until), prepull(rep, [f], p), boss_casts(rep, f))
     try:
@@ -143,7 +146,8 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
         output = {"what": what, "total": round(mine["total"]), "per_s_alive": round(mine["total"] / max(alive_s, 1)),
                   "rank": peers.index(mine) + 1 if mine in peers else None, "of": len(peers),
                   "role": ROLE_NAMES[p.role],
-                  "top": [{"name": a["name"], "total": round(a["total"])} for a in mine.get("abilities", [])[:6]]}
+                  "top": [{"name": a["name"], "total": round(a["total"]), "icon": icon(a.get("guid"))}
+                          for a in mine.get("abilities", [])[:6]]}
     standing = None
     if f["kill"]:
         if (pct := (await kill_parses(rep, f, metric_of(p))).get(p.name)) is not None:
@@ -158,6 +162,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
     except KnowledgeError:
         rows = []
     counts = Counter(rep.ability(c["abilityGameID"]) for c in casts)
+    ids = {rep.ability(c["abilityGameID"]): c["abilityGameID"] for c in casts}  # a spell's id, by its name
     span = lambda spans: [[round(a - t0), round(b - t0)] for a, b in spans]  # noqa: E731
     out = {
         "view": "player", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "title": rep.label(f),
@@ -173,30 +178,55 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
         "gaps": span(flow.gaps), "capped": span(capped), "dead": span(dead_spans(f, own, casts)),
         "died": [{"ms": round(d["timestamp"] - t0), "by": rep.ability(d.get("killingAbilityGameID")),
                   "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms)} for d in own],
-        "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible}
+        "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible,
+                       "icon": icon(sp.get("spell_id"))}
                       for sp, times, possible in rows if not NOT_ON_COOLDOWN & set(sp.get("tags") or [])],
-        "casts": [{"name": n, "n": k, "per_min": round(60 * k / max(alive_s, 1), 1)}
+        "casts": [{"name": n, "n": k, "per_min": round(60 * k / max(alive_s, 1), 1), "icon": icon(ids.get(n))}
                   for n, k in counts.most_common(CASTS_SHOWN)],
         "phases": [{"ms": round(t["startTime"] - t0), "id": t["id"]} for t in f.get("phaseTransitions") or []],
-        "tracked": [{"ms": round(c.at - t0), "name": c.name} for c in boss if c.tracked],
+        "tracked": [{"ms": round(c.at - t0), "name": c.name, "icon": icon(found.ids.get(c.name))}
+                    for c in boss if c.tracked],
         "top": None,
     }
     if top:
-        out["top"] = await _against_top(rep, f, p)
+        out["top"] = await _against_top(rep, f, p, ids)
     return out
 
 
-async def _against_top(rep: Report, f: dict, p) -> dict | str:
+async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | str:
     """The player's casts per minute against top players of their spec (top.cast_comparison), or why not."""
     c = await cast_comparison(rep, p.name, rep.pull_no(f), rep.boss_key(f))
     if isinstance(c, str):
         return c
     return {"hero": c.hero, "same_hero": c.same_hero, "parses": len(c.found),
-            "rates": [{"name": r.name, "mine": round(r.mine, 1), "median": None if r.median is None
+            "rates": [{"name": r.name, "icon": icon(ids.get(r.name) or (c.names.named(r.name) or {}).get("spell_id")),
+                       "mine": round(r.mine, 1), "median": None if r.median is None
                        else round(r.median, 1), "low": r.low and round(r.low, 1), "high": r.high and round(r.high, 1),
                        "flag": r.flag} for r in c.rates],
             "total": [round(sum(v or 0 for v in c.my_cpm.values())),
                       round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))]}
+
+
+def icon(spell_id: int | str | None) -> str | None:
+    """A spell's icon, by the path the views load it at (<img base>spells/<id>.jpg, maps.asset); None without one."""
+    try:
+        return f"spells/{int(spell_id)}.jpg" if spell_id else None
+    except (TypeError, ValueError):
+        return None
+
+
+def icons(data: object) -> set[str]:
+    """Every icon a view's data names (its "icon" fields), for the server to serve those alone."""
+    found: set[str] = set()
+    if isinstance(data, dict):
+        if isinstance(data.get("icon"), str):
+            found.add(data["icon"])
+        for v in data.values():
+            found |= icons(v)
+    elif isinstance(data, list):
+        for v in data:
+            found |= icons(v)
+    return found
 
 
 def _ended(e) -> dict | None:

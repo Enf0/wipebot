@@ -47,7 +47,7 @@ from .signin import CALLBACK_PATH, CONSENT_PATH, Access, SignIn
 # Claude caches an app's page by its address: a changed page gets a new one. Any older address still gets today's
 # page (`_any_views_address`), so a host with an older tool list doesn't break.
 VIEWS_APP = views.page_uri()
-IMG_PATH = re.compile(r"maps/\d+-map\.png|icons/[A-Za-z]+-[A-Za-z]+\.jpg|bosses/\d+-icon\.jpg")
+IMG_PATH = re.compile(r"maps/\d+-map\.png|icons/[A-Za-z]+-[A-Za-z]+\.jpg|bosses/\d+-icon\.jpg|spells/\d+\.jpg")
 LATEST_RAID_S = 600  # the default report: looked up this often
 log = logging.getLogger(__name__)
 # A website's routes, given who may use the server and its MCP URL (for a deployment that embeds the server: `serve`).
@@ -286,7 +286,11 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
                         pull: server.Pull = None, boss: server.Boss = None, report: server.Report_ = None,
                         player: str | None = None, top: bool = False) -> CallToolResult:
         """What a view draws, for the pull (and player) its tool was asked about."""
-        return await server.view_data(view, pull, boss, report, player, top)
+        result = await server.view_data(view, pull, boss, report, player, top)
+        if (data := result.structured_content) is not None:
+            data["img_base"] = public_url + "/img/"  # its spells' icons (views.icon), served once it named them
+            _handed_out.update(views.icons(data))
+        return result
 
     @apps.tool(resource_uri=VIEWS_APP, visibility=["app"], structured_output=False, name="pull_replay",
                annotations=server.READ_ONLY)
