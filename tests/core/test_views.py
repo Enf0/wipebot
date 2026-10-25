@@ -169,8 +169,8 @@ async def test_the_painter_draws_the_pull_view_as_a_picture_for_the_bot(recorded
     monkeypatch.setattr(server.DEFAULT, "remote", None)  # as the bot runs the tools: in-process
     painter = viewhost.Painter()
     try:
-        drawn = await painter.picture("pull_summary", PULL_CASE.args)
-        assert await painter.picture("pull_map", PULL_CASE.args) is None  # its picture is its own map
+        [drawn] = await painter.pictures("pull_summary", PULL_CASE.args)
+        assert await painter.pictures("pull_map", PULL_CASE.args) == []  # its picture is its own map
     except Error as e:
         if "Executable doesn't exist" in str(e):
             pytest.skip("needs Playwright's Chromium (python -m playwright install chromium-headless-shell)")
@@ -329,6 +329,10 @@ def made_up_night() -> dict:
             "what": "healing", "role_name": "healers", "pulls": pulls, "total_pulls": 6, "died": 2, "first": 1,
             "early": 1, "early_n": 3, "dead_s": 10, "counted_s": 1155, "dead_pct": 1, "cooldowns_total": [6, 12],
             "best": {"pull": 6, "per_s_alive": 330_000},
+            "killers": [{"by": "Slag Wave", "icon": "spells/1.jpg",
+                         "pulls": [{"pull": 2, "ms": 60000, "place": 1, "saved": True},
+                                   {"pull": 4, "ms": 120000, "place": 4, "saved": False}]}],
+            "lived": {"saved": 1, "of": 2, "unknown": 0, "by": [["Astral Shift", 1]]},
             "cooldowns": [{"name": "Ascendance", "used": 4, "possible": 6, "icon": "spells/114052.jpg"}],
             "cooldowns_unavailable": "", "thirds": []}
 
@@ -382,6 +386,8 @@ async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_
     first, opened = await shots(tmp_path, "player_night", {"player": "Mirelle"}, themes=("dark",), widths=(760,),
                                 modes=("fullscreen",), clicks=('css:tr[data-pull="4"]',))
     assert not first.errors and "2 of 6" in first.text and "first to die once" in first.text
+    assert "could have lived" in first.text.lower() and "1 of 2" in first.text and "Astral Shift at 1" in first.text
+    assert "what killed mirelle" in first.text.lower() and "Slag Wave" in first.text
     assert "6: 330k" in first.text and "pull by pull" in first.text.lower()
     calls = [m["msg"]["params"]["arguments"] for m in opened.messages if m["msg"].get("method") == "tools/call"
              and m["msg"]["params"]["name"] == "view_data"]
@@ -426,8 +432,8 @@ async def test_the_painter_draws_compare_with_tops_player_view_with_the_biggest_
     from wipebot.core import viewhost
     painter = viewhost.Painter()
     try:
-        alone = await painter.picture("player_pull", {"player": "Mirelle"})
-        against = await painter.picture("compare_with_top", {"player": "Mirelle"})
+        [alone] = await painter.pictures("player_pull", {"player": "Mirelle"})
+        [against] = await painter.pictures("compare_with_top", {"player": "Mirelle"})
     except Error as e:
         if "Executable doesn't exist" in str(e):
             pytest.skip("needs Playwright's Chromium")
@@ -487,3 +493,24 @@ def test_a_players_notes_put_the_weightiest_first_and_leave_raid_cooldowns_out_o
                    output={"what": "healing", "rank": 1, "of": 4, "role": "healers"},
                    standing={"kind": "parse", "percentile": 81})
     assert views.player_notes(after)["good"] == ["81st percentile parse", "Most healing of the 4 healers"]
+
+
+async def test_a_view_in_panels_is_painted_a_picture_per_panel(made_up, monkeypatch):
+    pytest.importorskip("playwright")
+    from playwright.async_api import Error
+
+    from wipebot.core import viewhost
+
+    async def view_key(tool, args):
+        return {"view": "player_night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "player": "Mirelle"}
+    monkeypatch.setattr(server, "view_key", view_key)
+    painter = viewhost.Painter()
+    try:
+        drawn = await painter.pictures("player_night", {"player": "Mirelle"})
+    except Error as e:
+        if "Executable doesn't exist" in str(e):
+            pytest.skip("needs Playwright's Chromium")
+        raise
+    finally:
+        await painter.close()
+    assert len(drawn) == 2  # what killed them; the night pull by pull: each whole in Discord

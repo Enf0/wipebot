@@ -13,12 +13,12 @@ private store (local.py).
 
 `just record-tools` (`python -m tests.support.recorded evals/cache.sqlite`) records again: it runs every case on a
 copy of the evals' frozen cache plus what was recorded before (which wins, so a snapshot never moves because the
-evals hold a newer answer or a report has turned private since), fetching only what neither has, then keeps exactly
-the answers the cases asked for. Without the evals' cache (a fresh clone) it starts from what was recorded before
-alone. The guide sites' writing and Warcraft Logs' images get stand-ins after (standins.py): made afresh from the
-source's page, or kept as recorded when the source hasn't the page. What only local cases ask goes to local/;
-recording stops if a published case asks for or is answered with rankings, another guild's report or a Raidbots file
-(`_not_ours`; tests/core/test_recorded.py applies it to every published answer)."""
+evals hold a newer answer or a report has turned private since), and each case's view data, fetching only what
+neither has, then keeps exactly the answers the cases asked for. Without the evals' cache (a fresh clone) it starts
+from what was recorded before alone. The guide sites' writing and Warcraft Logs' images get stand-ins after
+(standins.py): made afresh from the source's page, or kept as recorded when the source hasn't the page. What only
+local cases ask goes to local/; recording stops if a published case asks for or is answered with rankings, another
+guild's report or a Raidbots file (`_not_ours`; tests/core/test_recorded.py applies it to every published answer)."""
 import asyncio
 import json
 import re
@@ -186,6 +186,13 @@ async def run(case: Case) -> str:
     return ("(failed) " if failed else "") + text + "\n"
 
 
+async def view(case: Case) -> None:
+    """The case's view data, for a tool with a view: what the view reads that its tool doesn't (the player's night
+    replays each death)."""
+    if (key := await server.view_key(case.tool, case.args)) is not None:
+        await server.view_data(**key)
+
+
 async def replay_data(args: dict | None = None) -> dict:
     """The replay viewer's data for REPLAY_CASE's pull (or `args`), its player in focus."""
     args = args or CASES[REPLAY_CASE].args
@@ -252,6 +259,7 @@ async def record(source: Path) -> None:
             serve_from(mp, recorder)  # each case starts with nothing loaded, as each test does
             recorder.local = case.local
             await run(case)
+            await view(case)
         print("replay", REPLAY_CASE, flush=True)
         serve_from(mp, recorder)
         recorder.local = False
