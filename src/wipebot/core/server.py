@@ -10,7 +10,8 @@ Where each tool's work is done, under report/ unless another folder is named:
 - pull_summary, pull_timeline: fight.py (a pull's post: ../pulls.py); compare_pulls: compare.py
 - death_recap, defensives: deaths.py (what the healers did: healing.py); healing: healing.py
 - mechanic_hits: mechanics.py; enemies: adds.py; tank_swaps: tanks.py; breakdown: tables.py
-- pull_map: maps.py (positions.py, drawn by draw.py)
+- pull_map: maps.py (positions.py, drawn by draw.py); its replay and the views remote.py serves: views.py (page in
+  ../app/)
 - raid_note: note.py; raid_plan: plan.py (fetched by ../raidstrats.py; both saved in ../notebook.py)
 - save_note_or_plan, on a server that knows who's asking (`allow_saving`): here (`save_pasted`)
 - progress, roster: night.py; find_reports: guild.py; raid_prep: build.py
@@ -67,6 +68,7 @@ from .report import (
     tables,
     tanks,
     top,
+    views,
 )
 from .report import guild as guild_logs
 from .report import healing as heals
@@ -399,7 +401,7 @@ async def roster(weeks: Annotated[int | None, Field(description=(
 # ---------- one pull ----------
 
 @_tool
-async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = None) -> str:
+async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = None) -> str | CallToolResult:
     """For "why did we wipe?", "who wiped us?", "what do we fix?": start here.
     One pull: its post, how it ended, phases, raid size, every death in order with spec, killing ability [id] and
     players still alive, when half the raid was dead, and any buff the boss gained and kept to the end, such as
@@ -412,7 +414,14 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     to after an intermission. The post compares the wipe with this log's earlier pulls and with the guild's best
     in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded" means the log names no
     killing hit (death_recap shows the damage before it and where the player was last)."""
-    return await fight.pull_summary(await lib().report(report), pull, boss)
+    rep = await lib().report(report)
+    text = await fight.pull_summary(rep, pull, boss)
+    if setup().remote is None:
+        return text
+    # Serving many users, the host may draw the pull (remote.py's views): it reads which pull from structuredContent.
+    f = rep.fight(pull, boss)
+    return CallToolResult(content=[TextContent(type="text", text=text)], structured_content={
+        "view": "pull", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)})
 
 
 @_tool
@@ -519,8 +528,8 @@ async def pull_map(pull: Pull = None, boss: Boss = None,
         return CallToolResult(content=content)
     f = rep.fight(pull, boss)
     return CallToolResult(content=content, structured_content={
-        "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "at_ms": round(ans.at_ms),
-        "players": players or []})
+        "view": "replay", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
+        "at_ms": round(ans.at_ms), "players": players or []})
 
 
 async def _plan_map(rep: Report, pull: PullRef, boss: str | None, at: str | None, players: list[str] | None,
@@ -539,8 +548,8 @@ async def _plan_map(rep: Report, pull: PullRef, boss: str | None, at: str | None
         return CallToolResult(content=content)
     f = ans.fight
     return CallToolResult(content=content, structured_content={
-        "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "at_ms": ans.overlay["at_ms"],
-        "players": players or [], "plan": ans.overlay["moments"]})
+        "view": "replay", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
+        "at_ms": ans.overlay["at_ms"], "players": players or [], "plan": ans.overlay["moments"]})
 
 
 def _supports_apps(ctx: Context) -> bool:
@@ -549,6 +558,28 @@ def _supports_apps(ctx: Context) -> bool:
         return client_supports_apps(ctx)
     except ValueError:  # an in-process call (the Discord bot, `wipebot call`) has no client
         return False
+
+
+# ---------- what the views draw (report/views.py): remote.py's app-only tools, and the views' harness ----------
+
+async def view_data(view: Annotated[str, Field(description="which view: pull")],
+                    pull: Pull = None, boss: Boss = None, report: Report_ = None) -> CallToolResult:
+    """What a view draws, for the pull its tool was asked about."""
+    rep = await lib().report(report)
+    try:
+        data = await views.view_data(rep, view, pull, boss)
+    except ValueError as e:
+        raise FactError(str(e)) from e
+    return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],
+                          structured_content=data)
+
+
+async def replay_data(report: str, pull: int, boss: str, at_ms: int = 0, players: list[str] | None = None) -> dict:
+    """The whole pull for the replay (maps.replay), the `players` in focus; its images by their path (maps.asset)."""
+    rep = await lib().report(report)
+    f = rep.fight(pull, boss)
+    focus = {rep.in_pull(f, rep.player(n)).id for n in players or []}
+    return await maps.replay(rep, f, at_ms, focus)
 
 
 AGGRO_WEEKS = 4  # tank_swaps: the guild's raid nights it looks through for the spells each tank took a boss with

@@ -42,6 +42,11 @@ release *args:
 call tool json="{}":
     {{py}} -m wipebot call "$1" "$2"
 
+# A tool's view as Claude and ChatGPT draw it, in a window; with --shot DIR, screenshots and what went wrong in them,
+# e.g. just view pull_summary '{"report": "KBYT4xXn7VNjDgh8", "pull": 13}' --shot shots --click Replay
+view tool json="{}" *args:
+    {{py}} -m wipebot view "$@"
+
 # Chat about a report in the terminal, e.g. just ask KBYT4xXn7VNjDgh8 --as <character> -q "Why did we wipe?"
 ask code *args:
     {{py}} -m wipebot ask "$@"

@@ -16,6 +16,11 @@ of passing only with someone's login.
   output, on real recorded data, is still what it was when someone last read and kept it. They catch what nobody
   wrote a test for, such as a change in one place moving a number in another tool's output, but not whether that
   output is right: a snapshot pins what's in it, right or wrong. A failure is a diff to read.
+- **View tests** (`core/test_views.py`): each view's data on a real pull, pinned like a snapshot
+  (`fixtures/real/views/`) and checked against its tool's text, and the page drawn in a mock host in Chromium
+  (`viewhost.py`): no console error, a height reported, the numbers shown, the MCP Apps messages in order. Without
+  Playwright's Chromium (`uv run python -m playwright install chromium-headless-shell`) those are skipped; how a view
+  looks is for a person or a model to judge, from `just view --shot`.
 - **Evals** (`evals/`, not run by `just check`): a model with the tools answers raiders well. A tool can print every
   number right and the answer still blame the wrong player; evals/README.md.
 

@@ -41,6 +41,7 @@ dev = [
     "ruff>=0.6",
     "ty==0.0.90",
     "import-linter>=2.1",
+    "playwright>=1.64.1",
 ]
 
 [tool.pytest.ini_options]
@@ -85,6 +86,7 @@ name = "core in layers: a module imports only those below it"
 type = "layers"
 containers = ["wipebot.core"]
 layers = [
+    "viewhost",
     "server",
     "raidstrats | viserio | library",
     "report",

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wipebot views: mock host</title>
+<!-- A stand-in for Claude or ChatGPT (viewhost.py): the MCP Apps handshake, a theme, a width, inline or fullscreen,
+     the tool's input and result, and the view's calls to our tools answered in-process (window.wipebotCall). -->
+<style>
+  :root { color-scheme: light dark; font: 13px/1.4 system-ui, sans-serif; }
+  body { margin: 0; background: var(--host-bg); color: var(--host-ink); }
+  body[data-theme="dark"] { --host-bg: #1f1f1e; --host-ink: #ecebe6; --host-line: #3a3a37; }
+  body[data-theme="light"] { --host-bg: #f6f5f1; --host-ink: #1f1f1e; --host-line: #dedcd3; }
+  #bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--host-line); }
+  #bar label { display: flex; gap: 4px; align-items: center; }
+  #stage { padding: 16px; }
+  #frame-box { margin: 0 auto; }
+  iframe { display: block; width: 100%; border: 0; background: transparent; }
+  #log { font: 11.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; padding: 8px 12px; border-top: 1px solid var(--host-line);
+         max-height: 30vh; overflow: auto; }
+  body.bare #bar, body.bare #log { display: none; }
+  body.bare #stage { padding: 0; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <b id="tool"></b>
+  <label>Theme <select id="theme"><option>dark</option><option>light</option></select></label>
+  <label>Width <select id="width"><option>320</option><option selected>430</option><option>760</option></select></label>
+  <label>Mode <select id="mode"><option>inline</option><option>fullscreen</option></select></label>
+  <label>Tokens <select id="tokens"><option value="none">our fallbacks</option><option value="claude">Claude-like</option></select></label>
+  <button id="reload">Reload view</button>
+</div>
+<div id="stage"><div id="frame-box"></div></div>
+<div id="log"></div>
+<script>
+"use strict";
+const S = window.__setup;  // {tool, args, result, theme, width, mode, tokens, bare, fullWidth, fullHeight}
+const VIEW_URL = "https://wipebot.local/view.html";
+// Claude-like style variables, light and dark (an approximation, for seeing the host's tokens take over)
+const TOKENS = {
+  claude: {
+    light: { "--color-background-primary": "#ffffff", "--color-background-secondary": "#f5f4ef", "--color-text-primary": "#141413",
+             "--color-text-secondary": "#5e5d59", "--color-border-secondary": "#e8e6dc", "--font-sans": "system-ui, sans-serif" },
+    dark: { "--color-background-primary": "#30302e", "--color-background-secondary": "#262624", "--color-text-primary": "#faf9f5",
+            "--color-text-secondary": "#c2c0b6", "--color-border-secondary": "#3e3e38", "--font-sans": "system-ui, sans-serif" },
+  },
+};
+const $ = (id) => document.getElementById(id);
+window.__log = [];  // every message both ways, for viewhost.py
+let frame = null, initialized = false;
+
+function log(dir, msg) {
+  window.__log.push({ dir, msg });
+  const line = `${dir} ${msg.method || (msg.error ? "error" : "result")}${msg.id !== undefined ? " #" + msg.id : ""} ${JSON.stringify(msg.params ?? msg.result ?? msg.error ?? "").slice(0, 300)}`;
+  console.log("[host] " + line);
+  $("log").textContent += line + "\n";
+}
+function send(msg) { log("→", msg); frame.contentWindow.postMessage(msg, "*"); }
+
+function context() {
+  const theme = $("theme").value, mode = $("mode").value;
+  const vars = $("tokens").value === "none" ? undefined : TOKENS[$("tokens").value][theme];
+  return { theme, displayMode: mode, availableDisplayModes: ["inline", "fullscreen"], platform: "web", locale: "en-GB",
+           containerDimensions: mode === "fullscreen" ? { width: S.fullWidth, height: S.fullHeight } : { width: +$("width").value, maxHeight: 6000 },
+           toolInfo: { tool: { name: S.tool } }, ...(vars ? { styles: { variables: vars } } : {}) };
+}
+
+function size() {
+  const box = $("frame-box"), full = $("mode").value === "fullscreen";
+  box.style.width = (full ? S.fullWidth : +$("width").value) + "px";
+  if (full) frame.style.height = S.fullHeight + "px";
+}
+
+function load() {
+  initialized = false;
+  frame = document.createElement("iframe");
+  frame.sandbox = "allow-scripts allow-same-origin";
+  frame.src = VIEW_URL;
+  frame.style.height = "200px";
+  $("frame-box").replaceChildren(frame);
+  size();
+}
+
+window.addEventListener("message", async (event) => {
+  if (!frame || event.source !== frame.contentWindow) return;
+  const m = event.data;
+  if (!m || m.jsonrpc !== "2.0") return;
+  log("←", m);
+  const reply = (result) => send({ jsonrpc: "2.0", id: m.id, result });
+  switch (m.method) {
+    case "ui/initialize":
+      return reply({ protocolVersion: "2026-01-26", hostInfo: { name: "wipebot-mock-host", version: "1" },
+                     hostCapabilities: { serverTools: {}, openLinks: {}, message: { text: {} }, logging: {} },
+                     hostContext: context() });
+    case "ui/notifications/initialized":
+      initialized = true;
+      send({ jsonrpc: "2.0", method: "ui/notifications/tool-input", params: { arguments: S.args } });
+      send({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: S.result });
+      return;
+    case "ui/notifications/size-changed":
+      if ($("mode").value !== "fullscreen" && m.params.height) frame.style.height = Math.ceil(m.params.height) + "px";
+      return;
+    case "tools/call":
+      try { return reply(await window.wipebotCall(m.params.name, m.params.arguments || {})); }
+      catch (e) { return send({ jsonrpc: "2.0", id: m.id, error: { code: -32603, message: String(e) } }); }
+    case "ui/request-display-mode":
+      $("mode").value = m.params.mode === "fullscreen" ? "fullscreen" : "inline";
+      size();
+      send({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params: { displayMode: $("mode").value, containerDimensions: context().containerDimensions } });
+      return reply({ mode: $("mode").value });
+    case "ui/message": case "ui/open-link": case "notifications/message": case "ui/update-model-context":
+      if (m.id !== undefined) reply({});
+      return;
+    default:
+      if (m.id !== undefined) send({ jsonrpc: "2.0", id: m.id, error: { code: -32601, message: "not supported: " + m.method } });
+  }
+});
+
+function changed() {
+  document.body.dataset.theme = $("theme").value;
+  size();
+  if (initialized) send({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params: context() });
+}
+$("tool").textContent = `${S.tool} ${JSON.stringify(S.args)}`;
+$("theme").value = S.theme; $("width").value = String(S.width); $("mode").value = S.mode; $("tokens").value = S.tokens;
+if (![...$("width").options].some((o) => o.value === String(S.width))) $("width").add(new Option(S.width, S.width, true, true));
+document.body.classList.toggle("bare", !!S.bare);
+for (const id of ["theme", "width", "mode", "tokens"]) $(id).onchange = changed;
+$("reload").onclick = () => window.wipebotReload ? window.wipebotReload() : location.reload();
+document.body.dataset.theme = S.theme;
+load();
+</script>
+</body>
+</html>

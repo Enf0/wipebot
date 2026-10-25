@@ -1,0 +1,98 @@
+/* The host's tokens when it gives them (MCP Apps' standard variables), else ours for its theme. */
+:root {
+  color-scheme: light dark;  /* the host's colors may be light-dark() pairs: the theme it names picks one */
+  --fb-bg: #0b101e; --fb-panel: #131a2c; --fb-ink: #ecf0f8; --fb-muted: #9aa3b8; --fb-line: #232c44;
+  --gold: #f5c542; --dead: #ff5c5c; --decided: #f5a142; --blue: #7aa2ff; --green: #4fd18b; --p2: #6f8fd8;
+}
+:root[data-theme="light"] {
+  --fb-bg: #ffffff; --fb-panel: #f3f5f9; --fb-ink: #141a2b; --fb-muted: #586179; --fb-line: #dde2ea;
+  --gold: #a87a06; --dead: #d43c3c; --decided: #c9741f; --blue: #2f62c9; --green: #23845a; --p2: #4f72c4;
+}
+:root {
+  --bg: var(--color-background-primary, var(--fb-bg));
+  --panel: var(--color-background-secondary, var(--fb-panel));
+  --ink: var(--color-text-primary, var(--fb-ink));
+  --muted: var(--color-text-secondary, var(--fb-muted));
+  --line: var(--color-border-secondary, var(--fb-line));
+  --sk: color-mix(in srgb, var(--ink) 8%, transparent);  /* placeholders while loading, in either theme */
+  --font: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--font); }
+#app { padding: 10px 0 4px; }
+button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+         height: 32px; min-width: 36px; padding: 0 12px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--font); }
+.t { fill: var(--ink); } .tm { fill: var(--muted); } .tg { fill: var(--gold); } .td { fill: var(--dead); } .to { fill: var(--decided); }
+svg text.to, svg text.tg { paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }  /* over lines */
+
+/* loading: a view's shape, so nothing jumps when the data arrives */
+#status .sk-head { display: flex; gap: 10px; padding: 0 2px 8px; }
+#status .sk-line { height: 14px; border-radius: 7px; background: var(--sk); }
+#status .sk-stage { position: relative; aspect-ratio: 3 / 2; border-radius: 10px; overflow: hidden; background: var(--sk);
+                    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+#status .sk-stage::before { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--ink) 6%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%); animation: shimmer 1.6s ease-in-out infinite; }
+#status .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--gold) 25%, transparent);
+                   border-top-color: var(--gold); animation: spin .9s linear infinite; }
+#status .msg { position: relative; color: var(--muted); font-size: 13.5px; text-align: center; padding: 0 24px; max-width: 32rem; }
+#status .sk-bar { display: flex; gap: 8px; align-items: center; padding: 10px 2px 0; }
+#status .sk-btn { width: 36px; height: 32px; border-radius: 8px; background: var(--sk); }
+#status.failed .spinner, #status.failed .sk-stage::before { display: none; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #status .sk-stage::before, #status .spinner { animation: none; } }
+
+/* a view's card: header, a few numbers, the chart, at most two actions */
+.head { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 6px; flex-wrap: wrap; }
+.head h1 { font-size: 15px; margin: 0; font-weight: 650; }
+.head .sub { color: var(--muted); font-size: 12.5px; }
+.head .back { margin-left: auto; height: 28px; font-size: 12.5px; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 0 2px 8px; }
+.stat .k { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat .v.dead { color: var(--dead); } .stat .v.decided { color: var(--decided); }
+.actions { display: flex; gap: 8px; padding: 10px 2px 0; flex-wrap: wrap; }
+.full { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; align-items: start; }
+@media (max-width: 720px) { .full { grid-template-columns: minmax(0, 1fr); } }
+.scroll-x { overflow-x: auto; }
+.deaths { border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--panel); }
+.deaths h2 { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 2px 4px 6px; font-weight: 600; }
+.deaths ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 560px; overflow-y: auto; }
+.deaths li button { width: 100%; height: auto; min-height: 30px; text-align: left; display: grid; grid-template-columns: 38px minmax(0, 1fr);
+                    gap: 6px; padding: 4px 6px; border-color: transparent; background: none; font-size: 12.5px; }
+.deaths li button:hover { border-color: var(--line); background: var(--bg); }
+.deaths li .at { font-variant-numeric: tabular-nums; color: var(--muted); }
+.deaths li .who { font-weight: 600; }
+:root[data-theme="light"] .deaths li .who { filter: brightness(.72) saturate(1.3); }  /* class colors are for dark */
+.deaths li .by { display: block; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
+.deaths li.fallout { opacity: .55; }
+.deaths .cut { font-size: 11.5px; color: var(--decided); margin: 6px 6px 4px; }
+
+/* the replay */
+#rp-clock { font-variant-numeric: tabular-nums; color: var(--muted); }
+#rp-event { color: var(--muted); margin-left: auto; min-height: 1.4em; }
+#rp-stage { position: relative; width: 100%; aspect-ratio: 3 / 2; border-radius: 10px; overflow: hidden; background: #0b101e; }
+#rp-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#rp-tip { position: absolute; pointer-events: none; background: rgba(11, 16, 30, .92); color: #ecf0f8; border: 1px solid #2b3552;
+          border-radius: 8px; padding: 6px 9px; font-size: 12.5px; white-space: nowrap; display: none; }
+#rp-tip b { font-weight: 650; }
+.controls { display: flex; align-items: center; gap: 8px; padding: 10px 2px 0; }
+.controls button { padding: 0 10px; }
+#rp-timeline { position: relative; flex: 1; height: 32px; cursor: pointer; touch-action: none; }
+#rp-track { position: absolute; left: 0; right: 0; top: 14px; height: 4px; border-radius: 2px; background: var(--line); }
+#rp-done { position: absolute; left: 0; top: 14px; height: 4px; border-radius: 2px; background: var(--muted); }
+#rp-thumb { position: absolute; top: 8px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--ink);
+            box-shadow: 0 0 0 3px var(--bg); }
+.mark { position: absolute; top: 9px; width: 3px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--dead); }
+.mark.decided { background: var(--decided); width: 3px; top: 6px; height: 20px; }
+.mark.plan { background: var(--gold); top: 11px; height: 10px; }
+#rp-moments { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 2px 0; }
+#rp-moments button { height: 28px; font-size: 12.5px; padding: 0 8px; font-variant-numeric: tabular-nums; }
+#rp-moments button.on { border-color: var(--gold); color: var(--gold); }
+@media (max-width: 480px) { #rp-event { margin-left: 0; width: 100%; } }
