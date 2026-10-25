@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **A raid plan's scenes come with their links.** An answer about a scene can link it on raidstrats.gg instead of naming its number.
+
 ### Changed
 
 - `Discord` **The line under your question shows what the answer is doing.** What it's reading right now, with the boss and pull ("Reading the raid plan (Coiled Altar)") and a spinner, what it has already looked at with a tick, and how long ago you asked.
@@ -13,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `Discord` **Asking the bot about a boss you haven't pulled yet reads the saved note and plan.** The note saved for tomorrow is given as it is, and the plan shown as drawn, as in Claude, instead of the bot saying it can only read them against a night with pulls.
+- `Agent` **A note for a boss not pulled yet names its cooldowns,** so each spell in the answer reads and links like the others.
 
 ## [0.7.0] - 2026-10-25
 
