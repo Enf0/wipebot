@@ -21,7 +21,14 @@ API: `wcl-api.md`.
 - Viserio Cooldowns' API (`api.wowutils.com/v1`, OpenAPI at `api.wowutils.com/openapi.json`) gives a note's and an
   assignment's metadata but not their text, nor the raid plans embedded in them (checked 25 October 2026), so
   officers paste the NSRT note it exports. A setup in full (`/groups/{id}/latest-reset/setups/{id}/full`) has, per
-  boss, who's in for it with class, spec and role (`bossAssignments`), not who stands on which spot of a plan. A line's `time:` counts from the pull's start, through the
+  boss, who's in for it with class, spec and role (`bossAssignments`), not who stands on which spot of a plan.
+  Checked live 25 October 2026: a group without a boost has 60 points an hour (`X-RateLimit-Limit`), a read costs
+  one and a `304` to `If-None-Match` nothing; `/groups` names the group's guild (`name`, `realm` slug, `region`,
+  lowercase); a setup's `eventRef.eventId` is the calendar night it's for, and only its bosses with `enabled` are
+  planned (a boss not enabled may list everyone out); `calendar-events?upcoming=true` gives each night's `date`,
+  `startTime`, `endTime` and `signups` (`status` present, absent, late or tentative; `responded` false for a
+  default). The API terms (wowutils.com/api-terms, 11 October 2026) allow a bot serving the key's group, and ask
+  for no copy kept past 30 days, `Retry-After` respected and no battletag shown where its member hasn't agreed. A line's `time:` counts from the pull's start, through the
   intermissions. A `bossSpell:` id can be one the boss never casts: it labels the mechanic the cooldown is for.
 - raidstrats.gg's planner Export (no key, any plan you can open) gives `raidstrats-addon-` and base64: one version
   byte (1), then raw deflate (`zlib.decompress(b[1:], -15)`) of JSON: `v` 2, `planName`, `raid`, `boss`, `planId`,

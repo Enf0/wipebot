@@ -128,6 +128,11 @@ Raid plans can also be fetched from raidstrats.gg instead of pasted, where the h
 someone asks, so an edit on raidstrats.gg counts from the next question. A pasted export with the night's raiders
 stays the one used until the plan itself changes on raidstrats.gg.
 
+The raid nights to come can be read from Viserio Cooldowns, with the key the group's admin makes there
+([setup.md](setup.md#raid-notes-and-plans)): each night in the next eight days with its sign-ups (absent, late,
+tentative), and per boss planned in the week's setup who's in, by role, and who's out. So "am I in on Coiled Altar
+tomorrow?", "who's benched?" and "who's coming Monday?" are answered before there's a log.
+
 Only a pasted export is saved, not typed text, a screenshot or a link. Every version is kept, with who saved it.
 Each pull is checked against the note saved before it started, so changing the note mid-night doesn't affect earlier
 pulls. A note counts only for the raid night it was saved for, as officers change it each night with who comes: one
