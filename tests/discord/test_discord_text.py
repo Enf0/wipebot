@@ -13,6 +13,8 @@ from wipebot.discord.discord_text import (
     fix_pull_links,
     link_abilities,
     link_items,
+    link_scenes,
+    planned_classes,
     polish,
     tight_lists,
     unlink_broken,
@@ -189,3 +191,39 @@ SPECS = {"Brightleaf": ("Paladin", "Holy"), "Torvek": ("DeathKnight", "Frost"), 
 def test_icons_go_where_the_bot_has_them(text, expected):
     assert add_icons(text, SPECS, ICONS) == expected
     assert add_icons(text, SPECS, {}) == text
+
+
+PLAN = "https://raidstrats.gg/planner?view=plan-1"
+PLAN_RESULT = (f'The raid plan "Coiled Altar Plan" ({PLAN}/9): 9 scenes.\n'
+               f"Scene 2 ({PLAN}/2):\n  Asked: #11 Scopi (Dscopi) (demonhunter): below right of the boss\n"
+               f"  #9 Martin (hunter): right of the boss, between the cross and triangle markers\n"
+               f"Scene 3 ({PLAN}/3):\n  #5 Ape Goalkeeper (evoker): far below the boss")
+
+
+@pytest.mark.parametrize("text, expected", [
+    pytest.param("**Grønne orbs (scene 2):** du har spot #11. I scene 3 går du ut. Scene 2 igjen.",
+                 f"**[Grønne orbs]({PLAN}/2):** du har spot #11. I [scene 3]({PLAN}/3) går du ut. Scene 2 igjen.",
+                 id="a lead naming the scene's subject, else the scene, once each"),
+    pytest.param("- Orb-bevegelse (Scene 3): ut til grønn 1.", f"- [Orb-bevegelse]({PLAN}/3): ut til grønn 1.",
+                 id="a bullet's lead"),
+    pytest.param("Du står der (scene 2), sammen med Martin.", f"Du står der ([scene 2]({PLAN}/2)), sammen med Martin.",
+                 id="mid-sentence: the scene"),
+    pytest.param(f"**[Scene 2]({PLAN}/2)** og scene 2.", f"**[Scene 2]({PLAN}/2)** og scene 2.", id="linked already"),
+    pytest.param("Scene 7 og `scene 3`.", "Scene 7 og `scene 3`.", id="a scene the results have no link for, code"),
+])
+def test_a_raid_plans_scenes_are_linked(text, expected):
+    assert link_scenes(text, [PLAN_RESULT]) == expected
+
+
+def test_two_plans_with_the_same_scene_are_left_alone():
+    other = PLAN_RESULT.replace("plan-1", "plan-2")
+    assert link_scenes("I scene 2.", [PLAN_RESULT, other]) == "I scene 2."
+
+
+def test_a_raid_plans_raiders_have_their_class():
+    classes = {"demonhunter": "DemonHunter", "hunter": "Hunter", "evoker": "Evoker"}
+    assert planned_classes([PLAN_RESULT], classes) == {
+        "Scopi": ("DemonHunter", ""), "Dscopi": ("DemonHunter", ""), "Martin": ("Hunter", ""),
+        "Ape Goalkeeper": ("Evoker", "")}
+    assert add_icons("Med Martin.", planned_classes([PLAN_RESULT], classes), {"Hunter": "<:Hunter:5>"}) == (
+        "Med <:Hunter:5> Martin.")
