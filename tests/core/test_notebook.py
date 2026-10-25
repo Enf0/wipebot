@@ -44,6 +44,12 @@ class Night:
             raise FactError(f"no {name}")
         return "Sszorak"
 
+    async def name_spells(self, ids):
+        pass
+
+    def ability_ref(self, game_id):
+        return f"{ {192077: 'Wind Rush Totem'}.get(game_id, 'spell')} [{game_id}]"
+
 
 def night(guild_id: int | None = 14169, start_s: int = 0, logs: Logs | None = None) -> Report:
     n = Night()
@@ -224,10 +230,13 @@ def test_only_a_guilds_newest_versions_are_kept(monkeypatch):
     assert [n.note for n in book.notes(555, 3420)] == ["another guild's"]
 
 
-def test_a_note_for_a_boss_not_pulled_yet_is_given_as_it_is(book):
+async def test_a_note_for_a_boss_not_pulled_yet_is_given_as_it_is_its_spells_named(book):
     assert not server.pulled(night(), "Vashnik") and server.pulled(night(), "Sszorak")
-    text = server._unpulled_note(night(), "Sszorak")
+    text = await server._unpulled_note(night(), "Sszorak")
     assert text.startswith("Sszorak has no pull in this report, so here is the newest raid note")
     assert "saved by Rowan" in text and text.endswith("\nthe note")
-    assert server._unpulled_note(night(), "Vashnik").startswith(
+    book.save_note(14169, 3420, "Sszorak", "time:41;ph:1;tag:Enfo;spellid:192077;", "Rowan", at=3000.0)
+    assert (await server._unpulled_note(night(), "Sszorak")).endswith(
+        "time:41;ph:1;tag:Enfo;spellid:192077 (Wind Rush Totem [192077]);")
+    assert (await server._unpulled_note(night(), "Vashnik")).startswith(
         "Vashnik has no pull in this report, and The Copper Lanterns has no raid note saved for it")

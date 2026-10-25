@@ -853,7 +853,7 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     note saved for it, as it is."""
     rep, source = await lib().report(report), ""
     if not note and boss and not pulled(rep, boss):
-        return _unpulled_note(rep, boss)
+        return await _unpulled_note(rep, boss)
     if not note:
         note, source = await _saved_note(rep, pull, boss, all_pulls)
     return await notes.note_check(rep, note, pull, boss, source=source, all_pulls=all_pulls)
@@ -868,13 +868,16 @@ def pulled(rep: Report, boss: str) -> bool:
     return True
 
 
-def _unpulled_note(rep: Report, boss: str) -> str:
+async def _unpulled_note(rep: Report, boss: str) -> str:
     """The newest note the report's guild saved for a boss the report has no pull on (not pulled yet): as it is,
     with nothing to check it against."""
-    return unpulled_note(notebook.Notebook(readonly=True), _saved_guild(rep, "raid note"), rep, boss)
+    return await unpulled_note(notebook.Notebook(readonly=True), _saved_guild(rep, "raid note"), rep, boss)
 
 
-def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: str) -> str:
+NOTE_SPELL = re.compile(r"\b(spellid|bossSpell):(\d+)")
+
+
+async def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: str) -> str:
     """The newest note `guild` saved for `boss`, which the report has no pull on, as it is (the apps' shared rule)."""
     found = [n for n in book.latest_notes(guild)
              if knowledge.matches_boss(boss, n.boss) or knowledge.matches_boss(n.boss, boss)]
@@ -882,8 +885,11 @@ def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: str) -
         return (f"{boss} has no pull in this report, and {rep.guild_name} has no raid note saved for it: the user can "
                 "paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
     n = found[0]
+    # each spell named where it stands, as the checks name them: no lookup of ids left to the model
+    await rep.name_spells({int(m[2]) for m in NOTE_SPELL.finditer(n.note)})
+    note = NOTE_SPELL.sub(lambda m: f"{m[0]} ({rep.ability_ref(int(m[2]))})", n.note)
     return (f"{boss} has no pull in this report, so here is the newest raid note {rep.guild_name} saved for "
-            f"{n.boss} ({saved.source(n.saved_at, n.saved_by)}), as it is, not checked against a pull:\n{n.note}")
+            f"{n.boss} ({saved.source(n.saved_at, n.saved_by)}), as it is, not checked against a pull:\n{note}")
 
 
 @_tool
