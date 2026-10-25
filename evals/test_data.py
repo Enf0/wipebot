@@ -17,6 +17,15 @@ def _cache(path: Path, answers: int) -> Path:
     return path
 
 
+def _answers(path: Path) -> int:
+    """How many answers the cache at `path` holds, the file closed after (Windows can't replace an open one)."""
+    db = sqlite3.connect(path)
+    try:
+        return db.execute("SELECT COUNT(*) FROM cache").fetchone()[0]
+    finally:
+        db.close()
+
+
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     """The private store holding a packed cache of 3 answers, the evals' cache at a path of the test's own."""
@@ -38,7 +47,7 @@ def store(tmp_path, monkeypatch):
 
 def test_fetch_puts_the_stored_cache_in_place(store, capsys):
     data.fetch()
-    assert sqlite3.connect(data.CACHE).execute("SELECT COUNT(*) FROM cache").fetchone() == (3,)
+    assert _answers(data.CACHE) == 3
     assert store[0][:3] == ("release", "download", data.TAG) and "fetched 3 answers" in capsys.readouterr().out
 
 
@@ -46,9 +55,9 @@ def test_fetch_leaves_a_cache_already_here_unless_told_to_replace_it(store):
     _cache(data.CACHE, 1)
     with pytest.raises(SystemExit, match="--replace"):
         data.fetch()
-    assert sqlite3.connect(data.CACHE).execute("SELECT COUNT(*) FROM cache").fetchone() == (1,)
+    assert _answers(data.CACHE) == 1
     data.fetch(replace=True)
-    assert sqlite3.connect(data.CACHE).execute("SELECT COUNT(*) FROM cache").fetchone() == (3,)
+    assert _answers(data.CACHE) == 3
 
 
 def test_without_access_fetch_says_how_a_run_gets_the_data_instead(store, monkeypatch):
