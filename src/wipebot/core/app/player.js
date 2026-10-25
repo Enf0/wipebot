@@ -135,7 +135,6 @@ views.player = (() => {
     for (const [a, b] of D.dead) o += `<rect x="${x(a)}" y="${bar}" width="${Math.max(1.5, x(b) - x(a))}" height="${h}" fill="url(#pl-hatch)"><title>dead ${kit.clock(a)}–${kit.clock(b)}</title></rect>`;
     if (D.decided) {
       o += kit.line(x(D.decided.ms), bar - 4, x(D.decided.ms), bar + h + 4, "var(--decided)", 'stroke-width="1.6" stroke-dasharray="3 3"');
-      if (lanes) o += kit.text(x(D.decided.ms) - 4, bar - 6, `decided ${kit.clock(D.decided.ms)}`, "to", 'text-anchor="end" font-size="10"');
     }
     y = bar + h + 6;
     // the boss's main casts
@@ -155,6 +154,9 @@ views.player = (() => {
     if (D.capped.length) keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="4" fill="var(--decided)"/>`, `${D.lost.resource} capped`]);
     if (D.died.length) keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="8" fill="url(#pl-hatch)"/>`, "dead"]);
     if (uses.length) keys.push([(lx, ly) => `<path d="M${lx + 6} ${ly - 9} l5 5 l-5 5 l-5 -5z" fill="var(--gold)"/>`, "cooldown"]);
+    // where the wipe was decided: in the legend, so its label never runs into the cooldowns' at the pull's end
+    if (D.decided) keys.push([(lx, ly) => `<line x1="${lx + 6}" y1="${ly - 10}" x2="${lx + 6}" y2="${ly + 1}" stroke="var(--decided)" stroke-width="1.6" stroke-dasharray="3 3"/>`,
+                              `wipe decided ${kit.clock(D.decided.ms)}`]);
     let lx = 6, ly = y + 32;
     for (const [mark, name] of keys) {
       const w = 18 + kit.width(name, 10) + 14;
