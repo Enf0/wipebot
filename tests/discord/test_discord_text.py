@@ -275,3 +275,13 @@ def test_a_boss_ability_linked_by_another_of_its_ids_gets_its_icon_by_name():
     text = f"Får du {spell('Guillotine', 1283485)}, si fra. {spell('Sever', 1299684)}."
     assert add_icons(text, {}, icons) == f"Får du <:spell_1283489:7> {spell('Guillotine', 1283485)}, si fra. " \
                                          f"{spell('Sever', 1299684)}."
+
+
+def test_a_boss_ability_gets_its_icon_on_every_mention_linked_or_not():
+    icons = {"ability:toxic deluge": "<:spell_1:1>", "ability:sever": "<:spell_2:2>", "ability:guillotine": "<:g:3>"}
+    text = (f"- **Toxic Deluge:** ikke stå i dem. Toxic Deluge igjen.\n- **Sever:** tank-frontalen; ikke sever noe.\n"
+            f"- Får du {spell('Guillotine', 1283485)}, si fra. Guillotine treffer igjen.")
+    assert add_icons(text, {}, icons) == (
+        "- **<:spell_1:1> Toxic Deluge:** ikke stå i dem. <:spell_1:1> Toxic Deluge igjen.\n- **<:spell_2:2> Sever:** "
+        f"tank-frontalen; ikke sever noe.\n- Får du <:g:3> {spell('Guillotine', 1283485)}, si fra. <:g:3> Guillotine "
+        "treffer igjen.")  # never the lowercase word
