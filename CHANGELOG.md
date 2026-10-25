@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-25
+
 ### Changed
 
 - `Agent` **Answers keep to what decided your question.** A side story that didn't decide it is left out or offered in a line, and a big question (a whole fight, every raider's job) gets the part you asked for first, with the rest offered.
