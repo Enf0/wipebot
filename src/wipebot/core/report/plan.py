@@ -17,7 +17,7 @@ from ..classes import class_rgb
 from ..text import clock, fold, parse_clock, plural
 from . import maps, saved
 from .base import FactError, Player, PullRef, Report
-from .plan_export import Plan, Scene, describe, parse
+from .plan_export import Plan, Scene, describe, parse, scene_link
 from .positions import Facts, Mechanic, Moment, facts, mechanic, pull_positions, window, window_positions
 
 MIN_FIT = 4  # a fit turns, scales and moves the plan (four numbers): it needs more players than that to mean anything
@@ -331,9 +331,9 @@ async def plan_show(rep: Report, text: str, boss: str | None = None, player: str
                      "the plan draws them (above is toward the top of the picture), by the boss and the raid markers. "
                      "#N is a spot's number on the plan, which an assignment note fills with a raider; a name is as "
                      "typed on the plan, with the raider it matches in brackets.")
-        for sc in p.scenes:
-            if len(p.scenes) > 1:
-                lines.append(f"Scene {sc.name}:")
+        for n, sc in enumerate(p.scenes, 1):
+            if len(p.scenes) > 1:  # with its link, to point a raider at the scene itself
+                lines.append(f"Scene {sc.name}" + (f" ({link})" if (link := scene_link(p, n)) else "") + ":")
             lines += ["  " + line for line in describe(sc, who, rep.ability_ref, is_asked)]
         if player and not any(is_asked(s.label, s.role) for sc in p.scenes for s in sc.spots):
             lines.append(f"{player} isn't named on this plan: spots are by number, filled by the night's "
