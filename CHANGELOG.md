@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **See the pull, not only read it, in Claude and ChatGPT.** Asking why a pull wiped shows it drawn under the answer: boss health against the raid's damage taken, the phases, the boss's casts, and each death up to the moment the wipe was decided. Open it for lanes of raid and healer cooldowns and the list of deaths, and click a death to replay the pull from just before it.
+
 ### Changed
 
 - `Agent` **Boss strategy that keeps up with nerfs.** Asking how a boss works or what to know before a night now comes with Blizzard's hotfixes to that boss that are newer than the guides, so a nerf the guides haven't caught up with (fewer orbs, fewer targets) is in the answer. The guides' Mythic strategy now comes whole, through the last phase, and the ability list shows only the difficulty you raid.

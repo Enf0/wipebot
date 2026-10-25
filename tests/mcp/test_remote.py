@@ -580,22 +580,27 @@ def test_an_officer_in_several_guilds_saves_nowhere(monkeypatch):
         officer()
 
 
-# ---- the pull-map replay, an MCP App ----
+# ---- the views, an MCP App ----
 
-def test_pull_map_opens_the_replay_viewer_which_reads_the_app_only_pull_replay(client):
+def test_pull_tools_open_the_views_which_read_the_app_only_tools(client):
     call, _ = session(client)
     tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
-    assert tools["pull_map"]["_meta"]["ui"]["resourceUri"] == remote.PULL_MAP_APP
+    for shown in ("pull_map", "pull_summary"):
+        assert tools[shown]["_meta"]["ui"]["resourceUri"] == remote.VIEWS_APP
+        assert tools[shown]["_meta"]["openai/outputTemplate"] == remote.VIEWS_APP
     assert tools["pull_map"]["description"].endswith("with plan, the plan's spots on it and a button per moment.")
-    # raid_plan has no viewer: a host shows it on every call, and most of its answers have no pull to play
+    assert "the user also sees the pull drawn" in tools["pull_summary"]["description"]
+    # raid_plan has no view: a host shows it on every call, and most of its answers have no pull to play
     assert "ui" not in (tools["raid_plan"].get("_meta") or {})
     assert "call pull_map with plan, which shows its replay." in tools["raid_plan"]["description"]
-    for app_only in ("pull_replay", "viewer_log"):
-        assert tools[app_only]["_meta"]["ui"] == {"resourceUri": remote.PULL_MAP_APP, "visibility": ["app"]}
-    page = call("resources/read", {"uri": remote.PULL_MAP_APP})["contents"][0]
+    for app_only in ("view_data", "pull_replay", "viewer_log"):
+        assert tools[app_only]["_meta"]["ui"] == {"resourceUri": remote.VIEWS_APP, "visibility": ["app"]}
+    page = call("resources/read", {"uri": remote.VIEWS_APP})["contents"][0]
     assert page["mimeType"] == "text/html;profile=mcp-app" and "pull_replay" in page["text"]
+    assert "view_data" in page["text"] and "/*SCRIPT*/" not in page["text"]
     assert page["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC]}
-    for older in ("ui://wipebot/pull-map-0123456789.html",):  # a stale tool list
+    # a stale tool list: the replay viewer's addresses from before the views, and an older views page
+    for older in ("ui://wipebot/pull-map-0123456789.html", "ui://wipebot/views-0123456789.html"):
         again = call("resources/read", {"uri": older})["contents"][0]
         assert again["text"] == page["text"] and again["mimeType"] == page["mimeType"]
         assert again["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC]}

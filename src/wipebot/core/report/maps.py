@@ -390,3 +390,17 @@ def webp(data: bytes, quality: int = 80) -> bytes:
     buf = io.BytesIO()
     Image.open(io.BytesIO(data), formats=draw.IMAGE_FORMATS).convert("RGB").save(buf, "WEBP", quality=quality)
     return buf.getvalue()
+
+
+_webp_maps: dict[str, bytes] = {}  # the room maps, converted once
+
+
+async def asset(path: str) -> tuple[bytes, str]:
+    """A Warcraft Logs asset a replay names (`replay`), as (bytes, media type): a room's map as WebP, a spec's or a
+    boss's icon. Raises KnowledgeError, or OSError for what isn't an image."""
+    data = await knowledge.wcl_image(path + ("?v=2" if path.startswith("maps/") else ""))
+    if not path.startswith("maps/"):
+        return data, "image/jpeg"
+    if path not in _webp_maps:  # a second of CPU: off the event loop
+        _webp_maps[path] = await asyncio.to_thread(webp, data)
+    return _webp_maps[path], "image/webp"

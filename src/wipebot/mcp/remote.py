@@ -8,22 +8,20 @@ its private reports to everyone, so the server won't start with one, nor read wi
 - `save_note_or_plan` (server.allow_saving): a raid note or plan an officer pasted, saved for their guild. Officers
   are the characters at guild rank 0 to WIPEBOT_OFFICER_RANK (signin.Access; by default WoW's Guild Master and
   Officer ranks), as Warcraft Logs had them at sign-in or the last membership check (within the hour).
-- The pull-map replay, an MCP App: `pull_map` points at the viewer (pull_map_app.html), which asks the app-only
-  `pull_replay` for the whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets).
-  `pull_map` with `plan` on one pull opens it with the plan's spots at each moment it checked.
+- The views, an MCP App (core/report/views.py, the page in core/app/): `pull_summary` draws the pull, asking the
+  app-only `view_data` for what to draw; `pull_map` opens the replay, which asks the app-only `pull_replay` for the
+  whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets). `pull_map` with `plan`
+  on one pull opens it with the plan's spots at each moment it checked.
 - The connector and the skill as a Claude plugin to download, at /plugin.zip (plugin.py).
 - For whoever serves it: a website (`site`'s routes) at /, and each tool call to `record`.
 """
-import asyncio
 import functools
-import hashlib
 import logging
 import os
 import re
 import time
 import urllib.parse
 from collections.abc import Awaitable, Callable
-from importlib import resources
 from typing import Annotated
 
 from mcp.server.apps import APP_MIME_TYPE, Apps, ResourceCsp
@@ -40,15 +38,14 @@ from starlette.routing import Route
 
 from wipebot.core import knowledge, server, wcl
 from wipebot.core.library import LatestRaids
-from wipebot.core.report import FactError, maps
+from wipebot.core.report import FactError, maps, views
 
 from . import plugin
 from .signin import CALLBACK_PATH, CONSENT_PATH, Access, SignIn
 
-PULL_MAP_HTML = resources.files("wipebot.mcp").joinpath("pull_map_app.html").read_text(encoding="utf-8")
 # Claude caches an app's page by its address: a changed page gets a new one. Any older address still gets today's
-# page (`_pull_map_app`), so a host with an older tool list doesn't break.
-PULL_MAP_APP = f"ui://wipebot/pull-map-{hashlib.sha256(PULL_MAP_HTML.encode()).hexdigest()[:10]}.html"
+# page (`_any_views_address`), so a host with an older tool list doesn't break.
+VIEWS_APP = views.page_uri()
 IMG_PATH = re.compile(r"maps/\d+-map\.png|icons/[A-Za-z]+-[A-Za-z]+\.jpg|bosses/\d+-icon\.jpg")
 LATEST_RAID_S = 600  # the default report: looked up this often
 log = logging.getLogger(__name__)
@@ -78,20 +75,23 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                           validate_token_resource=True,
                           client_registration_options=ClientRegistrationOptions(enabled=True),
                           revocation_options=RevocationOptions(enabled=True)),
-        auth_server_provider=signin, extensions=[_pull_map_app(public, setup)])
-    viewer = {"ui": {"resourceUri": PULL_MAP_APP}, "openai/outputTemplate": PULL_MAP_APP}
-    # Only pull_map has the viewer: a host shows a tool's viewer on every call, and raid_plan mostly has no pull.
-    server.register(mcp, setup, meta={"pull_map": viewer},
+        auth_server_provider=signin, extensions=[_views_app(public, setup)])
+    shown = {"ui": {"resourceUri": VIEWS_APP}, "openai/outputTemplate": VIEWS_APP}
+    # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull).
+    server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown},
                     notes={"pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
                                        "(not with all_pulls); with plan, the plan's spots on it and a button per "
                                        "moment.",
+                           "pull_summary": "In Claude and ChatGPT, the user also sees the pull drawn: boss health "
+                                           "and raid damage taken over time, phases, cooldowns and deaths, with its "
+                                           "replay a click away.",
                            "raid_plan": "In Claude, the user sees no map from raid_plan: for the pull against the "
                                         "plan, call pull_map with plan, which shows its replay."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",
                  title=server.title("my_characters"), annotations=server.READ_ONLY, structured_output=False,
                  meta={"openai/profile": True})  # who the signed-in user is: ChatGPT tells connected accounts apart
     server.allow_saving(mcp, setup, _officer(signin))
-    _any_pull_map_address(mcp, public)
+    _any_views_address(mcp, public)
     mcp.custom_route(CALLBACK_PATH, ["GET"])(signin.callback)
     mcp.custom_route(CONSENT_PATH, ["GET", "POST"])(signin.consent)
     mcp.custom_route("/img/{path:path}", ["GET"])(_img)
@@ -261,53 +261,63 @@ def _officer(signin: SignIn) -> Callable[[], tuple[str, int]]:
     return officer
 
 
-# ---------- the pull-map replay (an MCP App) ----------
+# ---------- the views (an MCP App: report/views.py, the page in core/app/) ----------
 
-def _viewer_csp(public_url: str) -> ResourceCsp:
+def _views_csp(public_url: str) -> ResourceCsp:
     return ResourceCsp(resource_domains=[public_url])  # the room's map and the icons, from /img/
 
 
-def _pull_map_app(public_url: str, setup: server.Setup) -> Apps:
-    """The viewer's page and the tools only it calls."""
+def _views_app(public_url: str, setup: server.Setup) -> Apps:
+    """The views' page and the tools only it calls."""
     apps = Apps()
-    apps.add_html_resource(PULL_MAP_APP, PULL_MAP_HTML, name=PULL_MAP_APP.removeprefix("ui://"), title="Pull map",
-                           csp=_viewer_csp(public_url), prefers_border=False)
+    apps.add_html_resource(VIEWS_APP, views.page(), name=VIEWS_APP.removeprefix("ui://"), title="Wipebot",
+                           csp=_views_csp(public_url), prefers_border=False)
 
-    # Both only read (the log note changes nothing a user sees): ChatGPT lists a tool not marked so as Write
-    @apps.tool(resource_uri=PULL_MAP_APP, visibility=["app"], structured_output=False, name="pull_replay",
+    # All only read (the log note changes nothing a user sees): ChatGPT lists a tool not marked so as Write
+    @apps.tool(resource_uri=VIEWS_APP, visibility=["app"], structured_output=False, name="view_data",
+               annotations=server.READ_ONLY)
+    @functools.partial(server.guarded, setup=setup)
+    async def view_data(view: Annotated[str, Field(description="which view: pull")],
+                        pull: server.Pull = None, boss: server.Boss = None,
+                        report: server.Report_ = None) -> CallToolResult:
+        """What a view draws, for the pull its tool was asked about."""
+        return await server.view_data(view, pull, boss, report)
+
+    @apps.tool(resource_uri=VIEWS_APP, visibility=["app"], structured_output=False, name="pull_replay",
                annotations=server.READ_ONLY)
     @functools.partial(server.guarded, setup=setup)
     async def pull_replay(report: str, pull: int, boss: str, at_ms: int = 0,
                           players: list[str] | None = None) -> CallToolResult:
-        """The whole pull for the pull-map viewer: every player's and the boss's track, deaths, and when the wipe
-        was decided."""
-        rep = await server.lib().report(report)
-        f = rep.fight(pull, boss)
-        focus = {rep.in_pull(f, rep.player(n)).id for n in players or []}
-        data = await maps.replay(rep, f, at_ms, focus)
+        """The whole pull for the replay: every player's and the boss's track, deaths, and when the wipe was
+        decided."""
+        data = await server.replay_data(report, pull, boss, at_ms, players)
         data["img_base"] = public_url + "/img/"
         _handed_out.update([data["map"]["image"], *(x["icon"] for x in data["bosses"] + data["players"])])
         return CallToolResult(content=[TextContent(type="text", text=f"the replay of {data['title']}")],
                               structured_content=data)
 
-    @apps.tool(resource_uri=PULL_MAP_APP, visibility=["app"], structured_output=False, name="viewer_log",
+    @apps.tool(resource_uri=VIEWS_APP, visibility=["app"], structured_output=False, name="viewer_log",
                annotations=server.READ_ONLY)
     @functools.partial(server.guarded, setup=setup)  # which logs the note with its user
     async def viewer_log(note: Annotated[str, Field(max_length=500)]) -> str:
-        """A note from the viewer for the server's log: script errors, and where a replay opened."""
+        """A note from a view for the server's log: script errors, and where a replay opened."""
         return "ok"
 
     return apps
 
 
-def _any_pull_map_address(mcp: MCPServer, public_url: str) -> None:
-    """Every older versioned address of the viewer gets today's page."""
-    meta = {"ui": {"csp": _viewer_csp(public_url).model_dump(by_alias=True, exclude_none=True),
+def _any_views_address(mcp: MCPServer, public_url: str) -> None:
+    """Every older versioned address of the views' page, the replay viewer's before it included, gets today's page."""
+    meta = {"ui": {"csp": _views_csp(public_url).model_dump(by_alias=True, exclude_none=True),
                    "prefersBorder": False}}
 
-    @mcp.resource("ui://wipebot/pull-map-{version}.html", name="pull-map-any", mime_type=APP_MIME_TYPE, meta=meta)
+    @mcp.resource("ui://wipebot/views-{version}.html", name="views-any", mime_type=APP_MIME_TYPE, meta=meta)
     def any_version(version: str) -> str:
-        return PULL_MAP_HTML
+        return views.page()
+
+    @mcp.resource("ui://wipebot/pull-map-{version}.html", name="pull-map-any", mime_type=APP_MIME_TYPE, meta=meta)
+    def any_replay_version(version: str) -> str:
+        return views.page()
 
 
 def _plugin(signin: SignIn) -> Callable[[Request], Awaitable[Response]]:
@@ -324,27 +334,22 @@ async def _health(_request: Request) -> Response:
     return Response("ok", media_type="text/plain")
 
 
-_webp_maps: dict[str, bytes] = {}  # the room maps, converted once
 _handed_out: set[str] = set()  # the images a replay named (`pull_replay`): the only ones /img/ fetches
 _failed: dict[str, float] = {}  # an image that couldn't be fetched -> when to try again
 IMG_RETRY_S = 600
 
 
 async def _img(request: Request) -> Response:
-    """A Warcraft Logs asset a replay named, for the viewer: a room's map (as WebP), a spec or a boss icon."""
+    """A Warcraft Logs asset a replay named, for the views: a room's map (as WebP), a spec or a boss icon."""
     path = request.path_params["path"]
     if not IMG_PATH.fullmatch(path) or path not in _handed_out or _failed.get(path, 0) > time.time():
         return Response(status_code=404)
     try:
-        data = await knowledge.wcl_image(path + ("?v=2" if path.startswith("maps/") else ""))
-        if path.startswith("maps/") and path not in _webp_maps:  # a second of CPU: off the event loop
-            _webp_maps[path] = await asyncio.to_thread(maps.webp, data)
+        data, media_type = await maps.asset(path)
     except (knowledge.KnowledgeError, OSError):  # not an image (PIL's UnidentifiedImageError is an OSError)
         _failed[path] = time.time() + IMG_RETRY_S
         return Response(status_code=404)
-    if path.startswith("maps/"):
-        data = _webp_maps[path]
-    return Response(data, media_type="image/webp" if path.startswith("maps/") else "image/jpeg",
+    return Response(data, media_type=media_type,
                     headers={"Cache-Control": "public, max-age=86400", "Access-Control-Allow-Origin": "*"})
 
 

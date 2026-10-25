@@ -46,6 +46,31 @@ async def call(tool: str, args: dict) -> None:
         await cache().drain()
 
 
+async def view(args: argparse.Namespace) -> None:
+    """`wipebot view`: the tool's view in a window (viewhost.watch), or screenshots with what went wrong in them."""
+    from wipebot.core import server, viewhost
+    from wipebot.core.cache import cache
+    server.configure()
+    themes = tuple(args.theme.split(","))
+    widths = tuple(int(w) for w in args.width.split(","))
+    try:
+        if not args.shot:
+            await viewhost.watch(args.tool, json.loads(args.args), themes[0], widths[0], args.mode.split(",")[0])
+            return
+        shots = await viewhost.shoot(args.tool, json.loads(args.args), Path(args.shot), themes, widths,
+                                     tuple(args.mode.split(",")), tuple(args.click), args.tokens)
+        failed = False
+        for s in shots:
+            print(f"{s.path}  height {s.height}" + "".join(f"\n  ! {e}" for e in s.errors), flush=True)
+            failed |= bool(s.errors) or not s.height
+        (Path(args.shot) / "messages.json").write_text(json.dumps([{"shot": s.path.name, "messages": s.messages}
+                                                                   for s in shots], indent=1), encoding="utf-8")
+        if failed:
+            raise SystemExit("some views had errors or reported no height")
+    finally:
+        await cache().drain()
+
+
 def status() -> None:
     from wipebot.core import wcl
     if wcl.saved_login():
@@ -250,6 +275,17 @@ def _tool_commands(sub) -> None:
     c = sub.add_parser("call", help="run one tool and print its result")
     c.add_argument("tool")
     c.add_argument("args", nargs="?", default="{}", help="tool arguments as JSON")
+    v = sub.add_parser("view", help="a tool's view as Claude and ChatGPT draw it, in a window or as screenshots")
+    v.add_argument("tool")
+    v.add_argument("args", nargs="?", default="{}", help="tool arguments as JSON")
+    v.add_argument("--shot", metavar="DIR", help="screenshots into DIR instead of a window, with the console's errors "
+                                                 "and the bridge's messages")
+    v.add_argument("--theme", default="dark,light", help="themes, comma-separated (a window opens in the first)")
+    v.add_argument("--width", default="430,760", help="inline widths in px, comma-separated")
+    v.add_argument("--mode", default="inline", help="inline, fullscreen or both (inline,fullscreen)")
+    v.add_argument("--click", action="append", default=[], help="a button to click after the first shot, by its "
+                                                                 "text; repeat for more, each shot in turn")
+    v.add_argument("--tokens", default="none", choices=["none", "claude"], help="the host's style variables")
 
 
 def _bot_commands(sub) -> None:
@@ -309,6 +345,8 @@ def main() -> None:  # noqa: C901
         write_plugin(Path(args.dir), args.repo, args.name)
     elif args.cmd == "call":
         asyncio.run(call(args.tool, json.loads(args.args)))
+    elif args.cmd == "view":
+        asyncio.run(view(args))
     elif args.cmd == "bot":
         run()
     elif args.cmd == "replay":

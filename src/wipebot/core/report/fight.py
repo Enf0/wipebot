@@ -238,8 +238,20 @@ async def _adds_died(rep: Report, f: dict) -> Found:
     return Found([(run[0], f"adds: {len(run)} {name} died") for name, runs in died.items() for run in runs])
 
 
-async def _boss_casts(rep: Report, f: dict) -> Found:
-    """The boss's casts, one line per ability per second, ◆ after those Lorrgs tracks for the boss."""
+@dataclass(frozen=True)
+class BossCast:
+    """The boss casting one ability in one second of a pull: `at` is that second (report ms), `abilities` how many
+    ability ids share the name (one cast), `n` how many casts."""
+    at: float
+    name: str
+    tracked: bool  # one Lorrgs tracks for the boss
+    abilities: int
+    n: int
+
+
+async def boss_casts(rep: Report, f: dict) -> tuple[list[BossCast], Found]:
+    """The boss's casts, one per ability per second, and what the timeline adds about them: the ability ids, and a
+    note when Lorrgs couldn't say which it tracks."""
     out = Found()
     bosses = boss_units(rep, f)
     same_second: dict[tuple[int, str], Counter] = defaultdict(Counter)  # (second, name) -> casts per ability id
@@ -253,20 +265,28 @@ async def _boss_casts(rep: Report, f: dict) -> Found:
     except KnowledgeError as e:
         tracked = set()
         out.notes.append(unavailable(f"Lorrgs' tracked boss casts ({TRACKED_MARK})", e))
-    marked = False
+    casts = []
     for (sec, name), per_id in same_second.items():
-        text = name
-        if name.lower() in tracked or set(per_id) & tracked:
-            text += f" {TRACKED_MARK}"
-            marked = True
         if len(per_id) > 1:  # several abilities share the name (Mutilate [1277027] and [1277031]): one cast
-            text += f" ({len(per_id)} abilities)"
             for k, gid in enumerate(i for i in per_id if i != out.ids.get(name)):
                 out.ids.setdefault(f"{name} ({ordinal(k + 2)} ability)", gid)
-            n = min(per_id.values())
-        else:
-            n = next(iter(per_id.values()))
-        out.events.append((f["startTime"] + sec * 1000, f"boss casts {text}" + (f" x{n}" if n > 1 else "")))
+        casts.append(BossCast(f["startTime"] + sec * 1000, name, name.lower() in tracked or bool(set(per_id) & tracked),
+                              len(per_id), min(per_id.values())))
+    return casts, out
+
+
+async def _boss_casts(rep: Report, f: dict) -> Found:
+    """The boss's casts, one line per ability per second, ◆ after those Lorrgs tracks for the boss."""
+    casts, out = await boss_casts(rep, f)
+    marked = False
+    for c in casts:
+        text = c.name
+        if c.tracked:
+            text += f" {TRACKED_MARK}"
+            marked = True
+        if c.abilities > 1:
+            text += f" ({c.abilities} abilities)"
+        out.events.append((c.at, f"boss casts {text}" + (f" x{c.n}" if c.n > 1 else "")))
     if marked:
         out.notes.append(f"{TRACKED_MARK} marks the boss abilities Lorrgs tracks for this boss: the casts its timeline "
                          "is built on, to line pulls up by.")
@@ -368,10 +388,12 @@ async def _deaths(rep: Report, f: dict) -> Found:
     return out
 
 
-async def _raid_cooldowns_used(rep: Report, f: dict) -> Found:
+async def raid_cooldown_casts(rep: Report, f: dict) -> list[tuple[float, str, str, str]]:
+    """(report ms, "raid cooldown" or "healing cooldown", the spell, who cast it) of each raid and healing cooldown
+    used in a pull, in order."""
     raid_cds = await _raid_cooldowns(rep, f)
     last_cast: dict[tuple[int, str], float] = {}
-    out = Found()
+    out = []
     for c in sorted(await rep.events(f["id"], "Casts"), key=lambda c: c["timestamp"]):
         if c["type"] != "cast":
             continue
@@ -383,8 +405,12 @@ async def _raid_cooldowns_used(rep: Report, f: dict) -> Found:
         name = rep.ability(c["abilityGameID"])
         kind = raid_cds.get((c.get("sourceID"), name)) or raid_cds.get((c.get("sourceID"), c["abilityGameID"]))
         if kind:
-            out.events.append((c["timestamp"], f"{kind}: {name} ({rep.actor(rep.owner(c.get('sourceID', 0)))})"))
+            out.append((c["timestamp"], kind, name, rep.actor(rep.owner(c.get("sourceID", 0)))))
     return out
+
+
+async def _raid_cooldowns_used(rep: Report, f: dict) -> Found:
+    return Found([(at, f"{kind}: {name} ({who})") for at, kind, name, who in await raid_cooldown_casts(rep, f)])
 
 
 # Each source of the timeline's events, and what it's called when its source can't answer. At one moment, events
@@ -468,22 +494,30 @@ async def _reaching_others(rep: Report, f: dict, names: set[str]) -> set[str]:
     return {name for name, targets in reached.items() if len(targets) >= RAID_WIDE}
 
 
-async def _raid_damage(rep: Report, f: dict, lo: float, hi: float) -> str:
-    """Raid damage taken per second, averaged per DAMAGE_BUCKET_MS, from WCL's graph."""
+async def raid_damage(rep: Report, f: dict, lo: float, hi: float) -> dict[int, float] | None:
+    """Raid damage taken per second, averaged per DAMAGE_BUCKET_MS from WCL's graph: bucket (from the pull's start)
+    -> per second; None when Warcraft Logs has no graph."""
     try:
         graph = await rep.keep(("graph", f["id"], "DamageTaken"), [f["id"]],
                                lambda: rep.wcl.graph(rep.code, f, "DamageTaken", hostilityType="Friendlies"), FOREVER)
     except WCLError:
-        return "Raid damage taken over time: unavailable."
+        return None
     total = next((s for s in graph.get("series") or [] if s.get("name") == "Total"), None)
     if not total or not total.get("pointInterval"):
-        return "Raid damage taken over time: unavailable."
+        return None
     buckets: dict[int, list[float]] = defaultdict(list)
     for i, v in enumerate(total.get("data") or []):
         at = total.get("pointStart", f["startTime"]) + i * total["pointInterval"]
         if lo <= at <= hi:
             buckets[int((at - f["startTime"]) // DAMAGE_BUCKET_MS)].append(v)
-    values = {b: sum(v) / len(v) for b, v in sorted(buckets.items())}
+    return {b: sum(v) / len(v) for b, v in sorted(buckets.items())}
+
+
+async def _raid_damage(rep: Report, f: dict, lo: float, hi: float) -> str:
+    """Raid damage taken per second, averaged per DAMAGE_BUCKET_MS, as a line."""
+    values = await raid_damage(rep, f, lo, hi)
+    if values is None:
+        return "Raid damage taken over time: unavailable."
     if not values:
         return "Raid damage taken over time: none in this window."
     typical = sorted(values.values())[len(values) // 2]
