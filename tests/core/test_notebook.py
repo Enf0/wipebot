@@ -222,3 +222,12 @@ def test_only_a_guilds_newest_versions_are_kept(monkeypatch):
     assert [n.note for n in book.notes(14169, 3420)] == ["v2", "v3", "v4"]
     assert [p.plan for p in book.plans(14169)] == ["raidstrats-addon-v2", "raidstrats-addon-v3", "raidstrats-addon-v4"]
     assert [n.note for n in book.notes(555, 3420)] == ["another guild's"]
+
+
+def test_a_note_for_a_boss_not_pulled_yet_is_given_as_it_is(book):
+    assert not server._pulled(night(), "Vashnik") and server._pulled(night(), "Sszorak")
+    text = server._unpulled_note(night(), "Sszorak")
+    assert text.startswith("Sszorak has no pull in this report, so here is the newest raid note")
+    assert "saved by Rowan" in text and text.endswith("\nthe note")
+    with pytest.raises(FactError, match="Vashnik has no pull in this report, and The Copper Lanterns has no raid note"):
+        server._unpulled_note(night(), "Vashnik")

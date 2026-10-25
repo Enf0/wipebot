@@ -817,11 +817,37 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     With all_pulls, one call checks every pull on the boss (each against the note saved before it began) and counts
     per player: soaks of their group missed while alive, each planned cooldown on time, early, late or not cast,
     kicks made and missed, and per callout how often they pressed something and what was ready when they didn't;
-    a night's question needs no call per pull."""
+    a night's question needs no call per pull. Asked about a boss the report has no pull on, it gives the newest
+    note saved for it, as it is."""
     rep, source = await lib().report(report), ""
+    if not note and boss and not _pulled(rep, boss):
+        return _unpulled_note(rep, boss)
     if not note:
         note, source = await _saved_note(rep, pull, boss, all_pulls)
     return await notes.note_check(rep, note, pull, boss, source=source, all_pulls=all_pulls)
+
+
+def _pulled(rep: Report, boss: str) -> bool:
+    """Whether the report has a pull on the boss."""
+    try:
+        rep.boss(boss)
+    except FactError:
+        return False
+    return True
+
+
+def _unpulled_note(rep: Report, boss: str) -> str:
+    """The newest note the report's guild saved for a boss the report has no pull on (not pulled yet): as it is,
+    with nothing to check it against."""
+    guild = _saved_guild(rep, "raid note")
+    found = [n for n in notebook.Notebook(readonly=True).latest_notes(guild)
+             if knowledge.matches_boss(boss, n.boss) or knowledge.matches_boss(n.boss, boss)]
+    if not found:
+        raise FactError(f"{boss} has no pull in this report, and {rep.guild_name} has no raid note saved for it: ask "
+                        "the user to paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
+    n = found[0]
+    return (f"{boss} has no pull in this report, so here is the newest raid note {rep.guild_name} saved for "
+            f"{n.boss} ({saved.source(n.saved_at, n.saved_by)}), as it is, not checked against a pull:\n{n.note}")
 
 
 @_tool
@@ -862,11 +888,8 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     draws them, not in the room; a spot without a name is filled by the night's assignment, which the plan doesn't
     have. Asked about a boss the report has no pull on, it shows the plan."""
     rep, source, unpulled = await lib().report(report), "", ""
-    if boss and not show:
-        try:
-            rep.boss(boss)
-        except FactError:  # a boss the report has no pull on (not pulled yet): there's only the plan to show
-            show, unpulled = True, f"{boss} has no pull in this report, so the plan is shown as it is.\n"
+    if boss and not show and not _pulled(rep, boss):  # not pulled yet: there's only the plan to show
+        show, unpulled = True, f"{boss} has no pull in this report, so the plan is shown as it is.\n"
     if show:
         if not plan:
             plan, source = await _every_plan(rep)

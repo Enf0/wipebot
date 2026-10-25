@@ -164,9 +164,8 @@ async function load(given) {
 }
 
 function fail(text) { $("status").classList.add("failed"); $("status-msg").textContent = text; }
-function collapse() {
-  document.body.style.display = "none";
-  notify("ui/notifications/size-changed", { width: document.documentElement.scrollWidth, height: 0 });
+function collapse() {  // one line, not nothing: a host keeps its own height for a page that asks for none
+  document.body.innerHTML = '<p style="margin: 6px 2px; color: var(--muted); font-size: 13px">No pull to replay: the answer is in the text.</p>';
 }
 
 function decode(b64) {
