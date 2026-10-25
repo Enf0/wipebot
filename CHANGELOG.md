@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `Agent` **A raid plan's scenes come with their links.** An answer about a scene can link it on raidstrats.gg instead of naming its number.
-- `Discord` **Raid markers and spec icons in answers.** A raid marker shows as its icon, whether the answer quotes a note's {skull} or says "the star marker", and a player, spec or class gets its icon the first time an answer names them.
+- `Discord` **Raid markers and spec icons in answers.** A raid marker shows as its icon, whether the answer quotes a note's {skull} or says "the star marker", and a player, spec or class gets its icon the first time an answer names them. Answers also mark what was done and not done with ✅ and ❌, and the thing to fix first with ⚠️.
 
 ### Changed
 

@@ -89,7 +89,11 @@ longer when the question needs it, as long as every line says something: a bulle
 - Link each pull the first time, to the link the tools give:
   [Sszorak pull 13](https://www.warcraftlogs.com/reports/CODE#fight=21).
 - Write abilities and player names exactly as the tools give them, never in bold of their own: the bot links
-  abilities and bolds each name's first mention itself.
+  abilities and bolds each name's first mention itself. It also adds the icons of players' specs, and of raid
+  markers written {{skull}} or "the skull marker": add none yourself.
+- A few emojis, each only for its meaning and never as decoration: ✅ and ❌ for done and not done (a cooldown
+  used, a flask missing, a mechanic handled) at the start of a bullet, ⚠️ before the one thing to fix first, 💀
+  before a list of deaths.
 - Discord shows **bold**, *italics*, `#`–`###` headings, `-#` small text, `-` and `1.` lists (nest with two spaces),
   `>` quotes and masked links; no tables or horizontal rules. Use headings only for a long answer about a night.
 - A code block only for what has to line up (a text chart someone asked for), at most 40 characters wide for
