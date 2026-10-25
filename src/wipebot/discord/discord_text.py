@@ -5,7 +5,7 @@ can't colour text). The others repair what the model gets wrong now and then: a 
 spell id goes, a pull link with a made-up fight, a blank line above a list; and a masked link to a site the tools
 don't link to keeps only its text."""
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import cast
 from urllib.parse import urlsplit
 
@@ -32,6 +32,13 @@ LINKED_SITES = ("warcraftlogs.com", "wowhead.com", "method.gg", "icy-veins.com",
 # A raid marker as raid notes write it: {skull}, {rt8}
 MARKER_TOKEN = re.compile(r"\{(rt[1-8]|x|" + "|".join(MARKERS) + r")\}", re.I)
 SKIPPED = (MARKDOWN_LINK, CODE)  # where add_icons adds none
+# A raid plan's scene with its link: "Scene 2 (https://raidstrats.gg/planner?view=<plan>/2):"
+SCENE_LINK = re.compile(r"^\s*Scene (\d+) \((https://raidstrats\.gg/\S+?)\):", re.M)
+SCENE = re.compile(r"(?<![\w\[])scene (\d+)(?![\w\]])", re.I)
+# A lead naming a scene's subject, then the scene in brackets: "**Grønne orbs (scene 2):**", "- Orbs (scene 3): ..."
+NAMED_SCENE = re.compile(r"(?:(?<=\*\*)|(?<=^- ))([^\s*\[(][^*\n()\[\]:]{0,40}?) \((?i:scene) (\d+)\)(?=:|\*\*)", re.M)
+# A spot on a raid plan with its raider's class: "#9 Martin (hunter):", "#7 Zebino (Zebinomage) (mage):"
+PLAN_SPOT = re.compile(r"#\d+ ([^():#\n]+?)(?: \(([^()\n]+)\))? \(([a-z]+)\):")
 BLANK_BEFORE_LIST = re.compile(r"^(?![ \t]*(?:[-*]|\d+\.) )(\S.*)\n[ \t]*\n(?=[ \t]*(?:[-*]|\d+\.) )", re.M)
 
 
@@ -41,12 +48,14 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
     in it gets a proper one."""
     abilities = {spell: name for r in reports[::-1] for spell, name in r.abilities.items()}  # the first report wins
     text = link_items(link_abilities(unlink_broken(unlink_elsewhere(text)), results, abilities), results)
+    text = link_scenes(text, results)
     text = bold_players(text, {p.name for r in reports for p in r.players.values()})
     for report in reports:
         text = fix_pull_links(text, report)
     if icons:
-        text = add_icons(text, {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()},
-                         icons)
+        specs = planned_classes(results, {name.lower(): name for name in icons if "_" not in name})
+        specs |= {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()}
+        text = add_icons(text, specs, icons)
     return tight_lists(text)
 
 
@@ -108,6 +117,39 @@ def link_items(text: str, results: Sequence[str]) -> str:
         if f"item={item}" not in text and f"[{name}](" not in text:
             text = _link_first(text, name, f"https://www.wowhead.com/item={item}")
     return text
+
+
+def link_scenes(text: str, results: Sequence[str]) -> str:
+    """Each scene of a raid plan linked once to it on raidstrats.gg, as the plan's tool result links it: a lead
+    naming its subject with the scene in brackets ("**Grønne orbs (scene 2):**") becomes the subject linked, else
+    the first "scene 2" is. Not when the results hold several plans with that scene, or the answer links it."""
+    urls: dict[int, set[str]] = {}
+    for result in results:
+        for n, url in SCENE_LINK.findall(result):
+            urls.setdefault(int(n), set()).add(url)
+    linked = {n for n, found in urls.items() if len(found) != 1 or next(iter(found)) in text}
+
+    def linker(label: Callable[[re.Match], str], n: Callable[[re.Match], int]) -> Callable[[re.Match], str]:
+        def link(m: re.Match) -> str:
+            taken = [s.span() for pattern in (MARKDOWN_LINK, CODE) for s in pattern.finditer(m.string)]
+            if n(m) not in urls or n(m) in linked or any(a <= m.start() < b for a, b in taken):
+                return m.group(0)
+            linked.add(n(m))
+            return f"[{label(m)}]({next(iter(urls[n(m)]))})"
+        return link
+    text = NAMED_SCENE.sub(linker(lambda m: m.group(1), lambda m: int(m.group(2))), text)
+    return SCENE.sub(linker(lambda m: m.group(0), lambda m: int(m.group(1))), text)
+
+
+def planned_classes(results: Sequence[str], classes: Mapping[str, str]) -> dict[str, tuple[str, str]]:
+    """The raiders a raid plan names with their class, typed name and character alike: name -> (WCL's class, no
+    spec), for those not in a report. `classes`: the lowercase class -> WCL's ("deathknight" -> "DeathKnight")."""
+    found = {}
+    for result in results:
+        for name, character, cls in PLAN_SPOT.findall(result):
+            if cls in classes:
+                found |= {n: (classes[cls], "") for n in (name, character) if n}
+    return found
 
 
 def unlink_elsewhere(text: str) -> str:
