@@ -8,10 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- `Agent` **Ask about the guild's raid plan, with no pull to check it against.** "What's our plan for Coiled Altar?", "Where do I stand in P2?" or "Who takes the orbs?" is answered from the plan as drawn on raidstrats.gg, scene by scene: each spot by the boss and the raid markers, the notes, and what's drawn around them. A plan exported from Viserio with the night's names filled in answers for each raider by name.
+- `Agent` **Ask about the guild's raid plan, with no pull to check it against.** "What's our plan for Coiled Altar?", "Where do I stand in P2?" or "Who takes the orbs?" is answered from the plan as drawn on raidstrats.gg, scene by scene: each spot by the boss and the raid markers, what each number does from the plan's side panel, the notes, and what's drawn around them. A plan exported from Viserio with the night's names filled in answers for each raider by name.
 
 ### Fixed
 
+- `Agent` **Asking about a boss you haven't pulled yet works.** The plan is shown as drawn and the newest saved note as it is, instead of an error saying the night has no such boss.
 - `Agent` **A raid plan missing because the guild's raidstrats.gg login stopped working now says so.** Instead of "none saved", the answer says the plans can't be fetched and an officer has to connect again.
 - `MCP` **No more empty replay box.** Questions about the raid plan answer in text, and the pull's replay with the plan's spots opens when you ask to see a pull against the plan. Over a whole night, the box shows the answer's map instead of nothing.
 
