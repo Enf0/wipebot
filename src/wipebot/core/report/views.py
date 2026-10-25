@@ -14,7 +14,7 @@ from typing import Any
 
 from ..classes import class_hex
 from ..knowledge import KnowledgeError, spaced
-from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, wipe_pct, wipe_pcts
+from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, phase_label, wipe_pct, wipe_pcts
 from ..text import clock, day, ordinal
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
@@ -22,16 +22,18 @@ from .casting import alive, casting, raid_pauses, without
 from .coaching import dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
-from .ending import HalfDead, KeptBuff, MassDeath, pull_ending
+from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
+from .night import wipe_thirds
 from .ranks import Spread, kill_parses, kills_spread, metric_of
 from .top import cast_comparison
 
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
-SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "replay.js", "main.js"]
+SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "replay.js",
+           "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
-VIEWS = ("pull", "player", "player_night", "death")  # what view_data draws (the replay is maps.replay)
+VIEWS = ("pull", "player", "player_night", "death", "night")  # what view_data draws (the replay is maps.replay)
 
 
 @functools.cache
@@ -55,8 +57,10 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
     player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`)."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
-    if view != "pull" and not player:
+    if view not in ("pull", "night") and not player:
         raise ValueError(f"the {view} view needs a player")
+    if view == "night":
+        return await night_view(rep, rep.boss(boss))
     if view == "player_night":
         return await player_night_view(rep, rep.boss(boss), player or "")
     f = rep.fight(pull, boss)
@@ -349,6 +353,48 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         "cooldowns_unavailable": cds.unavailable,
         "thirds": [{"pulls": [rows[i]["pull"] for i in t.pulls], "died": t.died,
                     "rate": round(t.rate) if t.rate is not None else None} for t in night_trend(pulls, role) or []],
+    }
+
+
+async def night_view(rep: Report, boss: str) -> dict:
+    """The raid's night on a boss, as progress states it: each pull's boss health left, phase, length, what ended it
+    (pull_summary's "Ended by") and first death; the night's best, the guild's best before it, how the pulls ended
+    and the killers of each pull's first deaths, the trend in thirds; and the night's other bosses."""
+    fights = rep.by_boss[boss]
+    await rep.decided_cuts(fights)
+    before = await rep.guild_best(fights[0])
+    endings = await asyncio.gather(*(pull_ending(rep, f) for f in fights))
+    rows, firsts, best = [], Counter(), None
+    for f, e in zip(fights, endings, strict=True):
+        deaths = await rep.deaths(f)
+        enrages = await rep.enrages(f)
+        cutoff = min((at for _, at in enrages), default=None)
+        early = [d for d in deaths if cutoff is None or d["timestamp"] - f["startTime"] < cutoff]
+        for d in early[:FIRST_DEATHS]:
+            firsts[rep.ability(d.get("killingAbilityGameID"))] += 1
+        pct = 0.0 if f["kill"] else wipe_pct(f)
+        new = (not f["kill"] and not is_reset(f) and not f.get("inProgress") and pct is not None
+               and (best is None or pct < best))
+        if new:
+            best = pct
+        first = deaths[0] if deaths else None
+        rows.append({"pull": rep.pull_no(f), "pct": pct, "kill": bool(f["kill"]), "reset": is_reset(f),
+                     "live": bool(f.get("inProgress")), "duration_ms": round(f["endTime"] - f["startTime"]),
+                     "phase": phase_label(f), "ended": kind_of_end(e), "best": new,
+                     "first": {"name": rep.names.get(first["targetID"], "?"),
+                               "by": rep.ability(first.get("killingAbilityGameID")),
+                               "ms": round(first["timestamp"] - f["startTime"])} if first else None})
+    ends = Counter(r["ended"] for r in rows if not r["live"])
+    thirds = wipe_thirds(wipe_pcts(fights))
+    return {
+        "view": "night", "report": rep.code, "boss": boss, "title": f"{boss}, {day(rep.start_ms)}",
+        "difficulty": DIFFICULTIES.get(fights[0].get("difficulty"), ""), "url": rep.url(fights[0]).split("#")[0],
+        "combat_ms": round(sum(f["endTime"] - f["startTime"] for f in fights)), "pulls": rows,
+        "guild_best": {"pct": before.pct, "day": day(before.start_ms), "pull": before.pull_no} if before else None,
+        "ends": ends.most_common(), "firsts": firsts.most_common(6), "first_n": FIRST_DEATHS,
+        "thirds": [round(t, 1) for t in thirds] if thirds else None,
+        "bosses": [{"boss": b, "pulls": len(fs), "kill": any(f["kill"] for f in fs),
+                    "best": min(wipe_pcts(fs), default=None)} for b, fs in rep.by_boss.items()],
     }
 
 

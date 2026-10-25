@@ -3,7 +3,7 @@
   const root = document.getElementById("app");
   // A host that hands back a stored result without its structuredContent (Claude Desktop on reopening a chat) still
   // has the tool's name and arguments: these views can be drawn again from them.
-  const BY_TOOL = { pull_summary: "pull", player_pull: "player", player_night: "player_night", death_recap: "death" };
+  const BY_TOOL = { pull_summary: "pull", player_pull: "player", player_night: "player_night", death_recap: "death", progress: "night" };
   const SKELETON = document.getElementById("status").outerHTML;
   let args = null, started = "", stack = [], current = null;
 
