@@ -4,22 +4,31 @@ each view's data, computed from the same facts as its tool's text so the two can
 A tool with a view returns a small key ({"view": ..., "report": ..., "pull": ...}); the page asks for the view's
 data with it (`view_data`), and draws it. The replay viewer's data is maps.replay.
 """
+import asyncio
 import functools
 import hashlib
+import statistics
+from collections import Counter
 from importlib import resources
 
 from ..classes import class_hex
-from ..knowledge import KnowledgeError
+from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES
-from .base import PullRef, Report, alive_after
+from .base import ROLE_NAMES, PullRef, Report, alive_after
+from .build import hero_of
+from .casting import alive, casting, raid_pauses, without
+from .coaching import resource_use, time_lost
+from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .ending import HalfDead, KeptBuff, MassDeath, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
+from .ranks import Spread, kill_parses, kills_spread, metric_of
+from .top import cast_comparison
 
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
-SCRIPTS = ["bridge.js", "kit.js", "pull.js", "replay.js", "main.js"]
+SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "replay.js", "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
-VIEWS = ("pull",)  # what view_data draws (the replay is maps.replay)
+VIEWS = ("pull", "player")  # what view_data draws (the replay is maps.replay)
 
 
 @functools.cache
@@ -36,11 +45,18 @@ def page_uri() -> str:
     return f"ui://wipebot/views-{hashlib.sha256(page().encode()).hexdigest()[:10]}.html"
 
 
-async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None) -> dict:
-    """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did)."""
-    if view != "pull":
-        raise ValueError(f"no view {view!r}")
-    return await pull_view(rep, rep.fight(pull, boss))
+async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
+                    player: str | None = None, top: bool = False) -> dict:
+    """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
+    player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's)."""
+    f = rep.fight(pull, boss)
+    if view == "pull":
+        return await pull_view(rep, f)
+    if view == "player":
+        if not player:
+            raise ValueError("the player view needs a player")
+        return await player_view(rep, f, player, top)
+    raise ValueError(f"no view {view!r}")
 
 
 async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, field by field)
@@ -61,13 +77,13 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
     except KnowledgeError:  # Bloodlust's debuffs come from a guide: the view does without
         lusts = []
     out_deaths = []
-    for d, alive in zip(deaths, alive_after(deaths, backs, raid), strict=True):
+    for d, left in zip(deaths, alive_after(deaths, backs, raid), strict=True):
         name = rep.names.get(d["targetID"], "?")
         p = rep.players.get(name.lower())
         at = d["timestamp"] - t0
         out_deaths.append({"ms": round(at), "name": name, "spec": p.spec if p else "",
                            "color": class_hex(p.class_name) if p else "#9aa3b8",
-                           "by": rep.ability(d.get("killingAbilityGameID")), "alive": alive,
+                           "by": rep.ability(d.get("killingAbilityGameID")), "alive": left,
                            "fallout": bool(decided and at > decided.at_ms)})
     return {
         "view": "pull", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
@@ -87,6 +103,100 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         "lusts": lusts,
         "deaths": out_deaths,
     }
+
+
+CASTS_SHOWN = 12  # a player's most cast spells in their view
+
+
+async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> dict:  # noqa: PLR0915
+    """One player on one pull, as player_pull states it: their output and rank in their role, where it stands
+    among the spec's ranked kills (a wipe) or their parse (a kill), the time they lost, when they cast, sat at
+    their resource's cap or were dead, their major cooldowns against possible uses, their casts; with `top`, their
+    casts per minute against top players of their spec (compare_with_top's casts)."""
+    p = rep.player(player)
+    rep.require_in(f, p)
+    p = rep.in_pull(f, p)
+    t0 = f["startTime"]
+    details, deaths, events, pauses = await asyncio.gather(rep.details(f), rep.deaths(f), rep.cast_events(f, p),
+                                                           raid_pauses(rep, f))
+    det = details.get(p.id, {})
+    own = [d for d in deaths if d["targetID"] == p.id]
+    casts = [c for c in events if c["type"] == "cast"]
+    alive_s, alive_until = alive(rep, f, p, own, casts)
+    flow = casting(events, alive_until, [d["timestamp"] for d in own])
+    flow.gaps = without(flow.gaps, [(a, min(b, alive_until)) for a, b in pauses if a < alive_until])
+    what = "healing" if p.role == "healer" else "damage"
+    decided, table, (_, resource, capped), early, (boss, _) = await asyncio.gather(
+        rep.decided_at(f), rep.table(f["id"], "Healing" if what == "healing" else "DamageDone"),
+        resource_use(rep, f, p, casts, alive_s, alive_until), prepull(rep, [f], p), boss_casts(rep, f))
+    try:
+        hero = await hero_of(rep, p, det)
+    except KnowledgeError:
+        hero = None
+    lost = time_lost(f, own, casts, flow.gaps, resource, capped, decided)
+    here = rep.pull_players(f)
+    peers = sorted((e for e in table["entries"] if (q := here.get(e.get("id"))) and q.role == p.role),
+                   key=lambda e: -e.get("total", 0))
+    mine = next((e for e in table["entries"] if e.get("id") == p.id), None)
+    output = None
+    if mine:
+        output = {"what": what, "total": round(mine["total"]), "per_s_alive": round(mine["total"] / max(alive_s, 1)),
+                  "rank": peers.index(mine) + 1 if mine in peers else None, "of": len(peers),
+                  "role": ROLE_NAMES[p.role],
+                  "top": [{"name": a["name"], "total": round(a["total"])} for a in mine.get("abilities", [])[:6]]}
+    standing = None
+    if f["kill"]:
+        if (pct := (await kill_parses(rep, f, metric_of(p))).get(p.name)) is not None:
+            standing = {"kind": "parse", "percentile": pct}
+    elif p.role != "tank" and output:
+        spread = await kills_spread(rep, f, p)
+        if isinstance(spread, Spread) and spread.points:
+            standing = {"kind": "kills", "n": spread.n, "exact": spread.exact,
+                        "points": [[label, round(v)] for label, v in spread.points], "mine": output["per_s_alive"]}
+    try:
+        rows, _ = await cooldown_use(rep, p, f, casts, early[f["id"]])
+    except KnowledgeError:
+        rows = []
+    counts = Counter(rep.ability(c["abilityGameID"]) for c in casts)
+    span = lambda spans: [[round(a - t0), round(b - t0)] for a, b in spans]  # noqa: E731
+    out = {
+        "view": "player", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "title": rep.label(f),
+        "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""), "url": rep.url(f), "kill": bool(f["kill"]),
+        "duration_ms": round(f["endTime"] - t0),
+        "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
+                   "color": class_hex(p.class_name), "role": p.role, "hero": hero, "ilvl": det.get("maxItemLevel")},
+        "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
+        "output": output, "standing": standing,
+        "lost": {"until_ms": round(lost.until_ms), "dead_s": round(lost.dead_s, 1), "gaps_s": round(lost.gaps_s, 1),
+                 "capped_s": round(lost.capped_s, 1), "resource": resource},
+        "alive_s": round(alive_s), "alive_until_ms": round(alive_until - t0),
+        "gaps": span(flow.gaps), "capped": span(capped),
+        "died": [{"ms": round(d["timestamp"] - t0), "by": rep.ability(d.get("killingAbilityGameID")),
+                  "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms)} for d in own],
+        "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible}
+                      for sp, times, possible in rows if not NOT_ON_COOLDOWN & set(sp.get("tags") or [])],
+        "casts": [{"name": n, "n": k, "per_min": round(60 * k / max(alive_s, 1), 1)}
+                  for n, k in counts.most_common(CASTS_SHOWN)],
+        "phases": [{"ms": round(t["startTime"] - t0), "id": t["id"]} for t in f.get("phaseTransitions") or []],
+        "tracked": [{"ms": round(c.at - t0), "name": c.name} for c in boss if c.tracked],
+        "top": None,
+    }
+    if top:
+        out["top"] = await _against_top(rep, f, p)
+    return out
+
+
+async def _against_top(rep: Report, f: dict, p) -> dict | str:
+    """The player's casts per minute against top players of their spec (top.cast_comparison), or why not."""
+    c = await cast_comparison(rep, p.name, rep.pull_no(f), rep.boss_key(f))
+    if isinstance(c, str):
+        return c
+    return {"hero": c.hero, "same_hero": c.same_hero, "parses": len(c.found),
+            "rates": [{"name": r.name, "mine": round(r.mine, 1), "median": None if r.median is None
+                       else round(r.median, 1), "low": r.low and round(r.low, 1), "high": r.high and round(r.high, 1),
+                       "flag": r.flag} for r in c.rates],
+            "total": [round(sum(v or 0 for v in c.my_cpm.values())),
+                      round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))]}
 
 
 def _ended(e) -> dict | None:

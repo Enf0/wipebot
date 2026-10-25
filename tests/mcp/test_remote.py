@@ -585,9 +585,13 @@ def test_an_officer_in_several_guilds_saves_nowhere(monkeypatch):
 def test_pull_tools_open_the_views_which_read_the_app_only_tools(client):
     call, _ = session(client)
     tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
-    for shown in ("pull_map", "pull_summary"):
+    for shown in ("pull_map", "pull_summary", "player_pull"):
         assert tools[shown]["_meta"]["ui"]["resourceUri"] == remote.VIEWS_APP
         assert tools[shown]["_meta"]["openai/outputTemplate"] == remote.VIEWS_APP
+    # compare_with_top has no view of its own (a host shows it on every call, and most have no player): the player
+    # view asks for the comparison itself
+    assert "ui" not in (tools["compare_with_top"].get("_meta") or {})
+    assert "their casts against top players a click away" in tools["player_pull"]["description"]
     assert tools["pull_map"]["description"].endswith("with plan, the plan's spots on it and a button per moment.")
     assert "the user also sees the pull drawn" in tools["pull_summary"]["description"]
     # raid_plan has no view: a host shows it on every call, and most of its answers have no pull to play

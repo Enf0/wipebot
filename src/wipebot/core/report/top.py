@@ -305,9 +305,73 @@ class Reference:
     capped: float | None = None  # the share of the kill their resource sat at its cap (None: not read)
 
 
-async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: str | None = None) -> str:
-    """Casts per minute of each spell for a player on a pull, next to top parses of their spec and hero tree on
-    the same boss, the closest in item level."""
+@dataclass
+class CastRate:
+    """One spell's casts per minute alive, the player's against the top parses': the median and range of those whose
+    logs count it (None when none does), and `flag` where the player's is far off ("never cast", "far fewer", "far
+    more")."""
+    name: str
+    mine: float
+    median: float | None
+    low: float | None
+    high: float | None
+    flag: str = ""
+
+
+def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[Reference],
+               lust_casts: set[str]) -> list[CastRate]:
+    """Each spell's casts per minute, theirs against the top parses', most cast by the top first."""
+    def known(n: str) -> list[float]:
+        """The references' counts of a spell, those that aren't known left out."""
+        return sorted(c for c in (x.cpm.get(n, 0) for x in found) if c is not None)
+
+    out = []
+    for n in sorted({n for x in found for n in x.cpm} | set(my_cpm), key=lambda n: (-_median(known(n)), n))[:25]:
+        others, me = known(n), my_cpm.get(n) or 0
+        med = _median(others)
+        if med < 0.05 and me < 0.05:
+            continue
+        if not others:  # every reference used it in a way the table doesn't count
+            out.append(CastRate(n, me, None, None, None))
+            continue
+        flag = ""
+        sp = names.named(n)
+        # A cooldown of a minute or more, an item, a racial or Bloodlust is cast once on a short pull: no fault.
+        once = bool(sp) and ((sp.get("cooldown") or 0) >= 60 or str(sp.get("spell_type") or "").startswith("other"))
+        if me == 0 and sum(1 for x in others if x > 0) > len(others) / 2:
+            flag = "never cast"
+        elif med and me < 0.6 * med:
+            flag = "far fewer"
+        elif me > 1.6 * med and me - med >= FAR_MORE_PER_MIN and not once and n not in lust_casts:
+            flag = "far more"
+        out.append(CastRate(n, me, med, others[0], others[-1], flag))
+    return out
+
+
+@dataclass
+class CastComparison:
+    """A player's casts on a pull against top parses of their spec (`cast_comparison`)."""
+    p: Player
+    f: dict
+    hero: str | None
+    same_hero: bool  # the top parses are of the player's hero tree
+    alive_s: float
+    ilvl: float
+    found: list[Reference]
+    names: SpellNames
+    merged: str  # a note when Lorrgs' spell list couldn't be read
+    mine: list[dict]  # the player's Casts table rows
+    my_cpm: dict[str, float | None]
+    rates: list[CastRate]
+    flow: Casting
+    resource: str  # the resource they spend, "" for none
+    my_capped: list[tuple[float, float]]  # its stretches at the cap
+
+
+async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: str | None = None
+                          ) -> CastComparison | str:
+    """A player's casts per minute of each spell on a pull, next to top parses of their spec and hero tree on the
+    same boss, the closest in item level; or why there's nothing to compare."""
     f = rep.fight(pull, boss)
     p = rep.player(player)
     rep.require_in(f, p)
@@ -341,28 +405,40 @@ async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: st
     found = [x for x in found if x]
     if not found:
         return "Couldn't read the casts of any top parse."
-    lines = [f"{p.label}{f', {hero}' if hero else ''}, casts per minute alive on {rep.label(f)} ({alive_s:.0f} s "
+    my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
+    return CastComparison(p, f, hero, bool(same_hero), alive_s, ilvl, found, names, merged, mine, my_cpm,
+                          cast_rates(names, my_cpm, found, lust_casts),
+                          casting(events, alive_until, [d["timestamp"] for d in own]), resource, my_capped)
+
+
+async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: str | None = None) -> str:
+    """Casts per minute of each spell for a player on a pull, next to top parses of their spec and hero tree on
+    the same boss, the closest in item level."""
+    c = await cast_comparison(rep, player, pull, boss)
+    if isinstance(c, str):
+        return c
+    p, f, found, alive_s = c.p, c.f, c.found, c.alive_s
+    lines = [f"{p.label}{f', {c.hero}' if c.hero else ''}, casts per minute alive on {rep.label(f)} ({alive_s:.0f} s "
              f"alive) next to {plural(len(found), 'top ' + metric_of(p) + ' parse')} of their spec"
-             + (f" and hero tree ({hero})" if same_hero else "") + f" on {f['name']}, the closest to their item "
-             f"level {ilvl:.0f}: " + "; ".join(
+             + (f" and hero tree ({c.hero})" if c.same_hero else "") + f" on {f['name']}, the closest to their item "
+             f"level {c.ilvl:.0f}: " + "; ".join(
                  f"{x.ranking['name']} ({float(x.ranking.get('bracketData') or 0):.0f}, kill "
                  f"{clock(x.ranking.get('duration') or 0)}, "
                  f"{fight_url(x.ranking['report']['code'], x.ranking['report']['fightID'])})" for x in found),
-             "Spell: theirs / top median (top range), per minute:" + merged]
+             "Spell: theirs / top median (top range), per minute:" + c.merged]
     if p.role == "healer":
-        lines[1:1] = await _healers_lines(rep, f, p, details, found)
-    my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
-    lines += _rate_lines(names, mine, my_cpm, found, lust_casts)
-    lines.append(f"Total: {sum(v or 0 for v in my_cpm.values()):.0f} / "
+        lines[1:1] = await _healers_lines(rep, f, p, await rep.details(f), found)
+    lines += _rate_lines(c.names, c.mine, c.rates)
+    lines.append(f"Total: {sum(v or 0 for v in c.my_cpm.values()):.0f} / "
                  f"{_median([sum(v or 0 for v in x.cpm.values()) for x in found]):.0f} per "
                  "minute. Every cast event counts (procs and items too); a spell logged under several ids or a "
                  "replacing talent's name counts as one. Cooldowns of a minute or more depend on the pull's "
                  "length, and a pull with Bloodlust at the start is busier than a whole kill.")
-    lines.append(_gaps_line(casting(events, alive_until, [d["timestamp"] for d in own]), [x.flow for x in found]))
+    lines.append(_gaps_line(c.flow, [x.flow for x in found]))
     theirs = sorted(100 * x.capped for x in found if x.capped is not None)
-    if resource and theirs:
-        mine = 100 * sum(b - a for a, b in my_capped) / 1000 / max(alive_s, 1)
-        lines.append(f"{resource} at its cap, share of the time alive: {mine:.0f}% / {_median(theirs):.0f}% "
+    if c.resource and theirs:
+        mine = 100 * sum(b - a for a, b in c.my_capped) / 1000 / max(alive_s, 1)
+        lines.append(f"{c.resource} at its cap, share of the time alive: {mine:.0f}% / {_median(theirs):.0f}% "
                      f"({theirs[0]:.0f}-{theirs[-1]:.0f}%). The top parses meet the same fight: as much time at the "
                      "cap as theirs is the fight's (movement, knockbacks, an intermission); more is gain lost.")
     return "\n".join(lines)
@@ -436,8 +512,7 @@ async def _capped(rep: Report, code: str, fight_id: int, pid: int, events: list[
     return capped / (span["endTime"] - span["startTime"])
 
 
-def _rate_lines(names: SpellNames, mine: list[dict], my_cpm: dict[str, float | None], found: list[Reference],
-                lust_casts: set[str]) -> list[str]:
+def _rate_lines(names: SpellNames, mine: list[dict], rates: list[CastRate]) -> list[str]:
     """Each spell's casts per minute, theirs against the top parses', flagged where theirs is far off."""
     ids: dict[str, list[str]] = defaultdict(list)  # the player's ids of each spell, and its names when they differ
     own_names: dict[str, set[str]] = defaultdict(set)
@@ -447,31 +522,14 @@ def _rate_lines(names: SpellNames, mine: list[dict], my_cpm: dict[str, float | N
             ids[n].append(str(a["guid"]))
         if a["name"] != n:
             own_names[n].add(a["name"])
-
-    def known(n: str) -> list[float]:
-        """The references' counts of a spell, those that aren't known left out."""
-        return sorted(c for c in (x.cpm.get(n, 0) for x in found) if c is not None)
-
     lines = []
-    for n in sorted({n for x in found for n in x.cpm} | set(my_cpm), key=lambda n: (-_median(known(n)), n))[:25]:
-        others, me = known(n), my_cpm.get(n) or 0
-        med = _median(others)
-        if med < 0.05 and me < 0.05:
-            continue
-        if not others:  # every reference used it in a way the table doesn't count
-            lines.append(f"  {n}{_ref(n, ids, own_names)}: {me:.1f} / not counted in the top parses' logs")
-            continue
-        flag = ""
-        sp = names.named(n)
-        # A cooldown of a minute or more, an item, a racial or Bloodlust is cast once on a short pull: no fault.
-        once = bool(sp) and ((sp.get("cooldown") or 0) >= 60 or str(sp.get("spell_type") or "").startswith("other"))
-        if me == 0 and sum(1 for x in others if x > 0) > len(others) / 2:
-            flag = "  <- never cast"
-        elif med and me < 0.6 * med:
-            flag = "  <- far fewer"
-        elif me > 1.6 * med and me - med >= FAR_MORE_PER_MIN and not once and n not in lust_casts:
-            flag = "  <- far more"
-        lines.append(f"  {n}{_ref(n, ids, own_names)}: {me:.1f} / {med:.1f} ({others[0]:.1f}-{others[-1]:.1f}){flag}")
+    for r in rates:
+        if r.median is None:
+            lines.append(f"  {r.name}{_ref(r.name, ids, own_names)}: {r.mine:.1f} / not counted in the top parses' "
+                         "logs")
+        else:
+            lines.append(f"  {r.name}{_ref(r.name, ids, own_names)}: {r.mine:.1f} / {r.median:.1f} ({r.low:.1f}-"
+                         f"{r.high:.1f})" + (f"  <- {r.flag}" if r.flag else ""))
     return lines
 
 

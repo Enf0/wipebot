@@ -13,7 +13,7 @@ from mcp.types import CallToolResult
 
 from tests.support import assert_snapshot
 from tests.support.paths import REAL
-from tests.support.recorded import CASES, Replay, serve_from
+from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Replay, serve_from
 from wipebot.core import server
 from wipebot.core.report import maps, views
 from wipebot.core.text import clock
@@ -161,6 +161,159 @@ async def test_the_painter_draws_the_pull_view_as_a_picture_for_the_bot(recorded
     img = Image.open(io.BytesIO(drawn))
     assert img.format == "WEBP" and img.width == viewhost.PICTURE_WIDTH * viewhost.PICTURE_SCALE
     assert 300 < img.height < 1000 and len(drawn) < 200_000  # the card alone, without its buttons
+
+
+# ---- the player view: real data reads rankings and other guilds' parses (local only); the page draws made-up data ----
+
+PLAYER_CASE, TOP_CASE = CASES["player-pull"], CASES["compare-with-top"]  # Draiman on pull 13, and against the top
+
+
+async def player_data(top: bool = False) -> dict:
+    a = PLAYER_CASE.args
+    result = await server.view_data("player", a["pull"], None, a["report"], a["player"], top)
+    assert result.structured_content is not None
+    return result.structured_content
+
+
+@pytest.fixture
+def local(recorded):
+    if not LOCAL_RECORDED.exists():
+        pytest.skip(NOT_LOCAL)
+
+
+async def test_the_player_view_matches_its_snapshot(local):
+    assert_snapshot(LOCAL / "views" / "player.txt", readable(await player_data(top=True)))
+
+
+async def test_the_player_view_states_what_player_pull_and_compare_with_top_state(local):
+    data = await player_data(top=True)
+    text, failed = await server.call("player_pull", PLAYER_CASE.args)
+    assert not failed
+    out, lost = data["output"], data["lost"]
+    per_s = f"{kit_short(out['per_s_alive'])}/s over the {data['alive_s']} s alive)"
+    assert f"{per_s}, rank {out['rank']} of {out['of']} {out['role']}" in text
+    assert f"dead (no output at all) {lost['dead_s']:.0f} s" in text and f"casting gaps (no cast begun) " \
+                                                                       f"{lost['gaps_s']:.0f} s" in text
+    assert f"Died: {clock(data['died'][0]['ms'])} to {data['died'][0]['by']}" in text
+    for cd in data["cooldowns"]:  # as player_pull lists them: uses / possible at their times
+        uses = f"{len(cd['uses'])}/{cd['possible']}" + (" at " + ", ".join(clock(t) for t in cd["uses"])
+                                                         if cd["uses"] else "")
+        assert f"{cd['name']} [" in text and uses in text
+    top, failed = await server.call("compare_with_top", TOP_CASE.args)
+    assert not failed
+    for r in data["top"]["rates"]:
+        if r["median"] is not None:
+            assert f"{r['mine']:.1f} / {r['median']:.1f} ({r['low']:.1f}-{r['high']:.1f})" in top
+
+
+def kit_short(v: float) -> str:
+    """An amount as the tools' text writes it (text.short)."""
+    from wipebot.core.text import short
+    return short(v)
+
+
+async def test_view_keys_name_the_player_as_logged_and_ask_for_the_comparison(rep, monkeypatch):
+    lib = server.Library()
+
+    async def report(code=None):
+        return rep
+    monkeypatch.setattr(lib, "report", report)
+    monkeypatch.setattr(server, "lib", lambda: lib)
+    name = next(iter(rep.players.values())).name
+    asked = {"report": rep.code, "pull": 13, "player": name.lower()}
+    assert await server.view_key("player_pull", asked) == {"view": "player", "report": rep.code, "pull": 13,
+                                                           "boss": "Sszorak", "player": name}
+    against = await server.view_key("compare_with_top", asked)
+    assert against is not None and against["top"] is True
+    assert await server.view_key("compare_with_top", {**asked, "aspects": ["build"]}) is None  # no casts: no view
+    assert await server.view_key("compare_with_top", {"spec": "holy priest", "boss": "Sszorak"}) is None
+    assert await server.view_key("pull_map", asked) is None  # its picture is its own
+
+
+def made_up_player(top: bool) -> dict:
+    """A player view's data, made up (Warcraft Logs asks for synthetic data in public tests): a healer who died after
+    the wipe was decided, with a casting gap, two cooldowns and, with `top`, casts against top players."""
+    return {
+        "view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge",
+        "title": "Torvek's Forge pull 4",
+        "difficulty": "Mythic", "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678#fight=9", "kill": False,
+        "duration_ms": 150000,
+        "player": {"name": "Mirelle", "spec": "Restoration", "class": "Shaman", "color": "#0070DD", "role": "healer",
+                   "hero": "Totemic", "ilvl": 320},
+        "decided": {"ms": 140000, "why": "the boss gained Molten Fury"},
+        "output": {"what": "healing", "total": 40_000_000, "per_s_alive": 290_000, "rank": 2, "of": 4,
+                   "role": "healers", "top": [{"name": "Chain Heal", "total": 12_000_000}]},
+        "standing": {"kind": "kills", "n": 900, "exact": False, "mine": 290_000,
+                     "points": [["100th best", 360_000], ["500th best", 320_000], ["900th best", 250_000]]},
+        "lost": {"until_ms": 140000, "dead_s": 0.0, "gaps_s": 4.0, "capped_s": 0.0, "resource": ""},
+        "alive_s": 143, "alive_until_ms": 143000, "gaps": [[100000, 104000]], "capped": [],
+        "died": [{"ms": 143000, "by": "Molten Fury", "fallout": True}],
+        "cooldowns": [{"name": "Ascendance", "uses": [60000], "possible": 1},
+                      {"name": "Spirit Link Totem", "uses": [], "possible": 1}],
+        "casts": [{"name": "Chain Heal", "n": 30, "per_min": 12.6}, {"name": "Riptide", "n": 25, "per_min": 10.5}],
+        "phases": [{"ms": 0, "id": 1}],
+        "tracked": [{"ms": 30000, "name": "Slag Wave"}, {"ms": 90000, "name": "Slag Wave"}],
+        "top": {"hero": "Totemic", "same_hero": True, "parses": 5, "total": [40, 46],
+                "rates": [{"name": "Chain Heal", "mine": 12.6, "median": 17.0, "low": 15.0, "high": 19.0, "flag": ""},
+                          {"name": "Astral Shift", "mine": 0.0, "median": 0.4, "low": 0.0, "high": 0.6,
+                           "flag": "never cast"}]} if top else None,
+    }
+
+
+@pytest.fixture
+def made_up(monkeypatch):
+    """The player view drawn from made-up data: its key and its data answered without a report."""
+    from wipebot.core import viewhost
+    key = {"view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge", "player": "Mirelle"}
+
+    async def tool_result(tool, args):
+        return {"content": [{"type": "text", "text": "Mirelle's pull"}], "structuredContent": key}
+
+    async def view_data(view, pull=None, boss=None, report=None, player=None, top=False):
+        return CallToolResult(content=[], structured_content=made_up_player(top))
+
+    async def view_key(tool, args):
+        return {**key, "top": tool == "compare_with_top"}
+    monkeypatch.setattr(viewhost, "tool_result", tool_result)
+    monkeypatch.setattr(server, "view_data", view_data)
+    monkeypatch.setattr(server, "view_key", view_key)
+
+
+async def test_the_player_view_draws_and_asks_for_the_top_on_a_click(made_up, tmp_path):
+    taken = await shots(tmp_path, "player_pull", {"player": "Mirelle"}, themes=("dark", "light"), widths=(320, 760),
+                        clicks=("Against top players",))
+    for s in taken:
+        assert not s.errors, (s.path.name, s.errors)
+        assert s.height > 100 and "Mirelle" in s.text and "290k" in s.text and "rank 2 of 4 healers" in s.text
+        assert "4 s casting gaps" in s.text and "1 of 2" in s.text and "after the wipe was decided" in s.text
+    first, clicked = taken[0], taken[1]
+    assert "Against top players" in first.text and "Astral Shift" not in first.text
+    calls = [m["msg"]["params"]["arguments"] for m in clicked.messages if m["msg"].get("method") == "tools/call"
+             and m["msg"]["params"]["name"] == "view_data"]
+    assert [c.get("top") for c in calls] == [False, True]  # the comparison read only when asked for
+    assert "Astral Shift" in clicked.text and "0.0 / 0.4" in clicked.text
+
+
+async def test_the_painter_draws_compare_with_tops_player_view_with_the_biggest_differences(made_up):
+    pytest.importorskip("playwright")
+    from PIL import Image
+    from playwright.async_api import Error
+
+    from wipebot.core import viewhost
+    painter = viewhost.Painter()
+    try:
+        alone = await painter.picture("player_pull", {"player": "Mirelle"})
+        against = await painter.picture("compare_with_top", {"player": "Mirelle"})
+    except Error as e:
+        if "Executable doesn't exist" in str(e):
+            pytest.skip("needs Playwright's Chromium")
+        raise
+    finally:
+        await painter.close()
+    assert alone and against
+    small, big = Image.open(io.BytesIO(alone)), Image.open(io.BytesIO(against))
+    assert small.width == big.width == viewhost.PICTURE_WIDTH * viewhost.PICTURE_SCALE
+    assert big.height > small.height + 100  # the comparison's rows under the card
 
 
 # ---- the replay's JavaScript (Node) ----
