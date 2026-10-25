@@ -31,6 +31,9 @@ it (pyproject.toml, checked by `just check`).
   - `instructions.md` is a short overview for clients that read server instructions (under 512 characters).
   - These three name no host and only the core's tools (a test checks). What one app adds goes in that app: the
     bot's in `src/wipebot/discord/host-prompt.md`, the remote server's in its tools' descriptions.
+  - How an answer looks (length, bullets, bold, emojis, markdown) is the app's, which knows where it's shown: the
+    bot's prompt sets it for Discord; Claude and ChatGPT keep their own and the user's style, so no tool,
+    instruction or skill sets it. The skill says what an answer holds (what leads, how many changes, what's left out).
 - **Wrap warcraft_cli, don't redo it.** It is the way to Wowhead, Method, Icy Veins, Lorrgs and the WCL client.
 - **Don't hardcode game knowledge.** Specs and roles, spell ids, cooldowns and raid buffs change with patches: read
   them from a source (Lorrgs, Raidbots, Wowhead, WCL) through `knowledge/`.
