@@ -208,8 +208,11 @@ PLAN_RESULT = (f'The raid plan "Coiled Altar Plan" ({PLAN}/9): 9 scenes.\n'
                  id="a lead naming the scene's subject, else the scene, once each"),
     pytest.param("- Orb-bevegelse (Scene 3): ut til grønn 1.", f"- [Orb-bevegelse]({PLAN}/3): ut til grønn 1.",
                  id="a bullet's lead"),
-    pytest.param("Du står der (scene 2), sammen med Martin.", f"Du står der ([scene 2]({PLAN}/2)), sammen med Martin.",
-                 id="mid-sentence: the scene"),
+    pytest.param("Du står der (scene 2), sammen med Martin.", f"[Du står der]({PLAN}/2), sammen med Martin.",
+                 id="a sentence's clause"),
+    pytest.param("**Cptola:** lilla orb i P1, pil inn til orbene i P1 (scene 3), soaker spirits.",
+                 f"**Cptola:** lilla orb i P1, [pil inn til orbene i P1]({PLAN}/3), soaker spirits.",
+                 id="a clause mid-sentence"),
     pytest.param(f"**[Scene 2]({PLAN}/2)** og scene 2.", f"**[Scene 2]({PLAN}/2)** og scene 2.", id="linked already"),
     pytest.param("Scene 7 og `scene 3`.", "Scene 7 og `scene 3`.", id="a scene the results have no link for, code"),
 ])
