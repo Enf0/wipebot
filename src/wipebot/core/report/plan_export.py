@@ -81,6 +81,12 @@ class Plan:
     saved_by: str = ""
 
 
+def scene_link(plan: Plan, n: int) -> str:
+    """The plan's view link opened on its scene `n` (from 1): raidstrats.gg's view link ends in the scene it opens
+    on ("…?view=<id>/9"), as Viserio reads it. "" for a plan with no link."""
+    return f"{re.sub(r'/\d+$', '', plan.link)}/{n}" if plan.link else ""
+
+
 def parse(text: str) -> list[Plan]:
     """Every plan in a paste, each with the version mark before it (saved.py). A paste without one is an error."""
     plans = [decode(m[1], at, by) for chunk, at, by in saved.split(text) for m in EXPORT.finditer(chunk)]

@@ -113,3 +113,12 @@ def test_the_side_panel_says_what_each_number_does():
             '| "Take the orbs to your corner"') in lines
     assert "In the side panel, not in the room: Green Carriers: #3 (open rdps spot)" in lines
     assert any(line.startswith("#1 (open rdps spot): ") for line in lines)  # the room's spots after the groups
+
+
+def test_a_scenes_link_is_the_plans_view_link_opened_on_it():
+    [p] = plan_export.parse(plan())  # its link opens on no scene in particular
+    assert plan_export.scene_link(p, 2) == "https://raidstrats.gg/planner?view=p/2"
+    p.link = "https://raidstrats.gg/planner?view=p/9"  # as saved while on scene 9
+    assert plan_export.scene_link(p, 3) == "https://raidstrats.gg/planner?view=p/3"
+    p.link = ""
+    assert plan_export.scene_link(p, 1) == ""
