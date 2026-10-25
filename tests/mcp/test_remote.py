@@ -586,9 +586,10 @@ def test_pull_map_opens_the_replay_viewer_which_reads_the_app_only_pull_replay(c
     call, _ = session(client)
     tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
     assert tools["pull_map"]["_meta"]["ui"]["resourceUri"] == remote.PULL_MAP_APP
-    assert tools["pull_map"]["description"].endswith("a replay of the pull to play instead of the picture "
-                                                     "(not with all_pulls).")  # this server's own note
-    assert tools["raid_plan"]["_meta"]["ui"]["resourceUri"] == remote.PULL_MAP_APP  # the plan's spots on it
+    assert tools["pull_map"]["description"].endswith("with plan, the plan's spots on it and a button per moment.")
+    # raid_plan has no viewer: a host shows it on every call, and most of its answers have no pull to play
+    assert "ui" not in (tools["raid_plan"].get("_meta") or {})
+    assert "call pull_map with plan, which shows its replay." in tools["raid_plan"]["description"]
     for app_only in ("pull_replay", "viewer_log"):
         assert tools[app_only]["_meta"]["ui"] == {"resourceUri": remote.PULL_MAP_APP, "visibility": ["app"]}
     page = call("resources/read", {"uri": remote.PULL_MAP_APP})["contents"][0]

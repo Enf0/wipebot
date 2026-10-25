@@ -10,7 +10,7 @@ its private reports to everyone, so the server won't start with one, nor read wi
   Officer ranks), as Warcraft Logs had them at sign-in or the last membership check (within the hour).
 - The pull-map replay, an MCP App: `pull_map` points at the viewer (pull_map_app.html), which asks the app-only
   `pull_replay` for the whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets).
-  `raid_plan` on one pull opens it too, with the plan's spots at each moment it checked.
+  `pull_map` with `plan` on one pull opens it with the plan's spots at each moment it checked.
 - The connector and the skill as a Claude plugin to download, at /plugin.zip (plugin.py).
 - For whoever serves it: a website (`site`'s routes) at /, and each tool call to `record`.
 """
@@ -80,11 +80,13 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                           revocation_options=RevocationOptions(enabled=True)),
         auth_server_provider=signin, extensions=[_pull_map_app(public, setup)])
     viewer = {"ui": {"resourceUri": PULL_MAP_APP}, "openai/outputTemplate": PULL_MAP_APP}
-    server.register(mcp, setup, meta={"pull_map": viewer, "raid_plan": viewer},
+    # Only pull_map has the viewer: a host shows a tool's viewer on every call, and raid_plan mostly has no pull.
+    server.register(mcp, setup, meta={"pull_map": viewer},
                     notes={"pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
-                                       "(not with all_pulls).",
-                           "raid_plan": "In Claude, for one pull the user gets the replay of the pull with the plan's "
-                                        "spots on it and a button per moment, instead of the picture."})
+                                       "(not with all_pulls); with plan, the plan's spots on it and a button per "
+                                       "moment.",
+                           "raid_plan": "In Claude, the user sees no map from raid_plan: for the pull against the "
+                                        "plan, call pull_map with plan, which shows its replay."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",
                  title=server.title("my_characters"), annotations=server.READ_ONLY, structured_output=False,
                  meta={"openai/profile": True})  # who the signed-in user is: ChatGPT tells connected accounts apart

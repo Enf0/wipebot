@@ -478,17 +478,24 @@ async def pull_map(pull: Pull = None, boss: Boss = None,
                        "with an ability: which of its moments (a debuff ending or being applied, the boss's cast, "
                        "its hits); omit for a debuff ending, else the cast, else the hits"))] = None,
                    all_pulls: Annotated[bool, Field(description="with an ability: every pull on the boss")] = False,
+                   plan: Annotated[bool, Field(description=(
+                       "the guild's saved raid plan laid over it: its spots at each moment of the plan's mechanic, "
+                       "for \"show me the pull against the plan\""))] = False,
                    report: Report_ = None, *, ctx: Context) -> CallToolResult:
     """For "where did we stand when X?", "who exploded on whom?", "were we spread for X?", "who stood in front of
-    the boss?", "where was everyone when X died?".
+    the boss?", "where was everyone when X died?"; with `plan`, "show me where people stood against the plan".
     Where everyone stood at a moment of a pull, drawn on the boss room's map (a picture the user sees), with each
     player's distance to the boss and degrees off its facing. The moment is
     a time, a death, or each time an ability happened: who it was on or hit, and for a debuff, who was hit by it
     without having it and from whose (the nearest player with it), and the two with it who stood closest. With
     all_pulls, those counted per player and per pair over every pull on the boss, and for a player in `players`,
-    each of their moments and a map of where they stood every time. With a raid plan, raid_plan checks spots.
+    each of their moments and a map of where they stood every time. With `plan`, the map is the guild's raid plan
+    checked against the pull as raid_plan checks it (its spots laid over where everyone stood, lines to those off
+    theirs), with raid_plan's text; with all_pulls and a player, that player at every moment against their spot.
     Example: at="Virulence", all_pulls=true, players=["Martin"]."""
     rep = await lib().report(report)
+    if plan:
+        return await _plan_map(rep, pull, boss, at, players, all_pulls, ctx)
     # Serving many users, the host may show the replay viewer (remote.py) instead of the picture: it reads which pull
     # and moment from structuredContent. Whether it does is the host's call, and an older protocol version may hide
     # the host's capabilities from us, so the picture is left out only when the host surely shows the viewer.
@@ -504,6 +511,26 @@ async def pull_map(pull: Pull = None, boss: Boss = None,
     return CallToolResult(content=content, structured_content={
         "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "at_ms": round(ans.at_ms),
         "players": players or []})
+
+
+async def _plan_map(rep: Report, pull: PullRef, boss: str | None, at: str | None, players: list[str] | None,
+                    all_pulls: bool, ctx: Context) -> CallToolResult:
+    """pull_map with `plan`: the guild's saved plan checked against the pull, drawn; in a host that shows the replay
+    viewer, the replay with the plan's spots at each moment it checked instead of the picture."""
+    text, source = await _saved_plans(rep, pull, boss)
+    serving_many = setup().remote is not None
+    viewer = serving_many and _supports_apps(ctx) and not all_pulls
+    player = players[0] if players else None
+    ans = await plans.plan_check(rep, text, pull, boss, all_pulls, at, player, draw=not viewer)
+    content: list[TextContent | ImageContent] = [TextContent(
+        type="text", text=f"(The plans were {source}.)\n{ans.text}" if source else ans.text)] + [
+        ImageContent(type="image", data=base64.b64encode(i).decode(), mime_type="image/webp") for i in ans.images]
+    if not serving_many or ans.fight is None or ans.overlay is None:
+        return CallToolResult(content=content)
+    f = ans.fight
+    return CallToolResult(content=content, structured_content={
+        "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "at_ms": ans.overlay["at_ms"],
+        "players": players or [], "plan": ans.overlay["moments"]})
 
 
 def _supports_apps(ctx: Context) -> bool:
@@ -877,7 +904,7 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     how far and whose spot they stood at, who was dead, and who was hit by the debuff from whose; with all_pulls,
     per player how often they were off and where. Draws a map the user sees: for one pull, the plan's spots laid
     over where everyone stood at one moment, with lines to those off their spot; with all_pulls and a player, that
-    player at every moment against their spot.
+    player at every moment against their spot. pull_map with `plan` shows the pull against the plan.
     Reading it: the plan is laid over where the raid stood each time, so a player is off relative to the rest of
     the raid, and the whole raid standing elsewhere in the room isn't. A plan's side panel (players who stay
     out, notes) isn't in the room. A pull is checked against the version of the plan saved last before it began
@@ -898,19 +925,13 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
                                                    if source else text)])
     if not plan:
         plan, source = await _saved_plans(rep, pull, boss)
-    # As pull_map: on one pull, a host that shows the replay viewer gets the plan's spots on it, not the picture.
-    serving_many = setup().remote is not None
-    viewer = serving_many and _supports_apps(ctx) and not all_pulls
-    ans = await plans.plan_check(rep, plan, pull, boss, all_pulls, at, player, draw=not viewer, latest=latest)
+    # A host that shows the replay viewer gets the pull against the plan from pull_map with `plan` (the viewer is
+    # pull_map's: a host shows a tool's viewer on every call, and most of raid_plan's answers have no pull to play).
+    draw = not (setup().remote is not None and _supports_apps(ctx))
+    ans = await plans.plan_check(rep, plan, pull, boss, all_pulls, at, player, draw=draw, latest=latest)
     text = f"(The plans were {source}.)\n{ans.text}" if source else ans.text
-    content: list[TextContent | ImageContent] = [TextContent(type="text", text=text)] + [
-        ImageContent(type="image", data=base64.b64encode(i).decode(), mime_type="image/webp") for i in ans.images]
-    if not serving_many or ans.fight is None or ans.overlay is None:
-        return CallToolResult(content=content)
-    f = ans.fight
-    return CallToolResult(content=content, structured_content={
-        "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "at_ms": ans.overlay["at_ms"],
-        "players": [player] if player else [], "plan": ans.overlay["moments"]})
+    return CallToolResult(content=[TextContent(type="text", text=text)] + [
+        ImageContent(type="image", data=base64.b64encode(i).decode(), mime_type="image/webp") for i in ans.images])
 
 
 @_tool

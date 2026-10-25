@@ -73,12 +73,22 @@ async def test_pull_map_serving_many_users_tells_the_viewer_its_moment(recorded,
     assert [c.type for c in result.content] == ["text", "image"]  # no MCP Apps client in-process: the picture too
 
 
-async def test_raid_plan_serving_many_users_gives_the_viewer_the_plan_at_each_moment(recorded, monkeypatch):
-    """claude.ai and ChatGPT get the replay viewer with the plan: per moment its spots in the log's coordinates,
-    whose each is and who stood off theirs, as the text says; it opens at the moment the picture would show."""
+async def test_pull_map_with_the_plan_serving_many_users_gives_the_viewer_the_plan_at_each_moment(recorded,
+                                                                                               monkeypatch):
+    """claude.ai and ChatGPT get the replay viewer with the guild's plan: per moment its spots in the log's
+    coordinates, whose each is and who stood off theirs, as the text says; it opens at the moment the picture would
+    show. raid_plan gives no viewer anything: a host shows a tool's viewer on every call."""
     monkeypatch.setattr(server.DEFAULT, "remote", server.Remote(guilds=list, user_name=str))
     case = CASES["raid-plan"]
-    result = await server.mcp.call_tool(case.tool, case.args)
+    plan = case.args["plan"]
+
+    async def saved(rep, pull, boss):  # the guild's saved plan, as the notebook would give it
+        return plan, ""
+    monkeypatch.setattr(server, "_saved_plans", saved)
+    checked = await server.mcp.call_tool("raid_plan", case.args)
+    assert isinstance(checked, CallToolResult) and checked.structured_content is None
+    result = await server.mcp.call_tool("pull_map", {"report": case.args["report"], "pull": case.args["pull"],
+                                                     "plan": True})
     assert isinstance(result, CallToolResult) and result.structured_content is not None
     asked, first = result.structured_content, result.content[0]
     assert isinstance(first, TextContent)
