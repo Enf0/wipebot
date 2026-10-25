@@ -192,6 +192,7 @@ views.pull = (() => {
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 6}" width="12" height="3" fill="var(--gold)"/>`, "boss health"],
       [(lx, ly) => `<rect x="${lx + 1}" y="${ly - 8}" width="10" height="8" fill="var(--blue)" opacity=".35"/>`, "raid damage taken /s"],
       [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--dead)"/>`, "death"]];
+    if (tracked.length) keys.splice(2, 0, [(lx, ly) => `<path d="M${lx + 5} ${ly - 9} l5 5 l-5 5 l-5 -5z" fill="var(--gold)"/>`, "the boss's main casts"]);
     if (D.decided) keys.push([(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--muted)" opacity=".6"/>`, "after it was decided"]);
     let lx = 6, ly = ay + 20;
     for (const [mark, name] of keys) {
