@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Discord` **Asking the bot about a boss you haven't pulled yet reads the saved note and plan.** The note saved for tomorrow is given as it is, and the plan shown as drawn, as in Claude, instead of the bot saying it can only read them against a night with pulls.
+
 ## [0.7.0] - 2026-10-25
 
 ### Added
