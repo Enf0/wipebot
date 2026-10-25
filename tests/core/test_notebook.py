@@ -229,5 +229,5 @@ def test_a_note_for_a_boss_not_pulled_yet_is_given_as_it_is(book):
     text = server._unpulled_note(night(), "Sszorak")
     assert text.startswith("Sszorak has no pull in this report, so here is the newest raid note")
     assert "saved by Rowan" in text and text.endswith("\nthe note")
-    with pytest.raises(FactError, match="Vashnik has no pull in this report, and The Copper Lanterns has no raid note"):
-        server._unpulled_note(night(), "Vashnik")
+    assert server._unpulled_note(night(), "Vashnik").startswith(
+        "Vashnik has no pull in this report, and The Copper Lanterns has no raid note saved for it")
