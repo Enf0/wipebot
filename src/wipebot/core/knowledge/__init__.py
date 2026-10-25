@@ -6,7 +6,15 @@ data, the game's map table and Warcraft Logs' images over HTTP. Every answer is 
 A module per subject. Each holds data accessors (what report/ computes with) and, for the knowledge tools, a
 `*_text` function that is the tool's whole answer. The names below are those report/, server.py and remote.py use.
 """
-from .bosses import boss_guide_text, boss_loot_text, boss_mechanic_text, boss_spells, boss_tooltips_text, raids
+from .bosses import (
+    boss_guide_text,
+    boss_loot_text,
+    boss_mechanic_text,
+    boss_spells,
+    boss_tooltips_text,
+    raid_boss_spells,
+    raids,
+)
 from .fetch import KnowledgeError
 from .maps import map_bounds, map_image, wcl_image
 from .names import matches_boss, names_boss, spaced
@@ -21,6 +29,7 @@ from .spells import (
                      lust_debuffs,
                      lust_duration_s,
                      spell_cooldown,
+                     spell_icon,
                      spell_name,
                      spell_text,
 )
@@ -29,6 +38,7 @@ from .top_parses import cooldown_comparison_text, top_cooldowns_text
 
 __all__ = [
     "KnowledgeError", "boss_guide_text", "boss_loot_text", "boss_mechanic_text", "boss_spells", "boss_tooltips_text",
+    "raid_boss_spells", "spell_icon",
     "build_hero",
     "character_experience_text", "choice_versions", "class_and_spec", "consumable_items", "cooldown_comparison_text",
     "top_cooldowns_text",

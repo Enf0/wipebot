@@ -1,10 +1,16 @@
 """Spells from Wowhead's tooltips (name, text, cooldown, what a defensive does) and Lorrgs (Bloodlust's debuffs)."""
+import base64
 import html
 import re
 from dataclasses import dataclass
 
+import httpx
+
+from ..cache import DAY, cache, cache_key
 from . import fetch
 from .fetch import KnowledgeError, Memo, NotFound
+
+ICON_URL = "https://wow.zamimg.com/images/wow/icons/large/{}.jpg"  # a Wowhead icon by name, 56 px
 
 
 @dataclass(frozen=True)
@@ -14,13 +20,15 @@ class Spell:
     name: str
     text: str  # the tooltip as text, '' when it has none
     url: str
+    icon: str = ""  # the icon's name on Wowhead ("inv_ability_poison_beam"): ICON_URL
 
 
 async def tooltip(spell_id: int) -> Spell:
     data = await fetch.cli("wowhead", "entity", "spell", str(spell_id))
     entity, tip = data.get("entity") or {}, data.get("tooltip") or {}
     text = tooltip_text(tip.get("html") or "") or (tip.get("text") or "").strip()
-    return Spell(spell_id, entity.get("name") or f"spell {spell_id}", text, entity.get("page_url", ""))
+    return Spell(spell_id, entity.get("name") or f"spell {spell_id}", text, entity.get("page_url", ""),
+                 tip.get("icon") or "")
 
 
 def tooltip_text(markup: str) -> str:
@@ -195,3 +203,20 @@ async def lust_debuffs() -> list[int]:
 async def lust_duration_s() -> float:
     """How long Bloodlust and its kin last, as Lorrgs gives Bloodlust's duration."""
     return float((await _bloodlust()).get("duration") or 0)
+
+
+async def spell_icon(spell_id: int) -> bytes:
+    """A spell's icon from Wowhead, kept on disk; KnowledgeError when Wowhead has none."""
+    icon = (await tooltip(spell_id)).icon
+    if not icon:
+        raise KnowledgeError(f"Wowhead has no icon for spell {spell_id}")
+
+    async def get() -> str:
+        async with httpx.AsyncClient(timeout=30, headers={"User-Agent": "Wipebot"}) as client:
+            r = await client.get(ICON_URL.format(icon))
+            r.raise_for_status()
+            return base64.b64encode(r.content).decode()
+    try:
+        return base64.b64decode(await cache().fetch(cache_key("wowhead-icon", icon), 365 * DAY, get))
+    except httpx.HTTPError as e:
+        raise KnowledgeError(f"Wowhead's icon {icon} can't be fetched: {e}") from e

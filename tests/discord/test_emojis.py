@@ -62,8 +62,17 @@ def specs(monkeypatch):
         if "Paladin-Holy" in path:
             raise KnowledgeError("not there")
         return f"image {path}".encode()
+    async def boss_spells():
+        return [1290001, 1290002]
+
+    async def spell_icon(spell):
+        if spell == 1290002:
+            raise KnowledgeError("Wowhead has no icon")
+        return f"icon {spell}".encode()
     monkeypatch.setattr(emojis.knowledge, "talent_trees", trees)
     monkeypatch.setattr(emojis.knowledge, "wcl_image", image)
+    monkeypatch.setattr(emojis.knowledge, "raid_boss_spells", boss_spells)
+    monkeypatch.setattr(emojis.knowledge, "spell_icon", spell_icon)
 
 
 async def test_the_emojis_missing_are_uploaded_once(specs):
@@ -75,6 +84,7 @@ async def test_the_emojis_missing_are_uploaded_once(specs):
     assert SPINNER not in created and "marker_star" not in created and "marker_moon" in created
     assert found[SPINNER] == "<:wipebot_spinner:1>" and "marker_skull" not in found  # Discord said no
     assert found["DeathKnight"].startswith("<:DeathKnight:")
+    assert created["spell_1290001"] == b"icon 1290001" and "spell_1290002" not in found  # a boss ability's
 
 
 async def test_without_discord_there_are_no_emojis(specs):

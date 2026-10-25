@@ -1,6 +1,8 @@
-"""The bot's own (application) emojis: the progress line's spinner, the raid markers, and an icon per class and
-spec. Discord keeps them for the app, usable in every server it's in; the bot uploads the ones missing when it
-starts, so an image is drawn or downloaded once, ever. A drawing changed needs a new name to replace the old."""
+"""The bot's own (application) emojis: the progress line's spinner, the raid markers, an icon per class and spec,
+and one per boss ability of the current expansion's raids (Wowhead's). Discord keeps them for the app, usable in
+every server it's in; the bot uploads the ones missing when it starts, so an image is drawn or downloaded once, ever,
+and a new tier's boss abilities come with the first start after it. None is deleted: an emoji gone shows as its
+name in every message that used it. A drawing changed needs a new name to replace the old."""
 import io
 import logging
 import math
@@ -16,6 +18,7 @@ log = logging.getLogger(__name__)
 
 SPINNER = "wipebot_spinner"
 SIZE = 128  # Discord's size for an emoji
+LIMIT, WARN_AT = 2000, 1900  # an app's emojis, and when the log warns: old ones are only dropped by hand
 # The raid markers in the game's order ({rt1} is the star), with their colours
 MARKERS = {"star": (255, 214, 0), "circle": (255, 132, 20), "diamond": (214, 76, 255), "triangle": (46, 204, 64),
            "moon": (196, 220, 240), "square": (30, 144, 255), "cross": (232, 32, 42), "skull": (245, 245, 245)}
@@ -24,6 +27,11 @@ OUTLINE = (24, 24, 24)
 
 def marker_emoji(marker: str) -> str:
     return f"marker_{marker}"
+
+
+def spell_emoji(spell_id: int | str) -> str:
+    """A boss ability's emoji: its icon, by spell id."""
+    return f"spell_{spell_id}"
 
 
 def spec_emoji(class_name: str, spec: str = "") -> str:
@@ -126,6 +134,12 @@ async def _wanted() -> list[tuple[str, Callable[[], Awaitable[bytes]]]]:
     for class_name, spec in specs:
         wanted.append((spec_emoji(class_name, spec),
                        lambda c=class_name, s=spec: knowledge.wcl_image(f"icons/{c}-{s}.jpg")))
+    try:
+        spells = await knowledge.raid_boss_spells()
+    except KnowledgeError as e:
+        log.warning("no boss ability emojis: %s", e)
+        spells = []
+    wanted += [(spell_emoji(s), lambda s=s: knowledge.spell_icon(s)) for s in spells]
     return wanted
 
 
@@ -145,5 +159,8 @@ async def sync(client: discord.Client, emojis: dict[str, str]) -> None:
                 log.warning("no emoji %s: %s", name, e)
         if uploaded:
             log.info("uploaded %d emojis", uploaded)
+        if len(emojis) >= WARN_AT:
+            log.warning("the bot has %d of Discord's %d emojis: drop the oldest boss abilities' (spell_...) before "
+                        "it runs out", len(emojis), LIMIT)
     except discord.HTTPException as e:
         log.warning("the bot's emojis can't be read: %s", e)

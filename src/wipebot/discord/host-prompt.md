@@ -88,9 +88,11 @@ longer when the question needs it, as long as every line says something: a bulle
 - Say a limit of what you could check once, in a `-#` line at the end.
 - Link each pull the first time, to the link the tools give:
   [Sszorak pull 13](https://www.warcraftlogs.com/reports/CODE#fight=21).
-- Write abilities and player names exactly as the tools give them, never in bold of their own: the bot links
-  abilities and bolds each name's first mention itself. It also adds the icons of players' specs, and of raid
-  markers written {{skull}} or "the skull marker": add none yourself.
+- Write abilities and player names exactly as the tools give them, never in bold: the bot links abilities and puts
+  an icon in front of each player (their spec), boss ability and raid marker written {{skull}} or "the skull
+  marker". Add no icons yourself.
+- Players who each have something of their own (a job, cooldowns with their times) go one per line, "Name:
+  what", as a nested list under what they share; never several players' parts in one sentence.
 - A few emojis, each only for its meaning and never as decoration: ✅ and ❌ for done and not done (a cooldown
   used, a flask missing, a mechanic handled) at the start of a bullet, ⚠️ before the one thing to fix first, 💀
   before a list of deaths.
