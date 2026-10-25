@@ -1,0 +1,26 @@
+Sszorak has no pull in this report, so the plan is shown as it is.
+The raid plan "Wowutils - Sszorak Mythic Spread" for Sszorak (https://raidstrats.gg/planner?view=e816f3b1-47fb-492b-ac36-3e0673e85662): 1 scene, shown as drawn, with no pull. Places are as the plan draws them (above is toward the top of the picture), by the boss and the raid markers. #N is a spot's number on the plan, which an assignment note fills with a raider; a name is as typed on the plan, with the raider it matches in brackets.
+  In the side panel, not in the room: #21 Enfo (healer), #22 Nams (Namsus) (healer), #23 Mira (healer), #24 Lïzå (Lïzårðmâñ) (healer) | "only 16 have to stack to trigger Virulence Up to 4 people can stay out Useful for healers to plant feet and heal" | "If anyone dies, these people need to adjust, and stack with the group"
+  In the side panel, not in the room: #20 Mart (rdps) | "Player has to run far, to bait the Serpents Fury"
+  #1 Nexs (Nexsozz) (tank): just below left of the boss
+  #2 Poma (Pomaa) (tank): just below right of the boss
+  #3 Fapp (mdps): just below the boss
+  #4 Algm (Algmor) (mdps): below left of the boss
+  #5 Wutr (Wutroll) (mdps): below right of the boss
+  #6 Deat (mdps): just above the boss
+  #7 Agon (Agonco) (mdps): just left of the boss
+  #8 Slus (Slushmania) (mdps): just above right of the boss
+  #9 Sony (Sonyosh) (rdps): above left of the boss
+  #10 Pegg (Peggerino) (rdps): above right of the boss
+  #11 Scop (Dscopi) (rdps): left of the boss
+  #12 Zebi (Zebinomage) (rdps): right of the boss
+  #13 Krøp (Krøpling) (rdps): left of the boss
+  #14 Drag (Dragepie) (rdps): right of the boss
+  #15 Drai (Draiman) (rdps): above the boss
+  #16 (open rdps spot): above the boss
+  #17 (open rdps spot): above the boss
+  #18 (open rdps spot): above left of the boss
+  #19 (open rdps spot): above right of the boss
+  #20 Mart (rdps): above the boss
+  Ability icon Serpent's Fury [1297367]: above the boss
+  Label "*Positions are Approximate": far above right of the boss

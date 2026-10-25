@@ -860,12 +860,17 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     the name typed on it (and the raider it matches), its role, and where it is by the boss and the raid markers;
     the notes, adds, ability icons with their labels, shapes with what's in them, and arrows. Places are as the plan
     draws them, not in the room; a spot without a name is filled by the night's assignment, which the plan doesn't
-    have."""
-    rep, source = await lib().report(report), ""
+    have. Asked about a boss the report has no pull on, it shows the plan."""
+    rep, source, unpulled = await lib().report(report), "", ""
+    if boss and not show:
+        try:
+            rep.boss(boss)
+        except FactError:  # a boss the report has no pull on (not pulled yet): there's only the plan to show
+            show, unpulled = True, f"{boss} has no pull in this report, so the plan is shown as it is.\n"
     if show:
         if not plan:
             plan, source = await _every_plan(rep)
-        text = await plans.plan_show(rep, plan, boss, player)
+        text = unpulled + await plans.plan_show(rep, plan, boss, player)
         return CallToolResult(content=[TextContent(type="text", text=f"(The plans were {source}.)\n{text}"
                                                    if source else text)])
     if not plan:
