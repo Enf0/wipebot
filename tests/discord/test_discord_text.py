@@ -163,7 +163,7 @@ def test_no_way_of_writing_a_masked_link_gets_past(link, text):
     assert unlink_elsewhere(f"see {link} now") == f"see {text} now"
 
 
-ICONS = {"marker_skull": "<:marker_skull:8>", "marker_star": "<:marker_star:1>", "Paladin": "<:Paladin:20>",
+ICONS = {"raid_skull": "<:raid_skull:8>", "raid_star": "<:raid_star:1>", "Paladin": "<:Paladin:20>",
          "Paladin_Holy": "<:Paladin_Holy:21>", "DeathKnight": "<:DeathKnight:30>",
          "DeathKnight_Blood": "<:DeathKnight_Blood:31>", "wipebot_spinner": "<a:wipebot_spinner:9>",
          "spell_1290001": "<:spell_1290001:40>"}
@@ -172,10 +172,10 @@ SPECS = {"Brightleaf": ("Paladin", "Holy"), "Torvek": ("DeathKnight", "Frost"), 
 
 @pytest.mark.parametrize("text, expected", [
     pytest.param("Stack on {skull}, then {rt1} and {RT8}.",
-                 "Stack on <:marker_skull:8>, then <:marker_star:1> and <:marker_skull:8>.",
+                 "Stack on <:raid_skull:8>, then <:raid_star:1> and <:raid_skull:8>.",
                  id="a raid note's markers, every one"),
     pytest.param("Go to the skull marker, then the Star marker; skull.",
-                 "Go to the <:marker_skull:8> skull marker, then the <:marker_star:1> Star marker; skull.",
+                 "Go to the <:raid_skull:8> skull marker, then the <:raid_star:1> Star marker; skull.",
                  id="before a marker named as one"),
     pytest.param("**Brightleaf** heals; Brightleaf again.",
                  "**<:Paladin_Holy:21> Brightleaf** heals; <:Paladin_Holy:21> Brightleaf again.",
@@ -255,11 +255,11 @@ def test_a_players_spec_is_the_reports_then_the_tools_then_the_rosters():
 
 
 def test_a_marker_in_a_links_text_goes_after_the_link_and_a_class_named_spot_gets_no_icon():
-    icons = {"marker_skull": "<:marker_skull:8>", "marker_star": "<:marker_star:1>", "Priest": "<:Priest:6>",
+    icons = {"raid_skull": "<:raid_skull:8>", "raid_star": "<:raid_star:1>", "Priest": "<:Priest:6>",
              "Priest_Holy": "<:Priest_Holy:5>"}
     text = "2. [en ny gateway til {skull}](https://raidstrats.gg/p/4), så [til {star}](https://raidstrats.gg/p/6)."
-    assert add_icons(text, {}, icons) == ("2. [en ny gateway til](https://raidstrats.gg/p/4) <:marker_skull:8>, så "
-                                          "[til](https://raidstrats.gg/p/6) <:marker_star:1>.")
+    assert add_icons(text, {}, icons) == ("2. [en ny gateway til](https://raidstrats.gg/p/4) <:raid_skull:8>, så "
+                                          "[til](https://raidstrats.gg/p/6) <:raid_star:1>.")
     assert add_icons("en «Priest» uten navn, ikke Namsus", {"Priest": ("Priest", ""), "Namsus": ("Priest", "Holy")},
                      icons) == "en «Priest» uten navn, ikke <:Priest_Holy:5> Namsus"
 
@@ -268,3 +268,10 @@ def test_no_blank_line_inside_a_list_where_discord_would_end_its_nesting():
     text = "- **Healers:**\n  - Cptola: orb.\n  - Enfo: totem.\n\n  - Lizard: goalkeeper.\n- **Melee:**"
     assert tight_lists(text) == ("- **Healers:**\n  - Cptola: orb.\n  - Enfo: totem.\n  - Lizard: goalkeeper.\n"
                                  "- **Melee:**")
+
+
+def test_a_boss_ability_linked_by_another_of_its_ids_gets_its_icon_by_name():
+    icons = {"spell_1283489": "<:spell_1283489:7>", "ability:guillotine": "<:spell_1283489:7>"}
+    text = f"Får du {spell('Guillotine', 1283485)}, si fra. {spell('Sever', 1299684)}."
+    assert add_icons(text, {}, icons) == f"Får du <:spell_1283489:7> {spell('Guillotine', 1283485)}, si fra. " \
+                                         f"{spell('Sever', 1299684)}."

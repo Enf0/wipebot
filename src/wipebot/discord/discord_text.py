@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 from wipebot.core.knowledge import spaced
 from wipebot.core.report import Report
 
-from .emojis import MARKERS, SPINNER, marker_emoji, spec_emoji, spell_emoji
+from .emojis import MARKERS, SPINNER, ability_key, marker_emoji, spec_emoji, spell_emoji
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\([^)]*\)|<?https?://\S+")
 BOLD = re.compile(r"\*\*.+?\*\*")  # on one line
@@ -32,7 +32,7 @@ LINKED_SITES = ("warcraftlogs.com", "wowhead.com", "method.gg", "icy-veins.com",
 # A raid marker as raid notes write it: {skull}, {rt8}
 MARKER_TOKEN = re.compile(r"\{(rt[1-8]|x|" + "|".join(MARKERS) + r")\}", re.I)
 SKIPPED = (MARKDOWN_LINK, CODE)  # where add_icons adds none
-SPELL_LINK = re.compile(r"\[[^\]]+\]\(https://www\.wowhead\.com/spell=(\d+)\)")  # [Tempest](...spell=1287083)
+SPELL_LINK = re.compile(r"\[([^\]]+)\]\(https://www\.wowhead\.com/spell=(\d+)\)")  # [Tempest](...spell=1287083)
 # A raid plan's scene with its link: "Scene 2 (https://raidstrats.gg/planner?view=<plan>/2):"
 SCENE_LINK = re.compile(r"^\s*Scene (\d+) \((https://raidstrats\.gg/\S+?)\):", re.M)
 SCENE = re.compile(r"(?<![\w\[])scene (\d+)(?![\w\]])", re.I)
@@ -61,7 +61,8 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
     for report in reports:
         text = fix_pull_links(text, report)
     if icons:
-        specs = dict(roster) | planned_classes(results, {name.lower(): name for name in icons if "_" not in name})
+        classes = {name.lower(): name for name in icons if "_" not in name and ":" not in name}
+        specs = dict(roster) | planned_classes(results, classes)
         specs |= specs_in(results, icons)
         specs |= {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()}
         text = add_icons(text, specs, icons)
@@ -317,11 +318,14 @@ def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[st
         return f"{found} {said}" if found else said
     text = re.sub(rf"(?<![\w\[])(?:{'|'.join(parts)})(?![\w\]])", icon, text)
     # a boss ability's icon before its Wowhead link
-    return SPELL_LINK.sub(lambda m: f"{icons[e]} {m.group(0)}" if (e := spell_emoji(m.group(1))) in icons
-                          else m.group(0), text)
+    def ability(m: re.Match) -> str:  # by its id, else by its name (a cast and its debuff have different ids)
+        found = icons.get(spell_emoji(m.group(2))) or icons.get(ability_key(m.group(1)))
+        return f"{found} {m.group(0)}" if found else m.group(0)
+    return SPELL_LINK.sub(ability, text)
 
 
 def _spec_pairs(icons: Mapping[str, str]) -> list[tuple[str, str]]:
     """The (class, spec) of each spec's emoji the bot has."""
     return [cast(tuple[str, str], tuple(name.split("_", 1))) for name in icons
-            if "_" in name and not name.startswith(("marker_", "spell_")) and name != SPINNER]
+            if "_" in name and ":" not in name and not name.startswith(("marker_", "raid_", "spell_"))
+            and name != SPINNER]

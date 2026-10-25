@@ -87,11 +87,11 @@ async def boss_spells(boss: str) -> list[dict]:
     return [s for s in data.values() if isinstance(s, dict)]
 
 
-async def raid_boss_spells() -> list[int]:
-    """The spell ids of the boss abilities Lorrgs tracks, over every boss of the current expansion's raids."""
+async def raid_boss_spells() -> dict[int, str]:
+    """The boss abilities Lorrgs tracks, spell id -> name, over every boss of the current expansion's raids."""
     bosses = [b for _, names in await raids() for b in names]
     found = await asyncio.gather(*(boss_spells(b) for b in bosses))
-    return list(dict.fromkeys(s["spell_id"] for spells in found for s in spells if s.get("spell_id")))
+    return {s["spell_id"]: s.get("name") or "" for spells in found for s in spells if s.get("spell_id")}
 
 
 async def raids() -> list[tuple[str, list[str]]]:

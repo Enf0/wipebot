@@ -56,6 +56,20 @@ async def wcl_image(path: str) -> bytes:
         raise KnowledgeError(f"Warcraft Logs' image {path} can't be fetched: {e}") from e
 
 
+async def game_file(file_id: int) -> bytes:
+    """One of the game's files by its file id, as wago.tools serves it (a texture comes as BLP), kept on disk. The
+    community listfile (github.com/wowdev/wow-listfile) names the ids."""
+    async def get() -> str:
+        async with httpx.AsyncClient(timeout=60, headers={"User-Agent": "Wipebot"}, follow_redirects=True) as client:
+            r = await client.get(f"https://wago.tools/api/casc/{file_id}?download")
+            r.raise_for_status()
+            return base64.b64encode(r.content).decode()
+    try:
+        return base64.b64decode(await cache().fetch(cache_key("game-file", file_id), 365 * DAY, get))
+    except httpx.HTTPError as e:
+        raise KnowledgeError(f"the game's file {file_id} can't be fetched from wago.tools: {e}") from e
+
+
 async def map_image(ui_map_id: int) -> bytes:
     """A boss room's map image from Warcraft Logs."""
     return await wcl_image(f"maps/{ui_map_id}-map.png?v=2")

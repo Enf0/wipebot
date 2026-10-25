@@ -127,7 +127,8 @@ def format_earlier(messages: list[tuple[str, datetime.datetime, str]], chars: in
     lines = []
     for author, sent, text in messages:
         text = "\n".join(line for line in text.splitlines() if not line.startswith("-# "))
-        text = CUSTOM_EMOJI.sub(lambda m: f"{{{m[1][7:]}}}{m[2]}" if m[1].startswith("marker_") else "", text).strip()
+        text = CUSTOM_EMOJI.sub(lambda m: f"{{{m[1].split('_', 1)[1]}}}{m[2]}" if m[1].startswith(("marker_", "raid_"))
+                                else "", text).strip()
         if len(text) > chars:
             text = text[:chars].rstrip() + " …"
         if text:
