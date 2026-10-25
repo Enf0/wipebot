@@ -36,8 +36,9 @@ SPELL_LINK = re.compile(r"\[[^\]]+\]\(https://www\.wowhead\.com/spell=(\d+)\)") 
 # A raid plan's scene with its link: "Scene 2 (https://raidstrats.gg/planner?view=<plan>/2):"
 SCENE_LINK = re.compile(r"^\s*Scene (\d+) \((https://raidstrats\.gg/\S+?)\):", re.M)
 SCENE = re.compile(r"(?<![\w\[])scene (\d+)(?![\w\]])", re.I)
-# A lead naming a scene's subject, then the scene in brackets: "**Grønne orbs (scene 2):**", "- Orbs (scene 3): ..."
-NAMED_SCENE = re.compile(r"(?:(?<=\*\*)|(?<=^- ))([^\s*\[(][^*\n()\[\]:]{0,40}?) \((?i:scene) (\d+)\)(?=:|\*\*)", re.M)
+# The clause a scene is named after in brackets: "**Grønne orbs (scene 2):**", "pil inn til orbene i P1 (scene 3),"
+NAMED_SCENE = re.compile(r"(?:(?<=\*\*)|(?<=^- )|(?<=^)|(?<=[,;:.!?] ))([^\s*\[(\-][^*\n()\[\],;:.!?]{1,80}?) "
+                         r"\((?i:scene) (\d+)\)", re.M)
 # A spot on a raid plan with its raider's class: "#9 Martin (hunter):", "#7 Zebino (Zebinomage) (mage):"
 PLAN_SPOT = re.compile(r"#\d+ ([^():#\n]+?)(?: \(([^()\n]+)\))? \(([a-z]+)\):")
 BLANK_BEFORE_LIST = re.compile(r"^(?![ \t]*(?:[-*]|\d+\.) )(\S.*)\n[ \t]*\n(?=[ \t]*(?:[-*]|\d+\.) )", re.M)
@@ -137,9 +138,10 @@ def link_items(text: str, results: Sequence[str]) -> str:
 
 
 def link_scenes(text: str, results: Sequence[str]) -> str:
-    """Each scene of a raid plan linked once to it on raidstrats.gg, as the plan's tool result links it: a lead
-    naming its subject with the scene in brackets ("**Grønne orbs (scene 2):**") becomes the subject linked, else
-    the first "scene 2" is. Not when the results hold several plans with that scene, or the answer links it."""
+    """Each scene of a raid plan linked once to it on raidstrats.gg, as the plan's tool result links it: the clause
+    a scene is named after in brackets ("**Grønne orbs (scene 2):**", "pil inn til orbene (scene 3),") becomes the
+    link and the brackets go, else the first "scene 2" is linked. Not when the results hold several plans with that
+    scene, or the answer links it."""
     urls: dict[int, set[str]] = {}
     for result in results:
         for n, url in SCENE_LINK.findall(result):
