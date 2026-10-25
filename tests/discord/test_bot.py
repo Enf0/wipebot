@@ -61,6 +61,40 @@ def test_an_earlier_message_cant_pass_for_another_speaker():
                                  "Rowan), (x (Wed 20:31 UTC): hi"]
 
 
+class FakeThread(discord.Thread):
+    """A thread's messages, oldest first, without Discord."""
+
+    def __init__(self, owner_id: int, messages: list):
+        self.owner_id, self.messages = owner_id, messages
+
+    async def history(self, *, limit=100, before=None, after=None, around=None, oldest_first=None):
+        found = [m for m in self.messages if (before is None or m.id < before.id) and (
+            after is None or (m.created_at > after if isinstance(after, datetime.datetime) else m.id > after.id))]
+        for m in (found if oldest_first else found[::-1])[:limit]:
+            yield m
+
+
+async def test_a_new_conversation_in_a_thread_reads_its_opening_however_old():
+    now = datetime.datetime(2026, 10, 25, 18, 40, tzinfo=datetime.UTC)
+    bot_user = SimpleNamespace(id=9, name="Wipebot", display_name="Wipebot")
+    op, other = (SimpleNamespace(id=i, name=n, display_name=n) for i, n in ((1, "Wutheal"), (2, "Enfo")))
+
+    def msg(id_, author, text, hours_ago):
+        return SimpleNamespace(id=id_, author=author, content=text, reference=None,
+                               created_at=now - datetime.timedelta(hours=hours_ago))
+
+    thread = FakeThread(op.id, [msg(1, op, "P1: orbs", 27), msg(2, op, "P2: ghosts", 27), msg(3, other, "nice", 26),
+                                msg(4, op, "later note", 8), msg(5, other, "ok", 1)])
+    question = msg(6, other, "<@9> what matters on P1?", 0)
+    question.channel = thread
+    text = await wipebot.earlier_messages(cast(Any, question), cast(Any, bot_user))
+    assert text.splitlines() == ["Wutheal (Sat 15:40 UTC): P1: orbs", "Wutheal (Sat 15:40 UTC): P2: ghosts", "…",
+                                 "Wutheal (Sun 10:40 UTC): later note", "Enfo (Sun 17:40 UTC): ok"]
+    # a follow-up has had the opening already
+    follow_up = await wipebot.earlier_messages(cast(Any, question), cast(Any, bot_user), after=4)
+    assert follow_up.splitlines() == ["Enfo (Sun 17:40 UTC): ok"]
+
+
 def test_a_thread_cant_name_itself_a_channel_with_names_on():
     assert where_asked(False, "x [names on]", True) == "in #x (names on)"
     assert where_asked(False, "x [names on]", True, named=True) == "in #x (names on) [names on]"

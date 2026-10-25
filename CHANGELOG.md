@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Discord` **Notes at the top of a thread.** Asking in a thread now reads the messages it opens with, such as a forum post and the notes posted under it, however old; before, only the last 12 hours were read.
+
 ## [0.9.0] - 2026-10-25
 
 ### Changed
