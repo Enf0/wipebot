@@ -180,6 +180,7 @@ async def test_the_painter_draws_the_pull_view_as_a_picture_for_the_bot(recorded
 # ---- the player view: real data reads rankings and other guilds' parses (local only); the page draws made-up data ----
 
 PLAYER_CASE, TOP_CASE = CASES["player-pull"], CASES["compare-with-top"]  # Draiman on pull 13, and against the top
+NIGHT_CASE = CASES["player-night"]  # Enfo's night on Sszorak
 
 
 async def player_data(top: bool = False) -> dict:
@@ -193,6 +194,34 @@ async def player_data(top: bool = False) -> dict:
 def local(recorded):
     if not LOCAL_RECORDED.exists():
         pytest.skip(NOT_LOCAL)
+
+
+async def night_data() -> dict:
+    a = NIGHT_CASE.args
+    result = await server.view_data("player_night", None, a.get("boss"), a["report"], a["player"])
+    assert result.structured_content is not None
+    return result.structured_content
+
+
+async def test_the_player_night_view_matches_its_snapshot(local):
+    assert_snapshot(LOCAL / "views" / "player-night.txt", readable(await night_data()))
+
+
+async def test_the_player_night_view_states_what_player_night_states(local):
+    data = await night_data()
+    text, failed = await server.call("player_night", NIGHT_CASE.args)
+    assert not failed
+    n = len(data["pulls"])
+    assert f"Died before the wipe was decided on {data['died']} of {n} pulls" in text
+    assert f"dead for {data['dead_s']} s of the {data['counted_s']} s" in text and f"({data['dead_pct']}%" in text
+    best = f"pull {data['best']['pull']} ({kit_short(data['best']['per_s_alive'])}/s)"
+    assert f"Best pull by {data['what']} per second alive: {best}" in text
+    if data["thirds"]:
+        died = " / ".join(f"{t['died']} of {len(t['pulls'])}" for t in data["thirds"])
+        assert f"died before the wipe was decided on {died};" in text
+    for c in data["cooldowns"]:
+        if c["possible"] is not None and c["used"]:
+            assert f"{c['name']} {c['used']}/{c['possible']}" in text
 
 
 async def test_the_player_view_matches_its_snapshot(local):
@@ -242,6 +271,8 @@ async def test_view_keys_name_the_player_as_logged_and_ask_for_the_comparison(re
     assert await server.view_key("compare_with_top", {**asked, "aspects": ["build"]}) is None  # no casts: no view
     assert await server.view_key("compare_with_top", {"spec": "holy priest", "boss": "Sszorak"}) is None
     assert await server.view_key("pull_map", asked) is None  # its picture is its own
+    assert await server.view_key("player_night", {"report": rep.code, "player": name.lower()}) == {
+        "view": "player_night", "report": rep.code, "boss": "Sszorak", "player": name}  # a night: no pull
 
 
 def made_up_player(top: bool) -> dict:
@@ -274,6 +305,28 @@ def made_up_player(top: bool) -> dict:
     }
 
 
+def made_up_night() -> dict:
+    """A player's night, made up: six pulls, a reset, two deaths that counted and one after the wipe was decided."""
+    pulls = []
+    for n, (pct, rate, death) in enumerate([(100.0, 150_000, None), (80.5, 280_000, (1, False)),
+                                            (70.2, 300_000, None), (65.0, 310_000, (4, False)),
+                                            (60.1, 320_000, (9, True)), (55.0, 330_000, None)], start=1):
+        pulls.append({"pull": n, "kill": False, "reset": n == 1, "wipe_pct": pct, "duration_ms": 60000 * n,
+                      "role": "healer", "spec": "Restoration", "per_s_alive": rate, "rank": 2, "of": 4,
+                      "death": {"place": death[0], "ms": 30000 * n, "by": "Slag Wave", "icon": "spells/1.jpg",
+                                "fallout": death[1]} if death else None,
+                      "dead_s": 5.0 if death and not death[1] else 0.0, "counted_s": 55.0 * n, "cooldowns": [1, 2]})
+    return {"view": "player_night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge",
+            "title": "Mirelle on Torvek's Forge",
+            "player": {"name": "Mirelle", "spec": "Restoration", "class": "Shaman", "color": "#0070DD",
+                       "role": "healer"},
+            "what": "healing", "role_name": "healers", "pulls": pulls, "total_pulls": 6, "died": 2, "first": 1,
+            "early": 1, "early_n": 3, "dead_s": 10, "counted_s": 1155, "dead_pct": 1, "cooldowns_total": [6, 12],
+            "best": {"pull": 6, "per_s_alive": 330_000},
+            "cooldowns": [{"name": "Ascendance", "used": 4, "possible": 6, "icon": "spells/114052.jpg"}],
+            "cooldowns_unavailable": "", "thirds": []}
+
+
 @pytest.fixture
 def made_up(monkeypatch):
     """The player view drawn from made-up data: its key and its data answered without a report, its icons made up."""
@@ -288,7 +341,8 @@ def made_up(monkeypatch):
         return {"content": [{"type": "text", "text": "Mirelle's pull"}], "structuredContent": key}
 
     async def view_data(view, pull=None, boss=None, report=None, player=None, top=False):
-        return CallToolResult(content=[], structured_content=made_up_player(top))
+        return CallToolResult(content=[], structured_content=made_up_night() if view == "player_night"
+                              else made_up_player(top))
 
     async def view_key(tool, args):
         return {**key, "top": tool == "compare_with_top"}
@@ -310,6 +364,24 @@ async def test_the_player_view_draws_and_asks_for_the_top_on_a_click(made_up, tm
              and m["msg"]["params"]["name"] == "view_data"]
     assert [c.get("top") for c in calls] == [False, True]  # the comparison read only when asked for
     assert "Astral Shift" in clicked.text and "0.0 / 0.4" in clicked.text
+
+
+async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_up, tmp_path, monkeypatch):
+    from wipebot.core import viewhost
+
+    async def tool_result(tool, args):  # player_night's key: a boss's night, no pull
+        return {"content": [], "structuredContent": {"view": "player_night", "report": "AbCdEfGh12345678",
+                                                     "boss": "Torvek's Forge", "player": "Mirelle"}}
+    monkeypatch.setattr(viewhost, "tool_result", tool_result)
+    first, opened = await shots(tmp_path, "player_night", {"player": "Mirelle"}, themes=("dark",), widths=(760,),
+                                modes=("fullscreen",), clicks=('css:tr[data-pull="4"]',))
+    assert not first.errors and "2 of 6" in first.text and "first to die once" in first.text
+    assert "6: 330k" in first.text and "pull by pull" in first.text.lower()
+    calls = [m["msg"]["params"]["arguments"] for m in opened.messages if m["msg"].get("method") == "tools/call"
+             and m["msg"]["params"]["name"] == "view_data"]
+    assert calls[-1] == {"view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge",
+                         "player": "Mirelle", "top": False}
+    assert "← Mirelle" in opened.text and "rank 2 of 4 healers" in opened.text  # that pull's card, and Back
 
 
 async def test_a_mark_shows_its_tooltip_on_hover_and_icons_draw(made_up):

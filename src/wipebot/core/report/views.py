@@ -10,14 +10,15 @@ import hashlib
 import statistics
 from collections import Counter
 from importlib import resources
+from typing import Any
 
 from ..classes import class_hex
 from ..knowledge import KnowledgeError, spaced
-from ..pulls import DIFFICULTIES
+from ..pulls import DIFFICULTIES, FIRST_DEATHS, is_reset, wipe_pct
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, casting, raid_pauses, without
-from .coaching import dead_spans, resource_use, time_lost
+from .coaching import dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .ending import HalfDead, KeptBuff, MassDeath, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
@@ -26,9 +27,9 @@ from .top import cast_comparison
 
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
-SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "replay.js", "main.js"]
+SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "replay.js", "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
-VIEWS = ("pull", "player")  # what view_data draws (the replay is maps.replay)
+VIEWS = ("pull", "player", "player_night")  # what view_data draws (the replay is maps.replay)
 
 
 @functools.cache
@@ -48,15 +49,18 @@ def page_uri() -> str:
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
                     player: str | None = None, top: bool = False) -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
-    player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's)."""
+    player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
+    player's night view's `player` on `boss`."""
+    if view not in VIEWS:
+        raise ValueError(f"no view {view!r}")
+    if view != "pull" and not player:
+        raise ValueError(f"the {view} view needs a player")
+    if view == "player_night":
+        return await player_night_view(rep, rep.boss(boss), player or "")
     f = rep.fight(pull, boss)
     if view == "pull":
         return await pull_view(rep, f)
-    if view == "player":
-        if not player:
-            raise ValueError("the player view needs a player")
-        return await player_view(rep, f, player, top)
-    raise ValueError(f"no view {view!r}")
+    return await player_view(rep, f, player or "", top)
 
 
 async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, field by field)
@@ -205,6 +209,61 @@ async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | s
                        "flag": r.flag} for r in c.rates],
             "total": [round(sum(v or 0 for v in c.my_cpm.values())),
                       round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))]}
+
+
+async def player_night_view(rep: Report, boss: str, player: str) -> dict:
+    """One player across every pull on a boss, as player_night states it: per pull their output per second alive and
+    rank in their role, their first death (its place among the pull's deaths, and whether it came after the wipe
+    was decided), their major cooldowns used of possible; over the night, the deaths that counted, time dead, their
+    best pull, and their cooldowns summed."""
+    p = rep.player(player)
+    fights = [f for f in rep.pulls_with(p, rep.by_boss[boss]) if not f.get("inProgress")]
+    if not fights:
+        raise ValueError(f"{p.name}'s only pull on {boss} is still going")
+    pulls, skipped, why = await night_pulls(rep, p, fights)
+    cds = night_cooldowns(pulls, skipped, why)
+    role = Counter(x.played.role for x in pulls).most_common(1)[0][0]
+    ids = {sp["name"]: sp.get("spell_id") for x in pulls for sp, _, _ in x.cooldowns}
+    rows: list[dict[str, Any]] = []
+    for x in pulls:
+        f, mine = x.f, x.mine
+        judged = [(sp, times, possible) for sp, times, possible in x.cooldowns
+                  if not NOT_ON_COOLDOWN & set(sp.get("tags") or []) and possible is not None]
+        death = None
+        if x.death:
+            k, d, _ = x.death
+            death = {"place": k + 1, "ms": round(d["timestamp"] - f["startTime"]),
+                     "by": rep.ability(d.get("killingAbilityGameID")), "icon": icon(d.get("killingAbilityGameID")),
+                     "fallout": x.fallout}
+        rows.append({
+            "pull": rep.pull_no(f), "kill": bool(f["kill"]), "reset": is_reset(f), "wipe_pct": wipe_pct(f),
+            "duration_ms": round(f["endTime"] - f["startTime"]), "role": x.played.role,
+            "spec": spaced(x.played.spec), "per_s_alive": round(mine["total"] / max(x.alive_s, 1)) if mine else None,
+            "rank": x.peers.index(mine) + 1 if mine and mine in x.peers else None, "of": len(x.peers),
+            "death": death, "dead_s": round(x.dead_s, 1), "counted_s": round(x.counted_s, 1),
+            "cooldowns": [sum(min(len(t), n) for _, t, n in judged), sum(n for _, _, n in judged)],
+        })
+    counted = [r for r in rows if r["death"] and not r["death"]["fallout"]]
+    dead_s, counted_s = sum(x.dead_s for x in pulls), sum(x.counted_s for x in pulls)  # unrounded, as the text sums
+    ranked = [r for r in rows if r["per_s_alive"] is not None and not r["reset"] and r["role"] == role]
+    best = max(ranked, key=lambda r: r["per_s_alive"], default=None)
+    return {
+        "view": "player_night", "report": rep.code, "boss": boss, "title": f"{p.name} on {boss}",
+        "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
+                   "color": class_hex(p.class_name), "role": role},
+        "what": "healing" if role == "healer" else "damage", "role_name": ROLE_NAMES[role],
+        "pulls": rows, "total_pulls": len([f for f in rep.by_boss[boss] if not f.get("inProgress")]),
+        "died": len(counted), "first": sum(r["death"]["place"] == 1 for r in counted),
+        "early": sum(r["death"]["place"] <= FIRST_DEATHS for r in counted), "early_n": FIRST_DEATHS,
+        "dead_s": round(dead_s), "counted_s": round(counted_s), "dead_pct": round(100 * dead_s / max(counted_s, 1)),
+        "cooldowns_total": [sum(r["cooldowns"][0] for r in rows), sum(r["cooldowns"][1] for r in rows)],
+        "best": {"pull": best["pull"], "per_s_alive": best["per_s_alive"]} if best else None,
+        "cooldowns": [{"name": n, "used": cds.used[n], "possible": cds.possible[n] if n not in cds.unknown else None,
+                       "icon": icon(ids.get(n))} for n in cds.used],
+        "cooldowns_unavailable": cds.unavailable,
+        "thirds": [{"pulls": [rows[i]["pull"] for i in t.pulls], "died": t.died,
+                    "rate": round(t.rate) if t.rate is not None else None} for t in night_trend(pulls, role) or []],
+    }
 
 
 def icon(spell_id: int | str | None) -> str | None:

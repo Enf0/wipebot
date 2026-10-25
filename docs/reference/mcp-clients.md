@@ -22,7 +22,10 @@ Seen live on 2026-10-13 with claude.ai and the deployed remote server:
   Desktop called it without loading the page (no `view_data` call) until Refresh tools; in a plugin, the connector's
   page under Settings → Connectors has it.
 - Claude caches an MCP App's page by its `ui://` address: a changed page under the same address kept showing
-  the old one after Refresh tools. The address carries a hash of the page (`views.page_uri()`).
+  the old one after Refresh tools. The address carries a hash of the page (`views.page_uri()`). A deploy that
+  changes only the page needs no Refresh tools: the cached tool list still names the old address, the server
+  answers any older one with today's page (`_any_views_address`), and reloading the chat in Claude Desktop showed
+  the new page (25 October), even in a card drawn before the deploy.
 - Claude Desktop (Windows, 25 October) sizes an inline view's frame a few pixels short of the page, which then
   shows a scrollbar of its own, as claude-ai-mcp#69 describes (it measures the page rather than reading
   `ui/notifications/size-changed`): the views' page hides its overflow inline.

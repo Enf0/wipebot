@@ -98,7 +98,7 @@ async def _load() -> Recorded:
         a = CASES["player-night"].args
         rep = await server.lib().report(a["report"])
         p = rep.player(a["player"])
-        out.night = (await coaching._night_pulls(rep, p, rep.by_boss[rep.boss(None)]))[0]
+        out.night = (await coaching.night_pulls(rep, p, rep.by_boss[rep.boss(None)]))[0]
         out.percentiles = [x for k in (await night._kill_rankings(rep)).values() for x in k.values()]
         a = CASES["player-pull"].args
         f = rep.fight(a["pull"])

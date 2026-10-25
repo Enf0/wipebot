@@ -561,7 +561,8 @@ def _supports_apps(ctx: Context) -> bool:
 
 # The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
 # with their casts against top players, for one player's casts
-VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player"}
+VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player",
+              "player_night": "player_night"}
 
 
 async def view_key(tool: str, args: dict) -> dict | None:
@@ -573,6 +574,9 @@ async def view_key(tool: str, args: dict) -> dict | None:
                                                           and "casts" in (args.get("aspects") or ["casts"]))):
         return None
     rep = await lib().report(args.get("report"))
+    if view == "player_night":  # a boss's night: no pull
+        return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")),
+                "player": rep.player(args["player"]).name}
     f = rep.fight(args.get("pull"), args.get("boss"))
     key: dict = {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
     if view == "player":
@@ -1223,7 +1227,7 @@ async def compare_with_top(
 
 
 @_tool
-async def player_night(player: Player, boss: Boss = None, report: Report_ = None) -> str:
+async def player_night(player: Player, boss: Boss = None, report: Report_ = None) -> str | CallToolResult:
     """For "how did I do tonight?": start here for a night on one boss.
     One player across every pull on a boss: rank among their role, their best pull, when and to what they died
     (before or after each wipe was decided), time dead before each wipe was decided, and major cooldown use
@@ -1232,7 +1236,8 @@ async def player_night(player: Player, boss: Boss = None, report: Report_ = None
     middle and last third of the pulls.
     Reading it: a death after a wipe was decided is marked as fallout and left out of the counts. Cooldown uses /
     possible assume pressing on cooldown from the pull until the player died or the wipe was decided."""
-    return await coaching.player_night(await lib().report(report), player, boss)
+    text = await coaching.player_night(await lib().report(report), player, boss)
+    return await _shown("player_night", {"player": player, "boss": boss, "report": report}, text)
 
 
 History = Literal["kills", "deaths", "experience"]
