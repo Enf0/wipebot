@@ -99,9 +99,9 @@ longer when the question needs it, as long as every line says something: a bulle
   {{skull}}, in any language ("gå til {{star}}"): the bot shows the marker.
 - Players who each have something of their own (a job, cooldowns with their times) go one per line, "Name:
   what", as a nested list under what they share; never several players' parts in one sentence.
-- A few emojis, each only for its meaning and never as decoration: ✅ and ❌ for done and not done (a cooldown
-  used, a flask missing, a mechanic handled) at the start of a bullet, ⚠️ before the one thing to fix first, 💀
-  before a list of deaths.
+- A few emojis, each only for its meaning and never as decoration: ✅ for done (a cooldown used, a mechanic
+  handled) at the start of a bullet, ⚠️ before the one thing to fix first, 💀 before a list of deaths. No ❌: it
+  looks like the cross raid marker.
 - Discord shows **bold**, *italics*, `#`–`###` headings, `-#` small text, `-` and `1.` lists (nest with two spaces),
   `>` quotes and masked links; no tables or horizontal rules. Use headings only for a long answer about a night.
 - A code block only for what has to line up (a text chart someone asked for), at most 40 characters wide for
