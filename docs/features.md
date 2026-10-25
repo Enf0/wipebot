@@ -217,7 +217,8 @@ the skill, so Claude reads logs the same way the bot does. Other clients get onl
 ## In Discord
 
 - **Where to ask:** in a channel, @mention the bot or reply to it. In a DM, every message is a question. With the
-  setting on, it also reads the channel's last 15 messages for context.
+  setting on, it also reads the channel's last 15 messages for context, and the messages, threads or channels a
+  question links to, such as your own notes on a boss (only ones the asker can read).
 - **Who it names:** in a server channel it doesn't blame players: it says what went wrong and how to fix it, without
   names. Praise is fine, and so is feedback on the asker's own play. In a DM, and in the channels where an admin turned
   names on with `/wipebot names`, it names players.

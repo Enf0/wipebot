@@ -707,3 +707,138 @@ async def test_a_quick_answer_shows_no_progress_line(bot, message, monkeypatch):
     monkeypatch.setattr(bot.conversations, "ask", answering)
     await bot.on_message(msg)
     assert msg.replies == ["**Wiped.**"]
+
+
+# ---------- messages a question links to ----------
+
+
+class Perms(SimpleNamespace):
+    view_channel = read_message_history = True
+    manage_threads = False
+
+
+class Linked:
+    """A channel with its messages, readable by everyone but the members in `closed_to`."""
+
+    def __init__(self, channel_id, name, messages=(), closed_to=()):
+        self.id, self.name, self.messages, self.closed_to = channel_id, name, list(messages), set(closed_to)
+        for m in self.messages:
+            m.channel = self
+
+    def permissions_for(self, member):
+        return Perms(view_channel=member.id not in self.closed_to)
+
+    async def fetch_message(self, message_id):
+        if found := [m for m in self.messages if m.id == message_id]:
+            return found[0]
+        raise discord.NotFound(SimpleNamespace(status=404, reason=""), "")
+
+    async def history(self, limit=100, oldest_first=False):
+        for m in (self.messages if oldest_first else self.messages[::-1])[:limit]:
+            yield m
+
+
+class LinkedText(Linked, discord.TextChannel):  # ty: ignore[invalid-method-override]
+    pass
+
+
+class LinkedThread(Linked, discord.Thread):  # ty: ignore[invalid-method-override]
+    """A thread in `parent`; a private one keeps its members."""
+
+    def __init__(self, channel_id, name, parent, messages=(), private_to=None):
+        super().__init__(channel_id, name, messages, parent.closed_to)
+        self._parent, self.parent_id, self.private_to = parent, parent.id, private_to
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def type(self):
+        return discord.ChannelType.public_thread if self.private_to is None else discord.ChannelType.private_thread
+
+    async def fetch_member(self, user_id):
+        if user_id not in (self.private_to or ()):
+            raise discord.NotFound(SimpleNamespace(status=404, reason=""), "")
+
+
+def note(message_id, author, text, thread=None, attachments=()):
+    return SimpleNamespace(id=message_id, author=author, content=text, thread=thread, attachments=list(attachments),
+                           flags=SimpleNamespace(has_thread=False),
+                           created_at=datetime.datetime(2026, 10, 21, 19, 0, tzinfo=datetime.UTC))
+
+
+@pytest.fixture
+def linked(member):
+    """Server 1001 with #tactics (30): a note on Coiled Altar starting a thread, and a message after it; #officers
+    (40), closed to Rowan (7); the bot is 99."""
+    rowan, brann = member(7, "Rowan"), member(8, "Brann")
+    tactics = LinkedText(30, "tactics", [note(31, brann, "Coiled Altar: group 2 soaks left"),
+                                          note(32, brann, "Kyveza next week", attachments=["map.png"])])
+    thread = LinkedThread(31, "Coiled Altar", tactics, [note(50, brann, "tanks swap at 3 stacks")])
+    tactics.messages[0].thread = thread
+    officers = LinkedText(40, "officers", [note(41, brann, "bench Rowan")], closed_to={7})
+    channels = {c.id: c for c in (tactics, thread, officers)}
+
+    async def fetch_channel(channel_id):
+        raise discord.NotFound(SimpleNamespace(status=404, reason=""), "")
+    guild = SimpleNamespace(id=1001, me=member(99, "Wipebot"), get_channel_or_thread=channels.get,
+                            fetch_channel=fetch_channel, get_member={7: rowan}.get)
+    return SimpleNamespace(guild=guild, rowan=rowan, tactics=tactics, thread=thread, officers=officers)
+
+
+LINK = "https://discord.com/channels/1001"
+
+
+async def test_a_linked_message_comes_with_the_thread_it_starts(linked):
+    text = await wipebot.linked_messages(f"how do we do this boss? {LINK}/30/31", linked.guild, linked.rowan)
+    assert text.splitlines() == [f"{LINK}/30/31 (#tactics):", "Brann (Wed 19:00 UTC): Coiled Altar: group 2 soaks left",
+                                 "Brann (Wed 19:00 UTC): tanks swap at 3 stacks"]
+
+
+async def test_a_linked_thread_or_channel_gives_its_messages_oldest_first(linked):
+    thread = await wipebot.linked_messages(f"{LINK}/31", linked.guild, linked.rowan, named={30})
+    assert thread.splitlines()[0] == f"{LINK}/31 (thread \"Coiled Altar\" in #tactics [names on]):"
+    channel = await wipebot.linked_messages(f"<{LINK}/30>", linked.guild, linked.rowan)
+    assert channel.splitlines()[1:] == [
+        "Brann (Wed 19:00 UTC): Coiled Altar: group 2 soaks left",
+        "Brann (Wed 19:00 UTC): Kyveza next week [1 attachment(s) or image(s), not read]"]
+
+
+async def test_a_link_shows_only_what_the_asker_may_read_themselves(linked):
+    text = await wipebot.linked_messages(f"{LINK}/40/41 and https://discord.com/channels/2002/30/31", linked.guild,
+                                         linked.rowan)
+    assert text.splitlines() == [f"{LINK}/40/41: not read, not found, or the asker can't read it", "",
+                                 "https://discord.com/channels/2002/30/31: not read, it's in another server"]
+    assert "bench" not in text
+    linked.thread.private_to = {8}
+    assert (await wipebot.linked_messages(f"{LINK}/31", linked.guild, linked.rowan)).endswith("can't read it")
+    linked.tactics.closed_to = {99}  # nor what the bot may not
+    assert (await wipebot.linked_messages(f"{LINK}/30/32", linked.guild, linked.rowan)).endswith(
+        "I'm not allowed to read that channel")
+
+
+async def test_a_link_isnt_read_without_the_message_content_intent_or_to_a_gone_message(linked):
+    assert (await wipebot.linked_messages(f"{LINK}/30/31", linked.guild, linked.rowan, readable=False)).endswith(
+        "not read, I'm not set up to read messages that don't mention me")
+    assert (await wipebot.linked_messages(f"{LINK}/30/39", linked.guild, linked.rowan)).endswith(
+        "not read, that message is gone")
+
+
+async def test_a_question_linking_messages_comes_with_them(bot, message, asked, linked, monkeypatch):
+    monkeypatch.setattr(bot, "get_guild", lambda guild_id: linked.guild)
+    await bot.on_message(message(f"<@99> what's our plan? {LINK}/30/31"))
+    bot._connection._intents.message_content = True  # as with WIPEBOT_CHANNEL_CONTEXT=1
+    await bot.on_message(message(f"<@99> what's our plan? {LINK}/30/31"))
+    [without, with_intent] = [ctx.linked for _, _, _, ctx in asked]
+    assert without.endswith("not read, I'm not set up to read messages that don't mention me")
+    assert "group 2 soaks left" in with_intent
+
+
+async def test_a_dm_can_link_the_servers_messages_that_the_asker_may_read(bot, message, asked, linked, monkeypatch):
+    monkeypatch.setattr(bot, "get_guild", lambda guild_id: linked.guild)
+    bot._connection._intents.message_content = True
+    await bot.on_message(message(f"what's our plan? {LINK}/31 and {LINK}/40/41", dm=True))
+    [(key, _, _, ctx)] = asked
+    assert key == ("dm", 7) and "tanks swap at 3 stacks" in ctx.linked
+    assert ctx.linked.endswith(f"{LINK}/40/41: not read, not found, or the asker can't read it")

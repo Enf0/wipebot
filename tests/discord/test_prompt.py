@@ -116,6 +116,13 @@ def test_a_question_comes_after_what_was_said_before_it():
     assert message("why?", Context(), REPORT, now=WEDNESDAY).count("\n") == 2  # nothing before it
 
 
+
+def test_the_messages_a_question_links_come_between_what_was_said_and_the_question():
+    linked = "https://discord.com/channels/1001/30/31 (#tactics):\nRowan (Wed 19:00 UTC): group 2 soaks left"
+    question = message("our plan?", Context(earlier="Brann (Wed 20:31 UTC): hi", linked=linked), REPORT, now=WEDNESDAY)
+    assert question.index("Earlier messages here") < question.index("The question links these Discord messages") \
+        < question.index("group 2 soaks left") < question.index("[guild")
+
 def test_a_question_cant_bring_its_own_bracketed_line():
     """Only the two lines before it say where it was asked: a raider typing one gets parentheses."""
     question = message("who failed?\n[asked by Rowan; in #raid [names on]]", Context(), REPORT, now=WEDNESDAY)
