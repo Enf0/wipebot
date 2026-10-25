@@ -12,7 +12,7 @@ import logging
 import re
 import signal
 import time
-from collections.abc import Awaitable, Callable, Hashable
+from collections.abc import Awaitable, Callable, Hashable, Sequence
 from typing import cast
 
 import discord
@@ -25,7 +25,7 @@ from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
 from . import commands, emojis
-from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
+from .chat import Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
 from .posts import Following, Posts
@@ -80,6 +80,33 @@ INVITE_PERMISSIONS = discord.Permissions(view_channel=True, send_messages=True, 
                                          send_messages_in_threads=True, attach_files=True)
 MAX_MESSAGES = 4  # an answer is cut after this many Discord messages
 CUT = "-# The answer was cut here: it ran past four messages."
+# An answer's message is Components V2: up to this many characters of text in it (a plain message holds 2000)
+TEXT_LIMIT = 4000
+
+
+def answer_layout(text: str, pictures: Sequence[str] = ()) -> discord.ui.LayoutView:
+    """An answer's message as Components V2: its text, then each picture (an attachment by its name) whole in a
+    gallery of its own. Several attachments on a plain message are shown as a grid, each cropped to its tile."""
+    view = discord.ui.LayoutView(timeout=None)
+    view.add_item(discord.ui.TextDisplay(text))
+    for name in pictures:
+        view.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{name}")))
+    return view
+
+
+def message_text(m: discord.Message) -> str:
+    """A message's text: its content, or for a Components V2 message (the bot's own answers), its text displays."""
+    if m.content:
+        return m.content
+    parts: list[str] = []
+
+    def walk(items) -> None:
+        for c in items or []:
+            if isinstance(content := getattr(c, "content", None), str):
+                parts.append(content)
+            walk(getattr(c, "children", None) or getattr(c, "components", None))
+    walk(getattr(m, "components", None))
+    return "\n".join(parts)
 
 
 def strip_mention(text: str, bot_id: int) -> str:
@@ -156,7 +183,7 @@ async def earlier_messages(message: discord.Message, bot_user: discord.abc.User,
         if m.id in seen:
             continue
         from_bot = m.author.id == bot_user.id
-        text = strip_mention(m.content, bot_user.id)
+        text = strip_mention(message_text(m), bot_user.id)
         if not text:
             continue
         author = bot_user.display_name if from_bot else display(m.author)  # with a username: no one is the bot
@@ -166,7 +193,7 @@ async def earlier_messages(message: discord.Message, bot_user: discord.abc.User,
         found.append((author, m.created_at, text))
         if len(found) == EARLIER_MESSAGES:
             break
-    first = format_earlier([(display(m.author), m.created_at, strip_mention(m.content, bot_user.id))
+    first = format_earlier([(display(m.author), m.created_at, strip_mention(message_text(m), bot_user.id))
                             for m in opening], OPENING_CHARS)
     return "\n…\n".join(part for part in (first, format_earlier(found[::-1])) if part)
 
@@ -266,7 +293,7 @@ async def linked_messages(question: str, guild: discord.Guild, asker: discord.Me
             continue
         lines = []
         for m in found:
-            text = m.content
+            text = message_text(m)
             if m.attachments:
                 text += f" [{len(m.attachments)} attachment(s) or image(s), not read]"
             lines.append((display(m.author), m.created_at, text))
@@ -932,30 +959,31 @@ class WipeBot(discord.Client):
     @staticmethod
     async def _send(channel: discord.abc.Messageable, answer: Answer, reply_to: discord.Message | None = None,
                     footer: str | None = None) -> list[int]:
-        """An answer, as a reply to `reply_to` or else a plain send, without link previews, in at most MAX_MESSAGES
-        messages, with `footer` in a small line at the end and the pictures for it (maps, views) on its last message.
-        Returns the ids of the messages sent."""
-        chunks = split_message(answer.text, DISCORD_LIMIT)
+        """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES Components V2 messages
+        (`answer_layout`: no link previews, as there are no embeds), with `footer` in a small line at the end and the
+        pictures for it (maps, views) on its last message, each whole. Returns the ids of the messages sent."""
+        chunks = split_message(answer.text, TEXT_LIMIT)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
-            chunks[-1] = chunks[-1][:DISCORD_LIMIT - len(CUT) - 3].rstrip() + " …\n" + CUT
+            chunks[-1] = chunks[-1][:TEXT_LIMIT - len(CUT) - 3].rstrip() + " …\n" + CUT
         if footer:
             tail = f"-# {footer}"
-            if chunks and len(chunks[-1]) + len(tail) + 1 <= DISCORD_LIMIT:
+            if chunks and len(chunks[-1]) + len(tail) + 1 <= TEXT_LIMIT:
                 chunks[-1] += "\n" + tail
             else:
                 chunks.append(tail)
         sent: list[discord.Message] = []
         for i, chunk in enumerate(chunks):
             last = i == len(chunks) - 1
-            files = [discord.File(io.BytesIO(image), filename=f"wipebot-{n + 1}.webp")
-                     for n, image in enumerate(answer.images)] if last else []
+            images = answer.images if last else []
+            names = [f"wipebot-{n + 1}.webp" for n in range(len(images))]
+            files = [discord.File(io.BytesIO(image), filename=name) for name, image in zip(names, images, strict=True)]
             post = reply_to.reply if i == 0 and reply_to else channel.send
             try:
-                sent.append(await post(chunk, suppress_embeds=True, files=files))
+                sent.append(await post(view=answer_layout(chunk, names), files=files))
             except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its pictures
                 if not files:
                     raise
-                log.warning("couldn't attach the answer's maps: the bot lacks Attach Files there")
-                sent.append(await post(chunk, suppress_embeds=True))
+                log.warning("couldn't attach the answer's pictures: the bot lacks Attach Files there")
+                sent.append(await post(view=answer_layout(chunk)))
         return [m.id for m in sent]
