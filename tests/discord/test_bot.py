@@ -535,13 +535,17 @@ async def test_a_long_answer_is_cut_after_four_messages(channel):
 
 async def test_pictures_go_whole_with_the_last_message_of_their_answer(channel):
     drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
-    view = ToolCall("pull_summary", {}, "", False, [b"WEBP"])
+    link = "https://www.warcraftlogs.com/reports/AbC123#fight=21"
+    view = ToolCall("pull_summary", {}, f"**Sszorak** · pull 13 ({link}) · **new guild best!**", False, [b"WEBP"])
     await WipeBot._send(channel, Answer("x" * 4500, calls=[drawn, view]))
     assert channel.files == [[], ["wipebot-1.webp", "wipebot-2.webp"]]
-    # a gallery each: several attachments, or several pictures in one gallery, are a grid of cropped tiles
-    galleries = [c for c in channel.views[-1].walk_children() if isinstance(c, discord.ui.MediaGallery)]
-    assert [[i.media.url for i in g.items] for g in galleries] == [["attachment://wipebot-1.webp"],
-                                                                   ["attachment://wipebot-2.webp"]]
+    # a box each: several attachments, or several pictures in one gallery, are a grid of cropped tiles
+    boxes = [c for c in channel.views[-1].children if isinstance(c, discord.ui.Container)]
+    shown = [[(type(i).__name__, getattr(i, "url", None) or [m.media.url for m in getattr(i, "items", [])])
+              for i in box.walk_children() if not isinstance(i, discord.ui.ActionRow)] for box in boxes]
+    assert shown == [[("MediaGallery", ["attachment://wipebot-1.webp"])],  # a map names no pull: no button
+                     [("MediaGallery", ["attachment://wipebot-2.webp"]), ("Button", link)]]
+    assert [b.accent_colour for b in boxes] == [None, discord.Colour.gold()]  # a new guild best is edged gold
     assert drawn.record(0)["images"] == 1  # the record of the answer keeps the count, not the image
 
 
