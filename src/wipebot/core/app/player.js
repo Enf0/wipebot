@@ -30,7 +30,15 @@ views.player = (() => {
     }
     const d = D.died[0];
     items.push(["Died", d ? kit.clock(d.ms) : "no", d && !d.fallout ? "dead" : "", d ? (d.fallout ? "after the wipe was decided" : d.by) : ""]);
-    return kit.stats(items);
+    return kit.stats(items) + notes();
+  }
+
+  // What went well and what to fix, picked by the server (views.player_notes)
+  function notes() {
+    const n = D.notes;
+    if (!n || !(n.good.length || n.fix.length)) return "";
+    const li = (cls, mark, s) => `<li class="${cls}"><span class="mk">${mark}</span>${kit.esc(s)}</li>`;
+    return `<ul class="notes">${n.good.map((s) => li("good", "+", s)).join("")}${n.fix.map((s) => li("fix", "−", s)).join("")}</ul>`;
   }
 
   function render() {

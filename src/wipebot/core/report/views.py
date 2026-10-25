@@ -14,7 +14,8 @@ from typing import Any
 
 from ..classes import class_hex
 from ..knowledge import KnowledgeError, spaced
-from ..pulls import DIFFICULTIES, FIRST_DEATHS, is_reset, wipe_pct
+from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, wipe_pct, wipe_pcts
+from ..text import clock, day, ordinal
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, casting, raid_pauses, without
@@ -95,7 +96,7 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         "view": "pull", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
         "title": rep.label(f), "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""),
         "url": rep.url(f), "kill": bool(f["kill"]), "live": bool(f.get("inProgress")), "duration_ms": round(length),
-        "boss_pct": f.get("bossPercentage"), "raid": raid,
+        "boss_pct": f.get("bossPercentage"), "raid": raid, "best": await _best(rep, f),
         "ended": _ended(await pull_ending(rep, f)),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
         "phases": [{"ms": round(t["startTime"] - t0), "id": t["id"],
@@ -112,7 +113,72 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
     }
 
 
+async def _best(rep: Report, f: dict) -> dict | None:
+    """How a wipe compares with the log's earlier wipes on the boss and the guild's earlier logs, as pull_summary's
+    post marks it (pulls.best_marks): None for a kill, a reset, a pull still going or one without a boss %."""
+    pct = wipe_pct(f)
+    if f["kill"] or f.get("inProgress") or is_reset(f) or pct is None:
+        return None
+    earlier = wipe_pcts([g for g in rep.by_boss[rep.boss_key(f)]
+                         if g.get("difficulty") == f.get("difficulty") and g["startTime"] < f["startTime"]])
+    tonight, before = min(earlier, default=None), await rep.guild_best(f)
+    return {"tonight": tonight, "new_tonight": tonight is not None and pct < tonight,
+            "guild": {"pct": before.pct, "day": day(before.start_ms)} if before else None,
+            "new_guild": before is not None and pct < min(before.pct, tonight if tonight is not None else before.pct)}
+
+
 CASTS_SHOWN = 12  # a player's most cast spells in their view
+GAPS_SHARE = 0.05  # casting gaps over this share of their time until the wipe was decided are worth fixing
+STEADY_SHARE = 0.02  # under this share, worth saying they kept casting
+CAPPED_SHARE = 0.10  # their resource capped over this share of it
+NOTES = 2  # things that went well, and things to fix, on a player's card
+
+
+def player_notes(out: dict) -> dict[str, list[str]]:
+    """What went well and what to fix on a player's pull, at most NOTES of each, the weightiest first, from the
+    player view's facts: a death before the wipe was decided, casting gaps, a capped resource, a personal cooldown
+    left unused, where they stand among ranked kills or their parse, their rank in their role. A raid cooldown left
+    unused isn't one to fix: the log doesn't show whose job it was."""
+    good: list[tuple[float, str]] = []
+    fix: list[tuple[float, str]] = []
+    lost, o, s = out["lost"], out["output"], out["standing"]
+    until_s = max(lost["until_ms"] / 1000, 1)
+    died = next((d for d in out["died"] if not d["fallout"]), None)
+    if died:
+        to = "" if died["by"] == NO_KILLING_BLOW else f" to {died['by']}"
+        fix.append((100, f"Died at {clock(died['ms'])}{to}, before the wipe was decided"))
+    if lost["capped_s"] >= CAPPED_SHARE * until_s:
+        share = lost["capped_s"] / until_s
+        fix.append((60 * share, f"{lost['resource']} capped for {round(lost['capped_s'])} s ({round(100 * share)}%)"))
+    if lost["gaps_s"] >= GAPS_SHARE * until_s:
+        share = lost["gaps_s"] / until_s
+        fix.append((80 * share, f"{round(lost['gaps_s'])} s without casting ({round(100 * share)}%)"))
+    elif lost["gaps_s"] < STEADY_SHARE * until_s and not died:
+        good.append((30, "Never stopped casting" if lost["gaps_s"] < 1
+                     else f"Kept casting: {round(lost['gaps_s'])} s of gaps in {clock(lost['until_ms'])}"))
+    judged = [c for c in out["cooldowns"] if c["possible"]]
+    missed = [c for c in judged if len(c["uses"]) < c["possible"]]
+    for c in missed:
+        if not c["raid"]:
+            fix.append((25 * (c["possible"] - len(c["uses"])) / c["possible"],
+                        f"{c['name']}: used {len(c['uses'])} of the {c['possible']} times it was ready"))
+    if judged and not missed:
+        good.append((25, "Used every major cooldown each time it was ready"))
+    if s and s["kind"] == "parse":
+        if s["percentile"] >= 75:
+            good.append((40, f"{ordinal(s['percentile'])} percentile parse"))
+        elif s["percentile"] < 25:
+            fix.append((30, f"{ordinal(s['percentile'])} percentile parse"))
+    elif s and s["kind"] == "kills" and s["exact"]:
+        above = next((label for label, v in s["points"] if s["mine"] >= v), None)
+        if above and above.startswith(("90th", "75th")):
+            good.append((40, f"Above the {above} of ranked kills"))
+        elif above is None and s["points"][-1][0].startswith("25th"):
+            fix.append((30, f"Below the {s['points'][-1][0]} of ranked kills"))
+    if o and o["rank"] == 1 and o["of"] > 1:
+        good.append((35, f"Most {o['what']} of the {o['of']} {o['role']}"))
+    pick = lambda xs: [t for _, t in sorted(xs, key=lambda x: -x[0])[:NOTES]]  # noqa: E731
+    return {"good": pick(good), "fix": pick(fix)}
 
 
 async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> dict:  # noqa: PLR0915
@@ -183,7 +249,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
         "died": [{"ms": round(d["timestamp"] - t0), "by": rep.ability(d.get("killingAbilityGameID")),
                   "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms)} for d in own],
         "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible,
-                       "icon": icon(sp.get("spell_id"))}
+                       "raid": "raid_cd" in (sp.get("tags") or []), "icon": icon(sp.get("spell_id"))}
                       for sp, times, possible in rows if not NOT_ON_COOLDOWN & set(sp.get("tags") or [])],
         "casts": [{"name": n, "n": k, "per_min": round(60 * k / max(alive_s, 1), 1), "icon": icon(ids.get(n))}
                   for n, k in counts.most_common(CASTS_SHOWN)],
@@ -192,6 +258,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
                     for c in boss if c.tracked],
         "top": None,
     }
+    out["notes"] = player_notes(out)
     if top:
         out["top"] = await _against_top(rep, f, p, ids)
     return out
