@@ -22,7 +22,19 @@ views.pull = (() => {
     const first = D.deaths[0];
     if (first) out.push(["First death", `${first.name} ${kit.clock(first.ms)}`, "dead"]);
     return `<div class="stats">${out.map(([k, v, cls]) =>
-      `<div class="stat"><div class="k">${kit.esc(k)}</div><div class="v ${cls}">${kit.esc(v)}</div></div>`).join("")}</div>`;
+      `<div class="stat"><div class="k">${kit.esc(k)}</div><div class="v ${cls}">${kit.esc(v)}</div></div>`).join("")}</div>`
+      + standing();
+  }
+
+  // Where the wipe stands: against the log's earlier wipes on the boss and the guild's earlier logs, as the post says
+  function standing() {
+    const b = D.best;
+    if (!b) return "";
+    const parts = [];
+    if (b.tonight != null) parts.push(b.new_tonight ? "best of this log so far" : `best of this log ${b.tonight.toFixed(1)}%`);
+    if (b.new_guild) parts.push(`<b class="best">new guild best!</b> (before: ${b.guild.pct.toFixed(1)}%, ${kit.esc(b.guild.day)})`);
+    else if (b.guild) parts.push(`guild best before ${b.guild.pct.toFixed(1)}% (${kit.esc(b.guild.day)})`);
+    return parts.length ? `<div class="standing">${parts.join(" · ")}</div>` : "";
   }
 
   function render() {
@@ -174,11 +186,22 @@ views.pull = (() => {
       if (g && x(d.ms) - x(g[0].ms) < 14 && g[0].fallout === d.fallout) g.push(d); else groups.push([d]);
     }
     o += label("Deaths", dy + 4);
-    let lastEdge = -Infinity;
+    let lastEdge = -Infinity, killers = false;
     for (const ds of groups) {  // several at once: how many, in the mark; a mark right after another moves over
-      const d = ds[0], r = ds.length > 1 ? 7 : 4.2, cx = Math.max(x(d.ms), lastEdge + r + 1);
-      lastEdge = cx + r;
+      const d = ds[0];
       const tip = (d.fallout ? "After the wipe was decided:\n" : "") + ds.map((e) => `${kit.clock(e.ms)} ${e.name}: ${e.by}`).join("\n");
+      // a death that counted shows its killer's icon, ringed red: one killer for the mark, else a dot
+      if (!d.fallout && D.img_base && d.icon && ds.every((e) => e.icon === d.icon)) {
+        const s = 16, cx = Math.max(x(d.ms), lastEdge + s / 2 + 1);
+        lastEdge = cx + s / 2; killers = true;
+        o += kit.icon(D.img_base, d.icon, cx - s / 2, dy - s / 2, s, tip)
+          + `<rect x="${cx - s / 2 - 1}" y="${dy - s / 2 - 1}" width="${s + 2}" height="${s + 2}" rx="3" fill="none" stroke="var(--dead)" stroke-width="1.8" pointer-events="none"/>`;
+        if (ds.length > 1) o += `<circle cx="${cx + s / 2}" cy="${dy - s / 2}" r="6" fill="var(--dead)" pointer-events="none"/>`
+          + kit.text(cx + s / 2, dy - s / 2 + 3.5, ds.length, "", 'text-anchor="middle" font-size="9" font-weight="700" fill="var(--bg)" pointer-events="none"');
+        continue;
+      }
+      const r = ds.length > 1 ? 7 : 4.2, cx = Math.max(x(d.ms), lastEdge + r + 1);
+      lastEdge = cx + r;
       o += `<circle cx="${cx}" cy="${dy}" r="${r}" fill="${d.fallout ? "var(--muted)" : "var(--dead)"}" opacity="${d.fallout ? 0.65 : 1}"${kit.tip(tip)}/>`;
       if (ds.length > 1) o += kit.text(cx, dy + 3.5, ds.length, "", 'text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--bg)"');
     }
@@ -187,7 +210,8 @@ views.pull = (() => {
     // the legend, under the time axis, wrapping on a narrow chart
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 6}" width="12" height="3" fill="var(--gold)"/>`, "boss health"],
       [(lx, ly) => `<rect x="${lx + 1}" y="${ly - 8}" width="10" height="8" fill="var(--blue)" opacity=".35"/>`, "raid damage taken /s"],
-      [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--dead)"/>`, "death"]];
+      killers ? [(lx, ly) => `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="none" stroke="var(--dead)" stroke-width="1.8"/>`, "death, by its killer"]
+        : [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--dead)"/>`, "death"]];
     if (tracked.length) keys.splice(2, 0, [(lx, ly) => `<path d="M${lx + 5} ${ly - 9} l5 5 l-5 5 l-5 -5z" fill="var(--gold)"/>`, "the boss's main casts"]);
     if (D.decided) keys.push([(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--muted)" opacity=".6"/>`, "after it was decided"]);
     let lx = 6, ly = ay + 20;

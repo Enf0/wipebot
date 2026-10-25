@@ -464,3 +464,26 @@ def test_the_replay_reads_the_tracks_as_they_were_packed():
     assert got[2][2] == 0  # 10° to 350° goes through 0°, not round the long way
     assert 0 <= got[3][2] < 360 and abs(got[3][2] - 355) < 1e-9  # and never negative
     assert got[4] == got[5] == got[6] == [40, 20, maps.DEAD_FACING]  # dead where they fell, not moving
+
+
+def _facts(**over) -> dict:
+    """A player view's facts that player_notes reads: a steady 3:00 until the wipe was decided, nothing wrong."""
+    facts = {"lost": {"until_ms": 180000, "dead_s": 0, "gaps_s": 2, "capped_s": 0, "resource": "Energy"},
+             "output": {"what": "damage", "rank": 4, "of": 14, "role": "damage dealers"}, "standing": None,
+             "died": [], "cooldowns": [{"name": "Deathmark", "uses": [1000, 121000], "possible": 2, "raid": False}]}
+    return facts | over
+
+
+def test_a_players_notes_put_the_weightiest_first_and_leave_raid_cooldowns_out_of_the_fixes():
+    assert views.player_notes(_facts()) == {"good": ["Kept casting: 2 s of gaps in 3:00",
+                                                      "Used every major cooldown each time it was ready"], "fix": []}
+    worse = _facts(died=[{"ms": 95000, "by": "Toxic Fumes", "fallout": False}],
+                   lost={"until_ms": 180000, "dead_s": 85, "gaps_s": 20, "capped_s": 40, "resource": "Energy"},
+                   cooldowns=[{"name": "Darkness", "uses": [], "possible": 3, "raid": True},
+                              {"name": "Deathmark", "uses": [], "possible": 2, "raid": False}])
+    assert views.player_notes(worse) == {"good": [], "fix": ["Died at 1:35 to Toxic Fumes, before the wipe was decided",
+                                                             "Deathmark: used 0 of the 2 times it was ready"]}
+    after = _facts(died=[{"ms": 185000, "by": "Toxic Fumes", "fallout": True}],  # fallout isn't theirs to fix
+                   output={"what": "healing", "rank": 1, "of": 4, "role": "healers"},
+                   standing={"kind": "parse", "percentile": 81})
+    assert views.player_notes(after)["good"] == ["81st percentile parse", "Most healing of the 4 healers"]
