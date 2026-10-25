@@ -9,7 +9,7 @@ import subprocess
 from importlib import resources
 
 import pytest
-from mcp.types import CallToolResult
+from mcp.types import CallToolResult, TextContent
 
 from tests.support import assert_snapshot
 from tests.support.paths import REAL
@@ -81,7 +81,13 @@ async def test_the_pull_view_states_what_pull_summary_states(recorded):
     assert len(json.dumps(data)) < 150_000 // 10  # far under Claude's limit for a tool result
 
 
-async def test_pull_summary_gives_the_view_its_key_when_serving_many(recorded, monkeypatch):
+async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):
+    # a client without MCP Apps (Claude Code) gives the model structuredContent instead of the text: none for it
+    no_apps = await server.mcp.call_tool("pull_summary", PULL_CASE.args)
+    assert isinstance(no_apps, CallToolResult) and no_apps.structured_content is None
+    first = no_apps.content[0]
+    assert isinstance(first, TextContent) and first.text.startswith("**Sszorak**")
+    monkeypatch.setattr(server, "_supports_apps", lambda ctx: True)  # claude.ai, ChatGPT
     result = await server.mcp.call_tool("pull_summary", PULL_CASE.args)
     assert isinstance(result, CallToolResult)
     assert result.structured_content == {"view": "pull", "report": PULL_CASE.args["report"],

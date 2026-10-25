@@ -191,4 +191,6 @@ async def cooldown_use(rep: Report, p: Player, f: dict, casts: list[dict], early
             skipped.append(sp["name"])
             continue
         rows.append((sp, times, None if unknown else int(dur_s // cd) + 1))
+    # Lorrgs can list a spell under two ids (The Hunt): one found untaken drops the other too, unless it was cast
+    rows = [r for r in rows if r[1] or name_key(r[0]["name"]) not in {name_key(n) for n in skipped}]
     return rows, skipped if tree else None

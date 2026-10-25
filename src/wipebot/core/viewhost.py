@@ -48,13 +48,15 @@ class Shot:
 
 
 async def tool_result(tool: str, args: dict) -> dict:
-    """The tool's result as a host hands it to the page: run serving many users, as remote.py runs it, so the
-    result carries the view's key."""
+    """The tool's result as a host hands it to the page: run serving many users, as remote.py runs it, with the
+    view's key a client that shows apps gets."""
     if server.DEFAULT.remote is None:
         server.DEFAULT.remote = server.Remote(guilds=list, user_name=str)
     result = await server.mcp.call_tool(tool, args)
     if not isinstance(result, CallToolResult):
         raise ToolError(f"{tool} asked for input")
+    if result.structured_content is None:  # in-process there's no client to say it shows apps: the key as served
+        result.structured_content = await server.view_key(tool, args)
     return result.model_dump(by_alias=True, exclude_none=True, mode="json")
 
 
