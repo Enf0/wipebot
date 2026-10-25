@@ -81,7 +81,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull, and
     # compare_with_top no player: the player view asks for its comparison itself).
     server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
-                                       "player_night": shown, "death_recap": shown},
+                                       "player_night": shown, "death_recap": shown, "progress": shown},
                     notes={"pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
                                        "(not with all_pulls); with plan, the plan's spots on it and a button per "
                                        "moment.",
@@ -98,6 +98,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                            "death_recap": "In Claude and ChatGPT, the user also sees the death drawn: the hits and "
                                           "their health in the seconds before it, the healing they got, the killing "
                                           "blow, and their defensives then.",
+                           "progress": "In Claude and ChatGPT, the user also sees the night on the boss drawn: each "
+                                       "pull's boss health left, coloured by what ended it, against the night's and "
+                                       "the guild's best, with each pull's own view a click away.",
                            "raid_plan": "In Claude, the user sees no map from raid_plan: for the pull against the "
                                         "plan, call pull_map with plan, which shows its replay."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",

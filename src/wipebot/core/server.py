@@ -565,7 +565,7 @@ def _supports_apps(ctx: Context) -> bool:
 # The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
 # with their casts against top players, for one player's casts
 VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player",
-              "player_night": "player_night", "death_recap": "death"}
+              "player_night": "player_night", "death_recap": "death", "progress": "night"}
 
 
 async def view_key(tool: str, args: dict) -> dict | None:
@@ -580,6 +580,8 @@ async def view_key(tool: str, args: dict) -> dict | None:
     if view == "player_night":  # a boss's night: no pull
         return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")),
                 "player": rep.player(args["player"]).name}
+    if view == "night":
+        return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss"))}
     f = rep.fight(args.get("pull"), args.get("boss"))
     key: dict = {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
     if view in ("player", "death"):
@@ -1098,7 +1100,7 @@ async def progress(boss: Annotated[str | None, Field(description=(
                    weeks: Annotated[int | None, Field(description=(
                        "also the boss on each of the guild's raid nights over this many weeks back (1-12), for "
                        "\"are we doing better than last week?\": reads every night, slow"), ge=1, le=12)] = None,
-                   report: Report_ = None) -> str:
+                   report: Report_ = None, *, ctx: Context) -> str | CallToolResult:
     """How did tonight go, are we improving, what keeps wiping us, who keeps dying first, which pulls were there:
     start here for a night.
     Without a boss, the night at a glance first: every boss with pulls, kills (with speed and execution
@@ -1120,7 +1122,7 @@ async def progress(boss: Annotated[str | None, Field(description=(
         texts.append(await night.each_pull(rep, boss, each_pull, first_hits))
     if weeks:
         texts.append(await _boss_over_weeks(rep, boss, weeks))
-    return "\n\n".join(texts)
+    return await _shown("progress", {"boss": boss, "report": report}, "\n\n".join(texts), ctx)
 
 
 async def _boss_over_weeks(rep: Report, boss: str | None, weeks: int) -> str:

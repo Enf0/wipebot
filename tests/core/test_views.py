@@ -121,6 +121,42 @@ async def test_the_death_view_draws_in_a_host_without_errors(recorded, tmp_path)
     assert "hits in the 10 s before the death" in taken[-1].text.lower()  # fullscreen: the hits, one per row
 
 
+NIGHT_OF_PULLS = CASES["progress"]  # the raid's night on Sszorak
+
+
+async def raid_night_data() -> dict:
+    key = await server.view_key("progress", NIGHT_OF_PULLS.args)
+    assert key == {"view": "night", "report": NIGHT_OF_PULLS.args["report"], "boss": "Sszorak"}
+    result = await server.view_data(**key)
+    assert result.structured_content is not None
+    return result.structured_content
+
+
+async def test_the_raid_night_view_matches_its_snapshot(recorded):
+    assert_snapshot(REAL / "views" / "night.txt", readable(await raid_night_data()))
+
+
+async def test_the_raid_night_view_states_what_progress_states(recorded):
+    data = await raid_night_data()
+    text, failed = await server.call("progress", NIGHT_OF_PULLS.args)
+    assert not failed
+    assert f"Sszorak: {len(data['pulls'])} pulls on the night" in text
+    for r in data["pulls"]:
+        d = r["first"]
+        first = f" first death {d['name']} ({d['by']}, {clock(d['ms'])})" if d else ""
+        assert re.search(rf"^  {r['pull']}: .*{clock(r['duration_ms'])}{re.escape(first)}", text, re.MULTILINE), r
+    ends = ", ".join(f"{w} {n}" for w, n in data["ends"])
+    assert f"(pull_summary's \"Ended by\"): {ends}." in text
+    assert "first third {:.1f}, middle {:.1f}, last third {:.1f}".format(*data["thirds"]) in text
+
+
+async def test_the_raid_night_view_draws_and_a_pulls_bar_opens_that_pull(recorded, tmp_path):
+    first, opened = await shots(tmp_path, "progress", NIGHT_OF_PULLS.args, themes=("dark",), widths=(760,),
+                                modes=("fullscreen",), clicks=('css:tr[data-pull="13"]',))
+    assert not first.errors and "how the 33 pulls ended" in first.text.lower() and "Vashnik" in first.text
+    assert "Sszorak pull 13" in opened.text  # that pull's card
+
+
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):
     # a client without MCP Apps (Claude Code) gives the model structuredContent instead of the text: none for it
     no_apps = await server.mcp.call_tool("pull_summary", PULL_CASE.args)
@@ -138,8 +174,8 @@ async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps
 
 
 async def test_a_view_that_does_not_exist_is_a_readable_error(recorded):
-    with pytest.raises(server.FactError, match="no view 'night'"):
-        await server.view_data("night", PULL_CASE.args["pull"], None, PULL_CASE.args["report"])
+    with pytest.raises(server.FactError, match="no view 'weekly'"):
+        await server.view_data("weekly", PULL_CASE.args["pull"], None, PULL_CASE.args["report"])
 
 
 def test_the_page_is_one_file_with_a_hashed_address():
