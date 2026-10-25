@@ -26,6 +26,7 @@ from tests.support.recorded import (
 )
 from wipebot.core import server
 from wipebot.core.report import maps
+from wipebot.core.report import note as notes
 from wipebot.core.text import clock
 
 
@@ -40,6 +41,16 @@ async def test_tool_output_matches_snapshot(recorded, case: Case):
     if case.local and not LOCAL_RECORDED.exists():
         pytest.skip(NOT_LOCAL)
     assert_snapshot(case.snapshot, await run(case))
+
+
+async def test_a_note_assigns_kicks_when_it_calls_one_player_as_an_add_begins_a_cast(recorded):
+    """The Twin Fangs note's "Kick #1 left" callouts come as the Broodlings begin Visceral Burst; its cooldowns and
+    callouts to everyone are no kicks."""
+    note = (TOOLS.parent / "notes" / "twin-fangs-2026-10-19.txt").read_text(encoding="utf-8")
+    rep = await server.lib().report("fvkH4hGZwDRVnyXJ")
+    f = rep.fight(14, "Twin Fangs")
+    assert await notes.assigns_kicks(rep, f, note)
+    assert not await notes.assigns_kicks(rep, f, "\n".join(line for line in note.splitlines() if "Kick #" not in line))
 
 
 def test_every_snapshot_has_a_case():

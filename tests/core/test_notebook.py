@@ -9,6 +9,7 @@ from wipebot.core import notebook as notebook_module
 from wipebot.core import server
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
+from wipebot.core.report.base import JOBS_NOT_LOGGED
 
 SSZORAK = {"name": "Sszorak", "encounterID": 3420, "startTime": 1_500_000, "difficulty": 5}
 DAY = 86400
@@ -111,6 +112,26 @@ async def test_a_member_of_the_reports_guild_reads_its_notes_on_the_remote_serve
         await server._saved_note(night(), None, None, all_pulls=False)
     with pytest.raises(FactError, match="members only"):
         await server._saved_plans(night(), None, None)
+
+
+async def test_after_who_was_hit_a_tool_says_whether_the_guild_saved_a_note_and_whether_it_assigns_kicks(
+        book, monkeypatch):
+    """Whose job it was isn't in the log; a saved note may assign it, and code can tell whether it assigns kicks."""
+    assert "The Copper Lanterns saved a raid note for Sszorak that night, which may assign it: raid_note shows" in \
+        await server._jobs(night(), None, None)
+
+    async def assigns_kicks(rep, f, text):
+        return text == "the note"
+    monkeypatch.setattr(server.notes, "assigns_kicks", assigns_kicks)
+    assert "raid note saved for Sszorak that night assigns kicks (a callout to one player as an add begins a cast): " \
+           "raid_note shows whose each cast was" in await server._jobs(night(), None, None, kicks=True)
+    book.save_note(14169, 3420, "Sszorak", "spreads only", "Rowan", at=1200.0)  # the version for the pull
+    assert "raid note saved for Sszorak that night assigns none" in await server._jobs(night(), None, None, kicks=True)
+    assert "The Copper Lanterns has no raid note saved for Sszorak that night; who did it on other pulls isn't" in \
+        await server._jobs(night(555), None, None)
+    assert await server._jobs(night(None), None, None) == JOBS_NOT_LOGGED  # a personal log: no guild's notes
+    signed_in(monkeypatch, {555})
+    assert await server._jobs(night(), None, None) == JOBS_NOT_LOGGED  # nor another guild's
 
 
 async def test_with_nothing_saved_or_a_personal_log_it_asks_for_a_paste(book):

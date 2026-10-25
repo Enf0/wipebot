@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Agent` **Whose kick it was, from your raid note.** When casts got through or a mechanic hit the wrong people, the answer could say the log doesn't show whose job it was, even with your raid note saved. Now it knows the guild has a note for that night and checks it, and for kicks whether the note assigns any.
 - `Discord` **Notes at the top of a thread.** Asking in a thread now reads the messages it opens with, such as a forum post and the notes posted under it, however old; before, only the last 12 hours were read.
 
 ## [0.9.0] - 2026-10-25

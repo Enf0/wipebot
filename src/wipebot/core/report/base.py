@@ -109,9 +109,11 @@ def unavailable(what: str, e: Exception) -> str:
     return f"{what}: unavailable ({str(e).rstrip('.')})."
 
 
-# After a tool's facts about who was hit, carried a debuff or had a kick ready: what the log can't show.
-JOBS_NOT_LOGGED = ("Whose job it was (a soak, a kick, a spot) isn't in the log: the raid note holds the jobs, and who "
-                   "did it on other pulls isn't an assignment (raids swap spots and keep reserves).")
+# After a tool's facts about who was hit, carried a debuff or had a kick ready: what the log can't show. The tools
+# say instead whether the guild saved a raid note for the pull, when they can see its notes (server.py).
+NOT_AN_ASSIGNMENT = "who did it on other pulls isn't an assignment (raids swap spots and keep reserves)"
+JOBS_NOT_LOGGED = (f"Whose job it was (a soak, a kick, a spot) isn't in the log: a raid note may assign them, and "
+                   f"{NOT_AN_ASSIGNMENT}.")
 
 
 # A pull by number on its boss, or by one of these names.

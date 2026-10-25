@@ -249,11 +249,32 @@ async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | N
     return _pull_text(rep, await _check(rep, f, note), source or (v.source() if v.saved_at else ""))
 
 
+async def assigns_kicks(rep: Report, f: dict, text: str) -> bool:
+    """Whether the note's version for pull `f` assigns kicks on its boss: a callout to one player as an add begins
+    a cast someone kicked on the boss that night (`_kicks`). A note may assign none: its jobs are what the raid
+    leader wrote in it."""
+    found = versions(text)
+    note = for_boss(_version(found, (rep.start_ms + f["startTime"]) / 1000).notes, f["encounterID"])
+    if note is None:
+        return False
+    starts = _phase_starts(f)
+    players = {n: p for n in _named(note) if (p := rep.find_player(n))}
+    return bool(await _kicks(rep, f, note, players, lambda *_: "",
+                             lambda c: None if c.phase not in starts else starts[c.phase] + c.at * 1000,
+                             f["endTime"] - f["startTime"]))
+
+
+def _phase_starts(f: dict) -> dict[int, float]:
+    """Each phase's first start, in ms from the pull's start."""
+    starts: dict[int, float] = {1: 0.0}
+    for ph in f.get("phaseTransitions") or []:
+        starts.setdefault(ph["id"], ph["startTime"] - f["startTime"])
+    return starts
+
+
 async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
     t0, end = f["startTime"], f["endTime"] - f["startTime"]
-    starts: dict[int, float] = {1: 0.0}  # each phase's first start, in ms from the pull's start
-    for ph in f.get("phaseTransitions") or []:
-        starts.setdefault(ph["id"], ph["startTime"] - t0)
+    starts = _phase_starts(f)
     in_pull = {p.name for p in rep.pull_players(f).values()}
     named = _named(note)
     players = {n: p for n in named if (p := rep.find_player(n))}

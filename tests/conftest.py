@@ -53,5 +53,12 @@ def live_wcl(night) -> FakeWCL:
 
 
 @pytest.fixture(autouse=True)
+def _no_saved_notes(tmp_path, monkeypatch):
+    """No raid note or plan saved but what a test saves: the tools read the notebook (WIPEBOT_NOTES_DB), and the
+    developer's own mustn't change what they print."""
+    monkeypatch.setenv("WIPEBOT_NOTES_DB", str(tmp_path / "notes.sqlite"))
+
+
+@pytest.fixture(autouse=True)
 def _offline(offline):
     """Every test runs offline."""
