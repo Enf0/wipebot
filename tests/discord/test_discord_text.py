@@ -252,3 +252,19 @@ def test_a_players_spec_is_the_reports_then_the_tools_then_the_rosters():
     roster = {"Brightleaf": ("Paladin", "Retribution"), "Grusarn": ("Warrior", "Arms"), "Miralupa": ("Priest", "Holy")}
     text = polish("Brightleaf, Grusarn and Miralupa.", ["Grusarn (Fury Warrior)"], [report], icons, roster)
     assert text == "<:Paladin_Holy:1> Brightleaf, <:Warrior_Fury:3> Grusarn and <:Priest_Holy:5> Miralupa."  # no bold
+
+
+def test_a_marker_in_a_links_text_goes_after_the_link_and_a_class_named_spot_gets_no_icon():
+    icons = {"marker_skull": "<:marker_skull:8>", "marker_star": "<:marker_star:1>", "Priest": "<:Priest:6>",
+             "Priest_Holy": "<:Priest_Holy:5>"}
+    text = "2. [en ny gateway til {skull}](https://raidstrats.gg/p/4), så [til {star}](https://raidstrats.gg/p/6)."
+    assert add_icons(text, {}, icons) == ("2. [en ny gateway til](https://raidstrats.gg/p/4) <:marker_skull:8>, så "
+                                          "[til](https://raidstrats.gg/p/6) <:marker_star:1>.")
+    assert add_icons("en «Priest» uten navn, ikke Namsus", {"Priest": ("Priest", ""), "Namsus": ("Priest", "Holy")},
+                     icons) == "en «Priest» uten navn, ikke <:Priest_Holy:5> Namsus"
+
+
+def test_no_blank_line_inside_a_list_where_discord_would_end_its_nesting():
+    text = "- **Healers:**\n  - Cptola: orb.\n  - Enfo: totem.\n\n  - Lizard: goalkeeper.\n- **Melee:**"
+    assert tight_lists(text) == ("- **Healers:**\n  - Cptola: orb.\n  - Enfo: totem.\n  - Lizard: goalkeeper.\n"
+                                 "- **Melee:**")

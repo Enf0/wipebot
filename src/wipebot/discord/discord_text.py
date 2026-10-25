@@ -41,6 +41,9 @@ NAMED_SCENE = re.compile(r"(?:(?<=\*\*)|(?<=^- )|(?<=^)|(?<=[,;:.!?] ))([^\s*\[(
                          r"\((?i:scene) (\d+)\)", re.M)
 # A spot on a raid plan with its raider's class: "#9 Martin (hunter):", "#7 Zebino (Zebinomage) (mage):"
 PLAN_SPOT = re.compile(r"#\d+ ([^():#\n]+?)(?: \(([^()\n]+)\))? \(([a-z]+)\):")
+MASKED_LINK = re.compile(r"\[([^\]\n]*)\]\((https?://[^)\s]+)\)")  # [text](url)
+LIST_LINE = r"[ \t]*(?:[-*]|\d+\.) "
+BLANK_IN_LIST = re.compile(rf"^({LIST_LINE}.*)\n[ \t]*\n(?={LIST_LINE})", re.M)  # Discord ends a nested list there
 BLANK_BEFORE_LIST = re.compile(r"^(?![ \t]*(?:[-*]|\d+\.) )(\S.*)\n[ \t]*\n(?=[ \t]*(?:[-*]|\d+\.) )", re.M)
 
 
@@ -256,8 +259,9 @@ def fix_pull_links(text: str, report: Report) -> str:
 
 
 def tight_lists(text: str) -> str:
-    """No blank line between a line and the list under it: Discord already puts space above a list."""
-    return BLANK_BEFORE_LIST.sub(r"\1\n", text)
+    """No blank line between a line and the list under it (Discord already puts space above a list), nor between
+    two items of a list (Discord ends a nested list at one, so the next item shows as a new list)."""
+    return BLANK_IN_LIST.sub(r"\1\n", BLANK_BEFORE_LIST.sub(r"\1\n", text))
 
 
 def _marker(token: str) -> str:
@@ -274,13 +278,20 @@ def _either(names: Iterable[str]) -> str:
 def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[str, str]) -> str:
     """The bot's emojis in an answer: a raid marker's for every {skull} or {rt8} and before every "skull marker", a
     spec's before every mention of a player (`specs`: name -> WCL's class and spec), and a boss ability's before
-    its Wowhead link. Not before a spec or class named as such ("the shaman cooldowns"): one icon per player is
-    enough to read. Code is left alone, and links but for that; without an emoji, the text stays as it is."""
+    its Wowhead link. Not before a spec or class named as such ("the shaman cooldowns", a plan's spot labelled
+    "Priest"): one icon per player is enough to read. A marker in a link's text goes after the link, as Discord
+    shows no emoji there. Code is left alone, and links but for that; without an emoji, the text stays as it is."""
     if not icons:
         return text
 
     def skipped(at: int, spans: list[tuple[int, int]]) -> bool:
         return any(a <= at < b for a, b in spans)
+
+    def out_of_link(m: re.Match) -> str:
+        found = [icons[e] for t in MARKER_TOKEN.findall(m.group(1)) if (e := marker_emoji(_marker(t))) in icons]
+        label = " ".join(MARKER_TOKEN.sub("", m.group(1)).split()) if found else ""
+        return f"[{label}]({m.group(2)}) {' '.join(found)}" if label else m.group(0)
+    text = MASKED_LINK.sub(out_of_link, text)
     spans = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
 
     def token(m: re.Match) -> str:
@@ -289,7 +300,8 @@ def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[st
     text = MARKER_TOKEN.sub(token, text)
     spans = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
 
-    players = {name: cs for name, cs in specs.items() if len(name) >= 3}
+    classes = {w.lower() for c, _ in _spec_pairs(icons) for w in (c, spaced(c))}
+    players = {name: cs for name, cs in specs.items() if len(name) >= 3 and name.lower() not in classes}
     parts = [f"(?P<player>{_either(players)})"] if players else []
     parts.append(f"(?i:(?P<marker>{'|'.join(MARKERS)})(?= markers?\\b))")
 
