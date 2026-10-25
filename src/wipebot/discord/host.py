@@ -286,7 +286,7 @@ class Session:
         report = await self.library.report(args.get("report") or self.code)
         book, guild = self._ctx.notebook, self._ctx.guild_id
         if (boss := args.get("boss")) and not server.pulled(report, boss):  # not pulled yet: the note as it is
-            return server.unpulled_note(book, guild, report, boss)
+            return await server.unpulled_note(book, guild, report, boss)
         f = report.fight(args.get("pull"), boss)
         if found := await server.saved_note(book, guild, report, f, bool(args.get("all_pulls"))):
             return found

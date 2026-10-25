@@ -176,7 +176,10 @@ async def test_raid_note_for_a_boss_not_pulled_yet_gets_the_newest_one_saved():
         if name != "Sszorak":
             raise FactError(f"no boss matching {name!r}")
         return name
-    session = session_on(SimpleNamespace(boss=boss, guild_name="The Copper Lanterns"))
+    async def name_spells(ids):
+        pass
+    session = session_on(SimpleNamespace(boss=boss, guild_name="The Copper Lanterns", name_spells=name_spells,
+                                         ability_ref=lambda i: f"spell [{i}]"))
     book = Notebook(":memory:")
     book.save_note(14169, 3418, "Vashnik", "EncounterID:3418;old", "Rowan", at=1000.0)
     book.save_note(14169, 3418, "Vashnik", "EncounterID:3418;new", "Rowan", at=2000.0)
