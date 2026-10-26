@@ -2,7 +2,8 @@
 a button to its pull on Warcraft Logs and the picture's own actions (Act, Pick), edged gold for a new guild best.
 
 An action answers the one who clicked with the next picture, which only they see (an ephemeral reply), with its own
-actions in turn: the pull's first death, a player's card, against top players, their night, a pull of the night.
+actions in turn: the pull's first death, a player's card, against top players, their night, a pull of the night, and
+the clicker's own card on a pull or their own night ("How did I do?", "My night", by the character the store has).
 Each button and menu carries what it acts on in its custom_id (report, boss, pull, player), so the ones on old
 messages still work after a restart (discord.py's DynamicItem, registered in WipeBot.setup_hook)."""
 import io
@@ -45,25 +46,28 @@ class Picture:
         return cls(name, link[0] if link else None, call.name == "pull_summary" and GUILD_BEST in call.result)
 
 
-def answer_layout(text: str, pictures: Sequence[Picture] = ()) -> discord.ui.LayoutView:
-    """A message as Components V2: its text (none for a picture alone), then each picture (an attachment by its
-    name) whole in a gallery of its own, boxed with its buttons and menus (one already above left out), the box edged
-    gold for a new guild best.
-    Several attachments on a plain message are shown as a grid, each cropped to its tile."""
+def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence[Act] = ()) -> discord.ui.LayoutView:
+    """A message as Components V2: its text (none for a picture alone) with `actions` under it (the message's own
+    buttons, not a picture's), then each picture (an attachment by its name) whole in a gallery of its own, boxed with
+    its buttons and menus (one already above left out), the box edged gold for a new guild best. Several attachments
+    on a plain message are shown as a grid, each cropped to its tile."""
     view = discord.ui.LayoutView(timeout=None)
     used: set[str] = set()  # Discord refuses a message with two items of one custom_id: the second does the same
     if text:
         view.add_item(discord.ui.TextDisplay(text))
+    if actions:
+        view.add_item(discord.ui.ActionRow(*(cast(Any, a) for a in actions)))
+        used.update(a.item.custom_id for a in actions if a.item.custom_id)
     for p in pictures:
         items: list[discord.ui.Item] = [discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{p.name}"))]
         buttons: list[discord.ui.Item] = [discord.ui.Button(label="Open in Warcraft Logs", url=p.link)] \
             if p.link else []
-        actions = [a for a in p.actions if a.item.custom_id not in used]
-        used.update(a.item.custom_id for a in actions if a.item.custom_id)
-        buttons += [a for a in actions if isinstance(a, Act)]
+        acts = [a for a in p.actions if a.item.custom_id not in used]
+        used.update(a.item.custom_id for a in acts if a.item.custom_id)
+        buttons += [a for a in acts if isinstance(a, Act)]
         if buttons:
             items.append(discord.ui.ActionRow(*buttons))
-        items += [discord.ui.ActionRow(cast(Any, a)) for a in actions if isinstance(a, Pick)]  # a menu: a row
+        items += [discord.ui.ActionRow(cast(Any, a)) for a in acts if isinstance(a, Pick)]  # a menu: a row
         view.add_item(discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None))
     return view
 
@@ -77,7 +81,8 @@ def _id(prefix: str, *parts: object) -> str | None:
 
 _FIELDS = r"(?P<what>[a-z]+)\|(?P<report>[^|]*)\|(?P<boss>[^|]*)\|(?P<pull>[^|]*)\|(?P<player>[^|]*)"
 LABELS = {"death": "First death", "top": "Against top", "night": "Their night", "ppull": "Their pull",
-          "mynight": "My night"}
+          "mynight": "My night", "mypull": "How did I do?"}
+MINE = {"mynight", "mypull"}  # actions on the clicker's own character
 
 
 class Act(discord.ui.DynamicItem[discord.ui.Button], template=r"wb\|" + _FIELDS):
@@ -139,20 +144,23 @@ def tool_of(what: str, report: str, boss: str, pull: str, player: str) -> tuple[
             return "compare_with_top", {**where, "player": player, "aspects": ["casts"]}
         case "night" | "mynight":
             return "player_night", {"report": report, "boss": boss or None, "player": player}
-        case "ppull":
+        case "ppull" | "mypull":
             return "player_pull", {**where, "player": player}
     return "pull_summary", where
 
 
 async def act(interaction: discord.Interaction, what: str, report: str, boss: str, pull: str, player: str) -> None:
     """An action, answered to the one who clicked alone: the picture it opens, with that picture's own actions."""
-    if what == "mynight":
+    if what in MINE:
         store = getattr(interaction.client, "store", None)
         player = (store.raider(interaction.user.id).character if store else None) or ""
         if not player:
             await interaction.response.send_message(
                 "I don't know which character is yours yet. Tell me in a message (\"my character is ...\") and I'll "
                 "remember it.", ephemeral=True)
+            return
+        if what == "mypull" and (missing := await _not_in_pull(report, boss, pull, player)):
+            await interaction.response.send_message(missing, ephemeral=True)
             return
     await interaction.response.defer(ephemeral=True, thinking=True)
     tool, args = tool_of(what, report, boss, pull, player)
@@ -164,6 +172,19 @@ async def act(interaction: discord.Interaction, what: str, report: str, boss: st
     pictures = await pictures_for([(i, tool, args) for i in images])
     files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
     await interaction.followup.send(view=answer_layout("", pictures), files=files, ephemeral=True)
+
+
+async def _not_in_pull(report: str, boss: str, pull: str, player: str) -> str | None:
+    """Why `player` has no card on the pull, when they weren't in it (an alt, a night on the bench)."""
+    try:
+        rep = await server.lib().report(report)
+        f = rep.fight(int(pull) if pull else None, boss or None)
+    except (FactError, ValueError) as e:
+        return str(e)
+    if rep.find_player(player, rep.pull_players(f).values()) is None:
+        return (f"{player}, the character I have for you, wasn't in {rep.label(f)}. If you play another one, tell me "
+                "in a message (\"my character is ...\").")
+    return None
 
 
 async def pictures_for(drawn: Sequence[tuple[bytes, str, dict]], results: Sequence[str] = ()) -> list[Picture]:
@@ -206,7 +227,8 @@ async def _extras(tool: str, args: dict, with_actions: bool) -> tuple[str | None
             first = rep.names.get(deaths[0]["targetID"]) if deaths else None
             order = {"tank": 0, "healer": 1}
             here = sorted(rep.pull_players(f).values(), key=lambda p: (order.get(p.role, 2), p.name))
-            return link, [*([Act("death", code, boss, key["pull"], first)] if first else []),
+            return link, [Act("mypull", code, boss, key["pull"]),
+                          *([Act("death", code, boss, key["pull"], first)] if first else []),
                           Pick("player", code, boss, key["pull"], choices=[(p.name, p.name) for p in here])]
         case "player":
             return link, [*([] if key.get("top") else [Act("top", code, boss, key["pull"], key["player"])]),
