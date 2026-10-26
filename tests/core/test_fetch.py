@@ -1,5 +1,6 @@
 """What a report asks Warcraft Logs (report/fetch.py): batched into one query where it can be, and remembered
 when it's about finished pulls."""
+import asyncio
 import time
 from typing import cast
 
@@ -20,6 +21,25 @@ async def test_events_for_several_items_come_in_one_query_a_pull_twice_included(
     wcl.queries.clear()
     assert await rep.events(f14["id"], "Deaths") == got[1]  # remembered under the single-pull key
     assert wcl.queries == []
+
+
+async def test_tools_side_by_side_share_a_batched_fetch_already_going():
+    """Two tools asking for the same pulls' data at once (players on one pull): one query, not one each."""
+    fetched = Fetched(cast(WCL, None), CODE)
+    asked: list[list[int]] = []
+
+    async def fetch_many(items: list[int]) -> dict[int, str]:
+        asked.append(items)
+        await asyncio.sleep(0.01)
+        return {i: f"v{i}" for i in items}
+
+    async def fetch_one() -> str:
+        asked.append([-1])
+        return "one"
+    wanted = {1: (("k", 1), 1), 2: (("k", 2), 2), 3: (("k", 1), 1)}  # item 3 is item 1's key again
+    a, b, c = await asyncio.gather(fetched.keep_many(wanted, fetch_many), fetched.keep_many(wanted, fetch_many),
+                                   fetched.keep(("k", 2), [2], fetch_one))
+    assert asked == [[1, 2]] and a == b == {1: "v1", 2: "v2", 3: "v1"} and c == "v2"
 
 
 async def test_a_nights_tables_and_details_come_in_one_query_each_and_are_remembered(rep):

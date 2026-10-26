@@ -59,26 +59,52 @@ class Fetched:
         """`keep` for several values at once: {item: (its key, the pull it's about)}. The ones remembered (in
         this report, or on disk with `persist_s`) are served from there; the rest come from one
         `fetch_many(items)`, and each finished pull's value is then remembered under its key, where `keep` finds
-        it too."""
+        it too. A value another tool is fetching now (by `keep` or `keep_many`) is awaited, not asked again, and
+        an item whose key comes up twice is asked once."""
         out: dict[K, T] = {}
         missing: list[K] = []
+        shared: dict[K, asyncio.Future] = {}  # being fetched now: by another tool, or by this call for an equal key
         for item, (key, fid) in wanted.items():
             if key in self._kept:
                 out[item] = cast(T, self._kept[key])
             elif (persist_s is not None and self._finished([fid])
                   and (found := cache().get(cache_key("report", self.code, *key)))):
                 out[item] = self._kept[key] = found[0]  # an old entry serves too, as `keep` does (it's FOREVER)
+            elif key in self._fetching:
+                shared[item] = self._fetching[key]
             else:
                 missing.append(item)
+                self._fetching[key] = asyncio.get_running_loop().create_future()
         if missing:
             finished = {item for item in missing if self._finished([wanted[item][1]])}  # before, as in `keep`
-            got = await fetch_many(missing)
+            try:
+                got = await fetch_many(missing)
+            except BaseException as e:
+                for item in missing:
+                    self._settle(wanted[item][0], error=e)
+                raise
             for item in missing:
                 key, fid = wanted[item]
                 out[item] = got[item]
                 if item in finished:
                     await self._remember(key, got[item], persist_s)
+                self._settle(key, got[item])
+        for item, task in shared.items():
+            out[item] = cast(T, await asyncio.shield(task))
         return out
+
+    def _settle(self, key: tuple, value: object = None, error: BaseException | None = None) -> None:
+        """The fetch of `key` keep_many started is done: whoever awaits it gets its value (or its error)."""
+        task = self._fetching.pop(key, None)
+        if task is None or task.done():
+            return
+        if error is None:
+            task.set_result(value)
+        elif isinstance(error, asyncio.CancelledError):
+            task.cancel()
+        else:
+            task.set_exception(error)
+            task.exception()  # retrieved here, so a fetch nobody else awaited isn't logged as never retrieved
 
     async def _remember(self, key: tuple, value: object, persist_s: float | None) -> None:
         """Keep a finished pull's value under its key, on disk too with `persist_s` (through the cache's fetch,
