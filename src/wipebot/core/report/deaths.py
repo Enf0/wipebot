@@ -10,6 +10,7 @@ from ..text import clock, ids_line, plural, short
 from . import healing as heals
 from . import positions
 from .base import FactError, Player, PullRef, Report, unavailable
+from .ending import MASS_HIT, MassDeath, mass_death
 
 RECAP_WINDOW_MS = 10_000  # damage shown before a death
 OUTRIGHT_FROM_PCT = 50  # a killing blow with no hit logged, after health at least this high: it killed outright
@@ -350,6 +351,7 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
     uses: dict[int, Counter] = defaultdict(Counter)
     pulls_in: Counter = Counter()
     deaths: Counter = Counter()
+    in_mass: Counter = Counter()  # player -> deaths in a hit killing many
     ready_at_death: dict[int, Counter] = defaultdict(Counter)  # player -> defensive -> deaths it was ready at
     for f in fights:
         for pid, q in played[f["id"]].items():
@@ -361,6 +363,9 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
             q = played[f["id"]].get(d["targetID"])
             if not q or d["timestamp"] > cut[f["id"]]:
                 continue
+            if await mass_death(rep, f, d):  # the raid's to stop: no defensive ready there was a miss
+                in_mass[q.id] += 1
+                continue
             deaths[q.id] += 1
             for sp in kits[(q.class_name, q.spec)]:
                 cd_ms = (sp.get("cooldown") or 0) * 1000
@@ -371,25 +376,37 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
              f"{rep.boss_key(fights[0])}: {plural(len(fights), 'pull')}, {scope}. Per player: pulls, healthstones "
              "and potions, each defensive's uses, deaths, and at how many deaths each defensive they used on this "
              "boss was off cooldown but unused (ignoring charges and cooldown reduction; whether one was needed is for "
-             "the death recap); defensives never cast are a talent choice or passive, not a miss:"]
+             "the death recap; deaths in a hit killing many apart, the raid's to stop); defensives never cast are a "
+             "talent choice or passive, not a miss:"]
     for pid in sorted(pulls_in, key=lambda i: (-deaths[i], rep.names.get(i, ""))):
+        kit = {sp["name"] for here in played.values() if pid in here
+               for sp in kits[(here[pid].class_name, here[pid].spec)]}
         q = next(here[pid] for here in played.values() if pid in here)
-        kit = ", ".join(f"{n} {k}" for n, k in uses[pid].most_common()) or "no defensive used"
-        line = (f"- {q.name} ({spaced(q.spec)} {spaced(q.class_name)}): {plural(pulls_in[pid], 'pull')}, "
-                f"{stones[pid]} healthstone{'' if stones[pid] == 1 else 's'}/potion{'' if stones[pid] == 1 else 's'}, "
-                f"{kit}")
-        if deaths[pid]:
-            ready = ", ".join(f"{n} at {k}" for n, k in ready_at_death[pid].most_common() if uses[pid][n])
-            line += f"; died {deaths[pid]}" + (f", ready but unused: {ready}" if ready else "")
-        if never := sorted({sp["name"] for here in played.values() if pid in here
-                            for sp in kits[(here[pid].class_name, here[pid].spec)]} - set(uses[pid])):
-            line += f"; never cast: {', '.join(never)}"
-        lines.append(line)
+        lines.append(_kit_line(q, pulls_in[pid], stones[pid], uses[pid], (deaths[pid], in_mass[pid]),
+                               ready_at_death[pid], kit))
     if missing:
         lines.append(missing)
     elif not any(kits.values()):
         lines.append("Lorrgs lists no defensives for these specs: only healthstones and potions are counted.")
     return "\n".join(lines)
+
+
+def _kit_line(q: Player, pulls: int, stones: int, uses: Counter, died: tuple[int, int], ready_at: Counter,
+              kit: set[str]) -> str:
+    """defensives' line for a player: pulls, healthstones and potions, each defensive's uses, their deaths (`died`:
+    their own, and in hits killing many) with the defensives ready but unused at their own, and those never cast."""
+    own, mass = died
+    used = ", ".join(f"{n} {k}" for n, k in uses.most_common()) or "no defensive used"
+    line = (f"- {q.name} ({spaced(q.spec)} {spaced(q.class_name)}): {plural(pulls, 'pull')}, "
+            f"{stones} healthstone{'' if stones == 1 else 's'}/potion{'' if stones == 1 else 's'}, {used}")
+    if own:
+        ready = ", ".join(f"{n} at {k}" for n, k in ready_at.most_common() if uses[n])
+        line += f"; died {own}" + (f", ready but unused: {ready}" if ready else "")
+    if mass:
+        line += f"; {'and ' if own else ''}died {mass} in hits killing many"
+    if never := sorted(kit - set(uses)):
+        line += f"; never cast: {', '.join(never)}"
+    return line
 
 
 async def _kits(rep: Report, played: dict[int, dict[int, Player]]
@@ -421,6 +438,7 @@ class Replayed:
     d: dict
     more: list[str]
     outright: bool
+    mass: MassDeath | None = None  # the hit killing many it was one of (mass_death): no one player's to fix
 
 
 async def replay_deaths(rep: Report, p: Player, fights: list[dict], whole_pull: bool = False) -> list[Replayed]:
@@ -441,7 +459,7 @@ async def replay_deaths(rep: Report, p: Player, fights: list[dict], whole_pull: 
     async def one(f: dict, d: dict, hits: list[dict]) -> Replayed:
         more = await if_pressed(rep, f, rep.in_pull(f, p), d, hits)
         return Replayed(f, d, more, not more and bool(d.get("killingAbilityGameID"))
-                        and bool(killed_outright(rep, f, d, hits)))
+                        and bool(killed_outright(rep, f, d, hits)), await mass_death(rep, f, d))
     return list(await asyncio.gather(*(one(f, d, h) for (f, d), h in zip(todo, hits, strict=True))))
 
 
@@ -449,12 +467,20 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
     """Each of a player's deaths on a boss before its wipe was decided, with what a ready defensive or a
     healthstone would have changed (if_pressed, the death recap's replay)."""
     fights = rep.pulls_with(p, fights)
-    done = await replay_deaths(rep, p, fights, whole_pull)
+    replayed = await replay_deaths(rep, p, fights, whole_pull)
+    done = [r for r in replayed if not r.mass]
     saved = sum(bool(savers(r.more)) for r in done)
     scope = "before each wipe was decided" if not whole_pull else "in the whole pulls"
     lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, each replayed with "
              f"what was ready (secondary to what killed them): a ready defensive or a healthstone would have kept "
              f"them alive at {saved} of them."]
+    if mass := [(r, m) for r in replayed if (m := r.mass)]:
+        lines.append(f"Not replayed, {plural(len(mass), 'death')} in a hit killing many (the raid's to stop; a "
+                     f"defensive would only have bought seconds of a pull it lost): "
+                     + ", ".join(f"pull {rep.pull_no(r.f)} {clock(r.d['timestamp'] - r.f['startTime'])} "
+                                 f"({rep.ability(r.d.get('killingAbilityGameID'))}, "
+                                 + MASS_HIT.format(n=m.killed, at=clock(m.at_ms)) + ")"
+                                 for r, m in mass))
     unknown, outright = [], []
     for r in done:
         at = f"pull {rep.pull_no(r.f)} {clock(r.d['timestamp'] - r.f['startTime'])}"

@@ -311,7 +311,7 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
             k, d, _ = x.death
             death = {"place": k + 1, "ms": round(d["timestamp"] - f["startTime"]),
                      "by": rep.ability(d.get("killingAbilityGameID")), "icon": icon(d.get("killingAbilityGameID")),
-                     "fallout": x.fallout}
+                     "fallout": x.fallout, "mass": x.mass}
         rows.append({
             "pull": rep.pull_no(f), "kill": bool(f["kill"]), "reset": is_reset(f), "wipe_pct": wipe_pct(f),
             "duration_ms": round(f["endTime"] - f["startTime"]), "role": x.played.role,
@@ -320,7 +320,7 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
             "death": death, "dead_s": round(x.dead_s, 1), "counted_s": round(x.counted_s, 1),
             "cooldowns": [sum(min(len(t), n) for _, t, n in judged), sum(n for _, _, n in judged)],
         })
-    counted = [r for r in rows if r["death"] and not r["death"]["fallout"]]
+    counted = [r for r in rows if r["death"] and not r["death"]["fallout"] and not r["death"]["mass"]]
     # each death before its wipe was decided, replayed with what was ready (the defensives tool's replay): True when a
     # ready defensive or a healthstone would have kept them alive, False when nothing ready would have, None can't tell
     # (the deaths the card counts: their first in each pull, a later one after a battle res left out, as above)

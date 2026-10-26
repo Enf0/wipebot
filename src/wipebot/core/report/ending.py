@@ -160,6 +160,21 @@ def mass_death_of(e: Ending | None, at_ms: float, ability: str) -> MassDeath | N
     return None
 
 
+async def mass_death(rep: Report, f: dict, death: dict) -> MassDeath | None:
+    """The hit killing many (pull_summary's "Ended by") a death before the wipe was decided was one of, if any."""
+    decided = await rep.decided_at(f)
+    at = death["timestamp"] - f["startTime"]
+    if not decided or at > decided.at_ms:
+        return None
+    return mass_death_of(await pull_ending(rep, f), at, rep.ability(death.get("killingAbilityGameID")))
+
+
+# A death in a hit killing many isn't one player's to fix: the raid failed to stop it (a kick, a soak), and a
+# defensive would at most have bought a few seconds of a pull already lost.
+MASS_HIT = "one of {n} killed at once from {at}"
+MASS_NOTE = MASS_HIT + ", a hit killing many: the raid's to stop, not counted as theirs"
+
+
 def moment_text(m: Moment, raid: int) -> str:
     match m:
         case MassDeath(at_ms=at, ability=name, ids=ids, killed=n, span_s=span, waves=True):

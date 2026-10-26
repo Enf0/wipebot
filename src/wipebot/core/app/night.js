@@ -90,11 +90,15 @@ views.player_night = (() => {
     open("player", { report: D.report, pull, boss: D.boss, player: D.player.name });
   }
 
+  // a death that counts: before the wipe was decided, and not one of a hit killing many (the raid's to stop)
+  function counts(d) { return d && !d.fallout && !d.mass; }
+  function why(d) { return d.fallout ? ", after the wipe was decided" : d.mass ? ", in a hit killing many" : ""; }
+
   function tipOf(r) {
     const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : `${r.wipe_pct}%`}, ${kit.clock(r.duration_ms)}`;
     const out = r.per_s_alive != null ? `${kit.short(r.per_s_alive)}/s alive` + (r.rank ? `, rank ${r.rank} of ${r.of} ${D.role_name}` : "") : `no ${D.what}`;
     const died = !r.death ? "survived"
-      : `died ${kit.clock(r.death.ms)} (#${r.death.place}) to ${r.death.by}` + (r.death.fallout ? ", after the wipe was decided" : "");
+      : `died ${kit.clock(r.death.ms)} (#${r.death.place}) to ${r.death.by}` + why(r.death);
     const cds = r.cooldowns[1] ? `cooldowns ${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
     return [head, out, died, cds, "Click for this pull"].filter(Boolean).join("\n");
   }
@@ -119,7 +123,7 @@ views.player_night = (() => {
         if (r.kill) o += `<rect x="${cx - bw / 2 - 1}" y="${y - 3}" width="${bw + 2}" height="3" fill="var(--gold)"/>`;
       }
       if (r.death) {
-        const dy = T + plotH + 14, counted = !r.death.fallout, rr = Math.max(1.5, Math.min(counted ? 6 : 3.5, band / 2 - 0.6));
+        const dy = T + plotH + 14, counted = counts(r.death), rr = Math.max(1.5, Math.min(counted ? 6 : 3.5, band / 2 - 0.6));
         o += `<circle cx="${cx}" cy="${dy}" r="${rr}" fill="${counted ? "var(--dead)" : "var(--muted)"}" opacity="${counted ? 1 : 0.6}"/>`;
         if (counted && band >= 11) o += kit.text(cx, dy + 3.5, r.death.place, "", 'text-anchor="middle" font-size="8.5" font-weight="700" fill="var(--bg)"');
       }
@@ -167,9 +171,9 @@ views.player_night = (() => {
       const rank = r.rank ? `${r.rank}/${r.of}` : "";
       const died = !r.death ? "" : `${kit.iconImg(D.img_base, r.death.icon)}${kit.clock(r.death.ms)} #${r.death.place}`;
       const cds = r.cooldowns[1] ? `${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
-      return `<tr data-pull="${r.pull}" class="${r.death && !r.death.fallout ? "counted" : ""}"${kit.tip(r.death ? `${r.death.by}${r.death.fallout ? ", after the wipe was decided" : ""}` : "")}>`
+      return `<tr data-pull="${r.pull}" class="${counts(r.death) ? "counted" : ""}"${kit.tip(r.death ? `${r.death.by}${why(r.death)}` : "")}>`
         + `<td>${r.pull}</td><td>${result}</td><td>${kit.clock(r.duration_ms)}</td><td>${out}</td><td>${rank}</td>`
-        + `<td class="${r.death && r.death.fallout ? "fallout" : ""}">${died}</td><td>${cds}</td></tr>`;
+        + `<td class="${r.death && !counts(r.death) ? "fallout" : ""}">${died}</td><td>${cds}</td></tr>`;
     }).join("");
     return `<div class="section-title">Pull by pull (click one for its view)</div><div class="scroll-x"><table class="pulls"><thead><tr>`
       + `<th>Pull</th><th>Boss</th><th>Length</th><th>${kit.esc(what())}/s</th><th>Rank</th><th>Died</th><th>Cooldowns</th></tr></thead><tbody>${rows}</tbody></table></div>`;
