@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `Discord` **"How did I do?" after each wipe.** A post after a wipe in a channel, and every picture of a pull, has a "How did I do?" button: it shows you your own card on that pull, which only you see. It goes by the character the bot remembers for you; tell it once ("my character is ...").
+- `Discord` **Follow-ups are buttons.** Instead of ending with "want me to...?", an answer offers up to three follow-ups as buttons under it. Click one and it's asked for you, as if you had typed it; only the one who asked can click them.
 
 ### Fixed
 

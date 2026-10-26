@@ -106,6 +106,19 @@ MAX_TURNS = 25  # model turns per answer: the evals' longest answers make about 
 ANSWER_BUDGET_USD = 1.0
 # An answer that hit a cap ends with this result (ResultMessage.subtype); ModelError's kind is the cap.
 CAPPED = ("error_max_turns", "error_max_budget_usd")
+# A follow-up the answer offers, on a line of its own ("Follow-up: Replay those deaths?"): a button under it in Discord
+FOLLOW_UP = re.compile(r"^[ \t]*(?:[-*][ \t]*)?Follow-up:[ \t]*(.+?)[ \t]*$", re.M | re.I)
+MAX_FOLLOW_UPS = 3
+FOLLOW_UP_CHARS = 80  # Discord's limit for a button's label, which is the question
+
+
+def follow_ups(text: str) -> tuple[str, list[str]]:
+    """An answer's text without its follow-up lines, and the follow-ups (at most MAX_FOLLOW_UPS that fit a button)."""
+    found = [q.strip("*_\"' ") for q in FOLLOW_UP.findall(text)]
+    kept = [q for q in dict.fromkeys(found) if 0 < len(q) <= FOLLOW_UP_CHARS][:MAX_FOLLOW_UPS]
+    if len(kept) < len(found):
+        log.info("follow-ups left out (too long, too many or repeated): %s", [q for q in found if q not in kept])
+    return re.sub(r"\n{3,}", "\n\n", FOLLOW_UP.sub("", text)).strip(), kept
 
 
 def context_size(usage: dict | None) -> int:
@@ -279,6 +292,12 @@ class Answer:
     # With a plugin (Session's `plugin`): each skill the model loaded ("skill:wipebot:raid-log-analysis") and file it
     # read ("read:examples.md"), in order
     loaded: list[str] = field(default_factory=list)
+    follow_ups: list[str] = field(default_factory=list)  # what the answer offers next, as buttons in Discord
+
+    @property
+    def full(self) -> str:
+        """The text with its follow-ups as the model wrote them, for the record and the evals' judge."""
+        return self.text + "".join(f"\nFollow-up: {q}" for q in self.follow_ups)
 
     def records(self) -> list[dict]:
         """The tool calls for the interaction record."""
@@ -486,6 +505,7 @@ class Session:
             raise ModelError(error, answer)
         await pictures_drawn(answer.calls)
         text = texts[-1].strip() if texts else "(no answer)"  # the last text is the answer
+        text, answer.follow_ups = follow_ups(text)
         answer.text = polish(text, [c.result for c in answer.calls if not c.failed],
                              await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx))
         return answer

@@ -34,7 +34,7 @@ from wipebot.discord.bot import (
 from wipebot.discord.chat import SlowStart
 from wipebot.discord.follower import Pull
 from wipebot.discord.host import Answer, Context, ModelError, ToolCall
-from wipebot.discord.messages import Act
+from wipebot.discord.messages import Act, FollowUp
 from wipebot.discord.posts import Following
 from wipebot.discord.store import Store
 
@@ -532,6 +532,64 @@ async def test_answers_are_components_v2_messages_with_an_optional_footer(channe
     assert await WipeBot._send(channel, Answer("x" * 2500)) == [3]  # a message holds 4000 characters
     assert await WipeBot._send(channel, Answer("x" * 4500)) == [4, 5]  # split; the ids of the messages sent
 
+
+
+async def test_the_follow_ups_an_answer_offers_are_buttons_for_its_asker_last(channel):
+    answer = Answer("**Wiped.**", follow_ups=["Replay the deaths?", "Klar for P2?"])
+    await WipeBot._send(channel, answer, asker=7)
+    rows = [c for c in channel.views[-1].children if isinstance(c, discord.ui.ActionRow)]
+    assert [[(b.question, b.item.custom_id) for b in r.children] for r in rows] == [
+        [("Replay the deaths?", "wbf|7|0"), ("Klar for P2?", "wbf|7|1")]]
+    await WipeBot._send(channel, answer)  # nobody to ask them for (a test answer): none
+    assert not [c for c in channel.views[-1].children if isinstance(c, discord.ui.ActionRow)]
+
+
+class Click:
+    """A click on a follow-up in #raid of server 1001, by Rowan (id 7) unless another."""
+
+    def __init__(self, channel, member, user_id: int = 7):
+        self.user, self.channel, self.guild_id = member(user_id, "Rowan"), channel, 1001
+        self.message = None  # the answer clicked (its follow-ups are taken off it: without_follow_ups)
+        self.client: Any = None
+        self.said: list[tuple[str | None, dict]] = []
+        self.response = SimpleNamespace(send_message=self._send)
+        self.question = SimpleNamespace(id=900, reply=None)  # what the bot posts as the asker's question
+
+    async def _send(self, content=None, **kwargs):
+        self.said.append((content, kwargs))
+
+    async def original_response(self):
+        return self.question
+
+
+async def test_a_follow_up_is_asked_in_the_askers_conversation_as_if_typed(bot, asked, channel, member):
+    replied: list = []
+    click = Click(channel, member)
+
+    async def post(content=None, **kwargs):  # the answer replies to the question posted as the asker's
+        replied.append(kwargs)
+        return SimpleNamespace(id=1)
+    click.question.reply = post
+    await bot.follow_up(click, "Replay the deaths?")
+    assert click.said[0][0] == "-# Rowan asked: Replay the deaths?" and "ephemeral" not in click.said[0][1]
+    [(key, code, question, ctx)] = asked
+    assert (key, code, question, ctx.where) == ((20, 7), "LIVE1", "Replay the deaths?", "in #raid")
+    assert len(replied) == 1 and recorded(bot.store)[0][2] == "Replay the deaths?"
+
+
+async def test_only_the_asker_clicks_their_follow_ups(channel, member):
+    asked_by: list = []
+    other = Click(channel, member, user_id=8)
+    other.client = SimpleNamespace(follow_up=lambda i, q: asked_by.append(q))
+    await FollowUp(7, 0, "Replay the deaths?").callback(cast(Any, other))
+    assert asked_by == [] and other.said[0][1]["ephemeral"] and "<@7>'s follow-up" in str(other.said[0][0])
+    mine = Click(channel, member)
+
+    async def follow_up(interaction, question):
+        asked_by.append(question)
+    mine.client = SimpleNamespace(follow_up=follow_up)
+    await FollowUp(7, 0, "Replay the deaths?").callback(cast(Any, mine))
+    assert asked_by == ["Replay the deaths?"]
 
 async def test_a_long_answer_is_cut_after_four_messages(channel):
     assert len(await WipeBot._send(channel, Answer("x " * 10000))) == 4

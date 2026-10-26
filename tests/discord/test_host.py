@@ -459,3 +459,14 @@ async def test_an_answer_says_which_skill_it_loaded_and_which_files_it_read(sess
          AssistantMessage([TextBlock("Wiped to the enrage.")], "claude-opus-5-5"), result(0.1, 10)]))
     answer = await session.ask("why did we wipe?", Context())
     assert answer.loaded == ["skill:wipebot:raid-log-analysis", "read:examples.md"]
+
+
+def test_follow_ups_come_off_the_answers_end_as_buttons():
+    text = ("**Wiped to Tempest.**\n- Spread at 2:15.\n\nFollow-up: Replay Rowan's death on pull 12?\n"
+            "- Follow-up: **Klar for P2?**\nFollow-up: Replay Rowan's death on pull 12?\nFollow-up: " + "x" * 81
+            + "\n-# Nerfed Oct 13.")
+    shown, offered = host.follow_ups(text)
+    assert shown == "**Wiped to Tempest.**\n- Spread at 2:15.\n\n-# Nerfed Oct 13."
+    assert offered == ["Replay Rowan's death on pull 12?", "Klar for P2?"]  # repeated and too long left out
+    assert host.follow_ups("No follow-up here: follow-ups are their own lines.")[1] == []
+    assert Answer("**Done.**", follow_ups=["Klar for P2?"]).full == "**Done.**\nFollow-up: Klar for P2?"

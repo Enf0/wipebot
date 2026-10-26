@@ -138,7 +138,7 @@ async def _answer(session: Session, question: str, ctx: Context) -> None:
     except FactError as e:
         print(f"error: {e}")
         return
-    print(f"\nwipebot: {a.text}")
+    print(f"\nwipebot: {a.full}")
     for image in a.images:  # what Discord would attach
         with tempfile.NamedTemporaryFile("wb", prefix="wipebot-picture-", suffix=".webp", delete=False) as fh:
             fh.write(image)
