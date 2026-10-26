@@ -75,10 +75,13 @@ async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, bos
     s = await _summed_rows(rep, q)
     players = {p.name: p for p in rep.players.values()}
     bars = []
-    for name, value, extra in s.rows:
-        p = players.get(name)
+    for name, value, _ in s.rows:
+        p, c = players.get(name), s.counts[name]
         parse = f"parse {ordinal(s.parses[name])}" if p and name in s.parses and metric_of(p) == s.metric else ""
-        bars.append(Bar(name, value, ", ".join(x for x in (parse, extra.removeprefix(", ")) if x)))
+        overheal = (f"overheal {100 * c['overheal'] / (c['overheal'] + value):.0f}%"
+                    if data_type == "Healing" and c["overheal"] else "")
+        hits = ", ".join(plural(c[k], k[:-1]) for k in ("hits", "ticks") if c[k]) if q.ability else ""
+        bars.append(Bar(name, value, ", ".join(x for x in (parse, overheal, hits) if x)))
     note = (f"Parses: Warcraft Logs' {s.metric} percentiles against the same spec on this kill." if s.parses else "")
     return Meter(title, scope, bars, seconds=s.dur_s, ability=icon, note=note) if len(bars) >= MIN_BARS else None
 
@@ -159,7 +162,7 @@ async def _by_pull(rep: Report, q: Asked) -> str:
     lines = [f"{q.head}, by pull:"]
     per_pull = await _per_pull_tables(rep, q.fights, q.data_type, q.filters, q.ids, q.ends)
     for f, tables_ in zip(q.fights, per_pull, strict=True):
-        rows, tt = _merged_rows(tables_, q.data_type, "ability" if q.player else "player", q.ids != [None])
+        rows, tt, _ = _merged_rows(tables_, q.data_type, "ability" if q.player else "player", q.ids != [None])
         rows = _without_moved(rows, q.data_type)[0]
         # WCL's time is cut at the cutoff too
         d = (tt if q.cutoff and tt else q.ends.get(f["id"], f["endTime"]) - f["startTime"]) / 1000
@@ -181,6 +184,7 @@ class Summed:
     total_time: float
     parses: dict[str, int]
     metric: str
+    counts: dict[str, Counter]  # per row: hits, ticks, overhealing
 
 
 async def _summed_rows(rep: Report, q: Asked) -> Summed:
@@ -192,11 +196,11 @@ async def _summed_rows(rep: Report, q: Asked) -> Summed:
     else:
         tables_ = [await rep.table([f["id"] for f in q.fights], q.data_type, **q.filters, **view, **_only(gid))
                    for gid in q.ids]
-    rows, total_time = _merged_rows(tables_, q.data_type, q.group_by, per_hit=q.ids != [None])
+    rows, total_time, counts = _merged_rows(tables_, q.data_type, q.group_by, per_hit=q.ids != [None])
     rows, moved = _without_moved(rows, q.data_type)
     dur_s = total_time / 1000 if q.cutoff and total_time else q.dur_s  # up to the cutoff, as WCL counts it
     parses, metric = await _parses(rep, q)
-    return Summed(rows, moved, dur_s, total_time, parses, metric)
+    return Summed(rows, moved, dur_s, total_time, parses, metric, counts)
 
 
 async def _summed(rep: Report, q: Asked) -> str:
@@ -262,10 +266,10 @@ async def _per_pull_tables(rep: Report, fights: list[dict], data_type: str, filt
 
 
 def _merged_rows(tables: list[dict], data_type: str, group_by: str, per_hit: bool = False) -> tuple[list[tuple],
-                                                                                                    float]:
-    """(name, value, extra text) rows of several tables merged by name, and the combat time. With `per_hit` (one
-    ability asked for) or by ability, each row says its hits, average hit and crits; damage taken by ability, who
-    took most of it."""
+                                                                                                    float, dict]:
+    """(name, value, extra text) rows of several tables merged by name, the combat time, and each name's counts
+    (hits, ticks, overhealing). With `per_hit` (one ability asked for) or by ability, each row says its hits,
+    average hit and crits; damage taken by ability, who took most of it."""
     merged: dict[str, tuple[float, Counter]] = {}
     total_time = 0.0
     for t in tables:
@@ -278,7 +282,7 @@ def _merged_rows(tables: list[dict], data_type: str, group_by: str, per_hit: boo
         return c if group_by == "ability" else Counter({k: v for k, v in c.items() if not isinstance(k, tuple)})
     rows = sorted(((n, v, _extra(v, kept(c), data_type, per_hit or group_by == "ability"))
                    for n, (v, c) in merged.items()), key=lambda r: -r[1])
-    return rows, total_time
+    return rows, total_time, {n: c for n, (_, c) in merged.items()}
 
 
 RARELY_DISPELLED = 0.25  # a debuff dispelled on fewer applications than this share: not one anyone bothers with
