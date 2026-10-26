@@ -34,7 +34,7 @@ from wipebot.discord.bot import (
 from wipebot.discord.chat import SlowStart
 from wipebot.discord.follower import Pull
 from wipebot.discord.host import Answer, Context, ModelError, ToolCall
-from wipebot.discord.messages import Act, FollowUp
+from wipebot.discord.messages import Act, FollowUp, Picture
 from wipebot.discord.posts import Following
 from wipebot.discord.store import Store
 
@@ -454,6 +454,19 @@ async def test_a_poll_posts_after_wipes_and_marks_every_pull_handled(bot, settin
     assert posted == [(7, 12)] and len(follower.handled) == 2
 
 
+async def test_the_poll_after_the_raid_ends_posts_the_night_once(bot, settings, follower, member, monkeypatch):
+    nights = []
+
+    async def night_post(f):
+        nights.append(f.key)
+    monkeypatch.setattr(bot, "_night_post", night_post)
+    bot.posts.add(1001, Following(member(7, "Rowan"), "Rowan", "Torvek", "LIVE1"))
+    follower.code = None  # the report stopped being logged
+    await bot._new_pulls(settings)
+    await asyncio.sleep(0)
+    assert nights == [7] and not bot.posts.by_server[1001]
+
+
 async def test_nothing_polls_the_live_report_while_nobody_asked_for_posts(bot, settings, follower):
     """Each look for a new live report costs a Warcraft Logs database point: polled around the clock, that was most
     of an hour's database points with nobody asking."""
@@ -494,6 +507,31 @@ async def test_a_post_names_players_only_where_names_are_on(bot, settings, asked
     # each raider's own card on the pull, a click away under the post; a raider's own feedback in a DM is that already
     buttons = [c for c in channel.views[-1].walk_children() if isinstance(c, Act)]
     assert [(b.what, b.report, b.boss, b.pull) for b in buttons] == [("mypull", "LIVE1", "Sszorak", "12")]
+
+
+
+async def test_when_the_raid_ends_each_place_gets_its_night_without_the_model(bot, asked, member, channel,
+                                                                             monkeypatch):
+    drawn: list = []
+
+    async def picture(tool, args):
+        drawn.append((tool, args))
+        return [b"WEBP"]
+
+    async def no_actions(drawn, results=()):
+        return [Picture(f"wipebot-{n + 1}.webp") for n in range(len(drawn))]
+    monkeypatch.setattr(wipebot.host, "picture", picture)
+    monkeypatch.setattr(wipebot, "pictures_for", no_actions)
+    dm = FakeDM()
+    rowan = member(7, "Rowan")
+    rowan.create_dm = lambda: asyncio.sleep(0, dm)
+    await bot._night_post(Following(rowan, "Rowan", "Torvek", "LIVE1"))
+    await bot._night_post(Following(member(8, "Halvard"), "Halvard", None, "LIVE1", channel, "who died first"))
+    assert drawn == [("player_night", {"report": "LIVE1", "player": "Torvek"}), ("progress", {"report": "LIVE1"})]
+    assert dm.sent[0].startswith("**That's the raid.** Torvek's night:")
+    assert channel.sent[0].startswith("**That's the raid.** The night on the last boss") and channel.files == [
+        ["wipebot-1.webp"]]
+    assert asked == []  # no model turn
 
 
 async def test_a_post_that_took_too_long_is_given_up(bot, settings, asked, member, channel):

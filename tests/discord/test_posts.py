@@ -73,13 +73,15 @@ async def test_a_request_that_waited_too_long_for_the_raid_ends(posts, store, ro
     await posts.follow_pulls(SERVER, rowan, "Rowan", {"character": "torvek"}, None, "LASTWEEK")
     posts.by_server[SERVER][7].asked -= FOLLOW_WAIT_S + 1
     assert await posts.due(SERVER, None, []) == []
-    assert not places(posts) and store.all_following() == []
+    assert not places(posts) and store.all_following() == [] and posts.finished(SERVER) == []  # no night: no post
 
 
 async def test_posts_end_with_the_report_they_follow(posts, store, rowan):
     await posts.follow_pulls(SERVER, rowan, "Rowan", {"character": "torvek"}, "LIVE1", "LIVE1")
     assert await posts.due(SERVER, "NEXTNIGHT", [Pull("NEXTNIGHT", 1, "Sszorak", 1, ENDED)]) == []
     assert not places(posts) and store.all_following() == []
+    [ended] = posts.finished(SERVER)  # the night's post is due once
+    assert (ended.character, ended.code) == ("Torvek", "LIVE1") and posts.finished(SERVER) == []
 
 
 async def test_anyone_can_ask_for_posts_in_a_channel_and_only_they_or_an_officer_change_them(posts, member, channel,
