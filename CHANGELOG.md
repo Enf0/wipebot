@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `Agent` **Dying in the hit that wiped the raid isn't on your card to fix.** A player's card listed a death to an ability that killed many at once, such as a missed kick letting Visceral Burst through, as their mistake. It now leaves it out: that hit wiped the raid, whoever's job it was to stop it. A death of their own before it still counts.
+- `Discord` **Answers with pictures arrive again.** An answer with two pictures of the same player, such as their pull and their night, never came: Discord refused the message for a button the two shared. It now comes, with one view under it and the others a click away from its buttons, so a few pictures no longer fill the screen under a short answer.
 
 ## [0.10.0] - 2026-10-26
 

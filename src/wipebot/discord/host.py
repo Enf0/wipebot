@@ -293,8 +293,12 @@ class Answer:
 
     @property
     def pictures(self) -> list[tuple[bytes, ToolCall]]:
-        """The pictures of the answer's tool calls (maps, views), to send with it, each with its call; the last few."""
-        return [(i, c) for c in self.calls if not c.failed for i in c.images][-MAX_IMAGES:]
+        """The pictures of the answer's tool calls, to send with it, each with its call; the last few: every map, and
+        the first view drawn (one panel or several), the others a click away from its buttons and menus, so a few
+        views don't fill the screen under a short answer."""
+        drawn = [c for c in self.calls if not c.failed and c.images]
+        view = next((c for c in drawn if c.name in server.VIEW_TOOLS), None)
+        return [(i, c) for c in drawn if c is view or c.name not in server.VIEW_TOOLS for i in c.images][-MAX_IMAGES:]
 
     @property
     def images(self) -> list[bytes]:

@@ -47,19 +47,23 @@ class Picture:
 
 def answer_layout(text: str, pictures: Sequence[Picture] = ()) -> discord.ui.LayoutView:
     """A message as Components V2: its text (none for a picture alone), then each picture (an attachment by its
-    name) whole in a gallery of its own, boxed with its buttons and menus, the box edged gold for a new guild best.
+    name) whole in a gallery of its own, boxed with its buttons and menus (one already above left out), the box edged
+    gold for a new guild best.
     Several attachments on a plain message are shown as a grid, each cropped to its tile."""
     view = discord.ui.LayoutView(timeout=None)
+    used: set[str] = set()  # Discord refuses a message with two items of one custom_id: the second does the same
     if text:
         view.add_item(discord.ui.TextDisplay(text))
     for p in pictures:
         items: list[discord.ui.Item] = [discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{p.name}"))]
         buttons: list[discord.ui.Item] = [discord.ui.Button(label="Open in Warcraft Logs", url=p.link)] \
             if p.link else []
-        buttons += [a for a in p.actions if isinstance(a, Act)]
+        actions = [a for a in p.actions if a.item.custom_id not in used]
+        used.update(a.item.custom_id for a in actions if a.item.custom_id)
+        buttons += [a for a in actions if isinstance(a, Act)]
         if buttons:
             items.append(discord.ui.ActionRow(*buttons))
-        items += [discord.ui.ActionRow(cast(Any, a)) for a in p.actions if isinstance(a, Pick)]  # a menu: a row
+        items += [discord.ui.ActionRow(cast(Any, a)) for a in actions if isinstance(a, Pick)]  # a menu: a row
         view.add_item(discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None))
     return view
 

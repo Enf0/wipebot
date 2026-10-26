@@ -54,6 +54,16 @@ async def test_four_pictures_with_their_actions_fit_in_one_message(recorded):
     assert view.content_length() <= 4000 and len(list(view.walk_children())) <= 40  # Discord's limits
 
 
+async def test_a_button_two_pictures_share_goes_once(recorded):
+    """Two pictures of one player each have "Their night": Discord refuses a message with an id twice."""
+    player = {**PULL, "player": "Scopidruid"}
+    pictures = await pictures_for([(b"1", "player_pull", player), (b"2", "compare_with_top", {**player,
+                                                                                              "aspects": ["casts"]})])
+    view = answer_layout("", pictures)
+    ids = [i for c in view.walk_children() if (i := getattr(c, "custom_id", None))]
+    assert len(ids) == len(set(ids)) and sum(i.startswith("wb|night|") for i in ids) == 1
+
+
 class Clicked:
     """A click on an action: what the bot answered, to whom."""
 
