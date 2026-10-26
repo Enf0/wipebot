@@ -1245,7 +1245,8 @@ async def player_night(player: Player, boss: Boss = None, report: Report_ = None
     against possible uses, per pull and summed over the night; the resource they spend lost at the cap over the
     night, by source; and the trend ("am I getting better?"): deaths and output per second alive over the first,
     middle and last third of the pulls.
-    Reading it: a death after a wipe was decided is marked as fallout and left out of the counts. Cooldown uses /
+    Reading it: a death after a wipe was decided is marked as fallout, and one in a hit killing many as the raid's
+    to stop; both are left out of the counts. Cooldown uses /
     possible assume pressing on cooldown from the pull until the player died or the wipe was decided."""
     text = await coaching.player_night(await lib().report(report), player, boss)
     return await _shown("player_night", {"player": player, "boss": boss, "report": report}, text, ctx)
@@ -1314,7 +1315,8 @@ async def defensives(boss: Boss = None, whole_pull: WholePull = False,
     """For "who used healthstones and defensives?", "would a personal have saved me?".
     Everyone's healthstones and healing potions and personal defensives over a boss's pulls, in one table:
     uses per player, deaths, and at how many deaths each defensive was ready but unused. With `player`: each of
-    their deaths, replayed with a ready defensive or a healthstone.
+    their deaths, replayed with a ready defensive or a healthstone. A death in a hit killing many is counted
+    apart: the raid's to stop, which a defensive would only have delayed.
     Not for one death in detail, the hits and the healing before it (death_recap)."""
     return await deaths.defensives(await lib().report(report), boss, whole_pull, player)
 

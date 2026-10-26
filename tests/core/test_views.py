@@ -301,7 +301,7 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     assert f"Best pull by {data['what']} per second alive: {best}" in text
     if data["thirds"]:
         died = " / ".join(f"{t['died']} of {len(t['pulls'])}" for t in data["thirds"])
-        assert f"died before the wipe was decided on {died};" in text
+        assert f"deaths that count (as above) on {died};" in text
     for c in data["cooldowns"]:
         if c["possible"] is not None and c["used"]:
             assert f"{c['name']} {c['used']}/{c['possible']}" in text

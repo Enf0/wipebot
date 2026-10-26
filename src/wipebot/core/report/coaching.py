@@ -15,6 +15,7 @@ from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report,
 from .build import gear_stats, hero_of, prepared
 from .casting import alive, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
+from .ending import MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
 
 # WCL's power types (classResources `type`, Resources graphs at 100 + type), the game's Enum.PowerType.
@@ -197,11 +198,15 @@ def time_lost_text(lost: TimeLost) -> str:
 
 
 async def _death_note(rep: Report, f: dict, death: dict) -> str:
-    """' (after the wipe was decided at 2:32)' for a death in a wipe's fallout, else ''."""
+    """' (after the wipe was decided at 2:32: fallout)' for a death in a wipe's fallout, the hit killing many it was
+    one of, ' (before the wipe was decided)' for the others on a wipe, else ''."""
     decided = await rep.decided_at(f)
     if decided and death["timestamp"] - f["startTime"] > decided.at_ms:
         return f" (after the wipe was decided at {clock(decided.at_ms)}: fallout)"
+    if m := await mass_death(rep, f, death):
+        return f" ({MASS_NOTE.format(n=m.killed, at=clock(m.at_ms))})"
     return " (before the wipe was decided)" if decided else ""
+
 
 
 async def _uptimes(rep: Report, f: dict, p: Player, alive_s: float, until_ts: float) -> list[str]:
@@ -355,8 +360,14 @@ class NightPull:
     counted_s: float  # the pull until the wipe was decided
     death: tuple[int, dict, str] | None  # (place among the pull's deaths, their first death, its note)
     fallout: bool  # that death came after the wipe was decided
+    mass: bool  # that death was one of a hit killing many (mass_death): not counted as theirs either
     cooldowns: list[tuple[dict, list[float], int | None]]  # cooldown_use's rows
     parse: str | None  # a kill's parse
+
+    @property
+    def counted(self) -> bool:
+        """Whether they died before the wipe was decided, and not in a hit killing many: a death that counts."""
+        return bool(self.death) and not self.fallout and not self.mass
 
 
 @dataclass
@@ -442,7 +453,8 @@ async def night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[
             f, q, next((e for e in entries if e.get("id") == p.id), None),
             [e for e in entries if (o := here.get(e.get("id"))) and o.role == q.role],
             alive(rep, f, p, own, ordered)[0], _dead_s(f, own, ordered, end), (end - f["startTime"]) / 1000,
-            death, bool(death and decided and death[1]["timestamp"] - f["startTime"] > decided.at_ms), rows,
+            death, bool(death and decided and death[1]["timestamp"] - f["startTime"] > decided.at_ms),
+            bool(death and await mass_death(rep, f, death[1])), rows,
             await parse(rep, f, q) if f["kill"] else None))
     skipped = {n for _, s in uses for n in s or []}
     return out, skipped, why
@@ -485,7 +497,7 @@ def night_trend(pulls: list[NightPull], role: str) -> list[NightThird] | None:
     out = []
     for part in (counted[:third], counted[third:-third], counted[-third:]):
         rates = sorted(x.mine["total"] / max(x.alive_s, 1) for x in part if x.mine and x.played.role == role)
-        out.append(NightThird([pulls.index(x) for x in part], sum(bool(x.death) and not x.fallout for x in part),
+        out.append(NightThird([pulls.index(x) for x in part], sum(x.counted for x in part),
                               rates[len(rates) // 2] if rates else None))
     return out
 
@@ -496,7 +508,7 @@ def _night_trend(pulls: list[NightPull], role: str, what: str) -> str | None:
         return None
     deaths = " / ".join(f"{t.died} of {len(t.pulls)}" for t in thirds)
     rates = " / ".join(short(t.rate) + "/s" if t.rate is not None else "-" for t in thirds)
-    return (f"Over the night (the pulls in thirds: first / middle / last): died before the wipe was decided on "
+    return (f"Over the night (the pulls in thirds: first / middle / last): deaths that count (as above) on "
             f"{deaths}; {what} per second alive, median, {rates}.")
 
 
@@ -504,10 +516,10 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
                 lost: str | None = None) -> str:
     main_role = Counter(pull.played.role for pull in pulls).most_common(1)[0][0]
     what = "healing" if main_role == "healer" else "damage"
-    died = sum(pull.death is not None for pull in pulls)
-    fallout = sum(pull.fallout for pull in pulls)
-    first = sum(pull.death[0] == 0 for pull in pulls if pull.death and not pull.fallout)
-    early = sum(pull.death[0] < FIRST_DEATHS for pull in pulls if pull.death and not pull.fallout)
+    counted = [pull for pull in pulls if pull.counted]
+    mass = sum(pull.mass for pull in pulls)
+    first = sum(pull.death[0] == 0 for pull in counted if pull.death)
+    early = sum(pull.death[0] < FIRST_DEATHS for pull in counted if pull.death)
     dead_s, counted_s = sum(pull.dead_s for pull in pulls), sum(pull.counted_s for pull in pulls)
     ranked = [(pull.mine["total"] / max(pull.alive_s, 1), rep.pull_no(pull.f)) for pull in pulls
               if pull.mine and not is_reset(pull.f) and pull.played.role == main_role]
@@ -518,8 +530,10 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
              else f"in {len(pulls)} of the {plural(total, 'pull')} (not in the others, so not judged on them)")
     which += "".join(f"; pull {n} is still going and left out until it ends" for n in live)
     # Everyone dies on a wipe, so "died in 42 of 42" says nothing: only the deaths before a wipe was decided count.
-    lines = [f"{p.label} on {b}, {which}. Died before the wipe was decided on {died - fallout} of "
-             f"{plural(len(pulls), 'pull')} (later deaths are fallout and don't count); first death "
+    lines = [f"{p.label} on {b}, {which}. Died before the wipe was decided on {len(counted)} of "
+             f"{plural(len(pulls), 'pull')} (later deaths are fallout and don't count"
+             + (f"; nor {plural(mass, 'death')} in a hit killing many, the raid's to stop" if mass else "")
+             + "); first death "
              f"{plural(first, 'time')}, among the first {FIRST_DEATHS} deaths {plural(early, 'time')}; dead for "
              f"{dead_s:.0f} s of the {counted_s:.0f} s before each wipe was decided "
              f"({100 * dead_s / max(counted_s, 1):.0f}%: no output then)."]
