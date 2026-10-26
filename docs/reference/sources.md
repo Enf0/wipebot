@@ -54,10 +54,21 @@ API: `wcl-api.md`.
 - Viserio's default plans (the Wowutils ones an assignment note links unless changed) can't be read with a guild
   officer's login: `addon-export` and `thumbnail` answer 403 `access_denied` ("This account cannot open that plan"),
   with or without a `public=true` parameter, though `POST /plans/{id}/embed` answers 200 for them (`private: false`,
-  `guildPlan: false`). The plan REST API, with a key from raidstrats.gg's Discord, serves non-guild plans; without a
-  key it stops at Cloudflare's bot check. A duplicate in
+  `guildPlan: false`). A duplicate in
   the officer's account can, once saved on raidstrats.gg (until then 404 `addon_export_missing`), checked 25 October
   2026. A refresh with a wrong client secret answers 401 `invalid_client`; a refused login 400 `invalid_grant`.
+  Sending the plan REST API's key along with the login (any header or parameter) changes none of this.
+- raidstrats.gg's plan REST API (raidstrats.gg/embed-doc#addon-rest-api; a key from raidstrats.gg's Discord, sent
+  as `Authorization: Bearer <key>`) reads any non-guild plan, Viserio's defaults included, with no login:
+  `GET /api/plans/<id>/addon-export` gives `{ok, planId, planName, addonExport}`, the same `!raidstrats-addon-` text
+  the OAuth API gives (`plan_export.parse` reads it); `GET /api/plans/<id>/thumbnail` gives `{ok, planId, planName,
+  thumbnail}` (a cdn.raidstrats.gg image URL, or null): an 800×449 JPG of the plan's first scene only, also on a
+  plan of 5 scenes. `POST /api/plans/addon-export` and `/api/plans/thumbnail`
+  with `{"planIds": [...]}` (up to 50) give `{ok, count, okCount, results}`, each failure `{ok: false, planId, code,
+  error}`. A guild plan is refused: 403 (batch: per item) `guild_plan`; an unknown id 404 `not_found`; a plan not
+  saved since the export shipped 404 `addon_export_missing`; a wrong or missing key 401. Calls take about 100 ms,
+  limit 400 a minute (`ratelimit-*` headers). A default plan's spots are numbered with no names: Viserio's
+  assignment fills them (26 October 2026). Python's client gets through Cloudflare; `curl` gets the bot check.
 - raidstrats.gg's API (`/api/oauth/v1`, its developers page) reads only as a person who logged in and approved the
   app: the authorization code flow, no `client_credentials` (`unsupported_grant_type`, 19 October 2026). Access
   tokens last an hour; the refresh token 30 days, replaced on each refresh. `/plans` lists `plans` (theirs) and
