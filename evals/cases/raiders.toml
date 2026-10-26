@@ -82,10 +82,11 @@ where = "in a DM"
 question = ["who used the least defensives last night? where it mattered", "but would it have saved them?"]
 asker = "Enfo"
 expect = """Sometimes, not always: replaying each death before a wipe was decided with what was ready, a defensive or a
-healthstone would have saved Agonco at 16 of 28, others far less often, and never against Mutilate or Ravage; some
-deaths can't be judged."""
-facts = ["Algmor 14 of 29", "Nexsozz 8 of 15", "Martin 6 of 12", "Pomaa 6 of 23", "Peggerino 5 of 22",
-         "10 of Agonco's deaths can't be told (no health or overkill logged)",
+healthstone would have saved Agonco at 15 of 22, others less often; the deaths in a hit killing many aren't theirs
+to save, and some deaths can't be judged."""
+facts = ["Algmor 13 of 21", "Nexsozz 6 of 10", "Martin 5 of 8", "Pomaa 5 of 12", "Peggerino 5 of 12",
+         "5 of Agonco's deaths can't be told (no health or overkill logged)",
+         "6 of Agonco's deaths were in a hit killing many, set apart",
          "the saves are mostly Tempest and Virulence deaths"]
 wrong = ["says every death with a ready defensive would have been saved",
          "counts deaths after a wipe was decided",
