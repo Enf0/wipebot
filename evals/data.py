@@ -12,6 +12,8 @@ import tempfile
 from compression import zstd
 from pathlib import Path
 
+from tests.support.local import download
+
 CACHE = Path(__file__).parent / "cache.sqlite"
 REPO = "Enf0/wipebot-dev"
 TAG = "eval-data"
@@ -60,9 +62,8 @@ def fetch(replace: bool = False) -> None:
     if CACHE.exists() and not replace:
         sys.exit(f"{CACHE} is here already: `python -m evals.data fetch --replace` replaces it")
     with tempfile.TemporaryDirectory() as tmp:
-        got = _gh("release", "download", TAG, "--pattern", ASSET, "--dir", tmp)
-        if got.returncode:
-            sys.exit(f"couldn't download {ASSET} from {REPO} (gh needs an account that may read it):\n{got.stderr}"
+        if error := download(REPO, TAG, ASSET, Path(tmp) / ASSET):
+            sys.exit(f"couldn't download {ASSET} from {REPO} (gh needs an account that may read it):\n{error}"
                      "Without access, `just evals` fetches what the cases read on its first run (evals/README.md).")
         answers = unpack(Path(tmp) / ASSET, CACHE)
     print(f"fetched {answers} answers into {CACHE}")

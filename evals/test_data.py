@@ -1,6 +1,5 @@
-"""Fetching the evals' frozen data from the maintainers' store (evals/data.py), with `gh` faked."""
+"""Fetching the evals' frozen data from the maintainers' store (evals/data.py), with the download faked."""
 import sqlite3
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -34,13 +33,11 @@ def store(tmp_path, monkeypatch):
     data.pack(_cache(tmp_path / "theirs.sqlite", 3), packed)
     asked = []
 
-    def gh(*args):
-        asked.append(args)
-        if args[:2] == ("release", "download"):
-            to = Path(args[args.index("--dir") + 1])
-            (to / data.ASSET).write_bytes(packed.read_bytes())
-        return subprocess.CompletedProcess(args, 0, "", "")
-    monkeypatch.setattr(data, "_gh", gh)
+    def download(repo, tag, asset, dest):
+        asked.append((repo, tag, asset))
+        dest.write_bytes(packed.read_bytes())
+        return ""
+    monkeypatch.setattr(data, "download", download)
     monkeypatch.setattr(data, "CACHE", tmp_path / "cache.sqlite")
     return asked
 
@@ -48,7 +45,7 @@ def store(tmp_path, monkeypatch):
 def test_fetch_puts_the_stored_cache_in_place(store, capsys):
     data.fetch()
     assert _answers(data.CACHE) == 3
-    assert store[0][:3] == ("release", "download", data.TAG) and "fetched 3 answers" in capsys.readouterr().out
+    assert store == [(data.REPO, data.TAG, data.ASSET)] and "fetched 3 answers" in capsys.readouterr().out
 
 
 def test_fetch_leaves_a_cache_already_here_unless_told_to_replace_it(store):
@@ -61,7 +58,7 @@ def test_fetch_leaves_a_cache_already_here_unless_told_to_replace_it(store):
 
 
 def test_without_access_fetch_says_how_a_run_gets_the_data_instead(store, monkeypatch):
-    monkeypatch.setattr(data, "_gh", lambda *a: subprocess.CompletedProcess(a, 1, "", "HTTP 404: Not Found\n"))
+    monkeypatch.setattr(data, "download", lambda *a: "HTTP 404: Not Found\n")
     with pytest.raises(SystemExit, match="HTTP 404(.|\n)*first run"):
         data.fetch()
     assert not data.CACHE.exists()

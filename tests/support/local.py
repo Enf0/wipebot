@@ -25,11 +25,29 @@ def _gh(*args: str) -> subprocess.CompletedProcess:
                  f"read {REPO}")
 
 
+def download(repo: str, tag: str, asset: str, dest: Path) -> str:
+    """A release's asset into `dest`, through GitHub's REST API: `gh release download` takes GraphQL, which a Claude
+    Code cloud session can't reach. What went wrong, or "" once it's there."""
+    try:
+        found = subprocess.run(["gh", "api", f"repos/{repo}/releases/tags/{tag}",
+                                "--jq", f'.assets[] | select(.name == "{asset}") | .id'],
+                               capture_output=True, text=True)
+    except FileNotFoundError:
+        sys.exit("this needs GitHub's command line, gh (https://cli.github.com), signed in to an account that may "
+                 f"read {repo}")
+    if found.returncode or not found.stdout.strip():
+        return found.stderr or f"no {asset} in the release {tag}\n"
+    with open(dest, "wb") as out:
+        got = subprocess.run(["gh", "api", "-H", "Accept: application/octet-stream",
+                              f"repos/{repo}/releases/assets/{found.stdout.strip()}"],
+                             stdout=out, stderr=subprocess.PIPE)
+    return got.stderr.decode() if got.returncode else ""
+
+
 def fetch() -> None:
     with tempfile.TemporaryDirectory() as tmp:
-        got = _gh("release", "download", TAG, "--pattern", ASSET, "--dir", tmp)
-        if got.returncode:
-            sys.exit(f"couldn't download {ASSET} from {REPO} (gh needs an account that may read it):\n{got.stderr}"
+        if error := download(REPO, TAG, ASSET, Path(tmp) / ASSET):
+            sys.exit(f"couldn't download {ASSET} from {REPO} (gh needs an account that may read it):\n{error}"
                      "Without access, `just record-tools` with your own Warcraft Logs keys records the local cases "
                      "afresh (tests/README.md).")
         with tarfile.open(Path(tmp) / ASSET) as tar:
