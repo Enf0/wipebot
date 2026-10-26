@@ -96,13 +96,13 @@ POST_LINES, POST_CHARS = 4, 500
 FOLLOW_UP = """\
 {boss} pull {pull} just ended, and {character} asked for their own feedback after each wipe. Give it in at most \
 {lines} short lines (about {chars} characters): what cost them most on this pull and the one thing to do on the next. \
-If they did nothing wrong on it, say so in a line. Don't offer anything at the end."""
+If they did nothing wrong on it, say so in a line. Don't offer anything at the end, not even a follow-up."""
 # The same, for anything else someone asked to have posted after each wipe, in a channel or their DMs.
 FOLLOW_REQUEST = """\
 {boss} pull {pull} just ended, and {name} asked for this here after each wipe: {request}. Give it, read in the \
 minute before the next pull: at most {lines} short lines (about {chars} characters), the first saying how the pull \
 ended and what decided it, the last what to do on the next pull; leave out what doesn't change that. Don't offer \
-anything at the end."""
+anything at the end, not even a follow-up."""
 
 
 # A tool run for the question before the model sees it (Context.prefetch), with its result.

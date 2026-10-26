@@ -256,7 +256,9 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
             t.error, t.seconds, t.errored = f"{type(e).__name__}: {e}", time.time() - started, True
             return t
     t.seconds = round(time.time() - started, 1)
-    t.answer, t.calls = answer.text, calls  # every call of the conversation: a follow-up's answer builds on them
+    # The answer with the follow-ups it offers (the bot's buttons); every call of the conversation, as a follow-up's
+    # answer builds on them
+    t.answer, t.calls = answer.full, calls
     expect, wrong, stated = await asyncio.gather(
         judge_majority(expect_prompt(asked(case, client), case["expect"], t.answer), judge_model),
         judge_majority(wrong_prompt(asked(case, client), wrongs(case, client), t.answer), judge_model),

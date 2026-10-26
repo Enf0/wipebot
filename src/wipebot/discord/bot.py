@@ -28,7 +28,15 @@ from . import commands, emojis
 from .chat import Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
-from .messages import Act, Pick, Picture, answer_layout, pictures_for  # noqa: F401 (Picture: the tests')
+from .messages import (  # noqa: F401 (Picture: the tests')
+    Act,
+    FollowUp,
+    Pick,
+    Picture,
+    answer_layout,
+    pictures_for,
+    without_follow_ups,
+)
 from .posts import Following, Posts
 from .progress import FALLBACK_SPINNER, Progress
 from .prompt import plain, post_prefetch, post_question
@@ -409,7 +417,7 @@ class WipeBot(discord.Client):
 
     async def setup_hook(self) -> None:
         self._syncing = asyncio.create_task(emojis.sync(self, self.icons))  # the first time, a minute
-        self.add_dynamic_items(Act, Pick)  # the pictures' buttons and menus, on old messages too
+        self.add_dynamic_items(Act, Pick, FollowUp)  # the pictures' buttons and menus and the follow-ups, also old
         if not self.trying:
             self.poll.start()
             self.keep_logins.start()
@@ -582,7 +590,7 @@ class WipeBot(discord.Client):
         mine = [] if f.character else [Act("mypull", pull.report, pull.boss, pull.pull_no)]
 
         async def send(answer: Answer) -> list[int]:
-            sent = await self._send(f.channel or await f.user.create_dm(), answer, actions=mine)
+            sent = await self._send(f.channel or await f.user.create_dm(), answer, actions=mine, asker=f.user.id)
             for message_id in sent:  # a reply to it is about this pull
                 self.store.remember_message(message_id, pull.report, pull.fight)
             return sent
@@ -679,7 +687,7 @@ class WipeBot(discord.Client):
             log.info("question %s (report %s)", where, code)
 
         async def send(answer: Answer) -> list[int]:
-            return await self._send(message.channel, answer, reply_to=None if is_dm else message)
+            return await self._send(message.channel, answer, reply_to=None if is_dm else message, asker=author.id)
         progress = Progress(message, self.icons.get(emojis.SPINNER, FALLBACK_SPINNER))
         ctx.on_tool, ctx.on_done = progress.tool, progress.done
         async with message.channel.typing():
@@ -727,10 +735,61 @@ class WipeBot(discord.Client):
         dm = await user.create_dm()
 
         async def send(answer: Answer) -> list[int]:
-            return await self._send(dm, answer)
+            return await self._send(dm, answer, asker=user.id)
         ctx = self._context(s, user, name, code, "in a DM", None)
         if failed := await self._answer("chat", ("dm", user.id), code, question, ctx, name, send):
             await dm.send(failed)
+
+    @answering
+    async def follow_up(self, interaction: discord.Interaction, question: str) -> None:
+        """A follow-up an answer offered, clicked by its asker (FollowUp): asked in their conversation where the
+        answer is, as if they had typed it. The question is posted as theirs, the answer replies to it, and the
+        answer's other follow-ups go, so none is asked twice."""
+        user, channel = interaction.user, interaction.channel
+        is_dm = isinstance(channel, discord.DMChannel)
+        s = (await self._settings_for_dm(cast(discord.abc.User, user)) if is_dm
+             else self.store.settings(interaction.guild_id or 0))
+        refusal = ("I can only chat with members of a server where wipebot is set up." if s is None
+                   else "I'm restarting; ask again in a minute." if self.stopping
+                   else None if is_dm or may_chat(s, [r.id for r in getattr(user, "roles", [])])
+                   else f"Chatting with wipebot needs the <@&{s.required_role_id}> role.")
+        if refusal or s is None or channel is None:
+            await interaction.response.send_message(refusal or "I can't answer here.", ephemeral=True)
+            return
+        channel = cast(discord.abc.Messageable, channel)  # the channel of a message with buttons
+        code = await self.current_report(s)
+        if not code:
+            await interaction.response.send_message(
+                f"There's no recent Warcraft Logs report from {s.wcl_guild} to look at.", ephemeral=True)
+            return
+        guild = self.get_guild(s.discord_guild_id) if is_dm else None
+        name = display((guild.get_member(user.id) if guild else None) or user)
+        await interaction.response.send_message(f"-# {name} asked: {question}",
+                                                allowed_mentions=discord.AllowedMentions.none())
+        asked = await interaction.original_response()
+        try:  # the answer stays as it was if this fails: only its follow-ups could be asked again
+            if interaction.message and (view := without_follow_ups(interaction.message)):
+                await interaction.message.edit(view=view)
+        except Exception as e:
+            log.warning("couldn't take the follow-ups off the answer: %s", e)
+        named = not is_dm and names_on(channel, self.store.naming_channels(s.discord_guild_id))
+        where = where_asked(is_dm, getattr(channel, "name", ""), True, named) or "in a DM"
+        ctx = self._context(s, user, name, code, where, None if is_dm else channel)
+        if interaction.message and (posted := self.store.pull_for_message(interaction.message.id)):
+            try:
+                await self._about_pull(ctx, code, *posted)
+            except Exception:
+                log.exception("loading report %s failed", code)
+        key = ("dm", user.id) if is_dm else (getattr(channel, "id", 0), user.id)
+        log.info("follow-up %s (report %s)%s", where, code, f": {question}" if self.record_answers else "")
+
+        async def send(answer: Answer) -> list[int]:
+            return await self._send(channel, answer, reply_to=None if is_dm else asked, asker=user.id)
+        async with channel.typing():
+            failed = await self._answer("chat", key, code, question, ctx, name, send,
+                                        channel_id=getattr(channel, "id", None))
+        if failed:
+            await channel.send(failed)
 
     async def _answer(self, kind: str, key: Hashable, code: str, question: str, ctx: Context, who: str,
                       send: Callable[[Answer], Awaitable[list[int]]], message: discord.Message | None = None,
@@ -792,7 +851,7 @@ class WipeBot(discord.Client):
                          message_id=message.id if message else None,
                          duration_s=round(time.monotonic() - started, 1), fight=fight)
         if answer:
-            row.update(prompt=answer.prompt, answer=answer.text or None, model=answer.model,
+            row.update(prompt=answer.prompt, answer=answer.full or None, model=answer.model,
                        session_id=answer.session_id, cost_usd=answer.cost_usd, turns=answer.turns, usage=answer.usage,
                        thinking=answer.thinking, tool_calls=answer.records(), wcl_points=answer.wcl_points() or None)
         try:
@@ -954,11 +1013,12 @@ class WipeBot(discord.Client):
 
     @staticmethod
     async def _send(channel: discord.abc.Messageable, answer: Answer, reply_to: discord.Message | None = None,
-                    footer: str | None = None, actions: Sequence[Act] = ()) -> list[int]:
+                    footer: str | None = None, actions: Sequence[Act] = (), asker: int | None = None) -> list[int]:
         """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES Components V2 messages
         (`answer_layout`: no link previews, as there are no embeds), with `footer` in a small line at the end and the
         pictures for it (maps, views) on its last message, each whole, with `actions` under its text unless a picture
-        has the same one. Returns the ids of the messages sent."""
+        has the same one, and the follow-ups it offers as buttons for `asker` (none without). Returns the ids of the
+        messages sent."""
         chunks = split_message(answer.text, TEXT_LIMIT)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
@@ -979,11 +1039,12 @@ class WipeBot(discord.Client):
             post = reply_to.reply if i == 0 and reply_to else channel.send
             shown = {(a.what, a.pull) for p in pictures for a in p.actions if isinstance(a, Act)}
             extra = [a for a in actions if (a.what, a.pull) not in shown] if last else []
+            follow = [FollowUp(asker, n, q) for n, q in enumerate(answer.follow_ups)] if last and asker else []
             try:
-                sent.append(await post(view=answer_layout(chunk, pictures, extra), files=files))
+                sent.append(await post(view=answer_layout(chunk, pictures, extra, follow), files=files))
             except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its pictures
                 if not files:
                     raise
                 log.warning("couldn't attach the answer's pictures: the bot lacks Attach Files there")
-                sent.append(await post(view=answer_layout(chunk, actions=extra)))
+                sent.append(await post(view=answer_layout(chunk, actions=extra, follow=follow)))
         return [m.id for m in sent]

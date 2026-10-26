@@ -5,7 +5,10 @@ An action answers the one who clicked with the next picture, which only they see
 actions in turn: the pull's first death, a player's card, against top players, their night, a pull of the night, and
 the clicker's own card on a pull or their own night ("How did I do?", "My night", by the character the store has).
 Each button and menu carries what it acts on in its custom_id (report, boss, pull, player), so the ones on old
-messages still work after a restart (discord.py's DynamicItem, registered in WipeBot.setup_hook)."""
+messages still work after a restart (discord.py's DynamicItem, registered in WipeBot.setup_hook).
+
+The follow-ups an answer offers are buttons too (FollowUp), last: a click asks it in the asker's conversation, as if
+they had typed it, and only the asker's click does."""
 import io
 import logging
 import re
@@ -46,11 +49,12 @@ class Picture:
         return cls(name, link[0] if link else None, call.name == "pull_summary" and GUILD_BEST in call.result)
 
 
-def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence[Act] = ()) -> discord.ui.LayoutView:
+def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence[Act] = (),
+                  follow: Sequence[FollowUp] = ()) -> discord.ui.LayoutView:
     """A message as Components V2: its text (none for a picture alone) with `actions` under it (the message's own
     buttons, not a picture's), then each picture (an attachment by its name) whole in a gallery of its own, boxed with
-    its buttons and menus (one already above left out), the box edged gold for a new guild best. Several attachments
-    on a plain message are shown as a grid, each cropped to its tile."""
+    its buttons and menus (one already above left out), the box edged gold for a new guild best, and last the
+    follow-ups it offers. Several attachments on a plain message are shown as a grid, each cropped to its tile."""
     view = discord.ui.LayoutView(timeout=None)
     used: set[str] = set()  # Discord refuses a message with two items of one custom_id: the second does the same
     if text:
@@ -69,6 +73,8 @@ def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence
             items.append(discord.ui.ActionRow(*buttons))
         items += [discord.ui.ActionRow(cast(Any, a)) for a in acts if isinstance(a, Pick)]  # a menu: a row
         view.add_item(discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None))
+    if follow:
+        view.add_item(discord.ui.ActionRow(*(cast(Any, f) for f in follow)))
     return view
 
 
@@ -130,6 +136,45 @@ class Pick(discord.ui.DynamicItem[discord.ui.Select], template=r"wbs\|" + _FIELD
             await act(interaction, "ppull", self.report, self.boss, chosen[0], self.player)
         else:
             await act(interaction, "pull", self.report, self.boss, chosen[0], "")
+
+
+class FollowUp(discord.ui.DynamicItem[discord.ui.Button], template=r"wbf\|(?P<asker>\d+)\|(?P<n>\d+)"):
+    """A follow-up the answer offered: its label is the question, which a click by the asker asks in their
+    conversation (WipeBot.follow_up); the custom_id keeps who asked (Discord's 100 characters can't hold the question,
+    and the label comes back with the click)."""
+
+    def __init__(self, asker: int, n: int, question: str) -> None:
+        self.asker, self.question = asker, question
+        super().__init__(discord.ui.Button(label=question[:80], style=discord.ButtonStyle.primary,
+                                           custom_id=f"wbf|{asker}|{n}"))
+
+    @classmethod
+    async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Item[Any],
+                             match: re.Match[str], /) -> FollowUp:
+        return cls(int(match["asker"]), int(match["n"]), getattr(item, "label", None) or "")
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if interaction.user.id != self.asker:
+            await interaction.response.send_message(
+                f"That's <@{self.asker}>'s follow-up. Ask me yourself: mention me with your question.", ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none())
+            return
+        follow_up = getattr(interaction.client, "follow_up", None)
+        if follow_up is None or not self.question:
+            await interaction.response.send_message("I can't ask that one: ask me in a message.", ephemeral=True)
+            return
+        await follow_up(interaction, self.question)
+
+
+def without_follow_ups(message: discord.Message) -> discord.ui.LayoutView | None:
+    """The message's components without its follow-up buttons, once one was asked (so it isn't asked twice); None when
+    it has none."""
+    view = discord.ui.LayoutView.from_message(message, timeout=None)
+    rows = [c for c in view.children if isinstance(c, discord.ui.ActionRow)
+            and any(str(getattr(b, "custom_id", "")).startswith("wbf|") for b in c.children)]
+    for row in rows:
+        view.remove_item(row)
+    return view if rows else None
 
 
 def tool_of(what: str, report: str, boss: str, pull: str, player: str) -> tuple[str, dict[str, Any]]:
