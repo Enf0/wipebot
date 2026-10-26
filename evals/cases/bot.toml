@@ -97,3 +97,17 @@ few for the Serpent's Fury stack, so the boss enraged at 2:32; the fix is that s
 facts = ["2:15", "2:32"]
 wrong = ["runs past three bullets or into headed sections",
          "blames the enrage's fallout deaths after 2:32"]
+
+[[case]]
+id = "bot-follow-ups"  # the closing offer is a Follow-up line (a button in Discord), not a question in the text
+tools = ["boss_guide", "pull_summary"]
+question = "Why did we wipe on Sszorak pull 13?"
+pull = 13
+boss = "Sszorak"
+expect = """The boss enraged (Unbound Ferocity) at 2:32 because the Serpent's Fury after the intermission wasn't popped,
+though enough players were alive for the stack. Anything more it offers comes after the answer as one to three
+"Follow-up:" lines, each a question the asker could send as it stands."""
+facts = ["16 players were alive, enough for the 14-player stack"]
+wrong = ["the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the pull",
+         "asks in its text whether to do more (\"want me to ...?\", \"should I ...?\") instead of a Follow-up line",
+         "a Follow-up line that isn't a question the asker could send as it stands"]
