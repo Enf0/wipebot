@@ -10,7 +10,7 @@ import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import discord
 
@@ -37,7 +37,7 @@ class Picture:
     name: str
     link: str | None = None
     best: bool = False
-    actions: tuple[discord.ui.Item, ...] = field(default=(), compare=False)
+    actions: tuple[Act | Pick, ...] = field(default=(), compare=False)
 
     @classmethod
     def of(cls, name: str, call: ToolCall) -> Picture:
@@ -59,7 +59,7 @@ def answer_layout(text: str, pictures: Sequence[Picture] = ()) -> discord.ui.Lay
         buttons += [a for a in p.actions if isinstance(a, Act)]
         if buttons:
             items.append(discord.ui.ActionRow(*buttons))
-        items += [discord.ui.ActionRow(a) for a in p.actions if isinstance(a, Pick)]
+        items += [discord.ui.ActionRow(cast(Any, a)) for a in p.actions if isinstance(a, Pick)]  # a menu: a row
         view.add_item(discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None))
     return view
 
