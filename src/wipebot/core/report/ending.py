@@ -4,7 +4,7 @@ it out (`ending_text`)."""
 import math
 from dataclasses import dataclass
 
-from ..pulls import Decided, is_reset
+from ..pulls import NO_KILLING_BLOW, Decided, is_reset
 from ..text import clock
 from .base import Report, alive_at, half_dead
 
@@ -148,6 +148,16 @@ def _mass_deaths(rep: Report, deaths: list[dict], t0: float, raid: int) -> list[
         else:
             i += 1
     return found
+
+
+def mass_death_of(e: Ending | None, at_ms: float, ability: str) -> MassDeath | None:
+    """The moment killing many that a death at `at_ms` (from the pull's start) to `ability` was one of, if any: the
+    hit that wiped the raid, not one player's death before it."""
+    for m in e.moments if e else ():
+        if (isinstance(m, MassDeath) and (m.ability or NO_KILLING_BLOW) == ability
+                and 0 <= at_ms - m.at_ms <= (WAVE_MS if m.waves else MASS_DEATH_MS)):
+            return m
+    return None
 
 
 def moment_text(m: Moment, raid: int) -> str:

@@ -22,7 +22,7 @@ from .casting import alive, casting, raid_pauses, without
 from .coaching import dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
-from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, pull_ending
+from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
 from .night import kill_rankings, wipe_thirds
 from .ranks import Spread, kill_parses, kills_spread, metric_of
@@ -144,14 +144,15 @@ NOTES = 2  # things that went well, and things to fix, on a player's card
 
 def player_notes(out: dict) -> dict[str, list[str]]:
     """What went well and what to fix on a player's pull, at most NOTES of each, the weightiest first, from the
-    player view's facts: a death before the wipe was decided, casting gaps, a capped resource, a personal cooldown
-    left unused, where they stand among ranked kills or their parse, their rank in their role. A raid cooldown left
+    player view's facts: a death before the wipe was decided (not one in a hit killing many: that hit wiped the
+    raid, whoever's job it was to stop it), casting gaps, a capped resource, a personal cooldown left unused, where
+    they stand among ranked kills or their parse, their rank in their role. A raid cooldown left
     unused isn't one to fix: the log doesn't show whose job it was."""
     good: list[tuple[float, str]] = []
     fix: list[tuple[float, str]] = []
     lost, o, s = out["lost"], out["output"], out["standing"]
     until_s = max(lost["until_ms"] / 1000, 1)
-    died = next((d for d in out["died"] if not d["fallout"]), None)
+    died = next((d for d in out["died"] if not d["fallout"] and not d.get("with")), None)
     if died:
         to = "" if died["by"] == NO_KILLING_BLOW else f" to {died['by']}"
         fix.append((100, f"Died at {clock(died['ms'])}{to}, before the wipe was decided"))
@@ -207,8 +208,8 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
     flow = casting(events, alive_until, [d["timestamp"] for d in own])
     flow.gaps = without(flow.gaps, [(a, min(b, alive_until)) for a, b in pauses if a < alive_until])
     what = "healing" if p.role == "healer" else "damage"
-    decided, table, (_, resource, capped), early, (boss, found) = await asyncio.gather(
-        rep.decided_at(f), rep.table(f["id"], "Healing" if what == "healing" else "DamageDone"),
+    decided, ended, table, (_, resource, capped), early, (boss, found) = await asyncio.gather(
+        rep.decided_at(f), pull_ending(rep, f), rep.table(f["id"], "Healing" if what == "healing" else "DamageDone"),
         resource_use(rep, f, p, casts, alive_s, alive_until), prepull(rep, [f], p), boss_casts(rep, f))
     try:
         hero = await hero_of(rep, p, det)
@@ -254,8 +255,9 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
                  "capped_s": round(lost.capped_s, 1), "resource": resource},
         "alive_s": round(alive_s), "alive_until_ms": round(alive_until - t0),
         "gaps": span(flow.gaps), "capped": span(capped), "dead": span(dead_spans(f, own, casts)),
-        "died": [{"ms": round(d["timestamp"] - t0), "by": rep.ability(d.get("killingAbilityGameID")),
-                  "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms)} for d in own],
+        "died": [{"ms": round(d["timestamp"] - t0), "by": (by := rep.ability(d.get("killingAbilityGameID"))),
+                  "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms),
+                  "with": m.killed if (m := mass_death_of(ended, d["timestamp"] - t0, by)) else 0} for d in own],
         "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible,
                        "raid": "raid_cd" in (sp.get("tags") or []), "icon": icon(sp.get("spell_id"))}
                       for sp, times, possible in rows if not NOT_ON_COOLDOWN & set(sp.get("tags") or [])],
