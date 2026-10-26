@@ -37,11 +37,13 @@ CHOICES = 25  # Discord's limit for a menu's options
 @dataclass(frozen=True)
 class Picture:
     """A picture sent with an answer: its attachment's name, the pull it shows on Warcraft Logs, whether that pull
-    was a new guild best, and what can be done from it (buttons and menus, under it)."""
+    was a new guild best, what can be done from it (buttons and menus, under it), and where in the text it goes (an
+    offset; None under the whole text)."""
     name: str
     link: str | None = None
     best: bool = False
     actions: tuple[Act | Pick, ...] = field(default=(), compare=False)
+    at: int | None = field(default=None, compare=False)
 
     @classmethod
     def of(cls, name: str, call: ToolCall) -> Picture:
@@ -54,28 +56,43 @@ def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence
     """A message as Components V2: its text (none for a picture alone) with `actions` under it (the message's own
     buttons, not a picture's), then each picture (an attachment by its name) whole in a gallery of its own, boxed with
     its buttons and menus (one already above left out), the box edged gold for a new guild best, and last the
-    follow-ups it offers. Several attachments on a plain message are shown as a grid, each cropped to its tile."""
+    follow-ups it offers. A picture placed in the text (Picture.at) goes there instead, next to the part it backs.
+    Several attachments on a plain message are shown as a grid, each cropped to its tile."""
     view = discord.ui.LayoutView(timeout=None)
     used: set[str] = set()  # Discord refuses a message with two items of one custom_id: the second does the same
-    if text:
-        view.add_item(discord.ui.TextDisplay(text))
+    if actions:
+        used.update(a.item.custom_id for a in actions if a.item.custom_id)
+    cuts = sorted({p.at for p in pictures if p.at is not None and 0 < p.at < len(text.rstrip())})
+    for start, end in zip([0, *cuts], [*cuts, len(text)], strict=True):
+        if part := text[start:end].strip("\n"):
+            view.add_item(discord.ui.TextDisplay(part))
+        if end < len(text):
+            for p in pictures:
+                if p.at == end:
+                    view.add_item(_boxed(p, used))
     if actions:
         view.add_item(discord.ui.ActionRow(*(cast(Any, a) for a in actions)))
-        used.update(a.item.custom_id for a in actions if a.item.custom_id)
     for p in pictures:
-        items: list[discord.ui.Item] = [discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{p.name}"))]
-        buttons: list[discord.ui.Item] = [discord.ui.Button(label="Open in Warcraft Logs", url=p.link)] \
-            if p.link else []
-        acts = [a for a in p.actions if a.item.custom_id not in used]
-        used.update(a.item.custom_id for a in acts if a.item.custom_id)
-        buttons += [a for a in acts if isinstance(a, Act)]
-        if buttons:
-            items.append(discord.ui.ActionRow(*buttons))
-        items += [discord.ui.ActionRow(cast(Any, a)) for a in acts if isinstance(a, Pick)]  # a menu: a row
-        view.add_item(discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None))
+        if p.at not in cuts:
+            view.add_item(_boxed(p, used))
     if follow:
         view.add_item(discord.ui.ActionRow(*(cast(Any, f) for f in follow)))
     return view
+
+
+def _boxed(p: Picture, used: set[str]) -> discord.ui.Container:
+    """A picture whole in a gallery of its own, boxed with its buttons and menus (those in `used` left out, and the
+    rest added to it), edged gold for a new guild best."""
+    items: list[discord.ui.Item] = [discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{p.name}"))]
+    buttons: list[discord.ui.Item] = [discord.ui.Button(label="Open in Warcraft Logs", url=p.link)] \
+        if p.link else []
+    acts = [a for a in p.actions if a.item.custom_id not in used]
+    used.update(a.item.custom_id for a in acts if a.item.custom_id)
+    buttons += [a for a in acts if isinstance(a, Act)]
+    if buttons:
+        items.append(discord.ui.ActionRow(*buttons))
+    items += [discord.ui.ActionRow(cast(Any, a)) for a in acts if isinstance(a, Pick)]  # a menu: a row
+    return discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None)
 
 
 def _id(prefix: str, *parts: object) -> str | None:

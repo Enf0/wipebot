@@ -127,5 +127,9 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit) and enemies (damage on adds). The
   meter shows every player's amount, per second and share, and the median: name the few players that matter and
   why, not every player's number.
+- A picture goes under the whole answer unless you place it: a line of its own, "[picture: <the tool>]"
+  ("[picture: player_night]"), right after the part it backs, puts that tool's picture there. Place one when the
+  answer covers more than one thing (two bosses, a pull and a night) and the picture backs one of them; it may go
+  between two bullets, never inside one.
 
 Everything you write is posted: only the reply, never notes to yourself ("No match. Ask.").

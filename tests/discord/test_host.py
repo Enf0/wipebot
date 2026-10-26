@@ -470,3 +470,19 @@ def test_follow_ups_come_off_the_answers_end_as_buttons():
     assert offered == ["Replay Rowan's death on pull 12?", "Klar for P2?"]  # repeated and too long left out
     assert host.follow_ups("No follow-up here: follow-ups are their own lines.")[1] == []
     assert Answer("**Done.**", follow_ups=["Klar for P2?"]).full == "**Done.**\nFollow-up: Klar for P2?"
+
+
+async def test_a_picture_the_answer_places_goes_where_it_says(session):
+    session._client = cast(ClaudeSDKClient, FakeClient(
+        [AssistantMessage([TextBlock("**Strong night.**\n1. Coiled Altar: top 3.\n[picture: player_night]\n"
+                                     "2. Twin Fangs: Torvek never died.\n[Picture: nothing_drawn]")],
+                          "claude-opus-5-5"), result(0.25, 1000)]))
+    answer = await session.ask("how did I do?", Context())
+    assert answer.text == "**Strong night.**\n1. Coiled Altar: top 3.\n2. Twin Fangs: **Torvek** never died."
+    at = dict((tool, n) for n, tool in answer.marks)
+    assert answer.text[:at["player_night"]].endswith("top 3.\n") and set(at) == {"player_night", "nothing_drawn"}
+    night = ToolCall("player_night", {}, "", False, [b"1", b"2"])
+    pull = ToolCall("player_pull", {}, "", False, [b"3"])
+    answer.calls = [pull, night]  # the view placed is the one shown, though drawn second
+    assert [c.name for _, c in answer.pictures] == ["player_night", "player_night"]
+    assert answer.place(night) == at["player_night"] and answer.place(pull) is None

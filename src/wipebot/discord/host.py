@@ -112,6 +112,28 @@ MAX_FOLLOW_UPS = 3
 FOLLOW_UP_CHARS = 80  # Discord's limit for a button's label, which is the question
 
 
+# Where a picture goes in the answer, on a line of its own ("[picture: player_night]"): the bot shows that tool's
+# picture there, next to the part it backs, instead of under the whole answer
+PICTURE_MARK = re.compile(r"^[ \t]*\[picture:[ \t]*([a-z_]+)[ \t]*\][ \t]*$\n?", re.M | re.I)
+_PLACED = "\ue000"  # a picture's place while the text is polished: a private-use character no answer has
+
+
+def picture_marks(text: str) -> str:
+    """The answer with each picture mark as a token polish leaves alone (`placed` reads them after)."""
+    return PICTURE_MARK.sub(lambda m: f"{_PLACED}{m[1].lower()}{_PLACED}\n", text)
+
+
+def placed(text: str) -> tuple[str, list[tuple[int, str]]]:
+    """The polished answer without its picture tokens, and where each was: (offset in the text, tool)."""
+    marks, out, at = [], [], 0
+    for m in re.finditer(rf"{_PLACED}([a-z_]+){_PLACED}\n?", text):
+        out.append(text[at:m.start()])
+        marks.append((sum(map(len, out)), m[1]))
+        at = m.end()
+    out.append(text[at:])
+    return "".join(out).rstrip(), marks
+
+
 def follow_ups(text: str) -> tuple[str, list[str]]:
     """An answer's text without its follow-up lines, and the follow-ups (at most MAX_FOLLOW_UPS that fit a button)."""
     found = [q.strip("*_\"' ") for q in FOLLOW_UP.findall(text)]
@@ -293,6 +315,7 @@ class Answer:
     # read ("read:examples.md"), in order
     loaded: list[str] = field(default_factory=list)
     follow_ups: list[str] = field(default_factory=list)  # what the answer offers next, as buttons in Discord
+    marks: list[tuple[int, str]] = field(default_factory=list)  # where the model put a tool's picture: (offset, tool)
 
     @property
     def full(self) -> str:
@@ -313,11 +336,17 @@ class Answer:
     @property
     def pictures(self) -> list[tuple[bytes, ToolCall]]:
         """The pictures of the answer's tool calls, to send with it, each with its call; the last few: every map, and
-        the first view drawn (one panel or several), the others a click away from its buttons and menus, so a few
-        views don't fill the screen under a short answer."""
+        one view (one panel or several), the first the answer placed (`marks`) or else the first drawn, the others a
+        click away from its buttons and menus, so a few views don't fill the screen under a short answer."""
         drawn = [c for c in self.calls if not c.failed and c.images]
-        view = next((c for c in drawn if c.name in server.VIEW_TOOLS), None)
+        marked = {tool for _, tool in self.marks}  # a view the answer placed comes before the first drawn
+        view = next((c for c in drawn if c.name in server.VIEW_TOOLS and c.name in marked), None) \
+            or next((c for c in drawn if c.name in server.VIEW_TOOLS), None)
         return [(i, c) for c in drawn if c is view or c.name not in server.VIEW_TOOLS for i in c.images][-MAX_IMAGES:]
+
+    def place(self, call: ToolCall) -> int | None:
+        """Where in the text the call's picture goes (an offset), when the answer placed it; None: under it all."""
+        return next((at for at, tool in self.marks if tool == call.name), None)
 
     @property
     def images(self) -> list[bytes]:
@@ -506,8 +535,9 @@ class Session:
         await pictures_drawn(answer.calls)
         text = texts[-1].strip() if texts else "(no answer)"  # the last text is the answer
         text, answer.follow_ups = follow_ups(text)
-        answer.text = polish(text, [c.result for c in answer.calls if not c.failed],
-                             await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx))
+        answer.text, answer.marks = placed(polish(
+            picture_marks(text), [c.result for c in answer.calls if not c.failed],
+            await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx)))
         return answer
 
     @staticmethod

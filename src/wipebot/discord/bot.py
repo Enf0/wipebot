@@ -13,6 +13,7 @@ import re
 import signal
 import time
 from collections.abc import Awaitable, Callable, Hashable, Sequence
+from dataclasses import replace
 from typing import cast
 
 import discord
@@ -1042,9 +1043,9 @@ class WipeBot(discord.Client):
                     footer: str | None = None, actions: Sequence[Act] = (), asker: int | None = None) -> list[int]:
         """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES Components V2 messages
         (`answer_layout`: no link previews, as there are no embeds), with `footer` in a small line at the end and the
-        pictures for it (maps, views) on its last message, each whole, with `actions` under its text unless a picture
-        has the same one, and the follow-ups it offers as buttons for `asker` (none without). Returns the ids of the
-        messages sent."""
+        pictures for it (maps, views) on its last message, each whole and where the answer placed it, with `actions`
+        under its text unless a picture has the same one, and the follow-ups it offers as buttons for `asker` (none
+        without). Returns the ids of the messages sent."""
         chunks = split_message(answer.text, TEXT_LIMIT)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
@@ -1060,6 +1061,8 @@ class WipeBot(discord.Client):
             last = i == len(chunks) - 1
             drawn = answer.pictures if last else []
             pictures = await pictures_for([(image, c.name, c.args) for image, c in drawn], [c.result for _, c in drawn])
+            if len(chunks) == 1:  # where the answer placed them, its text whole in one message
+                pictures = [replace(p, at=answer.place(c)) for p, (_, c) in zip(pictures, drawn, strict=True)]
             files = [discord.File(io.BytesIO(image), filename=p.name) for p, (image, _) in zip(pictures, drawn,
                                                                                               strict=True)]
             post = reply_to.reply if i == 0 and reply_to else channel.send

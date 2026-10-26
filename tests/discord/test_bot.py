@@ -651,6 +651,14 @@ async def test_pictures_go_whole_with_the_last_message_of_their_answer(channel):
     assert drawn.record(0)["images"] == 1  # the record of the answer keeps the count, not the image
 
 
+
+async def test_a_picture_goes_where_the_answer_placed_it(channel):
+    drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
+    await WipeBot._send(channel, Answer("**Spread out.**\n- Stack at 2:15.", calls=[drawn], marks=[(16, "pull_map")]))
+    assert [type(c).__name__ for c in channel.views[-1].children] == ["TextDisplay", "Container", "TextDisplay"]
+    await WipeBot._send(channel, Answer("x" * 4500 + "\nlast", calls=[drawn], marks=[(16, "pull_map")]))
+    assert [type(c).__name__ for c in channel.views[-1].children] == ["TextDisplay", "Container"]  # split: under it
+
 async def test_without_attach_files_an_answer_goes_without_its_map(channel):
     sent = channel.send
 

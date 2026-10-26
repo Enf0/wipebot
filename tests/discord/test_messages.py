@@ -127,3 +127,19 @@ async def test_how_did_i_do_draws_the_clickers_own_card_on_the_pull(recorded, mo
     benched = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Nobodyhere")))
     await Act("mypull", PULL["report"], "Sszorak", 13).callback(cast(Any, benched))
     assert len(drawn) == 1 and "wasn't in Sszorak pull 13" in benched.said[0]["content"]
+
+
+def test_a_placed_picture_sits_after_the_part_it_backs_and_the_rest_go_under_it_all():
+    text = "**Strong night.**\n1. Coiled Altar: top 3.\n2. Twin Fangs: never died."
+    at = text.index("2.")
+    view = answer_layout(text, [messages.Picture("wipebot-1.webp", at=at), messages.Picture("wipebot-2.webp"),
+                                messages.Picture("wipebot-3.webp", at=at)])
+    shown = [c.content if isinstance(c, discord.ui.TextDisplay) else
+             [i.items[0].media.url for i in cast(discord.ui.Container, c).children
+              if isinstance(i, discord.ui.MediaGallery)]
+             for c in view.children]
+    assert shown == ["**Strong night.**\n1. Coiled Altar: top 3.",
+                     ["attachment://wipebot-1.webp"], ["attachment://wipebot-3.webp"],  # a view's panels, together
+                     "2. Twin Fangs: never died.", ["attachment://wipebot-2.webp"]]
+    placed_at_end = answer_layout(text, [messages.Picture("wipebot-1.webp", at=len(text))])
+    assert [type(c).__name__ for c in placed_at_end.children] == ["TextDisplay", "Container"]

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `Discord` **Pictures sit next to what they show.** An answer about more than one thing, such as two bosses, puts its picture right after the part it backs instead of under the whole answer.
 - `Discord` **"How did I do?" after each wipe.** A post after a wipe in a channel, and every picture of a pull, has a "How did I do?" button: it shows you your own card on that pull, which only you see. It goes by the character the bot remembers for you; tell it once ("my character is ...").
 - `Discord` **Follow-ups are buttons.** Instead of ending with "want me to...?", an answer offers up to three follow-ups as buttons under it. Click one and it's asked for you, as if you had typed it; only the one who asked can click them.
 - `Discord` **Rankings as a damage meter.** When an answer ranks players, such as who took the most damage from a mechanic, who did the most damage or healing, who kicked or dispelled, or who hit the adds, it comes with a picture like an in-game damage meter: a bar per player in their class colour with the amount, per second and share, the raid's median, and for a mechanic the deaths that came soon after a hit. The answer names the few that matter instead of listing everyone.
