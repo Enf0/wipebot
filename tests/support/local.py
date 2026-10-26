@@ -1,77 +1,70 @@
-"""The local cases' recordings and snapshots (recorded.py's LOCAL), kept in the maintainers' private store: a release
-asset of a private repository, reached with `gh` signed in to an account that may read it. Anyone else records them
-afresh with `just record-tools` (tests/README.md).
+"""The local cases' recordings and snapshots (recorded.py's LOCAL), kept in the maintainers' private store: the folder
+tests/local/ of a private repository, read with `gh` and written with git, signed in to an account that may. Anyone
+else records them afresh with `just record-tools` (tests/README.md).
 
-`python -m tests.support.local fetch` puts them in LOCAL; `push`, after `just record-tools`
-or a changed local snapshot, replaces the stored copy."""
+`python -m tests.support.local fetch` puts them in LOCAL; `push`, after `just record-tools` or a changed local
+snapshot, commits them there. Neither takes GitHub's GraphQL API or its releases, which a Claude Code cloud session
+can't use."""
+import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 from pathlib import Path
 
 from .recorded import LOCAL
 
 REPO = "Enf0/wipebot-dev"
-TAG = "local-fixtures"
-ASSET = "local-fixtures.tar.gz"
+FOLDER = "tests/local"
 
 
-def _gh(*args: str) -> subprocess.CompletedProcess:
+def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
     try:
-        return subprocess.run(["gh", *args, "--repo", REPO], capture_output=True, text=True)
+        return subprocess.run(args, capture_output=True, text=True, cwd=cwd)
     except FileNotFoundError:
-        sys.exit("this needs GitHub's command line, gh (https://cli.github.com), signed in to an account that may "
-                 f"read {REPO}")
-
-
-def download(repo: str, tag: str, asset: str, dest: Path) -> str:
-    """A release's asset into `dest`, through GitHub's REST API: `gh release download` takes GraphQL, which a Claude
-    Code cloud session can't reach. What went wrong, or "" once it's there."""
-    try:
-        found = subprocess.run(["gh", "api", f"repos/{repo}/releases/tags/{tag}",
-                                "--jq", f'.assets[] | select(.name == "{asset}") | .id'],
-                               capture_output=True, text=True)
-    except FileNotFoundError:
-        sys.exit("this needs GitHub's command line, gh (https://cli.github.com), signed in to an account that may "
-                 f"read {repo}")
-    if found.returncode or not found.stdout.strip():
-        return found.stderr or f"no {asset} in the release {tag}\n"
-    with open(dest, "wb") as out:
-        got = subprocess.run(["gh", "api", "-H", "Accept: application/octet-stream",
-                              f"repos/{repo}/releases/assets/{found.stdout.strip()}"],
-                             stdout=out, stderr=subprocess.PIPE)
-    return got.stderr.decode() if got.returncode else ""
+        sys.exit(f"this needs {args[0]}, and for gh (https://cli.github.com) an account that may read {REPO}")
 
 
 def fetch() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        if error := download(REPO, TAG, ASSET, Path(tmp) / ASSET):
-            sys.exit(f"couldn't download {ASSET} from {REPO} (gh needs an account that may read it):\n{error}"
-                     "Without access, `just record-tools` with your own Warcraft Logs keys records the local cases "
-                     "afresh (tests/README.md).")
-        with tarfile.open(Path(tmp) / ASSET) as tar:
-            tar.extractall(LOCAL.parent, filter="data")
-    print(f"fetched {len(list(LOCAL.iterdir()))} files into {LOCAL}")
+    files = _run("gh", "api", f"repos/{REPO}/git/trees/main?recursive=1",
+                 "--jq", f'.tree[] | select(.type == "blob" and (.path | startswith("{FOLDER}/"))) | .path')
+    if files.returncode or not files.stdout.strip():
+        sys.exit(f"couldn't read {FOLDER} in {REPO} (gh needs an account that may read it):\n{files.stderr}"
+                 "Without access, `just record-tools` with your own Warcraft Logs keys records the local cases "
+                 "afresh (tests/README.md).")
+    paths = files.stdout.splitlines()
+    for path in paths:
+        to = LOCAL / path.removeprefix(f"{FOLDER}/")
+        to.parent.mkdir(parents=True, exist_ok=True)
+        with open(to, "wb") as out:
+            got = subprocess.run(["gh", "api", "-H", "Accept: application/vnd.github.raw",
+                                  f"repos/{REPO}/contents/{path}"], stdout=out, stderr=subprocess.PIPE)
+        if got.returncode:
+            sys.exit(f"couldn't download {path} from {REPO}:\n{got.stderr.decode()}")
+    print(f"fetched {len(paths)} files into {LOCAL}")
 
 
 def push() -> None:
     if not LOCAL.exists():
         sys.exit(f"nothing to push: {LOCAL} is missing")
     with tempfile.TemporaryDirectory() as tmp:
-        archive = Path(tmp) / ASSET
-        with tarfile.open(archive, "w:gz") as tar:
-            for f in sorted(LOCAL.iterdir()):
-                tar.add(f, arcname=f"{LOCAL.name}/{f.name}")
-        if _gh("release", "view", TAG).returncode:
-            made = _gh("release", "create", TAG, "--title", "The local test cases' recordings and snapshots",
-                       "--notes", "Fetched by tests/support/local.py in Wipebot.")
-            if made.returncode:
-                sys.exit(made.stderr)
-        sent = _gh("release", "upload", TAG, str(archive), "--clobber")
-        if sent.returncode:
-            sys.exit(sent.stderr)
-        print(f"pushed {archive.stat().st_size // 1024} KB to {REPO}, release {TAG}")
+        repo = Path(tmp) / "store"
+        for step in (("git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse",
+                      f"https://github.com/{REPO}.git", str(repo)),
+                     ("git", "-C", str(repo), "sparse-checkout", "set", FOLDER)):
+            if (done := _run(*step)).returncode:
+                sys.exit(done.stderr)
+        shutil.rmtree(repo / FOLDER, ignore_errors=True)
+        shutil.copytree(LOCAL, repo / FOLDER, ignore=shutil.ignore_patterns("__pycache__"))
+        _run("git", "add", "--all", FOLDER, cwd=repo)
+        if not _run("git", "status", "--porcelain", cwd=repo).stdout.strip():
+            print(f"{REPO} has these already: nothing to push")
+            return
+        wipebot = _run("git", "rev-parse", "--short", "HEAD").stdout.strip() or "a working tree"
+        message = f"test: the local cases' recordings and snapshots, from Wipebot {wipebot}"
+        for step in (("git", "commit", "--quiet", "-m", message), ("git", "push", "--quiet")):
+            if (done := _run(*step, cwd=repo)).returncode:
+                sys.exit(done.stderr)
+    print(f"pushed {LOCAL} to {REPO}, {FOLDER}")
 
 
 if __name__ == "__main__":

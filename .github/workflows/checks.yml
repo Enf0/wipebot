@@ -1,6 +1,6 @@
 # What `just check` runs, on every push and pull request: lint, types and layers, and the tests. The local cases
 # (tests/README.md) only where the maintainers' private store can be read: a repository secret
-# WIPEBOT_LOCAL_FIXTURES_TOKEN, a token that may read its releases. Without it (a fork, a copy of the repo) that job
+# WIPEBOT_LOCAL_FIXTURES_TOKEN, a token that may read its contents. Without it (a fork, a copy of the repo) that job
 # is skipped. A check added to the Justfile's `check` goes here too. Actions are pinned by commit, their version
 # beside it.
 name: Checks

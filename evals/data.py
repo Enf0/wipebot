@@ -1,6 +1,6 @@
-"""The evals' frozen data (run.py's CACHE, evals/cache.sqlite), kept in the maintainers' private store as the local
-test cases' are (tests/support/local.py): a release asset of a private repository, zstd-compressed, reached with
-`gh` signed in to an account that may read it. It holds rankings and the guide sites' pages, so it's never public.
+"""The evals' frozen data (run.py's CACHE, evals/cache.sqlite), kept in the maintainers' private repository beside the
+local test cases' (tests/support/local.py), as a release asset (too big for git), zstd-compressed, reached with `gh`
+signed in to an account that may read it. It holds rankings and the guide sites' pages, so it's never public.
 
 `python -m evals.data fetch` puts it at evals/cache.sqlite, there not being one yet (`--replace`
 replaces one); `push` stores this machine's copy. Without access, a run fetches what the cases read (README.md)."""
@@ -11,8 +11,6 @@ import sys
 import tempfile
 from compression import zstd
 from pathlib import Path
-
-from tests.support.local import download
 
 CACHE = Path(__file__).parent / "cache.sqlite"
 REPO = "Enf0/wipebot-dev"
@@ -27,6 +25,25 @@ def _gh(*args: str) -> subprocess.CompletedProcess:
     except FileNotFoundError:
         sys.exit("this needs GitHub's command line, gh (https://cli.github.com), signed in to an account that may "
                  f"read {REPO}")
+
+
+def download(repo: str, tag: str, asset: str, dest: Path) -> str:
+    """A release's asset into `dest`, through GitHub's REST API: `gh release download` takes GraphQL, which a Claude
+    Code cloud session can't reach. What went wrong, or "" once it's there."""
+    try:
+        found = subprocess.run(["gh", "api", f"repos/{repo}/releases/tags/{tag}",
+                                "--jq", f'.assets[] | select(.name == "{asset}") | .id'],
+                               capture_output=True, text=True)
+    except FileNotFoundError:
+        sys.exit("this needs GitHub's command line, gh (https://cli.github.com), signed in to an account that may "
+                 f"read {repo}")
+    if found.returncode or not found.stdout.strip():
+        return found.stderr or f"no {asset} in the release {tag}\n"
+    with open(dest, "wb") as out:
+        got = subprocess.run(["gh", "api", "-H", "Accept: application/octet-stream",
+                              f"repos/{repo}/releases/assets/{found.stdout.strip()}"],
+                             stdout=out, stderr=subprocess.PIPE)
+    return got.stderr.decode() if got.returncode else ""
 
 
 def pack(db: Path, archive: Path) -> None:
