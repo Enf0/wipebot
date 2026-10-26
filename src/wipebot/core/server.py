@@ -563,9 +563,11 @@ def _supports_apps(ctx: Context) -> bool:
 # ---------- what the views draw (report/views.py): remote.py's app-only tools, and the views' harness ----------
 
 # The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
-# with their casts against top players, for one player's casts
+# with their casts against top players, for one player's casts. A meter draws the ranking of players breakdown,
+# mechanic_hits and enemies state, in the bot only: in Claude and ChatGPT each tool with a view costs tokens.
 VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player",
-              "player_night": "player_night", "death_recap": "death", "progress": "night"}
+              "player_night": "player_night", "death_recap": "death", "progress": "night",
+              **dict.fromkeys(views.METER_TOOLS, "meter")}
 
 
 async def view_key(tool: str, args: dict) -> dict | None:
@@ -577,6 +579,16 @@ async def view_key(tool: str, args: dict) -> dict | None:
                                                           and "casts" in (args.get("aspects") or ["casts"]))):
         return None
     rep = await lib().report(args.get("report"))
+    if view == "meter":  # only when the call ranks players
+        asked = {k: v for k, v in args.items() if v is not None and k != "report"}
+        if not await views.meters_of(rep, tool, asked):
+            return None
+        key = {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked}
+        pulls = ((args.get("pulls") or []) if tool == "breakdown" else [] if args.get("all_pulls")
+                 else [args.get("pull")])
+        if len(pulls) == 1:  # one pull: its link on Warcraft Logs
+            key["pull"] = rep.pull_no(rep.fight(pulls[0], args.get("boss")))
+        return key
     if view == "player_night":  # a boss's night: no pull
         return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")),
                 "player": rep.player(args["player"]).name}
@@ -609,11 +621,13 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
                     top: Annotated[bool, Field(description="the player view with their casts against top players "
                                                            "(slower: reads the top parses)")] = False,
                     death: Annotated[int, Field(description="the death view's death of the player in the pull")] = 1,
+                    tool: Annotated[str | None, Field(description="the meter's tool")] = None,
+                    args: Annotated[dict | None, Field(description="the meter's tool's arguments")] = None,
                     ) -> CallToolResult:
     """What a view draws, for the pull (and player) its tool was asked about."""
     rep = await lib().report(report)
     try:
-        data = await views.view_data(rep, view, pull, boss, player, top, death)
+        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],

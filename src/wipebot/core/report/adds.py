@@ -8,6 +8,7 @@ from .. import knowledge
 from ..knowledge import KnowledgeError
 from ..text import clock, few, plural, short
 from .base import JOBS_NOT_LOGGED, SAME_DEATH_MS, PullRef, Report, dead_since, unavailable
+from .meter import MIN_BARS, Bar, Meter
 
 ADD_GROUP_MS = 15_000  # an add's casts this close together are one wave of them
 ADD_GONE_MS = 10_000  # an add nobody hit for this long before a wipe ended was gone, or left alone
@@ -279,6 +280,56 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     if unrecorded := [n for n in shown if came[n] > 1 and not died[n] and taken[n]]:
         lines.append(_no_deaths(unrecorded))
     return going + "\n".join([*lines, "By pull (the most damaged kinds):", *per_pull])
+
+
+async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False) -> list[Meter]:
+    """The damage on adds by player as meters, from the same tables as `enemies` (`enemies_night` with all_pulls): on
+    every kind of add it names (the NIGHT_KINDS most damaged over the night) summed, then on the most damaged kind
+    alone when there are several. None for no adds or fewer than MIN_BARS players who hit them."""
+    pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
+    fights = rep.ended(pulls) if all_pulls else pulls
+    if all_pulls:
+        done_all = await rep.tables([(f["id"], {}) for f in fights], "DamageDone", viewBy="Target")
+        taken: dict[str, float] = defaultdict(float)
+        for f, done in zip(fights, done_all, strict=True):
+            bosses = boss_units(rep, f)
+            npcs = [n for n in f.get("enemyNPCs") or [] if n["id"] not in bosses]
+            hurt = _taken({e.get("id"): e.get("total", 0) for e in done.get("entries") or []},
+                          same_kind(rep, npcs, bosses))
+            for n in npcs:
+                taken[rep.actor(n["id"])] += hurt.get(n["id"], 0)
+        names = sorted(taken, key=lambda n: -taken[n])[:NIGHT_KINDS]
+        dealt = await _dealt_on(rep, fights, names)
+        scope = f"all {plural(len(fights), rep.boss_key(fights[0]) + ' pull')}, each whole pull"
+    else:
+        f = fights[0]
+        bosses = boss_units(rep, f)
+        npcs = [n for n in f.get("enemyNPCs") or [] if n["id"] not in bosses]
+        done = await rep.table(f["id"], "DamageDone", viewBy="Target")
+        kind = same_kind(rep, npcs, bosses)
+        by_actor = {e.get("id"): e.get("total", 0) for e in done.get("entries") or []}
+        hurt = _taken(by_actor, kind)
+        shown = sorted(npcs, key=lambda n: -hurt.get(n["id"], 0))[:10]
+        pairs = [(n["id"], a) for n in shown
+                 for a in [n["id"], *(a for a, k in kind.items() if k == n["id"] and a != n["id"] and by_actor.get(a))]]
+        dealt_by_id: dict[int, Counter] = defaultdict(Counter)
+        for (n_id, _), table in zip(pairs, await rep.tables([(f["id"], {"targetID": a}) for _, a in pairs],
+                                                            "DamageDone"), strict=True):
+            for e in table.get("entries") or []:
+                dealt_by_id[n_id][e["name"]] += e.get("total", 0)
+        dealt = {rep.actor(n["id"]): dealt_by_id[n["id"]] for n in shown if hurt.get(n["id"])}
+        scope = rep.label(f)
+    dealt = {name: c for name, c in dealt.items() if c}
+    players = set(rep.names.values())
+    def bars(c: Counter) -> list[Bar]:
+        return [Bar(who, v) for who, v in c.most_common() if who in players and v > 0]
+    out = []
+    if len(dealt) > 1:
+        out.append(Meter("Damage on adds", f"{scope}: {few(list(dealt))}", bars(sum(dealt.values(), Counter()))))
+    if dealt:
+        name, c = next(iter(dealt.items()))
+        out.append(Meter(f"Damage on {name}", scope, bars(c)))
+    return [m for m in out if len(m.bars) >= MIN_BARS]
 
 
 def _waves(times: list[float]) -> list[list[float]]:

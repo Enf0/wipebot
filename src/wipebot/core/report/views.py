@@ -16,6 +16,7 @@ from ..classes import class_hex
 from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, phase_label, wipe_pct, wipe_pcts
 from ..text import clock, day, ordinal
+from . import adds, mechanics, tables
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, casting, raid_pauses, without
@@ -24,16 +25,18 @@ from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
 from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
+from .meter import Meter
 from .night import kill_rankings, wipe_thirds
 from .ranks import Spread, kill_parses, kills_spread, metric_of
 from .top import cast_comparison
 
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
-SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "replay.js",
-           "main.js"]
+SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "meter.js",
+           "replay.js", "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
-VIEWS = ("pull", "player", "player_night", "death", "night")  # what view_data draws (the replay is maps.replay)
+VIEWS = ("pull", "player", "player_night", "death", "night", "meter")  # what view_data draws (the replay: maps.replay)
+METER_TOOLS = ("breakdown", "mechanic_hits", "enemies")  # the tools whose rows a meter draws (meters_of)
 
 
 @functools.cache
@@ -51,12 +54,16 @@ def page_uri() -> str:
 
 
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
-                    player: str | None = None, top: bool = False, death: int = 1) -> dict:
+                    player: str | None = None, top: bool = False, death: int = 1, tool: str | None = None,
+                    args: dict | None = None) -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
-    player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`)."""
+    player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`); the
+    meter's `tool` and the `args` it was called with."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
+    if view == "meter":
+        return await meter_view(rep, tool or "", args or {})
     if view not in ("pull", "night") and not player:
         raise ValueError(f"the {view} view needs a player")
     if view == "night":
@@ -462,6 +469,46 @@ async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
                   "by": killer(x)}
                  for x in deaths if x is not d and abs(x["timestamp"] - at) <= BURST_MS],
     }
+
+
+async def meters_of(rep: Report, tool: str, args: dict) -> list[Meter]:
+    """The meters a tool's answer ranks players in, from its own rows: breakdown by player (damage, healing, damage
+    taken, kicks, dispels), mechanic_hits for one ability, enemies' damage on adds. None for another call: a table
+    by ability or pull, one player's part, every ability's outliers, too few players."""
+    a = args
+    match tool:
+        case "breakdown" if a.get("group_by", "player") == "player" and not a.get("player"):
+            found = await tables.meter(rep, a.get("data_type", ""), a.get("pulls"), a.get("boss"), a.get("ability"),
+                                       a.get("cutoff"), bool(a.get("whole_pull")))
+            return [found] if found else []
+        case "mechanic_hits" if a.get("ability"):
+            found = await mechanics.meter(rep, a["ability"], a.get("pull"), a.get("boss"), bool(a.get("all_pulls")),
+                                          bool(a.get("whole_pull")), a.get("start"), a.get("end"))
+            return [found] if found else []
+        case "enemies":
+            return await adds.meters(rep, a.get("pull"), a.get("boss"), bool(a.get("all_pulls")))
+    return []
+
+
+async def meter_view(rep: Report, tool: str, args: dict) -> dict:
+    """A tool's ranking of players as in-game damage meters draw it (meters_of): per meter each player's amount, its
+    share of the top's, per second over the combat time, and their class colour, spec and role."""
+    found = await meters_of(rep, tool, args)
+    if not found:
+        raise ValueError(f"{tool} ranks no players here")
+    players = {p.name: p for p in rep.players.values()}
+
+    def bar(b) -> dict:
+        p = players.get(b.name)
+        return {"name": b.name, "value": b.value, "note": b.note, "died_after": b.died_after,
+                "killed_by": b.killed_by, "color": class_hex(p.class_name) if p else "#9aa3b8",
+                "spec": spaced(p.spec) if p else "", "role": p.role if p else ""}
+    meters = [{"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 1),
+               "icon": icon(m.ability), "note": m.note, "others": m.others,
+               "total": sum(b.value for b in m.bars), "median": statistics.median(b.value for b in m.bars),
+               "bars": [bar(b) for b in m.bars]} for m in found]
+    return {"view": "meter", "report": rep.code, "tool": tool, "args": args, "title": found[0].title,
+            "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0], "meters": meters}
 
 
 def icon(spell_id: int | str | None) -> str | None:

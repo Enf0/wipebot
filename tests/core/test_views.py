@@ -17,7 +17,7 @@ from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Repl
 from wipebot.core import server
 from wipebot.core.report import maps, views
 from wipebot.core.report.ending import Ending, MassDeath, mass_death_of
-from wipebot.core.text import clock
+from wipebot.core.text import clock, plural, short
 
 PULL_CASE = CASES["pull-summary"]  # the pull the views are tested on: its summary and timeline are recorded
 
@@ -156,6 +156,70 @@ async def test_the_raid_night_view_draws_and_a_pulls_bar_opens_that_pull(recorde
                                 modes=("fullscreen",), clicks=('css:tr[data-pull="13"]',))
     assert not first.errors and "how the 33 pulls ended" in first.text.lower() and "Vashnik" in first.text
     assert "Sszorak pull 13" in opened.text  # that pull's card
+
+
+# ---- the meter: a ranking of players from breakdown, mechanic_hits and enemies, in the bot only ----
+
+METER_CASES = ["mechanic-hits", "damage-taken-ability", "interrupts", "dispels", "nekzali-enemies-night",
+               "vashnik-enemies"]
+
+
+async def meter_data(case: str) -> dict:
+    c = CASES[case]
+    key = await server.view_key(c.tool, c.args)
+    assert key is not None and key["view"] == "meter" and key["tool"] == c.tool, case
+    result = await server.view_data(**key)
+    assert result.structured_content is not None
+    return result.structured_content
+
+
+async def test_the_meter_view_matches_its_snapshot(recorded):
+    assert_snapshot(REAL / "views" / "meter.txt", readable(await meter_data("mechanic-hits")))
+
+
+@pytest.mark.parametrize("case", METER_CASES)
+async def test_a_meter_ranks_the_players_its_tool_states(recorded, case):
+    data = await meter_data(case)
+    text, failed = await server.call(CASES[case].tool, CASES[case].args)
+    assert not failed
+    for m in data["meters"]:
+        values = [b["value"] for b in m["bars"]]
+        assert len(values) >= 3 and values == sorted(values, reverse=True), m["title"]
+        assert m["total"] == sum(values)
+        for b in m["bars"] if CASES[case].tool != "enemies" else m["bars"][:1]:  # enemies names the top few
+            assert b["name"] in text, (m["title"], b["name"])
+            if m["unit"] == "kicks":
+                assert re.search(rf"^  {re.escape(b['name'])}: {round(b['value'])}\b", text, re.MULTILINE)
+            elif m["unit"] == "amount" and CASES[case].tool != "enemies":
+                assert short(b["value"]) in text, (b["name"], short(b["value"]))
+
+
+async def test_a_meter_shows_the_deaths_a_mechanic_set_up(recorded):
+    data = await meter_data("mechanic-hits")
+    text, _ = await server.call("mechanic_hits", CASES["mechanic-hits"].args)
+    [m] = data["meters"]
+    assert m["title"] == "Tempest" and m["icon"]
+    for b in m["bars"]:
+        assert re.search(rf"^  {re.escape(b['name'])}(?: \(tank\))?: .*, {plural(b['died_after'], 'death')} soon "
+                         rf"after, {b['killed_by']} with it as the killing blow", text, re.MULTILINE), b["name"]
+    assert f"{plural(sum(b['killed_by'] for b in m['bars']), 'death')} with it as the killing blow" in m["note"]
+
+
+@pytest.mark.parametrize("case", ["damage-taken", "mechanic-outliers", "buffs", "damage-by-pull", "breakdown-casts",
+                                  "healing-by-ability"])
+async def test_a_call_that_ranks_no_players_has_no_meter(recorded, case):
+    assert await server.view_key(CASES[case].tool, CASES[case].args) is None
+
+
+async def test_the_meter_draws_a_panel_per_meter_without_errors(recorded, tmp_path):
+    data = await meter_data("nekzali-enemies-night")
+    taken = await shots(tmp_path, "enemies", CASES["nekzali-enemies-night"].args, themes=("dark", "light"),
+                        widths=(320, 760))
+    for s in taken:
+        assert not s.errors, (s.path.name, s.errors)
+        assert s.height > 100
+        for m in data["meters"]:
+            assert m["title"] in s.text and m["bars"][0]["name"] in s.text
 
 
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):

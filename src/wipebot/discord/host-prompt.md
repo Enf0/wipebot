@@ -123,5 +123,9 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   have kept them alive) and their night pull by pull; the death's hits, health and healing in its last seconds; or,
   as two pictures, each pull's boss health left coloured by what ended it, and how the pulls ended. Don't redraw it in
   text or list every time it shows.
+- A ranking of players is drawn the same way, as a damage meter: breakdown by player (damage, healing, damage taken,
+  kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit) and enemies (damage on adds). The
+  meter shows every player's amount, per second and share, and the median: name the few players that matter and
+  why, not every player's number.
 
 Everything you write is posted: only the reply, never notes to yourself ("No match. Ask.").
