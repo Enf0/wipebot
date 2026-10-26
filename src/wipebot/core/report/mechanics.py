@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from ..pulls import attempt
 from ..text import clock, parse_clock, plural, short
 from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, dead_since
+from .meter import MIN_BARS, Bar, Meter
 
 HIT_THEN_DEATH_MS = 6_000  # a mechanic hit followed by death this soon counts as "died after"
 SAME_MOMENT_MS = 1_000  # a second hit this soon after the one before landed together with it
@@ -19,6 +20,7 @@ APPLICATIONS_LISTED = 30  # debuff applications listed one by one, at most
 class Hits:
     """One ability's hits and debuffs per player over some pulls, until each wipe was decided."""
     name: str | None = None  # as the log names the ids that hit
+    ability_id: int | None = None  # the id that hit hardest
     hits: Counter = field(default_factory=Counter)
     ticks: Counter = field(default_factory=Counter)
     damage: Counter = field(default_factory=Counter)
@@ -29,15 +31,17 @@ class Hits:
     rehit_gaps: dict[int, list[float]] = field(default_factory=lambda: defaultdict(list))
     spans: dict[int, list[list[float]]] = field(default_factory=dict)  # per player, each [applied, removed]
 
+    @property
+    def by_debuff(self) -> bool:
+        """A debuff that lands more often than the ability deals damage (a wave that only stacks a debuff): its
+        applications are what tell who got caught."""
+        return sum(self.debuffs.values()) > sum(self.hits.values()) + sum(self.ticks.values())
+
 
 async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: str | None = None,
                         all_pulls: bool = False, whole_pull: bool = False, start: str | None = None,
                         end: str | None = None, jobs: str = JOBS_NOT_LOGGED) -> str:
-    pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
-    fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
-    cut = {} if whole_pull else await rep.decided_cuts(fights)  # later hits are fallout
-    window = _window(start, end)
-    found = await _hits(rep, fights, rep.ability_ids(ability), _counting(fights, cut, window))
+    fights, going, cut, window, found = await _asked(rep, ability, pull, boss, all_pulls, whole_pull, start, end)
     scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
     if window:
         scope += f", from {clock(window[0])} to {clock(window[1]) if window[1] < math.inf else 'the end'} of each"
@@ -49,9 +53,7 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                   + (" in each pull" if all_pulls else f", {clock(cut[fights[0]['id']] - fights[0]['startTime'])}")
                   + "; whole_pull for the rest)")
     h = found
-    # a debuff that lands more often than the ability deals damage (a wave that only stacks a debuff): its
-    # applications are what tell who got caught
-    by_debuff = sum(h.debuffs.values()) > sum(h.hits.values()) + sum(h.ticks.values())
+    by_debuff = h.by_debuff
     lines = [going + f"{name} on {scope}. Per player"
              + (", most debuff applications first (it was applied more often than it dealt damage, so the "
                 "applications count who it caught)" if by_debuff else "")
@@ -70,6 +72,49 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                     "deaths it set up, by any killing blow)" if (n := sum(h.died_after.values())) else ""))
     return "\n".join(lines[:31] + await _applications(rep, fights, h, _counting(fights, cut, window), name)
                      + [jobs])
+
+
+async def _asked(rep: Report, ability: str, pull: PullRef, boss: str | None, all_pulls: bool, whole_pull: bool,
+                 start: str | None, end: str | None) -> tuple[list[dict], str, dict[int, float],
+                                                          tuple[float, float] | None, Hits]:
+    """(the pulls, a note on one still going, when each wipe was decided, the window in each pull, the hits)."""
+    pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
+    fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
+    cut = {} if whole_pull else await rep.decided_cuts(fights)  # later hits are fallout
+    window = _window(start, end)
+    found = await _hits(rep, fights, rep.ability_ids(ability), _counting(fights, cut, window))
+    return fights, going, cut, window, found
+
+
+async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False,
+                whole_pull: bool = False, start: str | None = None, end: str | None = None) -> Meter | None:
+    """mechanic_hits for one ability as a meter: each player's damage from it (or its debuff's applications, for a
+    debuff that lands more often than it deals damage), their hits and ticks, the deaths soon after a hit and those
+    it dealt; the players in the pulls it never hit. None for fewer than MIN_BARS players hit."""
+    fights, _, cut, window, h = await _asked(rep, ability, pull, boss, all_pulls, whole_pull, start, end)
+    who = set(h.hits) | set(h.ticks) | set(h.debuffs)
+    if len(who) < MIN_BARS:
+        return None
+    by_debuff = h.by_debuff
+    bars = []
+    for w in sorted(who, key=lambda w: (-h.debuffs[w], -h.damage[w]) if by_debuff else (-h.damage[w], -h.hits[w])):
+        note = (plural(h.hits[w], "hit") if h.hits[w] else "") + (", " if h.hits[w] and h.ticks[w] else "") + (
+            plural(h.ticks[w], "tick") if h.ticks[w] else "")
+        if by_debuff:
+            note = ", ".join(x for x in (short(h.damage[w]) if h.damage[w] else "", note) if x)
+        bars.append(Bar(rep.names[w], h.debuffs[w] if by_debuff else h.damage[w], note, h.died_after[w],
+                        h.killed_by[w]))
+    present = {p.id: p.name for f in fights for p in rep.pull_players(f).values()}
+    scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
+    if window:
+        scope += f", {clock(window[0])}-{clock(window[1]) if window[1] < math.inf else 'end'} of each"
+    if cut:
+        scope += ", each until its wipe was decided" if all_pulls else ", until the wipe was decided"
+    return Meter(h.name or ability, scope, bars, "applications" if by_debuff else "amount", ability=h.ability_id,
+                 note=(f"{plural(sum(h.killed_by.values()), 'death')} with it as the killing blow, "
+                       f"{sum(h.died_after.values())} within {HIT_THEN_DEATH_MS // 1000} s of a hit (the deaths it "
+                       "set up)."),
+                 others=sorted(n for pid, n in present.items() if pid not in who))
 
 
 def _window(start: str | None, end: str | None) -> tuple[float, float] | None:
@@ -161,6 +206,7 @@ async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts:
     hit_times: dict[int, list[float]] = defaultdict(list)  # of every id: a death after hits of two counts once
     for gid in [e["guid"] for e in t["entries"] if e["guid"] in ability_ids]:
         out.name = rep.ability(gid)
+        out.ability_id = out.ability_id or gid
         for e in await rep.events(ids, "DamageTaken", hostilityType="Friendlies", abilityID=gid):
             if e["targetID"] in rep.names and e.get("type") == "damage":
                 if not e.get("tick"):

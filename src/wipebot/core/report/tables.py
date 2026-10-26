@@ -6,6 +6,7 @@ from typing import Literal, get_args
 from ..text import clock, name_key, ordinal, plural, short
 from .base import FactError, Player, Report
 from .casting import cast_rows
+from .meter import MIN_BARS, Bar, Meter
 from .ranks import kill_parses, metric_of
 
 BreakdownType = Literal["DamageDone", "Healing", "DamageTaken", "Casts", "Buffs", "Debuffs", "EnemyDebuffs",
@@ -29,6 +30,7 @@ class Asked:
     cutoff: int | None
     ends: dict[int, float]  # fight id -> the moment its wipe was decided, but with whole_pull
     head: str
+    scope: str  # "all 33 Sszorak pulls", "Sszorak pull 13"
 
     @property
     def dur_s(self) -> float:
@@ -46,6 +48,39 @@ async def breakdown(rep: Report, data_type: str, group_by: str = "player", pulls
     if q.group_by == "pull":
         return await _by_pull(rep, q)
     return await _summed(rep, q)
+
+
+METERS = {"DamageDone": "Damage done", "Healing": "Healing", "DamageTaken": "Damage taken", "Interrupts": "Kicks",
+          "Dispels": "Dispels"}  # the tables a meter draws by player, and its title
+
+
+async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, boss: str | None = None,
+                ability: str | None = None, cutoff: int | None = None, whole_pull: bool = False) -> Meter | None:
+    """The breakdown by player as a meter (its rows, as the text states them), for damage, healing, damage taken,
+    kicks and dispels; None for another table or fewer than MIN_BARS players."""
+    if data_type not in METERS:
+        return None
+    q = await _asked(rep, data_type, "player", pulls, boss, None, ability, cutoff, whole_pull)
+    title = METERS[data_type] + (f": {q.ability}" if q.ability else "")
+    scope = q.scope + (", each until its wipe was decided" if q.ends and len(q.fights) > 1
+                       else ", until the wipe was decided" if q.ends else "")
+    scope += f", each until its {ordinal(cutoff)} death" if cutoff else ""
+    icon = q.ids[0] if q.ability else None
+    if data_type in ("Interrupts", "Dispels"):
+        per = await _kick_counts_by_player(rep, data_type, q.fights, q.filters, q.ability)
+        bars = [Bar(name, sum(by.values()), ", ".join(f"{a} {n}" for a, n in by.most_common(3)) if len(by) > 1 else "")
+                for name, by in sorted(per.items(), key=lambda kv: -sum(kv[1].values()))]
+        return Meter(title, scope, bars, "kicks" if data_type == "Interrupts" else "dispels", ability=icon) \
+            if len(bars) >= MIN_BARS else None
+    s = await _summed_rows(rep, q)
+    players = {p.name: p for p in rep.players.values()}
+    bars = []
+    for name, value, extra in s.rows:
+        p = players.get(name)
+        parse = f"parse {ordinal(s.parses[name])}" if p and name in s.parses and metric_of(p) == s.metric else ""
+        bars.append(Bar(name, value, ", ".join(x for x in (parse, extra.removeprefix(", ")) if x)))
+    note = (f"Parses: Warcraft Logs' {s.metric} percentiles against the same spec on this kill." if s.parses else "")
+    return Meter(title, scope, bars, seconds=s.dur_s, ability=icon, note=note) if len(bars) >= MIN_BARS else None
 
 
 async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | None, boss: str | None,
@@ -79,7 +114,7 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
             + (f", each pull until its {ordinal(cutoff)} death" if cutoff else "")
             + (await _decided_note(rep, fights, ends) if cut else ""))
     return Asked("Debuffs" if data_type == "EnemyDebuffs" else data_type, group_by, fights, p, filters, ability,
-                 ids, cutoff, ends, head)
+                 ids, cutoff, ends, head, scope)
 
 
 def _filters(data_type: str, p: Player | None) -> dict:
@@ -136,8 +171,19 @@ async def _by_pull(rep: Report, q: Asked) -> str:
     return "\n".join(lines)
 
 
-async def _summed(rep: Report, q: Asked) -> str:
-    """The table over every pull, one row per player, ability or aura."""
+@dataclass
+class Summed:
+    """A table over every pull, one row per player, ability or aura: (name, value, extra text) rows biggest first,
+    the health taken to give to others apart (healing), the combat time, and the parses on one whole kill."""
+    rows: list[tuple]
+    moved: list[tuple]
+    dur_s: float
+    total_time: float
+    parses: dict[str, int]
+    metric: str
+
+
+async def _summed_rows(rep: Report, q: Asked) -> Summed:
     auras = q.data_type in ("Buffs", "Debuffs")
     view = {"viewBy": "Ability"} if q.group_by == "ability" and not auras else {}
     if q.ends:  # each pull cut at its own moment: a table per pull, summed
@@ -149,28 +195,36 @@ async def _summed(rep: Report, q: Asked) -> str:
     rows, total_time = _merged_rows(tables_, q.data_type, q.group_by, per_hit=q.ids != [None])
     rows, moved = _without_moved(rows, q.data_type)
     dur_s = total_time / 1000 if q.cutoff and total_time else q.dur_s  # up to the cutoff, as WCL counts it
+    parses, metric = await _parses(rep, q)
+    return Summed(rows, moved, dur_s, total_time, parses, metric)
+
+
+async def _summed(rep: Report, q: Asked) -> str:
+    """The table over every pull, one row per player, ability or aura."""
+    auras = q.data_type in ("Buffs", "Debuffs")
+    s = await _summed_rows(rep, q)
+    rows, dur_s, total_time = s.rows, s.dur_s, s.total_time
     total = sum(v for _, v, _ in rows) or 1
     lines = [f"{q.head}, by {'aura' if auras else q.group_by} ({clock(dur_s * 1000)} of combat):"]
     players = {p.name: p for p in rep.players.values()} if q.group_by == "player" else {}
-    parses, metric = await _parses(rep, q)
     parsed = False
     for k, (name, value, extra) in enumerate(rows[:25], 1):
         share = f", {100 * value / total:.0f}% of total" if not auras else ""
         tag = rep.tank_tag(name) if q.data_type == "DamageTaken" and q.group_by == "player" else ""
         p = players.get(name)
         who = p.label if p else name
-        parse = (f", parse {ordinal(parses[name])} percentile of the spec" if p and name in parses
-                 and metric_of(p) == metric else "")
+        parse = (f", parse {ordinal(s.parses[name])} percentile of the spec" if p and name in s.parses
+                 and metric_of(p) == s.metric else "")
         parsed = parsed or bool(parse)
         lines.append(f"  {k}. {who}{tag}: {_fmt_value(value, q.data_type, dur_s, total_time)}{share}{parse}{extra}")
     if not rows:
         lines.append("  nothing recorded")
-    for name, value, extra in moved:
+    for name, value, extra in s.moved:
         lines.append(f"  Not healing: {name}: {_fmt_value(value, q.data_type, dur_s, total_time)}{extra}: health "
                      "taken from players to give to others. Warcraft Logs counts it as negative healing and takes it "
                      "off the healer's total; it is left out of the total and the shares above.")
     if parsed:
-        lines.append(f"Parses are Warcraft Logs' {metric} percentiles against the same spec on this kill, for the "
+        lines.append(f"Parses are Warcraft Logs' {s.metric} percentiles against the same spec on this kill, for the "
                      "players ranked by it: compare players by these, not by the totals across specs.")
     return "\n".join(lines)
 
@@ -310,12 +364,7 @@ async def _kicks_per_pull(rep: Report, data_type: str, fights: list[dict], filte
 async def _kickers(rep: Report, fights: list[dict], filters: dict, ability: str | None) -> list[str]:
     """Interrupts per player: who kicked how many of what. A cast that went through has nobody's name on it: who
     let it through isn't in the log."""
-    t = await rep.table([f["id"] for f in fights], "Interrupts",
-                        **{k: v for k, v in filters.items() if k != "hostilityType"})
-    per: dict[str, Counter] = defaultdict(Counter)
-    for e in _kick_entries(t, ability):
-        for d in e.get("details", []):
-            per[d["name"]][e["name"]] += d.get("total", 0)
+    per = await _kick_counts_by_player(rep, "Interrupts", fights, filters, ability)
     if not per:
         return []
     out = ["By player (kicks; who let a cast through isn't in the log: a cast nobody kicked has no name on it):"]
@@ -323,6 +372,18 @@ async def _kickers(rep: Report, fights: list[dict], filters: dict, ability: str 
         out.append(f"  {name}: {sum(by.values())}" + (" (" + ", ".join(f"{a} {n}" for a, n in by.most_common()) + ")"
                                                        if len(by) > 1 else ""))
     return out
+
+
+async def _kick_counts_by_player(rep: Report, data_type: str, fights: list[dict], filters: dict,
+                                 ability: str | None) -> dict[str, Counter]:
+    """Kicks or dispels per player, by what they kicked or dispelled (a dispel that only took a stack off counts)."""
+    t = await rep.table([f["id"] for f in fights], data_type,
+                        **{k: v for k, v in filters.items() if k != "hostilityType"})
+    per: dict[str, Counter] = defaultdict(Counter)
+    for e in _kick_entries(t, ability):
+        for d in e.get("details", []):
+            per[d["name"]][e["name"]] += d.get("total", 0)
+    return per
 
 
 async def _dispelled(rep: Report, fights: list[dict], p: Player | None, ability: str | None) -> list[str]:
