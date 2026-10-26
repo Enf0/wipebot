@@ -47,6 +47,10 @@ call tool json="{}":
 view tool json="{}" *args:
     {{py}} -m wipebot view "$@"
 
+# Playwright's Chromium, for `just view --shot` and the view tests (`just check` skips them without it): 270 MB
+browser:
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD= {{py}} -m playwright install chromium-headless-shell
+
 # Chat about a report in the terminal, e.g. just ask KBYT4xXn7VNjDgh8 --as <character> -q "Why did we wipe?"
 ask code *args:
     {{py}} -m wipebot ask "$@"

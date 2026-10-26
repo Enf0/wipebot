@@ -200,7 +200,7 @@ async def shots(tmp_path, tool: str, args: dict, **kw):
         return await viewhost.shoot(tool, args, tmp_path, **kw)
     except Error as e:
         if "Executable doesn't exist" in str(e):
-            pytest.skip("needs Playwright's Chromium (python -m playwright install chromium-headless-shell)")
+            pytest.skip("needs Playwright's Chromium (just browser)")
         raise
 
 
@@ -250,7 +250,7 @@ async def test_the_painter_draws_the_pull_view_as_a_picture_for_the_bot(recorded
         assert await painter.pictures("pull_map", PULL_CASE.args) == []  # its picture is its own map
     except Error as e:
         if "Executable doesn't exist" in str(e):
-            pytest.skip("needs Playwright's Chromium (python -m playwright install chromium-headless-shell)")
+            pytest.skip("needs Playwright's Chromium (just browser)")
         raise
     finally:
         await painter.close()

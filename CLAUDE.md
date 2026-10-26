@@ -15,7 +15,8 @@ it (pyproject.toml, checked by `just check`).
 - `just call <tool> '<json>'`: one tool without the model. `just ask <report> --as <character> -q "..."`: an answer
   end to end, as Discord gets it. The tests' report, KBYT4xXn7VNjDgh8, is a good default for both.
 - `just view <tool> '<json>'`: the tool's view (an MCP App in Claude and ChatGPT) in a mock host window; `--shot DIR`
-  takes screenshots per theme, width and mode, with the console's errors. Look at them after changing a view.
+  takes screenshots per theme, width and mode, with the console's errors. Look at them after changing a view;
+  `just browser` installs the Chromium they and the view tests need.
 - `just snapshot` rewrites the pinned tool outputs; then run `just evals --lint` (no model, a minute) for cases it
   left stale. Recording a tool test's data: tests/README.md.
 - `just evals`: evals/README.md. `just release`: says which version CHANGELOG.md calls for, and with a version makes
