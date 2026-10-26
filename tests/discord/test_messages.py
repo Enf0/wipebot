@@ -1,7 +1,7 @@
 """The answers' layout and the pictures' actions: buttons and menus that keep what they act on in their custom_id
 and answer the one who clicked with the next picture."""
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import discord
 import pytest
@@ -38,11 +38,12 @@ async def test_each_view_gets_its_actions_on_its_last_picture(recorded):
     player = {**PULL, "player": "Scopidruid"}
     night = await pictures_for([(b"1", "player_night", player), (b"2", "player_night", player)])
     assert night[0].actions == () and [type(a) for a in night[1].actions] == [Pick]  # under the last panel
-    assert night[1].actions[0].item.options[0].label.startswith("Pull 33 · ")  # the latest pull first
+    menu = night[1].actions[0]
+    assert isinstance(menu, Pick) and menu.item.options[0].label.startswith("Pull 33 · ")  # the latest pull first
     card = await pictures_for([(b"1", "player_pull", player)])
-    assert [a.what for a in card[0].actions] == ["top", "night"]  # type: ignore[attr-defined]
+    assert [a.what for a in card[0].actions] == ["top", "night"]
     against = await pictures_for([(b"1", "compare_with_top", {**player, "aspects": ["casts"]})])
-    assert [a.what for a in against[0].actions] == ["night"]  # type: ignore[attr-defined]
+    assert [a.what for a in against[0].actions] == ["night"]
 
 
 async def test_four_pictures_with_their_actions_fit_in_one_message(recorded):
@@ -78,7 +79,7 @@ async def test_a_click_answers_the_clicker_alone_with_the_next_picture_and_its_a
         return [b"WEBP"]
     monkeypatch.setattr(messages.host, "picture", picture)
     click = Clicked()
-    await Act("death", PULL["report"], "Sszorak", 13, "Scopidruid").callback(click)  # type: ignore[arg-type]
+    await Act("death", PULL["report"], "Sszorak", 13, "Scopidruid").callback(cast(Any, click))
     assert drawn == [("death_recap", {"report": PULL["report"], "boss": "Sszorak", "pull": 13, "player": "Scopidruid"})]
     deferred, sent = click.said
     assert deferred == {"deferred": {"ephemeral": True, "thinking": True}} and sent["ephemeral"] is True
@@ -93,8 +94,8 @@ async def test_my_night_needs_the_clickers_character(recorded, monkeypatch):
         return [b"WEBP"]
     monkeypatch.setattr(messages.host, "picture", picture)
     unknown = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character=None)))
-    await Act("mynight", PULL["report"], "Sszorak").callback(unknown)  # type: ignore[arg-type]
+    await Act("mynight", PULL["report"], "Sszorak").callback(cast(Any, unknown))
     assert unknown.said[0]["ephemeral"] and "which character is yours" in unknown.said[0]["content"]
     known = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Scopidruid")))
-    await Act("mynight", PULL["report"], "Sszorak").callback(known)  # type: ignore[arg-type]
+    await Act("mynight", PULL["report"], "Sszorak").callback(cast(Any, known))
     assert [f.filename for f in known.said[-1]["files"]] == ["wipebot-1.webp"]
