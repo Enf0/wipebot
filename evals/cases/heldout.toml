@@ -44,7 +44,7 @@ where = "in a DM"
 question = "How did I do on the Twin Fangs last night?"
 asker = "Enfo"
 boss = "The Twin Fangs"
-expect = """Steady: never the first death and healing per second alive steady over the night (about 360-380k), most
+expect = """Steady: never the first death and healing per second alive steady over the night (about 359-382k), most
 deaths coming as the raid fell apart; worth a look is Spirit Link Totem, pressed on few pulls (first use around 2:00
 when it was), judged against when the damage came rather than by how often."""
 facts = ["first death 0 times", "Spirit Link Totem 14 of 51, Ascendance 47 of 51",
