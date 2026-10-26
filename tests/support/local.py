@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from .recorded import LOCAL
@@ -43,28 +44,38 @@ def fetch() -> None:
     print(f"fetched {len(paths)} files into {LOCAL}")
 
 
-def push() -> None:
-    if not LOCAL.exists():
-        sys.exit(f"nothing to push: {LOCAL} is missing")
+def commit(folder: str, put: Callable[[Path], None], message: str) -> bool:
+    """A commit to `folder` in REPO, pushed: `put` fills it (in a sparse clone, only that folder checked out).
+    False when that changed nothing."""
     with tempfile.TemporaryDirectory() as tmp:
         repo = Path(tmp) / "store"
         for step in (("git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse",
                       f"https://github.com/{REPO}.git", str(repo)),
-                     ("git", "-C", str(repo), "sparse-checkout", "set", FOLDER)):
+                     ("git", "-C", str(repo), "sparse-checkout", "set", folder)):
             if (done := _run(*step)).returncode:
                 sys.exit(done.stderr)
-        shutil.rmtree(repo / FOLDER, ignore_errors=True)
-        shutil.copytree(LOCAL, repo / FOLDER, ignore=shutil.ignore_patterns("__pycache__"))
-        _run("git", "add", "--all", FOLDER, cwd=repo)
+        put(repo / folder)
+        _run("git", "add", "--all", folder, cwd=repo)
         if not _run("git", "status", "--porcelain", cwd=repo).stdout.strip():
-            print(f"{REPO} has these already: nothing to push")
-            return
-        wipebot = _run("git", "rev-parse", "--short", "HEAD").stdout.strip() or "a working tree"
-        message = f"test: the local cases' recordings and snapshots, from Wipebot {wipebot}"
+            return False
         for step in (("git", "commit", "--quiet", "-m", message), ("git", "push", "--quiet")):
             if (done := _run(*step, cwd=repo)).returncode:
                 sys.exit(done.stderr)
-    print(f"pushed {LOCAL} to {REPO}, {FOLDER}")
+    return True
+
+
+def push() -> None:
+    if not LOCAL.exists():
+        sys.exit(f"nothing to push: {LOCAL} is missing")
+
+    def put(to: Path) -> None:
+        shutil.rmtree(to, ignore_errors=True)
+        shutil.copytree(LOCAL, to, ignore=shutil.ignore_patterns("__pycache__"))
+    wipebot = _run("git", "rev-parse", "--short", "HEAD").stdout.strip() or "a working tree"
+    if commit(FOLDER, put, f"test: the local cases' recordings and snapshots, from Wipebot {wipebot}"):
+        print(f"pushed {LOCAL} to {REPO}, {FOLDER}")
+    else:
+        print(f"{REPO} has these already: nothing to push")
 
 
 if __name__ == "__main__":

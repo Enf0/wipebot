@@ -7,10 +7,10 @@ import pytest
 from evals import data
 
 
-def _cache(path: Path, answers: int) -> Path:
+def _cache(path: Path, answers: int, stored_at: float = 0) -> Path:
     db = sqlite3.connect(path)
-    db.execute("CREATE TABLE cache (key TEXT PRIMARY KEY, stored_at REAL NOT NULL, value BLOB NOT NULL)")
-    db.executemany("INSERT INTO cache VALUES (?, 0, x'00')", [(str(i),) for i in range(answers)])
+    db.execute("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, stored_at REAL NOT NULL, value BLOB NOT NULL)")
+    db.executemany("INSERT OR REPLACE INTO cache VALUES (?, ?, x'00')", [(str(i), stored_at) for i in range(answers)])
     db.commit()
     db.close()
     return path
@@ -71,3 +71,23 @@ def test_an_asset_that_isnt_the_cache_is_not_put_in_place(tmp_path):
     with pytest.raises(SystemExit, match="isn't the evals' cache"):
         data.unpack(bad, tmp_path / "cache.sqlite")
     assert list(tmp_path.iterdir()) == [bad]
+
+
+def test_a_fetched_copy_pushes_only_what_a_run_added_since(store, tmp_path, monkeypatch):
+    data.fetch()
+    pushed = []
+
+    def commit(folder, put, message):
+        put(tmp_path / "repo" / folder)
+        pushed.append((folder, message))
+        return True
+    monkeypatch.setattr(data, "commit", commit)
+    data.push()
+    assert pushed == []  # nothing new since the fetch
+    _cache(data.CACHE, 5, stored_at=1e10)  # a run fetched 5 answers, 2 of them new keys (3, 4)
+    data.push()
+    assert pushed == [(data.DELTAS, "chore: 5 new eval answers, for the workflow to merge into the eval-data release")]
+    [archive] = (tmp_path / "repo" / data.DELTAS).iterdir()
+    assert data.unpack(archive, tmp_path / "delta.sqlite") == 5
+    data.push()
+    assert len(pushed) == 1  # pushed once, marked as in the store
