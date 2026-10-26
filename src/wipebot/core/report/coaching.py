@@ -292,13 +292,17 @@ async def lost_at_cap(rep: Report, fight_ids: list[int], p: Player, kind: int, u
         t = await rep.table(fight_ids, "Resources", sourceID=p.id, abilityID=100 + kind, **until)
     except WCLError:
         return None
-    rows = sorted((r for r in t.get("resources") or [] if r.get("gains")), key=lambda r: -r["gains"])
+    rows = sorted((r for r in t.get("resources") or [] if (r.get("gains") or 0) > 0), key=lambda r: -r["gains"])
     gained, lost = sum(r["gains"] for r in rows), sum(r.get("wasted") or 0 for r in rows)
     if not gained:
         return None
+    # A source that drains the resource over time (a Devourer's Void Metamorphosis drains Fury) comes with a gain
+    # below zero, net of what it drained: it's a cost, not a source, and stays out of what was gained.
+    drains = sorted((r for r in t.get("resources") or [] if (r.get("gains") or 0) < 0), key=lambda r: r["gains"])
     return (f"{POWER_TYPES[kind]} gained {gained:.0f}, of it lost at the cap {lost:.0f} "
             f"({100 * lost / gained:.0f}%); by source (Warcraft Logs' names), lost of gained: "
-            + ", ".join(f"{r['name']} {r.get('wasted') or 0:.0f} of {r['gains']:.0f}" for r in rows[:LOST_SOURCES]))
+            + ", ".join(f"{r['name']} {r.get('wasted') or 0:.0f} of {r['gains']:.0f}" for r in rows[:LOST_SOURCES])
+            + "".join(f"; drained by {r['name']} {-r['gains']:.0f} (net)" for r in drains))
 
 
 async def _heals(p: Player) -> bool:
