@@ -16,6 +16,7 @@ from tests.support.paths import REAL
 from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Replay, serve_from
 from wipebot.core import server
 from wipebot.core.report import maps, views
+from wipebot.core.report.ending import Ending, MassDeath, mass_death_of
 from wipebot.core.text import clock
 
 PULL_CASE = CASES["pull-summary"]  # the pull the views are tested on: its summary and timeline are recorded
@@ -569,6 +570,17 @@ def test_a_players_notes_put_the_weightiest_first_and_leave_raid_cooldowns_out_o
                    output={"what": "healing", "rank": 1, "of": 4, "role": "healers"},
                    standing={"kind": "parse", "percentile": 81})
     assert views.player_notes(after)["good"] == ["81st percentile parse", "Most healing of the 4 healers"]
+    wiped = _facts(died=[{"ms": 95000, "by": "Visceral Burst", "fallout": False, "with": 4}])  # one hit killing many
+    assert views.player_notes(wiped)["fix"] == []
+
+
+def test_a_death_in_a_hit_killing_many_is_one_of_that_hit():
+    burst = MassDeath(412_000, "Visceral Burst", (1308386,), 4, 2)
+    ended = Ending("moments", 20, 422_000, (burst,))
+    assert mass_death_of(ended, 413_500, "Visceral Burst") == burst
+    assert mass_death_of(ended, 413_500, "Eternal Venom") is None  # another ability, the same moment
+    assert mass_death_of(ended, 407_000, "Visceral Burst") is None  # an earlier one, on its own
+    assert mass_death_of(None, 413_500, "Visceral Burst") is None  # a kill
 
 
 async def test_a_view_in_panels_is_painted_a_picture_per_panel(made_up, monkeypatch):
