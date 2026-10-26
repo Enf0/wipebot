@@ -81,6 +81,13 @@ async def test_a_tools_view_goes_with_the_answer_as_a_picture(core_calls, monkey
     assert Answer("", calls=recorded).images == [b"WEBP"]
 
 
+def test_an_answer_sends_its_maps_and_its_first_view_alone():
+    def call(name, *images):
+        return ToolCall(name, {}, "", False, list(images))
+    calls = [call("spell_info"), call("player_night", b"N1", b"N2"), call("pull_map", b"M"), call("player_pull", b"P")]
+    assert Answer("", calls=calls).images == [b"N1", b"N2", b"M"]  # the pull's card is a click away from the night's
+
+
 async def test_a_picture_that_cannot_be_drawn_leaves_the_answer_without_it(monkeypatch):
     class Painter:
         def __init__(self, error):
