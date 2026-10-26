@@ -28,7 +28,7 @@ async def overview(rep: Report) -> str:
     wipe and time spent, and the guild's progress rank in the raid."""
     lines = [f"Report {rep.code} \"{rep.title}\" ({rep.zone}), {date(rep.start_ms, with_time=True)}, "
              f"{clock(rep.end_ms - rep.start_ms)} long, {plural(len(rep.players), 'player')}."]
-    ranked, progress, doubt = await asyncio.gather(_kill_rankings(rep), _guild_progress(rep), rep.guild_run_doubt())
+    ranked, progress, doubt = await asyncio.gather(kill_rankings(rep), _guild_progress(rep), rep.guild_run_doubt())
     if doubt:
         lines.append(f"Not a guild night? {doubt[0].upper()}{doubt[1:]}.")
     if progress:
@@ -61,7 +61,7 @@ class _NotAllRanked(Exception):
         self.ranked = ranked
 
 
-async def _kill_rankings(rep: Report) -> dict[int, dict[str, int]]:
+async def kill_rankings(rep: Report) -> dict[int, dict[str, int]]:
     """{fight id: {'speed': percentile, 'execution': percentile}} for the report's ranked kills. Kept for the day
     once every kill is ranked (more kills come in, so the percentiles move)."""
     kills = {f["id"] for f in rep.fights if f.get("kill")}

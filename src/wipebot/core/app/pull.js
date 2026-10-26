@@ -16,6 +16,10 @@ views.pull = (() => {
   function stats() {
     const out = [];
     if (D.kill) out.push(["Result", "Kill", ""]);
+    if (D.kill && D.ranking) {  // a kill's story: how fast and how clean, against other kills of the boss
+      out.push(["Speed", `${kit.ordinal(D.ranking.speed)} percentile`, ""]);
+      out.push(["Execution", `${kit.ordinal(D.ranking.execution)} percentile`, ""]);
+    }
     else if (D.ended) out.push(["Ended by", D.ended.text + (D.ended.ms != null ? ` ${kit.clock(D.ended.ms)}` : ""), "decided"]);
     if (!D.kill && D.boss_pct != null) out.push(["Boss", `${D.boss_pct}%`, ""]);
     out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), ""]);

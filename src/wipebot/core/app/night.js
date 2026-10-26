@@ -21,7 +21,7 @@ views.player_night = (() => {
        `${D.first ? `first to die ${times(D.first)}` : "never first to die"}, ${times(D.early)} among the first ${D.early_n}`],
       L.of ? ["Could have lived", `${L.saved} of ${L.of}`, L.saved ? "good" : "",
               [L.by.length ? L.by.slice(0, 2).map(([s, k]) => `${s} at ${k}`).join(", ") : "nothing ready would have saved them",
-               L.unknown ? `can't tell for ${L.unknown}` : ""].filter(Boolean).join("; ")] : null,
+               L.outright ? `${L.outright} killed outright` : "", L.unknown ? `can't tell for ${L.unknown}` : ""].filter(Boolean).join("; ")] : null,
       ["Time dead", `${D.dead_s} s`, "", `${D.dead_pct}% of the time before each wipe was decided`],
       D.best ? ["Best pull", `${D.best.pull}: ${kit.short(D.best.per_s_alive)}`, "", `${what().toLowerCase()} per s alive`] : null,
     ]);
@@ -34,8 +34,9 @@ views.player_night = (() => {
     if (!D.killers.length) return "";
     const shown = D.killers.slice(0, KILLERS_SHOWN), rest = D.killers.slice(KILLERS_SHOWN);
     const chip = (k, x) => {
-      const cls = x.saved === true ? "saved" : x.saved === false ? "" : "unknown";
+      const cls = x.saved === true ? "saved" : x.outright ? "outright" : x.saved === false ? "" : "unknown";
       const how = x.saved === true ? "a ready defensive or a healthstone would have kept them alive"
+        : x.outright ? "killed outright: no hit logged after high health, so nothing ready would have stopped it"
         : x.saved === false ? "nothing ready would have kept them alive" : "can't tell: no overkill or health logged";
       return `<button class="chip ${cls}" data-pull-chip="${x.pull}"${kit.tip(`Pull ${x.pull}: died ${kit.clock(x.ms)} (#${x.place}) to ${k.by}; ${how}`)}>${x.pull}</button>`;
     };

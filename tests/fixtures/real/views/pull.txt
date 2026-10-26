@@ -11,6 +11,7 @@
 "boss_pct": 62.59,
 "raid": 20,
 "best": {"tonight": 66.79, "new_tonight": true, "guild": null, "new_guild": false},
+"ranking": null,
 "ended": {"text": "the boss gaining Unbound Ferocity", "ms": 152966},
 "decided": {"ms": 152966, "why": "the boss gained Unbound Ferocity"},
 "phases": [
