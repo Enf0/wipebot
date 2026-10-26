@@ -54,7 +54,8 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
     report's, else what a tool result says of them, else the guild's `roster` (name -> WCL's class and spec). A
     broken link is undone first, so the ability in it gets a proper one."""
     abilities = {spell: name for r in reports[::-1] for spell, name in r.abilities.items()}  # the first report wins
-    text = link_items(link_abilities(unlink_broken(unlink_elsewhere(text)), results, abilities), results)
+    text = unlink_wrong(unlink_broken(unlink_elsewhere(text)), abilities)
+    text = link_items(link_abilities(text, results, abilities), results)
     text = link_scenes(text, results)
     if not icons:  # with icons, each name is marked by its icon: bold on top of them is noise
         text = bold_players(text, {p.name for r in reports for p in r.players.values()})
@@ -223,6 +224,16 @@ def _linked(destination: str) -> bool:
 def unlink_broken(text: str) -> str:
     """Wowhead spell links without a spell id turned back into plain names."""
     return BROKEN_SPELL_LINK.sub(r"\1", text)
+
+
+def unlink_wrong(text: str, abilities: Mapping[int, str]) -> str:
+    """Wowhead spell links whose id the report names as another spell ("[Visceral Burst](...spell=1290662)", which is
+    Ravenous Feast) turned back into plain names, so the ability gets its own link; a short name for the spell
+    ("[Wind Rush](...)" for Wind Rush Totem) stays."""
+    def checked(m: re.Match) -> str:
+        said, named = m.group(1).lower(), abilities.get(int(m.group(2)), "").lower()
+        return m.group(0) if not named or said in named or named in said else m.group(1)
+    return SPELL_LINK.sub(checked, text)
 
 
 def bold_players(text: str, names: Iterable[str]) -> str:
