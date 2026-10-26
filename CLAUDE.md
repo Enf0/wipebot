@@ -57,14 +57,17 @@ it (pyproject.toml, checked by `just check`).
 - **Test against real reports, across bosses**, not only Sszorak: facts with `just call`, answers with `just ask` or
   `just evals`. At each new tier or major patch, `just call` across the new bosses with the guide sites and Lorrgs
   read live: tests and evals run on frozen data, so they can't see a source that lags or changes.
-- **Run as few evals as the change needs.** One trial of one mode is about $15-20 and 30 min, three about $45-65,
-  and only one run at a time across sessions (parallel runs hit the usage limit):
-  - a refactor whose snapshots don't change: none;
-  - a tool's output, a few tools' descriptions, one part of the skill, or cases: the cases that call those tools, are
-    of that kind or changed (`-k`), `--trials 3`;
-  - the skill's general rules, the server instructions or most descriptions: the full suite; the bot's prompt or
-    its own tools: the full suite with `--bot`;
-  - new baselines in all three modes only when the judge or the cases changed, or before a big deploy.
+- **Run evals per batch, not per change.** One full trial of one mode is about $15-20 of usage and 30 min, and
+  only one run at a time across sessions (parallel runs hit the usage limit):
+  - always, free: `just check`, and `just evals --lint` / `--endings` after a snapshot or pull-ending change;
+  - a refactor whose snapshots don't change, wording tweaks, docs: none;
+  - a change that can move answers (a tool's output or description, part of the skill, the bot's prompt or tools,
+    cases): only the cases of the kinds it touches (`-k a,b`; `--bot` for the bot's prompt or tools), one trial,
+    then `--trials 3` on only the cases that moved;
+  - the full suite (`--trials 3`, in the modes the batch touched) once before a release or big deploy, covering
+    everything since the last one: a change that would need it lands without it and says "full eval: pending" in
+    its commit body;
+  - new baselines only when the judge or the cases changed.
 - **Never print or commit secrets** (`.env`; show variable names only), and keep tracked files fit to publish: no
   guild matters, hosts or one deployment's setup. Raiders' character names may appear.
 - **Commits follow Conventional Commits:** `type(scope): summary` in plain words.
