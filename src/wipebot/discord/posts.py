@@ -3,6 +3,9 @@ feedback in their DMs, or what someone asked for, in their DMs or a channel. One
 their DMs and one in a channel, up to MAX_PER_SERVER in a server: each is an answer after every wipe. They're kept in
 the store, so a restart doesn't end them, and end with the report they follow.
 
+When the report ends, each place gets one last post, the night (`finished`): a raider's own night card in their
+DMs, or the raid's night in a channel, where each raider opens their own with a button.
+
 This module keeps who asked for what; the bot finds the pulls (follower.py) and writes and sends the posts."""
 import logging
 import time
@@ -49,6 +52,7 @@ class Posts:
         self.store, self.library = store, library
         self.by_server: dict[int, dict[int, Following]] = {}
         self.record_answers = record_answers  # the log names who asked and what (as the bot's own log does)
+        self._finished: dict[int, list[Following]] = {}  # by server, requests whose report ended: the night's post due
 
     def _shown(self, name: str) -> str:
         return name if self.record_answers else "a raider"
@@ -146,12 +150,17 @@ class Posts:
                 log.info("stopped waiting for the live report for %s: it didn't start", self._shown(f.name))
             elif f.code is not None and f.code != live:
                 self.end(guild_id, key)
+                self._finished.setdefault(guild_id, []).append(f)
                 log.info("stopped posts after wipes for %s: report %s ended", self._shown(f.name), f.code)
         # After a gap (a restart, Warcraft Logs down) a poll finds several wipes: only the latest is worth a post. The
         # first poll after a request may find wipes from before it (nothing polls while nobody asked): those aren't.
         latest = {id(f): (f, pull) for pull in pulls if pull.wipe for f in following.values()
                   if f.code == pull.report and pull.ended_ms >= f.asked * 1000}
         return list(latest.values())
+
+    def finished(self, guild_id: int) -> list[Following]:
+        """The requests whose report ended since this was last asked (`due` ends them), each due the night's post."""
+        return self._finished.pop(guild_id, [])
 
     async def _attach(self, f: Following, code: str) -> None:
         """A request made before the raid started logging follows the live report from now on, with the character

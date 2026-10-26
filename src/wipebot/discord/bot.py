@@ -24,7 +24,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import commands, emojis
+from . import commands, emojis, host
 from .chat import Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
@@ -564,6 +564,8 @@ class WipeBot(discord.Client):
         if not self.stopping:
             for f, pull in due:
                 asyncio.create_task(self._post(s, f, pull))
+            for f in self.posts.finished(s.discord_guild_id):
+                asyncio.create_task(self._night_post(f))
 
     @answering
     async def _post(self, s: ServerSettings, f: Following, pull: Pull) -> None:
@@ -598,6 +600,30 @@ class WipeBot(discord.Client):
                  time.time() - pull.ended_ms / 1000)
         await self._answer("follow", key, pull.report, question, ctx, f.name, send, fight=pull.fight,
                            channel_id=getattr(f.channel, "id", None))
+
+    @answering
+    async def _night_post(self, f: Following) -> None:
+        """The last post of a request, once its report ended: in a raider's DMs their own night card (on the night's
+        last boss), in a channel the raid's night, where each raider opens their own (My night). Pictures only, drawn
+        from the tools without the model; none when nothing can be drawn (no Chromium, no boss pulled)."""
+        if f.code is None:
+            return
+        tool, args = (("player_night", {"report": f.code, "player": f.character}) if f.character
+                      else ("progress", {"report": f.code}))
+        images = await host.picture(tool, args)
+        if not images:
+            log.info("no night's post for %s: nothing drawn for report %s", self._shown(f.name), f.code)
+            return
+        pictures = await pictures_for([(i, tool, args) for i in images])
+        files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
+        text = (f"**That's the raid.** {f.character}'s night:" if f.character
+                else "**That's the raid.** The night on the last boss; **My night** shows yours, only to you.")
+        try:
+            await (f.channel or await f.user.create_dm()).send(view=answer_layout(text, pictures), files=files)
+        except discord.HTTPException as e:
+            log.warning("couldn't post the night for %s: %s", self._shown(f.name), e)
+            return
+        log.info("night's post for %s on report %s", self._shown(f.name), f.code)
 
     # ---------- questions ----------
 
