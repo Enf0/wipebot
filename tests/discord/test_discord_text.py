@@ -20,6 +20,7 @@ from wipebot.discord.discord_text import (
     tight_lists,
     unlink_broken,
     unlink_elsewhere,
+    unlink_wrong,
 )
 
 
@@ -77,6 +78,15 @@ def test_items_link_to_wowhead_by_the_ids_boss_guide_gave():
 def test_a_spell_link_without_an_id_is_undone():
     text = f"Save cooldowns for [Dig In](https://www.wowhead.com/spell=Dig In); {spell('Tempest', 1287083)} stays."
     assert unlink_broken(text) == f"Save cooldowns for Dig In; {spell('Tempest', 1287083)} stays."
+
+
+def test_a_spell_link_to_another_spells_id_is_undone():
+    abilities = {1290662: "Ravenous Feast", 192077: "Wind Rush Totem"}
+    text = (f"Kick {spell('Visceral Burst', 1290662)}, soak {spell('Ravenous Feast', 1290662)}, "
+            f"{spell('Wind Rush', 192077)} and {spell('Ascendance', 114052)}.")
+    assert unlink_wrong(text, abilities) == (
+        f"Kick Visceral Burst, soak {spell('Ravenous Feast', 1290662)}, {spell('Wind Rush', 192077)} and "
+        f"{spell('Ascendance', 114052)}.")  # an id the report doesn't have: left alone
 
 
 ROSTER = ["Brightleaf", "Torvek", "Mirelle", "Quillon", "Halvard", "Al"]
