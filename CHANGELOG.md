@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **"How did I do?" after each wipe.** A post after a wipe in a channel, and every picture of a pull, has a "How did I do?" button: it shows you your own card on that pull, which only you see. It goes by the character the bot remembers for you; tell it once ("my character is ...").
+
 ### Fixed
 
 - `Agent` **Dying in the hit that wiped the raid isn't on your card to fix.** A player's card listed a death to an ability that killed many at once, such as a missed kick letting Visceral Burst through, as their mistake. It now leaves it out: that hit wiped the raid, whoever's job it was to stop it. A death of their own before it still counts. The same now goes for a player's night, their pull and the defensives check: a death in a hit killing many is counted apart, and no defensive is called a miss there.

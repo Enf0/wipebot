@@ -12,7 +12,7 @@ import logging
 import re
 import signal
 import time
-from collections.abc import Awaitable, Callable, Hashable
+from collections.abc import Awaitable, Callable, Hashable, Sequence
 from typing import cast
 
 import discord
@@ -577,8 +577,12 @@ class WipeBot(discord.Client):
         except WCLError:
             pass
 
+        # In a channel, each raider's own card on the pull is a click away, which only they see; a raider's own
+        # feedback in their DMs is that already.
+        mine = [] if f.character else [Act("mypull", pull.report, pull.boss, pull.pull_no)]
+
         async def send(answer: Answer) -> list[int]:
-            sent = await self._send(f.channel or await f.user.create_dm(), answer)
+            sent = await self._send(f.channel or await f.user.create_dm(), answer, actions=mine)
             for message_id in sent:  # a reply to it is about this pull
                 self.store.remember_message(message_id, pull.report, pull.fight)
             return sent
@@ -950,10 +954,11 @@ class WipeBot(discord.Client):
 
     @staticmethod
     async def _send(channel: discord.abc.Messageable, answer: Answer, reply_to: discord.Message | None = None,
-                    footer: str | None = None) -> list[int]:
+                    footer: str | None = None, actions: Sequence[Act] = ()) -> list[int]:
         """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES Components V2 messages
         (`answer_layout`: no link previews, as there are no embeds), with `footer` in a small line at the end and the
-        pictures for it (maps, views) on its last message, each whole. Returns the ids of the messages sent."""
+        pictures for it (maps, views) on its last message, each whole, with `actions` under its text unless a picture
+        has the same one. Returns the ids of the messages sent."""
         chunks = split_message(answer.text, TEXT_LIMIT)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
@@ -972,11 +977,13 @@ class WipeBot(discord.Client):
             files = [discord.File(io.BytesIO(image), filename=p.name) for p, (image, _) in zip(pictures, drawn,
                                                                                               strict=True)]
             post = reply_to.reply if i == 0 and reply_to else channel.send
+            shown = {(a.what, a.pull) for p in pictures for a in p.actions if isinstance(a, Act)}
+            extra = [a for a in actions if (a.what, a.pull) not in shown] if last else []
             try:
-                sent.append(await post(view=answer_layout(chunk, pictures), files=files))
+                sent.append(await post(view=answer_layout(chunk, pictures, extra), files=files))
             except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its pictures
                 if not files:
                     raise
                 log.warning("couldn't attach the answer's pictures: the bot lacks Attach Files there")
-                sent.append(await post(view=answer_layout(chunk)))
+                sent.append(await post(view=answer_layout(chunk, actions=extra)))
         return [m.id for m in sent]

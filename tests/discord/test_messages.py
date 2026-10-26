@@ -32,7 +32,8 @@ def test_a_button_keeps_what_it_acts_on_in_its_id_and_comes_back_from_it():
 async def test_each_view_gets_its_actions_on_its_last_picture(recorded):
     pull = await pictures_for([(b"1", "pull_summary", PULL)])
     assert pull[0].link == "https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21"
-    death, players = pull[0].actions
+    mine, death, players = pull[0].actions
+    assert isinstance(mine, Act) and (mine.what, mine.pull, mine.player) == ("mypull", "13", "")  # the clicker's own
     assert isinstance(death, Act) and death.player == "Scopidruid"  # the pull's first death
     assert isinstance(players, Pick) and 0 < len(players.item.options) <= messages.CHOICES
     player = {**PULL, "player": "Scopidruid"}
@@ -109,3 +110,20 @@ async def test_my_night_needs_the_clickers_character(recorded, monkeypatch):
     known = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Scopidruid")))
     await Act("mynight", PULL["report"], "Sszorak").callback(cast(Any, known))
     assert [f.filename for f in known.said[-1]["files"]] == ["wipebot-1.webp"]
+
+
+async def test_how_did_i_do_draws_the_clickers_own_card_on_the_pull(recorded, monkeypatch):
+    drawn: list[tuple[str, dict]] = []
+
+    async def picture(tool, args):
+        drawn.append((tool, args))
+        return [b"WEBP"]
+    monkeypatch.setattr(messages.host, "picture", picture)
+    known = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Scopidruid")))
+    await Act("mypull", PULL["report"], "Sszorak", 13).callback(cast(Any, known))
+    assert drawn == [("player_pull", {"report": PULL["report"], "boss": "Sszorak", "pull": 13, "player": "Scopidruid"})]
+    assert known.said[-1]["ephemeral"] and [f.filename for f in known.said[-1]["files"]] == ["wipebot-1.webp"]
+    # a character not in the pull (an alt, a night on the bench) is told so, not handed an error
+    benched = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Nobodyhere")))
+    await Act("mypull", PULL["report"], "Sszorak", 13).callback(cast(Any, benched))
+    assert len(drawn) == 1 and "wasn't in Sszorak pull 13" in benched.said[0]["content"]

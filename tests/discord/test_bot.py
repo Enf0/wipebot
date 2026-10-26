@@ -34,6 +34,7 @@ from wipebot.discord.bot import (
 from wipebot.discord.chat import SlowStart
 from wipebot.discord.follower import Pull
 from wipebot.discord.host import Answer, Context, ModelError, ToolCall
+from wipebot.discord.messages import Act
 from wipebot.discord.posts import Following
 from wipebot.discord.store import Store
 
@@ -157,10 +158,11 @@ class FakeDM(discord.DMChannel):
     """A DM channel (the bot checks for one with isinstance) that keeps what was sent."""
 
     def __init__(self):
-        self.id, self.sent = 5, []
+        self.id, self.sent, self.views = 5, [], []
 
     async def send(self, content=None, **kwargs):
         self.sent.append(shown(content, kwargs.get("view")))
+        self.views.append(kwargs.get("view"))
         return SimpleNamespace(id=100 + len(self.sent))
 
     def typing(self):
@@ -469,6 +471,7 @@ async def test_a_raiders_feedback_goes_to_their_dms_and_replies_to_it_are_about_
     assert key == ("dm", 7) and (ctx.asker, ctx.where, ctx.pull, ctx.boss) == ("Torvek", "in a DM", 12, "Sszorak")
     assert question.startswith("Sszorak pull 12 just ended, and Torvek asked for their own feedback")
     assert dm.sent == ["**Wiped.**"] and bot.store.pull_for_message(101) == ("LIVE1", 30)
+    assert not [c for c in dm.views[-1].walk_children() if isinstance(c, Act)]
     assert recorded(bot.store)[0][::5] == ("follow", 30)
 
 
@@ -488,6 +491,9 @@ async def test_a_post_names_players_only_where_names_are_on(bot, settings, asked
     assert question.startswith("Sszorak pull 12 just ended, and Rowan asked for this here after each wipe: who "
                                "messed up.")
     assert channel.sent == ["**Wiped.**"]
+    # each raider's own card on the pull, a click away under the post; a raider's own feedback in a DM is that already
+    buttons = [c for c in channel.views[-1].walk_children() if isinstance(c, Act)]
+    assert [(b.what, b.report, b.boss, b.pull) for b in buttons] == [("mypull", "LIVE1", "Sszorak", "12")]
 
 
 async def test_a_post_that_took_too_long_is_given_up(bot, settings, asked, member, channel):
