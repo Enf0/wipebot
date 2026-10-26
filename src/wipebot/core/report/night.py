@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 from ..cache import DAY
-from ..pulls import DIFFICULTIES, FIRST_DEATHS, attempt, is_reset, pct_text, phase_label, wipe_pct, wipe_pcts
+from ..pulls import DIFFICULTIES, FIRST_DEATHS, Decided, attempt, is_reset, pct_text, phase_label, wipe_pct, wipe_pcts
 from ..text import clock, clusters, date, ordinal, plural
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report
@@ -223,6 +223,18 @@ async def _first_hits(rep: Report, fights: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _end_buffs(buffs: list[tuple[str, float]], enrages: list[tuple[str, float]], decided: Decided | None) -> str:
+    """'; boss <buff> from <when>' for each buff the boss kept to the end, saying so of one that didn't decide the
+    wipe: an "enrage" there misleads."""
+    def why(name: str, at: float) -> str:
+        if (name, at) not in enrages:
+            return " (as another boss died: not an enrage)"
+        if decided and at > decided.at_ms:
+            return f" (after the wipe was decided at {clock(decided.at_ms)}: fallout)"
+        return ""
+    return "; boss " + ", ".join(f"{n} from {clock(at)}{why(n, at)}" for n, at in buffs) if buffs else ""
+
+
 async def progress(rep: Report, boss: str | None = None) -> str:
     b = rep.boss(boss)
     fights = rep.by_boss[b]
@@ -257,7 +269,7 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         first = (f"{rep.names[deaths[0]['targetID']]} ({rep.ability(deaths[0].get('killingAbilityGameID'))}, "
                  f"{clock(deaths[0]['timestamp'] - f['startTime'])})" if deaths else "-")
         phase = phase_label(f) or ""
-        end = "; boss " + ", ".join(f"{n} from {clock(at)}" for n, at in buffs) if buffs else ""
+        end = _end_buffs(buffs, enrages, await rep.decided_at(f))
         lines.append(f"  {i}: {pct_text(pct)} {phase} {clock(f['endTime'] - f['startTime'])} first death "
                      f"{first}{end}{mark}")
     wipes = wipe_pcts(fights)
