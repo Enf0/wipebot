@@ -253,7 +253,8 @@ def _secondary(stats: dict) -> dict[str, int]:
         v = (stats.get(name) or {}).get("max")
         if isinstance(v, int | float):
             out[name] = int(v)
-    return out
+    # A rating below zero (the log gives a Devourer's Versatility so at times) has no share to compare
+    return out if all(v >= 0 for v in out.values()) else {}
 
 
 async def _top_stats(rep: Report, gaps: dict) -> str:
@@ -297,8 +298,10 @@ def gear_stats(det: dict) -> str:
         return "Stats: not in the log (needs advanced combat logging)."
     primary = [(n, v) for n in ("Strength", "Agility", "Intellect") if (v := value(n))]
     minor = [(n, v) for n in ("Leech", "Avoidance", "Speed") if (v := value(n))]
+    below = [n for n, v in secondary if v < 0]
     return ("Stats from their gear at the pull (ratings, before buffs such as a flask or a trinket's proc): "
             + " · ".join(f"{n} {v}" for n, v in secondary)
+            + (f" ({' and '.join(below)} below zero as the log gives it; the log doesn't say why)" if below else "")
             + "".join(f"; {n} {v}" for n, v in primary)
             + ("; " + ", ".join(f"{n} {v}" for n, v in minor) if minor else "") + ".")
 

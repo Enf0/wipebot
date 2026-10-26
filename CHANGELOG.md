@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **Dying in the hit that wiped the raid isn't on your card to fix.** A player's card listed a death to an ability that killed many at once, such as a missed kick letting Visceral Burst through, as their mistake. It now leaves it out: that hit wiped the raid, whoever's job it was to stop it. A death of their own before it still counts. The same now goes for a player's night, their pull and the defensives check: a death in a hit killing many is counted apart, and no defensive is called a miss there.
 - `Agent` **The night of a boss says when an end-of-pull buff decided nothing.** A buff the boss gained after the wipe was decided, or as its twin died, read like an enrage that ended the pull. It now says which it was.
 - `Discord` **Answers with pictures arrive again.** An answer with two pictures of the same player, such as their pull and their night, never came: Discord refused the message for a button the two shared. It now comes, with one view under it and the others a click away from its buttons, so a few pictures no longer fill the screen under a short answer.
+- `Agent` **A Devourer Demon Hunter's Fury reads right.** A Devourer's card said they gained a negative amount of Fury, since Void Metamorphosis drains it: the drain is now shown on its own, and what they gained and lost at the cap counts only real gains. A stat the log gives below zero, such as a Devourer's Versatility at times, is called out instead of read as their gear's.
 
 ## [0.10.0] - 2026-10-26
 

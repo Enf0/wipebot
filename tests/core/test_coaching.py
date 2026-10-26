@@ -4,7 +4,7 @@ import time
 from tests.support import CODE, RESTO_SPELLS, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.pulls import Decided
-from wipebot.core.report import Player, adds, coaching, deaths, healing, mechanics, tables
+from wipebot.core.report import Player, adds, build, coaching, deaths, healing, mechanics, tables
 
 
 async def test_the_resource_judged_is_the_one_the_spec_spends(rep, patch_wcl, fake_knowledge):
@@ -72,6 +72,27 @@ async def test_a_healer_who_spends_holy_power_is_judged_on_mana_and_on_holy_powe
                                                  casts, 100, f["endTime"])
     assert len(lines) == 1 and lines[0].startswith("Mana") and name == ""
 
+
+
+async def test_a_source_that_drains_the_resource_is_not_counted_as_gained(rep, patch_wcl):
+    # A Devourer's Void Metamorphosis drains Fury: Warcraft Logs gives it a gain below zero, net of the drain
+    f, p = rep.fight(13), rep.player("Enfo")
+    patch_wcl(rep, table={"resources": [{"name": "Devour", "gains": 1674, "wasted": 202},
+                                        {"name": "Void Metamorphosis", "gains": -14216, "wasted": 480},
+                                        {"name": "Consume Soul", "gains": 3156, "wasted": 928}]})
+    assert await coaching.lost_at_cap(rep, [f["id"]], p, 17) == (
+        "Fury gained 4830, of it lost at the cap 1130 (23%); by source (Warcraft Logs' names), lost of gained: "
+        "Consume Soul 928 of 3156, Devour 202 of 1674; drained by Void Metamorphosis 14216 (net)")
+
+
+def test_a_stat_below_zero_is_said_and_left_out_of_the_shares():
+    det = {"combatantInfo": {"stats": {"Mastery": {"max": 2901}, "Haste": {"max": 1255}, "Crit": {"max": 626},
+                                       "Versatility": {"max": -213}, "Intellect": {"max": 3535}}}}
+    assert build.gear_stats(det) == (
+        "Stats from their gear at the pull (ratings, before buffs such as a flask or a trinket's proc): Mastery 2901 · "
+        "Haste 1255 · Crit 626 · Versatility -213 (Versatility below zero as the log gives it; the log doesn't say "
+        "why); Intellect 3535.")
+    assert build._secondary(det["combatantInfo"]["stats"]) == {}
 
 def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_decided():
     f = {"startTime": 0, "endTime": 200_000}
