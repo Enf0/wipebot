@@ -24,7 +24,7 @@ from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
 from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
-from .night import wipe_thirds
+from .night import kill_rankings, wipe_thirds
 from .ranks import Spread, kill_parses, kills_spread, metric_of
 from .top import cast_comparison
 
@@ -104,6 +104,7 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         "title": rep.label(f), "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""),
         "url": rep.url(f), "kill": bool(f["kill"]), "live": bool(f.get("inProgress")), "duration_ms": round(length),
         "boss_pct": f.get("bossPercentage"), "raid": raid, "best": await _best(rep, f),
+        "ranking": (await kill_rankings(rep)).get(f["id"]) if f["kill"] else None,
         "ended": _ended(await pull_ending(rep, f)),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
         "phases": [{"ms": round(t["startTime"] - t0), "id": t["id"],
@@ -321,15 +322,17 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
     # each death before its wipe was decided, replayed with what was ready (the defensives tool's replay): True when a
     # ready defensive or a healthstone would have kept them alive, False when nothing ready would have, None can't tell
     # (the deaths the card counts: their first in each pull, a later one after a battle res left out, as above)
-    replays = {(rep.pull_no(f), round(d["timestamp"] - f["startTime"])): more for f, d, more in replayed}
+    replays = {(rep.pull_no(r.f), round(r.d["timestamp"] - r.f["startTime"])): r for r in replayed}
     saved_by: Counter = Counter()
     killers: dict[str, dict[str, Any]] = {}
     for r in counted:
-        more = replays.get((r["pull"], r["death"]["ms"]))
-        saved_by.update(savers(more or []))
+        replay = replays.get((r["pull"], r["death"]["ms"]))
+        more = replay.more if replay else []
+        saved_by.update(savers(more))
         k = killers.setdefault(r["death"]["by"], {"by": r["death"]["by"], "icon": r["death"]["icon"], "pulls": []})
         k["pulls"].append({"pull": r["pull"], "ms": r["death"]["ms"], "place": r["death"]["place"],
-                           "saved": bool(savers(more)) if more else None})
+                           "saved": bool(savers(more)) if more else False if replay and replay.outright else None,
+                           "outright": bool(replay and replay.outright)})
     judged = [x["saved"] for k in killers.values() for x in k["pulls"]]
     dead_s, counted_s = sum(x.dead_s for x in pulls), sum(x.counted_s for x in pulls)  # unrounded, as the text sums
     ranked = [r for r in rows if r["per_s_alive"] is not None and not r["reset"] and r["role"] == role]
@@ -347,7 +350,8 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         "best": {"pull": best["pull"], "per_s_alive": best["per_s_alive"]} if best else None,
         "killers": sorted(killers.values(), key=lambda k: (k["by"] == NO_KILLING_BLOW, -len(k["pulls"]))),
         "lived": {"saved": sum(v is True for v in judged), "of": len(judged),
-                  "unknown": sum(v is None for v in judged), "by": saved_by.most_common()},
+                  "unknown": sum(v is None for v in judged), "by": saved_by.most_common(),
+                  "outright": sum(x["outright"] for k in killers.values() for x in k["pulls"])},
         "cooldowns": [{"name": n, "used": cds.used[n], "possible": cds.possible[n] if n not in cds.unknown else None,
                        "icon": icon(ids.get(n))} for n in cds.used],
         "cooldowns_unavailable": cds.unavailable,

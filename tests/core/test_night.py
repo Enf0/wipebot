@@ -15,9 +15,9 @@ async def test_kill_rankings_are_kept_once_every_kill_is_ranked(rep, patch_wcl):
         return [{"fightID": i, **(ranked if len(asked) > 1 or i != kills[0] else {})} for i in kills]
     patch_wcl(rep, rankings=rankings)
     every = {i: {"speed": 40, "execution": 60} for i in kills}
-    assert await night._kill_rankings(rep) == {i: v for i, v in every.items() if i != kills[0]}  # one not yet
-    assert await night._kill_rankings(rep) == every  # asked again
-    assert await night._kill_rankings(rep) == every
+    assert await night.kill_rankings(rep) == {i: v for i, v in every.items() if i != kills[0]}  # one not yet
+    assert await night.kill_rankings(rep) == every  # asked again
+    assert await night.kill_rankings(rep) == every
     assert len(asked) == 2
 
 

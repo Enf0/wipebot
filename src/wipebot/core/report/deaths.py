@@ -2,6 +2,7 @@
 healthstones, potions and defensives over a boss (`defensives`)."""
 import asyncio
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 
 from .. import knowledge
 from ..knowledge import KnowledgeError, spaced
@@ -412,10 +413,19 @@ def savers(replayed: list[str]) -> list[str]:
     return [line.strip().split(" (")[0] for line in replayed[1:] if f": {SAVED}" in line]
 
 
-async def replay_deaths(rep: Report, p: Player, fights: list[dict],
-                        whole_pull: bool = False) -> list[tuple[dict, dict, list[str]]]:
-    """Each of a player's deaths on `fights` (before each wipe was decided, unless `whole_pull`), with its
-    if_pressed lines: empty when it can't tell (no overkill or health logged)."""
+@dataclass(frozen=True)
+class Replayed:
+    """One death replayed: its pull, the death, its if_pressed lines (empty when it can't tell: no overkill or
+    health logged), and whether it killed outright (killed_outright), which nothing ready would have stopped."""
+    f: dict
+    d: dict
+    more: list[str]
+    outright: bool
+
+
+async def replay_deaths(rep: Report, p: Player, fights: list[dict], whole_pull: bool = False) -> list[Replayed]:
+    """Each of a player's deaths on `fights` (before each wipe was decided, unless `whole_pull`), replayed with
+    what was ready."""
     fights = rep.pulls_with(p, fights)
     await rep.all_deaths(fights)
     decided = {} if whole_pull else await rep.decided_cuts(fights)
@@ -428,8 +438,10 @@ async def replay_deaths(rep: Report, p: Player, fights: list[dict],
         rep.events_for(windows, "DamageTaken", sourceID=p.id, hostilityType="Friendlies", includeResources=True),
         rep.tables([(f["id"], {"endTime": d["timestamp"]}) for f, d in todo], "Summary"))
 
-    async def one(f: dict, d: dict, hits: list[dict]) -> tuple[dict, dict, list[str]]:
-        return f, d, await if_pressed(rep, f, rep.in_pull(f, p), d, hits)
+    async def one(f: dict, d: dict, hits: list[dict]) -> Replayed:
+        more = await if_pressed(rep, f, rep.in_pull(f, p), d, hits)
+        return Replayed(f, d, more, not more and bool(d.get("killingAbilityGameID"))
+                        and bool(killed_outright(rep, f, d, hits)))
     return list(await asyncio.gather(*(one(f, d, h) for (f, d), h in zip(todo, hits, strict=True))))
 
 
@@ -438,19 +450,24 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
     healthstone would have changed (if_pressed, the death recap's replay)."""
     fights = rep.pulls_with(p, fights)
     done = await replay_deaths(rep, p, fights, whole_pull)
-    saved = sum(bool(savers(more)) for _, _, more in done)
+    saved = sum(bool(savers(r.more)) for r in done)
     scope = "before each wipe was decided" if not whole_pull else "in the whole pulls"
     lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, each replayed with "
              f"what was ready (secondary to what killed them): a ready defensive or a healthstone would have kept "
              f"them alive at {saved} of them."]
-    unknown = []
-    for f, d, more in done:
-        at = f"pull {rep.pull_no(f)} {clock(d['timestamp'] - f['startTime'])}"
-        if not more:
+    unknown, outright = [], []
+    for r in done:
+        at = f"pull {rep.pull_no(r.f)} {clock(r.d['timestamp'] - r.f['startTime'])}"
+        if r.outright:
+            outright.append(f"{at} ({rep.ability(r.d['killingAbilityGameID'])})")
+        elif not r.more:
             unknown.append(at)
-            continue
-        lines.append(f"- {at}, {rep.ability(d.get('killingAbilityGameID'))}: "
-                     + "; ".join(m.strip() for m in more[1:]))
+        else:
+            lines.append(f"- {at}, {rep.ability(r.d.get('killingAbilityGameID'))}: "
+                         + "; ".join(m.strip() for m in r.more[1:]))
+    if outright:
+        lines.append(f"Killed outright at {len(outright)} (no hit of the killing blow logged, after high health: "
+                     f"nothing ready would have stopped it): {', '.join(outright)}")
     if unknown:
         lines.append(f"Can't tell at {len(unknown)} (no overkill or health logged): {', '.join(unknown)}")
     return "\n".join(lines)

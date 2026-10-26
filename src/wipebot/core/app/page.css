@@ -82,6 +82,7 @@ svg text.to, svg text.tg { paint-order: stroke; stroke: var(--bg); stroke-width:
 .chip { min-width: 24px; height: 20px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px/18px inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
 .chip.saved { border-color: var(--green); color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
 .chip.unknown { border-style: dashed; opacity: .7; }
+.chip.outright { text-decoration: line-through; opacity: .75; }
 .chip.sample { display: inline-block; text-align: center; cursor: default; margin-right: 4px; }
 [data-panel] + [data-panel] { margin-top: 10px; }
 .ranked { list-style: none; margin: 0 2px 8px; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) auto; gap: 4px 10px; align-items: center; font-size: 12.5px; }
