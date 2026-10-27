@@ -214,6 +214,14 @@ class Store:
                 added_by INTEGER NOT NULL,
                 added_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS logins (  -- a raider signed in with Warcraft Logs (/login)
+                user_id INTEGER PRIMARY KEY,  -- their Discord id
+                wcl_id INTEGER NOT NULL,
+                wcl_name TEXT NOT NULL,
+                sealed TEXT NOT NULL,    -- their Warcraft Logs token, encrypted (keys.py)
+                expires REAL NOT NULL,
+                added_at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS spend (  -- what each answer cost, kept whether or not answers are recorded
                 at REAL NOT NULL,
                 discord_guild_id INTEGER NOT NULL,  -- the server whose settings it answered under (a DM's too)
@@ -461,6 +469,26 @@ class Store:
         """Forget a server's own key; whether it had one."""
         dropped = self._db.execute("DELETE FROM server_keys WHERE discord_guild_id = ?",
                                    (discord_guild_id,)).rowcount
+        self._db.commit()
+        return bool(dropped)
+
+    def save_login(self, user_id: int, wcl_id: int, wcl_name: str, token: str, expires: float) -> None:
+        """Keep a raider's Warcraft Logs sign-in, its token encrypted, in place of any before."""
+        self._db.execute("INSERT OR REPLACE INTO logins VALUES (?, ?, ?, ?, ?, ?)",
+                         (user_id, wcl_id, wcl_name, keys.seal(token), expires, time.time()))
+        self._db.commit()
+
+    def login(self, user_id: int) -> tuple[str, str] | None:
+        """A raider's Warcraft Logs name and token; None when they aren't signed in, the token has lapsed or it
+        can't be read any more."""
+        row = self._db.execute("SELECT wcl_name, sealed, expires FROM logins WHERE user_id = ?", (user_id,)).fetchone()
+        if row is None or row[2] < time.time() or (token := keys.unseal(row[1])) is None:
+            return None
+        return row[0], token
+
+    def drop_login(self, user_id: int) -> bool:
+        """Forget a raider's sign-in; whether there was one."""
+        dropped = self._db.execute("DELETE FROM logins WHERE user_id = ?", (user_id,)).rowcount
         self._db.commit()
         return bool(dropped)
 

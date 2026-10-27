@@ -775,6 +775,7 @@ class WipeBot(discord.Client):
                               "answer_in_dm": answer_in_dm},
                        icons=self.icons, server_id=s.discord_guild_id, user_id=user.id,
                        env=own.env() if (own := self.store.server_key(s.discord_guild_id)) else None,
+                       wcl_token=signed[1] if (signed := self.store.login(user.id)) else None,
                        **self._raid_notes(s))
 
     @answering

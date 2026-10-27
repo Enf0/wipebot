@@ -2,6 +2,7 @@
 and reactions."""
 import json
 import sqlite3
+import time
 from dataclasses import replace
 
 import pytest
@@ -208,3 +209,12 @@ def test_a_servers_own_key_is_kept_encrypted_and_forgotten_with_the_server(store
     monkeypatch.setenv("WIPEBOT_KEY_SECRET", "s3cret")
     store.forget_server(1001)
     assert store.server_key(1001) is None and not store.drop_server_key(1001)
+
+
+def test_a_sign_in_is_kept_until_it_lapses_or_the_raider_signs_out(store, monkeypatch):
+    store.save_login(7, 101, "Kaelnor", "token-abc", expires=time.time() + 3600)
+    assert store.login(7) == ("Kaelnor", "token-abc")
+    assert "token-abc" not in str(store._db.execute("SELECT * FROM logins").fetchall())  # kept encrypted
+    store.save_login(8, 102, "Other", "token-old", expires=time.time() - 1)
+    assert store.login(8) is None and store.login(9) is None
+    assert store.drop_login(7) and not store.drop_login(7) and store.login(7) is None

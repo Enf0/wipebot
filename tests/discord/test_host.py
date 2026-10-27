@@ -49,6 +49,22 @@ async def test_find_reports_for_the_servers_own_guild_gets_its_realm_and_region(
     assert core_calls == [("find_reports", called)]
 
 
+async def test_a_signed_in_askers_calls_read_warcraft_logs_with_their_token(monkeypatch):
+    from wipebot.core import wcl
+    read_as = []
+
+    async def call(name, args):
+        read_as.append(wcl._user.get())
+        return "ok", False, [], None
+    monkeypatch.setattr(host, "tool_call", call)
+    token = None
+    tools = {t.name: t for t in await sdk_tools("R", wcl_token=lambda: token)}
+    await tools["pull_summary"].handler({"pull": 13})
+    token = "token-abc"
+    await tools["pull_summary"].handler({"pull": 13})
+    assert read_as == [None, "token-abc"] and wcl._user.get() is None
+
+
 async def test_a_tool_error_goes_to_the_model_as_a_failed_call(monkeypatch):
     from wipebot.core.report import FactError
 
@@ -399,7 +415,7 @@ async def test_with_only_the_connector_raid_notes_are_the_cores(monkeypatch):
         async def connect(self):
             pass
 
-    async def tools(code, on_result, guild, note, plan):
+    async def tools(code, on_result, guild, note, plan, wcl_token):
         finders.append((note, plan))
         return []
 

@@ -46,6 +46,7 @@ In `.env` (copy [.env.example](../.env.example)):
 | `WIPEBOT_SERVER_SHARE` | bot | for a copy many servers share: the part of the OpenRouter key's limit (set to reset monthly) one server may spend a month, e.g. `0.1`; past it, that server's raiders are told when the free answers are back |
 | `WIPEBOT_KEY_SECRET` | bot | what servers' own model keys (`/wipebot key`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
 | `WIPEBOT_OPENROUTER_CALLBACK` | bot | where OpenRouter sends an admin after "Sign in with OpenRouter" in `/wipebot key`: a page that shows the address to paste back; default a localhost address that doesn't load, whose address bar holds it |
+| `WIPEBOT_WCL_CALLBACK` | bot | turns on `/login`: where Warcraft Logs sends a raider after they sign in, a page that shows its address to paste back into Discord (any page does: the address bar holds the code). Add it to your Warcraft Logs client's redirect URLs (comma-separated) |
 | `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku` |
 | `WIPEBOT_EFFORT` | bot | how hard the model thinks: `low`, `medium`, `high`, `xhigh` or `max`; unset, the model's default |
 | `WIPEBOT_CHANNEL_CONTEXT` | bot | `1`: answers also read the channel's last 15 messages and the Discord messages a question links to (needs the Message Content intent) |
@@ -183,7 +184,8 @@ With the officer role set, Manage Server alone doesn't make someone an officer: 
 ## What's kept
 
 The connector keeps who signed in (Warcraft Logs id, name, guild characters); the bot keeps each raider's character
-and the preferences they ask it to remember. With `WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its
+and the preferences they ask it to remember, and for a raider who used `/login`, their Warcraft Logs id, name and
+token (encrypted) until they sign out. With `WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its
 prompt (with the channel's messages it read), answer and tool calls for 90 days, for reviewing answers. All of it
 stays in `./data`; only what an answer needs goes to the model. Tell your guild.
 

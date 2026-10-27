@@ -96,7 +96,7 @@ async def save(store: Store, interaction: discord.Interaction, key: ServerKey) -
     assert interaction.guild_id is not None
     store.save_server_key(interaction.guild_id, key, interaction.user.id)
     return (f"Saved. This server's questions now run on its own {NAMES[key.provider]} key, with no limit from "
-            "wipebot; set a spend limit on the key itself. `/wipebot key remove:True` goes back to the shared free "
+            "the bot; set a spend limit on the key itself. `/wipebot key remove:True` goes back to the shared free "
             "answers.")
 
 

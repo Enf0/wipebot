@@ -272,7 +272,8 @@ Every reply to a command is seen only by whoever used it.
 | Command | Who sees it | What it does |
 | --- | --- | --- |
 | `/help` | everyone | what to ask, with examples; the commands you may use; how the server is set up (the guild, who can chat, where names are on). Saying "help" to the bot gives the same, in a DM too |
-| `/usage` | everyone | what's left of the limits every answer shares: the AI budget on a bot that answers through OpenRouter (spent this month, left, and how to chip in), and this hour's Warcraft Logs points, and when the hour starts again |
+| `/usage` | everyone | what's left of the limits every answer shares: the AI budget on a bot that answers through OpenRouter (spent this month, left, and how to chip in), and this hour's Warcraft Logs points, and when the hour starts again; signed in, whether your own points are left |
+| `/login` | everyone | signs you in with Warcraft Logs, on a bot whose host set it up: your own Warcraft Logs points then pay first for your questions (on Warcraft Logs' new point system). The token is kept encrypted and reads only public reports. `remove:` signs you out |
 | `/wipebot setup` | admins | connects the server to the guild on Warcraft Logs (its warcraftlogs.com page); sets the role needed to chat and the officers' role, and with `footer:` whether answers end with a small line (what the answer cost, its Warcraft Logs points and, on a shared copy, the server's free answers left this month; on by default while a server answers from a shared copy's free answers). Options left out keep what's set |
 | `/wipebot settings` | admins | the setup, the channels where names are on, and the raid notes and plans saved |
 | `/wipebot key` | admins | answers this server's questions on its own key, past the shared free answers: sign in with OpenRouter, or paste an OpenRouter or Anthropic key; kept encrypted, never shown again. `remove:` goes back to the shared answers |

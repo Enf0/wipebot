@@ -97,6 +97,7 @@ class Context:
     server_id: int = 0  # the Discord server whose settings it answers under, and who asked: what an answer cost
     user_id: int = 0  # is kept under them (store.spend); 0 for none
     env: dict | None = None  # what the session runs on when the server brought its own key (keys.ServerKey.env)
+    wcl_token: str | None = field(default=None, repr=False)  # the asker's Warcraft Logs token, signed in (/login)
     noted: Sequence[str] = ()  # the bosses with a raid note saved in the server
     planned: Sequence[str] = ()  # the bosses with a raid plan saved in the server
 
@@ -261,13 +262,15 @@ class ToolCall:
 async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], None] | None = None,
                     guild: Callable[[], str | None] | None = None,
                     note: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
-                    plan: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None) -> list:
+                    plan: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
+                    wcl_token: Callable[[], str | None] | None = None) -> list:
     """The core's MCP tools, wrapped for the Agent SDK's in-process server. Tools that take a report get `code`
     when the model names none, so sessions about different servers' reports don't mix. `on_result` gets every
     call, failed ones too. `guild` gives the server's guild as "name, realm, region": find_reports asked with no
     guild, or for that guild by name alone, gets the guild's name, realm and region. With `note`, raid_note
     takes no note from the model: `note` finds the saved one for the call's pull, (note, where it's from), or says
-    why there's none. `plan` does the same for raid_plan (where it's from may be "": the plan's text says)."""
+    why there's none. `plan` does the same for raid_plan (where it's from may be "": the plan's text says).
+    `wcl_token` gives the asker's Warcraft Logs token, which a call reads with, so their own points pay first."""
     saved_args = {"raid_note": ("note", note), "raid_plan": ("plan", plan)}
 
     def wrap(name: str, description: str, schema: dict):
@@ -286,7 +289,7 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                 args = with_own_guild(args, own)
             started = time.monotonic()
             drawing = None
-            with wcl.counting_points() as points:
+            with wcl.reading_as(wcl_token() if wcl_token else None), wcl.counting_points() as points:
                 try:
                     found = await find(args) if find else None
                     if isinstance(found, str):
@@ -477,7 +480,8 @@ class Session:
         self.report = await self.library.report(self.code)
         bot = self.system_prompt is None  # else a client with only the connector: the core's raid_note and raid_plan
         tools = await sdk_tools(self.code, self._returned,lambda: self._ctx.guild if self._ctx else None,
-                                self._saved_note if bot else None, self._saved_plan if bot else None)
+                                self._saved_note if bot else None, self._saved_plan if bot else None,
+                                lambda: self._ctx.wcl_token if self._ctx else None)
         if bot:
             tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
         options = ClaudeAgentOptions(
@@ -542,7 +546,7 @@ class Session:
         assert self._client, "use 'async with Session(...)'"
         asked = time.monotonic()
         self.report = await self.library.report(self.code)  # picks up new pulls of a live report
-        ran = [await self._prefetched(name, args) for name, args in ctx.prefetch]
+        ran = [await self._prefetched(name, args, ctx.wcl_token) for name, args in ctx.prefetch]
         question += "".join(prompt.PREFETCHED.format(tool=c.name, result=c.result) for c in ran if not c.failed)
         text = no_paths(prompt.message(question, ctx, self.report, await self.report.guild_run_doubt(),
                                        raids=await self.report.raids()))
@@ -601,11 +605,11 @@ class Session:
             log.info("no roster from Viserio for the icons: %s", e)
             return {}
 
-    async def _prefetched(self, name: str, args: dict) -> ToolCall:
+    async def _prefetched(self, name: str, args: dict, wcl_token: str | None = None) -> ToolCall:
         """One of a question's `prefetch` tools, run as the model's own call would be, on the session's report."""
         args = {"report": self.code, **args}
         started, drawing = time.monotonic(), None
-        with wcl.counting_points() as points:
+        with wcl.reading_as(wcl_token), wcl.counting_points() as points:
             try:
                 text, failed, images, drawing = await tool_call(name, args)
             except (ToolError, FactError) as e:

@@ -24,7 +24,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
-from . import allowance, budget, config, keycmd
+from . import allowance, budget, config, keycmd, logincmd
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -148,6 +148,8 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
                "report link asks about that report instead of the guild's latest."]
     budget = "the AI budget, how to chip in, and " if config.openrouter_key() else ""
     commands = ["`/help`: this", f"`/usage`: what's left of {budget}this hour's Warcraft Logs points"]
+    if logincmd.callback_url():
+        commands.append("`/login`: sign in with Warcraft Logs, so your own points pay for your questions")
     if admin:
         commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
@@ -195,7 +197,7 @@ async def server_usage(bot: WipeBot, discord_guild_id: int) -> str | None:
 
 
 def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
-    """/help and /usage, for everyone."""
+    """/help, /usage and /login, for everyone."""
     @app_commands.command(name="help", description="What to ask wipebot, its commands, and how it's set up here")
     @app_commands.guild_only()
     async def show_help(interaction: discord.Interaction) -> None:
@@ -212,11 +214,20 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
         points = usage_text(await bot.library.wcl.points())
         # the bot's OpenRouter key's credit limit is the AI budget raiders see
         text = f"{await budget_text(bot.store, key)}\n\n{points}" if (key := config.openrouter_key()) else points
+        if mine := await logincmd.points_line(bot.store, bot.library.wcl, interaction.user.id):
+            text = f"{text}\n{mine}"
         if here := await server_usage(bot, in_guild(interaction).id):
             text = f"{here}\n\n{text}"
         await interaction.followup.send(text, ephemeral=True)
 
-    return [show_help, show_usage]
+    @app_commands.command(name="login", description="Sign in with Warcraft Logs, so your own points pay for your "
+                                                    "questions")
+    @app_commands.describe(remove="Sign out and forget your Warcraft Logs token")
+    @app_commands.guild_only()
+    async def login(interaction: discord.Interaction, remove: bool = False) -> None:
+        await logincmd.login_command(bot.store, interaction, remove)
+
+    return [show_help, show_usage, login]
 
 
 def build(bot: WipeBot) -> app_commands.Group:
