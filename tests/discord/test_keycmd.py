@@ -30,6 +30,9 @@ def test_the_sign_in_link_carries_the_challenge_of_the_verifier(monkeypatch):
 async def test_the_steps_show_in_the_order_theyre_used(store):
     labels = [getattr(item, "label", None) for item in keycmd.KeyChoices(store).children]
     assert labels == ["1. Sign in with OpenRouter", "2. Paste the address", "Or paste a key"]
+    # a bot on its host's own key: signing in would only swap that key for another
+    assert [getattr(item, "label", None) for item in keycmd.KeyChoices(store, sign_in=False).children] == [
+        "Or paste a key"]
 
 
 def test_the_status_says_whose_key_answers(store):

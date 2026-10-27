@@ -147,12 +147,16 @@ class PasteKey(discord.ui.Modal, title="Your own model key"):
 
 
 class KeyChoices(discord.ui.View):
-    def __init__(self, store: Store):
+    """The OpenRouter sign-in and the buttons to paste its address or a key; on a bot that answers on its host's own
+    key (`sign_in` False), only pasting a key: signing in there would only swap the host's key for another."""
+
+    def __init__(self, store: Store, sign_in: bool = True):
         super().__init__(timeout=900)
         self.store, self.verifier = store, secrets.token_urlsafe(48)
-        steps = [self.signed_in, self.paste]  # after the sign-in link, in the order they're used
+        steps = [self.signed_in, self.paste] if sign_in else [self.paste]  # after the link, in the order used
         self.clear_items()
-        self.add_item(discord.ui.Button(label="1. Sign in with OpenRouter", url=login_url(self.verifier), row=0))
+        if sign_in:
+            self.add_item(discord.ui.Button(label="1. Sign in with OpenRouter", url=login_url(self.verifier), row=0))
         for item in steps:
             self.add_item(item)
 
@@ -191,8 +195,9 @@ async def key_command(store: Store, interaction: discord.Interaction, remove: bo
             ephemeral=True)
         return
     name = interaction.client.user.name if interaction.client.user else "the bot"
-    limit = f", with no limit from {name}" if shared else ""
+    how = (f"To answer on your own key, with no limit from {name}: sign in with OpenRouter and paste the address it "
+           "ends on (it may not load, that's fine), or paste an OpenRouter or Anthropic key." if shared else
+           "To answer on another key instead, paste an OpenRouter or Anthropic key.")
     await interaction.response.send_message(
-        status(store, interaction.guild_id, name, shared) + f"\n\nTo answer on your own key{limit}: sign in with "
-        "OpenRouter and paste the address it ends on (it may not load, that's fine), or paste an OpenRouter or "
-        "Anthropic key. It's kept encrypted and never shown again.", view=KeyChoices(store), ephemeral=True)
+        status(store, interaction.guild_id, name, shared) + f"\n\n{how} It's kept encrypted and never shown again.",
+        view=KeyChoices(store, sign_in=shared), ephemeral=True)
