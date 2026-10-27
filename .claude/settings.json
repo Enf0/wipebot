@@ -1,3 +1,19 @@
 {
-  "attribution": {"commit": "", "pr": "", "sessionUrl": false}
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; git config user.name enf0 && git config user.email enfo@enfo.dev && git config commit.gpgsign false"
+          }
+        ]
+      }
+    ]
+  }
 }
