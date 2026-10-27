@@ -88,8 +88,9 @@ class Allowance:
 def footer(cost: float | None, points: dict, left: tuple[float, float] | None, rate: dict | None = None,
            user_points: bool = False) -> str:
     """The small line under an answer: what it cost, its Warcraft Logs points (`points`, by kind, as
-    Answer.wcl_points) with the bot's left this hour (`rate`, WCL.points), and the server's free answers left. With
-    `user_points` (the account on Warcraft Logs' new point system), points counted as the asker's are theirs."""
+    Answer.wcl_points) with the bot's left this hour (`rate`, WCL.my_points: its share), and the server's free
+    answers left. With `user_points` (the account on Warcraft Logs' new point system), points counted as the
+    asker's are theirs."""
     total = points.get("total", 0)
     yours = min(points.get("user", 0), total) if user_points else 0
     spent = f"{yours:,.0f} yours, {total - yours:,.0f} the bot's" if yours else f"{total:,.0f}"

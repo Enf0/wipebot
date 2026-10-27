@@ -480,3 +480,16 @@ def test_a_share_that_isnt_one_is_refused_at_start(monkeypatch):
         _budgeted(monkeypatch, share="10%")
     assert _budgeted(monkeypatch)._budget.refusal({"limitPerHour": 3600, "pointsSpentThisHour": 3599}, True,
                                           wcl_module.Counter(total=3599), 5) is None  # unset: no limit
+
+
+def test_a_process_with_a_share_sees_its_own_share_of_the_hour():
+    """The footer and /usage of a public copy show what it may spend, not the account's whole hour."""
+    from collections import Counter
+    rate = {"limitPerHour": 3600, "pointsSpentThisHour": 165, "pointsResetIn": 600}
+    assert wcl_module.Budget().view(rate, Counter()) is rate  # no share: the account's hour
+    mine = wcl_module.Budget(share=0.15, leave=0.3, user_points=False).view(rate, Counter(total=20))
+    assert (mine["limitPerHour"], mine["pointsSpentThisHour"]) == (540, 20)
+    # the others spent the account down to its last 30%: nothing left for this process
+    busy = wcl_module.Budget(share=0.15, leave=0.3, user_points=False).view(
+        {**rate, "pointsSpentThisHour": 2600}, Counter(total=20))
+    assert busy["limitPerHour"] - busy["pointsSpentThisHour"] == 0

@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Discord` **Quieter follow-up buttons.** The questions an answer suggests are grey buttons now, like the bot's other buttons, and clicking one takes off only that one: the others stay to ask next.
 
+### Fixed
+
+- `Discord` **Warcraft Logs points left, on a shared bot.** The cost footer and `/usage` count the bot's own share of the hour's points, on a copy that has one (`WIPEBOT_WCL_SHARE`), instead of the whole account's.
+
 ## [0.17.0] - 2026-10-27
 
 ### Added

@@ -899,7 +899,7 @@ class WipeBot(discord.Client):
             if left:  # this answer is spent too, though kept only once it's posted
                 left = (left[0], max(left[1] - (answer.cost_usd or 0), 0.0))
             points = answer.wcl_points()
-            rate = await self.library.wcl.points() if points.get("total") else None  # fresh from the answer's queries
+            rate = await self.library.wcl.my_points() if points.get("total") else None  # fresh: its queries
             line = allowance.footer(answer.cost_usd, points, left, rate, wcl.on_new_point_system())
         except Exception:
             log.exception("the cost line failed")

@@ -169,7 +169,8 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
 
 
 def usage_text(rate: dict | None) -> str:
-    """/usage's text from this hour's Warcraft Logs points (WCL.points; None when Warcraft Logs didn't say)."""
+    """/usage's text from this hour's Warcraft Logs points (WCL.my_points: the bot's share; None when Warcraft Logs
+    didn't say)."""
     if not rate:
         return "Warcraft Logs didn't say how many points are left this hour; try again in a minute."
     left = max(rate["limitPerHour"] - rate["pointsSpentThisHour"], 0)
@@ -211,7 +212,7 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
     @app_commands.guild_only()
     async def show_usage(interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True, thinking=True)
-        points = usage_text(await bot.library.wcl.points())
+        points = usage_text(await bot.library.wcl.my_points())  # its share of the account's hour
         # the bot's OpenRouter key's credit limit is the AI budget raiders see
         text = f"{await budget_text(bot.store, key)}\n\n{points}" if (key := config.openrouter_key()) else points
         if mine := await logincmd.points_line(bot.store, bot.library.wcl, interaction.user.id):

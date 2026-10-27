@@ -425,6 +425,26 @@ class Budget:
             raise ValueError(f"WIPEBOT_WCL_USER_POINTS: 1 or 0, or unset to tell from the account's limit, not {raw!r}")
         return cls(share("WIPEBOT_WCL_SHARE", 1.0), share("WIPEBOT_WCL_LEAVE", 0.0), user_points)
 
+    def view(self, rate: dict, own: Counter) -> dict:
+        """The account's hour (`rate`, rateLimitData) as this process may spend it: its share of the limit and what
+        it spent of it, the account's spending held to leave the others theirs; `rate` itself without a limit."""
+        limit = rate.get("limitPerHour")
+        if not isinstance(limit, int | float) or (self.share >= 1 and not self.leave):
+            return rate
+        spent_account = rate.get("pointsSpentThisHour", 0)
+        account_left = limit * (1 - self.leave) - spent_account  # past it, this process reads nothing more
+        if self.share < 1:
+            mine = limit * self.share
+            spent = own["application"] if on_new_point_system(self.user_points) else own["total"]
+            left = min(mine - spent, account_left)
+        else:
+            mine, left = limit * (1 - self.leave), account_left
+        out = {**rate, "limitPerHour": round(mine), "pointsSpentThisHour": round(mine - max(left, 0), 2)}
+        if self.share < 1 and isinstance(db_limit := rate.get("databaseLimitPerHour"), int | float):
+            out |= {"databaseLimitPerHour": round(db_limit * self.share),
+                    "databasePointsSpentThisHour": own["database"]}
+        return out
+
     def refusal(self, rate: dict | None, fresh: bool, own: Counter, minutes: int, database: bool = False
                 ) -> str | None:
         """Why the next query isn't sent, or None: `rate` is the account's hour as last read (`fresh` if within
@@ -691,6 +711,13 @@ class WCL:
                         "server: waiting %d min for the next hour", rate["pointsSpentThisHour"], limit,
                         rate["pointsResetIn"] // 60 + 1)
             time.sleep(rate["pointsResetIn"] + 5)
+
+    async def my_points(self) -> dict | None:
+        """This hour's points as this process may spend them (Budget.view: its share, when it has one), shaped as
+        `points`; None when Warcraft Logs doesn't say."""
+        if not (rate := await self.points()):
+            return None
+        return self._budget.view(rate, self._hour.now()[2])
 
     async def ensure_points(self, need: float, what: str) -> None:
         """Refuse an opt-in heavy read (`what`, about `need` points) that would leave less than RESERVE_SHARE of the
