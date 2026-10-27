@@ -48,7 +48,8 @@ API: `wcl-api.md`.
 - Plans the guild uses are templates: Viserio's assignment note embeds a plan and fills each numbered spot with the
   raider assigned to that number, the same on every scene of the embed (`players=`), so a number must mean the same
   raider on every scene. Each embed (the general Raidplan section, a section per mechanic) has its own lists. Its
-  "RSGG Addon" button exports the plan with that section's raiders' names on its spots; raidstrats.gg's own export
+  "RSGG Addon" button exports the plan with that section's raiders' names on its spots (on the first scene only: the other
+  scenes' spots keep their numbers with no name, 27 October 2026); raidstrats.gg's own export
   (by hand or the API) is the plan as last saved. The NSRT note Viserio exports keeps a mechanic section's lists as
   `Name: raiders` lines but not the general Raidplan section's numbering (25 October 2026).
 - Viserio's default plans (the Wowutils ones an assignment note links unless changed) can't be read with a guild

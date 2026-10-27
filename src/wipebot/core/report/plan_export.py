@@ -103,9 +103,28 @@ def decode(blob: str, saved_at: float | None = None, saved_by: str = "") -> Plan
     except (binascii.Error, zlib.error, ValueError) as e:
         raise FactError("the raid plan's export doesn't decode: copy it again from raidstrats.gg's Export, "
                         "whole") from e
+    scenes = data.get("scenes") or []
+    _fill_slots(scenes)
     return Plan(data.get("planId") or data.get("planName") or "", data.get("planName") or "", data.get("boss") or "",
-                data.get("raid") or "", data.get("planLink") or "", [_scene(s) for s in data.get("scenes") or []],
+                data.get("raid") or "", data.get("planLink") or "", [_scene(s) for s in scenes],
                 "raidstrats-addon-" + blob, saved_at, saved_by)
+
+
+def _fill_slots(scenes: list[dict]) -> None:
+    """A spot left unnamed gets the name its number has elsewhere on the plan, when every number names one raider
+    throughout: Viserio's "RSGG Addon" export names the spots of the first scene only, and a number is the same raider
+    on every scene of its embed. A plan that gives one number to several raiders is left as it is."""
+    names: dict[int, set[str]] = defaultdict(set)
+    icons = [i for s in scenes for i in s.get("items") or [] if _player(i) and isinstance(i.get("slotIndex"), int)]
+    for i in icons:
+        if (label := (i.get("label") or "").strip()) and not label.isdigit():
+            names[i["slotIndex"]].add(label)
+    if not names or any(len(n) > 1 for n in names.values()):
+        return
+    for i in icons:
+        label = (i.get("label") or "").strip()
+        if (not label or label.isdigit()) and i["slotIndex"] in names:
+            i["label"] = next(iter(names[i["slotIndex"]]))
 
 
 def _middle(i: dict) -> tuple[float, float]:

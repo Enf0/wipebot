@@ -93,3 +93,18 @@ def test_a_spot_numbered_by_the_planner_is_open():
         {**icon, "label": "Brøndal", "x": 10, "y": 10}, {**icon, "label": "17", "x": 20, "y": 10}]}]}
     [p] = plan_export.parse(export(data))
     assert [s.label for s in p.scenes[0].spots] == ["Brøndal", ""]
+
+
+def test_a_spot_left_unnamed_gets_its_numbers_name_from_another_scene_unless_numbers_are_reused():
+    icon = {"kind": "icon", "w": 2.24, "h": 3.99, "icon": "roles/rdps.svg"}
+
+    def scenes(*named: list[tuple[str, int]]) -> list[str]:
+        data = {"planId": "a", "planName": "P", "boss": "Sszorak", "scenes": [{"items": [
+            {**icon, "label": label, "slotIndex": slot, "x": 10 * n, "y": 10} for n, (label, slot) in enumerate(s)]}
+            for s in named]}
+        [p] = plan_export.parse(export(data))
+        return [" ".join(sp.label or "-" for sp in sc.spots) for sc in p.scenes]
+    # Viserio's "RSGG Addon" export names the first scene's spots only
+    assert scenes([("Brøndal", 1), ("Kessa", 2)], [("", 2), ("1", 1), ("", 3)]) == ["Brøndal Kessa", "Kessa Brøndal -"]
+    # a plan that gives a number to a raider per scene is left as it is
+    assert scenes([("Brøndal", 1)], [("Kessa", 1), ("", 2)], [("", 1)]) == ["Brøndal", "Kessa -", "-"]
