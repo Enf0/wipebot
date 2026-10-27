@@ -277,8 +277,8 @@ async def report_answer(
             "long; good: they want to say it was right"))]) -> str:
     """For "that's wrong", "you missed something", "that took ages" and "tell the devs this was great": a report on an
     answer, sent to the maintainers of this Wipebot server, who read every one to fix what answers get wrong.
-    When the user says an answer was wrong, left something out or was slow, offer to send it to Wipebot's
-    maintainers; call this only when they ask for it or agree. It sends what is passed and who sent it (their
+    When the user says an answer was wrong, left something out or was slow, end that reply by offering to send it to
+    Wipebot's maintainers, also when a second look backs the answer; call this only when they ask for it or agree. It sends what is passed and who sent it (their
     Warcraft Logs name), nothing else from the conversation; the maintainers read it beside the Wipebot tool calls
     behind the answer, which this server keeps anyway. Returns that it was sent."""
     return (f"Sent to this Wipebot server's maintainers ({kind}): the question, the answer and what the user said "
