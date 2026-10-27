@@ -7,9 +7,10 @@ no app-only login). The app's client is RAIDSTRATS_CLIENT_ID and RAIDSTRATS_CLIE
 refresh token 30 days, replaced on each refresh, so a login nobody uses is refreshed weekly (`keep_alive`).
 
 `sync` fetches every plan the login can open (its own and the guild's, `/plans`) and their in-game import text in
-one request (`POST /plans/addon-export`, up to 50), and saves a version of each plan whose text changed since it was
-last fetched. A version counts from when it was fetched: raidstrats.gg gives no time a plan was last saved. Facts
-verified live are in docs/reference/sources.md.
+one request (`POST /plans/addon-export`, up to 50), saves a version of each plan whose text changed since it was
+last fetched, and drops a plan no longer listed (deleted there). A version counts from when it was fetched:
+raidstrats.gg gives no time a plan was last saved. Viserio's default plans can't be opened with a login (an officer
+pastes one). Facts verified live are in docs/reference/sources.md.
 """
 import asyncio
 import logging
@@ -36,6 +37,7 @@ SAVED_BY = "raidstrats.gg"
 FRESH_S = 60  # plans fetched this recently aren't fetched again (raid_plan called several times in one answer)
 KEEP_ALIVE_S = 7 * 86400  # a login's refresh token is replaced at least this often
 TIMEOUT_S = 10
+LIMIT = 100  # plans listed at most, of the login's own and of the guild's each
 UA = {"User-Agent": "Wipebot"}
 
 
@@ -133,7 +135,7 @@ async def sync(book: Notebook, guild_id: int) -> None:
             return
         async with httpx.AsyncClient(base_url=BASE, timeout=TIMEOUT_S,
                                      headers={**UA, "Authorization": f"Bearer {token}"}) as http:
-            r = await http.get("/api/oauth/v1/plans", params={"limit": 100})
+            r = await http.get("/api/oauth/v1/plans", params={"limit": LIMIT})
             r.raise_for_status()
             listed = r.json()
             ids = list(dict.fromkeys(p["id"] for p in listed.get("plans", []) + listed.get("guildPlans", [])))
@@ -145,6 +147,10 @@ async def sync(book: Notebook, guild_id: int) -> None:
         # Against the last version fetched, not the last saved: a paste newer than the plan as saved on raidstrats.gg
         # (a roster given in the planner's link isn't in it) stays the newest until the plan changes there.
         saved = {p.plan_id: p.plan for p in book.plans(guild_id) if p.saved_by == SAVED_BY}
+        # A plan deleted there (or no longer shared with the guild) is dropped, so it isn't shown as the guild's;
+        # only when the list is whole (under the limit), and an officer's paste of it stays.
+        if all(len(listed.get(k) or []) < LIMIT for k in ("plans", "guildPlans")):
+            book.drop_plans(guild_id, set(saved) - set(ids), SAVED_BY)
         for result in results:
             if not (result.get("ok") and result.get("addonExport")):
                 continue  # one not saved on raidstrats.gg since its import text was added, or gone
@@ -172,7 +178,9 @@ def source(login: RaidstratsLogin) -> str:
     text += f", last at {day(login.fetched_at * 1000, with_time=True)}" if login.fetched_at else ", not fetched yet"
     if login.problem:
         text += f" (the last fetch failed: {login.problem})"
-    return text + "; a version is saved each time a plan's text changes"
+    return text + ("; a version is saved each time a plan's text changes. Viserio's default plans (the Wowutils ones "
+                   "an assignment embeds unless an officer changed it) can't be opened with it: one is here only if "
+                   "an officer pasted it (its section's RSGG Addon button in Viserio, with the raiders on its spots)")
 
 
 async def keep_alive(book: Notebook) -> None:

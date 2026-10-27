@@ -194,6 +194,14 @@ class Notebook:
             "SELECT boss, plan_id, name, plan, saved_by, saved_at FROM raid_plans WHERE wcl_guild_id = ? "
             "ORDER BY saved_at", (guild_id,))]
 
+    def drop_plans(self, guild_id: int, plan_ids: set[str], saved_by: str) -> None:
+        """Every version of these plans that `saved_by` saved: a plan gone from where it was fetched."""
+        assert self._db is not None
+        for plan_id in plan_ids:
+            self._db.execute("DELETE FROM raid_plans WHERE wcl_guild_id = ? AND plan_id = ? AND saved_by = ?",
+                             (guild_id, plan_id, saved_by))
+        self._db.commit()
+
     def latest_plans(self, guild_id: int) -> list[SavedPlan]:
         """Each plan's newest version, newest first."""
         newest: dict[str, SavedPlan] = {p.plan_id: p for p in self.plans(guild_id)}

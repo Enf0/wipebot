@@ -105,9 +105,22 @@ async def test_the_plans_are_fetched_and_a_version_saved_only_when_one_changed(b
     assert [p.saved_by for p in book.plans(14169)] == ["raidstrats.gg", "Rowan"]  # unchanged there: the paste stays
 
 
+async def test_a_plan_deleted_on_raidstrats_is_dropped_and_a_paste_of_it_kept(book, monkeypatch):
+    export = "!" + PLAN.read_text(encoding="utf-8").strip()
+    plan_id = raidstrats.plans.parse(export)[0].plan_id
+    book.save_plan(14169, "Coiled Altar", "deleted", "Old plan", "raidstrats-addon-old", raidstrats.SAVED_BY)
+    book.save_plan(14169, "Coiled Altar", "deleted", "Old plan", "raidstrats-addon-pasted", "Rowan")
+    book.save_plan(14169, "Coiled Altar", "default", "Wowutils plan", "raidstrats-addon-default", "Rowan")
+    fake_raidstrats(monkeypatch, {plan_id: export})
+    await raidstrats.sync(book, 14169)
+    assert [(p.plan_id, p.saved_by) for p in book.plans(14169)] == [
+        ("deleted", "Rowan"), ("default", "Rowan"), (plan_id, raidstrats.SAVED_BY)]
+
+
 async def test_the_model_is_told_which_login_the_plans_are_fetched_with_and_when(book, monkeypatch):
     login = book.login(14169)
     assert login and "as Enfo-2581" in raidstrats.source(login) and "not fetched yet" in raidstrats.source(login)
+    assert "RSGG Addon" in raidstrats.source(login)  # Viserio's default plans aren't fetched: an officer pastes one
     fake_raidstrats(monkeypatch, {})
     await raidstrats.sync(book, 14169)
     login = book.login(14169)
