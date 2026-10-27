@@ -7,6 +7,27 @@ Unless you name a report, Wipebot reads the guild's latest raid night. A questio
 "the best wipe"), a boss ("Sszorak"), a time ("at 2:31") or a player, or none of these: then it means the latest
 pull.
 
+## What it looks like
+
+In Claude and ChatGPT, an answer about a pull, a night, a player or a death comes with that drawn under it, made by the
+tools from the log, with more a click away: the pull's replay, a player's casts against the top. In Discord the same
+comes as pictures, with buttons under them for the next thing to look at.
+
+![Claude answering "Why did we wipe on Sszorak pull 13?": the pull drawn as boss health against the raid's damage taken, with phases and deaths, and buttons to open the pull and its replay, then the answer: the enrage at 2:32 with 16 of 20 alive](images/claude-why-did-we-wipe.webp)
+
+*In Claude: the enrage ended pull 13 with 16 of 20 alive, so the answer says it's a damage check now.*
+
+![The Discord bot's post in a raid channel after Sszorak pull 13: a short summary of what ended it and what to do on the next pull, the pull drawn, and the buttons Open in Warcraft Logs, First death and How did I do?](images/discord-wipe-post.webp)
+
+*In Discord, a post after a wipe, asked for once at the start of the night. "How did I do?" shows each raider their
+own card on that pull, which only they see.*
+
+![A raider asking the Discord bot in a DM "how did I do on Sszorak tonight?": the answer with their deaths and cooldowns, their night drawn (what killed them, and where a defensive would have saved them), and three follow-up questions as buttons](images/discord-how-did-i-do.webp)
+
+*"How did I do?" over a night, in a DM. The follow-ups are buttons: a click asks them.*
+
+The pictures are real tool output from the tests' report, with made-up names; the chat around them is a mock.
+
 ## A pull: why did we wipe?
 
 - **What ended it.** Every death in order, with spec, the ability that killed them and how many players were still
@@ -225,8 +246,14 @@ the skill, so Claude reads logs the same way the bot does. Other clients get onl
 - **In your DMs instead:** ask it in a channel to send something to your DMs, and it answers there as if you'd
   asked there, where it may name players. It only ever writes to the one who asked.
 - **Posts after each wipe:** ask it to follow tonight's raid, and it posts after every wipe, in a DM (your own
-  feedback) or in a channel (what you asked for), until the report ends or you tell it to stop. It works before the
-  raid starts logging, too.
+  feedback) or in a channel (what you asked for, such as only below 30 % or every 10th pull), until the report ends or
+  you tell it to stop. It works before the raid starts logging, too. Each post comes with the pull drawn and a
+  "How did I do?" button for each raider's own card; when the raid stops logging, a last picture of the night, with
+  "My night" for each raider's own.
+- **Pictures and buttons:** what Claude draws comes as pictures, each next to the part of the answer it backs, with
+  buttons for the next thing to look at (the first death, a player's card, their night, their casts against the top);
+  what a button opens only the clicker sees. A ranking of players (damage, healing, hits by a mechanic, kicks) comes
+  as a damage meter. An answer ends with up to three follow-ups as buttons instead of "want me to...?".
 - **It remembers** your character, so "how did I do?" needs no name, and preferences you ask it to keep ("answer in
   English"). Ask what it remembers, or tell it to forget.
 - **Admin commands:** `/wipebot setup` connects the server to the guild and sets who can chat with the bot,

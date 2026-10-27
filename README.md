@@ -16,12 +16,22 @@ guild alone, run your own copy ([Setup](#setup)).
 
 ## What you can ask
 
-- **Why did we wipe?** What ended the pull and what led up to it, on one pull or across the night.
-- **How did I do?** Deaths, mechanics, casts, cooldowns, talents and gear, against the top players of the spec on
-  the same boss.
-- **Where was everyone standing?** A map of the room at any moment of a pull.
-- **Did we follow the plan?** Raid notes and cooldown assignments against what players did.
-- **What about the game?** Boss strategies, class guides, spells, loot and recent hotfixes.
+Ask the way you'd ask your raid leader, in your own words:
+
+- **Why did we wipe?** What ended the pull (an enrage, a mechanic that killed many, deaths one after another) and the
+  first mistake that led there, with the pull drawn under the answer. In Discord, it posts this after every wipe.
+- **What killed me?** The seconds before a death, the healing, and whether a defensive you had ready would have saved
+  you.
+- **How did I do tonight?** Your night on the boss, your cooldowns pull by pull, and your casts, talents and gear
+  against the top players of your spec.
+- **Who missed their kick? Was everyone on their spot?** The raid note and plan your officers saved, against what
+  players did, and per-player rankings as a damage meter.
+- **What's my job in P1 tomorrow?** The plan, the guides and Blizzard's latest hotfixes, before there's a log.
+
+<p>
+  <img src="docs/images/claude-why-did-we-wipe.webp" width="49%" alt="Claude answering why the raid wiped on Sszorak pull 13, with the pull drawn: boss health against the raid's damage taken, phases and deaths">
+  <img src="docs/images/discord-wipe-post.webp" width="49%" alt="The Discord bot's post after Sszorak pull 13: a short summary, the pull drawn, and buttons for the first death and How did I do?">
+</p>
 
 More, with examples: [docs/features.md](docs/features.md).
 
