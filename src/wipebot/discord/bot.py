@@ -489,6 +489,12 @@ class WipeBot(discord.Client):
     async def on_guild_join(self, guild: discord.Guild) -> None:
         await self._sync_commands(guild)
 
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
+        """Removed from a server (or it was deleted): forget its setup and stop its posts after wipes."""
+        self.store.forget_server(guild.id)
+        self.settings_changed(guild.id)
+        log.info("removed from a server; forgot its settings")
+
     async def _sync_commands(self, guild: discord.Guild) -> None:
         """Register the slash commands in one server; per server, they show up at once."""
         try:
@@ -759,7 +765,7 @@ class WipeBot(discord.Client):
         return Context(asker=asker or raider.character, discord_name=name, where=where, pull=pull, boss=boss,
                        notes=raider.notes, guild=f"{s.wcl_guild}, {s.wcl_server}, {s.wcl_region}",
                        tools={"follow_pulls": follow_pulls, "remember": remember, "answer_in_dm": answer_in_dm},
-                       icons=self.icons, **self._raid_notes(s))
+                       icons=self.icons, server_id=s.discord_guild_id, user_id=user.id, **self._raid_notes(s))
 
     @answering
     async def _in_dm(self, s: ServerSettings, user: discord.User | discord.Member, name: str, code: str,
@@ -857,6 +863,7 @@ class WipeBot(discord.Client):
         except ModelError as e:
             log.error("%s answer to %s failed: Claude's API refused (%s)", kind, shown, e.kind)
             record(error=f"model: {e.kind}", answer=e.answer)  # what it cost, when it hit a cap
+            self._spent(kind, ctx, e.answer)
             return MODEL_ERRORS.get(e.kind, MODEL_ERRORS["other"])
         except WCLError as e:  # loading the report, before the model got the question
             log.error("%s answer to %s failed: Warcraft Logs didn't answer (%s)", kind, shown, e)
@@ -867,12 +874,23 @@ class WipeBot(discord.Client):
             record(error=repr(e))  # a broken session's conversation was closed: the next question starts over
             return WENT_WRONG
         self.conversations.saw(key, sent)
+        self._spent(kind, ctx, answer)
         interaction = record(answer=answer, sent=sent)
         log.info("%s answer to %s in %.0f s with %d tool calls, $%.3f (#%d), pictures placed: %s%s", kind, shown,
                  time.monotonic() - started, len(answer.calls), answer.cost_usd or 0, interaction,
                  ", ".join(tool for _, tool in answer.marks) or "none",
                  f": {preview(answer.text)}" if self.record_answers else "")
         return None
+
+    def _spent(self, kind: str, ctx: Context, answer: Answer | None) -> None:
+        """Keep what an answer cost under its server and asker (store.spend), recorded or not."""
+        if answer is None or not ctx.server_id:
+            return
+        try:
+            self.store.add_spend(ctx.server_id, ctx.user_id or None, kind, answer.cost_usd or 0,
+                                 sum(answer.wcl_points().values()))
+        except Exception:
+            log.exception("keeping what an answer cost failed")
 
     def _record(self, kind: str, report: str, question: str, started: float, message: discord.Message | None,
                 asker: str | None = None, answer: Answer | None = None, error: str | None = None,

@@ -197,6 +197,15 @@ class Store:
                 seen TEXT NOT NULL,      -- JSON: list of message ids
                 last_used REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS spend (  -- what each answer cost, kept whether or not answers are recorded
+                at REAL NOT NULL,
+                discord_guild_id INTEGER NOT NULL,  -- the server whose settings it answered under (a DM's too)
+                user_id INTEGER,         -- who asked; NULL for a channel's posts after wipes
+                kind TEXT NOT NULL,      -- chat or follow, as in interactions
+                cost_usd REAL NOT NULL,
+                wcl_points REAL NOT NULL  -- every kind of Warcraft Logs point its tool calls cost, summed
+            );
+            CREATE INDEX IF NOT EXISTS spend_at ON spend (at);
             CREATE TABLE IF NOT EXISTS reactions (
                 message_id INTEGER NOT NULL,  -- an answer's message
                 user_id INTEGER NOT NULL,
@@ -372,9 +381,8 @@ class Store:
 
     def answer_costs(self, since: float) -> tuple[int, float]:
         """How many answers since `since` (a timestamp) have a cost, and their cost in all, chat and posts after
-        wipes alike (not developer runs). Nothing when answers aren't recorded."""
-        n, total = self._db.execute("SELECT COUNT(*), TOTAL(cost_usd) FROM interactions WHERE at >= ? "
-                                    "AND cost_usd IS NOT NULL AND kind IN ('chat', 'follow')", (since,)).fetchone()
+        wipes alike (not developer runs)."""
+        n, total, _ = self.spent(since)
         return n, total
 
     def add_reaction(self, message_id: int, user_id: int, emoji: str) -> int | None:
@@ -394,6 +402,33 @@ class Store:
                          (message_id, user_id, emoji))
         self._db.commit()
 
+    def add_spend(self, discord_guild_id: int, user_id: int | None, kind: str, cost_usd: float,
+                  wcl_points: float) -> None:
+        """Keep what one answer cost, for /budget and the allowances, whether or not answers are recorded."""
+        self._db.execute("INSERT INTO spend VALUES (?, ?, ?, ?, ?, ?)",
+                         (time.time(), discord_guild_id, user_id, kind, cost_usd, wcl_points))
+        self._db.commit()
+
+    def spent(self, since: float, discord_guild_id: int | None = None, user_id: int | None = None
+              ) -> tuple[int, float, float]:
+        """How many answers since `since` (a timestamp), what they cost and their Warcraft Logs points, in all or
+        in one server or for one user."""
+        where, args = "at >= ?", [since]
+        if discord_guild_id is not None:
+            where, args = where + " AND discord_guild_id = ?", [*args, discord_guild_id]
+        if user_id is not None:
+            where, args = where + " AND user_id = ?", [*args, user_id]
+        n, cost, points = self._db.execute(f"SELECT COUNT(*), TOTAL(cost_usd), TOTAL(wcl_points) FROM spend "
+                                           f"WHERE {where}", args).fetchone()
+        return n, cost, points
+
+    def forget_server(self, discord_guild_id: int) -> None:
+        """Forget a server the bot was removed from: its settings, where names are on, and its posts after
+        wipes. What it spent stays, for the books, until it's pruned."""
+        for table in ("server_settings", "naming_channels", "following"):
+            self._db.execute(f"DELETE FROM {table} WHERE discord_guild_id = ?", (discord_guild_id,))
+        self._db.commit()
+
     def prune_interactions(self, days: float = INTERACTION_DAYS) -> int:
         """Forget answers older than `days`, with their messages and reactions; returns how many."""
         cutoff = time.time() - days * 86400
@@ -402,6 +437,7 @@ class Store:
         self._db.execute(f"DELETE FROM reactions WHERE message_id IN ({messages})", (cutoff,))
         self._db.execute(f"DELETE FROM answer_messages WHERE interaction IN ({old})", (cutoff,))
         pruned = self._db.execute("DELETE FROM interactions WHERE at < ?", (cutoff,)).rowcount
+        self._db.execute("DELETE FROM spend WHERE at < ?", (cutoff,))
         self._db.commit()
         return pruned
 

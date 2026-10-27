@@ -175,9 +175,21 @@ def test_an_older_versions_officer_channel_keeps_names_on(tmp_path, settings):
     assert Store(db).naming_channels(1001) == {20}  # opened again: nothing left to move
 
 
-def test_answer_costs_count_raiders_answers_since_a_time(store, monkeypatch):
+def test_spend_is_kept_per_server_and_asker_recorded_or_not(store):
     import time
-    for kind, cost in (("chat", 0.25), ("follow", 0.5), ("try", 9.0), ("chat", None)):
-        store.record_interaction(kind=kind, report="R", question="q", cost_usd=cost)
-    assert store.answer_costs(0) == (2, 0.75)  # not developer runs, nor answers without a cost
-    assert store.answer_costs(time.time() + 60) == (0, 0.0)
+    store.add_spend(1001, 7, "chat", 0.25, 90.0)
+    store.add_spend(1001, None, "follow", 0.5, 10.0)  # a channel's post after a wipe
+    store.add_spend(2002, 8, "chat", 0.125, 4.0)
+    assert store.spent(0) == (3, 0.875, 104.0)
+    assert store.spent(0, discord_guild_id=1001) == (2, 0.75, 100.0)
+    assert store.spent(0, user_id=8) == (1, 0.125, 4.0)
+    assert store.spent(time.time() + 60) == (0, 0.0, 0.0)
+    assert store.answer_costs(0) == (3, 0.875)
+
+
+def test_a_server_the_bot_left_is_forgotten_but_its_spend_stays(store):
+    store.set_naming(1001, 20, True)
+    store.add_spend(1001, 7, "chat", 0.25, 90.0)
+    store.forget_server(1001)
+    assert store.settings(1001) is None and store.naming_channels(1001) == set()
+    assert store.spent(0, discord_guild_id=1001)[0] == 1

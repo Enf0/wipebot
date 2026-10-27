@@ -94,6 +94,8 @@ class Context:
     # they're saved under; None where none are kept (they take no note or plan from the model)
     notebook: Notebook | None = None
     guild_id: int = 0
+    server_id: int = 0  # the Discord server whose settings it answers under, and who asked: what an answer cost
+    user_id: int = 0  # is kept under them (store.spend); 0 for none
     noted: Sequence[str] = ()  # the bosses with a raid note saved in the server
     planned: Sequence[str] = ()  # the bosses with a raid plan saved in the server
 

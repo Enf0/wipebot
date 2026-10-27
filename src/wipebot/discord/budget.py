@@ -33,7 +33,7 @@ async def fetch(key: str) -> KeyBudget:
 
 def describe(b: KeyBudget, answers: int, answers_cost: float, note: str | None) -> str:
     """What /budget says: this month's spend, what's left and about how many answers that is (from the month's
-    recorded answers, `answers` of them costing `answers_cost` in all; none when answers aren't recorded), and how
+    answers, `answers` of them costing `answers_cost` in all), and how
     to chip in."""
     lines = [f"wipebot's AI budget: **${b.month:.2f}** spent this month, ${b.total:.2f} in all."]
     if b.remaining is None:
