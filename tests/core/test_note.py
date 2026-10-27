@@ -97,3 +97,26 @@ def test_pulls_checked_against_a_note_saved_after_they_began_are_named():
         "The note was saved after pulls 1-2 began, with none saved before them: the plan for them may have been "
         "different."]
     assert note._saved_late(cast(Any, rep), fights, {i: note.Version([]) for i in (1, 2, 3)}) == []
+
+
+async def test_one_cooldown_written_twice_in_a_note_is_checked_as_one_use(monkeypatch):
+    """A note with Zephyr for Lïzårðmâñ at both 0:42 and 0:43: one cast can cover only one line, so the other read as
+    not cast on every pull (13 of 18 one night, said to the raider). Checked as one use, and the output says so."""
+    zephyr = 374227
+    plan = note.Note(3418, "Mythic", "Vashnik", cooldowns=[note.Cooldown(at, 1, "Lïzårðmâñ", zephyr)
+                                                            for at in (42, 43, 90)])
+    rep = SimpleNamespace(ids_named=lambda names: set(), ability=lambda spell: "Zephyr", was_in=lambda f, p: True,
+                          ability_ref=lambda spell: "Zephyr [374227]")
+
+    async def casts(rep, f, n):
+        return [{"type": "cast", "sourceID": 5, "abilityGameID": zephyr, "timestamp": 43_200},
+                {"type": "cast", "sourceID": 5, "abilityGameID": zephyr, "timestamp": 91_000}]
+    monkeypatch.setattr(note, "_planned_casts", casts)
+    players = cast(Any, {"Lïzårðmâñ": SimpleNamespace(id=5)})
+    planned = await note._cooldowns(cast(Any, rep), {"startTime": 0}, plan, players, lambda name, at: "alive",
+                                    lambda c: c.at * 1000, 600_000)
+    assert planned is not None
+    assert [(u.at, u.cast_at) for u in planned.uses] == [(42_000, 43_200), (90_000, 91_000)]
+    assert planned.twice == [(42_000, 43_000, plan.cooldowns[1])] and planned.skipped == 0
+    assert note._twice(cast(Any, rep), planned.twice[0]) == (
+        "The note plans Lïzårðmâñ's Zephyr [374227] at both 0:42 and 0:43: one use written twice, checked as the first")

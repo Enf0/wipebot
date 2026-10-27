@@ -187,6 +187,7 @@ class Planned:
     uses: list[PlannedUse]
     later: list[tuple[float, Cooldown]]  # planned after `until`, so not checked against the pull
     skipped: int  # planned in phases the pull never reached
+    twice: list[tuple[float, float, Cooldown]] = field(default_factory=list)  # (first, again, it): checked as one
 
 
 @dataclass
@@ -389,6 +390,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                       for at, cd in c.planned.later]
         if c.planned.skipped:
             lines.append(f"  {c.planned.skipped} planned in phases the pull never reached")
+        lines += [f"  {_twice(rep, t)}" for t in c.planned.twice]
     if c.callouts:
         lines.append(f"Callouts to one player or to everyone, with what each player it names pressed from "
                      f"{CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it (the spells Lorrgs "
@@ -532,7 +534,14 @@ async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player
                     at = e["timestamp"] - t0
                     if not (seen := casts[(name, spell)]) or at - seen[-1] > REPEAT_CAST_MS:
                         seen.append(at)
-    planned = sorted((c for c in note.cooldowns if when(c) is not None), key=when)
+    planned, twice = [], []
+    for c in sorted((c for c in note.cooldowns if when(c) is not None), key=when):
+        first = next((p for p in planned if (p.player, p.spell, p.boss_spell) == (c.player, c.spell, c.boss_spell)
+                      and when(c) - when(p) <= REPEAT_CAST_MS), None)
+        if first is None:
+            planned.append(c)
+        else:  # one use written twice (0:42 and 0:43): one cast can't cover both, so one would read as not cast
+            twice.append((when(first), when(c), c))
     pairs = sorted((abs(at - when(c)), i, j, at) for i, c in enumerate(planned)
                    for j, at in enumerate(casts[(c.player, c.spell)]) if abs(at - when(c)) <= MATCH_S * 1000)
     matched: dict[int, float] = {}
@@ -544,7 +553,8 @@ async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player
             used.add(key)
     uses = [PlannedUse(when(c), c, matched.get(i), state(c.player, when(c)), casts[(c.player, c.spell)])
             for i, c in enumerate(planned) if when(c) <= until]
-    return Planned(uses, [(when(c), c) for c in planned if when(c) > until], len(note.cooldowns) - len(planned))
+    return Planned(uses, [(when(c), c) for c in planned if when(c) > until],
+                   len(note.cooldowns) - len(planned) - len(twice), twice)
 
 
 def _planned_filter(rep: Report, note: Note) -> str:
@@ -844,7 +854,15 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
             if u.cooldown.boss_spell:
                 line += f" for {rep.ability_ref(u.cooldown.boss_spell)}"
             out.append(line + f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}")
-    return out
+    twice = {(cd.player, cd.spell, first, again): (first, again, cd)
+             for c in checks if c.planned for first, again, cd in c.planned.twice}
+    return out + [f"  {_twice(rep, t)}" for t in twice.values()]
+
+
+def _twice(rep: Report, twice: tuple[float, float, Cooldown]) -> str:
+    first, again, cd = twice
+    return (f"The note plans {cd.player}'s {rep.ability_ref(cd.spell)} at both {clock(first)} and {clock(again)}: one "
+            "use written twice, checked as the first")
 
 
 def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
