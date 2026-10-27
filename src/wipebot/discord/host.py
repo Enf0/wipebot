@@ -147,6 +147,18 @@ def placed(text: str) -> tuple[str, list[tuple[int, str]]]:
     return "".join(out).rstrip(), marks
 
 
+SHORT_ANSWER = 3  # bullets an answer may have and still keep its picture under it all
+_BULLET = re.compile(r"^(?:[-*•]|\d+[.)])\s", re.M)  # a bullet at the top level
+
+
+def placed_by_default(text: str, marks: list[tuple[int, str]], view: str | None) -> list[tuple[int, str]]:
+    """Where the answer's pictures go: where it placed them, or else, in an answer of more than SHORT_ANSWER bullets,
+    its view right after the headline (its first line), since the model often leaves the mark out."""
+    if marks or view is None or len(_BULLET.findall(text)) <= SHORT_ANSWER or (end := text.find("\n")) < 0:
+        return marks
+    return [(end, view)]
+
+
 def follow_ups(text: str) -> tuple[str, list[str]]:
     """An answer's text without its follow-up lines, and the follow-ups (at most MAX_FOLLOW_UPS that fit a button)."""
     found = [q.strip("*_\"' ") for q in FOLLOW_UP.findall(text)]
@@ -328,7 +340,7 @@ class Answer:
     # read ("read:examples.md"), in order
     loaded: list[str] = field(default_factory=list)
     follow_ups: list[str] = field(default_factory=list)  # what the answer offers next, as buttons in Discord
-    marks: list[tuple[int, str]] = field(default_factory=list)  # where the model put a tool's picture: (offset, tool)
+    marks: list[tuple[int, str]] = field(default_factory=list)  # where a tool's picture goes: (offset, tool)
 
     @property
     def full(self) -> str:
@@ -555,6 +567,8 @@ class Session:
         answer.text, answer.marks = placed(polish(
             picture_marks(text), [c.result for c in answer.calls if not c.failed],
             await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx)))
+        view = next((c.name for _, c in answer.pictures if c.name in server.VIEW_TOOLS), None)
+        answer.marks = placed_by_default(answer.text, answer.marks, view)
         return answer
 
     @staticmethod

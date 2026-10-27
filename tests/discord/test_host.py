@@ -498,3 +498,12 @@ def test_a_picture_mark_written_as_a_bullet_or_after_text_still_places_it():
     answer = Answer(shown, marks=marks[:1], follow_ups=["Klar for P2?"])
     assert answer.full == ("**Strong night.**\n- Coiled Altar: top 3.\n[picture: player_night]\n"
                            "- Twin Fangs: never died.\nFollow-up: Klar for P2?")  # the record shows where it went
+
+
+def test_a_long_answer_that_leaves_its_picture_unplaced_gets_it_after_the_headline():
+    long = "**Solid night.**\n- one\n- two\n- three\n1. four"
+    assert host.placed_by_default(long, [], "player_night") == [(len("**Solid night.**"), "player_night")]
+    assert host.placed_by_default(long, [(3, "progress")], "player_night") == [(3, "progress")]  # its own place
+    assert host.placed_by_default("**Short.**\n- one\n- two\n- three", [], "player_night") == []  # under it all
+    assert host.placed_by_default(long, [], None) == []  # only a map: under it all
+    assert host.placed_by_default("**Solid night.** - one - two - three - four", [], "progress") == []
