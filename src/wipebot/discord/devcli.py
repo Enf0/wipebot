@@ -16,7 +16,7 @@ from wipebot.core.report import FactError
 from wipebot.core.report import note as raid_notes
 from wipebot.core.report import plan_export as raid_plans
 
-from .config import model
+from .config import model, model_env
 from .host import Context, Session
 from .prompt import asker_line
 from .store import Raider
@@ -85,7 +85,7 @@ async def chat(code: str, asker: str | None, pull: int | None, boss: str | None,
             _print_tool(name, args)
 
     while True:  # one iteration per conversation
-        async with Session(library, report.code, model(), on_tool) as session:
+        async with Session(library, report.code, model(), on_tool, env=model_env()) as session:
             if questions:
                 for q in questions:
                     print(f"\n> {q}")

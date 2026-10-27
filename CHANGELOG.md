@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **See the bot's AI budget, and chip in.** On a bot that answers through OpenRouter, anyone can run `/budget` to see what answering has cost this month, how much is left (and about how many answers that is), and how to contribute to it. Hosts set it up in docs/setup.md.
+
 ## [0.11.0] - 2026-10-27
 
 ### Added

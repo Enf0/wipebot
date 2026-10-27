@@ -327,6 +327,13 @@ class Store:
         self._db.commit()
         return interaction
 
+    def answer_costs(self, since: float) -> tuple[int, float]:
+        """How many answers since `since` (a timestamp) have a cost, and their cost in all, chat and posts after
+        wipes alike (not developer runs). Nothing when answers aren't recorded."""
+        n, total = self._db.execute("SELECT COUNT(*), TOTAL(cost_usd) FROM interactions WHERE at >= ? "
+                                    "AND cost_usd IS NOT NULL AND kind IN ('chat', 'follow')", (since,)).fetchone()
+        return n, total
+
     def add_reaction(self, message_id: int, user_id: int, emoji: str) -> int | None:
         """Keep a reaction to an answer's message; returns the answer's interaction id, or None (and keeps
         nothing) when the message isn't an answer."""

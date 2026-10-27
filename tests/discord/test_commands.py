@@ -229,3 +229,34 @@ async def test_viserio_key_status_and_connecting_from_discord(store, settings, m
     reply = await commands.connect_viserio(store, 1001, "key-1", "Rowan")
     assert "Connected to **Lanterns**" in reply and "2026-10-26 Raid" in reply
     assert "group **Lanterns**, connected by Rowan" in commands.describe_viserio(store, 1001)
+
+
+def test_budget_says_what_the_key_spent_and_has_left():
+    from wipebot.discord.budget import KeyBudget, describe
+    b = KeyBudget(limit=50.0, remaining=12.5, month=20.25, total=37.5)
+    assert describe(b, 0, 0.0, None) == ("wipebot's AI budget: **$20.25** spent this month, $37.50 in all.\n"
+                                         "**$12.50** left of $50.00.")
+    assert describe(b, 81, 20.25, "Vipps to Oscar, 12345678").splitlines()[1:] == [
+        "**$12.50** left of $50.00: about 50 more answers at this month's $0.25 an answer.",
+        "To chip in: Vipps to Oscar, 12345678"]
+    empty = describe(KeyBudget(limit=50.0, remaining=0.0, month=50.0, total=50.0), 0, 0.0, None)
+    assert empty.endswith("It's used up, so wipebot can't answer until it's topped up.")
+    assert describe(KeyBudget(None, None, 3.0, 3.0), 0, 0.0, None).endswith("It has no limit set.")
+
+
+async def test_budget_reads_the_key_from_openrouter(monkeypatch):
+    import httpx
+
+    from wipebot.discord import budget
+
+    def reply(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://openrouter.ai/api/v1/key"
+        assert request.headers["Authorization"] == "Bearer sk-or-k"
+        # fields as OpenRouter's limits guide gives them; BYOK spend counts with credit spend
+        return httpx.Response(200, json={"data": {"limit": 50, "limit_remaining": 12.5, "usage": 30.0,
+                                                  "usage_monthly": 1.0, "byok_usage": 7.5,
+                                                  "byok_usage_monthly": 19.25}})
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(reply), **kw))
+    assert await budget.fetch("sk-or-k") == budget.KeyBudget(limit=50, remaining=12.5, month=20.25, total=37.5)

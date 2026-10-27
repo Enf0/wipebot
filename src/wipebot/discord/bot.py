@@ -25,7 +25,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import commands, emojis, host
+from . import commands, config, emojis, host
 from .chat import Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
@@ -402,6 +402,8 @@ class WipeBot(discord.Client):
         self.test_report, self.test_server, self.try_question = test_report, test_server, try_question
         self.tree = app_commands.CommandTree(self)
         self.tree.add_command(commands.build(self))
+        if key := config.openrouter_key():  # its credit limit is the budget raiders see
+            self.tree.add_command(commands.build_budget(self, key))
         self.followers: dict[int, Follower] = {}  # per server: its live report
         self.posts = Posts(store, library, record_answers)  # who asked for posts after wipes
         # After Claude's API refused a question or Warcraft Logs didn't answer, the conversation goes on.
@@ -1003,7 +1005,7 @@ class WipeBot(discord.Client):
         return channel
 
     async def _open_session(self, code: str) -> Session:
-        session = Session(self.library, code, self.model, log_tool, self.name)
+        session = Session(self.library, code, self.model, log_tool, self.name, env=config.model_env())
         try:
             return await session.__aenter__()
         except BaseException:  # failed or given up on (chat.OPEN_TIMEOUT_S): no Claude Code process left behind
@@ -1031,7 +1033,7 @@ class WipeBot(discord.Client):
         channel = await self._text_channel(self.try_channel)
         log.info("test question about report %s: %s", code, question)
         started = time.monotonic()
-        async with Session(self.library, code, self.model, log_tool, self.name) as session:
+        async with Session(self.library, code, self.model, log_tool, self.name, env=config.model_env()) as session:
             answer = await session.ask(question, Context(where="a test question from the developer"))
         sent = await self._send(channel, answer, footer="🧪 TEST (wipebot try)")
         self._record("try", code, question, started, None, answer=answer, sent=sent)

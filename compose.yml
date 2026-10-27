@@ -23,7 +23,8 @@ services:
     <<: *app
     container_name: wipebot-mcp
     command: ["python", "-m", "wipebot", "serve", "--host", "0.0.0.0", "--port", "8000"]
-    # Internet-facing, so only the settings it needs: the bot's secrets (DISCORD_TOKEN, ANTHROPIC_API_KEY) stay out.
+    # Internet-facing, so only the settings it needs: the bot's secrets (DISCORD_TOKEN, ANTHROPIC_API_KEY,
+    # OPENROUTER_API_KEY) stay out.
     environment:
       WCL_CLIENT_ID: ${WCL_CLIENT_ID:-}
       WCL_CLIENT_SECRET: ${WCL_CLIENT_SECRET:-}
