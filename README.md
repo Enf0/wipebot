@@ -11,17 +11,17 @@ A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and bes
 
 - **Claude:** **Add to Claude** on that page, then **Continue** and sign in with Warcraft Logs.
 - **ChatGPT and others:** add `https://wipebot.enfo.dev/mcp` as a custom MCP server and sign in with Warcraft Logs.
-- **Discord:** **Add to Discord** on that page, and mention the bot with a question and a report link. Each server
-  gets free answers every month from a shared pool (`/usage` shows what's left); past them, an admin adds the
-  server's own OpenRouter or Anthropic key with `/wipebot key`.
+- **Discord:** **Add to Discord** on that page, then DM or mention the bot. Each server gets a small amount of free
+  AI use every month to try it out (`/usage` shows what's left); to keep going, an admin adds an AI key they have
+  from OpenRouter or Anthropic with `/wipebot key`, and the server's answers run on it.
 
-It's shared by everyone on one Warcraft Logs API allowance, so questions that need new data can wait for the next
-hour; signing in with Warcraft Logs lets your own points pay first. For your guild alone, run your own copy
-([Setup](#setup)).
+Every guild shares the public copy, and Warcraft Logs lets it read only so much each hour: when that's used up,
+questions that need new data wait for the next hour. Signed in with Warcraft Logs, your questions use your own
+allowance first. For your guild alone, run your own copy ([Setup](#setup)).
 
 ## What you can ask
 
-Ask the way you'd ask your raid leader, in your own words:
+Ask in your own words:
 
 - **Why did we wipe?** What ended the pull (an enrage, a mechanic that killed many, deaths one after another) and the
   first mistake that led there, with the pull drawn under the answer. In Discord, it posts this after every wipe.
@@ -29,9 +29,10 @@ Ask the way you'd ask your raid leader, in your own words:
   you.
 - **How did I do tonight?** Your night on the boss, your cooldowns pull by pull, and your casts, talents and gear
   against the top players of your spec.
-- **Who missed their kick? Was everyone on their spot?** The raid note and plan your officers saved, against what
-  players did, and per-player rankings as a damage meter.
-- **What's my job in P1 tomorrow?** The plan, the guides and Blizzard's latest hotfixes, before there's a log.
+- **Who keeps getting hit by Virulence? Who missed their kick?** Per player over the night, and checked against the
+  raid note your officers saved.
+- **Give us the short version of this boss.** The guides side by side with Blizzard's latest hotfixes, and a spec's
+  priorities and cooldowns, before there's a log.
 
 <p>
   <picture>
@@ -54,7 +55,7 @@ explains their output. The tools are an [MCP](https://modelcontextprotocol.io) s
 - **Connector**: members add your server to Claude, ChatGPT or similar and sign in with Warcraft Logs; answers run
   on their own subscription.
 - **Discord bot**: the guild asks in channels and DMs, and it can post after each wipe; answers run on the host's
-  Anthropic or OpenRouter key, or on a server's own (`/wipebot key`).
+  Anthropic or OpenRouter key, or on an AI key a server's admin added (`/wipebot key`).
 
 ## Setup
 
@@ -106,9 +107,9 @@ Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and trou
   with the plugin use it. A connector alone gets only the tools, whose output carries what code can decide of the
   method, since assistants don't yet load skills from a server
   ([docs/reference/mcp-clients.md](docs/reference/mcp-clients.md)).
-- The Discord bot runs on Claude only, for now (an Anthropic key, directly or through OpenRouter); the connector
-  works with any assistant that takes MCP connectors.
-- It sees only what Warcraft Logs recorded, and answers can be wrong.
+- The Discord bot is built and tested on Claude (Opus by default, Sonnet and Haiku compared in
+  [docs/models.md](docs/models.md)). Through OpenRouter, `WIPEBOT_MODEL` can name another model, untested so far.
+  The connector works with any assistant that takes MCP connectors.
 
 ## Development
 

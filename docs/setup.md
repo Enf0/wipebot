@@ -45,10 +45,10 @@ In `.env` (copy [.env.example](../.env.example)):
 | `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/usage` ([below](#a-budget-the-guild-chips-in-to)) |
 | `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/usage`, e.g. `Vipps to Oscar, 12345678` |
 | `WIPEBOT_SERVER_SHARE` | bot | for a copy many servers share: the part of the OpenRouter key's limit (set to reset monthly) one server may spend a month, e.g. `0.1`; past it, that server's raiders are told when the free answers are back |
-| `WIPEBOT_KEY_SECRET` | bot | what servers' own model keys (`/wipebot key`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
+| `WIPEBOT_KEY_SECRET` | bot | what the AI keys admins add for their servers (`/wipebot key`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
 | `WIPEBOT_OPENROUTER_CALLBACK` | bot | where OpenRouter sends an admin after "Sign in with OpenRouter" in `/wipebot key`: a page that shows the address to paste back; default a localhost address that doesn't load, whose address bar holds it |
 | `WIPEBOT_WCL_CALLBACK` | bot | turns on `/login`: where Warcraft Logs sends a raider after they sign in, a page that shows its address to paste back into Discord (any page does: the address bar holds the code). Add it to your Warcraft Logs client's redirect URLs (comma-separated) |
-| `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku` |
+| `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku`; through OpenRouter, another model's OpenRouter id (untested) |
 | `WIPEBOT_EFFORT` | bot | how hard the model thinks: `low`, `medium`, `high`, `xhigh` or `max`; unset, the model's default |
 | `WIPEBOT_CHANNEL_CONTEXT` | bot | `1`: answers also read the channel's last 15 messages and the Discord messages a question links to (needs the Message Content intent) |
 | `WIPEBOT_RECORD_ANSWERS` | bot | `1`: keep questions and answers for 90 days, for reviewing them |
@@ -110,7 +110,8 @@ they then press **Connect** on the plugin's connector and sign in with Warcraft 
      [below](#officers-and-admins));
    - `/wipebot settings` to see the setup and the saved notes and plans.
 
-   `footer:` on setup ends answers with what they cost; `/wipebot key` answers on the server's own model key.
+   `footer:` on setup ends answers with what they cost; `/wipebot key` lets an admin add an AI key they have
+   (OpenRouter or Anthropic) for the server's answers to run on.
 
 Raiders @mention it or reply to it in a channel, or DM it; `/help` tells them what to ask, and `/usage` what's left of
 the hour's Warcraft Logs points (and of the budget, [below](#a-budget-the-guild-chips-in-to)). With
@@ -183,7 +184,7 @@ Every member can ask questions. These can also change what Wipebot does for the 
 |---|---|---|
 | Officers, in Claude or ChatGPT | save a pasted raid note or plan for the guild | members with a character at guild rank 0 to `WIPEBOT_OFFICER_RANK` (default 1: WoW's default Guild Master and Officer ranks), as Warcraft Logs had it at sign-in or within the last hour |
 | Officers, in Discord | save a pasted raid note or plan for the guild; change or stop the posts after wipes someone else asked for in a channel | members with the role `/wipebot setup officers:` sets; with none set, those with Manage Server |
-| Admins, in Discord | the `/wipebot` commands ([features.md](features.md#discord-commands)): setup (with the cost footer), settings, the server's own model key | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
+| Admins, in Discord | the `/wipebot` commands ([features.md](features.md#discord-commands)): setup (with the cost footer), settings, an AI key of theirs for the server's answers | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
 
 With the officer role set, Manage Server alone doesn't make someone an officer: an admin gives themselves the role.
 
@@ -192,7 +193,7 @@ With the officer role set, Manage Server alone doesn't make someone an officer: 
 The connector keeps who signed in (Warcraft Logs id, name, guild characters); the bot keeps each raider's character
 and the preferences they ask it to remember, and for a raider who used `/login`, their Warcraft Logs id, name and
 token (encrypted) until they sign out. It also keeps what each answer cost, with the server and the asker, for 90
-days (`/usage` and the free answers' share read it), each server's settings and own key (encrypted) until it's
+days (`/usage` and the free answers' share read it), each server's settings and the AI key its admin added (encrypted) until it's
 removed, and the conversations Claude Code keeps on disk so follow-ups and restarts go on from them. With
 `WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its prompt (with the channel's messages it read),
 answer and tool calls for 90 days, for reviewing answers. All of it stays in `./data`; only what an answer needs goes

@@ -291,7 +291,7 @@ Every reply to a command is seen only by whoever used it.
 | `/login` | everyone | signs you in with Warcraft Logs, on a bot whose host set it up: your own Warcraft Logs points then pay first for your questions (on Warcraft Logs' new point system). The token is kept encrypted and reads only public reports. `remove:` signs you out |
 | `/wipebot setup` | admins | connects the server to the guild on Warcraft Logs (its warcraftlogs.com page); sets the role needed to chat and the officers' role, and with `footer:` whether answers end with a small line (what the answer cost, its Warcraft Logs points with the bot's left this hour, yours apart when you're signed in, and, on a shared copy, the server's free answers left this month; on by default while a server answers from a shared copy's free answers). Options left out keep what's set |
 | `/wipebot settings` | admins | the setup, the channels where names are on, and the raid notes and plans saved |
-| `/wipebot key` | admins | answers this server's questions on its own key, past the shared free answers: sign in with OpenRouter, or paste an OpenRouter or Anthropic key; kept encrypted, never shown again. `remove:` goes back to the shared answers |
+| `/wipebot key` | admins | lets an admin add an AI key they have, so the server's questions run on it past the shared free answers: sign in with OpenRouter, or paste an OpenRouter or Anthropic key; kept encrypted, never shown again. `remove:` goes back to the shared answers |
 
 Admins are members with Manage Server; a server owner can change who sees `/wipebot` under Server Settings →
 Integrations. Viserio Cooldowns and raidstrats.gg, still experimental, have no command: the host connects them on
