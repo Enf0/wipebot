@@ -154,7 +154,8 @@ _BULLET = re.compile(r"^(?:[-*•]|\d+[.)])\s", re.M)  # a bullet at the top lev
 def placed_by_default(text: str, marks: list[tuple[int, str]], view: str | None) -> list[tuple[int, str]]:
     """Where the answer's pictures go: where it placed them, or else, in an answer of more than SHORT_ANSWER bullets,
     its view right after the headline (its first line), since the model often leaves the mark out or puts it last."""
-    marks = [(at, tool) for at, tool in marks if text[at:].strip()]  # one after it all places nothing
+    bullets = bool(_BULLET.search(text))  # a mark after the last bullet places nothing: the picture backs no bullet
+    marks = [(at, tool) for at, tool in marks if text[at:].strip() and (not bullets or _BULLET.search(text, at))]
     if marks or view is None or len(_BULLET.findall(text)) <= SHORT_ANSWER or (end := text.find("\n")) < 0:
         return marks
     return [(end, view)]

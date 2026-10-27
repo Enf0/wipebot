@@ -507,5 +507,9 @@ def test_a_long_answer_that_leaves_its_picture_unplaced_gets_it_after_the_headli
     assert host.placed_by_default("**Short.**\n- one\n- two\n- three", [], "player_night") == []  # under it all
     assert host.placed_by_default(long, [(len(long), "player_night")], "player_night") == [
         (len("**Solid night.**"), "player_night")]  # a mark after it all: as if left out
+    noted = long + "\n-# Not ranked yet."
+    assert host.placed_by_default(noted, [(len(long) + 1, "player_night")], "player_night") == [
+        (len("**Solid night.**"), "player_night")]  # after the last bullet, before a note: the same
+    assert host.placed_by_default("**Night.**\nFirst.\nSecond.", [(11, "progress")], "progress") == [(11, "progress")]
     assert host.placed_by_default(long, [], None) == []  # only a map: under it all
     assert host.placed_by_default("**Solid night.** - one - two - three - four", [], "progress") == []
