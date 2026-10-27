@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-27
+
 ### Added
 
 - `Discord` **`/help` and `/usage` for everyone.** `/help` says what to ask, with examples, which commands you can use and how the server is set up; saying "help" to the bot gives the same at once. `/usage` shows how many Warcraft Logs points are left this hour and when they come back, next to the AI budget below. Every command is listed in [features.md](https://github.com/Enf0/wipebot/blob/main/docs/features.md#discord-commands).
