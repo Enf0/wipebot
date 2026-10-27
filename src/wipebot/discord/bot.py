@@ -414,8 +414,8 @@ class WipeBot(discord.Client):
         # a copy many servers share: each may spend its share of the key's monthly limit (allowance.py)
         share, key = allowance.server_share(), config.openrouter_key()
         self.allowance = allowance.Allowance(store, key, share) if share and key else None
-        if key := config.openrouter_key():  # its credit limit is the budget raiders see
-            self.tree.add_command(commands.build_budget(self, key))
+        for command in commands.build_everyone(self):
+            self.tree.add_command(command)
         self.followers: dict[int, Follower] = {}  # per server: its live report
         self.posts = Posts(store, library, record_answers)  # who asked for posts after wipes
         # After Claude's API refused a question or Warcraft Logs didn't answer, the conversation goes on.
@@ -674,6 +674,11 @@ class WipeBot(discord.Client):
             return
         question = strip_mention(message.content, self.user.id)
         if only_mentions(question) or (not is_dm and for_someone_else(message.content, self.user.id)):
+            return
+        if commands.asks_for_help(question):  # /help's text, without the model
+            admin = not is_dm and getattr(getattr(message.author, "guild_permissions", None), "manage_guild", False)
+            await respond(message, commands.help_text(settings, self.store.naming_channels(settings.discord_guild_id),
+                                                      admin, is_dm))
             return
         if len(question) > QUESTION_CHARS:
             await respond(message, f"That's a long one: ask me in at most {QUESTION_CHARS} characters.")

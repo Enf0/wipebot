@@ -262,8 +262,23 @@ the skill, so Claude reads logs the same way the bot does. Other clients get onl
   as a damage meter. An answer ends with up to three follow-ups as buttons instead of "want me to...?".
 - **It remembers** your character, so "how did I do?" needs no name, and preferences you ask it to keep ("answer in
   English"). Ask what it remembers, or tell it to forget.
-- **Admin commands:** `/wipebot setup` connects the server to the guild and sets who can chat with the bot,
-  `/wipebot names` turns naming players on or off in a channel, and `/wipebot settings` shows the setup and the
-  saved notes and plans. Officers (a role `/wipebot setup` sets) save a note or plan by pasting it to the bot, and
-  change or stop anyone's posts after wipes in a channel. Who can do what:
-  [setup.md](setup.md#officers-and-admins).
+- **Commands:** raiders ask by @mention or DM and need no command; `/help` says what to ask. Officers (a role
+  `/wipebot setup` sets) save a note or plan by pasting it to the bot, and change or stop anyone's posts after wipes in
+  a channel. Who can do what: [setup.md](setup.md#officers-and-admins).
+
+### Discord commands
+
+Every reply to a command is seen only by whoever used it.
+
+| Command | Who sees it | What it does |
+| --- | --- | --- |
+| `/help` | everyone | what to ask, with examples; the commands you may use; how the server is set up (the guild, who can chat, where names are on). Saying "help" to the bot gives the same, in a DM too |
+| `/usage` | everyone | what's left of the limits every answer shares: the AI budget on a bot that answers through OpenRouter (spent this month, left, and how to chip in), and this hour's Warcraft Logs points, and when the hour starts again |
+| `/wipebot setup` | admins | connects the server to the guild on Warcraft Logs (its warcraftlogs.com page); sets the role needed to chat and the officers' role. Options left out keep what's set |
+| `/wipebot settings` | admins | the setup, the channels where names are on, and the raid notes and plans saved |
+| `/wipebot names` | admins | names players in this channel and its threads, or not (`on:`) |
+| `/wipebot viserio` | admins | reads the raid nights to come from Viserio Cooldowns with the group's key, pasted in a form; `disconnect:` forgets it |
+| `/wipebot raidstrats` | admins | fetches the guild's raid plans from raidstrats.gg with an officer's login; only where the host set up a raidstrats.gg app |
+
+Admins are members with Manage Server; a server owner can change who sees `/wipebot` under Server Settings →
+Integrations.

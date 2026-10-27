@@ -1,6 +1,8 @@
 """The admins' slash commands: /wipebot setup and the raid note or plan they save."""
+import re
 from dataclasses import replace
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -10,6 +12,7 @@ from tests.support import NOTE, PLAN
 from wipebot.core.wcl import WCLError
 from wipebot.discord import commands
 from wipebot.discord.commands import parse_guild_link, save_pasted, updated_settings
+from wipebot.discord.store import ServerSettings
 
 GUILD = {"id": 14169, "name": "The Copper Lanterns", "server": {"slug": "argent-dawn", "region": {"slug": "EU"}}}
 
@@ -260,3 +263,38 @@ async def test_budget_reads_the_key_from_openrouter(monkeypatch):
     real = httpx.AsyncClient
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(reply), **kw))
     assert await budget.fetch("sk-or-k") == budget.KeyBudget(limit=50, remaining=12.5, month=20.25, total=37.5)
+
+
+def registered(bot, monkeypatch) -> set[str]:
+    """Every slash command the bot registers, as typed ("/wipebot setup"), with every optional one turned on."""
+    monkeypatch.setenv("RAIDSTRATS_CLIENT_ID", "id")
+    monkeypatch.setenv("RAIDSTRATS_CLIENT_SECRET", "secret")
+    group = commands.build(bot)
+    return ({f"/{c.name}" for c in commands.build_everyone(bot)}
+            | {f"/{group.name} {c.name}" for c in group.commands})
+
+
+def test_the_docs_list_every_command(bot, monkeypatch):
+    docs = (Path(__file__).parents[2] / "docs" / "features.md").read_text(encoding="utf-8")
+    listed = set(re.findall(r"^\| `(/[a-z ]+?)`", docs, re.M))
+    assert listed == registered(bot, monkeypatch)
+
+
+def test_help_lists_what_the_member_may_use(settings, monkeypatch):
+    monkeypatch.delenv("RAIDSTRATS_CLIENT_ID", raising=False)
+    raider = commands.help_text(settings, set(), admin=False)
+    assert "/help" in raider and "/usage" in raider and "/wipebot" not in raider
+    admin = commands.help_text(replace(settings, required_role_id=111), {55}, admin=True)
+    assert "/wipebot setup" in admin and "/wipebot raidstrats" not in admin  # no raidstrats.gg app here
+    assert "<@&111>" in admin and "<#55>" in admin
+    assert "not set up" in commands.help_text(None, set(), admin=True)
+    assert "not set up" in commands.help_text(ServerSettings.unset(1001), set(), admin=False)
+    assert len(admin) < 2000  # one Discord message
+
+
+def test_usage_says_whats_left_of_the_hours_points():
+    rate = {"limitPerHour": 18000, "pointsSpentThisHour": 4500.5, "pointsResetIn": 1500,
+            "databaseLimitPerHour": 600, "databasePointsSpentThisHour": 700}
+    text = commands.usage_text(rate)
+    assert "13,500 of 18,000 left" in text and "in 26 min" in text and "0 of 600 left" in text
+    assert "didn't say" in commands.usage_text(None)

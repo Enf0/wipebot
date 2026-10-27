@@ -26,7 +26,7 @@ def check_settings() -> None:
 
 def openrouter_key() -> str | None:
     """The OpenRouter API key the bot answers with (OPENROUTER_API_KEY), in place of ANTHROPIC_API_KEY: its credit
-    limit is the budget raiders see with /budget, and an Anthropic key behind it (OpenRouter's BYOK) still pays."""
+    limit is the budget raiders see with /usage, and an Anthropic key behind it (OpenRouter's BYOK) still pays."""
     return os.environ.get("OPENROUTER_API_KEY") or None
 
 
@@ -39,7 +39,7 @@ def model_env() -> dict[str, str]:
 
 def budget_note() -> str | None:
     """How raiders chip in to the bot's budget (WIPEBOT_BUDGET_NOTE, e.g. "Vipps to Oscar, 12345678"), shown by
-    /budget."""
+    /usage."""
     return os.environ.get("WIPEBOT_BUDGET_NOTE") or None
 
 

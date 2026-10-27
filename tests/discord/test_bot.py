@@ -255,6 +255,21 @@ async def test_without_record_answers_nothing_of_a_question_is_kept_or_logged(bo
     assert not any(t in caplog.text for t in ("why did we wipe", "Wiped", "Rowan", "Klingon", "Torvek", "fire"))
 
 
+@pytest.mark.parametrize("text", ["<@99> help", "<@99> Help?", "<@99> hjelp"])
+async def test_help_said_to_the_bot_gets_the_help_without_the_model(bot, message, asked, text):
+    msg = message(text)
+    await bot.on_message(msg)
+    assert asked == [] and recorded(bot.store) == []
+    [reply] = msg.replies
+    assert "why did we wipe?" in reply and "/usage" in reply and "The Copper Lanterns" in reply
+    assert "/wipebot setup" not in reply  # Rowan can't manage the server
+
+
+async def test_help_in_a_question_is_a_question(bot, message, asked):
+    await bot.on_message(message("<@99> help me understand pull 3"))
+    assert [q[2] for q in asked] == ["help me understand pull 3"]
+
+
 async def test_a_reply_to_the_bot_is_a_question_without_a_mention(bot, message, asked):
     await bot.on_message(message("and the pull before?", reply_to=500))
     assert [q[2] for q in asked] == ["and the pull before?"]

@@ -1,9 +1,11 @@
-"""Slash commands for server admins: /wipebot setup, /wipebot settings (with the raid notes and plans saved),
-/wipebot names, /wipebot viserio (the key the raid nights to come are read with), /wipebot raidstrats (the login
-the guild's raid plans are fetched with, where the host set up a raidstrats.gg app). Officers save a note or plan
-by pasting it to the bot (bot.py).
+"""Slash commands. For everyone: /help (what to ask, the commands, how the server is set up; also "help" said to
+the bot, bot.py) and /usage (what's left of the AI budget, on an OpenRouter key, and of the hour's Warcraft Logs
+points). For server admins: /wipebot setup, /wipebot settings (with the raid notes and plans saved), /wipebot
+names, /wipebot viserio (the key the raid nights to come are read with), /wipebot raidstrats (the login the guild's
+raid plans are fetched with, where the host set up a raidstrats.gg app). Officers save a note or plan by pasting it
+to the bot (bot.py). docs/features.md lists them all (a test checks).
 
-Only members with Manage Server see them (Discord enforces this), and server owners can change that in
+Only members with Manage Server see /wipebot (Discord enforces this), and server owners can change that in
 Server Settings > Integrations.
 """
 import datetime
@@ -297,6 +299,86 @@ def in_guild(interaction: discord.Interaction) -> discord.Guild:
     return interaction.guild
 
 
+# What a raider can ask, for /help: each a question the bot's tools answer.
+EXAMPLES = (
+    "why did we wipe?", "why did we wipe on pull 12?", "how did I do tonight?", "what killed me the most?",
+    "how did the night go?", "are we doing better than last week?", "post after each wipe in here",
+)
+HELP_WORDS = {"help", "hjelp", "/help", "commands"}
+
+
+def asks_for_help(question: str) -> bool:
+    """Whether a message to the bot is only asking for help, answered with /help's text and no model."""
+    return question.strip().strip("?!. ").lower() in HELP_WORDS
+
+
+def help_text(s: ServerSettings | None, named: set[int], admin: bool, in_dm: bool = False) -> str:
+    """/help's text: what to ask, the commands this member can use, and how the server is set up (`s`, None or
+    unset when it isn't; `named`: the channels where names are on; `admin`: the member may use /wipebot)."""
+    parts = ["**What to ask:** " + ("DM me" if in_dm else "@mention me, reply to my answers, or DM me")
+             + ". For example:\n" + "\n".join(f"- {q}" for q in EXAMPLES)
+             + "\nTell me your character once (\"I'm Jekå\") and \"I\" means them from then on. A warcraftlogs.com "
+               "report link asks about that report instead of the guild's latest."]
+    budget = "the AI budget, how to chip in, and " if config.openrouter_key() else ""
+    commands = ["`/help`: this", f"`/usage`: what's left of {budget}this hour's Warcraft Logs points"]
+    if admin:
+        commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
+                     "`/wipebot settings`: the setup, and the raid notes and plans saved",
+                     "`/wipebot names`: name players in this channel or not",
+                     "`/wipebot viserio`: read the raid nights to come from Viserio Cooldowns"]
+        if raidstrats.client():
+            commands.append("`/wipebot raidstrats`: fetch the raid plans from raidstrats.gg")
+    commands.append("Officers save a raid note or plan by pasting it to me.")
+    parts.append("**Commands:**\n" + "\n".join(f"- {c}" for c in commands))
+    if s is None or not s.set_up:
+        parts.append("**Here:** not set up, so put a warcraftlogs.com report link in your question. An admin can run "
+                     "`/wipebot setup` with the guild's warcraftlogs.com page: then I look at its latest raid by "
+                     "myself, post after wipes and keep raid notes.")
+    else:
+        who = f"<@&{s.required_role_id}>" if s.required_role_id else "anyone in the server"
+        channels = ", ".join(f"<#{c}>" for c in sorted(named))
+        parts.append(f"**Here:** the guild **{s.wcl_guild}** ({s.wcl_server}-{s.wcl_region.upper()}); who can chat: "
+                     f"{who}. In DMs I name players; in channels I name nobody"
+                     + (f", but in {channels}." if channels else "."))
+    return "\n\n".join(parts)
+
+
+def usage_text(rate: dict | None) -> str:
+    """/usage's text from this hour's Warcraft Logs points (WCL.points; None when Warcraft Logs didn't say)."""
+    if not rate:
+        return "Warcraft Logs didn't say how many points are left this hour; try again in a minute."
+    left = max(rate["limitPerHour"] - rate["pointsSpentThisHour"], 0)
+    text = (f"**Warcraft Logs points:** {left:,.0f} of {rate['limitPerHour']:,} left this hour, for everyone using "
+            f"this wipebot; the hour starts again in {rate['pointsResetIn'] // 60 + 1} min.")
+    if db := rate.get("databaseLimitPerHour"):
+        db_left = max(db - rate.get("databasePointsSpentThisHour", 0), 0)
+        text += f"\n**Warcraft Logs database points** (rankings, other guilds): {db_left:,.0f} of {db:,} left."
+    return text
+
+
+def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
+    """/help and /usage, for everyone."""
+    @app_commands.command(name="help", description="What to ask wipebot, its commands, and how it's set up here")
+    @app_commands.guild_only()
+    async def show_help(interaction: discord.Interaction) -> None:
+        gid = in_guild(interaction).id
+        admin = bool(getattr(interaction.permissions, "manage_guild", False))
+        await interaction.response.send_message(
+            help_text(bot.store.settings(gid), bot.store.naming_channels(gid), admin), ephemeral=True)
+
+    @app_commands.command(name="usage", description="What's left of the AI budget and the Warcraft Logs points "
+                                                    "wipebot's answers share")
+    @app_commands.guild_only()
+    async def show_usage(interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        points = usage_text(await bot.library.wcl.points())
+        # the bot's OpenRouter key's credit limit is the AI budget raiders see
+        text = f"{await budget_text(bot.store, key)}\n\n{points}" if (key := config.openrouter_key()) else points
+        await interaction.followup.send(text, ephemeral=True)
+
+    return [show_help, show_usage]
+
+
 def build(bot: WipeBot) -> app_commands.Group:
     group = app_commands.Group(name="wipebot", description="Set up wipebot for this server",
                                guild_only=True, default_permissions=discord.Permissions(manage_guild=True))
@@ -361,17 +443,6 @@ def build(bot: WipeBot) -> app_commands.Group:
         await interaction.response.send_message(text, ephemeral=True)
 
     return group
-
-
-def build_budget(bot: WipeBot, key: str) -> app_commands.Command:
-    """/budget, for anyone: what answering has cost and has left on the bot's OpenRouter key (budget.py)."""
-    @app_commands.command(name="budget", description="wipebot's AI budget: spent this month, what's left, and "
-                                                     "how to chip in")
-    async def show_budget(interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        await interaction.followup.send(await budget_text(bot.store, key), ephemeral=True)
-
-    return show_budget
 
 
 async def budget_text(store: Store, key: str) -> str:

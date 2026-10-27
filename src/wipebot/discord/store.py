@@ -414,7 +414,7 @@ class Store:
 
     def add_spend(self, discord_guild_id: int, user_id: int | None, kind: str, cost_usd: float,
                   wcl_points: float) -> None:
-        """Keep what one answer cost, for /budget and the allowances, whether or not answers are recorded."""
+        """Keep what one answer cost, for /usage and the allowances, whether or not answers are recorded."""
         self._db.execute("INSERT INTO spend VALUES (?, ?, ?, ?, ?, ?)",
                          (time.time(), discord_guild_id, user_id, kind, cost_usd, wcl_points))
         self._db.commit()

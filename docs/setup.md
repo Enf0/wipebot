@@ -41,8 +41,8 @@ In `.env` (copy [.env.example](../.env.example)):
 | `WIPEBOT_OFFICER_RANK` | connector | the highest guild rank of officers, who save raid notes and plans (default 1, [below](#officers-and-admins)) |
 | `WIPEBOT_TRUSTED_PROXIES` | connector | the reverse proxy's address, if you want real client IPs in the log |
 | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required; or `OPENROUTER_API_KEY` in place of the Anthropic key (below) |
-| `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/budget` ([below](#a-budget-the-guild-chips-in-to)) |
-| `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/budget`, e.g. `Vipps to Oscar, 12345678` |
+| `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/usage` ([below](#a-budget-the-guild-chips-in-to)) |
+| `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/usage`, e.g. `Vipps to Oscar, 12345678` |
 | `WIPEBOT_SERVER_SHARE` | bot | for a copy many servers share: the part of the OpenRouter key's limit (set to reset monthly) one server may spend a month, e.g. `0.1`; past it, that server's raiders are told when the free answers are back |
 | `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku` |
 | `WIPEBOT_EFFORT` | bot | how hard the model thinks: `low`, `medium`, `high`, `xhigh` or `max`; unset, the model's default |
@@ -114,7 +114,7 @@ Raiders @mention it or reply to it in a channel, or DM it.
 
 With `OPENROUTER_API_KEY` set, the bot answers through [OpenRouter](https://openrouter.ai) (Claude Code takes
 OpenRouter's address and key: [their guide](https://openrouter.ai/docs/guides/community/anthropic-agent-sdk)), and
-anyone in the server runs `/budget` to see what answering has cost this month, what's left and how to chip in
+anyone in the server runs `/usage` to see what answering has cost this month, what's left and how to chip in
 (`WIPEBOT_BUDGET_NOTE`). Raiders send you money as a contribution to running costs, and you raise the key's limit.
 Credit itself can't be passed on: Anthropic's [credit terms](https://www.anthropic.com/legal/credit-terms) forbid
 transferring or selling it.
@@ -128,7 +128,7 @@ transferring or selling it.
    Anthropic provider keeps other hosts of the same models from serving it on OpenRouter credits.
 3. Set `OPENROUTER_API_KEY` (in place of `ANTHROPIC_API_KEY`) and `WIPEBOT_BUDGET_NOTE`, and restart the bot.
 
-When someone chips in, raise the key's limit by the amount (OpenRouter → **Keys**). `/budget` estimates how many
+When someone chips in, raise the key's limit by the amount (OpenRouter → **Keys**). `/usage` estimates how many
 answers are left only when answers are recorded (`WIPEBOT_RECORD_ANSWERS=1`).
 
 ## Raid notes and plans
@@ -173,7 +173,7 @@ Every member can ask questions. These can also change what Wipebot does for the 
 |---|---|---|
 | Officers, in Claude or ChatGPT | save a pasted raid note or plan for the guild | members with a character at guild rank 0 to `WIPEBOT_OFFICER_RANK` (default 1: WoW's default Guild Master and Officer ranks), as Warcraft Logs had it at sign-in or within the last hour |
 | Officers, in Discord | save a pasted raid note or plan for the guild; change or stop the posts after wipes someone else asked for in a channel | members with the role `/wipebot setup officers:` sets; with none set, those with Manage Server |
-| Admins, in Discord | the `/wipebot` commands: setup, names on or off per channel, settings | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
+| Admins, in Discord | the `/wipebot` commands ([features.md](features.md#discord-commands)): setup, settings, names on or off per channel, Viserio, raidstrats.gg | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
 
 With the officer role set, Manage Server alone doesn't make someone an officer: an admin gives themselves the role.
 
