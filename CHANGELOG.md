@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `MCP` **Tell Wipebot an answer was wrong.** In Claude and ChatGPT, say an answer was wrong, missed something or took too long, and Wipebot offers to send a report to its maintainers: your question, the answer and what you said about it, sent only once you agree. Claude and ChatGPT never show a connector the conversation, so this is how we see the answers that need fixing.
+
 ### Fixed
 
 - `Agent` **The boss's health at the end of a pull isn't cut off.** The pull's picture had too little room on the right for a value such as 62.59%, which lost its last digit in Claude and ChatGPT.

@@ -17,7 +17,7 @@ from wipebot.core import server
 from wipebot.discord import prompt
 
 # The connector's own tools (src/wipebot/mcp/remote.py), which the in-process server doesn't register.
-CONNECTOR_TOOLS = {"my_characters", "save_note_or_plan"}
+CONNECTOR_TOOLS = {"my_characters", "report_answer", "save_note_or_plan"}
 # The core's tools with no eval case yet, and why: a new tool comes with a case.
 NO_CASE_YET = {
     "buff_at_casts": "the answers to the cases that could use it call it in fewer than two of three",

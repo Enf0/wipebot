@@ -236,7 +236,9 @@ Wipebot finds who was hit or who stood where on its own. The note and the plan a
 
 The connector brings the tools to Claude.ai, ChatGPT or similar, signed in with Warcraft Logs. It knows your
 characters from the ones you claimed there, and "my guild" means the guilds they're in. It reads the guild's saved
-notes and plans, officers save a pasted one there, and in Claude it shows the pull replay. In Claude, the plugin adds
+notes and plans, officers save a pasted one there, and in Claude it shows the pull replay. Tell it an answer was
+wrong, missed something or was slow, and it offers to send a report to the server's maintainers: the question, the
+answer and what you said, sent only once you agree. In Claude, the plugin adds
 the skill, so Claude reads logs the same way the bot does. Other clients get only the tools ([reference/mcp-clients.md](reference/mcp-clients.md)).
 
 ## In Discord

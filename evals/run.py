@@ -67,6 +67,7 @@ from wipebot.discord import config
 from wipebot.discord.checks import warnings
 from wipebot.discord.host import Context, Session
 from wipebot.discord.prompt import post_prefetch, post_question
+from wipebot.mcp import remote
 from wipebot.mcp.plugin import plugin_files
 
 HERE = Path(__file__).resolve().parent
@@ -154,7 +155,7 @@ def load_cases(folder: Path = CASES) -> list[dict]:
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "wrong_in_channel", "derived",
-                                       "drifts", "hard", "report", "tools", "calls", "cause", "request",
+                                       "drifts", "hard", "report", "tools", "calls", "asks_first", "cause", "request",
                                        *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
             only = {"bot": {"bot_only": True}, "posts": {"bot_only": True},
@@ -202,9 +203,11 @@ IN_CLAUDE = "in their own chat on claude.ai"
 OFFICER = ("an officer", 0)
 
 
-def as_officer() -> None:
-    """The in-process tools as the connector has them for an officer: with save_note_or_plan (OFFICER)."""
+def as_connector() -> None:
+    """The in-process tools as the connector has them for a signed-in officer: with save_note_or_plan (OFFICER), and
+    report_answer, which keeps nothing here."""
     server.allow_saving(server.mcp, server.DEFAULT, lambda: OFFICER)
+    remote.allow_reports(server.mcp, server.DEFAULT)
 
 
 def where(case: dict, client: bool = False) -> str:
@@ -282,11 +285,20 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
 def uncalled(case: dict, calls: list[dict], mode: str = "plugin") -> list[str]:
     """The tools the case says a right answer calls (`calls`: a step of the method no answer's text shows, such as
     reading the spec's guide before advising) that the answer's conversation didn't call. Only where the method is
-    read: a client with only the connector has no skill to give it the step."""
+    read: a client with only the connector has no skill to give it the step. And in every mode, the tools it calls
+    only once the user agreed (`asks_first`: sending a report), which only the last question does."""
+    missing = []
+    for name in case.get("asks_first") or []:
+        last = len(questions(case)) - 1
+        turns = {c.get("turn", last) for c in calls if c.get("name") == name}
+        if last not in turns:
+            missing.append(name)
+        if any(t < last for t in turns):
+            missing.append(f"{name} only after the last question (called it before the user agreed)")
     if mode == "connector":
-        return []
+        return missing
     made = {c.get("name") for c in calls}
-    return [name for name in case.get("calls") or [] if name not in made]
+    return [name for name in case.get("calls") or [] if name not in made] + missing
 
 
 def answers(cases: list[dict], results: dict[str, list[Trial]]) -> dict:
@@ -366,7 +378,7 @@ async def run(args) -> None:
              and not (args.mode == "bot" and c.get("client_only"))  # nor the connector's saving in Discord
              and (c["kind"] == "heldout") == args.held_out]  # the held-out cases only when asked, and then alone
     if args.mode != "bot":
-        as_officer()
+        as_connector()
     library, jobs = server.configure(), asyncio.Semaphore(JOBS)
     base = json.loads(baseline(args.mode).read_text()) if baseline(args.mode).exists() else None
     if base and (warning := judge_warning(base, {"judge": judged_by(args.judge_model)})):
@@ -826,7 +838,7 @@ async def _lint_then_drain(only: str) -> None:
     if not any((HERE / "results").glob("*.json")):  # before frozen(), which would make an empty cache
         raise SystemExit(f"nothing to check: no run in {HERE / 'results'} yet (`just evals` makes one)")
     frozen()
-    as_officer()  # the calls of the connector's own cases replay too
+    as_connector()  # the calls of the connector's own cases replay too
     try:
         cases = [c for c in load_cases() if picked(c, only)]
         flagged, checked = await lint(cases, HERE / "results")

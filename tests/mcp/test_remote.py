@@ -76,7 +76,19 @@ def open_client(monkeypatch, now):
                                                  ":memory:"))
 
 
-def _serving(monkeypatch, now, users):
+@pytest.fixture
+def kept() -> list[tuple]:
+    """The calls a server that keeps them (`recording_client`) was given."""
+    return []
+
+
+@pytest.fixture
+def recording_client(monkeypatch, now, users, kept):
+    """The same, keeping each call (as the deployment's call log does) in `kept`."""
+    yield from _serving(monkeypatch, now, users, lambda *call: kept.append(call))
+
+
+def _serving(monkeypatch, now, users, record=None):
     verifiers: dict[str, str] = {}
 
     async def login(client_id, secret, code, verifier, redirect_uri):
@@ -92,7 +104,7 @@ def _serving(monkeypatch, now, users):
         return [now[i] for i in ids if i in now]
     monkeypatch.setattr(accounts, "login", login)
     monkeypatch.setattr(accounts, "characters", characters)
-    with TestClient(remote.app(users), base_url=PUBLIC) as c:
+    with TestClient(remote.app(users, record=record), base_url=PUBLIC) as c:
         yield c
 
 
@@ -516,6 +528,31 @@ def test_my_characters_names_the_signed_in_users_guild_characters(client):
     mine = {t["name"]: t for t in tools}["my_characters"]
     assert mine["title"] == "My characters" and mine["_meta"] == {"openai/profile": True}
     assert all(t.get("title") for t in tools if "app" not in t.get("_meta", {}).get("ui", {}).get("visibility", []))
+
+
+def test_a_user_sends_a_report_on_an_answer_kept_as_a_call_with_who_sent_it(recording_client, kept):
+    """MCP gives the server neither the user's message nor the answer: a report is the user's to send, its own tool,
+    which clients ask before running (not read-only); what's kept is a call like any other, with its user."""
+    call, _ = session(recording_client)
+    tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
+    report = tools["report_answer"]
+    assert report["title"] == "Report answer" and "only when they ask for it or agree" in report["description"]
+    assert list(report["inputSchema"]["properties"]) == ["question", "answer", "problem", "kind"]
+    assert report["inputSchema"]["properties"]["kind"]["enum"] == ["wrong", "missing", "slow", "good"]
+    assert report["annotations"] == {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False,
+                                     "openWorldHint": False}
+    sent = {"question": "what killed us on the last pull?", "answer": "Viscous Cyst killed six at 1:39.",
+            "problem": "it was the knockback, not the cyst", "kind": "wrong"}
+    result = call("tools/call", {"name": "report_answer", "arguments": sent})
+    assert not result.get("isError")
+    assert result["content"][0]["text"].startswith("Sent to this Wipebot server's maintainers")
+    user, _client, tool, args, *_ = kept[-1]
+    assert (user, tool, args) == ("1", "report_answer", sent)  # Raider's Warcraft Logs id
+
+
+def test_a_server_that_keeps_no_calls_has_no_reports_to_send(client):
+    call, _ = session(client)
+    assert "report_answer" not in {t["name"] for t in call("tools/list", {})["tools"]}
 
 
 def test_an_officer_saves_a_pasted_note_for_the_guild_and_no_one_else_does(client, tmp_path, monkeypatch):

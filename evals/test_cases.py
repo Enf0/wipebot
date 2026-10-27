@@ -8,7 +8,7 @@ def test_the_cases_load():
     assert all(isinstance(f, str) and f.strip() for c in cases for f in c.get("facts", []))
     assert {c["id"] for c in cases if c.get("client_only")} == {"officer-saves-note", "plan-spots-at-virulence",
                                                                   "plan-where-do-i-stand", "plan-who-stays-out",
-                                                                  "night-kicks-order-changed"}
+                                                                  "night-kicks-order-changed", "report-wrong-answer"}
 
 
 def test_a_broken_trial_is_an_error_not_a_wrong_answer():

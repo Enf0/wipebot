@@ -5,6 +5,9 @@ Over HTTP the tools read Warcraft Logs with the client credentials only: a user 
 its private reports to everyone, so the server won't start with one, nor read with one saved later. Added here:
 
 - `my_characters`: the signed-in user's characters, so "how did I do?" needs no name.
+- `report_answer` (allow_reports, on a server that keeps its calls): an answer the user says is wrong, missing
+  something or slow, sent to whoever runs the server. MCP never gives a server the user's message or the model's
+  answer, so this is how its maintainers see one; the report is a kept call like any other, its arguments the report.
 - `save_note_or_plan` (server.allow_saving): a raid note or plan an officer pasted, saved for their guild. Officers
   are the characters at guild rank 0 to WIPEBOT_OFFICER_RANK (signin.Access; by default WoW's Guild Master and
   Officer ranks), as Warcraft Logs had them at sign-in or the last membership check (within the hour).
@@ -23,14 +26,14 @@ import re
 import time
 import urllib.parse
 from collections.abc import Awaitable, Callable
-from typing import Annotated
+from typing import Annotated, Literal
 
 from mcp.server.apps import APP_MIME_TYPE, Apps, ResourceCsp
 from mcp.server.auth.routes import build_metadata, cors_middleware
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
-from mcp.types import CallToolResult, TextContent
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -107,6 +110,8 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                  title=server.title("my_characters"), annotations=server.READ_ONLY, structured_output=False,
                  meta={"openai/profile": True})  # who the signed-in user is: ChatGPT tells connected accounts apart
     server.allow_saving(mcp, setup, _officer(signin))
+    if record:  # with nowhere to keep a report, there's nobody to send one to
+        allow_reports(mcp, setup)
     _any_views_address(mcp, public)
     mcp.custom_route(CALLBACK_PATH, ["GET"])(signin.callback)
     mcp.custom_route(CONSENT_PATH, ["GET", "POST"])(signin.consent)
@@ -251,6 +256,42 @@ def _my_characters(signin: SignIn):
         return (f"The user's characters {where}: {chars}. With several, the one in the report is the one "
                 "meant; if more than one or none of them is in it, ask which.")
     return my_characters
+
+
+# Sending a report adds one to the server's record and changes nothing else: not read-only, so claude.ai and ChatGPT
+# ask the user before it runs.
+REPORTS = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
+MAX_ANSWER = 20_000  # characters of an answer (a long one is about 4,000)
+MAX_TEXT = 4_000
+
+
+async def report_answer(
+        question: Annotated[str, Field(max_length=MAX_TEXT, description=(
+            "what the user asked that the answer was to, in their own words"))],
+        answer: Annotated[str, Field(max_length=MAX_ANSWER, description=(
+            "the answer word for word, only the part the user means"))],
+        problem: Annotated[str, Field(max_length=MAX_TEXT, description=(
+            "what the user says is wrong or missing, or what they liked, in their own words"))],
+        kind: Annotated[Literal["wrong", "missing", "slow", "good"], Field(description=(
+            "wrong: a fact or advice in it is wrong; missing: it left out what they asked; slow: it took too "
+            "long; good: they want to say it was right"))]) -> str:
+    """For "that's wrong", "you missed something", "that took ages" and "tell the devs this was great": a report on an
+    answer, sent to the maintainers of this Wipebot server, who read every one to fix what answers get wrong.
+    When the user says an answer was wrong, left something out or was slow, offer to send it to Wipebot's
+    maintainers; call this only when they ask for it or agree. It sends what is passed and who sent it (their
+    Warcraft Logs name), nothing else from the conversation; the maintainers read it beside the Wipebot tool calls
+    behind the answer, which this server keeps anyway. Returns that it was sent."""
+    return (f"Sent to this Wipebot server's maintainers ({kind}): the question, the answer and what the user said "
+            "about it, with their Warcraft Logs name. They read it beside the Wipebot calls behind the answer.")
+
+
+def allow_reports(mcp: MCPServer, setup: server.Setup) -> None:
+    """Give a server whose calls are kept (Remote.record) report_answer: a report is a kept call whose arguments are
+    the report."""
+    mcp.add_tool(server.guarded(report_answer, setup), name="report_answer", title=server.title("report_answer"),
+                 annotations=REPORTS, structured_output=False)
+    if tool := mcp._tool_manager.get_tool("report_answer"):  # as server.register's
+        tool.parameters = server.compact(tool.parameters)
 
 
 def _officer(signin: SignIn) -> Callable[[], tuple[str, int]]:

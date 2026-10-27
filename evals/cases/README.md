@@ -17,13 +17,15 @@ answer makes, and what would make it wrong: often the tempting misreading of the
   calls     tools an answer must call, or it fails: a step of the method its text doesn't show (`spec_guide`
             before advising a player how to play their spec); the judge sees only the answer;
             not checked with the connector only, which has no skill to give it the step
+  asks_first  tools only the last question may call, and it must: what the user has to agree to first (sending a
+            report with `report_answer`), checked in every mode
   request   for a post after a wipe (`posts.toml`): what the raider asked to have posted; without it, the
             asker's own feedback. The question is built as the bot builds it, so a post case has none
   cause     for a wipe: what an experienced raid leader names first ("enrage: Unbound Ferocity", "ability: Mutilate",
             "deaths from 0:46", "reset"), which `just evals --endings` checks pull_summary's "Ended by" against
 
 One file per kind of question; `bot.toml` holds the cases on the Discord bot's own rules, which only `--bot` runs,
-and `connector.toml` the connector's own (an officer saving a pasted note), which every mode but `--bot` runs.
+and `connector.toml` the connector's own (an officer saving a pasted note, a raider reporting an answer), which every mode but `--bot` runs.
 `posts.toml` holds the bot's posts after a wipe (`follow_pulls`), asked as the bot asks itself when a pull ends:
 `--bot` only.
 `heldout.toml` holds cases written blind on a night nothing else was built on; only `--held-out` runs them, alone,

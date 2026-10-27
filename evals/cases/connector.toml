@@ -253,3 +253,21 @@ facts = ["Zebinomage (Kick #5 right) had 1 cast go through, and 22 covered by ot
 wrong = ["blames Dragepie or anyone else for kicks in pulls 1-11 as if the note's order applied there",
          "says Attractîv missed kicks before pull 12",
          "counts a cast another player kicked as a missed kick, such as Zebinomage's covered by Karadim"]
+
+# ---- A raider reporting an answer they say is wrong (report_answer): offered, and sent only once they agree. ----
+
+[[case]]
+id = "report-wrong-answer"  # the pushback is on real-follow-up-who-touched-cyst's first answer
+tools = ["pull_summary", "report_answer"]
+asks_first = ["report_answer"]
+asker = "Enfo"
+pull = 17
+boss = "Sszorak"
+question = ["what killed everone on the last attempte",
+            "thats wrong, the cyst didnt kill us, we got knocked into the wall by the gusts",
+            "yes please"]
+expect = """Says it sent the report to Wipebot's maintainers: the answer and that the raider says the gusts' knockback,
+not the cyst, killed the raid."""
+wrong = ["says it can't send a report, or that there is no way to reach Wipebot's maintainers",
+         "asks the user to report it somewhere else instead (a website, GitHub, Discord)",
+         "asks again whether to send it"]

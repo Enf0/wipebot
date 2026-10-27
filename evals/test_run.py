@@ -205,3 +205,13 @@ def test_an_answer_without_a_call_its_case_requires_fails():
     assert uncalled(case, [{"name": "player_pull"}]) == ["spec_guide"]
     assert uncalled(case, [{"name": "player_pull"}], "connector") == []  # no skill there to give the step
     assert uncalled({"id": "wipe"}, []) == []
+
+
+def test_a_report_sent_before_the_user_agreed_fails():
+    """`asks_first`: only the last question, where the user agrees, may send the report, and in every mode."""
+    case = {"id": "report", "question": ["what killed us?", "that's wrong", "yes, send it"],
+            "asks_first": ["report_answer"]}
+    assert uncalled(case, [{"name": "pull_summary", "turn": 0}, {"name": "report_answer", "turn": 2}]) == []
+    assert uncalled(case, [{"name": "pull_summary", "turn": 0}], "connector") == ["report_answer"]
+    assert uncalled(case, [{"name": "report_answer", "turn": 1}, {"name": "report_answer", "turn": 2}]) == [
+        "report_answer only after the last question (called it before the user agreed)"]
