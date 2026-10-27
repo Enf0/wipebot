@@ -620,6 +620,20 @@ async def test_a_follow_up_is_asked_in_the_askers_conversation_as_if_typed(bot, 
     assert len(replied) == 1 and recorded(bot.store)[0][2] == "Replay the deaths?"
 
 
+async def test_a_plain_answer_keeps_its_links_previews_off_when_its_follow_ups_go(bot, asked, channel, member,
+                                                                                   monkeypatch):
+    edits: list = []
+
+    async def edit(**kwargs):
+        edits.append(kwargs)
+    click = Click(channel, member)
+    click.message = SimpleNamespace(id=5, flags=SimpleNamespace(components_v2=False), edit=edit)
+    click.question.reply = lambda *a, **k: asyncio.sleep(0, SimpleNamespace(id=1))
+    monkeypatch.setattr(wipebot, "without_follow_ups", lambda m: "a view without them")
+    await bot.follow_up(click, "Replay the deaths?")
+    assert edits == [{"view": "a view without them", "suppress": True}]
+
+
 async def test_only_the_asker_clicks_their_follow_ups(channel, member):
     asked_by: list = []
     other = Click(channel, member, user_id=8)
