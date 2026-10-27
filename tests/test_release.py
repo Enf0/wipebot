@@ -43,3 +43,9 @@ def test_anything_added_or_changed_calls_for_a_minor_version_and_fixes_alone_a_p
 def test_only_the_projects_version_is_bumped():
     pyproject = '[project]\nname = "wipebot"\nversion = "0.2.0"\n\n[tool.x]\nversion = "9.9.9"\n'
     assert release.bump(pyproject, "0.3.0") == pyproject.replace('"0.2.0"', '"0.3.0"')
+
+
+def test_a_released_versions_notes_are_its_section():
+    cut = release.cut(CHANGELOG, "0.3.0", datetime.date(2026, 10, 23))
+    assert release.section(cut, "0.3.0") == release.unreleased(CHANGELOG)
+    assert release.section(cut, "0.2.0") == "### Fixed\n\n- `Agent` An older fix."

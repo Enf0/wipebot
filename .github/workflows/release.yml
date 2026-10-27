@@ -1,0 +1,37 @@
+# Makes the GitHub release for a pushed version tag (`just release <version>` pushes it): its notes are the version's
+# CHANGELOG.md section. A Claude Code cloud session may push a tag but not write a release, so this does. Then, where
+# the repository secret WIPEBOT_DEV_DISPATCH_TOKEN is set (a token that may start the maintainers' private repo's
+# workflows), it starts their Deploy workflow for the public copy at this release; a fork or a copy has no such
+# secret, and that step is skipped. Actions pinned by commit, their version beside it.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write  # the release
+
+jobs:
+  release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          python3 -m scripts.release --notes "${TAG#v}" > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --verify-tag --title "Wipebot ${TAG#v}" --notes-file "$RUNNER_TEMP/notes.md"
+      - name: Deploy the public copy
+        env:
+          GH_TOKEN: ${{ secrets.WIPEBOT_DEV_DISPATCH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        if: ${{ env.GH_TOKEN != '' }}
+        run: gh api -X POST repos/Enf0/wipebot-dev/actions/workflows/deploy.yml/dispatches -f ref=main -f 'inputs[target]=public' -f "inputs[wipebot]=$TAG"

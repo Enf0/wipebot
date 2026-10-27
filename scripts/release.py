@@ -1,6 +1,8 @@
 """Cut a release of Wipebot (`just release <version>`): CHANGELOG.md's Unreleased becomes the version's section, dated
 today, under a new empty Unreleased; pyproject.toml and uv.lock take the version; then a commit "chore: Wipebot
-<version>", the tag v<version>, both pushed, and a GitHub release whose notes are the section. Without a version it
+<version>" and the tag v<version>, both pushed. The tag's push makes the GitHub release, whose notes are the section
+(.github/workflows/release.yml, which reads them with `--notes <version>`): a Claude Code cloud session may push a
+tag, but not write a release. Without a version it
 says which one the changelog calls for and changes nothing: a minor version for anything Added, Changed or Removed,
 a patch for fixes only. What goes in the changelog, and the commit's summary (`--summary`), are written by hand
 first; deploying is a deployment's own."""
@@ -21,6 +23,13 @@ VERSION = re.compile(r'^version = "([^"]+)"$', re.M)  # the first is [project]'s
 def unreleased(changelog: str) -> str:
     """The Unreleased section's text, without its heading."""
     start = changelog.index(UNRELEASED) + len(UNRELEASED)
+    end = changelog.find("\n## [", start)
+    return changelog[start:end if end != -1 else len(changelog)].strip()
+
+
+def section(changelog: str, version: str) -> str:
+    """A released version's section, without its heading: its release notes."""
+    start = changelog.index("\n", changelog.index(f"## [{version}]"))
     end = changelog.find("\n## [", start)
     return changelog[start:end if end != -1 else len(changelog)].strip()
 
@@ -46,9 +55,9 @@ def git(*args: str) -> str:
     return subprocess.run(["git", *args], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
 
 
-def run(*args: str, stdin: str | None = None) -> None:
+def run(*args: str) -> None:
     print("$", " ".join(args), flush=True)
-    subprocess.run(args, cwd=ROOT, check=True, input=stdin, text=True)
+    subprocess.run(args, cwd=ROOT, check=True, text=True)
 
 
 def ready() -> str:
@@ -67,8 +76,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("version", nargs="?", help="e.g. 0.3.0; omit to see which the changelog calls for")
     parser.add_argument("--summary", default="", help="the release commit's body: what the version brings")
+    parser.add_argument("--notes", action="store_true", help="only print the released version's notes")
     args = parser.parse_args()
     changelog, pyproject = CHANGELOG.read_text(encoding="utf-8"), PYPROJECT.read_text(encoding="utf-8")
+    if args.notes:
+        print(section(changelog, args.version))
+        return
     if not (found := VERSION.search(pyproject)):
         sys.exit("pyproject.toml has no version")
     current = found[1]
@@ -94,7 +107,7 @@ def main() -> None:
     run("git", "commit", "--quiet", "-m", f"chore: {title}" + (f"\n\n{args.summary}" if args.summary else ""))
     run("git", "tag", "-a", tag, "-m", title)
     run("git", "push", "--atomic", "origin", "main", tag)
-    run("gh", "release", "create", tag, "--verify-tag", "--title", title, "--notes-file", "-", stdin=notes + "\n")
+    print(f"pushed {tag}: the Release workflow makes the GitHub release")
 
 
 if __name__ == "__main__":

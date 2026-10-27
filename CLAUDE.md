@@ -20,7 +20,7 @@ it (pyproject.toml, checked by `just check`).
 - `just snapshot` rewrites the pinned tool outputs; then run `just evals --lint` (no model, a minute) for cases it
   left stale. Recording a tool test's data: tests/README.md.
 - `just evals`: evals/README.md. `just release`: says which version CHANGELOG.md calls for, and with a version makes
-  the release (changelog, version, commit, tag, push, GitHub release).
+  the release (changelog, version, commit, tag, push; the tag's workflow makes the GitHub release).
 
 ## Rules
 
