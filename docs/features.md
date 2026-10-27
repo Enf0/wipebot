@@ -26,6 +26,10 @@ own card on that pull, which only they see.*
 
 *"How did I do?" over a night, in a DM. The follow-ups are buttons: a click asks them.*
 
+![Claude answering "Who keeps getting hit by Virulence?": a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths it set up, then the answer](images/claude-damage-meter.webp)
+
+*A ranking of players comes as a damage meter, here Virulence over the whole night.*
+
 The pictures are real tool output from the tests' report, with made-up names; the chat around them is a mock.
 
 ## A pull: why did we wipe?

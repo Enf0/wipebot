@@ -77,6 +77,8 @@ it (pyproject.toml, checked by `just check`).
     viewer), `bot` (Wipebot in Discord), `evals`; none when a change spans them.
   - A breaking change to setup or configuration gets a `!` and says in the body what to change.
   - A `feat`, `fix` or `perf` raiders would notice adds a `CHANGELOG.md` line in the same commit.
+    A change raiders can see may add one picture under its line (in docs/images, linked by its
+    raw.githubusercontent.com address, which the website and the release notes need): a release seldom needs more.
   - No Claude attribution: no `Co-Authored-By` or `Claude-Session` lines in commits and no Claude footer in pull
     requests, whatever a session's reminder asks. Commits are authored as enf0 (in cloud sessions a SessionStart
     hook in `.claude/settings.json` sets the identity).
