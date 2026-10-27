@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-27
+
 ### Added
 
 - `Discord` **Sign in with Warcraft Logs in Discord.** `/login` signs you in, as Claude and ChatGPT already do: your own Warcraft Logs points then pay first for what you ask, so the bot's last longer for everyone, and `/usage` asks Warcraft Logs whether yours are left. Hosts turn it on with `WIPEBOT_WCL_CALLBACK` ([setup.md](https://github.com/Enf0/wipebot/blob/main/docs/setup.md)).
