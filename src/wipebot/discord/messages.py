@@ -1,5 +1,6 @@
-"""How the bot's answers look in Discord, as Components V2 messages: the text, then each picture whole in a box with
-a button to its pull on Warcraft Logs and the picture's own actions (Act, Pick), edged gold for a new guild best.
+"""How the bot's answers with pictures look in Discord, as Components V2 messages (one without is plain text, which
+a notification shows): the text, then each picture whole in a box with a button to its pull on Warcraft Logs and the
+picture's own actions (Act, Pick), edged gold for a new guild best.
 
 An action answers the one who clicked with the next picture, which only they see (an ephemeral reply), with its own
 actions in turn: the pull's first death, a player's card, against top players, their night, a pull of the night, and
@@ -183,12 +184,19 @@ class FollowUp(discord.ui.DynamicItem[discord.ui.Button], template=r"wbf\|(?P<as
         await follow_up(interaction, self.question)
 
 
-def without_follow_ups(message: discord.Message) -> discord.ui.LayoutView | None:
+def without_follow_ups(message: discord.Message) -> discord.ui.View | discord.ui.LayoutView | None:
     """The message's components without its follow-up buttons, once one was asked (so it isn't asked twice); None when
-    it has none."""
+    it has none. An answer with pictures is a Components V2 message, one without a plain message with a view."""
+    def follow_up(item: object) -> bool:
+        return str(getattr(item, "custom_id", "")).startswith("wbf|")
+    if not message.flags.components_v2:
+        plain = discord.ui.View.from_message(message, timeout=None)
+        buttons = [b for b in plain.children if follow_up(b)]
+        for b in buttons:
+            plain.remove_item(b)
+        return plain if buttons else None
     view = discord.ui.LayoutView.from_message(message, timeout=None)
-    rows = [c for c in view.children if isinstance(c, discord.ui.ActionRow)
-            and any(str(getattr(b, "custom_id", "")).startswith("wbf|") for b in c.children)]
+    rows = [c for c in view.children if isinstance(c, discord.ui.ActionRow) and any(map(follow_up, c.children))]
     for row in rows:
         view.remove_item(row)
     return view if rows else None

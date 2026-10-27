@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Discord` **Pictures sit next to what they show, now for real.** The bot rarely placed a picture inside its answer, so it still came at the end. Any answer longer than three bullets now puts its picture right after the part it backs.
+- `Discord` **Notifications show the answer.** An answer without pictures is a plain message again, so a notification shows its text instead of nothing. Answers with pictures still show only "attached images": Discord doesn't let those carry a preview.
+
 ## [0.11.0] - 2026-10-27
 
 ### Added

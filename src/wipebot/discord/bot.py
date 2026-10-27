@@ -26,7 +26,7 @@ from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
 from . import commands, emojis, host
-from .chat import Conversations, SlowStart, split_message
+from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, Answer, Context, ModelError, Session
 from .messages import (  # noqa: F401 (Picture: the tests')
@@ -90,7 +90,7 @@ INVITE_PERMISSIONS = discord.Permissions(view_channel=True, send_messages=True, 
                                          send_messages_in_threads=True, attach_files=True)
 MAX_MESSAGES = 4  # an answer is cut after this many Discord messages
 CUT = "-# The answer was cut here: it ran past four messages."
-# An answer's message is Components V2: up to this many characters of text in it (a plain message holds 2000)
+# An answer with pictures is Components V2: up to this many characters of text in it (a plain message holds 2000)
 TEXT_LIMIT = 4000
 
 
@@ -1042,22 +1042,38 @@ class WipeBot(discord.Client):
     @staticmethod
     async def _send(channel: discord.abc.Messageable, answer: Answer, reply_to: discord.Message | None = None,
                     footer: str | None = None, actions: Sequence[Act] = (), asker: int | None = None) -> list[int]:
-        """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES Components V2 messages
-        (`answer_layout`: no link previews, as there are no embeds), with `footer` in a small line at the end and the
-        pictures for it (maps, views) on its last message, each whole and where the answer placed it, with `actions`
-        under its text unless a picture has the same one, and the follow-ups it offers as buttons for `asker` (none
-        without). Returns the ids of the messages sent."""
-        chunks = split_message(answer.text, TEXT_LIMIT)
+        """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES messages, without link
+        previews, with `footer` in a small line at the end, `actions` under its text unless a picture has the same one,
+        and the follow-ups it offers as buttons for `asker` (none without). With pictures (maps, views), Components V2
+        messages (`answer_layout`), the pictures on the last, each whole and where the answer placed it; without, plain
+        messages, whose text a notification shows (a V2 message has none to show). Returns the ids of the messages
+        sent."""
+        pictured = bool(answer.pictures)
+        limit = TEXT_LIMIT if pictured else DISCORD_LIMIT
+        chunks = split_message(answer.text, limit)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
-            chunks[-1] = chunks[-1][:TEXT_LIMIT - len(CUT) - 3].rstrip() + " …\n" + CUT
+            chunks[-1] = chunks[-1][:limit - len(CUT) - 3].rstrip() + " …\n" + CUT
         if footer:
             tail = f"-# {footer}"
-            if chunks and len(chunks[-1]) + len(tail) + 1 <= TEXT_LIMIT:
+            if chunks and len(chunks[-1]) + len(tail) + 1 <= limit:
                 chunks[-1] += "\n" + tail
             else:
                 chunks.append(tail)
         sent: list[discord.Message] = []
+        follow = [FollowUp(asker, n, q) for n, q in enumerate(answer.follow_ups)] if asker else []
+        if not pictured:
+            for i, chunk in enumerate(chunks):
+                post = reply_to.reply if i == 0 and reply_to else channel.send
+                buttons = [*actions, *follow] if i == len(chunks) - 1 else []
+                if not buttons:
+                    sent.append(await post(chunk, suppress_embeds=True))
+                    continue
+                view = discord.ui.View(timeout=None)
+                for b in buttons:
+                    view.add_item(b)
+                sent.append(await post(chunk, view=view, suppress_embeds=True))
+            return [m.id for m in sent]
         for i, chunk in enumerate(chunks):
             last = i == len(chunks) - 1
             drawn = answer.pictures if last else []
@@ -1069,12 +1085,12 @@ class WipeBot(discord.Client):
             post = reply_to.reply if i == 0 and reply_to else channel.send
             shown = {(a.what, a.pull) for p in pictures for a in p.actions if isinstance(a, Act)}
             extra = [a for a in actions if (a.what, a.pull) not in shown] if last else []
-            follow = [FollowUp(asker, n, q) for n, q in enumerate(answer.follow_ups)] if last and asker else []
+            follows = follow if last else []
             try:
-                sent.append(await post(view=answer_layout(chunk, pictures, extra, follow), files=files))
+                sent.append(await post(view=answer_layout(chunk, pictures, extra, follows), files=files))
             except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its pictures
                 if not files:
                     raise
                 log.warning("couldn't attach the answer's pictures: the bot lacks Attach Files there")
-                sent.append(await post(view=answer_layout(chunk, actions=extra, follow=follow)))
+                sent.append(await post(view=answer_layout(chunk, actions=extra, follow=follows)))
         return [m.id for m in sent]

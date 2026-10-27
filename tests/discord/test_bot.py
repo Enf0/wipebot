@@ -484,7 +484,7 @@ async def test_a_raiders_feedback_goes_to_their_dms_and_replies_to_it_are_about_
     assert key == ("dm", 7) and (ctx.asker, ctx.where, ctx.pull, ctx.boss) == ("Torvek", "in a DM", 12, "Sszorak")
     assert question.startswith("Sszorak pull 12 just ended, and Torvek asked for their own feedback")
     assert dm.sent == ["**Wiped.**"] and bot.store.pull_for_message(101) == ("LIVE1", 30)
-    assert not [c for c in dm.views[-1].walk_children() if isinstance(c, Act)]
+    assert dm.views[-1] is None  # no buttons: a raider's own feedback in a DM is their card already
     assert recorded(bot.store)[0][::5] == ("follow", 30)
 
 
@@ -562,24 +562,29 @@ async def test_posts_after_wipes_outlive_a_restart(bot, store, library, member, 
 # ---------- sending ----------
 
 
-async def test_answers_are_components_v2_messages_with_an_optional_footer(channel):
+async def test_an_answer_without_pictures_is_plain_text_a_notification_shows(channel):
     await WipeBot._send(channel, Answer("Hey! Ask me about a pull."))
     await WipeBot._send(channel, Answer("**Mutilate at 2:15...**"), footer="🧪 TEST")
     assert channel.sent == ["Hey! Ask me about a pull.", "**Mutilate at 2:15...**\n-# 🧪 TEST"]
-    assert all(v.has_components_v2() for v in channel.views)
-    assert await WipeBot._send(channel, Answer("x" * 2500)) == [3]  # a message holds 4000 characters
-    assert await WipeBot._send(channel, Answer("x" * 4500)) == [4, 5]  # split; the ids of the messages sent
+    assert channel.views == [None, None]  # plain messages: a V2 one has no text for its notification
+    assert await WipeBot._send(channel, Answer("x" * 2500)) == [3, 4]  # a plain message holds 2000 characters
+    drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
+    assert await WipeBot._send(channel, Answer("x" * 2500, calls=[drawn])) == [5]  # with a picture, V2: 4000
+    assert channel.views[-1].has_components_v2()
 
 
 
 async def test_the_follow_ups_an_answer_offers_are_buttons_for_its_asker_last(channel):
     answer = Answer("**Wiped.**", follow_ups=["Replay the deaths?", "Klar for P2?"])
     await WipeBot._send(channel, answer, asker=7)
-    rows = [c for c in channel.views[-1].children if isinstance(c, discord.ui.ActionRow)]
-    assert [[(b.question, b.item.custom_id) for b in r.children] for r in rows] == [
-        [("Replay the deaths?", "wbf|7|0"), ("Klar for P2?", "wbf|7|1")]]
+    assert [(b.question, b.item.custom_id) for b in channel.views[-1].children] == [
+        ("Replay the deaths?", "wbf|7|0"), ("Klar for P2?", "wbf|7|1")]
     await WipeBot._send(channel, answer)  # nobody to ask them for (a test answer): none
-    assert not [c for c in channel.views[-1].children if isinstance(c, discord.ui.ActionRow)]
+    assert channel.views[-1] is None
+    drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
+    await WipeBot._send(channel, Answer("**Wiped.**", calls=[drawn], follow_ups=["Klar for P2?"]), asker=7)
+    rows = [c for c in channel.views[-1].children if isinstance(c, discord.ui.ActionRow)]
+    assert [[b.question for b in r.children] for r in rows] == [["Klar for P2?"]]  # last, under the picture
 
 
 class Click:
