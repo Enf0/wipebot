@@ -480,7 +480,7 @@ async def test_a_picture_the_answer_places_goes_where_it_says(session):
     answer = await session.ask("how did I do?", Context())
     assert answer.text == "**Strong night.**\n1. Coiled Altar: top 3.\n2. Twin Fangs: **Torvek** never died."
     at = dict((tool, n) for n, tool in answer.marks)
-    assert answer.text[:at["player_night"]].endswith("top 3.\n") and set(at) == {"player_night", "nothing_drawn"}
+    assert answer.text[:at["player_night"]].endswith("top 3.\n") and set(at) == {"player_night"}  # not the last
     night = ToolCall("player_night", {}, "", False, [b"1", b"2"])
     pull = ToolCall("player_pull", {}, "", False, [b"3"])
     answer.calls = [pull, night]  # the view placed is the one shown, though drawn second
@@ -505,5 +505,7 @@ def test_a_long_answer_that_leaves_its_picture_unplaced_gets_it_after_the_headli
     assert host.placed_by_default(long, [], "player_night") == [(len("**Solid night.**"), "player_night")]
     assert host.placed_by_default(long, [(3, "progress")], "player_night") == [(3, "progress")]  # its own place
     assert host.placed_by_default("**Short.**\n- one\n- two\n- three", [], "player_night") == []  # under it all
+    assert host.placed_by_default(long, [(len(long), "player_night")], "player_night") == [
+        (len("**Solid night.**"), "player_night")]  # a mark after it all: as if left out
     assert host.placed_by_default(long, [], None) == []  # only a map: under it all
     assert host.placed_by_default("**Solid night.** - one - two - three - four", [], "progress") == []
