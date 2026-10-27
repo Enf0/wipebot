@@ -27,5 +27,5 @@ Personal defensives (list and cooldowns from Lorrgs; use times from the log):
   Barkskin: last used at 0:30 (60 s cooldown), on cooldown
 Healthstones and healing potions before death: 0; combat potions (they don't heal): 1
 Other deaths within 15 s: Draiman (no killing blow recorded, 0:53)
-If pressed at the start of the lethal burst (0:44, the first hit after they were last at 60%+ health; 12.72k overkill to make up; healing as it was; secondary to what killed them):
-  a healthstone (if they had one; none used this pull) (heals 25% of maximum health): heals 215.34k just before the killing hit: would have kept them alive
+If pressed at the start of the lethal burst (0:44, the first hit after they were last at 60%+ health; a heal after the last hit 1 s or more before the killing hit, time to see it; 12.72k overkill to make up; healing as it was; secondary to what killed them):
+  a healthstone (if they had one; none used this pull) (heals 25% of maximum health): heals 215.34k pressed 1.1 s before the killing hit: would have kept them alive

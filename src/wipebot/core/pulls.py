@@ -59,7 +59,7 @@ class PullSummary:
     difficulty: str
     pull_no: int
     kill: bool
-    boss_pct: float | None
+    boss_pct: float | None  # how far the wipe got (wipe_pct)
     phase: str | None
     duration_ms: float
     deaths: list[Death]
@@ -70,6 +70,7 @@ class PullSummary:
     guild_best: GuildBest | None = None  # the best wipe in the guild's earlier logs
     decided: Decided | None = None  # when the wipe was decided, and by what, if it was
     live: bool = False  # still being logged: neither a kill nor a wipe yet
+    phase_health: float | None = None  # on a boss with phases, its health in the phase the pull ended in
 
 
 def wipe_pct(fight: dict) -> float | None:
@@ -121,6 +122,30 @@ def end_buffs(fight: dict, buff_events: list[dict], routine: Collection[int] = (
                 and fight["endTime"] - e["timestamp"] <= END_BUFF_WINDOW_MS:
             found[e["abilityGameID"]] = min(found.get(e["abilityGameID"], e["timestamp"]), e["timestamp"])
     return sorted(((a, at - t0) for a, at in found.items()), key=lambda x: x[1])
+
+
+def phase_health(fight: dict) -> float | None:
+    """The boss's health in the phase a pull ended in, where it isn't Warcraft Logs' measure of the whole fight (a
+    boss whose phases each start a new health bar, such as the Coiled Altar): how raiders count such a wipe ("P2 at
+    68%"). None for a boss without phases or where the two agree."""
+    health, pct = fight.get("bossPercentage"), wipe_pct(fight)
+    if not phase_label(fight) or health is None or pct is None or abs(health - pct) < 0.05:
+        return None
+    return health
+
+
+def by_phase(fights: Iterable[dict]) -> bool:
+    """Whether wipes on this boss are counted by phase (phase_health): its % then needs saying it's WCL's."""
+    return any(phase_health(f) is not None for f in fights)
+
+
+def wipe_text(fight: dict, wcl: bool = True) -> str:
+    """How far a wipe got as raiders say it: on a boss counted by phase, the phase and the boss's health in it, then
+    (with `wcl`) Warcraft Logs' measure of the whole fight, which ranks wipes across phases ('P2 68.3% (WCL 70.5%)');
+    otherwise the boss's % ('62.6%')."""
+    if (health := phase_health(fight)) is None:
+        return pct_text(wipe_pct(fight))
+    return f"{phase_label(fight)} {health:.1f}%" + (f" (WCL {wipe_pct(fight):.1f}%)" if wcl else "")
 
 
 def phase_label(fight: dict) -> str | None:
@@ -186,6 +211,7 @@ def summarize(
         guild_best=guild_best,
         decided=decided,
         live=bool(fight.get("inProgress")),
+        phase_health=phase_health(fight),
     )
 
 
@@ -198,17 +224,18 @@ def first_by_name(buffs: Iterable[tuple[str, float]]) -> list[tuple[str, float]]
     return list(first.items())
 
 
-def best_marks(pct: float, tonight: float | None, before: GuildBest | None) -> list[str]:
+def best_marks(pct: float, tonight: float | None, before: GuildBest | None, wcl: str = "") -> list[str]:
     """How a wipe at `pct` compares with the log's earlier wipes (`tonight`) and the guild's earlier logs
-    (`before`, None when it has none or they weren't read): "new guild best" only when it beats both."""
+    (`before`, None when it has none or they weren't read): "new guild best" only when it beats both. `wcl` names
+    the % as Warcraft Logs' ("WCL ") on a boss with phases, where raiders count the phase's health instead."""
     marks = []
     if tonight is not None:
-        marks.append("best of this log so far" if pct < tonight else f"best of this log {tonight:.1f}%")
+        marks.append("best of this log so far" if pct < tonight else f"best of this log {wcl}{tonight:.1f}%")
     if before is not None:
         if pct < min(before.pct, tonight if tonight is not None else before.pct):
-            marks.append(f"**new guild best!** (before this log: {before.text()})")
+            marks.append(f"**new guild best!** (before this log: {wcl}{before.text()})")
         else:
-            marks.append(f"guild best before this log {before.text()}")
+            marks.append(f"guild best before this log {wcl}{before.text()}")
     return marks
 
 
@@ -225,17 +252,24 @@ def format_summary(s: PullSummary) -> str:
     if s.kill:
         return f"{head} · **KILL** · {clock(s.duration_ms)} · {plural(len(s.deaths), 'death')}"
 
+    phased = s.phase is not None and s.phase_health is not None  # as raiders count it: the phase, its health
+    wcl = "WCL " if phased else ""  # the % that ranks wipes, then, is Warcraft Logs' own
     if s.live:
         pct = f", the boss at {s.boss_pct:.1f}% so far" if s.boss_pct is not None else ""
+        if phased:
+            pct = f", {s.phase} at {s.phase_health:.1f}% so far"
         parts = [head, f"**in progress**{pct}"]
     else:
         pct = f" at **{s.boss_pct:.1f}%**" if s.boss_pct is not None else " (boss health not logged)"
+        if phased:
+            pct = f" in **{s.phase} at {s.phase_health:.1f}%**" + (
+                f" (WCL {s.boss_pct:.1f}%)" if s.boss_pct is not None else "")
         parts = [head, f"{'reset' if s.reset else 'wipe'}{pct}"]
-    if s.phase:
+    if s.phase and not phased:
         parts.append(s.phase)
     parts.append(clock(s.duration_ms))
     if s.boss_pct is not None and not s.reset and not s.live:
-        parts += best_marks(s.boss_pct, s.best_pct, s.guild_best)
+        parts += best_marks(s.boss_pct, s.best_pct, s.guild_best, wcl)
     lines = [" · ".join(parts)]
     if s.boss_buffs:
         lines.append("Boss buffs at the end: " + " · ".join(f"**{name}** (from {clock(at)})"
@@ -252,5 +286,5 @@ def format_summary(s: PullSummary) -> str:
             lines.append(f"Killed by, until the wipe was decided at {clock(s.decided.at_ms)} ({s.decided.why}): "
                          + (killers_text(counted) or "none") + f" ({later}: fallout)")
     if len(s.trend) > 1 and not s.reset and not s.live:
-        lines.append(f"Last {len(s.trend)}: " + " → ".join(f"{p:.1f}" for p in s.trend))
+        lines.append(f"Last {len(s.trend)}{' (WCL %)' if phased else ''}: " + " → ".join(f"{p:.1f}" for p in s.trend))
     return "\n".join(lines)

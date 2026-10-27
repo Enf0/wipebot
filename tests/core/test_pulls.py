@@ -14,6 +14,7 @@ from wipebot.core.pulls import (
     summarize,
     wipe_pct,
     wipe_pcts,
+    wipe_text,
 )
 from wipebot.core.report import Report
 
@@ -124,6 +125,14 @@ def test_phase_label_counts_returns():
     assert phase_label({"lastPhase": 2, "phaseTransitions": [{"id": 1}, {"id": 2}]}) == "P2"
     assert phase_label({"lastPhase": 1, "phaseTransitions": [{"id": 1}, {"id": 2}, {"id": 1}]}) == "P1 (2nd time)"
     assert phase_label({"lastPhase": 2, "lastPhaseIsIntermission": True}) == "I2"
+
+
+def test_a_boss_whose_phases_start_a_new_health_bar_is_counted_by_phase():
+    p2 = {"lastPhase": 2, "phaseTransitions": [{"id": 1}, {"id": 2}], "bossPercentage": 68.34, "fightPercentage": 70.5}
+    assert wipe_text(p2) == "P2 68.3% (WCL 70.5%)" and wipe_text(p2, wcl=False) == "P2 68.3%"
+    one_bar = {"lastPhase": 1, "phaseTransitions": [{"id": 1}], "bossPercentage": 62.6, "fightPercentage": 62.6}
+    assert wipe_text(one_bar) == "62.6%"  # phases on one health bar: the boss's % is the wipe's
+    assert wipe_text({"lastPhase": 0, "bossPercentage": 40.0, "fightPercentage": 40.0}) == "40.0%"
 
 
 def test_resets_are_left_out_of_best_and_trend(night):

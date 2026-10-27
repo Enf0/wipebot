@@ -348,3 +348,13 @@ def test_a_pull_can_be_named_kill_best_wipe_first_or_last(rep):
         rep.fight("kill", "sszorak")
     with pytest.raises(FactError, match="give a pull number or one of kill, best wipe"):
         rep.fight("the good one", "sszorak")
+
+
+def test_a_heal_counts_only_with_time_to_press_it_and_room_to_heal():
+    def hit(ms, hp):
+        return {"timestamp": ms, "hitPoints": hp, "maxHitPoints": 1000}
+    # a big hit from full health, then the killing tick 22 ms later: nobody could have pressed anything
+    assert deaths._heal_in_time([hit(0, 990), hit(10_000, 60), hit(10_022, 0)], 1000, 250)[0] == 10
+    assert deaths._heal_in_time([hit(9_500, 60), hit(10_022, 0)], 1000, 250)[0] == 0
+    # left at 40% two seconds before the kill: the whole healthstone counts
+    assert deaths._heal_in_time([hit(8_000, 400), hit(9_500, 300), hit(10_000, 0)], 1000, 250)[0] == 250

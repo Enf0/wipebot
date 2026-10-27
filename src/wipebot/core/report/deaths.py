@@ -127,6 +127,7 @@ async def _raid_cooldowns_lines(rep: Report, f: dict, deaths: list[dict]) -> lis
 
 
 BURST_FROM_PCT = 60  # the lethal burst: the hits since the player was last at this much health or more
+REACT_MS = 1_000  # a heal counts only if pressed after a hit at least this long before the killing hit: time to see it
 
 
 BURST_DEATHS, BURST_MS = 3, 3_000  # this many deaths this close together: a moment for raid cooldowns
@@ -163,10 +164,10 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
              and 100 * h["hitPoints"] / h["maxHitPoints"] >= BURST_FROM_PCT]
     burst = hits[above[-1] + 1:] if above and above[-1] + 1 < len(hits) else hits
     start = burst[0]["timestamp"]
-    before_kill = next((h["hitPoints"] for h in reversed(hp_hits[:-1])), None)  # health before the killing hit
     t0 = f["startTime"]
     lines = [f"If pressed at the start of the lethal burst ({clock(start - t0)}, the first hit after they were last "
-             f"at {BURST_FROM_PCT}%+ health; {short(overkill)} overkill to make up; healing as it was; secondary to "
+             f"at {BURST_FROM_PCT}%+ health; a heal after the last hit {REACT_MS / 1000:g} s or more before the "
+             f"killing hit, time to see it; {short(overkill)} overkill to make up; healing as it was; secondary to "
              "what killed them):"]
     casts = await _their_casts(rep, f, p, d["timestamp"])
     spells = await rep.defensive_spells(p)
@@ -189,9 +190,7 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
             schools = await rep.schools()
             covered = [h for h in covered if schools.get(h["abilityGameID"], 1) != 1]
         if effect.kind == "heal":
-            room = max_hp - before_kill if before_kill is not None else max_hp
-            saved = min((effect.pct or 0) / 100 * max_hp, room)
-            how = f"heals {short(saved)} just before the killing hit"
+            saved, how = _heal_in_time(hp_hits, max_hp, (effect.pct or 0) / 100 * max_hp)
         elif effect.kind == "absorb":  # a shield or temporary health: on top of their health, not capped by it
             saved = (effect.pct or 0) / 100 * max_hp
             how = f"absorbs {short(saved)} of the burst"
@@ -209,6 +208,23 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
     if len(lines) == 1:
         return []
     return lines
+
+
+def _heal_in_time(hp_hits: list[dict], max_hp: float, heal: float) -> tuple[float, str]:
+    """What a heal pressed in time adds at the killing hit: pressed after the last hit at least REACT_MS before it,
+    and only the part they had room for until then (a heal at full health is overhealing)."""
+    kill = hp_hits[-1]["timestamp"]
+    early = [i for i, h in enumerate(hp_hits[:-1]) if kill - h["timestamp"] >= REACT_MS]
+    if not early:
+        return 0, f"no hit came {REACT_MS / 1000:g} s or more before the killing hit, so no time to press it"
+    t = hp_hits[early[-1]]["timestamp"]
+    peak = max(h["hitPoints"] for h in hp_hits[early[-1]:-1])
+    saved = min(heal, max_hp - peak)
+    gap = (kill - t) / 1000
+    if saved < heal:
+        return saved, (f"heals only {short(saved)} pressed {gap:.1f} s before the killing hit: they were at "
+                       f"{round(100 * peak / max_hp)}% health from then on")
+    return saved, f"heals {short(saved)} pressed {gap:.1f} s before the killing hit"
 
 
 async def _raid_cooldowns_at(rep: Report, f: dict, deaths: list[dict]) -> list[str]:

@@ -1122,7 +1122,8 @@ async def progress(boss: Annotated[str | None, Field(description=(
     start here for a night.
     Without a boss, the night at a glance first: every boss with pulls, kills (with speed and execution
     percentiles), best wipe, time spent, the trend, and the guild's progress rank. Then every pull on the boss:
-    boss %, phase, duration and first death of each, the guild's best wipe before the night, averages over the
+    boss % and phase (on a boss with phases, the phase and the boss's health in it first, as raiders count a
+    wipe), duration and first death of each, the guild's best wipe before the night, averages over the
     night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull, and the night's
     killer. With `first_hits`: who hit the boss first on each pull, with what and how far ahead of the next
     player, and a tally ("who pulled?").

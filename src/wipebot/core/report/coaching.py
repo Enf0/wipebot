@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError, spaced
-from ..pulls import FIRST_DEATHS, Decided, is_reset, pct_text, wipe_pct
+from ..pulls import FIRST_DEATHS, Decided, is_reset, wipe_text
 from ..text import clock, name_key, plural, short
 from ..wcl import WCLError
 from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report, unavailable
@@ -594,7 +594,7 @@ def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns) -> 
     cd_text = [cds.text(sp["name"], len(times), possible)
                + (" at " + ", ".join(clock(t) for t in sorted(times)) if times else "")
                for sp, times, possible in pull.cooldowns if sp["name"] in cds.used and sp["name"] not in never]
-    pct = "kill" if f["kill"] else pct_text(wipe_pct(f))
+    pct = "kill" if f["kill"] else wipe_text(f)
     return (f"  pull {rep.pull_no(f)} ({pct}, {clock(f['endTime'] - f['startTime'])}): {perf}; {death}"
             + (f"; cooldowns {', '.join(cd_text)}" if cd_text else ""))
 

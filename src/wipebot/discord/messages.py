@@ -20,7 +20,7 @@ from typing import Any, cast
 import discord
 
 from wipebot.core import server
-from wipebot.core.pulls import is_reset, wipe_pct
+from wipebot.core.pulls import is_reset, wipe_pct, wipe_text
 from wipebot.core.report import FactError
 
 from . import host
@@ -313,6 +313,7 @@ async def _extras(tool: str, args: dict, with_actions: bool) -> tuple[str | None
 
 
 def _result(f: dict) -> str:
-    """'kill', 'reset' or the boss % left, for a pull's choice in a menu."""
-    pct = wipe_pct(f)
-    return "kill" if f.get("kill") else "reset" if is_reset(f) else f"{pct:.1f}%" if pct is not None else "?"
+    """'kill', 'reset' or how far the wipe got ('P2 68.3%' on a boss with phases), for a pull's choice in a menu."""
+    if f.get("kill") or is_reset(f):
+        return "kill" if f.get("kill") else "reset"
+    return wipe_text(f, wcl=False) if wipe_pct(f) is not None else "?"

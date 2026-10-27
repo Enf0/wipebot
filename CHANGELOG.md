@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `Agent` **Wipes on bosses with phases are counted the way raiders count them.** On a boss whose phases each have their own health bar, such as the Coiled Altar, a wipe reads "P2 68.3%", with Warcraft Logs' whole-fight % beside it, instead of only Warcraft Logs' 70.5%.
+- `Agent` **Fewer "a healthstone would have saved you".** A healthstone, potion or heal now only counts when there was a second to press it before the killing hit, and only for the health that was missing then. A big hit from full health followed at once by a tick can't be healed through.
 - `Discord` **A restart doesn't end your conversation.** When the bot restarts for an update, your next question or follow-up button goes on where the conversation was, instead of starting over without what it found.
 - `Agent` **Ready for Warcraft Logs' new API limits.** Once the account moves to the new point system, Wipebot notices by itself: members signed in to the connector spend their own Warcraft Logs points first, and when the hour's points for rankings run out, an answer says rankings are back in so many minutes and gives the rest instead of failing. Raiders' character pages are read less often too.
 
