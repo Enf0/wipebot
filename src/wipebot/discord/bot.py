@@ -25,7 +25,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import commands, config, emojis, host
+from . import allowance, commands, config, emojis, host
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .follower import Follower, Pull
 from .host import CAPPED, NO_ANSWER, Answer, Context, ModelError, Session
@@ -402,6 +402,9 @@ class WipeBot(discord.Client):
         self.test_report, self.test_server, self.try_question = test_report, test_server, try_question
         self.tree = app_commands.CommandTree(self)
         self.tree.add_command(commands.build(self))
+        # a copy many servers share: each may spend its share of the key's monthly limit (allowance.py)
+        share, key = allowance.server_share(), config.openrouter_key()
+        self.allowance = allowance.Allowance(store, key, share) if share and key else None
         if key := config.openrouter_key():  # its credit limit is the budget raiders see
             self.tree.add_command(commands.build_budget(self, key))
         self.followers: dict[int, Follower] = {}  # per server: its live report
@@ -847,6 +850,10 @@ class WipeBot(discord.Client):
             return self._record(kind, code, question, started, message, asker=who, fight=fight,
                                 channel_id=channel_id, **row)
         shown = self._shown(who)
+        if self.allowance and ctx.server_id and (refused := await self.allowance.refusal(ctx.server_id)):
+            log.info("%s answer to %s refused: the server's free answers are used up", kind, shown)
+            record(error="allowance used up")
+            return refused
         earlier = (lambda after, seen: self._earlier(message, after, seen)) if message else None
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
             answer = await self.conversations.ask(key, code, question, ctx, earlier, message.id if message else None,
