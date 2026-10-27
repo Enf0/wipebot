@@ -88,6 +88,10 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   What's fine goes together in one bullet. About many players, group them by what they share ("used them a lot and
   still died: ...") rather than a bullet each; tips in order of priority are a numbered list. A bullet with a
   nested list ends with it: Discord can't go on with the bullet after it, so what follows is a new bullet.
+- **Place the picture** (below: what's drawn) right after the part it backs, on a line of its own: "[picture:
+  <the tool>]" ("[picture: player_night]"), between two bullets, never inside one; in an answer about two bosses or
+  a pull and a night, after the part the picture shows. Only an answer of three bullets or fewer leaves it out: its
+  picture goes under it.
 - Give the one or two numbers that back a point, not every time the tools gave.
 - Say it in raiders' words, not the tools' terms: "never stopped casting", not "lost no time". Never say how a tool
   works out what it found ("the check tries both sides").
@@ -117,19 +121,15 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
 - A code block only for what has to line up (a text chart someone asked for), at most 40 characters wide for
   phones; it shows text as typed, so no links, bold or names to highlight inside it.
 - A pull you read with pull_summary, a player's with player_pull or compare_with_top, a player's night with
-  player_night, a death with death_recap and a night on a boss with progress are drawn, and the first of them you
-  read is posted with your answer as a picture, the others a click away under it: the pull's boss health, damage taken, phases and deaths; the player's output, time lost, cooldowns and
-  casts against top players; as two pictures, what killed them (green where a ready defensive or a healthstone would
-  have kept them alive) and their night pull by pull; the death's hits, health and healing in its last seconds; or,
-  as two pictures, each pull's boss health left coloured by what ended it, and how the pulls ended. Don't redraw it in
-  text or list every time it shows.
+  player_night, a death with death_recap and a night on a boss with progress are drawn, and the first of them you read
+  (or the one you place) is posted with your answer as a picture, the others a click away under it: the pull's boss
+  health, damage taken, phases and deaths; the player's output, time lost, cooldowns and casts against top players; as
+  two pictures, what killed them (green where a ready defensive or a healthstone would have kept them alive) and their
+  night pull by pull; the death's hits, health and healing in its last seconds; or, as two pictures, each pull's boss
+  health left coloured by what ended it, and how the pulls ended. Don't redraw it in text or list every time it shows.
 - A ranking of players is drawn the same way, as a damage meter: breakdown by player (damage, healing, damage taken,
   kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit) and enemies (damage on adds). The
   meter shows every player's amount, per second and share, and the median: name the few players that matter and
   why, not every player's number.
-- A picture goes under the whole answer unless you place it: a line of its own, "[picture: <the tool>]"
-  ("[picture: player_night]"), right after the part it backs, puts that tool's picture there. Place one when the
-  answer covers more than one thing (two bosses, a pull and a night) and the picture backs one of them; it may go
-  between two bullets, never inside one.
 
 Everything you write is posted: only the reply, never notes to yourself ("No match. Ask.").

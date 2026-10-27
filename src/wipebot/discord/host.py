@@ -112,15 +112,28 @@ MAX_FOLLOW_UPS = 3
 FOLLOW_UP_CHARS = 80  # Discord's limit for a button's label, which is the question
 
 
-# Where a picture goes in the answer, on a line of its own ("[picture: player_night]"): the bot shows that tool's
-# picture there, next to the part it backs, instead of under the whole answer
-PICTURE_MARK = re.compile(r"^[ \t]*\[picture:[ \t]*([a-z_]+)[ \t]*\][ \t]*$\n?", re.M | re.I)
+# Where a picture goes in the answer ("[picture: player_night]"): the bot shows that tool's picture there, next to
+# the part it backs, instead of under the whole answer. Asked for on a line of its own; one written as a bullet, in
+# backticks or at the end of a line counts too, and its picture goes after that line.
+PICTURE_MARK = re.compile(r"\[\s*picture\s*:\s*`?([a-z_]+)`?\s*\]", re.I)
+_BARE = re.compile(r"[\s>*_`-]*(?:\d+[.)])?[\s*_`-]*")  # what's left of a line that held only marks: its bullet
 _PLACED = "\ue000"  # a picture's place while the text is polished: a private-use character no answer has
 
 
 def picture_marks(text: str) -> str:
-    """The answer with each picture mark as a token polish leaves alone (`placed` reads them after)."""
-    return PICTURE_MARK.sub(lambda m: f"{_PLACED}{m[1].lower()}{_PLACED}\n", text)
+    """The answer with each picture mark as a token on a line of its own after the mark's line, which polish leaves
+    alone (`placed` reads them after); a line that held only marks goes."""
+    lines = []
+    for line in text.split("\n"):
+        tools = PICTURE_MARK.findall(line)
+        if not tools:
+            lines.append(line)
+            continue
+        rest = PICTURE_MARK.sub("", line).rstrip()
+        if not _BARE.fullmatch(rest):
+            lines.append(rest)
+        lines += [f"{_PLACED}{t.lower()}{_PLACED}" for t in tools]
+    return "\n".join(lines)
 
 
 def placed(text: str) -> tuple[str, list[tuple[int, str]]]:
@@ -319,8 +332,12 @@ class Answer:
 
     @property
     def full(self) -> str:
-        """The text with its follow-ups as the model wrote them, for the record and the evals' judge."""
-        return self.text + "".join(f"\nFollow-up: {q}" for q in self.follow_ups)
+        """The text with its pictures' places and its follow-ups as the model wrote them, for the record and the
+        evals' judge."""
+        text = self.text
+        for at, name in sorted(self.marks, reverse=True):
+            text = f"{text[:at].rstrip(chr(10))}\n[picture: {name}]\n{text[at:].lstrip(chr(10))}".strip("\n")
+        return text + "".join(f"\nFollow-up: {q}" for q in self.follow_ups)
 
     def records(self) -> list[dict]:
         """The tool calls for the interaction record."""

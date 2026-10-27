@@ -486,3 +486,15 @@ async def test_a_picture_the_answer_places_goes_where_it_says(session):
     answer.calls = [pull, night]  # the view placed is the one shown, though drawn second
     assert [c.name for _, c in answer.pictures] == ["player_night", "player_night"]
     assert answer.place(night) == at["player_night"] and answer.place(pull) is None
+
+
+def test_a_picture_mark_written_as_a_bullet_or_after_text_still_places_it():
+    text = ("**Strong night.**\n- Coiled Altar: top 3. [picture: `player_night`]\n- [Picture: progress]\n"
+            "- Twin Fangs: never died.")
+    shown, marks = host.placed(host.picture_marks(text))
+    assert shown == "**Strong night.**\n- Coiled Altar: top 3.\n- Twin Fangs: never died."
+    assert marks == [(len("**Strong night.**\n- Coiled Altar: top 3.\n"), "player_night"),
+                     (len("**Strong night.**\n- Coiled Altar: top 3.\n"), "progress")]
+    answer = Answer(shown, marks=marks[:1], follow_ups=["Klar for P2?"])
+    assert answer.full == ("**Strong night.**\n- Coiled Altar: top 3.\n[picture: player_night]\n"
+                           "- Twin Fangs: never died.\nFollow-up: Klar for P2?")  # the record shows where it went

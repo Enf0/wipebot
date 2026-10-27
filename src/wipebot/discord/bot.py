@@ -858,8 +858,9 @@ class WipeBot(discord.Client):
             return WENT_WRONG
         self.conversations.saw(key, sent)
         interaction = record(answer=answer, sent=sent)
-        log.info("%s answer to %s in %.0f s with %d tool calls, $%.3f (#%d)%s", kind, shown,
+        log.info("%s answer to %s in %.0f s with %d tool calls, $%.3f (#%d), pictures placed: %s%s", kind, shown,
                  time.monotonic() - started, len(answer.calls), answer.cost_usd or 0, interaction,
+                 ", ".join(tool for _, tool in answer.marks) or "none",
                  f": {preview(answer.text)}" if self.record_answers else "")
         return None
 
