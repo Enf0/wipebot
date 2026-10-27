@@ -455,6 +455,11 @@ class Store:
             return None
         return keys.ServerKey(row[0], key)
 
+    def server_key_info(self, discord_guild_id: int) -> tuple[str, int, float] | None:
+        """A server's own key's provider, who added it and when, without the key; None without one."""
+        return self._db.execute("SELECT provider, added_by, added_at FROM server_keys WHERE discord_guild_id = ?",
+                                (discord_guild_id,)).fetchone()
+
     def drop_server_key(self, discord_guild_id: int) -> bool:
         """Forget a server's own key; whether it had one."""
         dropped = self._db.execute("DELETE FROM server_keys WHERE discord_guild_id = ?",

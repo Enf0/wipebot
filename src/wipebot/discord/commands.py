@@ -24,7 +24,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
-from . import budget, config
+from . import budget, config, keycmd
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -325,7 +325,8 @@ def help_text(s: ServerSettings | None, named: set[int], admin: bool, in_dm: boo
         commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
                      "`/wipebot names`: name players in this channel or not",
-                     "`/wipebot viserio`: read the raid nights to come from Viserio Cooldowns"]
+                     "`/wipebot viserio`: read the raid nights to come from Viserio Cooldowns",
+                     "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key"]
         if raidstrats.client():
             commands.append("`/wipebot raidstrats`: fetch the raid plans from raidstrats.gg")
     commands.append("Officers save a raid note or plan by pasting it to me.")
@@ -426,6 +427,11 @@ def build(bot: WipeBot) -> app_commands.Group:
     @app_commands.describe(disconnect="Stop reading them and forget the key")
     async def viserio_key(interaction: discord.Interaction, disconnect: bool = False) -> None:
         await viserio_command(bot.store, interaction, disconnect)
+
+    @group.command(name="key", description="Answer this server's questions on its own OpenRouter or Anthropic key")
+    @app_commands.describe(remove="Go back to the shared free answers and forget the key")
+    async def own_key(interaction: discord.Interaction, remove: bool = False) -> None:
+        await keycmd.key_command(bot.store, interaction, remove)
 
     @group.command(name="names", description="Whether wipebot names players in this channel, as in DMs")
     @app_commands.describe(on="On: in this channel and its threads, wipebot says who made the costly mistakes")
