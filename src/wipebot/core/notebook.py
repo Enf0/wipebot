@@ -2,7 +2,7 @@
 login its plans are fetched with.
 
 An officer saves a note or plan by pasting it (server.save_pasted): to the Discord bot, or in Claude or ChatGPT
-(the remote MCP server's save_note_or_plan). The bot saves the login (/wipebot raidstrats). Both apps read them, so
+(the remote MCP server's save_note_or_plan). The host saves the login (raidstrats-login). Both apps read them, so
 `raid_note` and `raid_plan` work without a paste for the report's guild, and both fetch the plans of a guild with a
 login (raidstrats.py), saving a new version and the login's new tokens here. The remote MCP server reads the file
 read-only, and writes it only to save a paste or fetched plans. One SQLite file, WIPEBOT_NOTES_DB

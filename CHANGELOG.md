@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Discord` **Ask without setting the bot up.** In a server nobody ran `/wipebot setup` in, mention the bot with a Warcraft Logs report link and it answers about that report, follow-ups included. Setup still adds the guild's latest raid without a link, posts after wipes and raid notes.
 - `Discord` **See the bot's AI budget, and chip in.** On a bot that answers through OpenRouter, anyone can run `/usage` to see what answering has cost this month, how much is left (and about how many answers that is), and how to contribute to it. Hosts set it up in docs/setup.md.
 
+### Changed
+
+- `Discord` **Viserio Cooldowns and raidstrats.gg are connected by the host only.** Both are still experimental, so `/wipebot viserio` and `/wipebot raidstrats` are gone; the host connects them on the command line (`wipebot viserio`, `wipebot raidstrats-login`), and keys already connected keep working.
+
 ### Fixed
 
 - `Agent` **The boss's health at the end of a pull isn't cut off.** The pull's picture had too little room on the right for a value such as 62.59%, which lost its last digit in Claude and ChatGPT.

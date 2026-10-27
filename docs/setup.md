@@ -140,17 +140,20 @@ pulls against them, takes an officer ([below](#officers-and-admins)) pasting one
 while asking to save it. Both apps read and write the same notes (`./data/wipebot-notes`). More:
 [features.md](features.md).
 
+Viserio Cooldowns and raidstrats.gg are experimental, and connected by the host on the command line only (in Docker,
+`docker compose exec wipebot-discord wipebot ...`); Discord has no command for them.
+
 **The raid nights to come from Viserio Cooldowns**, optional: a group admin turns on API sharing and makes the group's
-key in its settings on wowutils.com, and an officer gives it to the bot with `/wipebot viserio` (or `wipebot viserio
---guild <id>` on the command line, with the key in `WOWUTILS_API_KEY` or typed). Both apps then answer "am I in on
+key in its settings on wowutils.com, and you give it to Wipebot with `wipebot viserio --guild <id>` (the guild's
+Warcraft Logs id, with the key in `WOWUTILS_API_KEY` or typed). Both apps then answer "am I in on
 the next boss?" and "who's coming Monday?" from the calendar's sign-ups and the week's setups. The key is used only
 for the guild its group names, and what it reads is kept in memory for two minutes, never on disk.
 
 **Fetching plans from raidstrats.gg** instead of pasting them, optional: create an app on
 [raidstrats.gg/developers](https://raidstrats.gg/developers) with the data Plans and In-game import and the redirect
-URL `http://localhost:8765/callback`, and set `RAIDSTRATS_CLIENT_ID` and `RAIDSTRATS_CLIENT_SECRET` in `.env`. The
-bot then has `/wipebot raidstrats`, with which an officer logs in once (or `wipebot raidstrats-login --guild <id>` on
-the command line), and the guild's plans are fetched whenever an answer needs one. For the connector to fetch them
+URL `http://localhost:8765/callback`, and set `RAIDSTRATS_CLIENT_ID` and `RAIDSTRATS_CLIENT_SECRET` in `.env`. Then
+`wipebot raidstrats-login --guild <id>` logs in once, with a raidstrats.gg account that can open the guild's plans,
+and the guild's plans are fetched whenever an answer needs one. For the connector to fetch them
 too, pass both settings to it in a `compose.override.yml`:
 
 ```yaml
@@ -175,7 +178,7 @@ Every member can ask questions. These can also change what Wipebot does for the 
 |---|---|---|
 | Officers, in Claude or ChatGPT | save a pasted raid note or plan for the guild | members with a character at guild rank 0 to `WIPEBOT_OFFICER_RANK` (default 1: WoW's default Guild Master and Officer ranks), as Warcraft Logs had it at sign-in or within the last hour |
 | Officers, in Discord | save a pasted raid note or plan for the guild; change or stop the posts after wipes someone else asked for in a channel | members with the role `/wipebot setup officers:` sets; with none set, those with Manage Server |
-| Admins, in Discord | the `/wipebot` commands ([features.md](features.md#discord-commands)): setup, settings, names on or off per channel, Viserio, raidstrats.gg | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
+| Admins, in Discord | the `/wipebot` commands ([features.md](features.md#discord-commands)): setup, settings, names on or off per channel, the server's own model key | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
 
 With the officer role set, Manage Server alone doesn't make someone an officer: an admin gives themselves the role.
 

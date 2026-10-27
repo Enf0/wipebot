@@ -99,13 +99,11 @@ async def test_setup_connects_the_server_to_its_guild(bot, setup):
     assert (s := bot.store.settings(1001)) and (s.required_role_id, s.officer_role_id) == (111, 222)
 
 
-def test_raidstrats_is_a_command_only_where_the_host_set_up_an_app(bot, monkeypatch):
-    for name in ("RAIDSTRATS_CLIENT_ID", "RAIDSTRATS_CLIENT_SECRET"):
-        monkeypatch.delenv(name, raising=False)
-    assert commands.build(bot).get_command("raidstrats") is None
+def test_the_experimental_sources_are_connected_on_the_command_line_only(bot, monkeypatch):
     monkeypatch.setenv("RAIDSTRATS_CLIENT_ID", "app")
     monkeypatch.setenv("RAIDSTRATS_CLIENT_SECRET", "secret")
-    assert commands.build(bot).get_command("raidstrats") is not None
+    group = commands.build(bot)
+    assert group.get_command("raidstrats") is None and group.get_command("viserio") is None
 
 
 async def test_settings_show_the_setup_and_whats_saved_and_notes_are_saved_by_paste_only(bot, settings):
@@ -186,54 +184,6 @@ def test_a_note_needs_the_server_set_up_for_its_guild(store):
     assert "isn't set up here yet" in commands.describe_notes(store, 1001)
 
 
-async def test_raidstrats_login_status_and_connecting_from_discord(store, settings, monkeypatch):
-    from wipebot.core import raidstrats
-    store.save_settings(settings)
-    assert "aren't fetched from raidstrats.gg" in commands.describe_login(store, 1001)
-    synced = []
-
-    async def connect(pasted, state):
-        if state != "s1":
-            raise raidstrats.RaidstratsError("that isn't the address from this login")
-        return "Enfo-2581", {"access_token": "a", "refresh_token": "r", "expires_in": 3600}
-
-    async def sync(book, guild):
-        synced.append(guild)
-        book.save_plan(guild, "Sszorak", "p1", "Spread", "raidstrats-addon-x", "raidstrats.gg")
-        book.fetched(guild)
-    monkeypatch.setattr(raidstrats, "connect", connect)
-    monkeypatch.setattr(raidstrats, "sync", sync)
-    assert "Not connected: that isn't the address" in await commands.connect_raidstrats(
-        store, 1001, "http://localhost:8765/callback?code=c&state=s2", "s2", "Rowan")
-    reply = await commands.connect_raidstrats(store, 1001, "http://localhost:8765/callback?code=c&state=s1", "s1",
-                                              "Rowan")
-    assert "Connected as **Enfo-2581**" in reply and "**Spread** (Sszorak)" in reply and synced == [14169]
-    status = commands.describe_login(store, 1001)
-    assert "as **Enfo-2581**, connected by Rowan" in status and "last fetched" in status
-
-
-async def test_viserio_key_status_and_connecting_from_discord(store, settings, monkeypatch):
-    from wipebot.core import viserio
-    store.save_settings(settings)
-    assert "aren't read from Viserio Cooldowns" in commands.describe_viserio(store, 1001)
-
-    async def connect(book, guild, key, named, by):
-        assert named == ("The Copper Lanterns", "argent-dawn", "eu")
-        if key != "key-1":
-            raise viserio.ViserioError("the key is for another group")
-        book.save_viserio_key(guild, key, "Lanterns", by)
-        return viserio.Group("g1", "Lanterns", "the copper lanterns", "argent-dawn", "eu")
-
-    async def upcoming(key):
-        return None, [viserio.Night({"date": "2026-10-26", "name": "Raid"}, [])]
-    monkeypatch.setattr(viserio, "connect", connect)
-    monkeypatch.setattr(viserio, "upcoming", upcoming)
-    assert "Not connected: the key is for another group" in await commands.connect_viserio(store, 1001, "x", "Rowan")
-    reply = await commands.connect_viserio(store, 1001, "key-1", "Rowan")
-    assert "Connected to **Lanterns**" in reply and "2026-10-26 Raid" in reply
-    assert "group **Lanterns**, connected by Rowan" in commands.describe_viserio(store, 1001)
-
-
 def test_budget_says_what_the_key_spent_and_has_left():
     from wipebot.discord.budget import KeyBudget, describe
     b = KeyBudget(limit=50.0, remaining=12.5, month=20.25, total=37.5)
@@ -266,9 +216,7 @@ async def test_budget_reads_the_key_from_openrouter(monkeypatch):
 
 
 def registered(bot, monkeypatch) -> set[str]:
-    """Every slash command the bot registers, as typed ("/wipebot setup"), with every optional one turned on."""
-    monkeypatch.setenv("RAIDSTRATS_CLIENT_ID", "id")
-    monkeypatch.setenv("RAIDSTRATS_CLIENT_SECRET", "secret")
+    """Every slash command the bot registers, as typed ("/wipebot setup")."""
     group = commands.build(bot)
     return ({f"/{c.name}" for c in commands.build_everyone(bot)}
             | {f"/{group.name} {c.name}" for c in group.commands})
@@ -281,11 +229,10 @@ def test_the_docs_list_every_command(bot, monkeypatch):
 
 
 def test_help_lists_what_the_member_may_use(settings, monkeypatch):
-    monkeypatch.delenv("RAIDSTRATS_CLIENT_ID", raising=False)
     raider = commands.help_text(settings, set(), admin=False)
     assert "/help" in raider and "/usage" in raider and "/wipebot" not in raider
     admin = commands.help_text(replace(settings, required_role_id=111), {55}, admin=True)
-    assert "/wipebot setup" in admin and "/wipebot raidstrats" not in admin  # no raidstrats.gg app here
+    assert "/wipebot setup" in admin
     assert "<@&111>" in admin and "<#55>" in admin
     assert "not set up" in commands.help_text(None, set(), admin=True)
     assert "not set up" in commands.help_text(ServerSettings.unset(1001), set(), admin=False)

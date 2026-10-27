@@ -1,9 +1,9 @@
 """Slash commands. For everyone: /help (what to ask, the commands, how the server is set up; also "help" said to
 the bot, bot.py) and /usage (what's left of the AI budget, on an OpenRouter key, and of the hour's Warcraft Logs
 points). For server admins: /wipebot setup, /wipebot settings (with the raid notes and plans saved), /wipebot
-names, /wipebot viserio (the key the raid nights to come are read with), /wipebot raidstrats (the login the guild's
-raid plans are fetched with, where the host set up a raidstrats.gg app). Officers save a note or plan by pasting it
-to the bot (bot.py). docs/features.md lists them all (a test checks).
+names, /wipebot key. Officers save a note or plan by pasting it to the bot (bot.py). docs/features.md lists them all
+(a test checks). Viserio Cooldowns and raidstrats.gg, experimental, are connected by the host on the command line
+(__main__.py).
 
 Only members with Manage Server see /wipebot (Discord enforces this), and server owners can change that in
 Server Settings > Integrations.
@@ -17,7 +17,7 @@ import discord
 import httpx
 from discord import app_commands
 
-from wipebot.core import raidstrats, server, viserio
+from wipebot.core import server
 from wipebot.core.accounts import parse_guild_link
 from wipebot.core.report import FactError
 from wipebot.core.report import note as notes
@@ -81,165 +81,6 @@ def describe_notes(store: Store, discord_guild_id: int) -> str:
                 "raidstrats.gg (the planner's Export button), and pastes it in a message to me (Discord turns a long "
                 "paste into a file).")
     return "\n".join(parts)
-
-
-def describe_login(store: Store, discord_guild_id: int) -> str:
-    """The guild's raidstrats.gg login, for /wipebot raidstrats."""
-    login = store.notebook.login(_guild(store, discord_guild_id))
-    if login is None:
-        return ("Raid plans aren't fetched from raidstrats.gg: they're used as pasted. Log in below with a "
-                "raidstrats.gg account that can open the guild's plans (yours, as an officer), and wipebot fetches "
-                "them whenever an answer needs one.")
-    text = (f"Raid plans are fetched from raidstrats.gg as **{login.username}**, connected by {login.connected_by} "
-            f"<t:{int(login.connected_at)}:R>")
-    text += f", last fetched <t:{int(login.fetched_at)}:R>." if login.fetched_at else "."
-    if login.problem:
-        text += f"\n**Problem:** {login.problem}."
-    return text + ("\nLog in below to connect another account, or use `disconnect: True` to stop fetching."
-                   if login.working else "\nLog in below to connect again.")
-
-
-async def connect_raidstrats(store: Store, discord_guild_id: int, pasted: str, state: str, by: str) -> str:
-    """The officer's raidstrats.gg login saved for the server's guild from the address their browser was sent back
-    to, and the guild's plans fetched with it; what happened, for the officer."""
-    guild = _guild(store, discord_guild_id)
-    try:
-        username, token = await raidstrats.connect(pasted, state)
-    except raidstrats.RaidstratsError as e:
-        return f"Not connected: {e}."
-    store.notebook.save_login(guild, username, token, by)
-    await raidstrats.sync(store.notebook, guild)
-    login = store.notebook.login(guild)
-    if login and login.problem:
-        return (f"Connected as **{username}**, but fetching the plans failed: {login.problem}. Wipebot tries again "
-                "on the next question.")
-    planned = store.notebook.latest_plans(guild)
-    return (f"Connected as **{username}**. Plans it can open:\n"
-            + ("\n".join(f"- **{p.name}** ({p.boss})" for p in planned) if planned else "none yet")
-            + "\nWipebot fetches them again whenever an answer needs a plan, and keeps every version.")
-
-
-class PasteAddress(discord.ui.Modal, title="raidstrats.gg login"):
-    address: discord.ui.TextInput = discord.ui.TextInput(
-        label="The address your browser shows now", placeholder="http://localhost:8765/callback?code=...",
-        style=discord.TextStyle.short, max_length=1000)
-
-    def __init__(self, store: Store, state: str):
-        super().__init__()
-        self.store, self.state = store, state
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        reply = await connect_raidstrats(self.store, in_guild(interaction).id, str(self.address.value), self.state,
-                                         interaction.user.display_name)
-        await interaction.followup.send(reply, ephemeral=True)
-
-
-class RaidstratsLogin(discord.ui.View):
-    """The button after the login link, which opens the box to paste the address in."""
-
-    def __init__(self, store: Store, url: str, state: str):
-        super().__init__(timeout=600)
-        self.store, self.state = store, state
-        self.add_item(discord.ui.Button(label="1. Log in on raidstrats.gg", url=url))
-
-    @discord.ui.button(label="2. Paste the address", style=discord.ButtonStyle.primary)
-    async def paste(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.send_modal(PasteAddress(self.store, self.state))
-
-
-async def raidstrats_command(store: Store, interaction: discord.Interaction, disconnect: bool) -> None:
-    """/wipebot raidstrats: the login's status with a link to log in, or with `disconnect`, the login dropped."""
-    gid = in_guild(interaction).id
-    try:
-        if disconnect:
-            store.notebook.drop_login(_guild(store, gid))
-            await interaction.response.send_message(
-                "Disconnected: plans are no longer fetched, and the saved versions stay. To revoke it on "
-                "raidstrats.gg too, remove Wipebot under \"Access you've given\" on its developers page.",
-                ephemeral=True)
-            return
-        status = describe_login(store, gid)
-        url, state = raidstrats.login_url()
-    except (FactError, raidstrats.RaidstratsError) as e:
-        await interaction.response.send_message(str(e), ephemeral=True)
-        return
-    await interaction.response.send_message(
-        status + "\n\nTo log in: open the link and approve Wipebot, with \"In-game import\". Your browser then "
-        "opens a page that doesn't load (localhost): that's expected. Copy that page's address, then press "
-        "Paste the address.", view=RaidstratsLogin(store, url, state), ephemeral=True)
-
-
-def describe_viserio(store: Store, discord_guild_id: int) -> str:
-    """The guild's Viserio Cooldowns key, for /wipebot viserio."""
-    found = store.notebook.viserio_key(_guild(store, discord_guild_id))
-    if found is None:
-        return ("The raid nights to come aren't read from Viserio Cooldowns. A group admin turns on API sharing and "
-                "makes the group's key in its settings on wowutils.com; paste it below, and wipebot reads the "
-                "nights, sign-ups and setups whenever an answer needs them.")
-    _, group, by, at = found
-    return (f"The raid nights to come are read from Viserio Cooldowns' group **{group}**, connected by {by} "
-            f"<t:{int(at)}:R>.\nPaste a new key below if the group made one, or use `disconnect: True` to stop.")
-
-
-async def connect_viserio(store: Store, discord_guild_id: int, key: str, by: str) -> str:
-    """The group's key saved for the server's guild, and the nights to come read with it; what happened."""
-    guild = _guild(store, discord_guild_id)
-    s = store.settings(discord_guild_id)
-    assert s is not None  # _guild checked
-    try:
-        g = await viserio.connect(store.notebook, guild, key, (s.wcl_guild, s.wcl_server, s.wcl_region), by)
-        nights = (await viserio.upcoming(key.strip()))[1]
-    except viserio.ViserioError as e:
-        return f"Not connected: {e}."
-    return (f"Connected to **{g.name}**. Raid nights in the next {viserio.DAYS_AHEAD} days: "
-            + (", ".join(f"{n.event.get('date')} {n.event.get('name')}" for n in nights) or "none yet") + ".")
-
-
-class PasteKey(discord.ui.Modal, title="Viserio Cooldowns key"):
-    key: discord.ui.TextInput = discord.ui.TextInput(
-        label="The group's API key", placeholder="from the group's settings on wowutils.com, API sharing",
-        style=discord.TextStyle.short, max_length=200)
-
-    def __init__(self, store: Store):
-        super().__init__()
-        self.store = store
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        reply = await connect_viserio(self.store, in_guild(interaction).id, str(self.key.value),
-                                      interaction.user.display_name)
-        await interaction.followup.send(reply, ephemeral=True)
-
-
-class ViserioKey(discord.ui.View):
-    """The button that opens the box to paste the key in: a key typed as a command option would show in the
-    server's audit log."""
-
-    def __init__(self, store: Store):
-        super().__init__(timeout=600)
-        self.store = store
-
-    @discord.ui.button(label="Paste the key", style=discord.ButtonStyle.primary)
-    async def paste(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.send_modal(PasteKey(self.store))
-
-
-async def viserio_command(store: Store, interaction: discord.Interaction, disconnect: bool) -> None:
-    """/wipebot viserio: the key's status with a button to paste one, or with `disconnect`, the key forgotten."""
-    gid = in_guild(interaction).id
-    try:
-        if disconnect:
-            store.notebook.drop_viserio_key(_guild(store, gid))
-            await interaction.response.send_message(
-                "Disconnected: the raid nights to come are no longer read from Viserio, and the key is forgotten. "
-                "To revoke it too, make a new key in the group's settings on wowutils.com.", ephemeral=True)
-            return
-        status = describe_viserio(store, gid)
-    except FactError as e:
-        await interaction.response.send_message(str(e), ephemeral=True)
-        return
-    await interaction.response.send_message(status, view=ViserioKey(store), ephemeral=True)
 
 
 def names_command(store: Store, gid: int, channel: object, on: bool) -> str:
@@ -325,11 +166,8 @@ def help_text(s: ServerSettings | None, named: set[int], admin: bool, in_dm: boo
         commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
                      "`/wipebot names`: name players in this channel or not",
-                     "`/wipebot viserio`: read the raid nights to come from Viserio Cooldowns",
                      "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
                      "`/wipebot footer`: end answers with what they cost, or not"]
-        if raidstrats.client():
-            commands.append("`/wipebot raidstrats`: fetch the raid plans from raidstrats.gg")
     commands.append("Officers save a raid note or plan by pasting it to me.")
     parts.append("**Commands:**\n" + "\n".join(f"- {c}" for c in commands))
     if s is None or not s.set_up:
@@ -432,19 +270,6 @@ def build(bot: WipeBot) -> app_commands.Group:
         bot.settings_changed(gid)
         await interaction.followup.send("wipebot is set up:\n" + describe(settings, bot.store.naming_channels(gid)),
                                         ephemeral=True)
-
-    if raidstrats.client():  # only where the host set up a raidstrats.gg app (docs/setup.md)
-        @group.command(name="raidstrats", description="Fetch the guild's raid plans from raidstrats.gg with your "
-                                                      "login there, instead of pasting them")
-        @app_commands.describe(disconnect="Stop fetching the plans and forget the login")
-        async def raidstrats_login(interaction: discord.Interaction, disconnect: bool = False) -> None:
-            await raidstrats_command(bot.store, interaction, disconnect)
-
-    @group.command(name="viserio", description="Read the raid nights to come (sign-ups, setups) from Viserio "
-                                               "Cooldowns with the group's API key")
-    @app_commands.describe(disconnect="Stop reading them and forget the key")
-    async def viserio_key(interaction: discord.Interaction, disconnect: bool = False) -> None:
-        await viserio_command(bot.store, interaction, disconnect)
 
     @group.command(name="key", description="Answer this server's questions on its own OpenRouter or Anthropic key")
     @app_commands.describe(remove="Go back to the shared free answers and forget the key")

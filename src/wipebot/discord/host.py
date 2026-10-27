@@ -465,17 +465,12 @@ class Session:
         f = None if whole else report.fight(args.get("pull"), boss)
         await raidstrats.sync(book, guild)
         login = book.login(guild)
-        fetching = raidstrats.client() is not None  # /wipebot raidstrats exists only then
-        source = raidstrats.source(login) if login else "saved from pastes" + (
-            ": no raidstrats.gg login is connected (an officer connects one with /wipebot raidstrats)" if fetching
-            else "")
+        source = raidstrats.source(login) if login else "saved from pastes"
         found = server.every_plan(book, guild) if f is None else server.saved_plans(book, guild, report, f)
         if not found:
             named = boss if f is None else report.boss_key(f)
             return (f"No raid plan is saved for {named} in this server. Officers save one by pasting the "
-                    "plan's export from raidstrats.gg (the planner's Export button) to the bot"
-                    + (f", or have the plans fetched from raidstrats.gg with /wipebot raidstrats (the plans are "
-                       f"{source})" if fetching else "") + "." + server.NO_JOBS)
+                    "plan's export from raidstrats.gg (the planner's Export button) to the bot." + server.NO_JOBS)
         return "\n".join(found), source
 
     async def __aenter__(self) -> Session:

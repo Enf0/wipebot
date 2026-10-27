@@ -198,16 +198,11 @@ async def test_raid_plan_gets_every_version_the_server_saved_for_the_pulls_boss(
     session._ctx = Context(notebook=book, guild_id=14169)
     plans, source = await session._saved_plan({})
     assert plans == "[saved 1000 by Rowan] raidstrats-addon-A\n[saved 2000 by Ha)lvard] raidstrats-addon-B"
-    assert source == "saved from pastes"  # no raidstrats.gg app: /wipebot raidstrats isn't there to name
+    assert source == "saved from pastes"
     session._ctx = Context(notebook=book, guild_id=1)
     told = await session._saved_plan({})
     assert told == ("No raid plan is saved for Sszorak in this server. Officers save one by pasting the plan's "
                     "export from raidstrats.gg (the planner's Export button) to the bot." + server.NO_JOBS)
-    monkeypatch.setenv("RAIDSTRATS_CLIENT_ID", "app")
-    monkeypatch.setenv("RAIDSTRATS_CLIENT_SECRET", "secret")
-    told = await session._saved_plan({})
-    assert isinstance(told, str) and "or have the plans fetched from raidstrats.gg with /wipebot raidstrats" in told
-    assert "no raidstrats.gg login is connected" in told
     session._ctx = Context(notebook=book, guild_id=14169)
     every = ("[saved 1000 by Rowan] raidstrats-addon-A\n[saved 1500 by Rowan] raidstrats-addon-V\n"
              "[saved 2000 by Ha)lvard] raidstrats-addon-B")

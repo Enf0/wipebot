@@ -2,9 +2,9 @@
 
 raidstrats.gg lets an app read only as a person who logged in and approved it (OAuth, the authorization code flow;
 no app-only login). The app's client is RAIDSTRATS_CLIENT_ID and RAIDSTRATS_CLIENT_SECRET, with the scopes
-`profile plans addon` and the redirect URL REDIRECT_URL. An officer logs in once (/wipebot raidstrats) and the
-login is kept per guild in the notebook. Access tokens last an hour; the refresh token 30 days, replaced on each
-refresh, so a login nobody uses is refreshed weekly (`keep_alive`).
+`profile plans addon` and the redirect URL REDIRECT_URL. An officer logs in once, on the host's command line
+(`wipebot raidstrats-login`), and the login is kept per guild in the notebook. Access tokens last an hour; the
+refresh token 30 days, replaced on each refresh, so a login nobody uses is refreshed weekly (`keep_alive`).
 
 `sync` fetches every plan the login can open (its own and the guild's, `/plans`) and their in-game import text in
 one request (`POST /plans/addon-export`, up to 50), and saves a version of each plan whose text changed since it was
@@ -66,8 +66,8 @@ async def connect(pasted: str, state: str) -> tuple[str, dict]:
     if query.get("error"):
         raise RaidstratsError("the login was cancelled on raidstrats.gg")
     if query.get("state", [""])[0] != state or not query.get("code"):
-        raise RaidstratsError("that isn't the address from this login: run /wipebot raidstrats again and paste the "
-                              "address your browser shows after you approve")
+        raise RaidstratsError("that isn't the address from this login: run `wipebot raidstrats-login` again and "
+                              "paste the address your browser shows after you approve")
     cid, secret = client() or ("", "")
     async with httpx.AsyncClient(timeout=TIMEOUT_S, headers=UA) as http:
         r = await http.post(BASE + "/oauth/token", data=dict(
@@ -75,7 +75,7 @@ async def connect(pasted: str, state: str) -> tuple[str, dict]:
             client_secret=secret))
         if r.status_code != 200:
             raise RaidstratsError(f"raidstrats.gg refused the login ({_why(r)}); the code works once and for 5 "
-                                  "minutes: run /wipebot raidstrats again")
+                                  "minutes: run `wipebot raidstrats-login` again")
         token = r.json()
         if "addon" not in str(token.get("scope", "")).split():
             raise RaidstratsError("the login doesn't allow reading the plans' in-game import text: approve "
@@ -121,7 +121,7 @@ async def _token(book: Notebook, guild_id: int, older_than: float = 0) -> str | 
 
 async def sync(book: Notebook, guild_id: int) -> None:
     """Fetch the plans of a guild with a login and save each one whose text changed. Never fails: a problem is
-    logged and kept with the login (/wipebot raidstrats shows it), and the saved plans are used as they are."""
+    logged and kept with the login (kept with it), and the saved plans are used as they are."""
     login = book.login(guild_id)
     if not (login and login.working and client()):
         return

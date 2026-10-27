@@ -279,8 +279,7 @@ Every reply to a command is seen only by whoever used it.
 | `/wipebot key` | admins | answers this server's questions on its own key, past the shared free answers: sign in with OpenRouter, or paste an OpenRouter or Anthropic key; kept encrypted, never shown again. `remove:` goes back to the shared answers |
 | `/wipebot footer` | admins | ends answers with a small line, or not (`on:`): what the answer cost, its Warcraft Logs points, and, on a shared copy, the server's free answers left this month. On by default while a server answers from a shared copy's free answers |
 | `/wipebot names` | admins | names players in this channel and its threads, or not (`on:`) |
-| `/wipebot viserio` | admins | reads the raid nights to come from Viserio Cooldowns with the group's key, pasted in a form; `disconnect:` forgets it |
-| `/wipebot raidstrats` | admins | fetches the guild's raid plans from raidstrats.gg with an officer's login; only where the host set up a raidstrats.gg app |
 
 Admins are members with Manage Server; a server owner can change who sees `/wipebot` under Server Settings →
-Integrations.
+Integrations. Viserio Cooldowns and raidstrats.gg, still experimental, have no command: the host connects them on
+the command line ([setup.md](setup.md)).

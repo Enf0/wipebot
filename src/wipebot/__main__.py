@@ -265,12 +265,12 @@ def _tool_commands(sub) -> None:
     rs = sub.add_parser("raidstrats-login", help="fetch a guild's raid plans from raidstrats.gg with your login")
     rs.add_argument("--guild", type=int, required=True, help="the guild's id on Warcraft Logs (its page's link: "
                                                              "warcraftlogs.com/guild/id/<id>)")
-    rs.add_argument("--by", default="the command line", help="who connected it, as /wipebot raidstrats shows")
+    rs.add_argument("--by", default="the command line", help="who connected it, kept with it")
     rs.add_argument("--disconnect", action="store_true", help="stop fetching and forget the login")
     vs = sub.add_parser("viserio", help="read a guild's raid nights to come from Viserio Cooldowns with its group's "
                                         "key (WOWUTILS_API_KEY, else asked)")
     vs.add_argument("--guild", type=int, required=True, help="the guild's id on Warcraft Logs")
-    vs.add_argument("--by", default="the command line", help="who connected it, as /wipebot viserio shows")
+    vs.add_argument("--by", default="the command line", help="who connected it, kept with it")
     vs.add_argument("--disconnect", action="store_true", help="stop reading them and forget the key")
     c = sub.add_parser("call", help="run one tool and print its result")
     c.add_argument("tool")

@@ -1,12 +1,12 @@
 """Viserio Cooldowns (wowutils.com): a guild's raid nights as its officers plan them, read with the group's API key.
 
-A group's admin makes one key for the group (its settings, "API sharing"); an officer gives it to Wipebot once
-(/wipebot viserio) and it's kept per guild in the notebook, used only for the guild the group names. What's read:
-the calendar's nights coming up with their sign-ups, and this week's setups, which say per boss who's in and who's
-out. The API's terms (wowutils.com/api-terms) allow a bot serving the key's own group, and ask for no copy kept
-past 30 days, conditional requests and Retry-After respected, and no battletags shown: answers are kept in memory
-only, for FRESH_S, then asked again with their ETag (a 304 costs nothing of the group's hourly points). Facts
-verified live are in docs/reference/sources.md.
+A group's admin makes one key for the group (its settings, "API sharing"); the host gives it to Wipebot once
+(`wipebot viserio`, on the command line) and it's kept per guild in the notebook, used only for the guild the group
+names. What's read: the calendar's nights coming up with their sign-ups, and this week's setups, which say per boss
+who's in and who's out. The API's terms (wowutils.com/api-terms) allow a bot serving the key's own group, and ask
+for no copy kept past 30 days, conditional requests and Retry-After respected, and no battletags shown: answers are
+kept in memory only, for FRESH_S, then asked again with their ETag (a 304 costs nothing of the group's hourly
+points). Facts verified live are in docs/reference/sources.md.
 """
 import asyncio
 import datetime
@@ -59,8 +59,8 @@ async def _get(key: str, path: str, fresh_s: float | None = None) -> dict:
         _answers[(key, path)] = (etag, body, time.time())
         return body
     if r.status_code in (401, 403):
-        raise ViserioError("Viserio refused the key: a group admin turned API sharing off or made a new key, so an "
-                           "officer gives Wipebot the new one (/wipebot viserio)")
+        raise ViserioError("Viserio refused the key: a group admin turned API sharing off or made a new key, so the "
+                           "bot's host gives Wipebot the new one (`wipebot viserio`)")
     if r.status_code in (429, 503):
         raise ViserioError(f"Viserio is busy; try again in {r.headers.get('Retry-After', 'a few')} seconds")
     if r.status_code != 200:
