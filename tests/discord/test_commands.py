@@ -219,6 +219,21 @@ def test_the_docs_list_every_command(bot, monkeypatch):
     assert listed == registered(bot, monkeypatch)
 
 
+def test_every_command_fits_discords_limits(bot):
+    """Discord refuses the whole command list over one description past 100 characters (seen on a deploy)."""
+    def texts(payload):
+        yield payload["name"], 32
+        yield payload["description"], 100
+        for option in payload.get("options", []):
+            yield from texts(option)
+            for choice in option.get("choices", []):
+                yield choice["name"], 100
+
+    for command in [commands.build(bot), *commands.build_everyone(bot)]:
+        for text, limit in texts(command.to_dict(bot.tree)):
+            assert 1 <= len(text) <= limit, text
+
+
 def test_help_lists_what_the_member_may_use(settings, monkeypatch):
     raider = commands.help_text(settings, admin=False)
     assert "/help" in raider and "/usage" in raider and "/wipebot" not in raider

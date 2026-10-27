@@ -259,8 +259,8 @@ def build(bot: WipeBot) -> app_commands.Group:
     async def own_key(interaction: discord.Interaction, remove: bool = False) -> None:
         await keycmd.key_command(bot.store, interaction, remove)
 
-    @group.command(name="footer", description="Whether answers end with a small line: their cost, Warcraft Logs "
-                                              "points, and the server's free answers left")
+    @group.command(name="footer", description="End answers with a small line: their cost, Warcraft Logs points and "
+                                              "free answers left")
     async def footer(interaction: discord.Interaction, on: bool) -> None:
         bot.store.set_footer(in_guild(interaction).id, on)
         await interaction.response.send_message(
