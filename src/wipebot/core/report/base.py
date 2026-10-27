@@ -11,7 +11,7 @@ import difflib
 import json
 import math
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 
@@ -44,6 +44,7 @@ DEATH_BURST_MS = 1_000
 PARTNER_DEATH_MS = 2000  # a buff gained this soon after another boss died came from that death
 PARTNER_SLACK_MS = 500  # or this soon before it: the buff and the death are logged in either order
 REPORT_QUIET_S = 20 * 60  # a report with no new data for this long is no longer being logged
+CHARACTER_REALMS = 2  # the realms of a report's players a character who isn't in it is looked for on
 # A report's pull list is read anew on every load, but kept on disk: when Warcraft Logs doesn't answer, the last copy
 # loads the report, and what's on disk about its finished pulls answers.
 PULLS_FRESH_S = 1
@@ -148,7 +149,7 @@ class Player:
     @property
     def label(self) -> str:
         also = f"; also {', '.join(spaced(s) for s in self.also)} in some pulls" if self.also else ""
-        return f"{self.name} ({spaced(self.spec)} {spaced(self.class_name)}{also})"
+        return f"{self.name} ({' '.join(filter(None, (spaced(self.spec), spaced(self.class_name))))}{also})"
 
 
 CLOSE_NAME = 0.8  # difflib ratio for a typo to still match a name
@@ -351,6 +352,25 @@ class Report(Fetched):
             return p
         raise FactError(f"no single player matching {name!r} in this report (find_reports with a player finds "
                          f"the reports a character is in)")
+
+    async def character(self, name: str) -> Player:
+        """The player a tool about a character's season was given: the report's, or one who isn't in it (a raider
+        who missed the night) looked up on Warcraft Logs on the realms of the report's players, the most common
+        first. Their id is 0 and spec and role empty: they played no pull here."""
+        if p := self.find_player(name):
+            return p
+        realms = Counter((p.server, p.region.lower()) for p in self.players.values() if p.server and p.region)
+        try:
+            for (server, region), _ in realms.most_common(CHARACTER_REALMS):
+                if char := await self.wcl.find_character(name.strip(), server, region):
+                    classes = await self.wcl.class_names()
+                    return Player(0, char["name"], classes.get(char.get("classID"), ""), "", "",
+                                  (char.get("server") or {}).get("name") or server, region)
+        except WCLError as e:
+            raise FactError(f"Warcraft Logs unavailable: {e}") from e
+        raise FactError(f"no player matching {name!r} in this report, nor a character of that name on "
+                        + " or ".join(f"{s}-{r.upper()}" for (s, r), _ in realms.most_common(CHARACTER_REALMS))
+                        + " (find_reports with a player and realm finds the reports a character is in)")
 
     def find_player(self, name: str, among: Iterable[Player] | None = None) -> Player | None:
         """The one player of the report's, or of `among` (a pull's), a typed name means (match_player)."""

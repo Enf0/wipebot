@@ -227,17 +227,23 @@ ZONE = """
 query($id: Int!) { worldData { zone(id: $id) { name encounters { id name } } } }
 """
 
+CLASSES = "{ gameData { classes { id name } } }"
+
 ALL_ENCOUNTERS = """
 query { worldData { expansions { zones { id name encounters { id name } } } } }
 """
 
 FIGHT_RANKINGS = """
-query($encounter: Int!, $difficulty: Int!, $partition: Int) {
+query($encounter: Int!, $difficulty: Int!, $partition: Int, $metric: FightRankingMetricType, $page: Int,
+      $region: String) {
   worldData { encounter(id: $encounter) {
-    fightRankings(difficulty: $difficulty, metric: speed, partition: $partition)
+    fightRankings(difficulty: $difficulty, metric: $metric, partition: $partition, page: $page,
+                  serverRegion: $region)
   } }
 }
 """
+KILLS_PAGE = 50  # kills on a page of a boss's fight rankings
+KILLS_PAGES = 20  # the last page Warcraft Logs' API serves
 
 KILL = """
 query($code: String!, $fight: Int!) {
@@ -872,6 +878,11 @@ class WCL:
         zone = (await self.query(ZONE, DAY, id=zone_id))["worldData"]["zone"] or {}
         return zone.get("name") or "", zone.get("encounters") or []
 
+    async def class_names(self) -> dict[int, str]:
+        """The game's classes by Warcraft Logs' class id, in its log form ("DeathKnight")."""
+        data = await self.query(CLASSES, DAY)
+        return {c["id"]: c["name"].replace(" ", "") for c in data["gameData"]["classes"] or []}
+
     async def all_encounters(self) -> list[tuple[int, str, int, str]]:
         """Every boss Warcraft Logs ranks: (zone id, zone name, encounter id, boss name). A test realm's copy of a
         raid is a zone of its own, "(PTR)" or "(Beta)" in its name."""
@@ -1052,15 +1063,46 @@ class WCL:
 
     async def fastest_kills(self, encounter_id: int, difficulty: int) -> list[dict]:
         """The 50 fastest kills of a boss: report code and fight, duration, deaths, average item level."""
-        async def ask(partition: int | None) -> list[dict]:
+        return (await self.ranked_kills(encounter_id, difficulty))[0]
+
+    async def ranked_kills(self, encounter_id: int, difficulty: int, metric: str = "speed", count: int = KILLS_PAGE,
+                           region: str | None = None, latest: bool = False) -> tuple[list[dict], bool]:
+        """(kills, cut): the first `count` kills of a boss in Warcraft Logs' fight rankings by `metric`
+        (speed: the fastest; progress: each guild's first kill, earliest first), on a region's servers or all; with
+        `latest`, the last `count` (the newest first kills), the last page found by halving. Each kill: report code
+        and fight, duration, deaths, kill time, average item level, tanks, healers, melee, ranged, guild, server.
+        The API serves KILLS_PAGES pages: with `latest`, `cut` says newer kills lie past them."""
+        async def page(n: int, partition: int | None) -> tuple[list[dict], bool]:
             data = await self.query(FIGHT_RANKINGS, DAY, encounter=encounter_id, difficulty=difficulty,
-                                    partition=partition)
-            return ((data["worldData"]["encounter"] or {}).get("fightRankings") or {}).get("rankings") or []
-        ranked = await ask(None)
-        for partition in [] if ranked else await self.older_partitions(encounter_id=encounter_id):
-            if ranked := await ask(partition):
+                                    partition=partition, metric=metric, page=n, region=region)
+            ranked = (data["worldData"]["encounter"] or {}).get("fightRankings") or {}
+            return ranked.get("rankings") or [], bool(ranked.get("hasMorePages"))
+        partition = None
+        first, more = await page(1, None)
+        for older in [] if first else await self.older_partitions(encounter_id=encounter_id):
+            first, more = await page(1, older)
+            if first:
+                partition = older
                 break
-        return ranked
+        pages = min(KILLS_PAGES, -(-count // KILLS_PAGE))
+        if not latest or not more:
+            kills, n = list(first), 1
+            while more and n < pages:
+                n += 1
+                got, more = await page(n, partition)
+                kills += got
+            return (kills[-count:] if latest else kills[:count]), False
+        lo, hi = 1, KILLS_PAGES  # the last page with kills: lo has some, past hi has none
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            got, _ = await page(mid, partition)
+            lo, hi = (mid, hi) if got else (lo, mid - 1)
+        last, beyond = await page(lo, partition)
+        kills, n = list(last), lo
+        while len(kills) < count and n > 1:
+            n -= 1
+            kills = (await page(n, partition))[0] + kills
+        return kills[-count:], beyond
 
     async def kill(self, code: str, fight_id: int) -> dict | None:
         """One fight of any report (e.g. another guild's kill) with its phases and the report's bosses."""

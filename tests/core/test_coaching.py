@@ -133,3 +133,9 @@ async def test_a_pull_still_going_is_left_out_of_the_night(fake_knowledge):
                  await healing.healing(rep, boss="Sszorak", all_pulls=True)]:
         assert text.startswith(going) and f"{n} Sszorak pulls" not in text
     assert not any("999" in q for q in wcl.queries)
+
+
+def test_a_resource_is_named_as_raiders_write_it_and_mana_is_not_one():
+    assert coaching.power_type("Holy Power") == coaching.power_type("holy power") == 9
+    assert coaching.power_type("combo point") == coaching.power_type("Combo Points") == 4
+    assert coaching.power_type("Mana") is None and coaching.power_type("Starlord") is None

@@ -1,18 +1,21 @@
 """Against the top parses: a player's casts (`compare_with_top` casts), and what the top players of a spec
 play (`compare_with_top` without a player)."""
 import asyncio
+import math
 import re
 import statistics
+import time
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from typing import Literal
 
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES
 from ..text import clock, fight_url, name_key, plural, short
-from ..wcl import WCL, WCLError
+from ..wcl import KILLS_PAGE, KILLS_PAGES, WCL, WCLError
 from .base import FactError, Player, PullRef, Report, unavailable
 from .build import MAX_BUILD_TALENTS, SAME_HERO_MIN, TOP_PARSES, hero_of
 from .casting import GAP_MS, GCD_MAX_MS, Casting, alive, cast_rows, casting
@@ -56,35 +59,60 @@ async def boss_name(wcl: WCL, boss: str) -> str:
 
 
 KILLS_LISTED = 5  # the fastest kills linked one by one
+KILLS_MAX = 500  # the most kills top_kills reads (ten pages of the rankings)
+KILLS_STRETCH = 100  # with more kills than this, how many healers they brought, stretch by stretch of the list
+Ranking = Literal["fastest", "first", "latest"]
 
 
-async def top_kills(wcl: WCL, boss: str, difficulty: str | None = None) -> str:
-    """What the fastest kills of a boss brought: how many tanks, healers, melee and ranged, as Warcraft Logs'
-    speed ranking counts them, with their kill times and item levels ("is it a 4-heal fight?")."""
+async def top_kills(wcl: WCL, boss: str, difficulty: str | None = None, ranking: Ranking = "fastest",
+                    count: int = KILLS_PAGE, regions: Sequence[str] | None = None) -> str:
+    """What kills of a boss brought: how many tanks, healers, melee and ranged, as Warcraft Logs' rankings count
+    them, with their kill times and item levels ("is it a 4-heal fight?"): the `count` fastest, the first (each
+    guild's first kill, earliest first: the progress ranking) or the latest first kills, on some regions' servers
+    or all, each region's in one ranking read and merged."""
     zone, eid, boss_name = await _encounter(wcl, boss)
     ids = {name: i for i, name in DIFFICULTIES.items()}
     tried = [difficulty.title()] if difficulty else ["Mythic", "Heroic", "Normal"]
+    count = max(1, min(count, KILLS_MAX))
+    metric = "speed" if ranking == "fastest" else "progress"
     kills: list[dict] = []
+    cut = False
     for diff in tried:
         try:
-            kills = await wcl.fastest_kills(eid, ids[diff])
+            got = await asyncio.gather(*(wcl.ranked_kills(eid, ids[diff], metric, count, r, ranking == "latest")
+                                         for r in [x.upper() for x in regions or []] or [None]))
         except WCLError as e:
             raise FactError(f"Warcraft Logs rankings unavailable: {e}") from e
+        kills, cut = [k for ks, _ in got for k in ks], any(c for _, c in got)
         if kills:
             break
+    where = f" on {'/'.join(r.upper() for r in regions)} servers" if regions else ""
     if not kills:
-        return f"Warcraft Logs has no ranked kills of {boss_name} on " + " or ".join(tried) + " yet."
+        return f"Warcraft Logs has no ranked kills of {boss_name}{where} on " + " or ".join(tried) + " yet."
+    if ranking == "fastest":
+        kills = sorted(kills, key=lambda k: k.get("duration") or math.inf)[:count]
+    else:
+        kills = sorted(kills, key=lambda k: k.get("startTime") or 0)
+        kills = kills[-count:] if ranking == "latest" else kills[:count]
 
-    def spread(role: str) -> str:
-        counts = Counter(k.get(role) for k in kills if isinstance(k.get(role), int))
+    def spread(role: str, these: list[dict]) -> str:
+        counts = Counter(k.get(role) for k in these if isinstance(k.get(role), int))
         return ", ".join(f"{n} in {plural(c, 'kill')}" for n, c in sorted(counts.items(), key=lambda x: -x[1]))
     durations = [k["duration"] for k in kills if k.get("duration")]
     levels = [k["bracketData"] for k in kills if k.get("bracketData")]
-    lines = [f"The {len(kills)} fastest kills of {boss_name} ({diff}) on Warcraft Logs: median kill "
+    which = {"fastest": f"{len(kills)} fastest kills",
+             "first": f"first {len(kills)} kills (each guild's first, earliest first)",
+             "latest": f"latest {len(kills)} first kills (each guild's first, the newest)"}[ranking]
+    days = sorted(k["startTime"] for k in kills if k.get("startTime"))
+    when = f", killed {_day(days[0])} to {_day(days[-1])}" if days and ranking != "fastest" else ""
+    lines = [f"The {which} of {boss_name} ({diff}){where} on Warcraft Logs{when}: median kill "
              + (clock(statistics.median(durations)) if durations else "?") + ", median item level "
              + (f"{statistics.median(levels):.0f}" if levels else "?") + ". What they brought:",
-             f"  healers: {spread('healers')}", f"  tanks: {spread('tanks')}",
-             f"  melee: {spread('melee')}; ranged: {spread('ranged')}"]
+             f"  healers: {spread('healers', kills)}", f"  tanks: {spread('tanks', kills)}",
+             f"  melee: {spread('melee', kills)}; ranged: {spread('ranged', kills)}"]
+    if cut:
+        lines.append(f"Warcraft Logs serves only the first {KILLS_PAGES * KILLS_PAGE} kills of this ranking, and "
+                     "newer ones lie past them: these are the newest it serves (a region of servers holds fewer).")
     by_healers = defaultdict(list)
     for k in kills:
         if k.get("duration") and k.get("bracketData"):
@@ -93,15 +121,31 @@ async def top_kills(wcl: WCL, boss: str, difficulty: str | None = None) -> str:
         lines.append("By healers brought (median kill, item level): " + "; ".join(
             f"{n}: {clock(statistics.median(k['duration'] for k in ks))}, "
             f"{statistics.median(k['bracketData'] for k in ks):.0f}" for n, ks in sorted(by_healers.items())))
-    lines.append("The fastest: " + "; ".join(
-        f"{(k.get('guild') or {}).get('name') or 'a raid'} {clock(k.get('duration') or 0)}, item level "
-        f"{k.get('bracketData') or 0:.0f}, {k.get('tanks')} tanks {k.get('healers')} healers, "
-        + fight_url(k["report"]["code"], k["report"]["fightID"])
-        for k in kills[:KILLS_LISTED]))
-    lines.append("The fastest kills are the best geared, most practised raids: what they bring works at their gear "
-                 "and kill time, not proven for a progression pull. Source: Warcraft Logs speed rankings "
-                 f"https://www.warcraftlogs.com/zone/rankings/{zone}?boss={eid}&metric=speed")
+    if len(kills) > KILLS_STRETCH:
+        lines.append("Healers down the list, " + ("fastest first" if ranking == "fastest" else "earliest first")
+                     + ": " + "; ".join(f"kills {i + 1}-{i + len(part)}: {spread('healers', part)}"
+                                        for i in range(0, len(kills), KILLS_STRETCH)
+                                        if (part := kills[i:i + KILLS_STRETCH])))
+    shown = kills[:KILLS_LISTED] if ranking != "latest" else kills[-KILLS_LISTED:][::-1]
+    lines.append(("The fastest: " if ranking == "fastest" else "The first: " if ranking == "first" else "The newest: ")
+                 + "; ".join(
+        f"{(k.get('guild') or {}).get('name') or 'a raid'} ({(k.get('server') or {}).get('region') or '?'}) "
+        f"{clock(k.get('duration') or 0)}" + (f" on {_day(k['startTime'])}" if ranking != "fastest" and
+                                               k.get("startTime") else "")
+        + f", item level {k.get('bracketData') or 0:.0f}, {k.get('tanks')} tanks {k.get('healers')} healers"
+        + (", " + fight_url(k["report"]["code"], k["report"]["fightID"]) if (k.get("report") or {}).get("code")
+           else "")
+        for k in shown))
+    lines.append(("The fastest kills are the best geared, most practised raids: what they bring works at their gear "
+                  "and kill time, not proven for a progression pull." if ranking == "fastest" else
+                  "A guild's first kill is a progression kill, but only guilds that log are ranked.")
+                 + f" Source: Warcraft Logs {metric} rankings "
+                 f"https://www.warcraftlogs.com/zone/rankings/{zone}?boss={eid}&metric={metric}")
     return "\n".join(lines)
+
+
+def _day(ms: float) -> str:
+    return time.strftime("%a %Y-%m-%d", time.gmtime(ms / 1000))
 
 
 async def top_builds(wcl: WCL, spec: str, boss: str, difficulty: str | None = None) -> str:

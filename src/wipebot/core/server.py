@@ -711,21 +711,25 @@ async def compare_pulls(pull: Pull = None, boss: Boss = None,
 @_tool
 async def enemies(pull: Pull = None, boss: Boss = None,
                   all_pulls: Annotated[bool, Field(description="every pull on the boss")] = False,
+                  by_wave: Annotated[bool, Field(description=(
+                      "also the damage on the adds wave by wave, by player"))] = False,
                   report: Report_ = None) -> str:
     """For "were the adds killed in time?", "who did the most damage on the adds?", "were their casts kicked?",
-    "did anyone have a kick ready?".
+    "did anyone have a kick ready?", "who did the most damage on each wave of adds?".
     The adds in a pull: how many of each came, when they died, what became of the rest (alive at the end, or
     gone without a death: despawned, transformed or removed), the damage they took and who did it (every player
     on the most damaged kind, over the night too), and their
     casts with a cast bar: begun, kicked and by whom, gone through, and for each that went through who was alive
     with their interrupt ready. With all_pulls, over the night: per kind how many came and died and the damage
     they took, their casts and who kicked them, then each pull in a line.
+    With by_wave, also the damage on the most damaged kind that comes in waves, each wave by player (a wave is
+    the adds that died less than 20 s apart; with all_pulls, each wave summed over the pulls that reached it).
     Reading it: adds with no death recorded can't show when or in what order they were killed.
     Not for the raid's kicks and dispels in totals per player (breakdown)."""
     rep = await lib().report(report)
     if all_pulls:
-        return await adds.enemies_night(rep, boss)
-    return await adds.enemies(rep, pull, boss, await _jobs(rep, pull, boss, kicks=True))
+        return await adds.enemies_night(rep, boss, by_wave)
+    return await adds.enemies(rep, pull, boss, await _jobs(rep, pull, boss, kicks=True), by_wave)
 
 
 async def _jobs(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool = False, kicks: bool = False) -> str:
@@ -1215,6 +1219,12 @@ async def compare_with_top(
     phase: Annotated[int, Field(description="for cooldowns: the boss phase, 1 for the first")] = 1,
     spec: Annotated[str | None, Field(description="without a player: spec and class, e.g. 'balance druid'")] = None,
     difficulty: Difficulty = None,
+    kills: Annotated[top.Ranking, Field(description=(
+        "with only `boss`: the fastest kills, the first (each guild's first kill, earliest first) or the latest "
+        "first kills"))] = "fastest",
+    count: Annotated[int, Field(description="with only `boss`: how many kills", ge=1, le=top.KILLS_MAX)] = 50,
+    regions: Annotated[list[Literal["US", "EU", "KR", "TW", "CN"]] | None, Field(description=(
+        "with only `boss`: only kills on these regions' servers"))] = None,
     report: Report_ = None,
 ) -> str:
     """Compare a player with the top players of their spec: is my build right, why is my damage low (after
@@ -1233,13 +1243,15 @@ async def compare_with_top(
     healers), where the spec's ranked kills spread ("what's a realistic target?") and a typical build's import
     string; and their major cooldowns: how many pressed each, and when the top 5 did beside the boss's casts
     ("where do I want my cooldowns?"). With only `boss`: the 50 fastest kills' tanks, healers, melee and ranged,
-    how many kills brought each count, kill time and item level by healers brought, and links to the fastest.
+    how many kills brought each count, kill time and item level by healers brought, and links to the fastest;
+    `kills`, `count` and `regions` pick others ("how many healers did the latest 20 progress kills bring?", "of the
+    first 400 kills in EU and US, how many 4-healed?"; 2 Warcraft Logs points per 50 kills and region).
     Example: player="Draiman", aspects=["casts", "cooldowns"]; or spec="balance druid", boss="Kith'ix"."""
     if not player:
         if not boss:
             raise FactError("give a player, or a boss (and a spec for what its top players play)")
         if not spec:
-            return await top.top_kills(lib().wcl, boss, difficulty)
+            return await top.top_kills(lib().wcl, boss, difficulty, kills, count, regions)
         name = await top.boss_name(lib().wcl, boss)
         run_top = {"build": lambda: top.top_builds(lib().wcl, spec, boss, difficulty),
                    "cooldowns": lambda: knowledge.top_cooldowns_text(spec, name, difficulty)}
@@ -1282,7 +1294,8 @@ History = Literal["kills", "deaths", "experience"]
 @_tool
 async def player_history(
     player: Annotated[str | None, Field(description=(
-        "character name as in the log; omit for the guild rankings of the report's raiders"))] = None,
+        "character name as in the log, or one not in it (looked up on the realms of its players); omit for the "
+        "guild rankings of the report's raiders"))] = None,
     show: Annotated[list[History] | None, Field(description="with a player: kills, deaths and/or experience; omit "
                                                              "for kills")] = None,
     boss: Annotated[str | None, Field(description="one boss of the raid; omit for every boss")] = None,
@@ -1310,7 +1323,7 @@ async def player_history(
     rep = await lib().report(report)
     if not player:
         return await history.guild_rankings(rep, difficulty, role)
-    rep.player(player)  # a wrong name fails the call, not each part
+    await rep.character(player)  # a wrong name fails the call, not each part
 
     async def deaths_part() -> str:
         nights, hardest, _ = await night.raid_nights(rep, weeks)
@@ -1322,7 +1335,7 @@ async def player_history(
         return await history.deaths_by_night(loaded, player, hardest, boss)
 
     async def experience() -> str:
-        p = rep.player(player)
+        p = await rep.character(player)
         if not p.server:
             raise FactError(f"the log doesn't give {p.name}'s realm")
         return await knowledge.character_experience_text(p.name, p.server, p.region or "us")
@@ -1369,7 +1382,8 @@ async def healing(pull: Pull = None, boss: Boss = None,
 
 @_tool
 async def buff_at_casts(player: Player,
-                        buff: Annotated[str, Field(description="the buff as the log names it, e.g. Starlord")],
+                        buff: Annotated[str, Field(description=(
+                            "the buff as the log names it, e.g. Starlord; or a resource, e.g. Holy Power"))],
                         spell: Annotated[str, Field(description="the spell cast, e.g. Convoke the Spirits")],
                         pull: Pull = None, boss: Boss = None,
                         all_pulls: Annotated[bool, Field(description="every pull on the boss they were in")] = False,
@@ -1378,7 +1392,10 @@ async def buff_at_casts(player: Player,
     have 2-3 stacks of Starlord when I cast Convoke?". With all_pulls, every pull on the boss in one call, with
     when they first cast the spell on each (median, earliest, latest): "when does my first Arcane Surge go out?".
     The buff may be the spell's own (Arcane Surge and Arcane Surge) when only the cast times matter; Bloodlust
-    (or Heroism, lust) is whichever of its kin the raid had (Time Warp, Primal Rage, ...)."""
+    (or Heroism, lust) is whichever of its kin the raid had (Time Warp, Primal Rage, ...).
+    A resource for `buff` (Holy Power, Combo Points, Essence) gives how much they had just before each cast and
+    what they gained and lost at the cap in the second after it: "how much Holy Power did my Divine Tolls waste?",
+    "how many Holy Shocks did I press at 5 Holy Power?". Over a pull or night, by source: player_pull, player_night."""
     return await coaching.buff_at_casts(await lib().report(report), player, buff, spell, pull, boss, all_pulls)
 
 

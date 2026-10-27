@@ -603,7 +603,10 @@ async def buff_at_casts(rep: Report, player: str, buff: str, spell: str, pull: P
                         boss: str | None = None, all_pulls: bool = False) -> str:
     """`buff` on `player` (and its stacks) at each of their casts of `spell` on a pull, from the buff's events
     (applied, a stack added or taken, removed) up to the cast. With `all_pulls`, on every pull on the boss they
-    were in (fetched in two queries), with when they first cast it on each."""
+    were in (fetched in two queries), with when they first cast it on each. A resource for `buff` (Holy Power,
+    Combo Points) is `resource_at_casts`."""
+    if (kind := power_type(buff)) is not None:
+        return await resource_at_casts(rep, player, kind, spell, pull, boss, all_pulls)
     f = rep.fight(pull, boss)
     spell_ids = set(rep.ability_ids(spell))
     spell_name = rep.ability(min(spell_ids))
@@ -656,6 +659,96 @@ async def buff_at_casts(rep: Report, player: str, buff: str, spell: str, pull: P
 
 
 LISTED_CASTS = 6  # with all_pulls, a pull's casts listed one by one up to this many
+
+
+def power_type(name: str) -> int | None:
+    """The power type a name means ("Holy Power", "combo point"), mana aside; None for any other name."""
+    wanted = name_key(name).removesuffix("s")
+    return next((k for k, v in POWER_TYPES.items() if k and name_key(v).removesuffix("s") == wanted), None)
+
+
+@dataclass
+class ResourceCast:
+    at: float  # ms from the pull's start
+    before: float | None  # the resource just before the cast; None when the log doesn't show it
+    gained: float  # in the RESOURCE_WINDOW_MS from the cast
+    lost: float  # of that, lost at the cap
+
+
+RESOURCE_WINDOW_MS = 1000  # a cast's gains land this soon (Divine Toll's five Holy Shocks in about 250 ms)
+
+
+async def resource_at_casts(rep: Report, player: str, kind: int, spell: str, pull: PullRef = None,
+                            boss: str | None = None, all_pulls: bool = False) -> str:
+    """A resource (`kind`, POWER_TYPES) at each of a player's casts of `spell` on a pull: how much they had just
+    before the cast, and how much they gained and lost at the cap in the RESOURCE_WINDOW_MS after it, what the
+    cast brought (Divine Toll's five Holy Shocks; a builder's own gain) and anything else that landed then but
+    another cast's own gain. From the resource's graph and its gains (resourcechange events, each with what was
+    wasted); with `all_pulls`, every pull on the boss they were in, the gains in one query."""
+    f = rep.fight(pull, boss)
+    spell_ids = set(rep.ability_ids(spell))
+    spell_name, name = rep.ability(min(spell_ids)), POWER_TYPES[kind]
+    who = rep.player(player)
+    fights = rep.pulls_with(who, rep.by_boss[rep.boss_key(f)]) if all_pulls else [f]
+    played = [rep.in_pull(g, who) for g in fights]
+    gains = await rep.events_for([(g["id"], {"sourceID": q.id}) for g, q in zip(fights, played, strict=True)],
+                                 "Resources")
+    found = await asyncio.gather(*(_resource_casts(rep, g, q, kind, spell_ids, evs)
+                                   for g, q, evs in zip(fights, played, gains, strict=True)))
+    every = [c for casts in found for c in casts]
+    if not every:
+        where = f"any {rep.boss_key(f)} pull" if all_pulls else f"{rep.boss_key(f)} pull {rep.pull_no(f)}"
+        return f"{who.name} didn't cast {spell_name} on {where}."
+    if not any(c.gained or c.before for c in every):
+        return (f"{who.name} gained no {name} on these pulls: it isn't a resource they use, or the log doesn't "
+                "carry it.")
+    what = (f"{name} on {who.name} at each {spell_name} cast (what they had just before it; then what they gained "
+            f"in the {RESOURCE_WINDOW_MS / 1000:.0f} s after it, what it brought and anything else but another "
+            "cast's own gain, and how much of that was lost at the cap)")
+    if not all_pulls:
+        lines = [f"{what}, {rep.boss_key(f)} pull {rep.pull_no(f)}:"]
+        lines += [f"- {clock(c.at)}: {_before(c)}; gained {c.gained:.0f}, lost {c.lost:.0f}" for c in found[0]]
+    else:
+        lines = [f"{what}, on each {rep.boss_key(f)} pull they were in ({len(fights)}):"]
+        for g, casts in zip(fights, found, strict=True):
+            lines.append(f"  pull {rep.pull_no(g)}: " + (", ".join(
+                f"{clock(c.at)} {_before(c)} lost {c.lost:.0f}" for c in casts[:LISTED_CASTS])
+                + (f" ... ({len(casts)} casts, {sum(c.lost for c in casts):.0f} lost)"
+                   if len(casts) > LISTED_CASTS else "") if casts else f"no {spell_name}"))
+    gained, lost = sum(c.gained for c in every), sum(c.lost for c in every)
+    befores = Counter(round(c.before) for c in every if c.before is not None)
+    lines.append(f"Over the {plural(len(every), 'cast')}: gained {gained:.0f}, lost at the cap {lost:.0f}"
+                 + (f" ({100 * lost / gained:.0f}%)" if gained else "") + f"; {name} just before the cast: "
+                 + ", ".join(f"{n} on {plural(k, 'cast')}" for n, k in sorted(befores.items())) + ".")
+    return "\n".join(lines)
+
+
+def _before(c: ResourceCast) -> str:
+    return f"{c.before:.0f} before" if c.before is not None else "before not logged"
+
+
+async def _resource_casts(rep: Report, f: dict, p: Player, kind: int, spell_ids: set[int], gains: list[dict]
+                          ) -> list[ResourceCast]:
+    """Each of a player's casts of the spell on a pull, with the resource before it and what it gained and lost
+    at the cap (ResourceCast). A gain of another spell's name at its cast's moment is that cast's own (a Holy
+    Shock pressed next)."""
+    casts = await rep.casts(f, p)
+    mine = [g for g in gains if g.get("type") == "resourcechange" and g.get("resourceChangeType") == kind
+            and g.get("targetID") == p.id and (g.get("resourceChange") or 0) > 0]
+    points = await _resource_points(rep, f, p, kind, f["endTime"]) if mine else []
+    out = []
+    for c in casts:
+        if c.get("abilityGameID") not in spell_ids:
+            continue
+        t = c["timestamp"]
+        others = {(x["timestamp"], rep.ability(x.get("abilityGameID"))) for x in casts
+                  if x["timestamp"] > t and x.get("abilityGameID") not in spell_ids}
+        window = [g for g in mine if t <= g["timestamp"] < t + RESOURCE_WINDOW_MS
+                  and (g["timestamp"], rep.ability(g.get("abilityGameID"))) not in others]
+        before = next((v for at, v in reversed(points) if at < t), None)
+        out.append(ResourceCast(t - f["startTime"], before, sum(g["resourceChange"] for g in window),
+                                sum(g.get("waste") or 0 for g in window)))
+    return out
 LUST_NAMES = ("lust", "bloodlust", "heroism", "hero")  # what raiders call Bloodlust and its kin
 LUST_SAME_MS = 100  # a buff gained this close to a player's Sated (& co.) came with it
 LUST_LASTED = 0.75  # and lasted at least this share of Bloodlust's duration, or until the pull ended

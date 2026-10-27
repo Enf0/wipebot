@@ -121,8 +121,9 @@ HISTORY_KILLS_SHOWN = (3, 10)  # per boss and difficulty, newest first: for the 
 async def ranked_kills(rep: Report, player: str, boss: str | None = None) -> str:  # noqa: C901, PLR0915
     """Every ranked kill of a player's character this season in the report's raid, from Warcraft Logs' rankings
     (any report, any group, not only this guild's logs): per boss and difficulty, the percentile against the same
-    spec with the date, item level, kill time and report."""
-    p = rep.player(player)
+    spec with the date, item level, kill time and report. A character who isn't in the report is looked up on its
+    players' realms."""
+    p = await rep.character(player)
     if not (p.server and p.region):
         raise FactError(f"the log doesn't give {p.name}'s realm")
     if not rep.zone_id:

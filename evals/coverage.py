@@ -20,7 +20,6 @@ from wipebot.discord import prompt
 CONNECTOR_TOOLS = {"my_characters", "report_answer", "save_note_or_plan"}
 # The core's tools with no eval case yet, and why: a new tool comes with a case.
 NO_CASE_YET = {
-    "buff_at_casts": "the answers to the cases that could use it call it in fewer than two of three",
     "spell_info": "the answers to the cases that could use it call it in fewer than two of three",
     "web_lookup": "no case needs a page no other tool reads yet",
 }

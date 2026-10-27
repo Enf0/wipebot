@@ -47,6 +47,10 @@ nymrissa-enemies-night = { tool = "enemies", report = "GM8XdBHaqpFgxK9Q", boss =
 nekzali-enemies-night = { tool = "enemies", report = "BfgjDv6LC2HaVbFm", boss = "Nek'zali", all_pulls = true }
 # Malignant Totems die under two actors of one game id
 vashnik-enemies = { tool = "enemies", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik the Malignant", pull = 7 }
+# the damage on each wave of adds, by player ("who did most on the last three sets?")
+twin-fangs-enemies-waves = { tool = "enemies", report = "64hVgfmydQGNxC7A", boss = "Twin Fangs", pull = "kill", by_wave = true }
+# every pull: each wave summed over the pulls that reached it
+twin-fangs-enemies-waves-night = { tool = "enemies", report = "64hVgfmydQGNxC7A", boss = "Twin Fangs", all_pulls = true, by_wave = true }
 
 # ---- the map ----
 # the pull the replay viewer is tested on too (test_tools.py)
@@ -123,7 +127,11 @@ compare-with-top-healer = { tool = "compare_with_top", local = true, report = "K
 top-builds-healer = { tool = "compare_with_top", local = true, spec = "holy priest", boss = "The Twin Fangs", difficulty = "Mythic", aspects = ["build"] }
 # what the fastest kills brought ("is it a 4-heal fight?"), the boss named as a raider wrote it
 top-kills = { tool = "compare_with_top", local = true, boss = "vashnik" }
+# the latest progress kills on two regions' servers ("how many healers did the last 20 progress kills bring?")
+top-kills-latest = { tool = "compare_with_top", local = true, boss = "Coiled Altar", difficulty = "Mythic", kills = "latest", count = 20, regions = ["EU", "US"] }
 player-history = { tool = "player_history", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo" }
+# a raider not in the report: found on its players' realm
+player-history-absent = { tool = "player_history", local = true, report = "p7jRwgv8b1rY6LBd", player = "Martin", boss = "Twin Fangs" }
 player-trends = { tool = "player_history", report = "KBYT4xXn7VNjDgh8", player = "Draiman", boss = "Sszorak", weeks = 2, show = ["deaths"] }
 guild-rankings = { tool = "player_history", local = true, report = "KBYT4xXn7VNjDgh8", role = "healer" }
 buff-at-casts = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", pull = 13, player = "Scopidruid", buff = "Starlord", spell = "Starsurge" }
@@ -131,6 +139,8 @@ buff-at-casts = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", pull = 13
 buff-at-casts-lust = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", pull = 13, player = "Scopidruid", buff = "Bloodlust", spell = "Starsurge" }
 # every pull: a spell cast all the time, tallied per pull, with the first cast on each
 buff-at-casts-night = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid", buff = "Starlord", spell = "Starsurge", all_pulls = true }
+# a resource: Holy Power before each Divine Toll, and what its Holy Shocks lost at the cap
+resource-at-casts = { tool = "buff_at_casts", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", pull = 37, player = "Cptola", buff = "Holy Power", spell = "Divine Toll" }
 
 # ---- game knowledge ----
 spell-info = { tool = "spell_info", spell = "1287083" }

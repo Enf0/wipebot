@@ -228,3 +228,65 @@ facts = ["37 ranked kills in the bracket, 6:06 to 7:39",
          "these are the bracket's ranked kills, not every guild's progression kill: wipes and unranked kills don't show"]
 wrong = ["says it can only see the fastest kills overall, not kills at their item level",
          "says kills at their item level ran 5 healers"]
+
+[[case]]
+id = "real-add-damage-by-wave"  # each wave of adds, by player; hand-summed from raw queries before (answers #885, #894)
+tools = ["enemies"]
+report = "64hVgfmydQGNxC7A"
+question = ["Can you send me the list of add damage on Twin Fangs when we killed it?",
+            "Can you show me the damage on the last 3 sets of adds?"]
+asker = "Nalaxd"
+expect = """Gives the damage on the Spawn of Vexhul of each of the last three waves on the kill (pull 13), by player,
+on that wave's adds alone: Pomaa led wave 3 (5.22M), Nalaxd wave 4 (4.89M) and Martin wave 5 (4.83M)."""
+facts = ["wave 3 died 3:15-3:19, wave 4 4:18-4:22, wave 5 5:53-5:56",
+         "Nalaxd second on wave 3 with 4.65M",
+         "each wave took about 34.9M",
+         "15 Spawns came over five waves of three"]
+wrong = ["gives the whole kill's add damage as the last three waves'",
+         "says the log can't split the damage by wave",
+         "counts the Barbed Bulwarks as a wave of adds"]
+
+[[case]]
+id = "real-divine-toll-holy-power"  # Holy Power before each cast and lost right after; counted by hand before (answer #659)
+tools = ["buff_at_casts"]
+report = "p7jRwgv8b1rY6LBd"
+question = "How much Holy Power did I lose to bad Divine Tolls on Twin Fangs pull 37?"
+asker = "Cptola"
+expect = """22 of the 45 Holy Power Cptola's 9 Divine Tolls brought on pull 37 were lost at the cap: the worst at 5:27,
+pressed at 5 Holy Power (all 5 lost), and at 1:11 and 6:02 at 4 (4 lost each). Spending Holy Power before pressing
+Divine Toll keeps it."""
+facts = ["at 2:57, pressed at 0, nothing lost",
+         "6:37 at 3, 3 lost",
+         "0:41 and 4:46 at 2, 2 lost each"]
+wrong = ["gives the Holy Power lost over the whole pull as Divine Toll's",
+         "says the log can't show Holy Power at each cast"]
+
+[[case]]
+id = "real-latest-progress-kills-healers"  # the newest first kills, by region; read page by page before (answers #739, #740)
+tools = ["compare_with_top"]
+report = "p7jRwgv8b1rY6LBd"
+question = ["the 20 newest progress kills on coiled altar, how many healers did they have?",
+            "check only eu and us logs"]
+asker = "Krøpling"
+expect = """Of the 20 newest first kills of Mythic Coiled Altar on EU and US servers, 15 brought 5 healers and 5
+brought 4: 5 healers is the usual choice on progress."""
+drifts = ["15", "5", "10:12", "9:15", "10:13"]
+facts = ["all 20 had 2 tanks",
+         "killed 26-27 October",
+         "the 4-healer kills were faster (median 9:15 against 10:13)"]
+wrong = ["answers from the fastest kills instead of the newest first kills",
+         "says it can't sort the kills by date or filter them by region"]
+
+[[case]]
+id = "real-history-raider-not-in-log"  # a raider who wasn't in the night's log (answers #732, #820)
+tools = ["player_history"]
+report = "p7jRwgv8b1rY6LBd"
+question = "How has Martin parsed on Twin Fangs this season?"
+asker = "Yurai"
+expect = """Martin (Beast Mastery Hunter, Kazzak) wasn't in this log, but their ranked kills are found anyway: one
+Mythic Twin Fangs kill, 95% on Monday 26 October, after Heroic kills between 62% and 77% as Marksmanship."""
+drifts = ["95%", "75.2", "62%", "77%"]
+facts = ["Mythic average of each boss's best kill 75.2 over 7 bosses",
+         "the Mythic kill at item level 335"]
+wrong = ["says it can't find Martin because he isn't in the report",
+         "gives another player's parses as Martin's"]

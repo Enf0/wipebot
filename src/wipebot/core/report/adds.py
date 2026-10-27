@@ -102,11 +102,13 @@ def add_wave(f: dict, name: str, ability: str, wave: list[tuple[float, str, str 
     return f"{name} casts {ability} x{len(wave)}: " + ", ".join(parts)
 
 
-async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jobs: str = JOBS_NOT_LOGGED) -> str:
+async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jobs: str = JOBS_NOT_LOGGED,
+                  by_wave: bool = False) -> str:
     """The enemies other than the boss in a pull (adds): how many came, when they died, what became of the rest
     (alive at the end, or gone without a death: despawned, transformed or removed), the damage they took and who
     did it, and their interruptible casts (begun, kicked, gone through). A boss-type unit that comes several
-    times (Nek'zali's Drowned Echoes) is an add; one that comes once is a boss and left out."""
+    times (Nek'zali's Drowned Echoes) is an add; one that comes once is a boss and left out. With `by_wave`, the
+    damage on the most damaged kind that comes in waves, wave by wave (`wave_damage`)."""
     f = rep.fight(pull, boss)
     t0 = f["startTime"]
     end = f["endTime"] - t0
@@ -175,6 +177,8 @@ async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jo
     if any(n["id"] in rep.bosses for n in shown):
         lines.append("A boss-type unit that comes once is the boss, left out: "
                      + ", ".join(dict.fromkeys(rep.actor(b) for b in bosses)) + ".")
+    if by_wave:
+        lines += await wave_damage(rep, [(f, died_events)], [rep.actor(n["id"]) for n in shown[:NIGHT_KINDS]])
     return "\n".join(lines)
 
 
@@ -207,12 +211,13 @@ NIGHT_KINDS = 4  # with all_pulls, the most damaged kinds of add named on each p
 WAVE_GAP_MS = 20_000  # deaths of a kind of add this far apart are two waves
 
 
-async def enemies_night(rep: Report, boss: str | None = None) -> str:
+async def enemies_night(rep: Report, boss: str | None = None, by_wave: bool = False) -> str:  # noqa: PLR0915
     """The adds over every pull on a boss: per kind how many came and died over the pulls and the damage they
     took, their casts with a cast bar (begun, kicked and by whom, gone through), then each pull in a line; for the
     NIGHT_KINDS most damaged kinds also when each wave died and each player's damage on them. Each pull's deaths,
     damage by enemy and casts are fetched in one query each for all the pulls, and a kind's damage by player in one
-    over all of them."""
+    over all of them. With `by_wave`, each wave's damage by player summed over the pulls that reached it
+    (`wave_damage`)."""
     pulls = rep.by_boss[rep.boss(boss)]
     fights, going = rep.ended(pulls), rep.still_going(pulls)
     items = [(f["id"], {}) for f in fights]
@@ -280,7 +285,90 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     shown = sorted(came, key=lambda n: -taken[n])[:10]
     if unrecorded := [n for n in shown if came[n] > 1 and not died[n] and taken[n]]:
         lines.append(_no_deaths(unrecorded))
-    return going + "\n".join([*lines, "By pull (the most damaged kinds):", *per_pull])
+    waved = await wave_damage(rep, list(zip(fights, died_all, strict=True)), shown[:NIGHT_KINDS]) if by_wave else []
+    return going + "\n".join([*lines, *waved, "By pull (the most damaged kinds):", *per_pull])
+
+
+async def wave_damage(rep: Report, pulls: list[tuple[dict, list[dict]]], names: list[str]) -> list[str]:
+    """The damage on the first of these kinds of add (most damaged first) that came in waves, wave by wave, by
+    player: a wave is the adds whose deaths came less than WAVE_GAP_MS apart (as `_waves`), and its damage is on
+    those adds alone, whenever it was dealt (Warcraft Logs' tables by add instance, every wave of every pull in one
+    query). Over several pulls (each with its enemy deaths), wave 1 is each pull's first, summed over the pulls
+    that reached it. Adds of the kind with no death recorded come last, as one group."""
+    by_name: dict[str, list[list[list[tuple[float, int, int]]]]] = {}  # kind -> each pull's waves of its deaths
+    for name in names:
+        waves = [_unit_waves(rep, f, died, name) for f, died in pulls]
+        if max((len(w) for w in waves), default=0) > 1:
+            by_name[name] = waves
+            break
+    if not by_name:
+        return [f"No wave of adds to give damage by: none of {few(names)} came in more than one wave (deaths "
+                f"{WAVE_GAP_MS // 1000} s or more apart) on {'any of these pulls' if len(pulls) > 1 else 'this pull'}."
+                ] if names else []
+    name, waves = next(iter(by_name.items()))
+    items, keys = [], []  # one table per (pull, wave, actor); a wave's key is its number, 0 for no death recorded
+    for (f, _), pull_waves in zip(pulls, waves, strict=True):
+        kind = _kind_actors(rep, f, name)
+        died = {(a, i) for w in pull_waves for _, a, i in w}
+        unrecorded = [(a, i) for a, count in kind.items() for i in range(1, count + 1) if (a, i) not in died]
+        for number, units in [*enumerate([[(a, i) for _, a, i in w] for w in pull_waves], 1), (0, unrecorded)]:
+            for actor in dict.fromkeys(a for a, _ in units):
+                instances = ", ".join(str(i) for a, i in units if a == actor)
+                items.append((f["id"], {"targetID": actor, "filterExpression": f"target.instance in ({instances})"}))
+                keys.append(number)
+    dealt: dict[int, Counter] = defaultdict(Counter)
+    players = set(rep.names.values())
+    for number, table in zip(keys, await rep.tables(items, "DamageDone"), strict=True):
+        for e in table.get("entries") or []:
+            if e.get("total") and e["name"] in players:
+                dealt[number][e["name"]] += e["total"]
+    many = len(pulls) > 1
+    lines = [f"Damage on {name} by wave, by player (a wave is the adds whose deaths came less than "
+             f"{WAVE_GAP_MS // 1000} s apart, and its damage is on those adds alone"
+             + ("; wave 1 is each pull's first, summed over the pulls that reached it, so one who died early or "
+                "missed pulls has less" if many else "") + "):"]
+    for number in sorted(dealt, key=lambda n: n or math.inf):
+        reached = [w for w in waves if len(w) >= number] if number else []
+        if not number:
+            what = "with no death recorded (gone with the kill, still alive, or despawned)"
+        elif many:
+            what = (f"wave {number} ({plural(len(reached), 'pull')}, {sum(len(w[number - 1]) for w in reached)} "
+                    "died)")
+        else:
+            wave = waves[0][number - 1]
+            what = f"wave {number} ({len(wave)} died {clock(wave[0][0])}-{clock(wave[-1][0])})"
+        c = dealt[number]
+        lines.append(f"  {what}: took {short(sum(c.values()))}; " + ", ".join(
+            f"{who} {short(v)}" for who, v in c.most_common()))
+    return lines
+
+
+def _kind_actors(rep: Report, f: dict, name: str) -> dict[int, int]:
+    """The enemy actors of a kind of add on a pull (by its name), with how many of it the pull lists under each
+    (only the listed actor has a count; another of its kind counts its deaths)."""
+    bosses = boss_units(rep, f)
+    npcs = [n for n in f.get("enemyNPCs") or [] if n["id"] not in bosses]
+    listed = {n["id"]: n.get("instanceCount") or 1 for n in npcs if rep.actor(n["id"]) == name}
+    return {a: listed.get(a, 0) for a, k in same_kind(rep, npcs, bosses).items() if k in listed}
+
+
+def _unit_waves(rep: Report, f: dict, died_events: list[dict], name: str) -> list[list[tuple[float, int, int]]]:
+    """A pull's adds of a kind in waves of their deaths (as `_waves`): each death's (ms from the pull's start,
+    actor, instance), each add once (WCL lists some deaths twice)."""
+    actors = _kind_actors(rep, f, name)
+    out: list[list[tuple[float, int, int]]] = []
+    seen = set()
+    for e in sorted(died_events, key=lambda e: e["timestamp"]):
+        a, i = e.get("targetID", 0), e.get("targetInstance") or 1
+        if a not in actors or (a, i) in seen:
+            continue
+        seen.add((a, i))
+        t = e["timestamp"] - f["startTime"]
+        if out and t - out[-1][-1][0] < WAVE_GAP_MS:
+            out[-1].append((t, a, i))
+        else:
+            out.append([(t, a, i)])
+    return out
 
 
 async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False) -> list[Meter]:

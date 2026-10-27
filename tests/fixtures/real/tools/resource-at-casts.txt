@@ -1,0 +1,11 @@
+Holy Power on Cptola at each Divine Toll cast (what they had just before it; then what they gained in the 1 s after it, what it brought and anything else but another cast's own gain, and how much of that was lost at the cap), The Twin Fangs pull 37:
+- 0:08: 1 before; gained 5, lost 1
+- 0:41: 2 before; gained 5, lost 2
+- 1:11: 4 before; gained 5, lost 4
+- 2:57: 0 before; gained 5, lost 0
+- 3:30: 1 before; gained 5, lost 1
+- 4:46: 2 before; gained 5, lost 2
+- 5:27: 5 before; gained 5, lost 5
+- 6:02: 4 before; gained 5, lost 4
+- 6:37: 3 before; gained 5, lost 3
+Over the 9 casts: gained 45, lost at the cap 22 (49%); Holy Power just before the cast: 0 on 1 cast, 1 on 2 casts, 2 on 2 casts, 3 on 1 cast, 4 on 2 casts, 5 on 1 cast.

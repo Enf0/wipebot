@@ -192,6 +192,23 @@ async def test_guild_reports_follow_every_page(monkeypatch):
     assert asked == [1, 2]
 
 
+async def test_the_latest_ranked_kills_are_found_by_halving_to_the_last_page(monkeypatch):
+    w = WCL()
+    last = 13  # pages 1 to 13 have kills, 13 only two
+    asked = []
+
+    async def query(_q, cache_for=None, **variables):
+        n = variables["page"]
+        asked.append(n)
+        kills = [] if n > last else [{"startTime": n * 100 + i} for i in range(2 if n == last else 50)]
+        return {"worldData": {"encounter": {"fightRankings": {"rankings": kills, "hasMorePages": n < last}}}}
+    monkeypatch.setattr(w, "query", query)
+    kills, cut = await w.ranked_kills(1, 5, "progress", 20, latest=True)
+    assert [k["startTime"] for k in kills] == [*range(1232, 1250), 1300, 1301]
+    assert not cut
+    assert len(asked) < 10  # page 1, five halvings, the last page and the one before it
+
+
 class _GuildClient:
     def __init__(self, error=None):
         self.error, self.asked = error, None

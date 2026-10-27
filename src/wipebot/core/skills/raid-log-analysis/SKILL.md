@@ -176,7 +176,8 @@ A raid leader decides what to change, not only what went wrong.
 - A damage spike that comes back pull after pull with no healing cooldown on it (`healing` with `all_pulls`) is a
   cooldown to plan: name the spike's time, the ability behind it, and the healers' cooldowns ready then.
 - More damage, another healer, another tank: what the fastest kills of the boss brought (`compare_with_top` with
-  only `boss`) against what ended the raid's pulls. A fight whose pulls end on mechanics needs the mechanic, not a
+  only `boss`), and for a guild still progressing what the latest first kills brought (`kills` latest: guilds at
+  its stage, not farm gear), against what ended the raid's pulls. A fight whose pulls end on mechanics needs the mechanic, not a
   different composition; the enrage or a damage race ending them is what makes damage the answer.
 - Progress over nights: `progress` with `weeks` gives the boss night by night (the best wipe, the kill, how the pulls
   ended); fewer pulls ending on the same mechanic is progress before the kill is.
