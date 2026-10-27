@@ -298,4 +298,5 @@ async def budget_text(store: Store, key: str) -> str:
     except (httpx.HTTPError, KeyError, ValueError) as e:
         return f"Couldn't read the budget from OpenRouter: {e}"
     month_start = datetime.datetime.now(datetime.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return budget.describe(b, *store.answer_costs(month_start.timestamp()), config.budget_note())
+    return budget.describe(b, *store.answer_costs(month_start.timestamp()), config.budget_note(),
+                           config.spent_before())

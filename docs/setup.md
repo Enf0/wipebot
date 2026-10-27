@@ -44,6 +44,7 @@ In `.env` (copy [.env.example](../.env.example)):
 | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required; or `OPENROUTER_API_KEY` in place of the Anthropic key (below) |
 | `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/usage` ([below](#a-budget-the-guild-chips-in-to)) |
 | `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/usage`, e.g. `Vipps to Oscar, 12345678` |
+| `WIPEBOT_SPENT_BEFORE` | bot | what the bot spent before its OpenRouter key, in USD (e.g. its Anthropic key's cost in the Console), counted in `/usage`'s spend in all |
 | `WIPEBOT_SERVER_SHARE` | bot | for a copy many servers share: the part of the OpenRouter key's limit (set to reset monthly) one server may spend a month, e.g. `0.1`; past it, that server's raiders are told when the free answers are back |
 | `WIPEBOT_KEY_SECRET` | bot | what the AI keys admins add for their servers (`/wipebot key`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
 | `WIPEBOT_OPENROUTER_CALLBACK` | bot | where OpenRouter sends an admin after "Sign in with OpenRouter" in `/wipebot key`: a page that shows the address to paste back; default a localhost address that doesn't load, whose address bar holds it |
@@ -134,7 +135,9 @@ transferring or selling it.
 2. Create a key for the bot with no expiry, a credit limit (what the guild has given) and **Include BYOK in limit**.
    At the limit OpenRouter refuses it, so the bot can't spend more than the budget. A guardrail allowing only the
    Anthropic provider keeps other hosts of the same models from serving it on OpenRouter credits.
-3. Set `OPENROUTER_API_KEY` (in place of `ANTHROPIC_API_KEY`) and `WIPEBOT_BUDGET_NOTE`, and restart the bot.
+3. Set `OPENROUTER_API_KEY` (in place of `ANTHROPIC_API_KEY`) and `WIPEBOT_BUDGET_NOTE`, and restart the bot. If the
+   bot answered on an Anthropic key before, `WIPEBOT_SPENT_BEFORE` (that key's cost in the Console) counts it in
+   `/usage`'s spend in all.
 
 When someone chips in, raise the key's limit by the amount (OpenRouter → **Keys**). `/usage` estimates how many
 answers are left only when answers are recorded (`WIPEBOT_RECORD_ANSWERS=1`).
