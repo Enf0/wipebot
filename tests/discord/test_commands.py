@@ -178,7 +178,7 @@ def test_a_note_needs_the_server_set_up_for_its_guild(store):
 def test_budget_says_what_the_key_spent_and_has_left():
     from wipebot.discord.budget import KeyBudget, describe
     b = KeyBudget(limit=50.0, remaining=12.5, month=20.25, total=37.5)
-    assert describe(b, 0, 0.0, None) == ("wipebot's AI budget: **$20.25** spent this month, $37.50 in all.\n"
+    assert describe(b, 0, 0.0, None) == ("**AI budget:** $20.25 spent this month, $37.50 in all.\n"
                                          "**$12.50** left of $50.00.")
     assert describe(b, 81, 20.25, "Vipps to Oscar, 12345678").splitlines()[1:] == [
         "**$12.50** left of $50.00: about 50 more answers at this month's $0.25 an answer.",

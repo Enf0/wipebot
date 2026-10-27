@@ -150,7 +150,11 @@ class KeyChoices(discord.ui.View):
     def __init__(self, store: Store):
         super().__init__(timeout=900)
         self.store, self.verifier = store, secrets.token_urlsafe(48)
+        steps = [self.signed_in, self.paste]  # after the sign-in link, in the order they're used
+        self.clear_items()
         self.add_item(discord.ui.Button(label="1. Sign in with OpenRouter", url=login_url(self.verifier), row=0))
+        for item in steps:
+            self.add_item(item)
 
     @discord.ui.button(label="2. Paste the address", style=discord.ButtonStyle.primary, row=0)
     async def signed_in(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -161,27 +165,33 @@ class KeyChoices(discord.ui.View):
         await interaction.response.send_modal(PasteKey(self.store))
 
 
-def status(store: Store, discord_guild_id: int) -> str:
+def status(store: Store, discord_guild_id: int, bot_name: str, shared: bool) -> str:
+    """Whose key answers the server: its own, the shared free answers of a bot many servers share, or else the key of
+    whoever runs the bot."""
     row = store.server_key_info(discord_guild_id)
     if row is None:
-        return "This server answers from wipebot's shared free answers."
+        return (f"This server answers from {bot_name}'s shared free answers." if shared else
+                f"This server answers on {bot_name}'s own key, from whoever runs it.")
     provider, added_by, added_at = row
     when = datetime.datetime.fromtimestamp(added_at, datetime.UTC)
     return (f"This server answers on its own {NAMES.get(provider, provider)} key, added by <@{added_by}> "
             f"<t:{int(when.timestamp())}:R>.")
 
 
-async def key_command(store: Store, interaction: discord.Interaction, remove: bool) -> None:
+async def key_command(store: Store, interaction: discord.Interaction, remove: bool, shared: bool) -> None:
     """/wipebot key: the server's key status with the ways to add one, or with `remove`, the key forgotten."""
     assert interaction.guild_id is not None
     if remove:
         dropped = store.drop_server_key(interaction.guild_id)
+        back = "the shared free answers" if shared else "the bot's own key"
         await interaction.response.send_message(
-            "Removed: this server's questions go back to the shared free answers. To revoke the key too, delete it "
-            "on openrouter.ai or in Anthropic's Console." if dropped else "This server has no key of its own.",
+            f"Removed: this server's questions go back to {back}. To revoke the key too, delete it on openrouter.ai "
+            "or in Anthropic's Console." if dropped else "This server has no key of its own.",
             ephemeral=True)
         return
+    name = interaction.client.user.name if interaction.client.user else "the bot"
+    limit = f", with no limit from {name}" if shared else ""
     await interaction.response.send_message(
-        status(store, interaction.guild_id) + "\n\nTo answer on your own key, with no limit from wipebot: sign in "
-        "with OpenRouter and paste the address it ends on (it may not load, that's fine), or paste an OpenRouter or "
+        status(store, interaction.guild_id, name, shared) + f"\n\nTo answer on your own key{limit}: sign in with "
+        "OpenRouter and paste the address it ends on (it may not load, that's fine), or paste an OpenRouter or "
         "Anthropic key. It's kept encrypted and never shown again.", view=KeyChoices(store), ephemeral=True)

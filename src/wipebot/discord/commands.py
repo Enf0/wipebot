@@ -171,8 +171,8 @@ def usage_text(rate: dict | None) -> str:
     if not rate:
         return "Warcraft Logs didn't say how many points are left this hour; try again in a minute."
     left = max(rate["limitPerHour"] - rate["pointsSpentThisHour"], 0)
-    text = (f"**Warcraft Logs points:** {left:,.0f} of {rate['limitPerHour']:,} left this hour, for everyone using "
-            f"this wipebot; the hour starts again in {rate['pointsResetIn'] // 60 + 1} min.")
+    text = (f"**Warcraft Logs points:** {left:,.0f} of {rate['limitPerHour']:,} left this hour, shared by "
+            f"everyone using this bot; the hour starts again in {rate['pointsResetIn'] // 60 + 1} min.")
     if db := rate.get("databaseLimitPerHour"):
         db_left = max(db - rate.get("databasePointsSpentThisHour", 0), 0)
         text += f"\n**Warcraft Logs database points** (rankings, other guilds): {db_left:,.0f} of {db:,} left."
@@ -257,7 +257,7 @@ def build(bot: WipeBot) -> app_commands.Group:
     @group.command(name="key", description="Answer this server's questions on its own OpenRouter or Anthropic key")
     @app_commands.describe(remove="Go back to the shared free answers and forget the key")
     async def own_key(interaction: discord.Interaction, remove: bool = False) -> None:
-        await keycmd.key_command(bot.store, interaction, remove)
+        await keycmd.key_command(bot.store, interaction, remove, shared=bot.allowance is not None)
 
     @group.command(name="footer", description="End answers with a small line: their cost, Warcraft Logs points and "
                                               "free answers left")
