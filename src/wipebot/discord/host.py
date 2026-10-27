@@ -31,6 +31,7 @@ from claude_agent_sdk import (
     ToolAnnotations,
     ToolUseBlock,
     create_sdk_mcp_server,
+    get_session_info,
     tool,
 )
 from mcp.server.mcpserver.exceptions import ToolError
@@ -60,8 +61,11 @@ def no_paths(text: str) -> str:
 
 @functools.cache
 def _empty_dir() -> str:
-    """The sessions' working directory: an empty one, not the checkout with its .env."""
-    return tempfile.mkdtemp(prefix="wipebot-")
+    """The sessions' working directory: an empty one, not the checkout with its .env. Always the same one, as
+    Claude Code keeps a session's transcript by its working directory, where a resume looks for it."""
+    path = os.path.join(tempfile.gettempdir(), "wipebot-sessions")
+    os.makedirs(path, exist_ok=True)
+    return path
 
 
 @dataclass
@@ -391,7 +395,7 @@ class Session:
 
     def __init__(self, library: server.Library, code: str, model: str = "",
                  on_tool: Callable[[str, dict], None] | None = None, name: str = "wipebot",
-                 system_prompt: str | None = None, plugin: str | None = None):
+                 system_prompt: str | None = None, plugin: str | None = None, resume: str | None = None):
         self.library, self.code, self.model, self.on_tool = library, code, model, on_tool
         self.name = name  # what the bot calls itself: its name in Discord
         # Another client's prompt in place of the bot's, without the bot's own tools (follow_pulls, remember): the
@@ -400,6 +404,10 @@ class Session:
         # A plugin's folder whose skills the model loads when a question calls for one, as Claude does with a plugin
         # (the evals' plugin mode): it may load them and read the files in that folder, nothing else.
         self.plugin = plugin
+        # A conversation saved before a restart: its session goes on from its transcript, when Claude Code still has it
+        self.resume = resume
+        self.resumed = False
+        self.session_id = resume or ""  # the transcript's, once known
         self._client: ClaudeSDKClient | None = None
         self._calls: list[ToolCall] = []  # tool calls of the current question
         self._ctx: Context | None = None  # the current question's
@@ -481,7 +489,7 @@ class Session:
             setting_sources=[],  # don't pick up the developer's CLAUDE.md, settings or plugins
             strict_mcp_config=True,  # nor their other MCP servers and claude.ai connectors
             settings=NO_FILES,
-            cwd=_empty_dir(),
+            cwd=(cwd := _empty_dir()),
             max_turns=MAX_TURNS,
             max_budget_usd=2 * ANSWER_BUDGET_USD,
             model=self.model or None,
@@ -489,6 +497,10 @@ class Session:
             # Opus leaves its thinking out of what it returns unless asked: summarised, the reviews can read it
             thinking={"type": "adaptive", "display": "summarized"},
         )
+        if self.resume and get_session_info(self.resume, directory=cwd):
+            options.resume, self.resumed = self.resume, True
+        else:
+            self.session_id = ""
         if self.plugin:  # its skills, and Read for their files only: the folder is all can_use_tool lets it read
             options.tools, options.settings, options.skills = ["Skill", "Read"], None, "all"
             options.plugins = [SdkPluginConfig(type="local", path=self.plugin)]
@@ -558,6 +570,7 @@ class Session:
                     answer.cost_usd = msg.total_cost_usd - self._spent
                     self._spent = msg.total_cost_usd
                 answer.usage, answer.turns, answer.session_id = msg.usage, msg.num_turns, msg.session_id
+                self.session_id = msg.session_id
                 self.context_tokens = context_size(msg.usage)
                 if msg.subtype in CAPPED:  # what it wrote so far is half an answer
                     error = error or msg.subtype

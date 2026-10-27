@@ -1,18 +1,22 @@
 """Conversations: one per asker and place, follow-ups, what was said in between."""
 
 import asyncio
+import time
+from dataclasses import replace
 
 import pytest
 
 from wipebot.discord import chat
 from wipebot.discord.chat import Conversations, split_message
 from wipebot.discord.host import Context
+from wipebot.discord.store import Store
 
 
 class FakeSession:
     opened: list[FakeSession] = []
 
     worn_out = False
+    session_id, resumed = "", False  # no transcript to resume
 
     def __init__(self, code):
         self.code, self.questions, self.closed = code, [], False
@@ -245,3 +249,63 @@ def test_split_message_keeps_lines_and_the_limit():
     assert "\n".join(chunks) == text
     assert split_message("short") == ["short"]
     assert split_message("") == []
+
+
+class Resumable(FakeSession):
+    """A session with a transcript: resumed when opened with its id."""
+    def __init__(self, code, resume=None):
+        super().__init__(code)
+        self.resumed = resume is not None
+        self.session_id = resume or f"s{len(FakeSession.opened)}"
+
+
+def saving(store):
+    async def open_session(code, resume=None):
+        return Resumable(code, resume)
+    return Conversations(open_session, saved=store)
+
+
+async def test_a_restart_resumes_the_conversation_where_it_was():
+    """A deploy restarts the bot: the next question in a conversation goes on in its session, with what it saw."""
+    FakeSession.opened = []
+    store = Store(":memory:")
+    before = saving(store)
+    await before.ask(("dm", 1), "R1", "q1", Context(), message_id=10)
+    before.saw(("dm", 1), [11])
+    await before.close_all()  # stopping
+    after = saving(store)
+
+    async def earlier(after_id, seen):
+        return f"after {after_id}, seen {sorted(seen)}"
+    await after.ask(("dm", 1), "R1", "q2", Context(), earlier, message_id=12)
+    first, second = FakeSession.opened
+    assert first.closed and second.resumed and second.session_id == first.session_id
+    assert second.ctxs[0].earlier == "after 10, seen [10, 11]" and second.ctxs[0].follow_up
+
+
+async def test_a_restart_starts_over_where_the_conversation_would_have_ended(monkeypatch):
+    """One about another report, or idle too long, starts over; one closed before the restart isn't saved."""
+    FakeSession.opened = []
+    store = Store(":memory:")
+    before = saving(store)
+    for key in ("a", "b", "c"):
+        await before.ask(key, "R1", "q", None)
+    await before.drop("c")
+    saved = store.conversation("b", chat.IDLE_S)
+    assert saved
+    store.save_conversation("b", replace(saved, last_used=time.time() - chat.IDLE_S - 1))
+    await before.close_all()
+    after = saving(store)
+    for key, code in (("a", "R2"), ("b", "R1"), ("c", "R1")):
+        await after.ask(key, code, "q", None)
+    assert [s.resumed for s in FakeSession.opened[3:]] == [False, False, False]
+
+
+async def test_a_conversation_ended_by_a_newer_one_leaves_the_newer_saved():
+    FakeSession.opened = []
+    store = Store(":memory:")
+    convs = saving(store)
+    await convs.ask("k", "R1", "q1", None)
+    await convs.ask("k", "R2", "q2", None)  # a new raid night: the first conversation closes
+    saved = store.conversation("k", chat.IDLE_S)
+    assert saved and (saved.code, saved.session_id) == ("R2", FakeSession.opened[1].session_id)

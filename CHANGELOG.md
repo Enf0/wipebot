@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **A restart doesn't end your conversation.** When the bot restarts for an update, your next question or follow-up button goes on where the conversation was, instead of starting over without what it found.
+
 ## [0.11.1] - 2026-10-27
 
 ### Fixed

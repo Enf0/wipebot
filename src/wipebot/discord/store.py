@@ -1,13 +1,13 @@
 """SQLite state: each Discord server's settings (from /wipebot setup), which pulls of a live report have been
-handled, who asked for posts after each wipe and where, which Discord message holds the feedback after which pull,
-what the bot remembers about each raider (their character and preferences), and a record of every answer (question,
-answer, tool calls, thinking, cost) with the reactions to it, for improving the bot from real use. Raid notes and
-plans are in the notebook (core/notebook.py), which the remote MCP server reads too."""
+handled, who asked for posts after each wipe and where, the open chat conversations, which Discord message holds the
+feedback after which pull, what the bot remembers about each raider (their character and preferences), and a record of
+every answer (question, answer, tool calls, thinking, cost) with the reactions to it, for improving the bot from real
+use. Raid notes and plans are in the notebook (core/notebook.py), which the remote MCP server reads too."""
 import json
 import os
 import sqlite3
 import time
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from dataclasses import astuple, dataclass, field, fields
 from pathlib import Path
 
@@ -75,6 +75,17 @@ class SavedFollowing:
     channel_id: int | None
     request: str
     asked: float
+
+
+@dataclass
+class SavedConversation:
+    """An open chat conversation (chat.Conversations), kept so a restart doesn't end it: its session is resumed from
+    its transcript, which Claude Code keeps on disk."""
+    code: str  # the report it's about
+    session_id: str
+    last_question: int | None  # its previous question's message id
+    seen: list[int]  # message ids its session already has
+    last_used: float
 
 
 # Columns of older versions that new rows can't leave empty: the posts channel of the answer after each wipe.
@@ -177,6 +188,14 @@ class Store:
                 request TEXT NOT NULL,
                 asked REAL NOT NULL,
                 PRIMARY KEY (discord_guild_id, key)
+            );
+            CREATE TABLE IF NOT EXISTS conversations (
+                key TEXT PRIMARY KEY,    -- JSON: where and whose, ["dm", user id] or [channel id, user id]
+                code TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                last_question INTEGER,
+                seen TEXT NOT NULL,      -- JSON: list of message ids
+                last_used REAL NOT NULL
             );
             CREATE TABLE IF NOT EXISTS reactions (
                 message_id INTEGER NOT NULL,  -- an answer's message
@@ -309,6 +328,30 @@ class Store:
         return [SavedFollowing(*row) for row in self._db.execute(
             "SELECT discord_guild_id, key, user_id, name, character, code, channel_id, request, asked FROM following")]
 
+    # ---------- chat conversations ----------
+
+    def conversation(self, key: Hashable, max_age_s: float) -> SavedConversation | None:
+        """The conversation saved at `key`, unless it's been idle over `max_age_s`; ones that have are forgotten."""
+        self._db.execute("DELETE FROM conversations WHERE last_used < ?", (time.time() - max_age_s,))
+        self._db.commit()
+        row = self._db.execute("SELECT code, session_id, last_question, seen, last_used FROM conversations "
+                               "WHERE key = ?", (_key(key),)).fetchone()
+        if row is None:
+            return None
+        code, session_id, last_question, seen, last_used = row
+        return SavedConversation(code, session_id, last_question, json.loads(seen), last_used)
+
+    def save_conversation(self, key: Hashable, conv: SavedConversation) -> None:
+        self._db.execute("INSERT OR REPLACE INTO conversations VALUES (?, ?, ?, ?, ?, ?)",
+                         (_key(key), conv.code, conv.session_id, conv.last_question, json.dumps(conv.seen),
+                          conv.last_used))
+        self._db.commit()
+
+    def drop_conversation(self, key: Hashable, session_id: str) -> None:
+        """Forget the conversation at `key`, if it's still the one on `session_id` (not a newer one there)."""
+        self._db.execute("DELETE FROM conversations WHERE key = ? AND session_id = ?", (_key(key), session_id))
+        self._db.commit()
+
     # ---------- answers and reactions ----------
 
     def record_interaction(self, *, messages: Sequence[int] = (), **row) -> int:
@@ -354,3 +397,8 @@ class Store:
         pruned = self._db.execute("DELETE FROM interactions WHERE at < ?", (cutoff,)).rowcount
         self._db.commit()
         return pruned
+
+
+def _key(key: Hashable) -> str:
+    """A conversation's key as stored: a tuple of ids and names, as JSON."""
+    return json.dumps(list(key) if isinstance(key, tuple) else key)
