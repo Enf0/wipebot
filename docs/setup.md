@@ -75,7 +75,11 @@ account pays count), and the server to part of the account's with the `WIPEBOT_W
 The server listens on `127.0.0.1:8000`; point the reverse proxy at it. Elsewhere than Claude, such as ChatGPT,
 members add `https://<your host>/mcp` as a connector (the address must end in `/mcp`).
 
-In Claude, members add Wipebot as a plugin: the connector with the skill, so Claude gets the method too. Either way,
+In Claude, the quickest way is a link that opens Claude's connector dialog filled in:
+`https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Wipebot&connectorUrl=` followed by
+the address, percent-encoded (`https%3A%2F%2F<your host>%2Fmcp`); members choose **Continue** and sign in.
+
+Or members add Wipebot as a plugin: the connector with the skill, so Claude gets the method too. Either way,
 they then press **Connect** on the plugin's connector and sign in with Warcraft Logs.
 
 - **The zip** your server serves at `https://<your host>/plugin.zip`: members download it and add it under

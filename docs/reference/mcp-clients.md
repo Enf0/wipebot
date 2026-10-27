@@ -59,6 +59,14 @@ Adding a plugin from it (its page's **Add**) doesn't connect its connector: the 
 the server's sign-in ("Sign in now") and its support for Claude's published client identity (CIMD). After signing in
 it shows "Connected · Custom". The plugin page shows a revision ("v2"), not the manifest's version.
 
+An install link opens claude.ai's **Add custom connector** dialog with the name and URL filled in
+(https://claude.com/docs/connectors/building/directory-vs-custom, read 2026-10-27):
+`https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=<name>&connectorUrl=<URL,
+percent-encoded>`. Seen on an iPhone in Safari, 2026-10-27: the dialog opens filled in, warns that "This connector was
+suggested by an external link", and its button is **Continue**. It adds the connector only; no such link adds a
+plugin (a listing in Anthropic's directory is the one-click way to that). ChatGPT has no link that fills in a custom
+MCP server (https://developers.openai.com/apps-sdk/deploy/connect-chatgpt, read 2026-10-27).
+
 ## ChatGPT and Codex as plugin hosts
 
 From OpenAI's docs, read 2026-10-23 (https://developers.openai.com/plugins/build/plugins and
