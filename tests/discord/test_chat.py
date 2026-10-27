@@ -54,6 +54,20 @@ async def test_a_conversation_knows_its_report(convs):
     assert convs.code(("dm", 1)) == "R1"
 
 
+async def test_a_server_key_runs_its_own_session_and_a_new_one_starts_over():
+    from types import SimpleNamespace
+    opened = []
+
+    async def open_session(code, resume=None, env=None):
+        opened.append(env)
+        return FakeSession(code)
+    convs = Conversations(open_session)
+    await convs.ask(("dm", 1), "R1", "q1", SimpleNamespace(env=None))
+    await convs.ask(("dm", 1), "R1", "q2", SimpleNamespace(env={"ANTHROPIC_API_KEY": "a"}))
+    await convs.ask(("dm", 1), "R1", "q3", SimpleNamespace(env={"ANTHROPIC_API_KEY": "a"}))
+    assert opened == [None, {"ANTHROPIC_API_KEY": "a"}]
+
+
 async def test_a_new_report_starts_a_new_conversation(convs):
     await convs.ask(("dm", 1), "R1", "q1", None)
     await convs.ask(("dm", 1), "R2", "q2", None)

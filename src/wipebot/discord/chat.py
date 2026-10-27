@@ -59,6 +59,7 @@ class Saved(Protocol):
 class _Conversation:
     session: Asker
     code: str
+    env: dict | None = None  # what its session runs on, when not the bot's own key: a server's own (Context.env)
     last_used: float = field(default_factory=time.time)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     busy: int = 0  # questions answering or waiting in it: it isn't closed for being idle or the oldest
@@ -97,7 +98,7 @@ class Conversations:
         hasn't seen: since its previous question `after` (None for a new conversation: from further back), leaving
         out the `seen` ones. `timeout` counts from when the question's turn in its conversation comes, not while it
         waits behind another or its session opens."""
-        conv = await self._conversation(key, code)
+        conv = await self._conversation(key, code, getattr(ctx, "env", None))
         try:
             return await self._ask(key, conv, code, question, ctx, earlier, message_id, timeout)
         finally:
@@ -105,8 +106,9 @@ class Conversations:
             if conv.retired and not conv.busy:
                 await self._shut([(key, conv)])
 
-    async def _conversation(self, key: Hashable, code: str) -> _Conversation:
-        """The conversation at `key` about `code`, opened if there's none, counted as busy."""
+    async def _conversation(self, key: Hashable, code: str, env: dict | None = None) -> _Conversation:
+        """The conversation at `key` about `code`, opened if there's none, counted as busy. `env`: what its session
+        runs on, when not the bot's own key; a conversation on another starts over, as for another report."""
         opening = self._opening.get(key)
         if opening is None:
             opening = self._opening[key] = asyncio.Lock()
@@ -114,7 +116,8 @@ class Conversations:
             async with self._lock:
                 closing = self._take_idle()
                 conv = self._convs.get(key)
-                if conv and conv.code != code:  # a new raid night: start over, once the old one has answered
+                if conv and (conv.code != code or conv.env != env):  # a new raid night, or another key: start
+                    # over, once the old one has answered
                     del self._convs[key]
                     if conv.busy:
                         conv.retired = True
@@ -132,15 +135,17 @@ class Conversations:
             if conv is None:
                 # One saved before a restart, about this report and not idle too long: its session goes on
                 saved = self._saved.conversation(key, IDLE_S) if self._saved else None
-                if saved and saved.code != code:
+                if saved and (saved.code != code or env is not None):  # on a server's own key: a new session
                     saved = None
+                more = {"env": env} if env is not None else {}
                 try:
                     async with asyncio.timeout(OPEN_TIMEOUT_S):
-                        session = await (self._open(code, resume=saved.session_id) if saved else self._open(code))
+                        session = await (self._open(code, resume=saved.session_id) if saved
+                                         else self._open(code, **more))
                 except TimeoutError:
                     raise SlowStart(f"opening a conversation took over {OPEN_TIMEOUT_S} s") from None
                 async with self._lock:
-                    conv = self._convs[key] = _Conversation(session, code)
+                    conv = self._convs[key] = _Conversation(session, code, env)
                     if saved and session.resumed:
                         log.info("conversation %s resumed after a restart", key)
                         conv.last_question, conv.seen = saved.last_question, set(saved.seen)

@@ -787,7 +787,9 @@ class WipeBot(discord.Client):
                        notes=raider.notes, guild=f"{s.wcl_guild}, {s.wcl_server}, {s.wcl_region}" if s.set_up else None,
                        tools={"follow_pulls": follow_pulls if s.set_up else not_set_up, "remember": remember,
                               "answer_in_dm": answer_in_dm},
-                       icons=self.icons, server_id=s.discord_guild_id, user_id=user.id, **self._raid_notes(s))
+                       icons=self.icons, server_id=s.discord_guild_id, user_id=user.id,
+                       env=own.env() if (own := self.store.server_key(s.discord_guild_id)) else None,
+                       **self._raid_notes(s))
 
     @answering
     async def _in_dm(self, s: ServerSettings, user: discord.User | discord.Member, name: str, code: str,
@@ -869,7 +871,8 @@ class WipeBot(discord.Client):
             return self._record(kind, code, question, started, message, asker=who, fight=fight,
                                 channel_id=channel_id, **row)
         shown = self._shown(who)
-        if self.allowance and ctx.server_id and (refused := await self.allowance.refusal(ctx.server_id)):
+        if self.allowance and ctx.server_id and ctx.env is None and (  # a server's own key has no allowance
+                refused := await self.allowance.refusal(ctx.server_id)):
             log.info("%s answer to %s refused: the server's free answers are used up", kind, shown)
             record(error="allowance used up")
             return refused
@@ -1069,8 +1072,10 @@ class WipeBot(discord.Client):
             raise RuntimeError(f"channel {channel_id} is not a text channel")
         return channel
 
-    async def _open_session(self, code: str, resume: str | None = None) -> Session:
-        session = Session(self.library, code, self.model, log_tool, self.name, resume=resume, env=config.model_env())
+    async def _open_session(self, code: str, resume: str | None = None, env: dict | None = None) -> Session:
+        """A session on the bot's own key, or on `env`: a server's own (Context.env)."""
+        session = Session(self.library, code, self.model, log_tool, self.name, resume=resume,
+                          env=config.model_env() if env is None else env)
         try:
             return await session.__aenter__()
         except BaseException:  # failed or given up on (chat.OPEN_TIMEOUT_S): no Claude Code process left behind

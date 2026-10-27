@@ -18,8 +18,9 @@ dependencies = [
 [project.optional-dependencies]
 # the remote server (wipebot.mcp); all come with mcp, named for what it imports
 mcp = ["starlette", "uvicorn", "cryptography"]
-# the Discord bot (wipebot.discord); playwright draws the views as pictures (viewhost.Painter)
-discord = ["discord.py>=2.7", "claude-agent-sdk>=0.2", "playwright>=1.64"]
+# the Discord bot (wipebot.discord); playwright draws the views as pictures (viewhost.Painter); cryptography keeps
+# servers' own keys (keys.py), and comes with mcp anyway
+discord = ["discord.py>=2.7", "claude-agent-sdk>=0.2", "playwright>=1.64", "cryptography"]
 
 [project.scripts]
 wipebot = "wipebot.__main__:main"

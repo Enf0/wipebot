@@ -14,6 +14,8 @@ from pathlib import Path
 from wipebot.core import notebook
 from wipebot.core.notebook import Notebook
 
+from . import keys
+
 # WIPEBOT_DB, else next to the raid notes' default: ~/.local/share/wipebot/
 DB_PATH = Path(os.environ.get("WIPEBOT_DB") or notebook.DEFAULT_PATH.with_name("wipebot.db"))
 INTERACTION_DAYS = 90  # answers and their reactions are kept this long
@@ -206,6 +208,13 @@ class Store:
                 last_question INTEGER,
                 seen TEXT NOT NULL,      -- JSON: list of message ids
                 last_used REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS server_keys (  -- a server's own model key (/wipebot key), encrypted (keys.py)
+                discord_guild_id INTEGER PRIMARY KEY,
+                provider TEXT NOT NULL,  -- openrouter or anthropic
+                sealed TEXT NOT NULL,
+                added_by INTEGER NOT NULL,
+                added_at REAL NOT NULL
             );
             CREATE TABLE IF NOT EXISTS spend (  -- what each answer cost, kept whether or not answers are recorded
                 at REAL NOT NULL,
@@ -432,10 +441,31 @@ class Store:
                                            f"WHERE {where}", args).fetchone()
         return n, cost, points
 
+    def save_server_key(self, discord_guild_id: int, key: keys.ServerKey, added_by: int) -> None:
+        """Keep a server's own model key, encrypted, in place of any before."""
+        self._db.execute("INSERT OR REPLACE INTO server_keys VALUES (?, ?, ?, ?, ?)",
+                         (discord_guild_id, key.provider, keys.seal(key.key), added_by, time.time()))
+        self._db.commit()
+
+    def server_key(self, discord_guild_id: int) -> keys.ServerKey | None:
+        """A server's own model key; None without one, or when it can't be read any more."""
+        row = self._db.execute("SELECT provider, sealed FROM server_keys WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        if row is None or (key := keys.unseal(row[1])) is None:
+            return None
+        return keys.ServerKey(row[0], key)
+
+    def drop_server_key(self, discord_guild_id: int) -> bool:
+        """Forget a server's own key; whether it had one."""
+        dropped = self._db.execute("DELETE FROM server_keys WHERE discord_guild_id = ?",
+                                   (discord_guild_id,)).rowcount
+        self._db.commit()
+        return bool(dropped)
+
     def forget_server(self, discord_guild_id: int) -> None:
-        """Forget a server the bot was removed from: its settings, where names are on, and its posts after
-        wipes. What it spent stays, for the books, until it's pruned."""
-        for table in ("server_settings", "naming_channels", "following"):
+        """Forget a server the bot was removed from: its settings, where names are on, its posts after wipes and
+        its own key. What it spent stays, for the books, until it's pruned."""
+        for table in ("server_settings", "naming_channels", "following", "server_keys"):
             self._db.execute(f"DELETE FROM {table} WHERE discord_guild_id = ?", (discord_guild_id,))
         self._db.commit()
 

@@ -193,3 +193,17 @@ def test_a_server_the_bot_left_is_forgotten_but_its_spend_stays(store):
     store.forget_server(1001)
     assert store.settings(1001) is None and store.naming_channels(1001) == set()
     assert store.spent(0, discord_guild_id=1001)[0] == 1
+
+
+def test_a_servers_own_key_is_kept_encrypted_and_forgotten_with_the_server(store, monkeypatch):
+    from wipebot.discord.keys import ServerKey
+    monkeypatch.setenv("WIPEBOT_KEY_SECRET", "s3cret")
+    store.save_server_key(1001, ServerKey("openrouter", "sk-or-abc"), added_by=7)
+    assert "sk-or-abc" not in str(store._db.execute("SELECT * FROM server_keys").fetchall())
+    assert store.server_key(1001) == ServerKey("openrouter", "sk-or-abc")
+    assert store.server_key(1001).env()["ANTHROPIC_AUTH_TOKEN"] == "sk-or-abc"
+    monkeypatch.setenv("WIPEBOT_KEY_SECRET", "another")  # the host changed the secret: add it again
+    assert store.server_key(1001) is None
+    monkeypatch.setenv("WIPEBOT_KEY_SECRET", "s3cret")
+    store.forget_server(1001)
+    assert store.server_key(1001) is None and not store.drop_server_key(1001)
