@@ -318,9 +318,17 @@ class CastRate:
     flag: str = ""
 
 
+def _worn(det: dict) -> set[str] | None:
+    """The names of a player's items at the pull, None when the log doesn't have their gear."""
+    gear = (det.get("combatantInfo") or {}).get("gear") or []
+    return {name_key(g["name"]) for g in gear if g.get("name")} or None
+
+
 def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[Reference],
-               lust_casts: set[str]) -> list[CastRate]:
-    """Each spell's casts per minute, theirs against the top parses', most cast by the top first."""
+               lust_casts: set[str], worn: set[str] | None = None) -> list[CastRate]:
+    """Each spell's casts per minute, theirs against the top parses', most cast by the top first. With `worn`, the
+    names of the player's items: an item of the top's they don't wear is "not worn", not "never cast"."""
+    items = {name_key(g["name"]) for x in found for g in x.ranking.get("gear") or [] if g.get("name")}
     def known(n: str) -> list[float]:
         """The references' counts of a spell, those that aren't known left out."""
         return sorted(c for c in (x.cpm.get(n, 0) for x in found) if c is not None)
@@ -338,7 +346,9 @@ def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[R
         sp = names.named(n)
         # A cooldown of a minute or more, an item, a racial or Bloodlust is cast once on a short pull: no fault.
         once = bool(sp) and ((sp.get("cooldown") or 0) >= 60 or str(sp.get("spell_type") or "").startswith("other"))
-        if me == 0 and sum(1 for x in others if x > 0) > len(others) / 2:
+        if me == 0 and worn is not None and name_key(n) in items - worn:
+            flag = "not worn: an item of theirs the player doesn't have on"
+        elif me == 0 and sum(1 for x in others if x > 0) > len(others) / 2:
             flag = "never cast"
         elif med and me < 0.6 * med:
             flag = "far fewer"
@@ -407,7 +417,7 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
         return "Couldn't read the casts of any top parse."
     my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
     return CastComparison(p, f, hero, bool(same_hero), alive_s, ilvl, found, names, merged, mine, my_cpm,
-                          cast_rates(names, my_cpm, found, lust_casts),
+                          cast_rates(names, my_cpm, found, lust_casts, _worn(det)),
                           casting(events, alive_until, [d["timestamp"] for d in own]), resource, my_capped)
 
 

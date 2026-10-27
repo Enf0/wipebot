@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Discord` **Pictures sit next to what they show, now for real.** The bot rarely placed a picture inside its answer, so it still came at the end. Any answer longer than three bullets now puts its picture right after the part it backs, or else (when the bot leaves it out or puts it last) right under its first line.
 - `Discord` **Asking a follow-up no longer brings up link previews.** Clicking a follow-up under an answer without pictures made Wowhead previews of its links appear under it.
+- `Agent` **No advice to press a trinket you don't have.** Compared with top players, an on-use item they wear and you don't is marked as not worn, not as never pressed.
 - `Agent` **Everyone's damage on the adds.** Asked who hit the adds on a pull, the answer has every player's damage on the most damaged kind, pets and totems included, instead of the top four and slow, wrong sums of its own.
 - `Agent` **A cooldown written twice in the raid note isn't a miss.** A note that plans the same player's cooldown twice a second apart (0:42 and 0:43) made every pull look like one of them was never cast. They're checked as one use now, and the answer says the note lists it twice.
 - `Discord` **Posts after wipes keep to what you asked.** Asked for a post only below 30 % or every 10th pull, the bot no longer posts after the other pulls, nor a message saying it won't post, and never an empty "(no answer)". The kill gets its post too.

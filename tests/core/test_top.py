@@ -48,3 +48,17 @@ async def test_casts_vs_top_merges_a_spells_ids_and_flags_only_gaps_that_matter(
     assert f"  Feint [1966]: {2 / minutes:.1f} / 0.1 (0.0-0.2)" in lines
     assert f"  Potion of Recklessness [1236994]: {1 / minutes:.1f} / 0.0 (0.0-0.0)" in lines
     assert "far more" not in "\n".join(line for line in lines if "Mutilate" not in line)
+
+
+def test_an_item_the_top_use_and_the_player_doesnt_wear_isnt_never_cast():
+    """Top hunters press Voracious Heart of Ula'tek; a hunter without it isn't told they never did (corrected by the
+    raider), while a spell of theirs they never cast still is. Without the player's gear, nothing is assumed."""
+    heart = {"name": "Voracious Heart of Ula'tek"}
+    found = [top.Reference({"gear": [heart]}, {"Voracious Heart of Ula'tek": 0.7, "Hunter's Mark": 0.1},
+                           top.Casting([], {}, 0.0)) for _ in range(3)]
+    mine: dict[str, float | None] = {"Voracious Heart of Ula'tek": 0, "Hunter's Mark": 0}
+    names = top.SpellNames([])
+    flags = {r.name: r.flag for r in top.cast_rates(names, mine, found, set(), {"zul'jin's guillotine technique"})}
+    assert flags == {"Voracious Heart of Ula'tek": "not worn: an item of theirs the player doesn't have on",
+                     "Hunter's Mark": "never cast"}
+    assert {r.flag for r in top.cast_rates(names, mine, found, set(), None)} == {"never cast"}
