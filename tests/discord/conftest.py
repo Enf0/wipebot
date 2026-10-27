@@ -25,7 +25,9 @@ def settings() -> ServerSettings:
 
 
 @pytest.fixture
-def store() -> Store:
+def store(monkeypatch) -> Store:
+    """An empty store; the keys and sign-ins it keeps are encrypted with a test secret (keys.py)."""
+    monkeypatch.setenv("WIPEBOT_KEY_SECRET", "test secret")
     return Store(":memory:")
 
 
