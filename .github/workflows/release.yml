@@ -1,26 +1,32 @@
 # Makes the GitHub release when main gets a version (`just release <version>` pushes its commit): the tag v<version>
 # on the commit "chore: Wipebot <version>", and the release, whose notes are the version's CHANGELOG.md section. A
 # Claude Code cloud session may push main but neither a tag nor a release, so this does both; run it by hand for a
-# version it missed. Then, where the repository secret WIPEBOT_DEV_DISPATCH_TOKEN is set (a token that may start the
-# maintainers' private repo's workflows), it starts their Deploy workflow for the public copy at this release; a fork
-# or a copy has no such secret, and that step is skipped. Actions pinned by commit, their version beside it.
+# version it missed. It runs once Checks has finished on a push to main, and releases only a version commit whose
+# Checks passed: a red one gets no release until Checks passes on it (a re-run) or a new version comes. Then, where
+# the repository secret WIPEBOT_DEV_DISPATCH_TOKEN is set (a token that may start the maintainers' private repo's
+# workflows), it starts their Deploy workflow for the public copy at this release; a fork or a copy has no such
+# secret, and that step is skipped. Actions pinned by commit, their version beside it.
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [Checks]
+    types: [completed]
     branches: [main]
-    paths: [pyproject.toml]
   workflow_dispatch:
 
 permissions:
   contents: write  # the tag and the release
+  actions: read  # the version commit's Checks
 
 concurrency: release
 
 jobs:
   release:
     name: GitHub release
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main'
+      && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -45,6 +51,13 @@ jobs:
             commit=$(git log -1 --format=%H --grep="^chore: Wipebot ${version//./\\.}\$" HEAD)
             if [ -z "$commit" ]; then
               echo "::error::no commit \"chore: Wipebot $version\" on main"
+              exit 1
+            fi
+            # the public copy deploys this release: only a commit whose Checks passed
+            checks=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/checks.yml/runs?head_sha=$commit&event=push" \
+              --jq '.workflow_runs[0].conclusion // "none"')
+            if [ "$checks" != success ]; then
+              echo "::error::Checks on ${commit::7} (Wipebot $version): $checks, so no release"
               exit 1
             fi
             git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
