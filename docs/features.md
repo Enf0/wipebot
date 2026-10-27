@@ -250,12 +250,14 @@ The connector brings the tools to Claude.ai, ChatGPT or similar, signed in with 
 characters from the ones you claimed there, and "my guild" means the guilds they're in. It reads the guild's saved
 notes and plans, officers save a pasted one there, and in Claude it shows the pull replay. Tell it an answer was
 wrong, missed something or was slow, and it offers to send a report to the server's maintainers: the question, the
-answer and what you said, sent only once you agree. In Claude, the plugin adds
-the skill, so Claude reads logs the same way the bot does. Other clients get only the tools ([reference/mcp-clients.md](reference/mcp-clients.md)).
+answer and what you said, sent only once you agree. In Claude, the plugin adds the skill, so Claude reads logs the
+same way the bot does; the connector alone, in Claude or elsewhere, gets only the tools
+([reference/mcp-clients.md](reference/mcp-clients.md)).
 
 ## In Discord
 
-- **Where to ask:** in a channel, @mention the bot or reply to it. In a DM, every message is a question. With the
+- **Where to ask:** in a channel, @mention the bot or reply to it. In a DM, every message is a question. In a server
+  nobody set up yet, put a report link in the question; questions about the game need none. With the
   setting on, it also reads the channel's last 15 messages for context, and the messages, threads or channels a
   question links to, such as your own notes on a boss (only ones the asker can read).
 - **Who it names:** in a server channel it doesn't blame players: it says what went wrong and how to fix it, without
@@ -273,9 +275,10 @@ the skill, so Claude reads logs the same way the bot does. Other clients get onl
   as a damage meter. An answer ends with up to three follow-ups as buttons instead of "want me to...?".
 - **It remembers** your character, so "how did I do?" needs no name, and preferences you ask it to keep ("answer in
   English"). Ask what it remembers, or tell it to forget.
-- **Commands:** raiders ask by @mention or DM and need no command; `/help` says what to ask. Officers (a role
-  `/wipebot setup` sets) save a note or plan by pasting it to the bot, and change or stop anyone's posts after wipes in
-  a channel. Who can do what: [setup.md](setup.md#officers-and-admins).
+- **Commands:** raiders ask by @mention or DM and need no command; `/help` says what to ask, `/usage` what's left
+  of the limits answers share, and `/login` signs them in with Warcraft Logs so their own points pay first. Officers
+  (a role `/wipebot setup` sets) save a note or plan by pasting it to the bot, and change or stop anyone's posts after
+  wipes in a channel. Who can do what: [setup.md](setup.md#officers-and-admins).
 
 ### Discord commands
 

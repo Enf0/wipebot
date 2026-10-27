@@ -10,7 +10,8 @@ quota, raid notes and plans, officers, upgrading, and what to do when something 
 - **The connector:** a domain with HTTPS in front of the server (a reverse proxy such as Caddy or nginx, or a
   Cloudflare Tunnel), and members whose assistant plan allows custom connectors. Each member claims their characters
   on warcraftlogs.com before signing in.
-- **The bot:** a Discord application and an [Anthropic API](https://console.anthropic.com) key with credit.
+- **The bot:** a Discord application and an [Anthropic API](https://console.anthropic.com) key with credit, or an
+  [OpenRouter](https://openrouter.ai) key ([below](#a-budget-the-guild-chips-in-to)).
 - **To host either:** Linux with Docker Engine and Compose v2, and git.
 
 ## The Warcraft Logs client and quota
@@ -109,7 +110,12 @@ they then press **Connect** on the plugin's connector and sign in with Warcraft 
      [below](#officers-and-admins));
    - `/wipebot settings` to see the setup and the saved notes and plans.
 
-Raiders @mention it or reply to it in a channel, or DM it.
+   `footer:` on setup ends answers with what they cost; `/wipebot key` answers on the server's own model key.
+
+Raiders @mention it or reply to it in a channel, or DM it; `/help` tells them what to ask, and `/usage` what's left of
+the hour's Warcraft Logs points (and of the budget, [below](#a-budget-the-guild-chips-in-to)). With
+`WIPEBOT_WCL_CALLBACK` set, `/login` signs a raider in with Warcraft Logs, so their own points pay first. Every
+command: [features.md](features.md#discord-commands).
 
 ### A budget the guild chips in to
 
@@ -185,11 +191,14 @@ With the officer role set, Manage Server alone doesn't make someone an officer: 
 
 The connector keeps who signed in (Warcraft Logs id, name, guild characters); the bot keeps each raider's character
 and the preferences they ask it to remember, and for a raider who used `/login`, their Warcraft Logs id, name and
-token (encrypted) until they sign out. With `WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its
-prompt (with the channel's messages it read), answer and tool calls for 90 days, for reviewing answers. All of it
-stays in `./data`; only what an answer needs goes to the model. Tell your guild.
+token (encrypted) until they sign out. It also keeps what each answer cost, with the server and the asker, for 90
+days (`/usage` and the free answers' share read it), each server's settings and own key (encrypted) until it's
+removed, and the conversations Claude Code keeps on disk so follow-ups and restarts go on from them. With
+`WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its prompt (with the channel's messages it read),
+answer and tool calls for 90 days, for reviewing answers. All of it stays in `./data`; only what an answer needs goes
+to the model. Tell your guild.
 
-The bot's answers cost about $0.25 each with Claude Opus, the default, and at most $2; Haiku
+The bot's answers cost about $0.15-0.25 each with Claude Opus, the default, and at most $2; Haiku
 (`WIPEBOT_MODEL=haiku`) costs about a cent and answers less well ([models.md](models.md)).
 
 ## Upgrading and backups

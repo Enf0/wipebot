@@ -1,18 +1,23 @@
 <h1><img src="docs/brand/wipebot-icon.svg" width="44" height="44" alt="" align="top"> Wipebot</h1>
 
 An AI raid analyst for World of Warcraft®. It reads [Warcraft Logs](https://www.warcraftlogs.com) reports and answers
-questions about them in Claude, ChatGPT or another assistant that takes MCP connectors. Self-hosted: each guild runs
-its own copy.
-
-It can also run as a Discord bot, answering in the guild's channels and DMs and posting after each wipe.
+questions about them in Claude, ChatGPT or another assistant that takes MCP connectors, or as a Discord bot that
+answers in the guild's channels and DMs and posts after each wipe. Use the free public copy, or run your own for your
+guild.
 
 ## Try it
 
-A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and best effort, for any guild. In Claude,
-add the plugin marketplace `Enf0/wipebot-plugin` (the connector with the raid-log-analysis skill); elsewhere, add
-`https://wipebot.enfo.dev/mcp` as a custom connector. Then sign in with Warcraft Logs. It's shared
-by everyone on one Warcraft Logs API allowance, so questions that need new data can wait for the next hour; for your
-guild alone, run your own copy ([Setup](#setup)).
+A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and best effort, for any guild:
+
+- **Claude:** **Add to Claude** on that page, then **Continue** and sign in with Warcraft Logs.
+- **ChatGPT and others:** add `https://wipebot.enfo.dev/mcp` as a custom MCP server and sign in with Warcraft Logs.
+- **Discord:** **Add to Discord** on that page, and mention the bot with a question and a report link. Each server
+  gets free answers every month from a shared pool (`/usage` shows what's left); past them, an admin adds the
+  server's own OpenRouter or Anthropic key with `/wipebot key`.
+
+It's shared by everyone on one Warcraft Logs API allowance, so questions that need new data can wait for the next
+hour; signing in with Warcraft Logs lets your own points pay first. For your guild alone, run your own copy
+([Setup](#setup)).
 
 ## What you can ask
 
@@ -48,8 +53,8 @@ explains their output. The tools are an [MCP](https://modelcontextprotocol.io) s
 
 - **Connector**: members add your server to Claude, ChatGPT or similar and sign in with Warcraft Logs; answers run
   on their own subscription.
-- **Discord bot**: the guild asks in channels and DMs, and it can post after each wipe; answers run on your
-  Anthropic API key.
+- **Discord bot**: the guild asks in channels and DMs, and it can post after each wipe; answers run on the host's
+  Anthropic or OpenRouter key, or on a server's own (`/wipebot key`).
 
 ## Setup
 
@@ -68,27 +73,29 @@ mkdir -p data/wipebot-discord data/wipebot-mcp data/wipebot-notes && sudo chown 
    and `WIPEBOT_ALLOWED_GUILDS` (the guild's warcraftlogs.com address). Give the client the redirect URL
    `https://<your host>/wcl/callback`.
 2. `docker compose up -d --build wipebot-mcp`, with a reverse proxy serving HTTPS in front of `127.0.0.1:8000`.
-3. Members sign in with Warcraft Logs. In Claude, they add the plugin (Customize → Plugins): the zip your server
-   serves at `https://<your host>/plugin.zip`, or a marketplace if you publish one
-   ([docs/setup.md](docs/setup.md)). Elsewhere, they add `https://<your host>/mcp` as a connector.
+3. Members add `https://<your host>/mcp` as a connector and sign in with Warcraft Logs. In Claude, a link fills the
+   connector in for them, and a plugin adds the method too ([docs/setup.md](docs/setup.md#the-connector)).
 
 ### Discord bot
 
 1. Create an application in the [developer portal](https://discord.com/developers/applications), turn off **Public
-   Bot**, and set `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` and the Warcraft Logs client in `.env`.
+   Bot**, and set `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` (or `OPENROUTER_API_KEY`) and the Warcraft Logs client in
+   `.env`.
 2. `docker compose up -d --build wipebot-discord`, and invite it with the link in its log.
-3. Raiders can ask it about any report they link right away. Run `/wipebot setup` with the guild's Warcraft Logs
-   page, and it also finds the guild's latest raid by itself, posts after wipes and keeps raid notes.
+3. Raiders can ask it about any report they link right away, and about the game without one. Run `/wipebot setup`
+   with the guild's Warcraft Logs page, and it also finds the guild's latest raid by itself, posts after wipes and
+   keeps raid notes. `/help` shows raiders what to ask.
 
 Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and troubleshooting:
 [docs/setup.md](docs/setup.md).
 
 ## Costs and data
 
-- The connector costs only hosting: members' answers run on their own plan. The bot's answers cost about $0.25 each
-  with Claude Opus ([docs/models.md](docs/models.md)).
-- Everything Wipebot keeps stays in `./data`: who signed in to the connector, and the characters and preferences
-  raiders give the bot. Only what an answer needs goes to the model.
+- The connector costs only hosting: members' answers run on their own plan. The bot's answers cost about
+  $0.15-0.25 each with Claude Opus ([docs/models.md](docs/models.md)); `/usage` shows what they've cost.
+- Everything Wipebot keeps stays in `./data`: who signed in, the characters and preferences raiders give the bot,
+  and what each answer cost ([docs/setup.md](docs/setup.md#whats-kept)). Only what an answer needs goes to the
+  model.
 
 ## Limitations
 
@@ -96,11 +103,11 @@ Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and trou
   of keys yet (the timer, trash, affixes) and its guides and comparisons are for raids. Classic logs are on Warcraft
   Logs' separate Classic sites, which it doesn't read yet.
 - The method, how to read a raid log, is a [skill](src/wipebot/core/skills/raid-log-analysis): the bot and Claude
-  with the plugin use it. Other assistants get only the tools, whose output carries what code can decide of the
-  method, since they don't yet load skills from a server
+  with the plugin use it. A connector alone gets only the tools, whose output carries what code can decide of the
+  method, since assistants don't yet load skills from a server
   ([docs/reference/mcp-clients.md](docs/reference/mcp-clients.md)).
-- The Discord bot runs on Claude only, for now (an Anthropic API key); the connector works with
-  any assistant that takes MCP connectors.
+- The Discord bot runs on Claude only, for now (an Anthropic key, directly or through OpenRouter); the connector
+  works with any assistant that takes MCP connectors.
 - It sees only what Warcraft Logs recorded, and answers can be wrong.
 
 ## Development
