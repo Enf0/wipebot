@@ -36,6 +36,12 @@ skill. `--connector-only` asks as a client with only the connector (ChatGPT, or 
 no server instructions. `--bot` asks as the Discord bot does, and only it runs the cases marked `bot_only`. Each mode
 has its own baseline (`baseline.json`, `baseline-connector-only.json`, `baseline-bot.json`).
 
+`--trials auto` is the full suite's: a case its mode's baseline judged the same on every trial (most of them) is asked
+once, and twice more when that answer differs from the baseline's verdict or errors; a case the baseline passed only
+sometimes, a new or changed one, and every case after the judge changed are asked three times. A regression on a
+steady case still shows as 1 of 3 against the baseline's 3 of 3, for about half the cost of `--trials 3`. A baseline
+asks every case as often (`--trials 3 --save-baseline`), so `--trials auto` can't save one.
+
 The judge (Sonnet by default, `checks.py`) asks one question for `expect`, one for `wrong` and one to count the
 `facts`. A failed check is asked twice more and the majority kept, since the judge's usual error is failing a right
 answer on a detail. Code adds warnings that never fail an answer: numbers no tool gave, a site credited for a fact. A
@@ -77,6 +83,7 @@ answer), and keeps what it finds in `results/rechecks/`. Neither check fails an 
 ```sh
 just evals                          # every case once, as Claude with the plugin
 just evals -k wipe --trials 3       # some cases, three times each
+just evals --bot --trials auto      # the full suite: once where the baseline was sure, three times elsewhere
 just evals --connector-only         # as a client with only the connector
 just evals --bot                    # as the Discord bot
 just evals --model sonnet           # another model for the answers

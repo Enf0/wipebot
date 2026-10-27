@@ -2,6 +2,7 @@
 
     just evals                        # every case once, as Claude with the plugin: the connector and the skill
     just evals -k wipe --trials 3     # some cases, three times each
+    just evals --bot --trials auto    # once where the baseline was sure, three times elsewhere (the full suite)
     just evals --model opus           # another model; the cases that differ from the baseline are listed
     just evals --save-baseline        # keep this run as its mode's baseline, to compare later runs with
     just evals --connector-only       # as a client with only the connector: no skill, no instructions (own baseline)
@@ -25,6 +26,8 @@ Runs are saved, with every answer and tool call, to evals/results/.
 A run, and a baseline, keep a hash of the judge (its prompts and model) and of each case. A run is compared with the
 baseline only on the cases unchanged since, with a warning when the judge changed; a case is listed as moved only
 when its pass rate moved beyond noise (beyond_noise), and the total with its expected spread from run to run.
+With `--trials auto` a case the baseline judged the same on every trial is asked once, and twice more when that
+answer differs from the baseline's verdict or errors; every other case is asked three times (planned_trials).
 """
 import argparse
 import asyncio
@@ -375,11 +378,23 @@ async def run(args) -> None:
         results[case["id"]].append(t)
         show(case["id"], t)
 
-    await asyncio.gather(*(one(c) for c in cases for _ in range(args.trials)))
+    sure = settled(base, cases, args.judge_model) if args.trials == "auto" else {}
+    if args.trials == "auto":
+        print(f"{len(sure)} of {len(cases)} cases asked once, the baseline's verdict on every trial (twice more "
+              f"where an answer differs or errors); the others {UNSETTLED_TRIALS} times.\n", flush=True)
+
+    async def asked_enough(case: dict) -> None:
+        n = 1 if case["id"] in sure else UNSETTLED_TRIALS if args.trials == "auto" else args.trials
+        await asyncio.gather(*(one(case) for _ in range(n)))
+        if (verdict := sure.get(case["id"])) is not None and not agrees(results[case["id"]][0], verdict):
+            await asyncio.gather(*(one(case) for _ in range(UNSETTLED_TRIALS - 1)))
+
+    await asyncio.gather(*(asked_enough(c) for c in cases))
 
     passed = {case_id: sum(t.passed for t in ts) for case_id, ts in results.items()}
     errors = {case_id: n for case_id, ts in results.items() if (n := sum(t.errored for t in ts))}
-    tally = {"model": shown, "commit": commit(), "trials": args.trials, "judge": judged_by(args.judge_model),
+    asked_trials = args.trials if args.trials != "auto" else {c: len(ts) for c, ts in results.items()}
+    tally = {"model": shown, "commit": commit(), "trials": asked_trials, "judge": judged_by(args.judge_model),
              "case_hashes": {c["id"]: case_hash(c) for c in cases}, "passed": passed, "errors": errors,
              "hard": [c["id"] for c in cases if c.get("hard")]} | answers(cases, results)
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
@@ -397,7 +412,7 @@ async def run(args) -> None:
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({"model": shown, "mode": args.mode, "connector_only": args.mode == "connector",
                                "judge_model": args.judge_model,
-                               "billed_to": args.billed_to, "trials": args.trials, "commit": tally["commit"],
+                               "billed_to": args.billed_to, "trials": asked_trials, "commit": tally["commit"],
                                "judge": tally["judge"], "case_hashes": tally["case_hashes"],
                                "cases": {c: [asdict(t) for t in ts] for c, ts in results.items()}},
                               indent=1, ensure_ascii=False), encoding="utf-8")
@@ -408,8 +423,34 @@ async def run(args) -> None:
 
 
 # ---- comparing runs ----
-# A run's tally and a baseline have the same keys: model, commit, trials, judge ({prompts: hash, model}),
-# case_hashes ({case: hash}), passed and errors ({case: trials}). An errored trial counts in neither passes nor trials.
+# A run's tally and a baseline have the same keys: model, commit, trials (each case's, or {case: trials} when they
+# differ: --trials auto), judge ({prompts: hash, model}), case_hashes ({case: hash}), passed and errors
+# ({case: trials}). An errored trial counts in neither passes nor trials.
+UNSETTLED_TRIALS = 3  # with --trials auto: a case the baseline wasn't sure of, or one whose single answer surprised
+
+
+def settled(base: dict | None, cases: list[dict], judge_model: str) -> dict[str, bool]:
+    """The cases --trials auto asks once, with the verdict the baseline gave on every one of its trials (two or
+    more): unchanged since it, judged by the same judge. A case that passed or failed only sometimes, a new or
+    changed one, or any case after the judge changed is asked UNSETTLED_TRIALS times."""
+    if not base or base.get("judge") != judged_by(judge_model):
+        return {}
+    sure = {}
+    for c in cases:
+        n, of = base["passed"].get(c["id"]), judged(base, c["id"])
+        if n is not None and of >= 2 and n in (0, of) and base.get("case_hashes", {}).get(c["id"]) == case_hash(c):
+            sure[c["id"]] = n == of
+    return sure
+
+
+def agrees(t: Trial, verdict: bool) -> bool:
+    """Whether a case's single answer bears out the baseline's verdict: one that errored says nothing."""
+    return not t.errored and t.passed == verdict
+
+
+def trials_of(tally: dict) -> str:
+    t = tally["trials"]
+    return f"{t} trials" if isinstance(t, int) else f"{min(t.values(), default=0)}-{max(t.values(), default=0)} trials"
 
 
 def short_hash(value) -> str:
@@ -432,7 +473,8 @@ def case_hash(case: dict) -> str:
 
 
 def judged(tally: dict, case_id: str) -> int:
-    return tally["trials"] - tally.get("errors", {}).get(case_id, 0)
+    t = tally["trials"]
+    return (t if isinstance(t, int) else t.get(case_id, 0)) - tally.get("errors", {}).get(case_id, 0)
 
 
 def beyond_noise(passed: int, of: int, base_passed: int, base_of: int) -> bool:
@@ -489,7 +531,7 @@ def compare(base: dict, now: dict) -> list[str]:
     """The run against the baseline on the cases unchanged since it: the totals and their spread, the cases that
     moved beyond noise one per line, the others on one line."""
     lines = [judge_warning(base, now)] if judge_warning(base, now) else []
-    lines.append(f"Against the baseline ({base['model']}, {base.get('commit', '?')}, {base['trials']} trials):")
+    lines.append(f"Against the baseline ({base['model']}, {base.get('commit', '?')}, {trials_of(base)}):")
     hashes = base.get("case_hashes")
     if hashes is None:
         lines.append("  note: the baseline is older than case and judge hashes: every case is compared, though a "
@@ -712,7 +754,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run wipebot's eval cases.")
     parser.add_argument("-k", dest="filter", default="",
                         help="only cases whose id contains this (several, comma-separated: any of them)")
-    parser.add_argument("--trials", type=int, default=1, help="answers per case (default 1)")
+    parser.add_argument("--trials", type=lambda v: v if v == "auto" else int(v), default=1,
+                        help="answers per case (default 1), or auto: once where the baseline judged a case the same "
+                             f"on every trial (two more if that answer differs), {UNSETTLED_TRIALS} elsewhere")
     parser.add_argument("--model", default="", help="model for the answers (default: the bot's)")
     parser.add_argument("--effort", default="", choices=["", "low", "medium", "high", "xhigh", "max"],
                         help="the answers' effort (default: the bot's, WIPEBOT_EFFORT); the judge's stays")
@@ -739,6 +783,8 @@ def main() -> None:
     parser.add_argument("--api-key", action="store_true",
                         help="bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude Code login)")
     args = parser.parse_args()
+    if args.trials == "auto" and args.save_baseline:
+        parser.error("--trials auto with --save-baseline: a baseline asks every case as often, to judge the next run")
     if args.held_out and args.save_baseline:
         parser.error("--held-out with --save-baseline: a baseline is the regular cases'")
     args.billed_to = billed_to(args.api_key)

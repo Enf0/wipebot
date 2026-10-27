@@ -63,11 +63,11 @@ it (pyproject.toml, checked by `just check`).
   - a refactor whose snapshots don't change, wording tweaks, docs: none;
   - a change that can move answers (a tool's output or description, part of the skill, the bot's prompt or tools,
     cases): only the cases of the kinds it touches (`-k a,b`; `--bot` for the bot's prompt or tools), one trial,
-    then `--trials 3` on only the cases that moved;
-  - the full suite (`--trials 3`, in the modes the batch touched) once before a release or big deploy, covering
-    everything since the last one: a change that would need it lands without it and says "full eval: pending" in
-    its commit body;
-  - new baselines only when the judge or the cases changed.
+    then `--trials 3` on only the cases that moved (or `--trials auto` at once);
+  - the full suite (`--trials auto`, in the modes the batch touched; about $22 for `--bot`, half of `--trials 3`)
+    once before a release or big deploy, covering everything since the last one: a change that would need it lands
+    without it and says "full eval: pending" in its commit body;
+  - new baselines (`--trials 3 --save-baseline`) only when the judge or the cases changed.
 - **Never print or commit secrets** (`.env`; show variable names only), and keep tracked files fit to publish: no
   guild matters, hosts or one deployment's setup. Raiders' character names may appear.
 - **Commits follow Conventional Commits:** `type(scope): summary` in plain words.

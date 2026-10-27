@@ -8,12 +8,14 @@ import pytest
 from evals.run import (
     HERE,
     Trial,
+    agrees,
     beyond_noise,
     billed_to,
     case_hash,
     compare,
     judged_by,
     plugin_folder,
+    settled,
     skill_use,
     spread,
     summary,
@@ -102,6 +104,28 @@ def test_errored_trials_are_left_out_of_the_rates():
     lines = compare(tally({"a": 3}), tally({"a": 1, "b": 0}, errors={"a": 2, "b": 3}))
     text = "\n".join(lines)
     assert "1 not in it (b)" in text and "total 1/1" in text and "none" in text  # 1 of 1 passed: no move
+
+
+def test_auto_trials_ask_once_only_what_the_baseline_was_sure_of():
+    cases = [{**CASE, "id": c} for c in "abcdef"]
+    h = case_hash(CASE)
+    base = tally({"a": 3, "b": 0, "c": 2, "d": 3, "e": 1, "f": 3}, errors={"e": 2},
+                 hashes={"a": h, "b": h, "c": h, "d": "old", "e": h})
+    # c passed only sometimes, d changed since, e had a single judged trial, f has no hash: asked three times
+    assert settled(base, cases, "sonnet") == {"a": True, "b": False}
+    assert settled({**base, "judge": judged_by("opus")}, cases, "sonnet") == {}  # another judge: no verdict holds
+    assert settled(None, cases, "sonnet") == {}
+    assert agrees(Trial(passed=True), True) and agrees(Trial(), False)
+    assert not agrees(Trial(), True) and not agrees(Trial(passed=False, errored=True), False)  # an error: ask again
+
+
+def test_a_run_with_trials_per_case_compares_case_by_case():
+    now = tally({"a": 1, "b": 1, "c": 2}) | {"trials": {"a": 1, "b": 3, "c": 3}}
+    text = "\n".join(compare(tally({"a": 3, "b": 3, "c": 2}), now))
+    assert "total 4/7, the baseline's 6 at these trials: -2" in text
+    assert "\n    b 1/3 (baseline 3/3)" in text and "a 1/1" not in text  # a single answer like the baseline's
+    assert summary(now)[0].split() == ["a", "1/1"] and summary(now)[1].split() == ["b", "1/3", "flaky"]
+    assert "(opus, abc, 1-3 trials)" in "\n".join(compare(now, now))
 
 
 def test_the_baselines_hold_hashes_for_every_case():
