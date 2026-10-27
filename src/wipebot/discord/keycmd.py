@@ -171,7 +171,8 @@ def status(store: Store, discord_guild_id: int, bot_name: str, shared: bool) -> 
     row = store.server_key_info(discord_guild_id)
     if row is None:
         return (f"This server answers from {bot_name}'s shared free answers." if shared else
-                f"This server answers on {bot_name}'s own key, from whoever runs it.")
+                f"This server's questions are answered on {bot_name}'s own key, which its host set up: nothing to "
+                "do here, unless the server should pay for its answers itself.")
     provider, added_by, added_at = row
     when = datetime.datetime.fromtimestamp(added_at, datetime.UTC)
     return (f"This server answers on its own {NAMES.get(provider, provider)} key, added by <@{added_by}> "
