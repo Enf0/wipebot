@@ -85,9 +85,17 @@ class Allowance:
         return None
 
 
-def footer(cost: float | None, points: float, left: tuple[float, float] | None) -> str:
-    """The small line under an answer: what it cost, its Warcraft Logs points, and the server's free answers left."""
-    parts = [f"${cost or 0:.2f}", f"{points:,.0f} Warcraft Logs points"]
+def footer(cost: float | None, points: dict, left: tuple[float, float] | None, rate: dict | None = None,
+           user_points: bool = False) -> str:
+    """The small line under an answer: what it cost, its Warcraft Logs points (`points`, by kind, as
+    Answer.wcl_points) with the bot's left this hour (`rate`, WCL.points), and the server's free answers left. With
+    `user_points` (the account on Warcraft Logs' new point system), points counted as the asker's are theirs."""
+    total = points.get("total", 0)
+    yours = min(points.get("user", 0), total) if user_points else 0
+    spent = f"{yours:,.0f} yours, {total - yours:,.0f} the bot's" if yours else f"{total:,.0f}"
+    if rate and isinstance(limit := rate.get("limitPerHour"), int | float):
+        spent += f" ({max(limit - rate.get('pointsSpentThisHour', 0), 0):,.0f}/{limit:,} left this hour)"
+    parts = [f"${cost or 0:.2f}", f"Warcraft Logs points: {spent}"]
     if left:
         share, remaining = left
         parts.append(f"${remaining:.2f} of this server's ${share:.2f} left this month")

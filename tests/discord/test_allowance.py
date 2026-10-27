@@ -65,9 +65,15 @@ async def test_the_footer_says_the_cost_points_and_the_servers_share_left(store,
     store.add_spend(1001, 7, "chat", 2.5, 0)
     left = await Allowance(store, "sk-or-x", 0.1).left(1001)
     assert left == (10.0, 7.5)
-    assert allowance.footer(0.18, 92.4, left) == ("-# $0.18 · 92 Warcraft Logs points · $7.50 of this server's "
-                                                  "$10.00 left this month")
-    assert allowance.footer(None, 0, None) == "-# $0.00 · 0 Warcraft Logs points"
+    points = {"total": 92.4, "application": 92.4, "user": 60, "queries": 3}  # not added up: total is the sum
+    rate = {"limitPerHour": 3600, "pointsSpentThisHour": 480}
+    assert allowance.footer(0.18, points, left, rate) == (
+        "-# $0.18 · Warcraft Logs points: 92 (3,120/3,600 left this hour) · $7.50 of this server's $10.00 left this "
+        "month")
+    # on the new point system, a signed-in asker's own points pay first
+    assert allowance.footer(0.18, points, None, rate, user_points=True) == (
+        "-# $0.18 · Warcraft Logs points: 60 yours, 32 the bot's (3,120/3,600 left this hour)")
+    assert allowance.footer(None, {}, None) == "-# $0.00 · Warcraft Logs points: 0"
 
 
 def test_an_admins_footer_choice_is_kept(store):

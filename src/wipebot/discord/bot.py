@@ -19,7 +19,7 @@ import discord
 from discord import app_commands
 from discord.ext import tasks
 
-from wipebot.core import raidstrats, server
+from wipebot.core import raidstrats, server, wcl
 from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
@@ -897,7 +897,9 @@ class WipeBot(discord.Client):
                     else None)
             if left:  # this answer is spent too, though kept only once it's posted
                 left = (left[0], max(left[1] - (answer.cost_usd or 0), 0.0))
-            line = allowance.footer(answer.cost_usd, sum(answer.wcl_points().values()), left)
+            points = answer.wcl_points()
+            rate = await self.library.wcl.points() if points.get("total") else None  # fresh from the answer's queries
+            line = allowance.footer(answer.cost_usd, points, left, rate, wcl.on_new_point_system())
         except Exception:
             log.exception("the cost line failed")
             return answer
@@ -909,7 +911,7 @@ class WipeBot(discord.Client):
             return
         try:
             self.store.add_spend(ctx.server_id, ctx.user_id or None, kind, answer.cost_usd or 0,
-                                 sum(answer.wcl_points().values()))
+                                 answer.wcl_points().get("total", 0))
         except Exception:
             log.exception("keeping what an answer cost failed")
 

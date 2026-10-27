@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Discord` **Questions without a report.** Wipebot answers questions about the game, a class or a boss without a Warcraft Logs report, in a server not set up or before the guild's first raid, instead of only asking for a report link.
 - `Discord` **/wipebot key on a guild's own bot** says there's nothing to do and no longer offers to sign in with OpenRouter, which would only swap the host's key for another.
+- `Discord` **The cost footer's Warcraft Logs points.** They're counted once (they were added up several times over) and show what the bot has left this hour, like "80 (3,120/3,600 left this hour)", with your own apart when you're signed in on Warcraft Logs' new point system.
 
 ## [0.16.0] - 2026-10-27
 
