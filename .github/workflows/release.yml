@@ -1,37 +1,62 @@
-# Makes the GitHub release for a pushed version tag (`just release <version>` pushes it): its notes are the version's
-# CHANGELOG.md section. A Claude Code cloud session may push a tag but not write a release, so this does. Then, where
-# the repository secret WIPEBOT_DEV_DISPATCH_TOKEN is set (a token that may start the maintainers' private repo's
-# workflows), it starts their Deploy workflow for the public copy at this release; a fork or a copy has no such
-# secret, and that step is skipped. Actions pinned by commit, their version beside it.
+# Makes the GitHub release when main gets a version (`just release <version>` pushes its commit): the tag v<version>
+# on the commit "chore: Wipebot <version>", and the release, whose notes are the version's CHANGELOG.md section. A
+# Claude Code cloud session may push main but neither a tag nor a release, so this does both; run it by hand for a
+# version it missed. Then, where the repository secret WIPEBOT_DEV_DISPATCH_TOKEN is set (a token that may start the
+# maintainers' private repo's workflows), it starts their Deploy workflow for the public copy at this release; a fork
+# or a copy has no such secret, and that step is skipped. Actions pinned by commit, their version beside it.
 name: Release
 
 on:
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
+    paths: [pyproject.toml]
+  workflow_dispatch:
 
 permissions:
-  contents: write  # the release
+  contents: write  # the tag and the release
+
+concurrency: release
 
 jobs:
   release:
     name: GitHub release
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          persist-credentials: false
-      - name: Release
+          fetch-depth: 0
+      - name: Tag and release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
         run: |
           set -eu
-          python3 -m scripts.release --notes "${TAG#v}" > "$RUNNER_TEMP/notes.md"
-          gh release create "$TAG" --verify-tag --title "Wipebot ${TAG#v}" --notes-file "$RUNNER_TEMP/notes.md"
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          tag="v$version"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag is released already"
+            exit 0
+          fi
+          if ! git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+            commit=$(git log -1 --format=%H --grep="^chore: Wipebot ${version//./\\.}\$" HEAD)
+            if [ -z "$commit" ]; then
+              echo "::error::no commit \"chore: Wipebot $version\" on main"
+              exit 1
+            fi
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              tag -a "$tag" -m "Wipebot $version" "$commit"
+            git push origin "$tag"
+          fi
+          python3 -m scripts.release --notes "$version" > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" --verify-tag --title "Wipebot $version" --notes-file "$RUNNER_TEMP/notes.md"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Deploy the public copy
         env:
           GH_TOKEN: ${{ secrets.WIPEBOT_DEV_DISPATCH_TOKEN }}
-          TAG: ${{ github.ref_name }}
-        if: ${{ env.GH_TOKEN != '' }}
+          TAG: ${{ steps.release.outputs.tag }}
+        if: ${{ env.GH_TOKEN != '' && env.TAG != '' }}
         run: gh api -X POST repos/Enf0/wipebot-dev/actions/workflows/deploy.yml/dispatches -f ref=main -f 'inputs[target]=public' -f "inputs[wipebot]=$TAG"

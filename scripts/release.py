@@ -1,8 +1,8 @@
 """Cut a release of Wipebot (`just release <version>`): CHANGELOG.md's Unreleased becomes the version's section, dated
 today, under a new empty Unreleased; pyproject.toml and uv.lock take the version; then a commit "chore: Wipebot
-<version>" and the tag v<version>, both pushed. The tag's push makes the GitHub release, whose notes are the section
-(.github/workflows/release.yml, which reads them with `--notes <version>`): a Claude Code cloud session may push a
-tag, but not write a release. Without a version it
+<version>", pushed to main. Its push makes the tag v<version> and the GitHub release, whose notes are the section
+(.github/workflows/release.yml, which reads them with `--notes <version>`): a Claude Code cloud session may push
+main, but neither a tag nor a release. Without a version it
 says which one the changelog calls for and changes nothing: a minor version for anything Added, Changed or Removed,
 a patch for fixes only. What goes in the changelog, and the commit's summary (`--summary`), are written by hand
 first; deploying is a deployment's own."""
@@ -105,9 +105,8 @@ def main() -> None:
     run("git", "add", "CHANGELOG.md", "pyproject.toml", "uv.lock")
     title = f"Wipebot {args.version}"
     run("git", "commit", "--quiet", "-m", f"chore: {title}" + (f"\n\n{args.summary}" if args.summary else ""))
-    run("git", "tag", "-a", tag, "-m", title)
-    run("git", "push", "--atomic", "origin", "main", tag)
-    print(f"pushed {tag}: the Release workflow makes the GitHub release")
+    run("git", "push", "origin", "main")
+    print(f"pushed {title}: the Release workflow makes {tag} and the GitHub release")
 
 
 if __name__ == "__main__":
