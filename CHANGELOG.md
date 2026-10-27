@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-27
+
 ### Added
 
 - `MCP` `Discord` **Wipebot has a logo.** A bot whose screen shows a boss's health falling, for the Discord app, the website and the connector: the server names it as its icon for the apps that show one. Its files are in [docs/brand](https://github.com/Enf0/wipebot/tree/main/docs/brand).
