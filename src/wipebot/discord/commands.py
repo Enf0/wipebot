@@ -1,8 +1,8 @@
 """Slash commands. For everyone: /help (what to ask, the commands, how the server is set up; also "help" said to
 the bot, bot.py) and /usage (what's left of the AI budget, on an OpenRouter key, and of the hour's Warcraft Logs
-points). For server admins: /wipebot setup, /wipebot settings (with the raid notes and plans saved), /wipebot key,
-/wipebot footer. Officers save a note or plan by pasting it to the bot (bot.py). docs/features.md lists them all (a
-test checks). Viserio Cooldowns and raidstrats.gg, experimental, are connected by the host on the command line
+points). For server admins: /wipebot setup (also the cost footer), /wipebot settings (with the raid notes and plans
+saved), /wipebot key. Officers save a note or plan by pasting it to the bot (bot.py). docs/features.md lists them
+all (a test checks). Viserio Cooldowns and raidstrats.gg, experimental, are connected by the host on the command line
 (__main__.py).
 
 Only members with Manage Server see /wipebot (Discord enforces this), and server owners can change that in
@@ -152,7 +152,7 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
         commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
                      "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
-                     "`/wipebot footer`: end answers with what they cost, or not"]
+                     "`/wipebot setup footer:`: end answers with what they cost, or not"]
     commands.append("Officers save a raid note or plan by pasting it to me.")
     parts.append("**Commands:**\n" + "\n".join(f"- {c}" for c in commands))
     if s is None or not s.set_up:
@@ -227,12 +227,21 @@ def build(bot: WipeBot) -> app_commands.Group:
     @app_commands.describe(link="The guild's page on warcraftlogs.com (needed the first time)",
                            role="Role needed to chat with wipebot (default anyone)",
                            officers="Officers' role: save raid notes and plans, stop others' posts after wipes "
-                                    "(default Manage Server)")
+                                    "(default Manage Server)",
+                           footer="End answers with a small line: their cost, Warcraft Logs points and free answers "
+                                  "left")
     async def setup(interaction: discord.Interaction, link: str | None = None,
-                    role: discord.Role | None = None, officers: discord.Role | None = None) -> None:
-        """Options left out keep what's set."""
+                    role: discord.Role | None = None, officers: discord.Role | None = None,
+                    footer: bool | None = None) -> None:
+        """Options left out keep what's set. The footer is the server's even before it's connected to a guild."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         gid = in_guild(interaction).id
+        if footer is not None:
+            bot.store.set_footer(gid, footer)
+            if not (link or role or officers):
+                await interaction.followup.send("Answers here now end with what they cost." if footer
+                                                else "Answers here no longer end with what they cost.", ephemeral=True)
+                return
         found = None
         try:
             if link:
@@ -258,14 +267,6 @@ def build(bot: WipeBot) -> app_commands.Group:
     @app_commands.describe(remove="Go back to the shared free answers and forget the key")
     async def own_key(interaction: discord.Interaction, remove: bool = False) -> None:
         await keycmd.key_command(bot.store, interaction, remove, shared=bot.allowance is not None)
-
-    @group.command(name="footer", description="End answers with a small line: their cost, Warcraft Logs points and "
-                                              "free answers left")
-    async def footer(interaction: discord.Interaction, on: bool) -> None:
-        bot.store.set_footer(in_guild(interaction).id, on)
-        await interaction.response.send_message(
-            "Answers here now end with what they cost." if on else "Answers here no longer end with what they cost.",
-            ephemeral=True)
 
     @group.command(name="settings", description="Show how wipebot is set up in this server")
     async def show(interaction: discord.Interaction) -> None:

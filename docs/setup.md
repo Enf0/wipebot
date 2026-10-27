@@ -176,7 +176,7 @@ Every member can ask questions. These can also change what Wipebot does for the 
 |---|---|---|
 | Officers, in Claude or ChatGPT | save a pasted raid note or plan for the guild | members with a character at guild rank 0 to `WIPEBOT_OFFICER_RANK` (default 1: WoW's default Guild Master and Officer ranks), as Warcraft Logs had it at sign-in or within the last hour |
 | Officers, in Discord | save a pasted raid note or plan for the guild; change or stop the posts after wipes someone else asked for in a channel | members with the role `/wipebot setup officers:` sets; with none set, those with Manage Server |
-| Admins, in Discord | the `/wipebot` commands ([features.md](features.md#discord-commands)): setup, settings, the server's own model key, the cost footer | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
+| Admins, in Discord | the `/wipebot` commands ([features.md](features.md#discord-commands)): setup (with the cost footer), settings, the server's own model key | members with Manage Server (a server owner can change that under Server Settings → Integrations) |
 
 With the officer role set, Manage Server alone doesn't make someone an officer: an admin gives themselves the role.
 

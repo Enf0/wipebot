@@ -898,7 +898,7 @@ class WipeBot(discord.Client):
 
     async def _with_footer(self, kind: str, ctx: Context, answer: Answer) -> Answer:
         """A chat answer with the small cost line under it, where the server has it on: by default while it answers
-        from a shared copy's free answers (/wipebot footer turns it on or off)."""
+        from a shared copy's free answers (/wipebot setup footer: turns it on or off)."""
         on = self.store.footer(ctx.server_id) if ctx.server_id else None
         if on is None:
             on = self.allowance is not None and ctx.env is None

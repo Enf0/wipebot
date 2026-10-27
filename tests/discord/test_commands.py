@@ -251,3 +251,10 @@ def test_usage_says_whats_left_of_the_hours_points():
     text = commands.usage_text(rate)
     assert "13,500 of 18,000 left" in text and "in 26 min" in text and "0 of 600 left" in text
     assert "didn't say" in commands.usage_text(None)
+
+
+async def test_setup_turns_the_footer_on_or_off_even_before_the_server_is_connected(setup, bot):
+    assert await setup(footer=False) == "Answers here no longer end with what they cost."
+    assert bot.store.footer(1001) is False
+    told = await setup(link="https://www.warcraftlogs.com/guild/id/14169", footer=True)
+    assert told.startswith("wipebot is set up") and bot.store.footer(1001) is True

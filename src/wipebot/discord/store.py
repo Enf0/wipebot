@@ -205,7 +205,7 @@ class Store:
             );
             CREATE TABLE IF NOT EXISTS server_options (  -- what an admin turned on or off, set up or not
                 discord_guild_id INTEGER PRIMARY KEY,
-                footer INTEGER           -- the cost line under answers (/wipebot footer); NULL: the default
+                footer INTEGER           -- the cost line under answers (/wipebot setup footer:); NULL: the default
             );
             CREATE TABLE IF NOT EXISTS server_keys (  -- a server's own model key (/wipebot key), encrypted (keys.py)
                 discord_guild_id INTEGER PRIMARY KEY,

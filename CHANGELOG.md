@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **The cost footer is a setup option.** `/wipebot footer` is now `/wipebot setup footer:`, beside the other settings.
+
 ### Fixed
 
 - `Discord` **/wipebot key and /usage on a guild's own bot.** `/wipebot key` no longer says a guild's own bot answers from shared free answers, its buttons come in the order you use them, and `/usage` names no other bot.
