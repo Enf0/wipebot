@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-27
+
 ### Added
 
 - `Discord` **Pictures sit next to what they show.** An answer about more than one thing, such as two bosses, puts its picture right after the part it backs instead of under the whole answer.
