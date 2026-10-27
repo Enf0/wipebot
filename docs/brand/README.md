@@ -13,5 +13,8 @@ sources; the PNGs are drawn from them at the sizes each place asks for.
 | `github-social-1280x640.png` | GitHub's social preview (Settings, General) |
 | `og-image-1200x630.png`, `og-image-light-1200x630.png` | link previews (`og:image`) |
 
+The server serves the 256 px icon at /icon.png (`src/wipebot/mcp/icon.png`) and names it as its icon; a website that
+has its own /icon.png serves that instead.
+
 Colours: navy `#0b101e`, gold `#f5c542` (`#a87a00` on light), paper `#f6f4ef`, ink `#1b2130`. The wordmark is
 Inter Display ExtraBold, "Wipe" in ink and "bot" in gold, as on the website.

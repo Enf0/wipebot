@@ -17,9 +17,11 @@ its private reports to everyone, so the server won't start with one, nor read wi
   whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets). `pull_map` with `plan`
   on one pull opens it with the plan's spots at each moment it checked.
 - The connector and the skill as a Claude plugin to download, at /plugin.zip (plugin.py).
+- Its logo at /icon.png, named as the server's icon for the hosts that show one: Wipebot's, or the website's own.
 - For whoever serves it: a website (`site`'s routes) at /, and each tool call to `record`.
 """
 import functools
+import importlib.resources
 import logging
 import os
 import re
@@ -33,7 +35,7 @@ from mcp.server.auth.routes import build_metadata, cors_middleware
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
-from mcp.types import CallToolResult, TextContent, ToolAnnotations
+from mcp.types import CallToolResult, Icon, TextContent, ToolAnnotations
 from pydantic import Field
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -73,8 +75,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
         record=record,
         guild_ids=lambda subject: _guild_ids(signin, subject),
         wcl_token=lambda subject: signin.wcl_token(int(subject)), limits=limits))
+    site_routes = site(signin.access, signin.resource) if site else []
     mcp = server.new_server(
-        website_url=public,
+        website_url=public, icons=[Icon(src=f"{public}/icon.png", mime_type="image/png", sizes=["256x256"])],
         auth=AuthSettings(issuer_url=public, resource_server_url=signin.resource,  # type: ignore[arg-type]
                           validate_token_resource=True,
                           client_registration_options=ClientRegistrationOptions(enabled=True),
@@ -118,7 +121,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     mcp.custom_route("/img/{path:path}", ["GET"])(_img)
     mcp.custom_route("/health", ["GET"])(_health)  # compose.yml's healthcheck
     mcp.custom_route(plugin.PATH, ["GET"])(_plugin(signin))
-    for route in site(signin.access, signin.resource) if site else []:
+    if not any(route.path == "/icon.png" for route in site_routes):  # the website's own logo, or Wipebot's
+        mcp.custom_route("/icon.png", ["GET"])(_icon)
+    for route in site_routes:
         mcp.custom_route(route.path, ["GET"])(route.endpoint)
     starlette = mcp.streamable_http_app(host=host, transport_security=TransportSecuritySettings(
         allowed_hosts=["127.0.0.1:*", "localhost:*", public.split("://", 1)[1]],
@@ -391,6 +396,13 @@ def _plugin(signin: SignIn) -> Callable[[Request], Awaitable[Response]]:
         return Response(zipped, media_type="application/zip",
                         headers={"Content-Disposition": 'attachment; filename="wipebot-plugin.zip"'})
     return download
+
+
+ICON = importlib.resources.files(__package__).joinpath("icon.png").read_bytes()  # 256 px, docs/brand's
+
+
+async def _icon(_request: Request) -> Response:
+    return Response(ICON, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
 async def _health(_request: Request) -> Response:

@@ -13,20 +13,32 @@ In Claude and ChatGPT, an answer about a pull, a night, a player or a death come
 tools from the log, with more a click away: the pull's replay, a player's casts against the top. In Discord the same
 comes as pictures, with buttons under them for the next thing to look at.
 
-![Claude answering "Why did we wipe on Sszorak pull 13?": the pull drawn as boss health against the raid's damage taken, with phases and deaths, and buttons to open the pull and its replay, then the answer: the enrage at 2:32 with 16 of 20 alive](images/claude-why-did-we-wipe.webp)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/claude-why-did-we-wipe-dark.webp">
+  <img src="images/claude-why-did-we-wipe.webp" alt="Claude answering &quot;Why did we wipe on Sszorak pull 13?&quot;: the pull drawn as boss health against the raid's damage taken, with phases and deaths, and buttons to open the pull and its replay, then the answer: the enrage at 2:32 with 16 of 20 alive">
+</picture>
 
 *In Claude: the enrage ended pull 13 with 16 of 20 alive, so the answer says it's a damage check now.*
 
-![The Discord bot's post in a raid channel after Sszorak pull 13: a short summary of what ended it and what to do on the next pull, the pull drawn, and the buttons Open in Warcraft Logs, First death and How did I do?](images/discord-wipe-post.webp)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/discord-wipe-post-dark.webp">
+  <img src="images/discord-wipe-post.webp" alt="The Discord bot's post in a raid channel after Sszorak pull 13: a short summary of what ended it and what to do on the next pull, the pull drawn, and the buttons Open in Warcraft Logs, First death and How did I do?">
+</picture>
 
 *In Discord, a post after a wipe, asked for once at the start of the night. "How did I do?" shows each raider their
 own card on that pull, which only they see.*
 
-![A raider asking the Discord bot in a DM "how did I do on Sszorak tonight?": the answer with their deaths and cooldowns, their night drawn (what killed them, and where a defensive would have saved them), and three follow-up questions as buttons](images/discord-how-did-i-do.webp)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/discord-how-did-i-do-dark.webp">
+  <img src="images/discord-how-did-i-do.webp" alt="A raider asking the Discord bot in a DM &quot;how did I do on Sszorak tonight?&quot;: the answer with their deaths and cooldowns, their night drawn (what killed them, and where a defensive would have saved them), and three follow-up questions as buttons">
+</picture>
 
 *"How did I do?" over a night, in a DM. The follow-ups are buttons: a click asks them.*
 
-![Claude answering "Who keeps getting hit by Virulence?": a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths it set up, then the answer](images/claude-damage-meter.webp)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/claude-damage-meter-dark.webp">
+  <img src="images/claude-damage-meter.webp" alt="Claude answering &quot;Who keeps getting hit by Virulence?&quot;: a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths it set up, then the answer">
+</picture>
 
 *A ranking of players comes as a damage meter, here Virulence over the whole night.*
 

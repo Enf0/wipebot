@@ -1,4 +1,4 @@
-# Wipebot
+<h1><img src="docs/brand/wipebot-icon.svg" width="44" height="44" alt="" align="top"> Wipebot</h1>
 
 An AI raid analyst for World of Warcraft®. It reads [Warcraft Logs](https://www.warcraftlogs.com) reports and answers
 questions about them in Claude, ChatGPT or another assistant that takes MCP connectors. Self-hosted: each guild runs
@@ -29,8 +29,14 @@ Ask the way you'd ask your raid leader, in your own words:
 - **What's my job in P1 tomorrow?** The plan, the guides and Blizzard's latest hotfixes, before there's a log.
 
 <p>
-  <img src="docs/images/claude-why-did-we-wipe.webp" width="49%" alt="Claude answering why the raid wiped on Sszorak pull 13, with the pull drawn: boss health against the raid's damage taken, phases and deaths">
-  <img src="docs/images/discord-wipe-post.webp" width="49%" alt="The Discord bot's post after Sszorak pull 13: a short summary, the pull drawn, and buttons for the first death and How did I do?">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/claude-why-did-we-wipe-dark.webp">
+    <img src="docs/images/claude-why-did-we-wipe.webp" width="49%" alt="Claude answering why the raid wiped on Sszorak pull 13, with the pull drawn: boss health against the raid's damage taken, phases and deaths">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/discord-wipe-post-dark.webp">
+    <img src="docs/images/discord-wipe-post.webp" width="49%" alt="The Discord bot's post after Sszorak pull 13: a short summary, the pull drawn, and buttons for the first death and How did I do?">
+  </picture>
 </p>
 
 More, with examples: [docs/features.md](docs/features.md).

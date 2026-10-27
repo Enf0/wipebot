@@ -200,6 +200,14 @@ def test_a_raider_signs_in_and_reaches_the_tools(client):
     assert initialize(client, t["access_token"]).status_code == 200
 
 
+def test_the_server_names_its_logo_and_serves_it(client):
+    r = initialize(client, tokens(client, register(client))["access_token"])
+    info = json.loads(r.text.split("data: ", 1)[1])["result"]["serverInfo"]
+    assert info["icons"] == [{"src": f"{PUBLIC}/icon.png", "mimeType": "image/png", "sizes": ["256x256"]}]
+    logo = client.get("/icon.png")
+    assert logo.headers["content-type"] == "image/png" and logo.content == remote.ICON
+
+
 def test_only_guild_characters_are_kept(client, users):
     tokens(client, register(client))
     name, chars = users.user(1) or ("", [])
