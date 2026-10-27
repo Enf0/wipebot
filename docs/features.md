@@ -247,8 +247,7 @@ the skill, so Claude reads logs the same way the bot does. Other clients get onl
   setting on, it also reads the channel's last 15 messages for context, and the messages, threads or channels a
   question links to, such as your own notes on a boss (only ones the asker can read).
 - **Who it names:** in a server channel it doesn't blame players: it says what went wrong and how to fix it, without
-  names. Praise is fine, and so is feedback on the asker's own play. In a DM, and in the channels where an admin turned
-  names on with `/wipebot names`, it names players.
+  names. Praise is fine, and so is feedback on the asker's own play. In a DM it names players.
 - **In your DMs instead:** ask it in a channel to send something to your DMs, and it answers there as if you'd
   asked there, where it may name players. It only ever writes to the one who asked.
 - **Posts after each wipe:** ask it to follow tonight's raid, and it posts after every wipe, in a DM (your own
@@ -278,7 +277,6 @@ Every reply to a command is seen only by whoever used it.
 | `/wipebot settings` | admins | the setup, the channels where names are on, and the raid notes and plans saved |
 | `/wipebot key` | admins | answers this server's questions on its own key, past the shared free answers: sign in with OpenRouter, or paste an OpenRouter or Anthropic key; kept encrypted, never shown again. `remove:` goes back to the shared answers |
 | `/wipebot footer` | admins | ends answers with a small line, or not (`on:`): what the answer cost, its Warcraft Logs points, and, on a shared copy, the server's free answers left this month. On by default while a server answers from a shared copy's free answers |
-| `/wipebot names` | admins | names players in this channel and its threads, or not (`on:`) |
 
 Admins are members with Manage Server; a server owner can change who sees `/wipebot` under Server Settings →
 Integrations. Viserio Cooldowns and raidstrats.gg, still experimental, have no command: the host connects them on

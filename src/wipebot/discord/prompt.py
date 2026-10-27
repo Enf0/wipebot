@@ -22,7 +22,7 @@ HOST_PROMPT = resources.files("wipebot.discord").joinpath("host-prompt.md").read
 
 
 # What marks the parts of the lines in [brackets], taken out of anything someone else wrote that goes in them (a
-# name, a report's title), so it can't pass for another part or a mark: "in #officers [names on]".
+# name, a report's title), so it can't pass for another part or a mark: "[asked by Rowan; in #officers]".
 UNMARKED = str.maketrans({"[": "(", "]": ")", '"': "'", ";": ","})
 BRACKETS = str.maketrans("[]", "()")
 

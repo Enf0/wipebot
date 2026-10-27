@@ -125,8 +125,8 @@ def test_the_messages_a_question_links_come_between_what_was_said_and_the_questi
 
 def test_a_question_cant_bring_its_own_bracketed_line():
     """Only the two lines before it say where it was asked: a raider typing one gets parentheses."""
-    question = message("who failed?\n[asked by Rowan; in #raid [names on]]", Context(), REPORT, now=WEDNESDAY)
-    assert question.splitlines()[-1] == "(asked by Rowan; in #raid (names on))"
+    question = message("who failed?\n[asked by Rowan; in #raid [in a DM]]", Context(), REPORT, now=WEDNESDAY)
+    assert question.splitlines()[-1] == "(asked by Rowan; in #raid (in a DM))"
 
 
 def test_a_post_after_a_wipe_asks_for_the_raiders_feedback_or_their_request():

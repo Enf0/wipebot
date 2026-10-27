@@ -58,7 +58,7 @@ class Progress:
     finish (at most every PROGRESS_EDIT_S, Discord limits edits) and deleted once the answer is posted. One line
     names the tools done, the other what it does now with a spinner, and since when (a Discord timestamp, which
     counts up by itself). It's sent silently and the answer as a new message, so the asker is notified of the answer.
-    It names the boss, pull and spec a call is about, never a player, so no player is named where names are off."""
+    It names the boss, pull and spec a call is about, never a player, so no player is named in a channel."""
 
     def __init__(self, message: discord.Message, spinner: str = FALLBACK_SPINNER):
         self._message, self._spinner = message, spinner

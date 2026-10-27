@@ -119,15 +119,6 @@ async def test_settings_show_the_setup_and_whats_saved_and_notes_are_saved_by_pa
     assert interaction.said[-1].endswith("its source is at <https://github.com/Enf0/wipebot>.")  # the AGPL's §13
 
 
-def test_names_are_turned_on_and_off_in_a_channel_and_its_threads(bot, settings):
-    assert "run `/wipebot setup` first" in commands.names_command(bot.store, 2002, SimpleNamespace(id=20), True)
-    told = commands.names_command(bot.store, 1001, SimpleNamespace(id=21, parent_id=20), True)  # in a thread
-    assert told.startswith("Names are on in <#20>") and bot.store.naming_channels(1001) == {20}
-    assert "<#20>" in commands.describe(settings, bot.store.naming_channels(1001))
-    commands.names_command(bot.store, 1001, SimpleNamespace(id=20, parent_id=None), False)
-    assert bot.store.naming_channels(1001) == set()
-
-
 async def test_a_new_setup_stops_the_servers_posts_after_wipes(bot, setup, member):
     from wipebot.discord.posts import Following
     bot.posts.add(1001, Following(member(7, "Rowan"), "Rowan", "Torvek", "LIVE1"))
@@ -229,13 +220,13 @@ def test_the_docs_list_every_command(bot, monkeypatch):
 
 
 def test_help_lists_what_the_member_may_use(settings, monkeypatch):
-    raider = commands.help_text(settings, set(), admin=False)
+    raider = commands.help_text(settings, admin=False)
     assert "/help" in raider and "/usage" in raider and "/wipebot" not in raider
-    admin = commands.help_text(replace(settings, required_role_id=111), {55}, admin=True)
+    admin = commands.help_text(replace(settings, required_role_id=111), admin=True)
     assert "/wipebot setup" in admin
-    assert "<@&111>" in admin and "<#55>" in admin
-    assert "not set up" in commands.help_text(None, set(), admin=True)
-    assert "not set up" in commands.help_text(ServerSettings.unset(1001), set(), admin=False)
+    assert "<@&111>" in admin and "in channels I name nobody." in admin
+    assert "not set up" in commands.help_text(None, admin=True)
+    assert "not set up" in commands.help_text(ServerSettings.unset(1001), admin=False)
     assert len(admin) < 2000  # one Discord message
 
 

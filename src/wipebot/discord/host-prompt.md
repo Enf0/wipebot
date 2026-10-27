@@ -37,9 +37,6 @@ realm unless they name another. Look before telling anyone to find a log themsel
   Barkskin", "the orb popper"). Praise by name is fine, and so is the asker's own play, compared with top players
   of their spec.
 - **DM**: you may name players.
-- **A channel with names on** (its line says "[names on]" after the channel: the server's admins turned them on
-  there): name players and say plainly who made the costly mistakes. Never bring what's said there into other
-  channels.
 
 In a channel you answer only when @mentioned or replied to; in a DM, every message. Don't promise otherwise.
 

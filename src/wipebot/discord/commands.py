@@ -1,8 +1,8 @@
 """Slash commands. For everyone: /help (what to ask, the commands, how the server is set up; also "help" said to
 the bot, bot.py) and /usage (what's left of the AI budget, on an OpenRouter key, and of the hour's Warcraft Logs
-points). For server admins: /wipebot setup, /wipebot settings (with the raid notes and plans saved), /wipebot
-names, /wipebot key. Officers save a note or plan by pasting it to the bot (bot.py). docs/features.md lists them all
-(a test checks). Viserio Cooldowns and raidstrats.gg, experimental, are connected by the host on the command line
+points). For server admins: /wipebot setup, /wipebot settings (with the raid notes and plans saved), /wipebot key,
+/wipebot footer. Officers save a note or plan by pasting it to the bot (bot.py). docs/features.md lists them all (a
+test checks). Viserio Cooldowns and raidstrats.gg, experimental, are connected by the host on the command line
 (__main__.py).
 
 Only members with Manage Server see /wipebot (Discord enforces this), and server owners can change that in
@@ -83,28 +83,14 @@ def describe_notes(store: Store, discord_guild_id: int) -> str:
     return "\n".join(parts)
 
 
-def names_command(store: Store, gid: int, channel: object, on: bool) -> str:
-    """/wipebot names in a channel (or a thread: its channel): names on or off there; what to tell the admin."""
-    if not store.settings(gid):
-        return "wipebot isn't set up here yet: run `/wipebot setup` first."
-    channel_id = getattr(channel, "parent_id", None) or getattr(channel, "id", 0)
-    store.set_naming(gid, channel_id, on)
-    if on:
-        return (f"Names are on in <#{channel_id}> and its threads: wipebot names players there and says who made "
-                "the costly mistakes, as in DMs. Everyone who can read the channel sees it.")
-    return f"Names are off in <#{channel_id}>: wipebot names nobody there, as in every channel."
-
-
-def describe(s: ServerSettings, named: set[int]) -> str:
-    """The server's setup, with the channels where names are on (`named`)."""
+def describe(s: ServerSettings) -> str:
+    """The server's setup."""
     role = f"<@&{s.required_role_id}>" if s.required_role_id else "anyone in the server"
     officers = f"<@&{s.officer_role_id}>" if s.officer_role_id else "members who can manage the server"
-    channels = ", ".join(f"<#{c}>" for c in sorted(named)) or "none"
     return (f"**Warcraft Logs guild:** {s.wcl_guild} ({s.wcl_server}-{s.wcl_region.upper()})\n"
             f"**Who can chat** (by @mention or DM): {role}\n"
             f"**Officers** (save the raid note or plan by pasting it to wipebot, and change or stop anyone's posts "
-            f"after wipes): {officers}\n"
-            f"**Names on** (wipebot names players there, as in DMs; `/wipebot names`): {channels}")
+            f"after wipes): {officers}")
 
 
 async def find_wcl_guild(bot: WipeBot, link: str) -> tuple[dict | None, str]:
@@ -153,9 +139,9 @@ def asks_for_help(question: str) -> bool:
     return question.strip().strip("?!. ").lower() in HELP_WORDS
 
 
-def help_text(s: ServerSettings | None, named: set[int], admin: bool, in_dm: bool = False) -> str:
+def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str:
     """/help's text: what to ask, the commands this member can use, and how the server is set up (`s`, None or
-    unset when it isn't; `named`: the channels where names are on; `admin`: the member may use /wipebot)."""
+    unset when it isn't; `admin`: the member may use /wipebot)."""
     parts = ["**What to ask:** " + ("DM me" if in_dm else "@mention me, reply to my answers, or DM me")
              + ". For example:\n" + "\n".join(f"- {q}" for q in EXAMPLES)
              + "\nTell me your character once (\"I'm Jekå\") and \"I\" means them from then on. A warcraftlogs.com "
@@ -165,7 +151,6 @@ def help_text(s: ServerSettings | None, named: set[int], admin: bool, in_dm: boo
     if admin:
         commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
-                     "`/wipebot names`: name players in this channel or not",
                      "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
                      "`/wipebot footer`: end answers with what they cost, or not"]
     commands.append("Officers save a raid note or plan by pasting it to me.")
@@ -176,10 +161,8 @@ def help_text(s: ServerSettings | None, named: set[int], admin: bool, in_dm: boo
                      "myself, post after wipes and keep raid notes.")
     else:
         who = f"<@&{s.required_role_id}>" if s.required_role_id else "anyone in the server"
-        channels = ", ".join(f"<#{c}>" for c in sorted(named))
         parts.append(f"**Here:** the guild **{s.wcl_guild}** ({s.wcl_server}-{s.wcl_region.upper()}); who can chat: "
-                     f"{who}. In DMs I name players; in channels I name nobody"
-                     + (f", but in {channels}." if channels else "."))
+                     f"{who}. In DMs I name players; in channels I name nobody.")
     return "\n\n".join(parts)
 
 
@@ -219,7 +202,7 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
         gid = in_guild(interaction).id
         admin = bool(getattr(interaction.permissions, "manage_guild", False))
         await interaction.response.send_message(
-            help_text(bot.store.settings(gid), bot.store.naming_channels(gid), admin), ephemeral=True)
+            help_text(bot.store.settings(gid), admin), ephemeral=True)
 
     @app_commands.command(name="usage", description="What's left of the AI budget and the Warcraft Logs points "
                                                     "wipebot's answers share")
@@ -268,7 +251,7 @@ def build(bot: WipeBot) -> app_commands.Group:
             return
         bot.store.save_settings(settings)
         bot.settings_changed(gid)
-        await interaction.followup.send("wipebot is set up:\n" + describe(settings, bot.store.naming_channels(gid)),
+        await interaction.followup.send("wipebot is set up:\n" + describe(settings),
                                         ephemeral=True)
 
     @group.command(name="key", description="Answer this server's questions on its own OpenRouter or Anthropic key")
@@ -284,17 +267,11 @@ def build(bot: WipeBot) -> app_commands.Group:
             "Answers here now end with what they cost." if on else "Answers here no longer end with what they cost.",
             ephemeral=True)
 
-    @group.command(name="names", description="Whether wipebot names players in this channel, as in DMs")
-    @app_commands.describe(on="On: in this channel and its threads, wipebot says who made the costly mistakes")
-    async def names(interaction: discord.Interaction, on: bool) -> None:
-        await interaction.response.send_message(names_command(bot.store, in_guild(interaction).id,
-                                                              interaction.channel, on), ephemeral=True)
-
     @group.command(name="settings", description="Show how wipebot is set up in this server")
     async def show(interaction: discord.Interaction) -> None:
         gid = in_guild(interaction).id
         s = bot.store.settings(gid)
-        text = (describe(s, bot.store.naming_channels(gid)) + "\n\n" + describe_notes(bot.store, gid) if s
+        text = (describe(s) + "\n\n" + describe_notes(bot.store, gid) if s
                 else "wipebot isn't set up here yet: run `/wipebot setup`.")
         text += f"\n\nwipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>."
         await interaction.response.send_message(text, ephemeral=True)

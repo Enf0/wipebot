@@ -1,8 +1,7 @@
 """Discord client for any number of servers, each set up with /wipebot setup.
 
 Per server: answers to members who @mention it (in any channel it can see) or DM it, and, for whoever asks, a
-post after each wipe of the guild's live report where they asked (posts.py). It names players in DMs, and in the
-channels where the server's admins turned names on (/wipebot names).
+post after each wipe of the guild's live report where they asked (posts.py). It names players in DMs only.
 """
 import asyncio
 import datetime
@@ -136,28 +135,20 @@ def for_someone_else(text: str, bot_id: int) -> bool:
             and "?" not in MENTION.sub("", text))
 
 
-NAMES_ON = " [names on]"  # the context line's mark of a channel where the admins turned names on
-
-
-def where_asked(is_dm: bool, channel_name: str, mentioned: bool, named: bool = False) -> str | None:
+def where_asked(is_dm: bool, channel_name: str, mentioned: bool) -> str | None:
     """Where a message was asked, for the context line, or None when it isn't for the bot: the bot answers DMs
-    and messages that mention it or reply to it (`mentioned`). `named`: in a channel with names on."""
+    and messages that mention it or reply to it (`mentioned`)."""
     if is_dm:
         return "in a DM"
     if mentioned:
-        return in_channel(channel_name, named)
+        return in_channel(channel_name)
     return None
 
 
-def in_channel(channel_name: str, named: bool) -> str:
-    """Where, for the context line: a thread's name is anyone's to write, and plain() takes the marker's
-    brackets out of it, so no name can say names are on."""
-    return f"in #{plain(channel_name)}" + (NAMES_ON if named else "")
-
-
-def names_on(channel: object, channels: set[int]) -> bool:
-    """Whether a channel, or the channel a thread is in, is one where the admins turned names on (`channels`)."""
-    return bool(channels & {getattr(channel, "id", None), getattr(channel, "parent_id", None)})
+def in_channel(channel_name: str) -> str:
+    """Where, for the context line: a thread's name is anyone's to write, and plain() takes the marks' brackets
+    out of it, so no name can pass for another part of the line."""
+    return f"in #{plain(channel_name)}"
 
 
 def format_earlier(messages: list[tuple[str, datetime.datetime, str]], chars: int = EARLIER_CHARS) -> str:
@@ -270,23 +261,21 @@ async def read_link(guild: discord.Guild, asker: discord.Member, channel_id: int
         return "Discord wouldn't give it"
 
 
-def where_linked(message: discord.Message, named: set[int]) -> str:
-    """Where a linked message is, for its heading: "#channel", or "thread "name" in #channel", marked when names
-    are on there (`named`: the server's channels with names on)."""
+def where_linked(message: discord.Message) -> str:
+    """Where a linked message is, for its heading: "#channel", or "thread "name" in #channel"."""
     channel = message.channel
     if isinstance(channel, discord.Thread):
         parent = f" in #{plain(channel.parent.name)}" if channel.parent else ""
         where = f"thread \"{plain(channel.name)}\"{parent}"
     else:
         where = f"#{plain(getattr(channel, 'name', ''))}"
-    return where + (NAMES_ON if names_on(channel, named) else "")
+    return where
 
 
-async def linked_messages(question: str, guild: discord.Guild, asker: discord.Member, named: set[int] | None = None,
-                          readable: bool = True) -> str:
+async def linked_messages(question: str, guild: discord.Guild, asker: discord.Member, readable: bool = True) -> str:
     """The messages a question links to in the asker's server (`guild`), each link under a heading, or why it
-    wasn't read. `named`: the server's channels with names on. `readable`: the bot has the Message Content intent,
-    without which Discord gives no message's text."""
+    wasn't read. `readable`: the bot has the Message Content intent, without which Discord gives no message's
+    text."""
     parts, total = [], 0
     for link in list(MESSAGE_LINK.finditer(question))[:LINKS]:
         url, (server_id, channel_id, message_id) = link[0], link.groups()
@@ -310,7 +299,7 @@ async def linked_messages(question: str, guild: discord.Guild, asker: discord.Me
         if total + len(text) > LINKED_TOTAL:
             text = text[:max(0, LINKED_TOTAL - total)].rstrip() + " … (cut: too long)"
         total += len(text)
-        parts.append(f"{url} ({where_linked(found[0], named or set())}):\n{text}")
+        parts.append(f"{url} ({where_linked(found[0])}):\n{text}")
     return "\n\n".join(parts)
 
 
@@ -592,14 +581,13 @@ class WipeBot(discord.Client):
     @answering
     async def _post(self, s: ServerSettings, f: Following, pull: Pull) -> None:
         """The post someone asked for after one wipe, where they asked for it (their DMs or a channel), in their
-        conversation there. In a channel, players are named only where names are on."""
+        conversation there. In a channel, nobody is named."""
         if f.channel is None:
             key: Hashable = ("dm", f.user.id)
             where = "in a DM"
         else:
             key = (f.key, f.user.id)
-            where = in_channel(getattr(f.channel, "name", ""),
-                               names_on(f.channel, self.store.naming_channels(s.discord_guild_id)))
+            where = in_channel(getattr(f.channel, "name", ""))
         question = post_question(pull.boss, pull.pull_no, f.name, f.character, f.request, kill=pull.kill)
         ctx = self._context(s, f.user, f.name, pull.report, where, f.channel, asker=f.character, pull=pull.pull_no,
                             boss=pull.boss)
@@ -665,8 +653,7 @@ class WipeBot(discord.Client):
         settings = await self._settings_for(message, is_dm, mentioned)
         if settings is None:
             return
-        named = not is_dm and names_on(message.channel, self.store.naming_channels(settings.discord_guild_id))
-        where = where_asked(is_dm, getattr(message.channel, "name", ""), mentioned, named)
+        where = where_asked(is_dm, getattr(message.channel, "name", ""), mentioned)
         if where is None:
             return
         if pasted := await pasted_note(message):
@@ -677,8 +664,7 @@ class WipeBot(discord.Client):
             return
         if commands.asks_for_help(question):  # /help's text, without the model
             admin = not is_dm and getattr(getattr(message.author, "guild_permissions", None), "manage_guild", False)
-            await respond(message, commands.help_text(settings, self.store.naming_channels(settings.discord_guild_id),
-                                                      admin, is_dm))
+            await respond(message, commands.help_text(settings, admin, is_dm))
             return
         if len(question) > QUESTION_CHARS:
             await respond(message, f"That's a long one: ask me in at most {QUESTION_CHARS} characters.")
@@ -839,8 +825,7 @@ class WipeBot(discord.Client):
                     await interaction.message.edit(view=view, suppress=True)
         except Exception as e:
             log.warning("couldn't take the follow-ups off the answer: %s", e)
-        named = not is_dm and names_on(channel, self.store.naming_channels(s.discord_guild_id))
-        where = where_asked(is_dm, getattr(channel, "name", ""), True, named) or "in a DM"
+        where = where_asked(is_dm, getattr(channel, "name", ""), True) or "in a DM"
         ctx = self._context(s, user, name, code, where, None if is_dm else channel)
         if interaction.message and (posted := self.store.pull_for_message(interaction.message.id)):
             try:
@@ -990,8 +975,7 @@ class WipeBot(discord.Client):
         try:
             member = user if isinstance(user, discord.Member) else (
                 guild.get_member(user.id) or await guild.fetch_member(user.id))
-            return await linked_messages(question, guild, member, self.store.naming_channels(s.discord_guild_id),
-                                         self.intents.message_content)
+            return await linked_messages(question, guild, member, self.intents.message_content)
         except discord.HTTPException:
             log.warning("couldn't read the messages a question links to")
             return ""

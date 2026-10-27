@@ -71,6 +71,7 @@ def _with_settings(db, settings, officer_channel_id: int | None = None) -> None:
     con.execute("CREATE TABLE server_settings (discord_guild_id INTEGER PRIMARY KEY, wcl_guild_id INTEGER NOT NULL, "
                 "wcl_guild TEXT NOT NULL, wcl_server TEXT NOT NULL, wcl_region TEXT NOT NULL, "
                 "required_role_id INTEGER, officer_channel_id INTEGER)")
+    con.execute("CREATE TABLE naming_channels (discord_guild_id INTEGER, channel_id INTEGER)")
     con.execute("INSERT INTO server_settings VALUES (?, ?, ?, ?, ?, ?, ?)", (
         settings.discord_guild_id, settings.wcl_guild_id, settings.wcl_guild, settings.wcl_server,
         settings.wcl_region, None, officer_channel_id))
@@ -167,12 +168,13 @@ def test_by_default_the_bot_saves_raid_notes_where_the_core_reads_them(tmp_path,
     assert opened.notebook.path == tmp_path / "share" / "notes.sqlite"
 
 
-def test_an_older_versions_officer_channel_keeps_names_on(tmp_path, settings):
+def test_an_older_versions_officer_channel_and_names_on_are_dropped(tmp_path, settings):
     db = tmp_path / "wipebot.db"
     _with_settings(db, settings, officer_channel_id=20)
     store = Store(db)
-    assert store.settings(1001) == settings and store.naming_channels(1001) == {20}
-    assert Store(db).naming_channels(1001) == {20}  # opened again: nothing left to move
+    assert store.settings(1001) == settings
+    tables = {r[0] for r in store._db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    assert "naming_channels" not in tables and Store(db).settings(1001) == settings
 
 
 def test_spend_is_kept_per_server_and_asker_recorded_or_not(store):
@@ -188,10 +190,9 @@ def test_spend_is_kept_per_server_and_asker_recorded_or_not(store):
 
 
 def test_a_server_the_bot_left_is_forgotten_but_its_spend_stays(store):
-    store.set_naming(1001, 20, True)
     store.add_spend(1001, 7, "chat", 0.25, 90.0)
     store.forget_server(1001)
-    assert store.settings(1001) is None and store.naming_channels(1001) == set()
+    assert store.settings(1001) is None
     assert store.spent(0, discord_guild_id=1001)[0] == 1
 
 

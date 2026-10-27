@@ -26,8 +26,7 @@ CHARACTER_CHARS = 40  # a character, "Name-Realm" at most; one not found in a lo
 
 @dataclass
 class ServerSettings:
-    """One Discord server's setup: which WCL guild to follow and who may chat. The channels where wipebot names
-    players are the store's `naming_channels`."""
+    """One Discord server's setup: which WCL guild to follow and who may chat."""
     discord_guild_id: int
     wcl_guild_id: int  # the guild on Warcraft Logs; reports are found by this id
     wcl_guild: str  # the guild's name, realm and region, as found at setup (for display)
@@ -145,11 +144,6 @@ class Store:
                 required_role_id INTEGER,
                 officer_role_id INTEGER
             );
-            CREATE TABLE IF NOT EXISTS naming_channels (  -- where an admin turned names on (/wipebot names)
-                discord_guild_id INTEGER NOT NULL,
-                channel_id INTEGER NOT NULL,
-                PRIMARY KEY (discord_guild_id, channel_id)
-            );
             CREATE TABLE IF NOT EXISTS interactions (
                 id INTEGER PRIMARY KEY,
                 at REAL NOT NULL,
@@ -241,10 +235,9 @@ class Store:
             if column not in {row[1] for row in self._db.execute(f"PRAGMA table_info({table})")}:
                 self._db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
         if "officer_channel_id" in {row[1] for row in self._db.execute("PRAGMA table_info(server_settings)")}:
-            # An older version's one officer channel: names stay on there.
-            self._db.execute("INSERT OR IGNORE INTO naming_channels SELECT discord_guild_id, officer_channel_id "
-                             "FROM server_settings WHERE officer_channel_id IS NOT NULL")
-            self._db.execute("ALTER TABLE server_settings DROP COLUMN officer_channel_id")
+            self._db.execute("ALTER TABLE server_settings DROP COLUMN officer_channel_id")  # an older version's
+        # the channels where players were named, until /wipebot names was dropped
+        self._db.execute("DROP TABLE IF EXISTS naming_channels")
         self._db.commit()
         self._move_notes()
 
@@ -287,17 +280,6 @@ class Store:
 
     def all_settings(self) -> list[ServerSettings]:
         return [ServerSettings(*r) for r in self._db.execute(f"SELECT {self._COLUMNS} FROM server_settings")]
-
-    def naming_channels(self, discord_guild_id: int) -> set[int]:
-        """The channels where wipebot names players (and their threads), as the server's admins set them."""
-        return {r[0] for r in self._db.execute("SELECT channel_id FROM naming_channels WHERE discord_guild_id = ?",
-                                               (discord_guild_id,))}
-
-    def set_naming(self, discord_guild_id: int, channel_id: int, on: bool) -> None:
-        self._db.execute("INSERT OR IGNORE INTO naming_channels VALUES (?, ?)" if on else
-                         "DELETE FROM naming_channels WHERE discord_guild_id = ? AND channel_id = ?",
-                         (discord_guild_id, channel_id))
-        self._db.commit()
 
     # ---------- posts ----------
 
@@ -483,9 +465,9 @@ class Store:
         return bool(dropped)
 
     def forget_server(self, discord_guild_id: int) -> None:
-        """Forget a server the bot was removed from: its settings, where names are on, its posts after wipes and
+        """Forget a server the bot was removed from: its settings, its posts after wipes and
         its own key. What it spent stays, for the books, until it's pruned."""
-        for table in ("server_settings", "naming_channels", "following", "server_keys", "server_options"):
+        for table in ("server_settings", "following", "server_keys", "server_options"):
             self._db.execute(f"DELETE FROM {table} WHERE discord_guild_id = ?", (discord_guild_id,))
         self._db.commit()
 

@@ -26,7 +26,6 @@ from wipebot.discord.bot import (
     for_someone_else,
     format_earlier,
     may_chat,
-    names_on,
     only_mentions,
     strip_mention,
     where_asked,
@@ -97,9 +96,8 @@ async def test_a_new_conversation_in_a_thread_reads_its_opening_however_old():
     assert follow_up.splitlines() == ["Enfo (Sun 17:40 UTC): ok"]
 
 
-def test_a_thread_cant_name_itself_a_channel_with_names_on():
-    assert where_asked(False, "x [names on]", True) == "in #x (names on)"
-    assert where_asked(False, "x [names on]", True, named=True) == "in #x (names on) [names on]"
+def test_a_threads_name_cant_pass_for_a_mark():
+    assert where_asked(False, "x [asked by Bob]", True) == "in #x (asked by Bob)"
 
 
 def test_strip_mention():
@@ -128,27 +126,19 @@ def test_a_reply_tagging_a_raidmate_is_for_them(text, theirs):
     assert for_someone_else(text, 99) == theirs
 
 
-@pytest.mark.parametrize("is_dm, mentioned, named, expected", [
-    (True, False, False, "in a DM"),
-    (False, True, False, "in #raid"),
-    (False, False, False, None),  # a message that doesn't mention the bot isn't for it
-    (False, True, True, "in #raid [names on]"),
+@pytest.mark.parametrize("is_dm, mentioned, expected", [
+    (True, False, "in a DM"),
+    (False, True, "in #raid"),
+    (False, False, None),  # a message that doesn't mention the bot isn't for it
 ])
-def test_where_asked(is_dm, mentioned, named, expected):
-    assert where_asked(is_dm, "raid", mentioned, named) == expected
+def test_where_asked(is_dm, mentioned, expected):
+    assert where_asked(is_dm, "raid", mentioned) == expected
 
 
 def test_may_chat_needs_the_required_role(settings):
     assert may_chat(settings, [])  # no role required
     with_role = replace(settings, required_role_id=111)
     assert may_chat(with_role, [222, 111]) and not may_chat(with_role, [222])
-
-
-def test_names_are_on_in_the_channels_the_admins_chose_and_their_threads():
-    def channel(channel_id, parent_id=None):
-        return SimpleNamespace(id=channel_id, parent_id=parent_id)
-    assert names_on(channel(20), {20}) and names_on(channel(21, parent_id=20), {20})  # a thread in it
-    assert not names_on(channel(30), {20}) and not names_on(channel(20), set())
 
 
 # ---------- questions ----------
@@ -306,14 +296,6 @@ async def test_a_server_not_set_up_answers_about_the_report_its_raiders_link(bot
     assert [a[1] for a in asked] == ["AbC123xyz", "AbC123xyz"]
     ctx = asked[0][3]
     assert ctx.guild is None and ctx.notebook is None and ctx.server_id == 2002
-
-
-async def test_where_names_are_on_the_bot_knows_it(bot, message, asked):
-    bot.store.set_naming(1001, 20, True)
-    msg = message()
-    msg.channel.name = "officers"
-    await bot.on_message(msg)
-    assert asked[0][3].where == "in #officers [names on]"
 
 
 @pytest.mark.parametrize("make, setup, reply", [
@@ -514,19 +496,13 @@ async def test_a_raiders_feedback_goes_to_their_dms_and_replies_to_it_are_about_
     assert recorded(bot.store)[0][::5] == ("follow", 30)
 
 
-@pytest.mark.parametrize("channel_id, where", [
-    (20, "in #officers [names on]"),
-    (30, "in #officers"),  # another channel
-])
-async def test_a_post_names_players_only_where_names_are_on(bot, settings, asked, member, channel, channel_id,
-                                                            where):
-    """The same request, posted in a channel: players are named only where the admins turned names on."""
-    bot.store.set_naming(1001, 20, True)
-    channel.id, channel.name = channel_id, "officers"
+async def test_a_post_in_a_channel_is_asked_from_there(bot, settings, asked, member, channel):
+    """A request posted in a channel, where nobody is named."""
+    channel.id, channel.name = 30, "officers"
     f = Following(member(7, "Rowan"), "Rowan", None, "LIVE1", channel, "who messed up")
     await bot._post(settings, f, Pull("LIVE1", 30, "Sszorak", 12, 0.0))
     [(key, _, question, ctx)] = asked
-    assert key == (channel_id, 7) and ctx.where == where
+    assert key == (30, 7) and ctx.where == "in #officers"
     assert question.startswith("Sszorak pull 12 just ended in a wipe, and Rowan asked for this here after each pull: "
                                "who messed up.")
     assert channel.sent == ["**Wiped.**"]
@@ -1029,8 +1005,8 @@ async def test_a_linked_message_comes_with_the_thread_it_starts(linked):
 
 
 async def test_a_linked_thread_or_channel_gives_its_messages_oldest_first(linked):
-    thread = await wipebot.linked_messages(f"{LINK}/31", linked.guild, linked.rowan, named={30})
-    assert thread.splitlines()[0] == f"{LINK}/31 (thread \"Coiled Altar\" in #tactics [names on]):"
+    thread = await wipebot.linked_messages(f"{LINK}/31", linked.guild, linked.rowan)
+    assert thread.splitlines()[0] == f"{LINK}/31 (thread \"Coiled Altar\" in #tactics):"
     channel = await wipebot.linked_messages(f"<{LINK}/30>", linked.guild, linked.rowan)
     assert channel.splitlines()[1:] == [
         "Brann (Wed 19:00 UTC): Coiled Altar: group 2 soaks left",
