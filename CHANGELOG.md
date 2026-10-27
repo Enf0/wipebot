@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-27
+
 ### Changed
 
 - `Discord` **No more names in chosen channels.** `/wipebot names` is gone: in every channel Wipebot names nobody and says what went wrong and how to fix it, and in a DM it names players, as before. Ask it in a channel to answer in your DMs for who missed what.
