@@ -16,6 +16,7 @@ from ..pulls import (
     by_phase,
     is_reset,
     pct_text,
+    phase_health,
     phase_label,
     wipe_pct,
     wipe_pcts,
@@ -377,6 +378,17 @@ class BossNight:
     kill: int | None  # the first kill's pull number on the boss that night
     best: tuple[float, int] | None  # the furthest wipe before the kill (or of the night): wipe %, pull number
     ends: tuple[tuple[str, int], ...]  # how the pulls ended (kind_of_end), the most common first
+    code: str = ""  # the night's log of its first pull on the boss
+    best_phase: str | None = None  # the phase the best wipe ended in (phase_label)
+    best_health: float | None = None  # on a boss counted by phase, the boss's health in it (phase_health)
+
+    def best_text(self) -> str:
+        """The best wipe as raiders say it (wipe_text): 'P2 68.3% (WCL 70.5%)' on a boss counted by phase."""
+        if self.best is None:
+            return "-"
+        if self.best_health is None:
+            return f"{self.best[0]:.1f}%"
+        return f"{self.best_phase} {self.best_health:.1f}% (WCL {self.best[0]:.1f}%)"
 
 
 def boss_pulls(rep: Report, encounter: int, difficulty: int | None) -> list[dict]:
@@ -402,7 +414,10 @@ async def boss_night(reps: list[Report], start_ms: float, encounter: int, diffic
     wipes = [(pct, i) for i, (_, f) in enumerate(pulls, 1) if not f["kill"] and not is_reset(f)
              and (kill is None or i < kill) and (pct := wipe_pct(f)) is not None]
     ends = Counter([kind_of_end(await pull_ending(r, f)) for r, f in pulls])
-    return BossNight(start_ms, len(pulls), kill, min(wipes) if wipes else None, tuple(ends.most_common()))
+    best = min(wipes) if wipes else None
+    furthest = pulls[best[1] - 1][1] if best else None
+    return BossNight(start_ms, len(pulls), kill, best, tuple(ends.most_common()), pulls[0][0].code,
+                     phase_label(furthest) if furthest else None, phase_health(furthest) if furthest else None)
 
 
 def weeks_text(boss: str, weeks: int, nights: list[BossNight]) -> str:
@@ -413,9 +428,10 @@ def weeks_text(boss: str, weeks: int, nights: list[BossNight]) -> str:
              "pulls, the kill, the best wipe before it, and how the pulls ended, by the first thing that ended each):"]
     for n in nights:
         kill = f"killed on pull {n.kill}" if n.kill else "no kill"
-        best = f", best wipe {n.best[0]:.1f}% (pull {n.best[1]})" if n.best else ""
+        best = f", best wipe {n.best_text()} (pull {n.best[1]})" if n.best else ""
         ends = ", ".join(f"{what} {k}" for what, k in n.ends if what != "a kill")
         lines.append(f"  {date(n.start_ms)}: {plural(n.pulls, 'pull')}, {kill}{best}; ended by {ends or 'nothing yet'}")
     bests = [f"kill on pull {n.kill}" if n.kill else f"{n.best[0]:.1f}" if n.best else "-" for n in nights]
-    lines.append("Best wipe night by night: " + " → ".join(bests))
+    wcl = " (WCL %)" if any(n.best_health is not None for n in nights) else ""
+    lines.append(f"Best wipe night by night{wcl}: " + " → ".join(bests))
     return "\n".join(lines)

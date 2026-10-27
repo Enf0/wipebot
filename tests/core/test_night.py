@@ -1,7 +1,7 @@
 """The guild's nights (report/night.py): who raided which nights. The night's overview and progress are pinned by
 the tool cases (test_tools.py)."""
 from wipebot.core.pulls import wipe_pcts
-from wipebot.core.report import night
+from wipebot.core.report import night, views
 
 
 async def test_kill_rankings_are_kept_once_every_kill_is_ranked(rep, patch_wcl):
@@ -68,3 +68,14 @@ def test_weeks_read_night_by_night_with_the_best_wipe_trend():
         "  Thu 2025-10-16: 14 pulls, killed on pull 14, best wipe 2.0% (pull 12); ended by deaths one after another 9",
         "Best wipe night by night: 34.1 → kill on pull 14"]
     assert night.weeks_text("Sszorak", 2, []) == "The guild's raid nights of the last 2 weeks have no pulls on Sszorak."
+
+
+def test_weeks_name_a_best_wipe_by_its_phase_where_phases_have_their_own_health():
+    altar = night.BossNight(1_760_000_000_000, 21, None, (70.5, 16), (("Venom Rupture killing many", 12),), "abc",
+                            "P2", 68.3)
+    text = night.weeks_text("The Coiled Altar", 1, [altar])
+    assert "best wipe P2 68.3% (WCL 70.5%) (pull 16)" in text
+    assert text.endswith("Best wipe night by night (WCL %): 70.5")
+    assert views.weeks_row(altar) == {"day": "Thu 9 Oct", "start_ms": 1_760_000_000_000, "report": "abc",
+                                      "pulls": 21, "kill": None, "pct": 70.5, "pull": 16, "phase": "P2",
+                                      "health": 68.3, "ended": ["Venom Rupture killing many", 12]}

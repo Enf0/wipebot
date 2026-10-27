@@ -295,9 +295,10 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
     @functools.partial(server.guarded, setup=setup)
     async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night or death")],
                         pull: server.Pull = None, boss: server.Boss = None, report: server.Report_ = None,
-                        player: str | None = None, top: bool = False, death: int = 1) -> CallToolResult:
+                        player: str | None = None, top: bool = False, death: int = 1,
+                        weeks: Annotated[int | None, Field(ge=1, le=12)] = None) -> CallToolResult:
         """What a view draws, for the pull (and player) its tool was asked about."""
-        result = await server.view_data(view, pull, boss, report, player, top, death)
+        result = await server.view_data(view, pull, boss, report, player, top, death, weeks=weeks)
         if (data := result.structured_content) is not None:
             data["img_base"] = public_url + "/img/"  # its spells' icons (views.icon), served once it named them
             _handed_out.update(views.icons(data))

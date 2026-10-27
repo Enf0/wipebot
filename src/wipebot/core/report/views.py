@@ -26,7 +26,7 @@ from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, kill
 from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
 from .meter import Meter
-from .night import kill_rankings, wipe_thirds
+from .night import BossNight, kill_rankings, wipe_thirds
 from .ranks import Spread, kill_parses, kills_spread, metric_of
 from .top import cast_comparison
 
@@ -55,11 +55,12 @@ def page_uri() -> str:
 
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
                     player: str | None = None, top: bool = False, death: int = 1, tool: str | None = None,
-                    args: dict | None = None) -> dict:
+                    args: dict | None = None, nights: list[BossNight] | None = None) -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
     player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`); the
-    meter's `tool` and the `args` it was called with."""
+    meter's `tool` and the `args` it was called with; the night view with the boss on each raid night (`nights`,
+    progress's `weeks`)."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
     if view == "meter":
@@ -67,7 +68,7 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
     if view not in ("pull", "night") and not player:
         raise ValueError(f"the {view} view needs a player")
     if view == "night":
-        return await night_view(rep, rep.boss(boss))
+        return await night_view(rep, rep.boss(boss), nights)
     if view == "player_night":
         return await player_night_view(rep, rep.boss(boss), player or "")
     f = rep.fight(pull, boss)
@@ -369,10 +370,12 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
     }
 
 
-async def night_view(rep: Report, boss: str) -> dict:
+async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = None) -> dict:
     """The raid's night on a boss, as progress states it: each pull's boss health left, phase, length, what ended it
     (pull_summary's "Ended by") and first death; the night's best, the guild's best before it, how the pulls ended
-    and the killers of each pull's first deaths, the trend in thirds; and the night's other bosses."""
+    and the killers of each pull's first deaths, the trend in thirds; and the night's other bosses. With `nights`
+    (progress's `weeks`), the boss on each raid night: its pulls, the kill or the best wipe and the phase it got to,
+    and what ended most pulls."""
     fights = rep.by_boss[boss]
     await rep.decided_cuts(fights)
     before = await rep.guild_best(fights[0])
@@ -408,7 +411,15 @@ async def night_view(rep: Report, boss: str) -> dict:
         "thirds": [round(t, 1) for t in thirds] if thirds else None,
         "bosses": [{"boss": b, "pulls": len(fs), "kill": any(f["kill"] for f in fs),
                     "best": min(wipe_pcts(fs), default=None)} for b, fs in rep.by_boss.items()],
-    }
+    } | ({"weeks": [weeks_row(n) for n in nights]} if nights is not None else {})
+
+
+def weeks_row(n: BossNight) -> dict:
+    """One raid night on the boss, as progress's `weeks` states it."""
+    top = next(((what, k) for what, k in n.ends if what not in ("a kill", "a reset")), None)
+    return {"day": day(n.start_ms), "start_ms": round(n.start_ms), "report": n.code, "pulls": n.pulls,
+            "kill": n.kill, "pct": n.best[0] if n.best else None, "pull": n.best[1] if n.best else None,
+            "phase": n.best_phase, "health": n.best_health, "ended": list(top) if top else None}
 
 
 async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:

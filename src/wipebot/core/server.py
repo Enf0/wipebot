@@ -593,8 +593,9 @@ async def view_key(tool: str, args: dict) -> dict | None:
     if view == "player_night":  # a boss's night: no pull
         return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")),
                 "player": rep.player(args["player"]).name}
-    if view == "night":
-        return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss"))}
+    if view == "night":  # with `weeks`, the boss's best pull night by night too
+        return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss"))} | (
+            {"weeks": args["weeks"]} if args.get("weeks") else {})
     f = rep.fight(args.get("pull"), args.get("boss"))
     key: dict = {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
     if view in ("player", "death"):
@@ -624,11 +625,15 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
                     death: Annotated[int, Field(description="the death view's death of the player in the pull")] = 1,
                     tool: Annotated[str | None, Field(description="the meter's tool")] = None,
                     args: Annotated[dict | None, Field(description="the meter's tool's arguments")] = None,
+                    weeks: Annotated[int | None, Field(description="the night view with the boss's best pull on "
+                                                                   "each raid night over this many weeks back",
+                                                       ge=1, le=12)] = None,
                     ) -> CallToolResult:
     """What a view draws, for the pull (and player) its tool was asked about."""
     rep = await lib().report(report)
     try:
-        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args)
+        nights = await boss_nights(rep, boss, weeks) if view == "night" and weeks else None
+        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],
@@ -1139,11 +1144,12 @@ async def progress(boss: Annotated[str | None, Field(description=(
     if each_pull or first_hits:
         texts.append(await night.each_pull(rep, boss, each_pull, first_hits))
     if weeks:
-        texts.append(await _boss_over_weeks(rep, boss, weeks))
-    return await _shown("progress", {"boss": boss, "report": report}, "\n\n".join(texts), ctx)
+        texts.append(night.weeks_text(rep.boss_key(rep.by_boss[rep.boss(boss)][-1]), weeks,
+                                      await boss_nights(rep, boss, weeks)))
+    return await _shown("progress", {"boss": boss, "report": report, "weeks": weeks}, "\n\n".join(texts), ctx)
 
 
-async def _boss_over_weeks(rep: Report, boss: str | None, weeks: int) -> str:
+async def boss_nights(rep: Report, boss: str | None, weeks: int) -> list[night.BossNight]:
     """The boss of `progress` (on its difficulty in this report) on each of the guild's raid nights over the weeks."""
     f = rep.by_boss[rep.boss(boss)][-1]
     nights, _, _ = await night.raid_nights(rep, weeks)
@@ -1151,7 +1157,7 @@ async def _boss_over_weeks(rep: Report, boss: str | None, weeks: int) -> str:
     for n in [n for n in nights if n["start"] <= rep.end_ms]:  # the weeks up to this report's night, not after it
         if (one := await night.boss_night(await lib().night(n), n["start"], f["encounterID"], f.get("difficulty"))):
             found.append(one)
-    return night.weeks_text(rep.boss_key(f), weeks, found)
+    return found
 
 
 # ---------- players ----------

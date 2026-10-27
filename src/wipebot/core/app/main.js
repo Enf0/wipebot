@@ -49,7 +49,7 @@
     if (!key) {
       const tool = app.context().toolInfo?.tool?.name;
       if (args && BY_TOOL[tool]) key = { view: BY_TOOL[tool], report: args.report, pull: args.pull, boss: args.boss,
-                                         player: args.player, death: args.death };
+                                         player: args.player, death: args.death, weeks: args.weeks };
     }
     if (!key) { fail(result && result.isError ? "The tool failed: nothing to show." : "Nothing to show here: ask again to see it."); return; }
     const view = key.view || (key.at_ms !== undefined ? "replay" : "pull");  // a stored result from before views
