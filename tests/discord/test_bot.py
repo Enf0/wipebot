@@ -298,27 +298,32 @@ async def test_a_server_not_set_up_answers_about_the_report_its_raiders_link(bot
     assert ctx.guild is None and ctx.notebook is None and ctx.server_id == 2002
 
 
+@pytest.mark.parametrize("set_up", [False, True])
+async def test_a_question_without_a_report_is_answered_about_the_game(bot, message, asked, follower, set_up):
+    if set_up:  # nothing live, and no recent report found
+        follower.code = None
+        bot.latest_raids.found[(14169,)] = (float("inf"), None)
+    await bot.on_message(message("<@99> what does a fire mage press in a burst?", **({} if set_up else
+                                                                                   {"guild_id": 2002})))
+    assert [a[1] for a in asked] == [""]
+
+
 @pytest.mark.parametrize("make, setup, reply", [
     (dict(content="<@99> hi", from_bot=True), None, None),
     (dict(content="why did we wipe?"), None, None),  # not for the bot
     (dict(content="<@99> <@123>"), None, None),  # only a raidmate's mention
     (dict(content="<@123> HALVARD!!!", reply_to=500), None, None),  # showing a raidmate the bot's answer
     (dict(content="why did we wipe?", guild_id=2002), None, None),  # a server not set up, not asking the bot
-    (dict(content="<@99> hi", guild_id=2002), None, "Paste a Warcraft Logs report link"),  # not set up, no link
     (dict(content="hi", dm=True), None, "I can only chat with members of a server where wipebot is set up"),
     (dict(content="<@99> hi"), "role", "Chatting with wipebot needs the <@&111> role."),
     (dict(content="<@99> hi"), "stopping", "I'm restarting; ask again in a minute."),
     (dict(content="<@99> " + "why " * 600), None, "That's a long one: ask me in at most 2000 characters."),
-    (dict(content="<@99> hi"), "no report", "There's no recent Warcraft Logs report from The Copper Lanterns"),
 ])
 async def test_messages_the_bot_doesnt_answer(bot, message, asked, settings, follower, make, setup, reply):
     if setup == "role":
         bot.store.save_settings(replace(settings, required_role_id=111))
     elif setup == "stopping":
         bot.stopping = True
-    elif setup == "no report":  # nothing live, and no recent report found
-        follower.code = None
-        bot.latest_raids.found[(14169,)] = (float("inf"), None)
     msg = message(**make)
     await bot.on_message(msg)
     said = msg.replies + getattr(msg.channel, "sent", [])

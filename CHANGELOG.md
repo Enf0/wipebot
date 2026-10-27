@@ -11,6 +11,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `MCP` `Discord` **Wipebot has a logo.** A bot whose screen shows a boss's health falling, for the Discord app, the website and the connector: the server names it as its icon for the apps that show one. Its files are in [docs/brand](https://github.com/Enf0/wipebot/tree/main/docs/brand).
   ![Wipebot's logo and name on dark navy, with "Why did we wipe? Raid-log answers from Warcraft Logs."](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/brand/og-image-1200x630.png)
 
+### Fixed
+
+- `Discord` **Questions without a report.** Wipebot answers questions about the game, a class or a boss without a Warcraft Logs report, in a server not set up or before the guild's first raid, instead of only asking for a report link.
+- `Discord` **/wipebot key on a guild's own bot** says there's nothing to do and no longer offers to sign in with OpenRouter, which would only swap the host's key for another.
+
 ## [0.16.0] - 2026-10-27
 
 ### Added

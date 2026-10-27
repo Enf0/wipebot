@@ -395,8 +395,11 @@ class Answer:
         return [i for i, _ in self.pictures]
 
 
+NO_REPORT = "No report to read: ask for a Warcraft Logs report link."
+
+
 class Session:
-    """One conversation about one report (`code`): follow-up questions keep the context, and a report still
+    """One conversation about one report (`code`, "" for none): follow-up questions keep the context, and a report still
     being logged is refreshed before every question."""
 
     def __init__(self, library: server.Library, code: str, model: str = "",
@@ -443,7 +446,9 @@ class Session:
         """raid_note: the server's note (Context.notebook) for the boss of the pull the call is about."""
         if not (self._ctx and self._ctx.notebook):
             return "Raid notes are only kept in Discord: there's none here."
-        report = await self.library.report(args.get("report") or self.code)
+        if not (code := args.get("report") or self.code):
+            return NO_REPORT
+        report = await self.library.report(code)
         book, guild = self._ctx.notebook, self._ctx.guild_id
         if (boss := args.get("boss")) and not server.pulled(report, boss):  # not pulled yet: the note as it is
             return await server.unpulled_note(book, guild, report, boss)
@@ -461,7 +466,9 @@ class Session:
         if not (self._ctx and self._ctx.notebook):
             return "Raid plans are only kept in Discord: there's none here."
         book, guild = self._ctx.notebook, self._ctx.guild_id
-        report = await self.library.report(args.get("report") or self.code)
+        if not (code := args.get("report") or self.code):
+            return NO_REPORT
+        report = await self.library.report(code)
         boss = args.get("boss")
         # The plan as it is (`show`, or a boss not pulled yet) needs no pull: every plan, raid_plan picks the boss's
         whole = bool(args.get("show")) or bool(boss and not server.pulled(report, boss))
@@ -477,7 +484,8 @@ class Session:
         return "\n".join(found), source
 
     async def __aenter__(self) -> Session:
-        self.report = await self.library.report(self.code)
+        # without a report (code ""), it answers about the game, or asks for a report link
+        self.report = await self.library.report(self.code) if self.code else None
         bot = self.system_prompt is None  # else a client with only the connector: the core's raid_note and raid_plan
         tools = await sdk_tools(self.code, self._returned,lambda: self._ctx.guild if self._ctx else None,
                                 self._saved_note if bot else None, self._saved_plan if bot else None,
@@ -545,11 +553,13 @@ class Session:
     async def ask(self, question: str, ctx: Context) -> Answer:
         assert self._client, "use 'async with Session(...)'"
         asked = time.monotonic()
-        self.report = await self.library.report(self.code)  # picks up new pulls of a live report
+        if self.code:
+            self.report = await self.library.report(self.code)  # picks up new pulls of a live report
         ran = [await self._prefetched(name, args, ctx.wcl_token) for name, args in ctx.prefetch]
         question += "".join(prompt.PREFETCHED.format(tool=c.name, result=c.result) for c in ran if not c.failed)
-        text = no_paths(prompt.message(question, ctx, self.report, await self.report.guild_run_doubt(),
-                                       raids=await self.report.raids()))
+        report = self.report
+        text = no_paths(prompt.message(question, ctx, report, await report.guild_run_doubt() if report else "",
+                                       raids=await report.raids() if report else None))
         self._ctx = ctx
         await self._client.query(text)
         self._calls[:] = ran
@@ -607,7 +617,7 @@ class Session:
 
     async def _prefetched(self, name: str, args: dict, wcl_token: str | None = None) -> ToolCall:
         """One of a question's `prefetch` tools, run as the model's own call would be, on the session's report."""
-        args = {"report": self.code, **args}
+        args = {"report": self.code, **args} if self.code else args
         started, drawing = time.monotonic(), None
         with wcl.reading_as(wcl_token), wcl.counting_points() as points:
             try:
@@ -621,7 +631,7 @@ class Session:
     async def _reports_read(self, calls: Sequence[ToolCall]) -> list[Report]:
         """The session's report, then the others the tool calls read (a question about another night), for
         linking the answer's abilities and pulls."""
-        out = [self.report]
+        out = [self.report] if self.report else []
         for code in dict.fromkeys(str(c.args["report"]) for c in calls if c.args.get("report")):
             try:
                 report = await self.library.report(code, max_age_s=float("inf"))  # loaded by the call itself

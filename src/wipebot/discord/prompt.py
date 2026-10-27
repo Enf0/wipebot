@@ -172,17 +172,26 @@ guide or the log disagrees. The naming rule is where you answer, not where they 
 {messages}"""
 
 
-def message(question: str, ctx: Context, report: Report, doubt: str = "", now: datetime | None = None,
+def message(question: str, ctx: Context, report: Report | None, doubt: str = "", now: datetime | None = None,
             raids: list[tuple[str, list[str]]] | None = None) -> str:
     """What the model gets for one question: what was said before it (ctx.earlier), the messages it links to
-    (ctx.linked), the report's line, the asker's line, then the question."""
+    (ctx.linked), the report's line (NO_REPORT without one), the asker's line, then the question."""
     # The question's own brackets as parentheses: only the two lines above say where it was asked and by whom.
-    text = f"{report_line(report, now, doubt, raids)}\n{asker_line(ctx, report)}\n{question.translate(BRACKETS)}"
+    line = report_line(report, now, doubt, raids) if report else NO_REPORT.format(
+        today=f"{(now or datetime.now().astimezone()):%A %Y-%m-%d}")
+    text = f"{line}\n{asker_line(ctx, report)}\n{question.translate(BRACKETS)}"
     if ctx.linked:
         text = LINKED.format(messages=ctx.linked) + "\n\n" + text
     if ctx.earlier:
         text = (SINCE if ctx.follow_up else EARLIER).format(messages=ctx.earlier) + "\n\n" + text
     return text
+
+
+# A question with no report to read (none linked, and the server isn't set up or its guild logged no raid lately):
+# the game needs none, a raid's pulls do.
+NO_REPORT = ("[no Warcraft Logs report: none was linked, and there's no recent raid of the server's guild; questions "
+             "about the game need none, and one about a raid's pulls needs its report link (or, in a server not set "
+             "up, an admin's `/wipebot setup` with the guild's Warcraft Logs page); today is {today}]")
 
 
 def report_line(report: Report, now: datetime | None = None, doubt: str = "",
@@ -207,13 +216,15 @@ def report_line(report: Report, now: datetime | None = None, doubt: str = "",
             + (f"; note: {doubt}" if doubt else "") + "]")
 
 
-def asker_line(ctx: Context, report: Report) -> str:
+def asker_line(ctx: Context, report: Report | None) -> str:
     """Who asked, what's remembered about them, where, which pull it's about, and the raid notes and plans saved."""
-    if ctx.asker:
+    if ctx.asker and report:
         try:
             parts = [f"asked by {report.player(ctx.asker).label}"]
         except FactError:
             parts = [f"asked by {plain(ctx.asker, 40)}"]  # as they told it
+    elif ctx.asker:
+        parts = [f"asked by {plain(ctx.asker, 40)}"]
     else:
         parts = [f"asked by Discord user {plain(ctx.discord_name)}" if ctx.discord_name else
                  "asked by an unknown raider"]
@@ -223,9 +234,9 @@ def asker_line(ctx: Context, report: Report) -> str:
         parts.append(ctx.where)
     if ctx.guild:
         parts.append(f"the guild on Warcraft Logs: {plain(ctx.guild)}")
-    if ctx.pull is not None or ctx.boss:
+    if report and (ctx.pull is not None or ctx.boss):
         parts.append(f"about {report.label(report.fight(ctx.pull, ctx.boss))}")
-    else:
+    elif report:
         parts.append(f"latest pull is {report.label(report.fights[-1])}")
     parts += _saved_for("raid note (assignments and cooldowns)", ctx.noted)
     parts += _saved_for("raid plan (positions)", ctx.planned)

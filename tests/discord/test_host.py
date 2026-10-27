@@ -358,6 +358,21 @@ async def test_an_answer_that_hit_a_cap_is_an_error_and_wears_the_conversation_o
     assert e.value.answer and (e.value.answer.cost_usd, e.value.answer.turns, e.value.answer.text) == (2.0, 25, "")
 
 
+async def test_a_session_without_a_report_answers_about_the_game():
+    """A question with no report to read (code ""): the model is told so, and nothing loads a report."""
+    async def report(code, max_age_s=0):
+        raise AssertionError(f"loaded {code!r}")
+    session = Session(cast(server.Library, SimpleNamespace(report=report)), "")
+    session.report = None
+    session._client = cast(ClaudeSDKClient, FakeClient(
+        [AssistantMessage([TextBlock("Combustion, then Fire Blast.")], "claude-opus-5-5"), result(0.01, 10)]))
+    answer = await session.ask("what does a fire mage press?", Context())
+    assert answer.text == "Combustion, then Fire Blast."
+    assert cast(FakeClient, session._client).queries[0].startswith("[no Warcraft Logs report")
+    session._ctx = Context(notebook=Notebook(":memory:"), guild_id=14169)
+    assert await session._saved_note({}) == host.NO_REPORT
+
+
 async def test_an_answer_about_another_night_reads_that_report_too():
     """The session is on tonight's report; the question was about Monday's, which the tools read."""
     tonight, monday = SimpleNamespace(code="TONIGHT"), SimpleNamespace(code="MONDAY")

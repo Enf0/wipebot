@@ -124,7 +124,10 @@ class Posts:
             return "Say what they want posted here after each pull, in their words, as `request`."
         character = str(args.get("character") or "").strip()
         try:  # as the log spells it; before the raid logs, as the latest night has it, if they're in it
-            character = (await self.library.report(live or code)).player(character).name
+            if live or code:
+                character = (await self.library.report(live or code)).player(character).name
+            elif not character:
+                raise FactError("Name the character to follow.")
         except FactError as e:
             if live or not character:
                 return str(e)

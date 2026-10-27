@@ -83,14 +83,6 @@ MODEL_ERRORS = {
 TOO_SLOW = "That took too long, sorry. Try asking something narrower."
 SLOW_START = "Loading the report took too long; try again in a minute."
 WENT_WRONG = "Something went wrong while answering that; try again in a moment."
-def no_report(s: ServerSettings) -> str:
-    """What to tell a raider when there's no report to answer about."""
-    if s.set_up:
-        return f"There's no recent Warcraft Logs report from {s.wcl_guild} to look at."
-    return ("Paste a Warcraft Logs report link with your question. Or an admin can run `/wipebot setup` with the "
-            "guild's Warcraft Logs page, and I'll look at its latest raid by myself.")
-
-
 WCL_DOWN = "Warcraft Logs isn't answering, so I can't look at the logs; try again in a few minutes."
 MENTION = re.compile(r"<@[!&]?\d+>|<#\d+>")
 # Replies need Read Message History; threads, for when someone mentions the bot inside one; maps, Attach Files.
@@ -679,10 +671,7 @@ class WipeBot(discord.Client):
             log.exception("finding the report to answer about failed")
             await respond(message, WCL_DOWN)
             return
-        if not code:
-            await respond(message, no_report(settings))
-            return
-        await self._chat(message, settings, code, question, where, is_dm)
+        await self._chat(message, settings, code or "", question, where, is_dm)  # "": about the game
 
     async def _settings_for(self, message: discord.Message, is_dm: bool, mentioned: bool) -> ServerSettings | None:
         """The settings of the server a message is for; None, after telling the asker why when it's for the bot,
@@ -810,9 +799,7 @@ class WipeBot(discord.Client):
         channel = cast(discord.abc.Messageable, channel)  # the channel of a message with buttons
         code = await self._report_for(s, ("dm", user.id) if is_dm else (getattr(channel, "id", 0), user.id),
                                       question)
-        if not code:
-            await interaction.response.send_message(no_report(s), ephemeral=True)
-            return
+        code = code or ""  # no report: about the game
         guild = self.get_guild(s.discord_guild_id) if is_dm else None
         name = display((guild.get_member(user.id) if guild else None) or user)
         await interaction.response.send_message(f"-# {name} asked: {question}",
@@ -992,7 +979,7 @@ class WipeBot(discord.Client):
 
     async def _remember(self, user_id: int, name: str, code: str, args: dict) -> str:
         """The remember tool for one raider: keep or forget their character and notes; what to tell the model."""
-        if character := str(args.get("character") or "").strip():
+        if (character := str(args.get("character") or "").strip()) and code:
             try:  # as the log spells it, when they're in this report; else as found in another one
                 args = {**args, "character": (await self.library.report(code)).player(character).name}
             except FactError:

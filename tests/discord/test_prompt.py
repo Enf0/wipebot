@@ -45,6 +45,14 @@ class FakeReport:
 REPORT = cast(Report, FakeReport())
 
 
+def test_a_question_without_a_report_says_so_and_still_names_the_asker():
+    text = message("what does a fire mage press?", Context(asker="Torvek", discord_name="rowan"), None,
+                   now=WEDNESDAY)
+    assert text.startswith("[no Warcraft Logs report: none was linked") and "today is Wednesday 2026-10-07" in text
+    assert "asked by Torvek;" in text or "asked by Torvek]" in text
+    assert "pull" not in asker_line(Context(asker="Torvek"), None)
+
+
 def test_report_line_dates_the_report_so_an_old_one_isnt_tonights():
     sunday = datetime.datetime(2026, 10, 11, 21, 26, tzinfo=TZ)
     assert report_line(REPORT, sunday) == (
