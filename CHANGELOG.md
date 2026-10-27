@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-27
+
 ### Fixed
 
 - `Discord` **Pictures sit next to what they show, now for real.** The bot rarely placed a picture inside its answer, so it still came at the end. Any answer longer than three bullets now puts its picture right after the part it backs, or else (when the bot leaves it out or puts it last) right under its first line.
