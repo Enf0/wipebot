@@ -5,9 +5,9 @@ import math
 import statistics
 from collections import Counter, defaultdict
 
+from .. import clock as wallclock
 from .. import knowledge
 from ..cache import DAY, HOUR
-from ..clock import now
 from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES, attempt
 from ..text import clock, date, fight_url, plural, short
@@ -92,7 +92,7 @@ async def _zone_rankings(rep: Report, character_ids: list[int], difficulty: int,
     database points a character."""
     zone = rep.zone_id or 0  # its callers have one
     newest = max((rep.start_ms + f["endTime"] for f in rep.fights if f.get("kill")), default=0)
-    keep_s = HOUR if now() * 1000 - newest < RANKED_WITHIN_S * 1000 else DAY
+    keep_s = HOUR if wallclock.now() * 1000 - newest < RANKED_WITHIN_S * 1000 else DAY
     key = ("zone rankings", tuple(sorted(set(character_ids))), zone, difficulty, metric, spec, role, newest)
     found = await rep.keep(key, [], lambda: rep.wcl.zone_rankings(character_ids, zone, difficulty, metric, spec, role),
                            keep_s)
