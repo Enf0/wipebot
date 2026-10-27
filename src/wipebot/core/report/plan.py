@@ -9,6 +9,7 @@ tolerance: half the median distance between neighbouring spots, in the room afte
 """
 import math
 import statistics
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
@@ -276,14 +277,18 @@ async def plan_check(rep: Report, text: str, pull: PullRef = None, boss: str | N
     ability = at if at and parse_clock(at) is None else None
     out, images, overlays = [], [], []
     pulls = rep.ended(rep.by_boss[key]) if night else [f]
-    for vs in versions.values():
+    now = time.time()
+    for pid, vs in versions.items():
         used = vs[-1:] if latest else vs
+        mine = [g for g in pulls if pid not in set_aside(versions, now if latest else _start(rep, g))]
+        if not mine:
+            continue
         if night:
-            lines, image = await _night(rep, used, pulls, ability, asked, draw)
+            lines, image = await _night(rep, used, mine, ability, asked, draw)
         else:
             lines, image, overlay = await _pull(rep, used, f, ability, None if ability else at, asked, draw)
             overlays += [overlay] if overlay else []
-        checked = max((_version(rep, used, g) for g in pulls), key=vs.index)
+        checked = max((_version(rep, used, g) for g in mine), key=vs.index)
         if checked is not vs[-1]:
             lines.insert(1, f"A newer version of this plan is saved ({saved.source(vs[-1].saved_at, vs[-1].saved_by)})"
                             ": each pull is checked against the version saved before it began; `latest` checks "
@@ -307,10 +312,11 @@ async def plan_show(rep: Report, text: str, boss: str | None = None, player: str
         kept = ", ".join(dict.fromkeys(f'"{p.name}" ({p.boss or "no boss"})' for p in plans))
         raise FactError(f"no raid plan for {wanted}" + (" (the latest pull's boss)" if not boss else "")
                         + f"; the plans are {kept}: ask for one of their bosses")
-    newest: dict[str, Plan] = {}
+    versions: dict[str, list[Plan]] = defaultdict(list)
     for p in sorted(found, key=lambda p: p.saved_at or 0):
-        newest[p.plan_id] = p
-    shown = sorted(newest.values(), key=lambda p: -(p.saved_at or 0))
+        versions[p.plan_id].append(p)
+    aside = set_aside(versions, time.time())
+    shown = sorted((vs[-1] for pid, vs in versions.items() if pid not in aside), key=lambda p: -(p.saved_at or 0))
     await rep.name_spells({s for p in shown for sc in p.scenes for s in sc.spells})
     asked = rep.find_player(player) if player else None
 
@@ -323,6 +329,9 @@ async def plan_show(rep: Report, text: str, boss: str | None = None, player: str
         return bool(player and label and (asked and who(label, icon) == asked.name
                                           or fold(label).lower() == fold(player).lower()))
     lines = []
+    if aside:
+        lines.append("Set aside, as an officer pasted newer plans for this boss since they last changed (kept for "
+                     "the pulls before): " + ", ".join(f'"{versions[pid][-1].name}"' for pid in aside) + ".")
     if len(shown) > 1:
         lines.append(f"{len(shown)} plans for {shown[0].boss}, newest first: "
                      + ", ".join(f'"{p.name}"' for p in shown) + ".")
@@ -341,6 +350,18 @@ async def plan_show(rep: Report, text: str, boss: str | None = None, player: str
     return "\n".join(lines)
 
 
+def set_aside(versions: dict[str, list[Plan]], at: float) -> set[str]:
+    """The plans (ids) of one boss that an officer's paste replaced by `at` (epoch seconds): a plan fetched from
+    raidstrats.gg that hasn't changed there since the boss's last paste. Pasted plans don't replace each other (a
+    boss has several: one re-pasted alone keeps the others), nor fetched ones each other (a guild keeps several)."""
+    upto = {pid: [p for p in vs if (p.saved_at or 0) <= at] for pid, vs in versions.items()}
+    pasted = [p.saved_at or 0 for vs in upto.values() for p in vs if p.saved_by != saved.FETCHED]
+    if not pasted:
+        return set()
+    return {pid for pid, vs in upto.items()
+            if vs and all(p.saved_by == saved.FETCHED for p in vs) and (vs[-1].saved_at or 0) < max(pasted)}
+
+
 def _boss_of(rep: Report, plan: Plan) -> str | None:
     """The report's boss a plan is for: "" for any, None for one the report doesn't have."""
     if not plan.boss:
@@ -351,8 +372,12 @@ def _boss_of(rep: Report, plan: Plan) -> str | None:
         return None
 
 
+def _start(rep: Report, f: dict) -> float:
+    return (rep.start_ms + f["startTime"]) / 1000
+
+
 def _version(rep: Report, versions: list[Plan], f: dict) -> Plan:
-    return saved.pick(versions, (rep.start_ms + f["startTime"]) / 1000, lambda p: p.saved_at)
+    return saved.pick(versions, _start(rep, f), lambda p: p.saved_at)
 
 
 async def _pull(rep: Report, versions: list[Plan], f: dict, ability: str | None, at: str | None, asked: str | None,

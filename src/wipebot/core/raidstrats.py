@@ -22,7 +22,7 @@ import urllib.parse
 import httpx
 
 from .notebook import Notebook, RaidstratsLogin
-from .report import FactError
+from .report import FactError, saved
 from .report import plan_export as plans
 from .text import day
 
@@ -33,7 +33,7 @@ SCOPES = "profile plans addon"
 # raidstrats.gg sends the browser back here after the login. Nothing listens: the officer pastes the address the
 # browser couldn't open back to the bot, and the code in it is useless without the app's secret.
 REDIRECT_URL = "http://localhost:8765/callback"
-SAVED_BY = "raidstrats.gg"
+SAVED_BY = saved.FETCHED
 FRESH_S = 60  # plans fetched this recently aren't fetched again (raid_plan called several times in one answer)
 KEEP_ALIVE_S = 7 * 86400  # a login's refresh token is replaced at least this often
 TIMEOUT_S = 10

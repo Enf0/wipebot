@@ -108,3 +108,18 @@ def test_a_spot_left_unnamed_gets_its_numbers_name_from_another_scene_unless_num
     assert scenes([("Brøndal", 1), ("Kessa", 2)], [("", 2), ("1", 1), ("", 3)]) == ["Brøndal Kessa", "Kessa Brøndal -"]
     # a plan that gives a number to a raider per scene is left as it is
     assert scenes([("Brøndal", 1)], [("Kessa", 1), ("", 2)], [("", 1)]) == ["Brøndal", "Kessa -", "-"]
+
+
+def test_an_officers_paste_sets_aside_the_bosss_older_fetched_plans_and_one_changed_since_comes_back():
+    def version(pid: str, at: float, by: str) -> plan_export.Plan:
+        return plan_export.Plan(pid, pid, "Coiled Altar", "", "", [], "", at, by)
+    old = [version("old", 1000, "raidstrats.gg")]
+    p1, p3 = [version("p1", 5000, "Rowan")], [version("p3", 5050, "Rowan")]
+    assert plans.set_aside({"old": old, "p1": p1, "p3": p3}, 6000) == {"old"}
+    assert plans.set_aside({"old": old, "p1": p1, "p3": p3}, 2000) == set()  # a pull before the paste
+    edited = old + [version("old", 7000, "raidstrats.gg")]  # changed on raidstrats.gg since: it counts again
+    assert plans.set_aside({"old": edited, "p1": p1, "p3": p3}, 8000) == set()
+    # plans fetched from raidstrats.gg don't replace each other
+    assert plans.set_aside({"a": old, "b": [version("b", 9000, "raidstrats.gg")]}, 9500) == set()
+    # pasted plans don't replace each other: P3 pasted again alone keeps P1
+    assert plans.set_aside({"old": old, "p1": p1, "p3": p3 + [version("p3", 9000, "Rowan")]}, 9500) == {"old"}

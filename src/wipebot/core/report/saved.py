@@ -8,6 +8,7 @@ from collections.abc import Callable
 
 from ..text import day
 
+FETCHED = "raidstrats.gg"  # who a plan fetched from raidstrats.gg is saved by; any other saver pasted it
 MARK = re.compile(r"\[saved (\d+(?:\.\d+)?) by ([^\]]*)\]")
 
 
