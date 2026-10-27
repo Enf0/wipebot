@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - `Discord` **A restart doesn't end your conversation.** When the bot restarts for an update, your next question or follow-up button goes on where the conversation was, instead of starting over without what it found.
+- `Agent` **Ready for Warcraft Logs' new API limits.** Once the account moves to the new point system, Wipebot notices by itself: members signed in to the connector spend their own Warcraft Logs points first, and when the hour's points for rankings run out, an answer says rankings are back in so many minutes and gives the rest instead of failing. Raiders' character pages are read less often too.
 
 ## [0.11.1] - 2026-10-27
 

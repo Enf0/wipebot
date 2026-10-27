@@ -6,11 +6,13 @@ import statistics
 from collections import Counter, defaultdict
 
 from .. import knowledge
+from ..cache import DAY, HOUR
+from ..clock import now
 from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES, attempt
 from ..text import clock, date, fight_url, plural, short
 from ..wcl import WCLError
-from .base import ROLE_NAMES, FactError, Report
+from .base import ROLE_NAMES, FactError, Report, unavailable
 
 TREND_KILLERS = 6  # the abilities named for what a player keeps dying to
 
@@ -80,6 +82,23 @@ async def deaths_by_night(nights: list[tuple[float, list[Report]]], player: str,
 GUILD_RANKING_ROLES = {"dps": "DPS", "healer": "Healer", "tank": "Tank"}  # ours -> WCL's RoleType
 
 
+RANKED_WITHIN_S = HOUR  # Warcraft Logs ranks a kill about this long after it's logged
+
+
+async def _zone_rankings(rep: Report, character_ids: list[int], difficulty: int, metric: str, spec: str | None = None,
+                         role: str = "Any") -> dict[int, dict]:
+    """WCL.zone_rankings, kept a day until the report's next kill, as they move only when a kill is ranked (a kill
+    in another report shows up within the day); an hour while its newest kill may not be ranked yet. They cost 5
+    database points a character."""
+    zone = rep.zone_id or 0  # its callers have one
+    newest = max((rep.start_ms + f["endTime"] for f in rep.fights if f.get("kill")), default=0)
+    keep_s = HOUR if now() * 1000 - newest < RANKED_WITHIN_S * 1000 else DAY
+    key = ("zone rankings", tuple(sorted(set(character_ids))), zone, difficulty, metric, spec, role, newest)
+    found = await rep.keep(key, [], lambda: rep.wcl.zone_rankings(character_ids, zone, difficulty, metric, spec, role),
+                           keep_s)
+    return {int(i): z for i, z in found.items()}  # kept on disk as JSON, whose keys are text
+
+
 def _zone_summary(z: dict) -> str:
     """'average of the best kill per boss 86.8 over 5 bosses, of the median kill 70.1; All Stars 502 points (top
     3%)' from a character's zoneRankings, or '' when they have no ranked kill."""
@@ -141,12 +160,12 @@ async def ranked_kills(rep: Report, player: str, boss: str | None = None) -> str
     played = sorted({(d, k["spec"]) for m, ranked in by_metric.items() for (_, d), r in ranked.items()
                      for k in r.get("ranks") or [] if k.get("spec") and metric_of(k) == m},
                     key=lambda x: (-x[0], x[1] != p.spec, x[1]))
+    no_summary = None
     try:
-        summaries = await asyncio.gather(*(
-            rep.wcl.zone_rankings([char["id"]], rep.zone_id, d, "hps" if spec in healer else "dps", spec)
-            for d, spec in played))
-    except WCLError:
-        summaries = []
+        summaries = await asyncio.gather(*(_zone_rankings(rep, [char["id"]], d, "hps" if spec in healer else "dps",
+                                                          spec) for d, spec in played))
+    except WCLError as e:
+        summaries, no_summary = [{} for _ in played], unavailable("Warcraft Logs' summary per difficulty", e)
     server = char.get("server") or {}
     page = (f"https://www.warcraftlogs.com/character/{p.region.lower()}/{server.get('slug', '')}/"
             f"{p.name.lower()}")
@@ -158,6 +177,8 @@ async def ranked_kills(rep: Report, player: str, boss: str | None = None) -> str
         if (line := _zone_summary(z.get(char["id"]) or {})):
             lines.append(f"Warcraft Logs' summary, {DIFFICULTIES[d]} as {spaced(spec)} "
                          f"({'hps' if spec in healer else 'dps'}; as on the character page): {line}")
+    if no_summary:
+        lines.append(no_summary)
     unranked = []
     for e in encounters:
         found = False
@@ -207,8 +228,7 @@ async def guild_rankings(rep: Report, difficulty: str = "Mythic", role: str = "d
     try:
         ids = await rep.wcl.ranked_characters(rep.code)
         players = [(p, ids[p.name]) for p in sorted(rep.players.values(), key=lambda p: p.name) if p.name in ids]
-        summaries = await rep.wcl.zone_rankings([i for _, i in players], rep.zone_id, d, metric,
-                                                role=GUILD_RANKING_ROLES[role])
+        summaries = await _zone_rankings(rep, [i for _, i in players], d, metric, role=GUILD_RANKING_ROLES[role])
         raid, _ = await rep.wcl.zone_encounters(rep.zone_id)
     except WCLError as e:
         raise FactError(f"Warcraft Logs rankings unavailable: {e}") from e

@@ -122,11 +122,12 @@ Record = Callable[[str | None, str | None, str, dict, float, float, bool, str, d
 @dataclass
 class UserLimits:
     """How much one signed-in user may ask of a server in an hour, so no one spends the Warcraft Logs points everyone
-    on it shares: at most `points` (on the new point system, `own_points`: only those the account pays, not the
-    user's own) and `calls` tool calls, over the last hour; None is no limit."""
+    on it shares: at most `points` (on the new point system only those the account pays, not the user's own;
+    `own_points` says whether it's on it, None: as the account's limit says) and `calls` tool calls, over the last
+    hour; None is no limit."""
     points: float | None = None
     calls: int | None = None
-    own_points: bool = False
+    own_points: bool | None = None
     _spent: dict[str, deque[tuple[float, float]]] = field(default_factory=dict)  # user -> (when, points) per call
 
     def refusal(self, user: str) -> str | None:
@@ -150,7 +151,7 @@ class UserLimits:
 
     def add(self, user: str, points: dict) -> None:
         """A call the user made, with what its Warcraft Logs queries cost (wcl.Points.record)."""
-        cost = points.get("application" if self.own_points else "total", 0)
+        cost = points.get("application" if wcl.on_new_point_system(self.own_points) else "total", 0)
         self._spent.setdefault(user, deque()).append((time.time(), float(cost)))
 
 

@@ -4,13 +4,14 @@ import asyncio
 import math
 import time
 from collections import Counter, defaultdict
+from collections.abc import Awaitable
 from dataclasses import dataclass
 
 from ..cache import DAY
 from ..pulls import DIFFICULTIES, FIRST_DEATHS, Decided, attempt, is_reset, pct_text, phase_label, wipe_pct, wipe_pcts
 from ..text import clock, clusters, date, ordinal, plural
 from ..wcl import GUILD_REPORTS_S, WCLError
-from .base import GUILD_RUN_SHARE, FactError, Report
+from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
 from .ending import kind_of_end, pull_ending
 
 
@@ -28,12 +29,15 @@ async def overview(rep: Report) -> str:
     wipe and time spent, and the guild's progress rank in the raid."""
     lines = [f"Report {rep.code} \"{rep.title}\" ({rep.zone}), {date(rep.start_ms, with_time=True)}, "
              f"{clock(rep.end_ms - rep.start_ms)} long, {plural(len(rep.players), 'player')}."]
-    ranked, progress, doubt = await asyncio.gather(kill_rankings(rep), _guild_progress(rep), rep.guild_run_doubt())
+    (ranked, no_ranks), (progress, no_progress), doubt = await asyncio.gather(
+        _or_unavailable("Kills' speed and execution percentiles", _kill_rankings(rep)),
+        _or_unavailable(f"{rep.guild_name}'s progress rank", _guild_progress(rep)), rep.guild_run_doubt())
     if doubt:
         lines.append(f"Not a guild night? {doubt[0].upper()}{doubt[1:]}.")
     if progress:
         lines.append(f"{rep.guild_name}'s progress rank in {rep.zone} on Warcraft Logs: "
                      + ", ".join(f"{n} in the {where}" for where, n in progress.items()) + ".")
+    lines += [line for line in (no_progress, no_ranks if any(f["kill"] for f in rep.fights) else None) if line]
     for b, pulls in rep.by_boss.items():
         kills = [f for f in pulls if f["kill"]]
         wipes = wipe_pcts(pulls)
@@ -62,8 +66,17 @@ class _NotAllRanked(Exception):
 
 
 async def kill_rankings(rep: Report) -> dict[int, dict[str, int]]:
-    """{fight id: {'speed': percentile, 'execution': percentile}} for the report's ranked kills. Kept for the day
-    once every kill is ranked (more kills come in, so the percentiles move)."""
+    """{fight id: {'speed': percentile, 'execution': percentile}} for the report's ranked kills ({} when Warcraft
+    Logs can't answer)."""
+    try:
+        return await _kill_rankings(rep)
+    except WCLError:
+        return {}
+
+
+async def _kill_rankings(rep: Report) -> dict[int, dict[str, int]]:
+    """kill_rankings, or WCLError. Kept for the day once every kill is ranked (more kills come in, so the
+    percentiles move)."""
     kills = {f["id"] for f in rep.fights if f.get("kill")}
     if not kills:
         return {}
@@ -79,19 +92,22 @@ async def kill_rankings(rep: Report) -> dict[int, dict[str, int]]:
         return ranked
     try:
         return await rep.keep(("kill rankings", int(time.time() // DAY)), [f["id"] for f in rep.fights], fetch)
-    except WCLError:
-        return {}
     except _NotAllRanked as e:
         return e.ranked
+
+
+async def _or_unavailable(what: str, get: Awaitable[dict]) -> tuple[dict, str | None]:
+    """What `get` gives, or {} and the line saying it's unavailable."""
+    try:
+        return await get, None
+    except WCLError as e:
+        return {}, unavailable(what, e)
 
 
 async def _guild_progress(rep: Report) -> dict[str, int]:
     if not (rep.guild_id and rep.zone_id):
         return {}
-    try:
-        return await rep.wcl.guild_progress(rep.guild_id, rep.zone_id)
-    except WCLError:
-        return {}
+    return await rep.wcl.guild_progress(rep.guild_id, rep.zone_id)
 
 
 SAME_NIGHT_MS = 6 * 3600 * 1000  # logs starting this close together are one raid night (two people logging it)

@@ -290,17 +290,20 @@ async def test_while_points_are_counted_each_query_asks_its_cost_and_adds_it_up(
         "fragment F on Report { title } query { a }")
 
 
-def _hourly(w, monkeypatch, spent: float, reset_in: int, cost: float = 1, **request) -> list[str]:
-    """Answer w's queries as if `spent` of the hour's 3600 points were gone, `reset_in` s before the next hour; each
-    query costs `cost` in all, and `request` adds its other kinds (application, database, user)."""
+def _hourly(w, monkeypatch, spent: float, reset_in: int, cost: float = 1, limit: int = 3600, db_spent: float = 9,
+            **request) -> list[str]:
+    """Answer w's queries as if `spent` of the hour's `limit` points (3600: the old point system) and `db_spent` of
+    its 250 database points were gone, `reset_in` s before the next hour; each query costs `cost` in all, and
+    `request` adds its other kinds (application, database, user)."""
     asked = []
+    monkeypatch.setattr(wcl_module, "_limit", None)
 
     class Client:
         def raw_graphql(self, operation_name, query, variables):
             asked.append(query)
-            return {"a": 1, wcl_module.COST_ALIAS: {"limitPerHour": 3600, "pointsSpentThisHour": spent,
+            return {"a": 1, wcl_module.COST_ALIAS: {"limitPerHour": limit, "pointsSpentThisHour": spent,
                                                     "pointsResetIn": reset_in, "databaseLimitPerHour": 250,
-                                                    "databasePointsSpentThisHour": 9,
+                                                    "databasePointsSpentThisHour": db_spent,
                                                     "currentRequest": {"total": cost, "database": 0,
                                                                        **request}}}, "public"
     monkeypatch.setattr(w, "_client", lambda: Client())
@@ -368,6 +371,69 @@ async def test_on_the_new_point_system_a_share_counts_only_what_the_account_pays
     for _ in range(5):
         await w.query("query { a }")  # 1000 in all, 100 of them the account's
     assert len(asked) == 5
+
+
+async def test_the_new_point_system_is_told_from_the_accounts_limit_unless_set(monkeypatch):
+    """So the switch needs nothing done: 3,600 an hour is the old system's, every account's alike; the new one's
+    are 1,000, 3,000 or 9,000. WIPEBOT_WCL_USER_POINTS says it instead."""
+    w = _budgeted(monkeypatch, share="0.1")
+    _hourly(w, monkeypatch, 0, 600, limit=1000, cost=200, application=20, user=180)
+    assert not wcl_module.on_new_point_system()  # nothing read yet
+    for _ in range(5):
+        await w.query("query { a }")  # 1000 in all, 100 of them the account's
+    assert wcl_module.on_new_point_system() and not wcl_module.on_new_point_system(False)
+    w = _budgeted(monkeypatch, share="0.1", user_points="0")
+    _hourly(w, monkeypatch, 0, 600, limit=1000, cost=200, application=20, user=180)
+    await w.query("query { a }")
+    with pytest.raises(WCLError, match=r"spent its share of this hour's points \(200 of 100\)"):
+        await w.query("query { a }")
+    with pytest.raises(ValueError, match="WIPEBOT_WCL_USER_POINTS: 1 or 0"):
+        _budgeted(monkeypatch, user_points="maybe")
+
+
+async def test_once_the_accounts_database_points_are_spent_only_queries_spending_them_are_refused(monkeypatch):
+    """On the new point system, rankings and report lists fail once the account's 250 an hour are gone, whoever
+    spent them: they aren't sent, the refusal says when they're back, and report data still goes."""
+    w = _budgeted(monkeypatch)
+    asked = _hourly(w, monkeypatch, 500, 600, limit=1000, db_spent=250)
+    await w.query("query { a }")
+    rankings = "query { reportData { report(code: \"C\") { rankings(playerMetric: dps) } } }"
+    with pytest.raises(WCLError, match="spent this hour's database points, which rankings, character pages and guild "
+                                       "report lists cost; they're back in 10 min, and everything else still answers"):
+        await w.query(rankings)
+    await w.query("query { reportData { report(code: \"C\") { fights { id } } } }")
+    assert len(asked) == 2
+    w = _budgeted(monkeypatch)
+    asked = _hourly(w, monkeypatch, 500, 600, db_spent=286)  # the old system counts them, but doesn't hold to it
+    await w.query("query { a }")
+    await w.query(rankings)
+    assert len(asked) == 2
+
+
+def test_the_queries_that_spend_database_points_are_told_by_their_fields():
+    assert wcl_module.spends_database(wcl_module.GUILD_REPORTS)
+    assert wcl_module.spends_database("query { characterData { c1: character(id: 1) { zoneRankings(zoneID: 1) } } }")
+    assert not wcl_module.spends_database(wcl_module.GUILD_PROGRESS)  # a guild's zoneRanking is user-eligible
+    assert not wcl_module.spends_database("query { reportData { report(code: \"C\") { fights { id } } } }")
+
+
+async def test_warcraft_logs_saying_the_database_points_are_spent_stops_asking_for_them(monkeypatch):
+    """Its wording is a guess (the account isn't on the new system yet): any error naming database points."""
+    w = _budgeted(monkeypatch)
+    _hourly(w, monkeypatch, 500, 600, limit=1000)
+    await w.query("query { a }")
+    sent = []
+
+    class Spent:
+        def raw_graphql(self, operation_name, query, variables):
+            sent.append(query)
+            raise WarcraftLogsClientError("graphql_error", "You have used all of your database points for this hour")
+    monkeypatch.setattr(w, "_client", lambda: Spent())
+    rankings = "query { worldData { encounter(id: 1) { characterRankings(className: \"Mage\") } } }"
+    for _ in range(2):  # the second isn't sent
+        with pytest.raises(WCLError, match="spent this hour's database points.*back in 10 min"):
+            await w.query(rankings)
+    assert len(sent) == 1
 
 
 async def test_a_share_of_the_database_points_is_refused_past_it_too(monkeypatch):

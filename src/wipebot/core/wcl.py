@@ -354,6 +354,31 @@ COST_ALIAS = "wipebotCost"  # the query's own cost and the hour's points, asked 
 HOUR_FIELDS = ("limitPerHour pointsSpentThisHour pointsResetIn databaseLimitPerHour databasePointsSpentThisHour "
                "currentRequest")
 _keep_share = 0.0  # of the hour's points, left to others: past it, this process waits (keep_for_others)
+OLD_LIMIT = 3600  # points an hour on the old point system, every account's alike (docs/reference/wcl-api.md)
+_limit: float | None = None  # the account's points an hour, as the latest answer gave them (Hour.saw)
+# Fields labelled [Database Points] in the schema, which a query spends database points on (docs/reference/wcl-api.md,
+# "Point types"); Server.guilds and Server.characters too, which Wipebot doesn't ask
+DATABASE_FIELDS = re.compile(r"\b(rankings|characterRankings|encounterRankings|zoneRankings|recentReports|reports)\b"
+                             r"(?!\s*:)")
+DATABASE_OUT = ("not read from Warcraft Logs: the account has spent this hour's database points, which rankings, "
+                "character pages and guild report lists cost; they're back {when}, and everything else still answers")
+
+
+def on_new_point_system(forced: bool | None = None) -> bool:
+    """Whether the account is on Warcraft Logs' new point system, where a signed-in user's own points pay first and
+    database points run out: `forced` (WIPEBOT_WCL_USER_POINTS) when set, else what the account's hourly limit last
+    said: OLD_LIMIT is the old system's, anything else the new one's (1,000, 3,000 or 9,000 in the beta)."""
+    if forced is not None:
+        return forced
+    return _limit is not None and _limit != OLD_LIMIT
+
+
+def spends_database(query: str) -> bool:
+    return bool(DATABASE_FIELDS.search(query))
+
+
+def _database_out(minutes: int) -> str:
+    return DATABASE_OUT.format(when=f"in {minutes} min" if minutes else "next hour")
 
 
 @dataclass(frozen=True)
@@ -363,13 +388,14 @@ class Budget:
     ends, and what it read before still answers from disk. Read from the environment (`from_env`)."""
     share: float = 1.0  # of the hour's points, and of its database points, this process's at most
     leave: float = 0.0  # of the account's hour, left to the others: past it, this process reads nothing more
-    user_points: bool = False  # the account is on the new point system: users' own points aren't this process's
+    user_points: bool | None = None  # on the new point system, users' own points aren't this process's; None: as the
+    # account's limit says (on_new_point_system)
 
     @classmethod
     def from_env(cls) -> Budget:
         """WIPEBOT_WCL_SHARE and WIPEBOT_WCL_LEAVE, each a share from 0 to 1 (unset: no limit), and
-        WIPEBOT_WCL_USER_POINTS, set once the account is opted into the new point system; ValueError says what's
-        wrong with them."""
+        WIPEBOT_WCL_USER_POINTS, unset to tell the new point system from the account's limit, or 1 or 0 to say
+        whether the account is on it; ValueError says what's wrong with them."""
         def share(name: str, default: float) -> float:
             raw = os.environ.get(name, "").strip()
             if not raw:
@@ -382,19 +408,29 @@ class Budget:
                 raise ValueError(f"{name}: a share of the hour's Warcraft Logs points from 0 to 1, e.g. 0.1, "
                                  f"not {raw!r}")
             return value
-        user_points = os.environ.get("WIPEBOT_WCL_USER_POINTS", "").strip().lower() in ("1", "true", "yes", "on")
+        raw = os.environ.get("WIPEBOT_WCL_USER_POINTS", "").strip().lower()
+        if raw in ("1", "true", "yes", "on"):
+            user_points: bool | None = True
+        elif raw in ("0", "false", "no", "off"):
+            user_points = False
+        elif not raw:
+            user_points = None
+        else:
+            raise ValueError(f"WIPEBOT_WCL_USER_POINTS: 1 or 0, or unset to tell from the account's limit, not {raw!r}")
         return cls(share("WIPEBOT_WCL_SHARE", 1.0), share("WIPEBOT_WCL_LEAVE", 0.0), user_points)
 
-    def refusal(self, rate: dict | None, fresh: bool, own: Counter, minutes: int) -> str | None:
+    def refusal(self, rate: dict | None, fresh: bool, own: Counter, minutes: int, database: bool = False
+                ) -> str | None:
         """Why the next query isn't sent, or None: `rate` is the account's hour as last read (`fresh` if within
-        RATE_S), `own` this process's points this hour by kind."""
+        RATE_S), `own` this process's points this hour by kind, `database` whether the query spends database
+        points."""
         if not rate:
             return None
         later = f"ask again in {minutes} min; what was read before still answers"
         limit, db_limit = rate.get("limitPerHour"), rate.get("databaseLimitPerHour")
         if self.share < 1 and isinstance(limit, int | float):
             # the application points include the database points; on the old system every point is the app's
-            spent = own["application"] if self.user_points else own["total"]
+            spent = own["application"] if on_new_point_system(self.user_points) else own["total"]
             if spent >= limit * self.share:
                 return (f"not read from Warcraft Logs: this server has spent its share of this hour's points "
                         f"({spent:,.0f} of {limit * self.share:,.0f}); {later}")
@@ -402,6 +438,10 @@ class Budget:
                 return (f"not read from Warcraft Logs: this server has spent its share of this hour's database "
                         f"points, which rankings and report lists cost ({own['database']:,.0f} of "
                         f"{db_limit * self.share:,.0f}); {later}")
+        # The account's database points, held to only on the new system; as last read, so never more than spent
+        if database and isinstance(db_limit, int | float) and on_new_point_system(self.user_points) \
+                and rate.get("databasePointsSpentThisHour", 0) >= db_limit:
+            return _database_out(minutes)
         if self.leave and fresh and isinstance(limit, int | float) \
                 and limit - rate.get("pointsSpentThisHour", 0) < limit * self.leave:
             return (f"not read from Warcraft Logs: {rate.get('pointsSpentThisHour', 0):,.0f} of the account's "
@@ -430,6 +470,7 @@ class Hour:
 
     def saw(self, answer: dict) -> None:
         """Take a query's COST_ALIAS answer."""
+        global _limit
         now = time.time()
         with self._lock:
             if self._ends is not None and now > self._ends + 1:
@@ -437,11 +478,19 @@ class Hour:
                 self._own.clear()
                 self.rate = None
             if isinstance(answer.get("pointsResetIn"), int | float):
+                if isinstance(answer.get("limitPerHour"), int | float):
+                    _limit = answer["limitPerHour"]
                 self._ends = now + answer["pointsResetIn"]
                 self.rate, self._read_at = {k: v for k, v in answer.items() if k != "currentRequest"}, time.monotonic()
             for kind, points in (answer.get("currentRequest") or {}).items():
                 if isinstance(points, int | float):
                     self._own[kind] += points
+
+    def database_out(self) -> None:
+        """Warcraft Logs said the account's database points are spent: so are they until the hour ends."""
+        with self._lock:
+            if self.rate and isinstance(self.rate.get("databaseLimitPerHour"), int | float):
+                self.rate["databasePointsSpentThisHour"] = self.rate["databaseLimitPerHour"]
 
     def fresh(self, max_age_s: float) -> dict | None:
         """The account's points as last read, if read in the last `max_age_s`."""
@@ -537,6 +586,12 @@ class _ClientOnly(WarcraftLogsClient):
         return token
 
 
+def _says_database_out(said: str) -> bool:
+    """Whether Warcraft Logs' error says the database points are spent (its wording not seen yet: the account isn't
+    on the new system)."""
+    return bool(re.search(r"database\s*points", said, re.IGNORECASE))
+
+
 class WCL:
     def __init__(self):
         use_wcl_env_names()
@@ -555,7 +610,7 @@ class WCL:
         couldn't rank right then): an answer meant for the cache, or whole (`keep`), is then refused rather than
         kept, so an empty ranking never sticks for a day and gets told to raiders as "no ranked kills"."""
         self._wait_for_points()
-        if refused := self._budget.refusal(*self._hour.now()):
+        if refused := self._budget.refusal(*self._hour.now(), database=spends_database(query)):
             raise WCLError(refused)
         query, points = _with_cost(query), _points.get()
         try:
@@ -569,6 +624,8 @@ class WCL:
                     data, _endpoint = self._client().raw_graphql(operation_name=None, query=query,
                                                                  variables=variables)
         except WarcraftLogsClientError as e:
+            if _says_database_out(str(e)):
+                raise self._database_out() from e
             raise WCLError(f"{e.code}: {e}") from e
         data = dict(data or {})
         if cost := data.pop(COST_ALIAS, None):
@@ -576,6 +633,8 @@ class WCL:
             if points is not None:
                 points.add(cost.get("currentRequest") or {})
         if warnings := data.pop(GRAPHQL_WARNINGS_KEY, None):
+            if _says_database_out(str(warnings)):  # the fields that cost them came back empty
+                raise self._database_out()
             if "permission" in str(warnings).lower() and "code" in variables:
                 raise WCLError(UNREADABLE.format(code=variables["code"]))
             if keep:
@@ -583,6 +642,10 @@ class WCL:
                 raise WCLError(PARTIAL.format(said=said))
             log.warning("partial WCL response: %s", warnings)
         return data
+
+    def _database_out(self) -> WCLError:
+        self._hour.database_out()
+        return WCLError(_database_out(self._hour.now()[3]))
 
     async def query(self, query: str, cache_for: float | None = None, whole: bool = False, **variables) -> dict:
         """Run a query. With `cache_for`, its answer is kept in the cache on disk and fresh for that many seconds:

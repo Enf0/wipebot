@@ -290,6 +290,10 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
   the first stays out of it. `@onlySpendUserPoints` (written after a query's variables, `query($code: String!)
   @onlySpendUserPoints { ... }`) is refused: "cannot require only user points be spent without authenticating a user
   and opting into the new point system".
+- Wipebot tells the new system from `limitPerHour`: 3,600 on the old one, every account's (still so on 27 October
+  2026), and 1,000, 3,000 or 9,000 by subscription on the new one (`wcl.on_new_point_system`). What Warcraft Logs
+  says when the database points run out isn't seen yet: an error naming database points is taken as it, and the
+  account's `databasePointsSpentThisHour` at its limit stops queries for those fields before they're sent.
 - User points are per Warcraft Logs account, shared "across all applications the user authenticates with" (the
   schema's description of `userHasRemainingPoints`).
 - A user token with only the `view-user-profile` scope reads a public report at `/api/v2/user` (fights, tables,
