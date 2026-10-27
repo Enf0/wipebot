@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-27
+
 ### Added
 
 - `Agent` **See your progress on a boss night by night.** Ask "are we doing better on the Coiled Altar than last week?" and the picture now starts with your best pull of each raid night, named by the phase it reached ("P2 68%") and coloured by it, up to the kill. In Claude and ChatGPT, click a night to open it.
