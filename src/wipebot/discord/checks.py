@@ -11,6 +11,7 @@ NUMBER = re.compile(r"(?<![\d.,:/=\[A-Za-wyz])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+)
 RANGE = re.compile(r"(\d+(?:[.,]\d+)?)(\s*[–-]\s*\d+(?:[.,]\d+)?)([kMB%])")  # 570–710k: both in thousands
 LINK = re.compile(r"\]\([^)]*\)|https?://\S+|\[\d+\]")  # link targets and spell ids carry their own numbers
 SPELL_ID = re.compile(r"\[(\d+)\]")  # a tool's "Viscous Cyst [1287205]": an answer may give the id bare
+LABELLED = re.compile(r"(?<=[A-Za-z\"]):(?=-?\d)")  # a value after its label: JSON's "total":18549115, a note's time:13
 # 21.09 is a day, not an amount
 DATE = re.compile(r"(?<![\d.])(0?[1-9]|[12]\d|3[01])\.(0[1-9]|1[0-2])(?!\d|\.\d|%|[kMB])")
 SCALE = {"k": 1e3, "M": 1e6, "B": 1e9}
@@ -48,7 +49,7 @@ def amounts(text: str, every: bool = False) -> list[tuple[str, float, float]]:
 def unsourced(answer: str, sources: list[str]) -> list[str]:
     """The times and amounts in `answer` that no source has: a time within a second, an amount within what its
     last digit is worth (62.6% for 62.59%, 594k for 594.56k, 0.8M for 879.77k)."""
-    sources = [SPELL_ID.sub(r" \1 ", t) for t in sources]
+    sources = [LABELLED.sub(": ", SPELL_ID.sub(r" \1 ", t)) for t in sources]
     known_times = set().union(*(times(t) for t in sources))
     known = {value for t in sources for _, value, _ in amounts(t, every=True)} | known_times  # 6:35 is also 395 s
     missing = [f"{t // 60}:{t % 60:02}" for t in sorted(times(answer))

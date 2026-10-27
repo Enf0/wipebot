@@ -34,5 +34,11 @@ def test_round_times_and_bare_spell_ids():
     assert unsourced("It slipped after 4:20, at 4:31.", ["went through at 4:34"]) == ["4:20", "4:31"]
 
 
+def test_labelled_values():
+    # wcl_query's JSON ("total":18549115) and a raid note's seconds (time:13) are numbers too
+    assert unsourced("Martin: 18,55M; at 0:13 and 1:38.", ['{"name":"Martin","total":18549115}',
+                                                         "time:13;ph:1;text:axes; time:98;ph:1"]) == []
+
+
 def test_warnings():
     assert warnings("Both guides say to lust on the pull.", []) == ['credits a source: "guides say"']
