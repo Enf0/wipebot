@@ -192,6 +192,10 @@ async def test_raid_note_gets_the_servers_saved_note_and_over_all_pulls_every_ve
     assert await session._saved_note({"all_pulls": True}) == (
         "[saved 1000 by Rowan]\nEncounterID:3420;a\n[saved 2000 by Ha)lvard]\nEncounterID:3420;b", "")
     assert await session._saved_note({"pull": 3}) == ("EncounterID:3420;a", "saved by Rowan on Thu 01 Jan 00:16 UTC")
+    book.save_note(14169, 3420, "Sszorak", "EncounterID:3420;c", "Rowan", at=200_000.0)  # for the next raid
+    found = await session._saved_note({"pull": 3})
+    assert isinstance(found, tuple) and found[0] == "EncounterID:3420;a"
+    assert found[1].endswith("raid_note with `upcoming` gives it as it is, for the next raid")
     session._ctx = Context(notebook=book, guild_id=1)  # another server's guild
     told = await session._saved_note({"pull": 3})
     assert isinstance(told, str) and told.startswith("No raid note is saved for Sszorak that night in this server.")
@@ -244,7 +248,9 @@ async def test_raid_note_for_a_boss_not_pulled_yet_gets_the_newest_one_saved():
     assert isinstance(told, str) and told.startswith("Vashnik has no pull in this report, so here is the newest")
     assert told.endswith("EncounterID:3418;new")
     told = await session._saved_note({"boss": "Coiled Altar"})
-    assert isinstance(told, str) and "has no raid note saved for it" in told
+    assert isinstance(told, str) and "has no raid note saved for Coiled Altar" in told
+    told = await session._saved_note({"boss": "Vashnik", "upcoming": True})
+    assert isinstance(told, str) and told.startswith("For the next raid, so here is the newest")
 
 
 async def test_the_bots_own_tools_run_the_questions_handler():

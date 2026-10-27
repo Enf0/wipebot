@@ -206,6 +206,19 @@ class Conversations:
             closing = [(key, self._convs.pop(key))] if key in self._convs else []
         await self._shut(closing)
 
+    async def start_over(self, which: Callable[[Hashable], bool]) -> None:
+        """End the conversations whose key is `which`, so their next question starts over (what they read changed);
+        one answering is closed once it's done."""
+        async with self._lock:
+            closing = []
+            for key in [k for k in self._convs if which(k)]:
+                conv = self._convs.pop(key)
+                if conv.busy:
+                    conv.retired = True
+                else:
+                    closing.append((key, conv))
+        await self._shut(closing)
+
     async def close_all(self) -> None:
         """Close every conversation, keeping the saved ones: the bot is stopping, and they go on after it starts."""
         async with self._lock:

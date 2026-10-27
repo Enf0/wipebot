@@ -832,7 +832,13 @@ async def saved_note(book: notebook.Notebook, guild: int, rep: Report, f: dict,
     if all_pulls and (every := [n for n in every if since <= n.saved_at < until]):
         return "\n".join(f"{saved.mark(n.saved_at, n.saved_by)}\n{n.note}" for n in every), ""
     found = book.note_for(guild, f["encounterID"], start, (since, until))
-    return (found.note, found.source(start)) if found else None
+    if not found:
+        return None
+    newer = ""
+    if every and every[-1].saved_at >= until:  # saved after the night: likely the next raid's
+        newer = (f"; a newer note is saved since ({saved.source(every[-1].saved_at, every[-1].saved_by)}): "
+                 "raid_note with `upcoming` gives it as it is, for the next raid")
+    return found.note, found.source(start) + newer
 
 
 def saved_plans(book: notebook.Notebook, guild: int, rep: Report, f: dict) -> list[str]:
@@ -991,6 +997,9 @@ async def raid_note(note: Annotated[str | None, Field(description=(
                         "included); omit for the one the report's guild saved"))] = None,
                     pull: Pull = None, boss: Boss = None,
                     all_pulls: Annotated[bool, Field(description="every pull on the boss, counted per player")] = False,
+                    upcoming: Annotated[bool, Field(description=(
+                        "the newest note saved for the boss, for the next raid (\"who does what tomorrow?\"), as "
+                        "it is: not checked against a pull"))] = False,
                     report: Report_ = None) -> str:
     """For "did people do their jobs?", "who missed their soak?", "were the cooldowns on time?", "who didn't kick
     as assigned?", and over the night "who missed their soak most?", "who pressed personals when the note said?".
@@ -1006,11 +1015,11 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     With all_pulls, one call checks every pull on the boss (each against the note saved before it began) and counts
     per player: soaks of their group missed while alive, each planned cooldown on time, early, late or not cast,
     kicks made and missed, and per callout how often they pressed something and what was ready when they didn't;
-    a night's question needs no call per pull. Asked about a boss the report has no pull on, it gives the newest
-    note saved for it, as it is."""
+    a night's question needs no call per pull. Asked about a boss the report has no pull on, or with `upcoming`,
+    it gives the newest note saved for it, as it is: a pull is checked against the note of its own night."""
     rep, source = await lib().report(report), ""
-    if not note and boss and not pulled(rep, boss):
-        return await _unpulled_note(rep, boss)
+    if not note and (upcoming or (boss and not pulled(rep, boss))):
+        return await _unpulled_note(rep, boss or rep.boss_key(rep.fight(None, None)), upcoming)
     if not note:
         note, source = await _saved_note(rep, pull, boss, all_pulls)
     return await notes.note_check(rep, note, pull, boss, source=source, all_pulls=all_pulls)
@@ -1025,28 +1034,30 @@ def pulled(rep: Report, boss: str) -> bool:
     return True
 
 
-async def _unpulled_note(rep: Report, boss: str) -> str:
-    """The newest note the report's guild saved for a boss the report has no pull on (not pulled yet): as it is,
-    with nothing to check it against."""
-    return await unpulled_note(notebook.Notebook(readonly=True), _saved_guild(rep, "raid note"), rep, boss)
+async def _unpulled_note(rep: Report, boss: str, upcoming: bool = False) -> str:
+    """The newest note the report's guild saved for a boss the report has no pull on (not pulled yet), or with
+    `upcoming` for the next raid: as it is, with nothing to check it against."""
+    return await unpulled_note(notebook.Notebook(readonly=True), _saved_guild(rep, "raid note"), rep, boss, upcoming)
 
 
 NOTE_SPELL = re.compile(r"\b(spellid|bossSpell):(\d+)")
 
 
-async def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: str) -> str:
-    """The newest note `guild` saved for `boss`, which the report has no pull on, as it is (the apps' shared rule)."""
+async def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: str, upcoming: bool = False) -> str:
+    """The newest note `guild` saved for `boss`, which the report has no pull on (or, `upcoming`, for the next raid),
+    as it is (the apps' shared rule)."""
     found = [n for n in book.latest_notes(guild)
              if knowledge.matches_boss(boss, n.boss) or knowledge.matches_boss(n.boss, boss)]
+    why = "For the next raid" if upcoming else f"{boss} has no pull in this report"
     if not found:  # an answer, not a failure: before the raid, no note is saved yet
-        return (f"{boss} has no pull in this report, and {rep.guild_name} has no raid note saved for it: the user can "
-                "paste the boss's note (the NSRT note from Viserio)." + NO_JOBS)
+        return (f"{why}, and {rep.guild_name} has no raid note saved for {boss}: the user can paste the boss's note "
+                "(the NSRT note from Viserio)." + NO_JOBS)
     n = found[0]
     # each spell named where it stands, as the checks name them: no lookup of ids left to the model
     await rep.name_spells({int(m[2]) for m in NOTE_SPELL.finditer(n.note)})
     note = NOTE_SPELL.sub(lambda m: f"{m[0]} ({rep.ability_ref(int(m[2]))})", n.note)
-    return (f"{boss} has no pull in this report, so here is the newest raid note {rep.guild_name} saved for "
-            f"{n.boss} ({saved.source(n.saved_at, n.saved_by)}), as it is, not checked against a pull:\n{note}")
+    return (f"{why}, so here is the newest raid note {rep.guild_name} saved for {n.boss} "
+            f"({saved.source(n.saved_at, n.saved_by)}), as it is, not checked against a pull:\n{note}")
 
 
 @_tool

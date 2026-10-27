@@ -1020,8 +1020,21 @@ class WipeBot(discord.Client):
             reply = commands.save_pasted(self.store, s.discord_guild_id, text, member.display_name, from_pull=since)
         except FactError as e:
             reply = f"Couldn't save that as a raid note or plan: {e}."
+        else:  # the server's conversations read the old one: their next question starts over
+            await self.conversations.start_over(lambda key: self._in_server(key, s.discord_guild_id))
         log.info("raid note or plan from %s: %s", self._shown(member.display_name), reply.splitlines()[-1])
         await respond(message, reply)
+
+    def _in_server(self, key: Hashable, discord_guild_id: int) -> bool:
+        """Whether the conversation at `key` is in that server: in one of its channels, or a DM with one of its
+        members."""
+        if not isinstance(key, tuple):
+            return False
+        place, user_id = key
+        if place == "dm":
+            guild = self.get_guild(discord_guild_id)
+            return bool(guild and guild.get_member(user_id))
+        return getattr(getattr(self.get_channel(place), "guild", None), "id", None) == discord_guild_id
 
     def _raid_notes(self, s: ServerSettings) -> dict:
         """Context's raid note and plan fields for a server: what its guild saved (an officer's paste)."""

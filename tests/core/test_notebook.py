@@ -260,4 +260,7 @@ async def test_a_note_for_a_boss_not_pulled_yet_is_given_as_it_is_its_spells_nam
     assert (await server._unpulled_note(night(), "Sszorak")).endswith(
         "time:41;ph:1;tag:Enfo;spellid:192077 (Wind Rush Totem [192077]);")
     assert (await server._unpulled_note(night(), "Vashnik")).startswith(
-        "Vashnik has no pull in this report, and The Copper Lanterns has no raid note saved for it")
+        "Vashnik has no pull in this report, and The Copper Lanterns has no raid note saved for Vashnik")
+    # for the next raid, on a boss with pulls: the newest note as it is, not the one of the pulls' night
+    assert (await server._unpulled_note(night(), "Sszorak", upcoming=True)).startswith(
+        "For the next raid, so here is the newest raid note")

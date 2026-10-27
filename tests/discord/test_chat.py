@@ -68,6 +68,17 @@ async def test_a_server_key_runs_its_own_session_and_a_new_one_starts_over():
     assert opened == [None, {"ANTHROPIC_API_KEY": "a"}]
 
 
+async def test_a_saved_note_starts_the_servers_conversations_over(convs):
+    await convs.ask((10, 1), "R1", "who soaks tomorrow?", None)
+    await convs.ask((20, 1), "R1", "why did we wipe?", None)
+    await convs.start_over(lambda key: key[0] == 10)  # an officer saved a note: channel 10 is that server's
+    await convs.ask((10, 1), "R1", "and now?", None)
+    await convs.ask((20, 1), "R1", "and the pull before?", None)
+    first, other, again = FakeSession.opened
+    assert first.closed and again.questions == ["and now?"]
+    assert other.questions == ["why did we wipe?", "and the pull before?"]
+
+
 async def test_a_new_report_starts_a_new_conversation(convs):
     await convs.ask(("dm", 1), "R1", "q1", None)
     await convs.ask(("dm", 1), "R2", "q2", None)
