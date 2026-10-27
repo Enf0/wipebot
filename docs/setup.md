@@ -40,7 +40,9 @@ In `.env` (copy [.env.example](../.env.example)):
 | `WIPEBOT_ALLOWED_GUILDS` | connector | required: whose members may sign in (below), or `*` for anyone |
 | `WIPEBOT_OFFICER_RANK` | connector | the highest guild rank of officers, who save raid notes and plans (default 1, [below](#officers-and-admins)) |
 | `WIPEBOT_TRUSTED_PROXIES` | connector | the reverse proxy's address, if you want real client IPs in the log |
-| `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required |
+| `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required; or `OPENROUTER_API_KEY` in place of the Anthropic key (below) |
+| `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/budget` ([below](#a-budget-the-guild-chips-in-to)) |
+| `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/budget`, e.g. `Vipps to Oscar, 12345678` |
 | `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku` |
 | `WIPEBOT_EFFORT` | bot | how hard the model thinks: `low`, `medium`, `high`, `xhigh` or `max`; unset, the model's default |
 | `WIPEBOT_CHANNEL_CONTEXT` | bot | `1`: answers also read the channel's last 15 messages and the Discord messages a question links to (needs the Message Content intent) |
@@ -106,6 +108,27 @@ they then press **Connect** on the plugin's connector and sign in with Warcraft 
    - `/wipebot settings` to see the setup and the saved notes and plans.
 
 Raiders @mention it or reply to it in a channel, or DM it.
+
+### A budget the guild chips in to
+
+With `OPENROUTER_API_KEY` set, the bot answers through [OpenRouter](https://openrouter.ai) (Claude Code takes
+OpenRouter's address and key: [their guide](https://openrouter.ai/docs/guides/community/anthropic-agent-sdk)), and
+anyone in the server runs `/budget` to see what answering has cost this month, what's left and how to chip in
+(`WIPEBOT_BUDGET_NOTE`). Raiders send you money as a contribution to running costs, and you raise the key's limit.
+Credit itself can't be passed on: Anthropic's [credit terms](https://www.anthropic.com/legal/credit-terms) forbid
+transferring or selling it.
+
+1. In OpenRouter, under **BYOK**, add an Anthropic API key and choose **Never use OpenRouter's Anthropic capacity
+   for any model**: Anthropic bills your key as before, with no OpenRouter fee up to their monthly allowance, and
+   Max or Team plans' monthly API credit still pays. Without BYOK, the bot spends OpenRouter credits (bought with a
+   fee).
+2. Create a key for the bot with no expiry, a credit limit (what the guild has given) and **Include BYOK in limit**.
+   At the limit OpenRouter refuses it, so the bot can't spend more than the budget. A guardrail allowing only the
+   Anthropic provider keeps other hosts of the same models from serving it on OpenRouter credits.
+3. Set `OPENROUTER_API_KEY` (in place of `ANTHROPIC_API_KEY`) and `WIPEBOT_BUDGET_NOTE`, and restart the bot.
+
+When someone chips in, raise the key's limit by the amount (OpenRouter → **Keys**). `/budget` estimates how many
+answers are left only when answers are recorded (`WIPEBOT_RECORD_ANSWERS=1`).
 
 ## Raid notes and plans
 

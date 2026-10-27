@@ -7,16 +7,40 @@ Effort = Literal["low", "medium", "high", "xhigh", "max"]
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
+OPENROUTER_URL = "https://openrouter.ai/api"
+
+
 def check_settings() -> None:
-    """Exit, naming every one of them, when settings the bot can't start without aren't set: the Anthropic API key
-    (it answers other people: on the API, never on a Claude subscription), the Discord token and the Warcraft Logs
-    client."""
+    """Exit, naming every one of them, when settings the bot can't start without aren't set: an Anthropic or
+    OpenRouter API key (it answers other people: on the API, never on a Claude subscription), the Discord token and
+    the Warcraft Logs client."""
     from wipebot.core import wcl
-    missing = [name for name in ("ANTHROPIC_API_KEY", "DISCORD_TOKEN") if not os.environ.get(name)]
+    missing = [name for name in ("DISCORD_TOKEN",) if not os.environ.get(name)]
+    if not os.environ.get("ANTHROPIC_API_KEY") and not openrouter_key():
+        missing.insert(0, "ANTHROPIC_API_KEY or OPENROUTER_API_KEY")
     if not wcl.client_credentials():
         missing.append("WCL_CLIENT_ID and WCL_CLIENT_SECRET: a client from https://www.warcraftlogs.com/api/clients")
     if missing:
         raise SystemExit("Not set (.env.example says what each is):\n" + "\n".join(f"  {m}" for m in missing))
+
+
+def openrouter_key() -> str | None:
+    """The OpenRouter API key the bot answers with (OPENROUTER_API_KEY), in place of ANTHROPIC_API_KEY: its credit
+    limit is the budget raiders see with /budget, and an Anthropic key behind it (OpenRouter's BYOK) still pays."""
+    return os.environ.get("OPENROUTER_API_KEY") or None
+
+
+def model_env() -> dict[str, str]:
+    """What Claude Code needs in its environment to answer through OpenRouter, when OPENROUTER_API_KEY is set
+    (OpenRouter's guide to the Agent SDK); else nothing, and it answers on ANTHROPIC_API_KEY."""
+    key = openrouter_key()
+    return {"ANTHROPIC_BASE_URL": OPENROUTER_URL, "ANTHROPIC_AUTH_TOKEN": key, "ANTHROPIC_API_KEY": ""} if key else {}
+
+
+def budget_note() -> str | None:
+    """How raiders chip in to the bot's budget (WIPEBOT_BUDGET_NOTE, e.g. "Vipps to Oscar, 12345678"), shown by
+    /budget."""
+    return os.environ.get("WIPEBOT_BUDGET_NOTE") or None
 
 
 def model() -> str:

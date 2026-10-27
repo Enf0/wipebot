@@ -395,8 +395,10 @@ class Session:
 
     def __init__(self, library: server.Library, code: str, model: str = "",
                  on_tool: Callable[[str, dict], None] | None = None, name: str = "wipebot",
-                 system_prompt: str | None = None, plugin: str | None = None, resume: str | None = None):
+                 system_prompt: str | None = None, plugin: str | None = None, resume: str | None = None,
+                 env: dict[str, str] | None = None):
         self.library, self.code, self.model, self.on_tool = library, code, model, on_tool
+        self.env = env or {}  # Claude Code's own: config.model_env() answers through OpenRouter
         self.name = name  # what the bot calls itself: its name in Discord
         # Another client's prompt in place of the bot's, without the bot's own tools (follow_pulls, remember): the
         # evals answer as a client with only the connector would (claude.ai today: no instructions, no skill).
@@ -496,6 +498,7 @@ class Session:
             effort=config.effort(),
             # Opus leaves its thinking out of what it returns unless asked: summarised, the reviews can read it
             thinking={"type": "adaptive", "display": "summarized"},
+            env=self.env,
         )
         if self.resume and get_session_info(self.resume, directory=cwd):
             options.resume, self.resumed = self.resume, True

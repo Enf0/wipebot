@@ -173,3 +173,11 @@ def test_an_older_versions_officer_channel_keeps_names_on(tmp_path, settings):
     store = Store(db)
     assert store.settings(1001) == settings and store.naming_channels(1001) == {20}
     assert Store(db).naming_channels(1001) == {20}  # opened again: nothing left to move
+
+
+def test_answer_costs_count_raiders_answers_since_a_time(store, monkeypatch):
+    import time
+    for kind, cost in (("chat", 0.25), ("follow", 0.5), ("try", 9.0), ("chat", None)):
+        store.record_interaction(kind=kind, report="R", question="q", cost_usd=cost)
+    assert store.answer_costs(0) == (2, 0.75)  # not developer runs, nor answers without a cost
+    assert store.answer_costs(time.time() + 60) == (0, 0.0)

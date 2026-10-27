@@ -6,11 +6,13 @@ by pasting it to the bot (bot.py).
 Only members with Manage Server see them (Discord enforces this), and server owners can change that in
 Server Settings > Integrations.
 """
+import datetime
 import re
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import discord
+import httpx
 from discord import app_commands
 
 from wipebot.core import raidstrats, server, viserio
@@ -20,6 +22,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
+from . import budget, config
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -358,3 +361,23 @@ def build(bot: WipeBot) -> app_commands.Group:
         await interaction.response.send_message(text, ephemeral=True)
 
     return group
+
+
+def build_budget(bot: WipeBot, key: str) -> app_commands.Command:
+    """/budget, for anyone: what answering has cost and has left on the bot's OpenRouter key (budget.py)."""
+    @app_commands.command(name="budget", description="wipebot's AI budget: spent this month, what's left, and "
+                                                     "how to chip in")
+    async def show_budget(interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.followup.send(await budget_text(bot.store, key), ephemeral=True)
+
+    return show_budget
+
+
+async def budget_text(store: Store, key: str) -> str:
+    try:
+        b = await budget.fetch(key)
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        return f"Couldn't read the budget from OpenRouter: {e}"
+    month_start = datetime.datetime.now(datetime.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return budget.describe(b, *store.answer_costs(month_start.timestamp()), config.budget_note())

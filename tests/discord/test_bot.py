@@ -741,19 +741,32 @@ def test_the_model_is_opus_unless_set_also_when_left_empty_as_in_the_example_set
 
 def test_the_bot_names_every_setting_it_lacks_at_once(monkeypatch):
     from wipebot.discord.config import check_settings
-    for name in ("ANTHROPIC_API_KEY", "DISCORD_TOKEN", "WCL_CLIENT_ID", "WCL_CLIENT_SECRET", "WARCRAFTLOGS_CLIENT_ID",
-                 "WARCRAFTLOGS_CLIENT_SECRET"):
+    for name in ("ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "DISCORD_TOKEN", "WCL_CLIENT_ID", "WCL_CLIENT_SECRET",
+                 "WARCRAFTLOGS_CLIENT_ID", "WARCRAFTLOGS_CLIENT_SECRET"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("DISCORD_TOKEN", "t")
     monkeypatch.setenv("WCL_CLIENT_ID", "x")  # an id alone isn't a client
     with pytest.raises(SystemExit) as e:
         check_settings()
     assert str(e.value).splitlines()[1:] == [
-        "  ANTHROPIC_API_KEY",
+        "  ANTHROPIC_API_KEY or OPENROUTER_API_KEY",
         "  WCL_CLIENT_ID and WCL_CLIENT_SECRET: a client from https://www.warcraftlogs.com/api/clients"]
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     monkeypatch.setenv("WCL_CLIENT_SECRET", "y")
     check_settings()
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-k")  # or it answers through OpenRouter
+    check_settings()
+
+
+def test_an_openrouter_key_sends_claude_code_through_openrouter(monkeypatch):
+    from wipebot.discord.config import model_env
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    assert model_env() == {}  # on ANTHROPIC_API_KEY, as before
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-k")
+    # OpenRouter's guide: its URL, the key as a bearer token, and no Anthropic key that would take precedence
+    assert model_env() == {"ANTHROPIC_BASE_URL": "https://openrouter.ai/api", "ANTHROPIC_AUTH_TOKEN": "sk-or-k",
+                           "ANTHROPIC_API_KEY": ""}
 
 
 def test_a_wrong_discord_token_is_one_line_not_a_traceback(monkeypatch):
