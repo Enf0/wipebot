@@ -52,15 +52,16 @@ class BotTool:
 
 FOLLOW_PULLS = BotTool(
     "follow_pulls",
-    "Post after each wipe of the guild's live report (or, before the raid starts logging, of the one it starts "
-    "tonight), for the rest of the night, where it's asked (a DM or a channel): the raider's own feedback, or what "
-    "they ask for; or stop it.",
+    "Post after each wipe and kill of the guild's live report (or, before the raid starts logging, of the one it "
+    "starts tonight), for the rest of the night, where it's asked (a DM or a channel): the raider's own feedback, or "
+    "what they ask for; or stop it.",
     {"type": "object", "properties": {
         "character": {"type": "string",
                       "description": "in a DM, for the raider's own feedback: their character, as in the log"},
         "request": {"type": "string",
-                    "description": "anything else they want after each wipe, in their words; a channel needs one"},
-        "stop": {"type": "boolean", "description": "stop the feedback after wipes", "default": False},
+                    "description": "anything else they want after each wipe and kill, in their words; a channel "
+                                   "needs one"},
+        "stop": {"type": "boolean", "description": "stop the posts after pulls", "default": False},
     }},
     "Feedback after each wipe only works in Discord, while the guild's report is being logged.")
 REMEMBER = BotTool(
@@ -94,15 +95,16 @@ BOT_TOOLS = (FOLLOW_PULLS, REMEMBER, ANSWER_IN_DM)
 POST_LINES, POST_CHARS = 4, 500
 # The question behind the post a raider asked for with follow_pulls: their own feedback, in their DMs.
 FOLLOW_UP = """\
-{boss} pull {pull} just ended, and {character} asked for their own feedback after each wipe. Give it in at most \
-{lines} short lines (about {chars} characters): what cost them most on this pull and the one thing to do on the next. \
-If they did nothing wrong on it, say so in a line. Don't offer anything at the end, not even a follow-up."""
+{boss} pull {pull} just ended {outcome}, and {character} asked for their own feedback after each pull. Give it in \
+at most {lines} short lines (about {chars} characters): what cost them most on this pull and the one thing to do on \
+the next. If they did nothing wrong on it, say so in a line. Don't offer anything at the end, not even a follow-up."""
 # The same, for anything else someone asked to have posted after each wipe, in a channel or their DMs.
 FOLLOW_REQUEST = """\
-{boss} pull {pull} just ended, and {name} asked for this here after each wipe: {request}. Give it, read in the \
-minute before the next pull: at most {lines} short lines (about {chars} characters), the first saying how the pull \
-ended and what decided it, the last what to do on the next pull; leave out what doesn't change that. Don't offer \
-anything at the end, not even a follow-up."""
+{boss} pull {pull} just ended {outcome}, and {name} asked for this here after each pull: {request}. Give it, read \
+in the minute before the next pull: at most {lines} short lines (about {chars} characters), the first saying how the \
+pull ended and what decided it, the last what to do on the next pull; leave out what doesn't change that. Don't offer \
+anything at the end, not even a follow-up. If what they asked for doesn't call for a post after this pull, write \
+nothing at all, not a line saying so: nothing is posted then."""
 
 
 # A tool run for the question before the model sees it (Context.prefetch), with its result.
@@ -136,14 +138,15 @@ async def post_prefetch(rep: Report, boss: str, pull: int, character: str | None
     return [first, *guide]
 
 
-def post_question(boss: str, pull: int, name: str, character: str | None, request: str) -> str:
-    """The question behind a post after a wipe: what `name` asked for (`request`), else `character`'s own
-    feedback."""
+def post_question(boss: str, pull: int, name: str, character: str | None, request: str, kill: bool = False) -> str:
+    """The question behind a post after a wipe or the kill: what `name` asked for (`request`), else `character`'s
+    own feedback."""
+    outcome = "in the kill" if kill else "in a wipe"
     if request:
-        return FOLLOW_REQUEST.format(boss=boss, pull=pull, name=plain(name), request=plain(request, 300),
-                                     lines=POST_LINES, chars=POST_CHARS)
-    return FOLLOW_UP.format(boss=boss, pull=pull, character=plain(character or "", 40), lines=POST_LINES,
-                            chars=POST_CHARS)
+        return FOLLOW_REQUEST.format(boss=boss, pull=pull, outcome=outcome, name=plain(name),
+                                     request=plain(request, 300), lines=POST_LINES, chars=POST_CHARS)
+    return FOLLOW_UP.format(boss=boss, pull=pull, outcome=outcome, character=plain(character or "", 40),
+                            lines=POST_LINES, chars=POST_CHARS)
 
 
 # Put before the first question of a conversation: the bot forgets a conversation after a while or a new report,

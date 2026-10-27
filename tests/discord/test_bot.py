@@ -443,15 +443,16 @@ async def test_a_poll_posts_after_wipes_and_marks_every_pull_handled(bot, settin
         posted.append((f.key, pull.pull_no))
     monkeypatch.setattr(bot, "_post", post)
     bot.posts.add(1001, Following(member(7, "Rowan"), "Rowan", "Torvek", "LIVE1"))
-    follower.pulls = [Pull("LIVE1", 30, "Sszorak", 12, 0.0), Pull("LIVE1", 31, "Sszorak", 13, 0.0, kill=True)]
+    follower.pulls = [Pull("LIVE1", 30, "Sszorak", 12, 0.0), Pull("LIVE1", 31, "Sszorak", 13, 0.0, kill=True),
+                      Pull("LIVE1", 32, "Sszorak", 14, 0.0, reset=True)]
     await bot._new_pulls(settings)
     await asyncio.sleep(0)
-    assert posted == [(7, 12)] and len(follower.handled) == 2
+    assert posted == [(7, 13)] and len(follower.handled) == 3  # the latest wipe or kill; a reset gets none
     bot.stopping = True  # a deploy: nothing new is posted, but the pulls are still handled
     follower.handled.clear()
     await bot._new_pulls(settings)
     await asyncio.sleep(0)
-    assert posted == [(7, 12)] and len(follower.handled) == 2
+    assert posted == [(7, 13)] and len(follower.handled) == 3  # the latest wipe or kill; a reset gets none
 
 
 async def test_the_poll_after_the_raid_ends_posts_the_night_once(bot, settings, follower, member, monkeypatch):
@@ -482,7 +483,7 @@ async def test_a_raiders_feedback_goes_to_their_dms_and_replies_to_it_are_about_
     await bot._post(settings, Following(rowan, "Rowan", "Torvek", "LIVE1"), Pull("LIVE1", 30, "Sszorak", 12, 0.0))
     [(key, code, question, ctx)] = asked
     assert key == ("dm", 7) and (ctx.asker, ctx.where, ctx.pull, ctx.boss) == ("Torvek", "in a DM", 12, "Sszorak")
-    assert question.startswith("Sszorak pull 12 just ended, and Torvek asked for their own feedback")
+    assert question.startswith("Sszorak pull 12 just ended in a wipe, and Torvek asked for their own feedback")
     assert dm.sent == ["**Wiped.**"] and bot.store.pull_for_message(101) == ("LIVE1", 30)
     assert dm.views[-1] is None  # no buttons: a raider's own feedback in a DM is their card already
     assert recorded(bot.store)[0][::5] == ("follow", 30)
@@ -501,8 +502,8 @@ async def test_a_post_names_players_only_where_names_are_on(bot, settings, asked
     await bot._post(settings, f, Pull("LIVE1", 30, "Sszorak", 12, 0.0))
     [(key, _, question, ctx)] = asked
     assert key == (channel_id, 7) and ctx.where == where
-    assert question.startswith("Sszorak pull 12 just ended, and Rowan asked for this here after each wipe: who "
-                               "messed up.")
+    assert question.startswith("Sszorak pull 12 just ended in a wipe, and Rowan asked for this here after each pull: "
+                               "who messed up.")
     assert channel.sent == ["**Wiped.**"]
     # each raider's own card on the pull, a click away under the post; a raider's own feedback in a DM is that already
     buttons = [c for c in channel.views[-1].walk_children() if isinstance(c, Act)]
@@ -532,6 +533,24 @@ async def test_when_the_raid_ends_each_place_gets_its_night_without_the_model(bo
     assert channel.sent[0].startswith("**That's the raid.** The night on the last boss") and channel.files == [
         ["wipebot-1.webp"]]
     assert asked == []  # no model turn
+
+
+async def test_a_post_nothing_called_for_isnt_sent(bot, settings, asked, member, channel):
+    """Asked for posts only below 30 %, the model writes nothing after a pull at 90 %: no "no post this time", and
+    not the "(no answer)" an answer without text gets."""
+    asked.answers += [Answer(""), Answer("(no answer)")]
+    f = Following(member(7, "Rowan"), "Rowan", None, "LIVE1", channel, "only when a pull gets below 30 %")
+    for pull in (12, 13):
+        await bot._post(settings, f, Pull("LIVE1", 30, "Sszorak", pull, 0.0))
+    assert channel.sent == [] and [r[0] for r in recorded(bot.store)] == ["follow", "follow"]
+
+
+async def test_the_kill_gets_its_post_too(bot, settings, asked, member, channel):
+    f = Following(member(7, "Rowan"), "Rowan", None, "LIVE1", channel, "who died first")
+    await bot._post(settings, f, Pull("LIVE1", 31, "Sszorak", 13, 0.0, kill=True))
+    [(_, _, question, _)] = asked
+    assert question.startswith("Sszorak pull 13 just ended in the kill, and Rowan asked for this here after each pull")
+    assert channel.sent == ["**Wiped.**"]
 
 
 async def test_a_post_that_took_too_long_is_given_up(bot, settings, asked, member, channel):

@@ -28,7 +28,7 @@ from wipebot.core.wcl import WCLError
 from . import commands, emojis, host
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .follower import Follower, Pull
-from .host import CAPPED, Answer, Context, ModelError, Session
+from .host import CAPPED, NO_ANSWER, Answer, Context, ModelError, Session
 from .messages import (  # noqa: F401 (Picture: the tests')
     Act,
     FollowUp,
@@ -579,7 +579,7 @@ class WipeBot(discord.Client):
             key = (f.key, f.user.id)
             where = in_channel(getattr(f.channel, "name", ""),
                                names_on(f.channel, self.store.naming_channels(s.discord_guild_id)))
-        question = post_question(pull.boss, pull.pull_no, f.name, f.character, f.request)
+        question = post_question(pull.boss, pull.pull_no, f.name, f.character, f.request, kill=pull.kill)
         ctx = self._context(s, f.user, f.name, pull.report, where, f.channel, asker=f.character, pull=pull.pull_no,
                             boss=pull.boss)
         try:  # Warcraft Logs not answering is the answer's to report, not the head start's
@@ -593,6 +593,10 @@ class WipeBot(discord.Client):
         mine = [] if f.character else [Act("mypull", pull.report, pull.boss, pull.pull_no)]
 
         async def send(answer: Answer) -> list[int]:
+            if answer.text in ("", NO_ANSWER):  # what they asked for didn't call for a post after this pull
+                log.info("no post after %s pull %s for %s: nothing called for one", pull.boss, pull.pull_no,
+                         self._shown(f.name))
+                return []
             sent = await self._send(f.channel or await f.user.create_dm(), answer, actions=mine, asker=f.user.id)
             for message_id in sent:  # a reply to it is about this pull
                 self.store.remember_message(message_id, pull.report, pull.fight)

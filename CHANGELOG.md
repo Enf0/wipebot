@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Discord` **Pictures sit next to what they show, now for real.** The bot rarely placed a picture inside its answer, so it still came at the end. Any answer longer than three bullets now puts its picture right after the part it backs, or else (when the bot leaves it out or puts it last) right under its first line.
 - `Discord` **Asking a follow-up no longer brings up link previews.** Clicking a follow-up under an answer without pictures made Wowhead previews of its links appear under it.
+- `Discord` **Posts after wipes keep to what you asked.** Asked for a post only below 30 % or every 10th pull, the bot no longer posts after the other pulls, nor a message saying it won't post, and never an empty "(no answer)". The kill gets its post too.
 - `Discord` **Notifications show the answer.** An answer without pictures is a plain message again, so a notification shows its text instead of nothing. Answers with pictures still show only "attached images": Discord doesn't let those carry a preview.
 
 ## [0.11.0] - 2026-10-27

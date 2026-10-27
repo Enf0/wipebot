@@ -31,11 +31,13 @@ def places(posts: Posts) -> dict:
 
 async def test_a_raiders_own_feedback_goes_to_their_dms(posts, store, rowan):
     told = await posts.follow_pulls(SERVER, rowan, "Rowan", {"character": "torvek"}, "LIVE1", "LIVE1")
-    assert told.startswith("Done: after each wipe of the guild's live report, Torvek's feedback goes to Rowan in a DM")
+    assert told.startswith("Done: after each wipe and kill of the guild's live report, Torvek's feedback goes to "
+                           "Rowan in a DM")
     assert places(posts) == {7: ("Torvek", "", "LIVE1")}  # as the log spells it, keyed by their DMs
     assert store.raider(7).character == "Torvek"  # remembered for later conversations too
     assert [f.key for f in store.all_following()] == [7]  # outlives a restart
-    assert await posts.due(SERVER, "LIVE1", [WIPE, KILL, RESET]) == [(posts.by_server[SERVER][7], WIPE)]
+    assert await posts.due(SERVER, "LIVE1", [WIPE, RESET]) == [(posts.by_server[SERVER][7], WIPE)]
+    assert await posts.due(SERVER, "LIVE1", [KILL, RESET]) == [(posts.by_server[SERVER][7], KILL)]  # the kill too
 
 
 async def test_after_a_gap_only_the_latest_wipe_gets_a_post(posts, rowan):

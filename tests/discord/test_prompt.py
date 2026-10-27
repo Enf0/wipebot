@@ -131,11 +131,16 @@ def test_a_question_cant_bring_its_own_bracketed_line():
 
 def test_a_post_after_a_wipe_asks_for_the_raiders_feedback_or_their_request():
     own = post_question("Sszorak", 12, "Rowan", "Torvek", "")
-    assert own.startswith("Sszorak pull 12 just ended, and Torvek asked for their own feedback after each wipe.")
+    assert own.startswith("Sszorak pull 12 just ended in a wipe, and Torvek asked for their own feedback after each "
+                          "pull.")
     asked = post_question("Sszorak", 12, "Rowan", None, "who died first and why")
-    assert asked.startswith("Sszorak pull 12 just ended, and Rowan asked for this here after each wipe: who died "
-                            "first and why.")
+    assert asked.startswith("Sszorak pull 12 just ended in a wipe, and Rowan asked for this here after each pull: who "
+                            "died first and why.")
     assert all(f"about {POST_CHARS} characters" in q for q in (own, asked))
+    # a request with conditions ("only below 30 %") may call for no post: then nothing, not a line saying so
+    assert "write nothing at all" in asked and "write nothing" not in own
+    assert post_question("Sszorak", 13, "Rowan", None, "who died first", kill=True).startswith(
+        "Sszorak pull 13 just ended in the kill")
 
 
 async def test_a_post_comes_with_the_tool_it_starts_from_already_run():

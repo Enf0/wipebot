@@ -117,6 +117,7 @@ FOLLOW_UP_CHARS = 80  # Discord's limit for a button's label, which is the quest
 # backticks or at the end of a line counts too, and its picture goes after that line.
 PICTURE_MARK = re.compile(r"\[\s*picture\s*:\s*`?([a-z_]+)`?\s*\]", re.I)
 _BARE = re.compile(r"[\s>*_`-]*(?:\d+[.)])?[\s*_`-]*")  # what's left of a line that held only marks: its bullet
+NO_ANSWER = "(no answer)"  # an answer with no text at all: a post after a pull that nothing called for
 _PLACED = "\ue000"  # a picture's place while the text is polished: a private-use character no answer has
 
 
@@ -564,7 +565,7 @@ class Session:
         if error:
             raise ModelError(error, answer)
         await pictures_drawn(answer.calls)
-        text = texts[-1].strip() if texts else "(no answer)"  # the last text is the answer
+        text = texts[-1].strip() if texts else NO_ANSWER  # the last text is the answer
         text, answer.follow_ups = follow_ups(text)
         answer.text, answer.marks = placed(polish(
             picture_marks(text), [c.result for c in answer.calls if not c.failed],

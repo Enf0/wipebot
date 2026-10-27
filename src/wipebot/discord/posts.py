@@ -118,10 +118,10 @@ class Posts:
                    if before else "Nothing was set up here before this request.")
             was += "".join(f" Their posts in #{getattr(m.channel, 'name', '')} stop: one channel per person."
                            for m in moved if m)
-            return (f"Done: after each wipe {report}, a post {place} with: {request}. Until the report stops "
+            return (f"Done: after each wipe and kill {report}, a post {place} with: {request}. Until the report stops "
                     f"being logged or someone asks to stop. {was}")
         if channel is not None:
-            return "Say what they want posted here after each wipe, in their words, as `request`."
+            return "Say what they want posted here after each pull, in their words, as `request`."
         character = str(args.get("character") or "").strip()
         try:  # as the log spells it; before the raid logs, as the latest night has it, if they're in it
             character = (await self.library.report(live or code)).player(character).name
@@ -133,7 +133,7 @@ class Posts:
         log.info("feedback after wipes for %s on report %s", self._shown(f"{name} as {character}"),
                  live or "(not started)")
         was = "It was already set up." if before else "Nothing was set up for them before this request."
-        return (f"Done: after each wipe {report}, {character}'s feedback goes to {name} in a DM, until the "
+        return (f"Done: after each wipe and kill {report}, {character}'s feedback goes to {name} in a DM, until the "
                 f"report stops being logged or they ask to stop. {was}")
 
     async def due(self, guild_id: int, live: str | None, pulls: list[Pull]) -> list[tuple[Following, Pull]]:
@@ -154,7 +154,7 @@ class Posts:
                 log.info("stopped posts after wipes for %s: report %s ended", self._shown(f.name), f.code)
         # After a gap (a restart, Warcraft Logs down) a poll finds several wipes: only the latest is worth a post. The
         # first poll after a request may find wipes from before it (nothing polls while nobody asked): those aren't.
-        latest = {id(f): (f, pull) for pull in pulls if pull.wipe for f in following.values()
+        latest = {id(f): (f, pull) for pull in pulls if pull.wipe or pull.kill for f in following.values()
                   if f.code == pull.report and pull.ended_ms >= f.asked * 1000}
         return list(latest.values())
 
