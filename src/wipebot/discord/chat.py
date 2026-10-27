@@ -83,6 +83,13 @@ class Conversations:
         # Per key while its session opens, so two questions for the same key share one session.
         self._opening: weakref.WeakValueDictionary[Hashable, asyncio.Lock] = weakref.WeakValueDictionary()
 
+    def code(self, key: Hashable) -> str | None:
+        """The report the conversation at `key` is about, open or saved before a restart; None without one."""
+        if conv := self._convs.get(key):
+            return conv.code
+        saved = self._saved.conversation(key, IDLE_S) if self._saved else None
+        return saved.code if saved else None
+
     async def ask(self, key: Hashable, code: str, question: str, ctx,
                   earlier: Callable[[int | None, set[int]], Awaitable[str]] | None = None,
                   message_id: int | None = None, timeout: float | None = None):

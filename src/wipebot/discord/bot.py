@@ -27,6 +27,7 @@ from wipebot.core.wcl import WCLError
 
 from . import allowance, commands, config, emojis, host
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
+from .commands import REPORT_LINK
 from .follower import Follower, Pull
 from .host import CAPPED, NO_ANSWER, Answer, Context, ModelError, Session
 from .messages import (  # noqa: F401 (Picture: the tests')
@@ -83,6 +84,14 @@ MODEL_ERRORS = {
 TOO_SLOW = "That took too long, sorry. Try asking something narrower."
 SLOW_START = "Loading the report took too long; try again in a minute."
 WENT_WRONG = "Something went wrong while answering that; try again in a moment."
+def no_report(s: ServerSettings) -> str:
+    """What to tell a raider when there's no report to answer about."""
+    if s.set_up:
+        return f"There's no recent Warcraft Logs report from {s.wcl_guild} to look at."
+    return ("Paste a Warcraft Logs report link with your question. Or an admin can run `/wipebot setup` with the "
+            "guild's Warcraft Logs page, and I'll look at its latest raid by myself.")
+
+
 WCL_DOWN = "Warcraft Logs isn't answering, so I can't look at the logs; try again in a few minutes."
 MENTION = re.compile(r"<@[!&]?\d+>|<#\d+>")
 # Replies need Read Message History; threads, for when someone mentions the bot inside one; maps, Attach Files.
@@ -672,14 +681,15 @@ class WipeBot(discord.Client):
         if refusal := await self._refusal(message, settings, is_dm):
             await respond(message, refusal)
             return
+        key = ("dm", message.author.id) if is_dm else (message.channel.id, message.author.id)
         try:
-            code = await self.current_report(settings)
+            code = await self._report_for(settings, key, question)
         except Exception:
             log.exception("finding the report to answer about failed")
             await respond(message, WCL_DOWN)
             return
         if not code:
-            await respond(message, f"There's no recent Warcraft Logs report from {settings.wcl_guild} to look at.")
+            await respond(message, no_report(settings))
             return
         await self._chat(message, settings, code, question, where, is_dm)
 
@@ -691,10 +701,9 @@ class WipeBot(discord.Client):
                 await respond(message, "I can only chat with members of a server where wipebot is set up "
                                        "(with the role it asks for, if any).")
             return settings
-        settings = self.store.settings(message.guild.id) if message.guild else None
-        if settings is None and mentioned:
-            await respond(message, "wipebot isn't set up in this server yet: an admin can run `/wipebot setup`.")
-        return settings
+        if message.guild is None:
+            return None
+        return self.store.settings(message.guild.id) or ServerSettings.unset(message.guild.id)
 
     async def _refusal(self, message: discord.Message, s: ServerSettings, is_dm: bool) -> str | None:
         """Why a question for the bot won't be answered, if it won't: the asker lacks the chat role, or the bot is
@@ -765,9 +774,14 @@ class WipeBot(discord.Client):
             asyncio.create_task(self._in_dm(s, user, name, code, question))
             return ("Their DM gets the answer now, as if they had asked it there. Say so here in a line, and don't "
                     "answer it here too.")
+        async def not_set_up(args: dict) -> str:
+            return ("Posts after wipes need the server set up with its guild: an admin runs `/wipebot setup`. "
+                    "Say so in a line.")
+
         return Context(asker=asker or raider.character, discord_name=name, where=where, pull=pull, boss=boss,
-                       notes=raider.notes, guild=f"{s.wcl_guild}, {s.wcl_server}, {s.wcl_region}",
-                       tools={"follow_pulls": follow_pulls, "remember": remember, "answer_in_dm": answer_in_dm},
+                       notes=raider.notes, guild=f"{s.wcl_guild}, {s.wcl_server}, {s.wcl_region}" if s.set_up else None,
+                       tools={"follow_pulls": follow_pulls if s.set_up else not_set_up, "remember": remember,
+                              "answer_in_dm": answer_in_dm},
                        icons=self.icons, server_id=s.discord_guild_id, user_id=user.id, **self._raid_notes(s))
 
     @answering
@@ -791,7 +805,7 @@ class WipeBot(discord.Client):
         user, channel = interaction.user, interaction.channel
         is_dm = isinstance(channel, discord.DMChannel)
         s = (await self._settings_for_dm(cast(discord.abc.User, user)) if is_dm
-             else self.store.settings(interaction.guild_id or 0))
+             else self.store.settings(interaction.guild_id or 0) or ServerSettings.unset(interaction.guild_id or 0))
         refusal = ("I can only chat with members of a server where wipebot is set up." if s is None
                    else "I'm restarting; ask again in a minute." if self.stopping
                    else None if is_dm or may_chat(s, [r.id for r in getattr(user, "roles", [])])
@@ -800,10 +814,10 @@ class WipeBot(discord.Client):
             await interaction.response.send_message(refusal or "I can't answer here.", ephemeral=True)
             return
         channel = cast(discord.abc.Messageable, channel)  # the channel of a message with buttons
-        code = await self.current_report(s)
+        code = await self._report_for(s, ("dm", user.id) if is_dm else (getattr(channel, "id", 0), user.id),
+                                      question)
         if not code:
-            await interaction.response.send_message(
-                f"There's no recent Warcraft Logs report from {s.wcl_guild} to look at.", ephemeral=True)
+            await interaction.response.send_message(no_report(s), ephemeral=True)
             return
         guild = self.get_guild(s.discord_guild_id) if is_dm else None
         name = display((guild.get_member(user.id) if guild else None) or user)
@@ -1011,8 +1025,20 @@ class WipeBot(discord.Client):
     def _raid_notes(self, s: ServerSettings) -> dict:
         """Context's raid note and plan fields for a server: what its guild saved (an officer's paste)."""
         book, guild = self.store.notebook, s.wcl_guild_id
+        if not s.set_up:
+            return {"notebook": None, "guild_id": 0, "noted": [], "planned": []}
         return {"notebook": book, "guild_id": guild, "noted": [n.boss for n in book.latest_notes(guild)],
                 "planned": list(dict.fromkeys(p.boss for p in book.latest_plans(guild)))}
+
+    async def _report_for(self, s: ServerSettings, key: Hashable, question: str) -> str | None:
+        """The report a question in the conversation at `key` is about: in a set-up server the guild's current one
+        (a report linked in the question is the model's to read); elsewhere the one linked in the question, or the
+        one the conversation is already about."""
+        if s.set_up:
+            return await self.current_report(s)
+        if m := REPORT_LINK.search(question):
+            return m.group(1)
+        return self.conversations.code(key)
 
     async def current_report(self, s: ServerSettings) -> str | None:
         """The guild's live report, or else its latest raid night (`latest_raid`)."""

@@ -48,6 +48,12 @@ async def test_follow_ups_reuse_the_conversation(convs):
                                                          ["how did I do?"]]
 
 
+async def test_a_conversation_knows_its_report(convs):
+    assert convs.code(("dm", 1)) is None
+    await convs.ask(("dm", 1), "R1", "why did we wipe?", None)
+    assert convs.code(("dm", 1)) == "R1"
+
+
 async def test_a_new_report_starts_a_new_conversation(convs):
     await convs.ask(("dm", 1), "R1", "q1", None)
     await convs.ask(("dm", 1), "R2", "q2", None)

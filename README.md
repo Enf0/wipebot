@@ -71,7 +71,8 @@ mkdir -p data/wipebot-discord data/wipebot-mcp data/wipebot-notes && sudo chown 
 1. Create an application in the [developer portal](https://discord.com/developers/applications), turn off **Public
    Bot**, and set `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` and the Warcraft Logs client in `.env`.
 2. `docker compose up -d --build wipebot-discord`, and invite it with the link in its log.
-3. In the server, run `/wipebot setup` with the guild's Warcraft Logs page.
+3. Raiders can ask it about any report they link right away. Run `/wipebot setup` with the guild's Warcraft Logs
+   page, and it also finds the guild's latest raid by itself, posts after wipes and keeps raid notes.
 
 Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and troubleshooting:
 [docs/setup.md](docs/setup.md).

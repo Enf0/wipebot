@@ -34,6 +34,16 @@ class ServerSettings:
     required_role_id: int | None = None  # role needed to chat with wipebot; None for anyone
     officer_role_id: int | None = None  # the officers' role (bot.is_officer); None: who can manage the server
 
+    @classmethod
+    def unset(cls, discord_guild_id: int) -> ServerSettings:
+        """A server nobody ran /wipebot setup in: anyone may chat, about a report they link."""
+        return cls(discord_guild_id, 0, "", "", "")
+
+    @property
+    def set_up(self) -> bool:
+        """Whether it follows a guild on Warcraft Logs: its latest night, posts after wipes, raid notes."""
+        return bool(self.wcl_guild_id)
+
 
 @dataclass
 class Raider:

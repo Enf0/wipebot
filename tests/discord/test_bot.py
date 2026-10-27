@@ -283,6 +283,16 @@ async def test_in_a_dm_the_asker_has_their_server_nickname(bot, message, asked, 
     assert asked[0][3].discord_name == "Jekå/Namsus (rowan)"
 
 
+async def test_a_server_not_set_up_answers_about_the_report_its_raiders_link(bot, message, asked, monkeypatch):
+    await bot.on_message(message("<@99> why did we wipe? https://www.warcraftlogs.com/reports/AbC123xyz#fight=4",
+                                 guild_id=2002))
+    monkeypatch.setattr(bot.conversations, "code", lambda key: "AbC123xyz")  # that conversation goes on
+    await bot.on_message(message("<@99> and the pull before?", guild_id=2002))
+    assert [a[1] for a in asked] == ["AbC123xyz", "AbC123xyz"]
+    ctx = asked[0][3]
+    assert ctx.guild is None and ctx.notebook is None and ctx.server_id == 2002
+
+
 async def test_where_names_are_on_the_bot_knows_it(bot, message, asked):
     bot.store.set_naming(1001, 20, True)
     msg = message()
@@ -297,7 +307,7 @@ async def test_where_names_are_on_the_bot_knows_it(bot, message, asked):
     (dict(content="<@99> <@123>"), None, None),  # only a raidmate's mention
     (dict(content="<@123> HALVARD!!!", reply_to=500), None, None),  # showing a raidmate the bot's answer
     (dict(content="why did we wipe?", guild_id=2002), None, None),  # a server not set up, not asking the bot
-    (dict(content="<@99> hi", guild_id=2002), None, "wipebot isn't set up in this server yet"),
+    (dict(content="<@99> hi", guild_id=2002), None, "Paste a Warcraft Logs report link"),  # not set up, no link
     (dict(content="hi", dm=True), None, "I can only chat with members of a server where wipebot is set up"),
     (dict(content="<@99> hi"), "role", "Chatting with wipebot needs the <@&111> role."),
     (dict(content="<@99> hi"), "stopping", "I'm restarting; ask again in a minute."),
