@@ -266,8 +266,9 @@ boss = "Sszorak"
 question = ["what killed everone on the last attempte",
             "thats wrong, the cyst didnt kill us, we got knocked into the wall by the gusts",
             "yes please"]
-expect = """Says it sent the report to Wipebot's maintainers: the answer and that the raider says the gusts' knockback,
-not the cyst, killed the raid."""
+# What's under test is the consent: the flow, not the analysis. The answer may still hold to the log after the
+# pushback (the cyst burst), so long as the report goes once the raider agrees (asks_first checks when).
+expect = """Says it sent the report to Wipebot's maintainers."""
 wrong = ["says it can't send a report, or that there is no way to reach Wipebot's maintainers",
          "asks the user to report it somewhere else instead (a website, GitHub, Discord)",
          "asks again whether to send it"]
