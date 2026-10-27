@@ -209,6 +209,10 @@ class Store:
                 seen TEXT NOT NULL,      -- JSON: list of message ids
                 last_used REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS server_options (  -- what an admin turned on or off, set up or not
+                discord_guild_id INTEGER PRIMARY KEY,
+                footer INTEGER           -- the cost line under answers (/wipebot footer); NULL: the default
+            );
             CREATE TABLE IF NOT EXISTS server_keys (  -- a server's own model key (/wipebot key), encrypted (keys.py)
                 discord_guild_id INTEGER PRIMARY KEY,
                 provider TEXT NOT NULL,  -- openrouter or anthropic
@@ -455,6 +459,17 @@ class Store:
             return None
         return keys.ServerKey(row[0], key)
 
+    def footer(self, discord_guild_id: int) -> bool | None:
+        """Whether an admin turned the cost line under answers on or off; None when nobody did."""
+        row = self._db.execute("SELECT footer FROM server_options WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        return None if row is None or row[0] is None else bool(row[0])
+
+    def set_footer(self, discord_guild_id: int, on: bool) -> None:
+        self._db.execute("INSERT INTO server_options VALUES (?, ?) ON CONFLICT (discord_guild_id) "
+                         "DO UPDATE SET footer = excluded.footer", (discord_guild_id, int(on)))
+        self._db.commit()
+
     def server_key_info(self, discord_guild_id: int) -> tuple[str, int, float] | None:
         """A server's own key's provider, who added it and when, without the key; None without one."""
         return self._db.execute("SELECT provider, added_by, added_at FROM server_keys WHERE discord_guild_id = ?",
@@ -470,7 +485,7 @@ class Store:
     def forget_server(self, discord_guild_id: int) -> None:
         """Forget a server the bot was removed from: its settings, where names are on, its posts after wipes and
         its own key. What it spent stays, for the books, until it's pruned."""
-        for table in ("server_settings", "naming_channels", "following", "server_keys"):
+        for table in ("server_settings", "naming_channels", "following", "server_keys", "server_options"):
             self._db.execute(f"DELETE FROM {table} WHERE discord_guild_id = ?", (discord_guild_id,))
         self._db.commit()
 

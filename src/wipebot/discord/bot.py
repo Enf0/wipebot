@@ -880,7 +880,7 @@ class WipeBot(discord.Client):
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
             answer = await self.conversations.ask(key, code, question, ctx, earlier, message.id if message else None,
                                                   timeout)
-            sent = await send(answer)
+            sent = await send(await self._with_footer(kind, ctx, answer))
         except SlowStart as e:
             log.warning("%s answer to %s failed: %s", kind, shown, e)
             record(error=str(e))
@@ -910,6 +910,25 @@ class WipeBot(discord.Client):
                  ", ".join(tool for _, tool in answer.marks) or "none",
                  f": {preview(answer.text)}" if self.record_answers else "")
         return None
+
+    async def _with_footer(self, kind: str, ctx: Context, answer: Answer) -> Answer:
+        """A chat answer with the small cost line under it, where the server has it on: by default while it answers
+        from a shared copy's free answers (/wipebot footer turns it on or off)."""
+        on = self.store.footer(ctx.server_id) if ctx.server_id else None
+        if on is None:
+            on = self.allowance is not None and ctx.env is None
+        if kind != "chat" or not on or not answer.text:
+            return answer
+        try:
+            left = (await self.allowance.left(ctx.server_id) if self.allowance and ctx.env is None and ctx.server_id
+                    else None)
+            if left:  # this answer is spent too, though kept only once it's posted
+                left = (left[0], max(left[1] - (answer.cost_usd or 0), 0.0))
+            line = allowance.footer(answer.cost_usd, sum(answer.wcl_points().values()), left)
+        except Exception:
+            log.exception("the cost line failed")
+            return answer
+        return replace(answer, text=f"{answer.text}\n{line}")
 
     def _spent(self, kind: str, ctx: Context, answer: Answer | None) -> None:
         """Keep what an answer cost under its server and asker (store.spend), recorded or not."""

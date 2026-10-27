@@ -58,3 +58,23 @@ def test_the_share_and_the_month(monkeypatch):
     dec = datetime.datetime(2026, 12, 31, 23, 0, tzinfo=datetime.UTC)
     assert allowance.month_start(dec).day == 1 and allowance.next_month(dec) == datetime.datetime(
         2027, 1, 1, tzinfo=datetime.UTC)
+
+
+async def test_the_footer_says_the_cost_points_and_the_servers_share_left(store, monkeypatch):
+    pool(monkeypatch, 100.0, 80.0)
+    store.add_spend(1001, 7, "chat", 2.5, 0)
+    left = await Allowance(store, "sk-or-x", 0.1).left(1001)
+    assert left == (10.0, 7.5)
+    assert allowance.footer(0.18, 92.4, left) == ("-# $0.18 · 92 Warcraft Logs points · $7.50 of this server's "
+                                                  "$10.00 left this month")
+    assert allowance.footer(None, 0, None) == "-# $0.00 · 0 Warcraft Logs points"
+
+
+def test_an_admins_footer_choice_is_kept(store):
+    assert store.footer(1001) is None
+    store.set_footer(1001, False)
+    assert store.footer(1001) is False
+    store.set_footer(1001, True)
+    assert store.footer(1001) is True
+    store.forget_server(1001)
+    assert store.footer(1001) is None

@@ -60,6 +60,15 @@ class Allowance:
         self._pool = (time.monotonic(), b)
         return b
 
+    async def left(self, server_id: int) -> tuple[float, float] | None:
+        """This month's share of the pool for a server, and what's left of it; None when there's no limit."""
+        b = await self.pool()
+        if b is None or b.limit is None:
+            return None
+        share = self.share * b.limit
+        _, spent, _ = self.store.spent(month_start().timestamp(), discord_guild_id=server_id)
+        return share, max(share - spent, 0.0)
+
     async def refusal(self, server_id: int) -> str | None:
         """What to tell a raider when their server has spent its share of this month's pool, or the pool is spent;
         None when it may answer (also when the pool can't be read: OpenRouter still refuses past the limit)."""
@@ -74,3 +83,12 @@ class Allowance:
             return (f"This server has used its free answers for this month (${spent:.2f} of its "
                     f"${self.share * b.limit:.2f}). They're back on {back}.")
         return None
+
+
+def footer(cost: float | None, points: float, left: tuple[float, float] | None) -> str:
+    """The small line under an answer: what it cost, its Warcraft Logs points, and the server's free answers left."""
+    parts = [f"${cost or 0:.2f}", f"{points:,.0f} Warcraft Logs points"]
+    if left:
+        share, remaining = left
+        parts.append(f"${remaining:.2f} of this server's ${share:.2f} left this month")
+    return "-# " + " · ".join(parts)

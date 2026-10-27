@@ -24,7 +24,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
-from . import budget, config, keycmd
+from . import allowance, budget, config, keycmd
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -326,7 +326,8 @@ def help_text(s: ServerSettings | None, named: set[int], admin: bool, in_dm: boo
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
                      "`/wipebot names`: name players in this channel or not",
                      "`/wipebot viserio`: read the raid nights to come from Viserio Cooldowns",
-                     "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key"]
+                     "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
+                     "`/wipebot footer`: end answers with what they cost, or not"]
         if raidstrats.client():
             commands.append("`/wipebot raidstrats`: fetch the raid plans from raidstrats.gg")
     commands.append("Officers save a raid note or plan by pasting it to me.")
@@ -357,6 +358,21 @@ def usage_text(rate: dict | None) -> str:
     return text
 
 
+async def server_usage(bot: WipeBot, discord_guild_id: int) -> str | None:
+    """/usage's line about this server: what it spent this month, and its share of a shared copy's free answers or
+    its own key; None on a bot that's neither."""
+    n, spent, _ = bot.store.spent(allowance.month_start().timestamp(), discord_guild_id=discord_guild_id)
+    mine = f"**This server:** {n} answers this month, ${spent:.2f}"
+    if info := bot.store.server_key_info(discord_guild_id):
+        return f"{mine}, on its own {keycmd.NAMES.get(info[0], info[0])} key (`/wipebot key`)."
+    if bot.allowance and (left := await bot.allowance.left(discord_guild_id)):
+        share, remaining = left
+        return (f"{mine}: ${remaining:.2f} of its ${share:.2f} of free answers left, back in full on "
+                f"<t:{int(allowance.next_month().timestamp())}:D>. An admin can add the server's own key with "
+                "`/wipebot key`.")
+    return None
+
+
 def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
     """/help and /usage, for everyone."""
     @app_commands.command(name="help", description="What to ask wipebot, its commands, and how it's set up here")
@@ -375,6 +391,8 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
         points = usage_text(await bot.library.wcl.points())
         # the bot's OpenRouter key's credit limit is the AI budget raiders see
         text = f"{await budget_text(bot.store, key)}\n\n{points}" if (key := config.openrouter_key()) else points
+        if here := await server_usage(bot, in_guild(interaction).id):
+            text = f"{here}\n\n{text}"
         await interaction.followup.send(text, ephemeral=True)
 
     return [show_help, show_usage]
@@ -432,6 +450,14 @@ def build(bot: WipeBot) -> app_commands.Group:
     @app_commands.describe(remove="Go back to the shared free answers and forget the key")
     async def own_key(interaction: discord.Interaction, remove: bool = False) -> None:
         await keycmd.key_command(bot.store, interaction, remove)
+
+    @group.command(name="footer", description="Whether answers end with a small line: their cost, Warcraft Logs "
+                                              "points, and the server's free answers left")
+    async def footer(interaction: discord.Interaction, on: bool) -> None:
+        bot.store.set_footer(in_guild(interaction).id, on)
+        await interaction.response.send_message(
+            "Answers here now end with what they cost." if on else "Answers here no longer end with what they cost.",
+            ephemeral=True)
 
     @group.command(name="names", description="Whether wipebot names players in this channel, as in DMs")
     @app_commands.describe(on="On: in this channel and its threads, wipebot says who made the costly mistakes")
