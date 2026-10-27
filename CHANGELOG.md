@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `MCP` **Tell Wipebot an answer was wrong.** In Claude and ChatGPT, say an answer was wrong, missed something or took too long, and Wipebot offers to send a report to its maintainers: your question, the answer and what you said about it, sent only once you agree. Claude and ChatGPT never show a connector the conversation, so this is how we see the answers that need fixing.
-- `Agent` **Damage on adds, wave by wave.** Ask "who did the most damage on the last three sets of adds?" and Wipebot gives each wave's damage by player, on the adds of that wave alone, for one pull or summed over the night.
+- `Agent` **Damage on adds, wave by wave.** Ask "who did the most damage on the last three sets of adds?" and Wipebot gives each wave's damage by player on a pull, on the adds of that wave alone.
 - `Agent` **How much Holy Power each cast wasted.** Ask "how much Holy Power did my Divine Tolls waste?" or "how many Holy Shocks did I press at 5 Holy Power?" and you get what you had before each cast and what was lost at the cap right after, for Holy Power, Combo Points, Essence and the other resources.
 - `Agent` **Healers in other guilds' progress kills.** Besides the fastest kills, Wipebot can now count what the latest or the first kills of a boss brought, up to 500 of them and by region: "how many healers did the last 20 progress kills on the Coiled Altar bring?", "of the first 400 kills in EU and US, how many 4-healed?".
 

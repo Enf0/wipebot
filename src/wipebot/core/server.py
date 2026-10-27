@@ -712,23 +712,22 @@ async def compare_pulls(pull: Pull = None, boss: Boss = None,
 async def enemies(pull: Pull = None, boss: Boss = None,
                   all_pulls: Annotated[bool, Field(description="every pull on the boss")] = False,
                   by_wave: Annotated[bool, Field(description=(
-                      "also the damage on the adds wave by wave, by player"))] = False,
+                      "one pull: also each wave's damage by player on one kind of add, for \"who did most on the "
+                      "last three sets?\""))] = False,
                   report: Report_ = None) -> str:
     """For "were the adds killed in time?", "who did the most damage on the adds?", "were their casts kicked?",
-    "did anyone have a kick ready?", "who did the most damage on each wave of adds?".
+    "did anyone have a kick ready?".
     The adds in a pull: how many of each came, when they died, what became of the rest (alive at the end, or
     gone without a death: despawned, transformed or removed), the damage they took and who did it (every player
     on the most damaged kind, over the night too), and their
     casts with a cast bar: begun, kicked and by whom, gone through, and for each that went through who was alive
     with their interrupt ready. With all_pulls, over the night: per kind how many came and died and the damage
     they took, their casts and who kicked them, then each pull in a line.
-    With by_wave, also the damage on the most damaged kind that comes in waves, each wave by player (a wave is
-    the adds that died less than 20 s apart; with all_pulls, each wave summed over the pulls that reached it).
     Reading it: adds with no death recorded can't show when or in what order they were killed.
     Not for the raid's kicks and dispels in totals per player (breakdown)."""
     rep = await lib().report(report)
     if all_pulls:
-        return await adds.enemies_night(rep, boss, by_wave)
+        return await adds.enemies_night(rep, boss)
     return await adds.enemies(rep, pull, boss, await _jobs(rep, pull, boss, kicks=True), by_wave)
 
 

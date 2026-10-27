@@ -49,8 +49,6 @@ nekzali-enemies-night = { tool = "enemies", report = "BfgjDv6LC2HaVbFm", boss = 
 vashnik-enemies = { tool = "enemies", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik the Malignant", pull = 7 }
 # the damage on each wave of adds, by player ("who did most on the last three sets?")
 twin-fangs-enemies-waves = { tool = "enemies", report = "64hVgfmydQGNxC7A", boss = "Twin Fangs", pull = "kill", by_wave = true }
-# every pull: each wave summed over the pulls that reached it
-twin-fangs-enemies-waves-night = { tool = "enemies", report = "64hVgfmydQGNxC7A", boss = "Twin Fangs", all_pulls = true, by_wave = true }
 
 # ---- the map ----
 # the pull the replay viewer is tested on too (test_tools.py)

@@ -258,7 +258,7 @@ Divine Toll keeps it."""
 facts = ["at 2:57, pressed at 0, nothing lost",
          "6:37 at 3, 3 lost",
          "0:41 and 4:46 at 2, 2 lost each"]
-wrong = ["gives the Holy Power lost over the whole pull as Divine Toll's",
+wrong = ["gives the Holy Power lost at the cap over the whole pull, from every source, as Divine Toll's (such as 52 from Holy Shock)",
          "says the log can't show Holy Power at each cast"]
 
 [[case]]
