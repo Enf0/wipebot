@@ -123,7 +123,8 @@ async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jo
     taken = _taken(by_actor, kind)
     lines = [f"Enemies other than the boss on {rep.label(f)} ({clock(end)}{', KILL' if f['kill'] else ''}, "
              f"{rep.url(f)}), most damaged first (instances, deaths and when, what became of the rest, damage "
-             "taken, who did most; then their casts with a cast bar: begun, kicked and by whom, gone through):"]
+             "taken, who did most, everyone on the first; then their casts with a cast bar: begun, kicked and by "
+             "whom, gone through):"]
     shown = sorted(npcs, key=lambda n: -taken.get(n["id"], 0))[:10]
     survivors = [n for n in shown if came_of(n, deaths) > len(deaths[n["id"]])]
     # The actors asked about for each kind: the one the pull lists, and another of its kind only when it took damage
@@ -143,7 +144,7 @@ async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jo
     for n in shown:
         name = rep.actor(n["id"])
         died = sorted(deaths[n["id"]])
-        dealers = dealt[n["id"]].most_common(4)
+        dealers = dealt[n["id"]].most_common(None if n is shown[0] else 4)  # the meter draws the first whole
         came = came_of(n, deaths)
         alive = came - len(died)
         when = ", ".join(clock(t) for t in died[:8]) + (" ..." if len(died) > 8 else "")

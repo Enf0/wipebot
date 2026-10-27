@@ -706,9 +706,11 @@ async def compare_pulls(pull: Pull = None, boss: Boss = None,
 async def enemies(pull: Pull = None, boss: Boss = None,
                   all_pulls: Annotated[bool, Field(description="every pull on the boss")] = False,
                   report: Report_ = None) -> str:
-    """For "were the adds killed in time?", "were their casts kicked?", "did anyone have a kick ready?".
+    """For "were the adds killed in time?", "who did the most damage on the adds?", "were their casts kicked?",
+    "did anyone have a kick ready?".
     The adds in a pull: how many of each came, when they died, what became of the rest (alive at the end, or
-    gone without a death: despawned, transformed or removed), the damage they took and who did it, and their
+    gone without a death: despawned, transformed or removed), the damage they took and who did it (every player
+    on the most damaged kind, over the night too), and their
     casts with a cast bar: begun, kicked and by whom, gone through, and for each that went through who was alive
     with their interrupt ready. With all_pulls, over the night: per kind how many came and died and the damage
     they took, their casts and who kicked them, then each pull in a line.
