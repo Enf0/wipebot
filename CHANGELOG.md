@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-27
+
 ### Changed
 
 - `Agent` **Wipes on bosses with phases are counted the way raiders count them.** On a boss whose phases each have their own health bar, such as the Coiled Altar, a wipe reads "P2 68.3%", with Warcraft Logs' whole-fight % beside it, instead of only Warcraft Logs' 70.5%.
