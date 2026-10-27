@@ -163,7 +163,7 @@ class FollowUp(discord.ui.DynamicItem[discord.ui.Button], template=r"wbf\|(?P<as
 
     def __init__(self, asker: int, n: int, question: str) -> None:
         self.asker, self.question = asker, question
-        super().__init__(discord.ui.Button(label=question[:80], style=discord.ButtonStyle.primary,
+        super().__init__(discord.ui.Button(label=question[:80], style=discord.ButtonStyle.secondary,
                                            custom_id=f"wbf|{asker}|{n}"))
 
     @classmethod
@@ -184,22 +184,27 @@ class FollowUp(discord.ui.DynamicItem[discord.ui.Button], template=r"wbf\|(?P<as
         await follow_up(interaction, self.question)
 
 
-def without_follow_ups(message: discord.Message) -> discord.ui.View | discord.ui.LayoutView | None:
-    """The message's components without its follow-up buttons, once one was asked (so it isn't asked twice); None when
-    it has none. An answer with pictures is a Components V2 message, one without a plain message with a view."""
-    def follow_up(item: object) -> bool:
-        return str(getattr(item, "custom_id", "")).startswith("wbf|")
+def without_follow_ups(message: discord.Message, asked: str) -> discord.ui.View | discord.ui.LayoutView | None:
+    """The message's components without the follow-up button whose custom_id is `asked`, once it was asked (so it
+    isn't asked twice; the others stay); None when it isn't there. An answer with pictures is a Components V2 message,
+    one without a plain message with a view."""
+    def clicked(item: object) -> bool:
+        return getattr(item, "custom_id", None) == asked
     if not message.flags.components_v2:
         plain = discord.ui.View.from_message(message, timeout=None)
-        buttons = [b for b in plain.children if follow_up(b)]
+        buttons = [b for b in plain.children if clicked(b)]
         for b in buttons:
             plain.remove_item(b)
         return plain if buttons else None
     view = discord.ui.LayoutView.from_message(message, timeout=None)
-    rows = [c for c in view.children if isinstance(c, discord.ui.ActionRow) and any(map(follow_up, c.children))]
-    for row in rows:
-        view.remove_item(row)
-    return view if rows else None
+    found = False
+    for row in [c for c in view.children if isinstance(c, discord.ui.ActionRow)]:
+        for b in [b for b in row.children if clicked(b)]:
+            row.remove_item(b)
+            found = True
+        if not row.children:
+            view.remove_item(row)
+    return view if found else None
 
 
 def tool_of(what: str, report: str, boss: str, pull: str, player: str) -> tuple[str, dict[str, Any]]:

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **Quieter follow-up buttons.** The questions an answer suggests are grey buttons now, like the bot's other buttons, and clicking one takes off only that one: the others stay to ask next.
+
 ## [0.17.0] - 2026-10-27
 
 ### Added

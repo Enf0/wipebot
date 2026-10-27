@@ -617,7 +617,7 @@ class Click:
 
     def __init__(self, channel, member, user_id: int = 7):
         self.user, self.channel, self.guild_id = member(user_id, "Rowan"), channel, 1001
-        self.message = None  # the answer clicked (its follow-ups are taken off it: without_follow_ups)
+        self.message = None  # the answer clicked (the follow-up clicked is taken off it: without_follow_ups)
         self.client: Any = None
         self.said: list[tuple[str | None, dict]] = []
         self.response = SimpleNamespace(send_message=self._send)
@@ -654,9 +654,9 @@ async def test_a_plain_answer_keeps_its_links_previews_off_when_its_follow_ups_g
     click = Click(channel, member)
     click.message = SimpleNamespace(id=5, flags=SimpleNamespace(components_v2=False), edit=edit)
     click.question.reply = lambda *a, **k: asyncio.sleep(0, SimpleNamespace(id=1))
-    monkeypatch.setattr(wipebot, "without_follow_ups", lambda m: "a view without them")
+    monkeypatch.setattr(wipebot, "without_follow_ups", lambda m, asked: "a view without it")
     await bot.follow_up(click, "Replay the deaths?")
-    assert edits == [{"view": "a view without them", "suppress": True}]
+    assert edits == [{"view": "a view without it", "suppress": True}]
 
 
 async def test_only_the_asker_clicks_their_follow_ups(channel, member):

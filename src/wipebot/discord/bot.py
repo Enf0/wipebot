@@ -805,14 +805,15 @@ class WipeBot(discord.Client):
         await interaction.response.send_message(f"-# {name} asked: {question}",
                                                 allowed_mentions=discord.AllowedMentions.none())
         asked = await interaction.original_response()
-        try:  # the answer stays as it was if this fails: only its follow-ups could be asked again
-            if interaction.message and (view := without_follow_ups(interaction.message)):
+        clicked = str((getattr(interaction, "data", None) or {}).get("custom_id", ""))
+        try:  # the answer stays as it was if this fails: only this follow-up could be asked again
+            if interaction.message and (view := without_follow_ups(interaction.message, clicked)):
                 if interaction.message.flags.components_v2:
                     await interaction.message.edit(view=view)
                 else:  # a plain answer: an edit without it would show its links' previews (sent suppressed)
                     await interaction.message.edit(view=view, suppress=True)
         except Exception as e:
-            log.warning("couldn't take the follow-ups off the answer: %s", e)
+            log.warning("couldn't take the follow-up off the answer: %s", e)
         where = where_asked(is_dm, getattr(channel, "name", ""), True) or "in a DM"
         ctx = self._context(s, user, name, code, where, None if is_dm else channel)
         if interaction.message and (posted := self.store.pull_for_message(interaction.message.id)):
