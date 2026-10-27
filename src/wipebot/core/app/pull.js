@@ -50,11 +50,11 @@ views.pull = (() => {
     drawnWidth = root.clientWidth;
     const width = Math.max(300, drawnWidth || 640);
     if (app.picture()) {  // a still picture: the card without its buttons
-      root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 46, plotH: 130 })}</div>`;
+      root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 54, plotH: 130 })}</div>`;
       return;
     }
     if (!full) {
-      root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 46, plotH: width < 500 ? 100 : 120 })}</div>`
+      root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 54, plotH: width < 500 ? 100 : 120 })}</div>`
         + `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="pv-open">Open pull</button>' : ""}`
         + `<button id="pv-replay">Replay</button></div>`;
       const o = root.querySelector("#pv-open");
