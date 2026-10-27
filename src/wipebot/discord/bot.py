@@ -405,7 +405,8 @@ class WipeBot(discord.Client):
         self.followers: dict[int, Follower] = {}  # per server: its live report
         self.posts = Posts(store, library, record_answers)  # who asked for posts after wipes
         # After Claude's API refused a question or Warcraft Logs didn't answer, the conversation goes on.
-        self.conversations = Conversations(self._open_session, survives=(ModelError, WCLError))
+        self.conversations = Conversations(self._open_session, survives=(ModelError, WCLError),
+                                           saved=store)
         self.latest_raids = LatestRaids(library, RECENT_REPORT_CHECK_S)
         self.icons: dict[str, str] = {}  # the bot's own, by name, once logged in (emojis.sync)
         self._started = False
@@ -1010,8 +1011,8 @@ class WipeBot(discord.Client):
             raise RuntimeError(f"channel {channel_id} is not a text channel")
         return channel
 
-    async def _open_session(self, code: str) -> Session:
-        session = Session(self.library, code, self.model, log_tool, self.name)
+    async def _open_session(self, code: str, resume: str | None = None) -> Session:
+        session = Session(self.library, code, self.model, log_tool, self.name, resume=resume)
         try:
             return await session.__aenter__()
         except BaseException:  # failed or given up on (chat.OPEN_TIMEOUT_S): no Claude Code process left behind

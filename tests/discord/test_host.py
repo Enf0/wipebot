@@ -513,3 +513,28 @@ def test_a_long_answer_that_leaves_its_picture_unplaced_gets_it_after_the_headli
     assert host.placed_by_default("**Night.**\nFirst.\nSecond.", [(11, "progress")], "progress") == [(11, "progress")]
     assert host.placed_by_default(long, [], None) == []  # only a map: under it all
     assert host.placed_by_default("**Solid night.** - one - two - three - four", [], "progress") == []
+
+
+@pytest.mark.parametrize("found", [True, False])
+async def test_a_saved_conversation_resumes_when_its_transcript_is_there(monkeypatch, found):
+    """After a restart, a session goes on from its transcript; without one (Claude Code cleaned it up), it starts
+    over."""
+    seen = []
+
+    class Client:
+        def __init__(self, options):
+            seen.append(options)
+
+        async def connect(self):
+            pass
+
+    async def no_tools(*args):
+        return []
+
+    async def report(code, max_age_s=0):
+        return SimpleNamespace(code=code)
+    monkeypatch.setattr(host, "ClaudeSDKClient", Client)
+    monkeypatch.setattr(host, "sdk_tools", no_tools)
+    monkeypatch.setattr(host, "get_session_info", lambda sid, directory: object() if found else None)
+    session = await Session(cast(server.Library, SimpleNamespace(report=report)), "R1", resume="s1").__aenter__()
+    assert (seen[0].resume, session.resumed, session.session_id) == (("s1", True, "s1") if found else (None, False, ""))
