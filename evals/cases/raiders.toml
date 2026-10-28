@@ -314,14 +314,15 @@ question = """Vinne var nok et dårlig ord, er mest interessert i å optimaliser
 grave litt mer i ovwrhealingproblematikken, kan du sammenligne rå healing inkludert overheal for alle healerne for \
 alle coiled altar trøyene, og sammenligne opp mot top logs?"""
 asker = "Miralupa"
-expect = """Gives each healer's healing with overheal over the 21 Coiled Altar pulls (the priests about 750k/s with
-it, 410-415k/s without) and says overheal isn't the healers' problem: no healer ran short of mana, and with five
-healers sharing the damage each overheals more; it compares overheal only within a spec, and says whether a fifth
-healer is needed shows in the damage spikes, not in overheal."""
-drifts = ["754", "726", "664", "725"]
+expect = """Gives the healers' healing with overheal over the Coiled Altar pulls (the priests about 730-750k/s with
+it, 405-415k/s without) and puts their higher overheal down to five healers sharing the same damage, not to how the
+priests heal."""
+drifts = ["754", "726", "664", "725", "735"]
 facts = ["Namsus 414.50k/s, overheal 45%; Miralupa 406.57k/s, overheal 44%",
          "the raid healed 2.14M/s",
-         "the top Holy Priests overhealed about 25-31% in raids of 4 healers"]
+         "the top Holy Priests overhealed about 25-31% in raids of 4 healers",
+         "no healer ran short of mana",
+         "whether a fifth healer is needed shows in the damage spikes, not in overheal"]
 wrong = ["says the priests' overheal is a problem they should fix",
          "says mastery or Echo of Light loses more to overheal than other healing",
          "compares overheal percentages across specs as a measure of who healed well"]
@@ -346,12 +347,12 @@ Personlig når det kommer til priest mener jeg også at Mastery/Crit er like vik
 er komfortabel (Jeg liker å ha 14% nå med den daggern som gir deg hasteprocc) versa er 💩"""
 asker = "Namsus"
 expect = """Agrees that overheal alone doesn't measure a healer and that the log shows no overheal problem on Coiled
-Altar: no healer went under 30% mana (lowest 39%), and the priests overhealed less in the damage spikes (28-30%)
-than the rest of the time (45-46%). It checks the rest rather than agreeing to all of it: the guide's raid stat
-order (Crit > Mastery > Versatility > Haste) against theirs, and Divine Hymn's 4% a tick, or it says what it
-didn't check."""
-facts = ["healing cooldowns ready and unused in the spikes: Spirit Link Totem and Rewind 14 times each",
-         "the spikes at 0:44-0:52 and 2:09 had 34 deaths each",
+Altar, since no healer went under 30% mana; and checks their stat order against the guide (Crit > Mastery >
+Versatility > Haste in raid) rather than agreeing to all of it."""
+facts = ["the lowest mana was 39% (Enfo, pull 15)",
+         "the priests overhealed 28-30% in the damage spikes and 45-46% the rest of the time",
+         "healing cooldowns ready and unused in the spikes: Spirit Link Totem and Rewind 14 times each",
+         "Divine Hymn adds 4% healing taken a tick, stacking",
          "Method's guide ranks Versatility above Haste in raid"]
 wrong = ["says the priests have an overhealing problem",
          "states that each Divine Hymn tick adds about 10% healing",
