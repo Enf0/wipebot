@@ -104,7 +104,8 @@ DROPPED_COLUMNS = {"server_settings": ("posts_channel_id",)}
 # Columns added since a table was made: (table, column, type).
 ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "officer_role_id", "INTEGER"),
                  ("interactions", "wcl_points", "TEXT"), ("logins", "private_sealed", "TEXT"),
-                 ("logins", "private_expires", "REAL")]
+                 ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
+                 ("server_options", "language", "TEXT")]
 
 
 class Store:
@@ -206,7 +207,13 @@ class Store:
             );
             CREATE TABLE IF NOT EXISTS server_options (  -- what an admin turned on or off, set up or not
                 discord_guild_id INTEGER PRIMARY KEY,
-                footer INTEGER           -- the cost line under answers (/wipebot setup footer:); NULL: the default
+                footer INTEGER,          -- the cost line under answers (/wipebot setup footer:); NULL: the default
+                news_channel INTEGER,    -- where what's new in each release is posted (/wipebot news); NULL: nowhere
+                language TEXT            -- the server's language (/wipebot setup language:); NULL: none set
+            );
+            CREATE TABLE IF NOT EXISTS bot_state (  -- the bot's own, not a server's
+                key TEXT PRIMARY KEY,    -- news: the latest release's post (news.Post), posted or not
+                value TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS server_keys (  -- a server's own model key (/wipebot key), encrypted (keys.py)
                 discord_guild_id INTEGER PRIMARY KEY,
@@ -459,8 +466,44 @@ class Store:
         return None if row is None or row[0] is None else bool(row[0])
 
     def set_footer(self, discord_guild_id: int, on: bool) -> None:
-        self._db.execute("INSERT INTO server_options VALUES (?, ?) ON CONFLICT (discord_guild_id) "
-                         "DO UPDATE SET footer = excluded.footer", (discord_guild_id, int(on)))
+        self._db.execute("INSERT INTO server_options (discord_guild_id, footer) VALUES (?, ?) ON CONFLICT "
+                         "(discord_guild_id) DO UPDATE SET footer = excluded.footer", (discord_guild_id, int(on)))
+        self._db.commit()
+
+    def news_channel(self, discord_guild_id: int) -> int | None:
+        """The channel an admin chose for what's new in each release; None when they chose none."""
+        row = self._db.execute("SELECT news_channel FROM server_options WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        return row[0] if row else None
+
+    def set_news_channel(self, discord_guild_id: int, channel_id: int | None) -> None:
+        self._db.execute("INSERT INTO server_options (discord_guild_id, news_channel) VALUES (?, ?) ON CONFLICT "
+                         "(discord_guild_id) DO UPDATE SET news_channel = excluded.news_channel",
+                         (discord_guild_id, channel_id))
+        self._db.commit()
+
+    def news_channels(self) -> list[tuple[int, int, str | None]]:
+        """(server, channel, the server's language) for each server that chose a channel for what's new."""
+        return self._db.execute("SELECT discord_guild_id, news_channel, language FROM server_options "
+                                "WHERE news_channel IS NOT NULL").fetchall()
+
+    def language(self, discord_guild_id: int) -> str | None:
+        """The language an admin set for the server, as they wrote it ("Norwegian"); None when none is."""
+        row = self._db.execute("SELECT language FROM server_options WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        return row[0] if row else None
+
+    def set_language(self, discord_guild_id: int, language: str | None) -> None:
+        self._db.execute("INSERT INTO server_options (discord_guild_id, language) VALUES (?, ?) ON CONFLICT "
+                         "(discord_guild_id) DO UPDATE SET language = excluded.language", (discord_guild_id, language))
+        self._db.commit()
+
+    def state(self, key: str) -> str | None:
+        row = self._db.execute("SELECT value FROM bot_state WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def set_state(self, key: str, value: str) -> None:
+        self._db.execute("INSERT OR REPLACE INTO bot_state VALUES (?, ?)", (key, value))
         self._db.commit()
 
     def server_key_info(self, discord_guild_id: int) -> tuple[str, int, float] | None:

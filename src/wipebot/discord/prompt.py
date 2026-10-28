@@ -234,6 +234,8 @@ def asker_line(ctx: Context, report: Report | None) -> str:
         parts.append(ctx.where)
     if ctx.guild:
         parts.append(f"the guild on Warcraft Logs: {plain(ctx.guild)}")
+    if ctx.language:
+        parts.append(f"the server's language: {plain(ctx.language, 30)}")
     if report and (ctx.pull is not None or ctx.boss):
         parts.append(f"about {report.label(report.fight(ctx.pull, ctx.boss))}")
     elif report:

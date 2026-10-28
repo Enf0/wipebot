@@ -32,6 +32,7 @@ from claude_agent_sdk import (
     ToolUseBlock,
     create_sdk_mcp_server,
     get_session_info,
+    query,
     tool,
 )
 from mcp.server.mcpserver.exceptions import ToolError
@@ -99,6 +100,7 @@ class Context:
     env: dict | None = None  # what the session runs on when the server brought its own key (keys.ServerKey.env)
     wcl_token: str | None = field(default=None, repr=False)  # the asker's Warcraft Logs token, signed in (/login)
     wcl_private: str | None = field(default=None, repr=False)  # ...and the one reading their private reports
+    language: str | None = None  # the server's, set by an admin: for when the question's own doesn't say
     private_hint: str | None = None  # how they'd let Wipebot read their private reports, told with one it can't
     noted: Sequence[str] = ()  # the bosses with a raid note saved in the server
     planned: Sequence[str] = ()  # the bosses with a raid plan saved in the server
@@ -333,6 +335,28 @@ def with_own_guild(args: dict, own: str) -> dict:
         return args
     return {**args, "guild": args.get("guild") or name, "server": args.get("server") or realm,
             "region": args.get("region") or region}
+
+
+WRITER_MODEL = "haiku"  # a short text of the bot's own, not an answer: the cheapest does
+WRITER_BUDGET_USD = 0.05
+
+
+async def write(prompt: str, env: Mapping[str, str] | None = None) -> tuple[str, float]:
+    """A short text the bot writes itself (news.py), from a prompt alone: no tools, files or session; and what it
+    cost. Raises ModelError when the API refuses it."""
+    options = ClaudeAgentOptions(system_prompt="", tools=[], setting_sources=[], strict_mcp_config=True,
+                                 settings=NO_FILES, cwd=_empty_dir(), max_turns=1, max_budget_usd=WRITER_BUDGET_USD,
+                                 model=WRITER_MODEL, env=dict(env or {}))
+    texts: list[str] = []
+    cost = 0.0
+    async for msg in query(prompt=no_paths(prompt), options=options):
+        if isinstance(msg, AssistantMessage):
+            if msg.error:
+                raise ModelError(msg.error)
+            texts += [b.text for b in msg.content if isinstance(b, TextBlock)]
+        elif isinstance(msg, ResultMessage):
+            cost = msg.total_cost_usd or 0.0
+    return "".join(texts), cost
 
 
 class ModelError(Exception):

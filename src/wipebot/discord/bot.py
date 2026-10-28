@@ -24,7 +24,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import allowance, commands, config, emojis, host, logincmd
+from . import allowance, commands, config, emojis, host, logincmd, news
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .follower import Follower, Pull
@@ -459,6 +459,40 @@ class WipeBot(discord.Client):
         log.info("logged in as %s in %d servers (%d set up). Invite link: %s", self.user, len(self.guilds),
                  len(self.store.all_settings()), invite)
         await self._restore_posts()
+        await self._post_news()
+
+    async def _post_news(self) -> None:
+        """On a release not posted yet, what's new in it (and in those since the last one posted) to each server's
+        channel for it, in the server's language. The first start posts nothing: it only notes the release it runs
+        and keeps its post, for /wipebot news to show."""
+        changelog, posted = news.read(), self.store.state("news_version")
+        if not changelog or not (version := news.latest(changelog)) or version == posted:
+            return
+        self.store.set_state("news_version", version)  # first: a restart midway doesn't post it twice
+        after = posted or news.previous(changelog) or version
+        channels = self.store.news_channels() if posted else []
+        posts: dict[str, news.Post | None] = {}
+        for lang in dict.fromkeys([None, *(lang for _, _, lang in channels)]):
+            key = commands.news_key(lang)
+            if key not in posts:
+                posts[key] = post = await news.write(changelog, after, self.name, self._write_news, lang)
+                if post:
+                    self.store.set_state(key, post.to_json())
+        for _, channel_id, lang in channels:
+            if not (post := posts[commands.news_key(lang)]):
+                continue
+            try:
+                channel = self.get_channel(channel_id) or await self.fetch_channel(channel_id)
+                await cast(discord.abc.Messageable, channel).send(view=post.layout(self.name))
+            except discord.HTTPException as e:
+                log.warning("couldn't post what's new in a server's channel for it: %s", e)
+                continue
+            log.info("posted what's new in %s to a server's channel", version)
+
+    async def _write_news(self, prompt: str) -> str:
+        text, cost = await host.write(prompt, config.model_env())
+        self.store.add_spend(0, None, "news", cost, 0)
+        return text
 
     async def _restore_posts(self) -> None:
         """The posts after wipes asked for before a restart, so a deploy during a raid doesn't end them. One whose
@@ -770,6 +804,7 @@ class WipeBot(discord.Client):
                        tools={"follow_pulls": follow_pulls if s.set_up else not_set_up, "remember": remember,
                               "answer_in_dm": answer_in_dm},
                        icons=self.icons, server_id=s.discord_guild_id, user_id=user.id,
+                       language=self.store.language(s.discord_guild_id),
                        env=own.env() if (own := self.store.server_key(s.discord_guild_id)) else None,
                        wcl_token=signed[1] if (signed := self.store.login(user.id)) else None,
                        wcl_private=private[1] if (private := self.store.private_login(user.id)) else None,

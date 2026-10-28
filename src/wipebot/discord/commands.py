@@ -1,9 +1,9 @@
 """Slash commands. For everyone: /help (what to ask, the commands, how the server is set up; also "help" said to
 the bot, bot.py) and /usage (what's left of the AI budget, on an OpenRouter key, and of the hour's Warcraft Logs
 points). For server admins: /wipebot setup (also the cost footer), /wipebot settings (with the raid notes and plans
-saved), /wipebot key. Officers save a note or plan by pasting it to the bot (bot.py). docs/features.md lists them
-all (a test checks). Viserio Cooldowns and raidstrats.gg, experimental, are connected by the host on the command line
-(__main__.py).
+saved), /wipebot key, /wipebot news (the channel for what's new in each release). Officers save a note or plan by
+pasting it to the bot (bot.py). docs/features.md lists them all (a test checks). Viserio Cooldowns and raidstrats.gg,
+experimental, are connected by the host on the command line (__main__.py).
 
 Only members with Manage Server see /wipebot (Discord enforces this), and server owners can change that in
 Server Settings > Integrations.
@@ -25,7 +25,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
-from . import allowance, budget, config, keycmd, logincmd
+from . import allowance, budget, config, keycmd, logincmd, news
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -120,6 +120,33 @@ def updated_settings(existing: ServerSettings | None, discord_guild_id: int, fou
                    officer_role_id=officer_role_id or (existing and existing.officer_role_id))
 
 
+NO_LANGUAGE = "Give the language's name, like Norwegian or English."
+
+
+def server_options(store: Store, discord_guild_id: int, footer: bool | None, language: str | None) -> list[str]:
+    """/wipebot setup's footer and language, kept for the server set up or not; what changed, for the admin
+    (NO_LANGUAGE alone, and nothing kept, for a language that can't be one)."""
+    if language is not None and not (name := server_language(language)):
+        return [NO_LANGUAGE]
+    told = []
+    if footer is not None:
+        store.set_footer(discord_guild_id, footer)
+        told.append("Answers here now end with what they cost." if footer
+                    else "Answers here no longer end with what they cost.")
+    if language is not None:
+        store.set_language(discord_guild_id, name)
+        told.append(f"The server's language is now {name}: posts after wipes and what's new are in it, and a "
+                    "question is still answered in its own.")
+    return told
+
+
+def server_language(text: str) -> str | None:
+    """A language's name as an admin gave it ("norwegian" is Norwegian); None for what can't be one."""
+    name = " ".join(text.split())
+    return name[:1].upper() + name[1:] if re.fullmatch(r"[^\W\d_]+(?:[ -][^\W\d_]+)*", name) and len(name) <= 30 \
+        else None
+
+
 def in_guild(interaction: discord.Interaction) -> discord.Guild:
     """The server a (guild-only) command was used in."""
     if interaction.guild is None:
@@ -155,7 +182,9 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
         commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
                      "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
-                     "`/wipebot setup footer:`: end answers with what they cost, or not"]
+                     "`/wipebot news`: post what's new in each release of mine to a channel",
+                     "`/wipebot setup footer:`: end answers with what they cost, or not",
+                     "`/wipebot setup language:`: the language of posts after wipes and of what's new"]
     commands.append("Officers save a raid note or plan by pasting it to me.")
     parts.append("**Commands:**\n" + "\n".join(f"- {c}" for c in commands))
     if s is None or not s.set_up:
@@ -243,19 +272,20 @@ def build(bot: WipeBot) -> app_commands.Group:
                            officers="Officers' role: save raid notes and plans, stop others' posts after wipes "
                                     "(default Manage Server)",
                            footer="End answers with a small line: their cost, Warcraft Logs points and free answers "
-                                  "left")
+                                  "left",
+                           language="The server's language, e.g. Norwegian: for posts and what's new (questions get "
+                                    "answers in theirs)")
     async def setup(interaction: discord.Interaction, link: str | None = None,
                     role: discord.Role | None = None, officers: discord.Role | None = None,
-                    footer: bool | None = None) -> None:
-        """Options left out keep what's set. The footer is the server's even before it's connected to a guild."""
+                    footer: bool | None = None, language: str | None = None) -> None:
+        """Options left out keep what's set. The footer and language are the server's even before it's connected
+        to a guild."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         gid = in_guild(interaction).id
-        if footer is not None:
-            bot.store.set_footer(gid, footer)
-            if not (link or role or officers):
-                await interaction.followup.send("Answers here now end with what they cost." if footer
-                                                else "Answers here no longer end with what they cost.", ephemeral=True)
-                return
+        if (told := server_options(bot.store, gid, footer, language)) and (told[0] == NO_LANGUAGE
+                                                                          or not (link or role or officers)):
+            await interaction.followup.send("\n".join(told), ephemeral=True)
+            return
         found = None
         try:
             if link:
@@ -288,8 +318,18 @@ def build(bot: WipeBot) -> app_commands.Group:
         s = bot.store.settings(gid)
         text = (describe(s) + "\n\n" + describe_notes(bot.store, gid) if s
                 else "wipebot isn't set up here yet: run `/wipebot setup`.")
+        channel, language = bot.store.news_channel(gid), bot.store.language(gid)
+        text += "\n\n**What's new** in each release: " + (f"posted in <#{channel}>" if channel
+                                                            else "not posted (`/wipebot news` turns it on)")
+        text += "\n**Language** of posts: " + (language or "none set (`/wipebot setup language:`), so English")
         text += f"\n\nwipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>."
         await interaction.response.send_message(text, ephemeral=True)
+
+    @group.command(name="news", description="Post what's new in each release of wipebot to a channel")
+    @app_commands.describe(channel="Where to post (default this channel)", stop="Stop posting what's new")
+    async def news_command(interaction: discord.Interaction, channel: discord.TextChannel | None = None,
+                           stop: bool = False) -> None:
+        await news_channel(bot, interaction, channel, stop)
 
     usage = app_commands.Group(name="usage", description="The bot's AI budget", parent=group)
 
@@ -305,6 +345,38 @@ def build(bot: WipeBot) -> app_commands.Group:
         await interaction.followup.send(text)
 
     return group
+
+
+async def news_channel(bot: WipeBot, interaction: discord.Interaction, channel: discord.TextChannel | None,
+                       stop: bool) -> None:
+    """/wipebot news: post what's new in each release to `channel` (else this one), or `stop`; with the latest
+    release's post, as it looks, seen only by the admin."""
+    guild = in_guild(interaction)
+    if stop:
+        bot.store.set_news_channel(guild.id, None)
+        await interaction.response.send_message("What's new in each release is no longer posted here.",
+                                                ephemeral=True)
+        return
+    target = channel or interaction.channel
+    if not isinstance(target, discord.TextChannel | discord.Thread):
+        await interaction.response.send_message("Pick a text channel to post in.", ephemeral=True)
+        return
+    can = target.permissions_for(guild.me)
+    if not (can.view_channel and (can.send_messages_in_threads if isinstance(target, discord.Thread)
+                                  else can.send_messages)):
+        await interaction.response.send_message(f"I can't post in {target.mention}: let me see it and send "
+                                                "messages there first.", ephemeral=True)
+        return
+    bot.store.set_news_channel(guild.id, target.id)
+    await interaction.response.send_message(f"From the next release on, what's new is posted in {target.mention}"
+                                            ". The latest release's post looks like this:", ephemeral=True)
+    if saved := bot.store.state(news_key(bot.store.language(guild.id))) or bot.store.state(news_key(None)):
+        await interaction.followup.send(view=news.Post.from_json(saved).layout(bot.name), ephemeral=True)
+
+
+def news_key(language: str | None) -> str:
+    """Where the latest release's post in `language` is kept (Store.state)."""
+    return f"news_post:{(language or news.ENGLISH).lower()}"
 
 
 async def share_text(bot: WipeBot, discord_guild_id: int) -> str:

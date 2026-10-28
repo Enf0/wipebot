@@ -270,3 +270,10 @@ async def test_usage_post_on_a_shared_copy_shows_the_servers_share(bot):
     text = await commands.share_text(bot, 1001)
     assert text.startswith("**This server's free answers:** $1.25 of its $5.00 left this month")
     assert text.endswith("`███████████████░░░░░` 75% spent")
+
+
+async def test_setup_sets_the_servers_language_even_before_the_server_is_connected(setup, bot):
+    assert "Give the language's name" in await setup(language="1337")
+    told = await setup(language="norwegian", footer=True)
+    assert "now end with what they cost" in told and "The server's language is now Norwegian" in told
+    assert bot.store.language(1001) == "Norwegian"
