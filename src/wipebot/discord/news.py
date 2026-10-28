@@ -33,7 +33,8 @@ REWRITE = """These changes are in a new release of {name}, a Discord bot that an
 World of Warcraft raid logs from Warcraft Logs. Say each change a raider using the bot in Discord would notice in one \
 short, plain line for raiders, in {language} (at most 25 words), starting with its name in bold, like \
 "**Kicks by pull.** You can now ask who missed their kick on each pull, and see it drawn." Leave out what only \
-matters in Claude or ChatGPT or to whoever runs the bot, keep command names and game terms as they are written, and \
+matters in Claude or ChatGPT, to whoever runs the bot, or to the server's admins (setup, settings and admin \
+commands: raiders never use them), keep command names and game terms as they are written, and \
 put those with a picture first (the post shows it under the line), then the most important, at most {shown}. \
 Answer with JSON only:
 {{"lines": [{{"item": <its number>, "line": "<the line>"}}], "heading": "<'What's new in' in {language}>", \
