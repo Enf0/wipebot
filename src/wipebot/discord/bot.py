@@ -461,11 +461,14 @@ class WipeBot(discord.Client):
         await self._post_news()
 
     async def _post_news(self) -> None:
-        """On a release not posted yet, what's new in it (and in those since the last one posted) to each server's
-        channel for it, in the server's language. The first start posts nothing: it only notes the release it runs
-        and keeps its post, for /wipebot news to show."""
+        """On a minor release not posted yet, what's new in it and in those since the last one posted (patches
+        included) to each server's channel for it, in the server's language. A patch posts nothing: its changes go
+        in the next minor's post. The first start posts nothing: it only notes the release it runs and keeps its
+        post, for /wipebot news to show."""
         changelog, posted = news.read(), self.store.state("news_version")
         if not changelog or not (version := news.latest(changelog)) or version == posted:
+            return
+        if posted and not version.endswith(".0"):
             return
         self.store.set_state("news_version", version)  # first: a restart midway doesn't post it twice
         after = posted or news.previous(changelog) or version

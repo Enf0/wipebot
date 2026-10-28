@@ -174,3 +174,24 @@ def test_the_server_language_is_a_name_and_reaches_the_models_context(bot):
     assert ctx.language == "Norwegian"
     from wipebot.discord.prompt import asker_line
     assert "the server's language: Norwegian" in asker_line(ctx, None)
+
+
+async def test_a_patch_posts_nothing_and_the_next_minor_posts_it_too(bot, monkeypatch):
+    patch = CHANGELOG.replace("## [0.3.0]", "## [0.2.1]")
+    changelog = [patch]
+    monkeypatch.setattr(news, "read", lambda: changelog[0])
+    channel = Channel(30)
+    monkeypatch.setattr(bot, "get_channel", {30: channel}.get)
+
+    async def write_news(prompt: str) -> str:
+        return "not JSON"
+    monkeypatch.setattr(bot, "_write_news", write_news)
+    bot.store.set_news_channel(1001, 30)
+    bot.store.set_state("news_version", "0.1.0")
+    await bot._post_news()
+    assert channel.texts == [] and bot.store.state("news_version") == "0.1.0"
+    newer = "## [0.3.0] - 2026-10-29\n\n### Added\n\n- `Discord` **Newer.** A thing.\n\n"
+    changelog[0] = newer + patch[patch.index("## [0.2.1]"):]
+    await bot._post_news()
+    assert channel.texts[0].startswith("### What's new in Wipebot 0.3.0\n- **Newer.** A thing.")
+    assert "**Raid damage at a moment.**" in channel.texts[0]  # the patch's, and 0.2.0's
