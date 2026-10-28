@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-28
+
 ### Changed
 
 - `Discord` **What's new comes with minor releases only.** A patch posts nothing in the what's new channel: its changes come in the next minor release's post, which covers everything since the last one.
