@@ -1,7 +1,7 @@
 # What `just check` runs, on every push and pull request: lint, types and layers, and the tests. The local cases
 # (tests/README.md) only where the maintainers' private store can be read: a repository secret
-# WIPEBOT_LOCAL_FIXTURES_TOKEN, a token that may read its contents. Without it (a fork, a copy of the repo) that job
-# is skipped. A check added to the Justfile's `check` goes here too. Actions are pinned by commit, their version
+# WIPEBOT_LOCAL_FIXTURES_TOKEN, a token that may read its contents. Without it (a fork, a copy of the repo) that job's
+# steps are skipped. A check added to the Justfile's `check` goes here too. Actions are pinned by commit, their version
 # beside it.
 name: Checks
 
@@ -37,12 +37,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    outputs:
-      local: ${{ steps.token.outputs.local }}
     steps:
-      # A job's `if` can't read secrets, so this one says whether the local cases can run (the local job skips if not).
-      - id: token
-        run: echo "local=${{ secrets.WIPEBOT_LOCAL_FIXTURES_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
@@ -52,19 +47,26 @@ jobs:
 
   local:
     name: Tests (local cases)
-    needs: tests
-    if: always() && needs.tests.outputs.local == 'true'  # skipped without the token (a fork, a copy of the repo)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # Beside the other jobs, not after one: a job's `if` can't read secrets, so its steps skip without the token
+      # (a fork, a copy of the repo).
+      - id: token
+        run: echo "local=${{ secrets.WIPEBOT_LOCAL_FIXTURES_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: steps.token.outputs.local == 'true'
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa  # v10.3.1
+        if: steps.token.outputs.local == 'true'
       - run: uv sync --locked
+        if: steps.token.outputs.local == 'true'
       - run: uv run python -m tests.support.local fetch
+        if: steps.token.outputs.local == 'true'
         env:
           GH_TOKEN: ${{ secrets.WIPEBOT_LOCAL_FIXTURES_TOKEN }}  # this step only: the tests run without it
       # A public repository's logs are public: no tracebacks or diffs, which would print what the local cases hold.
       # A failure names the case; with the local fixtures fetched, `just test -k <case>` shows the diff.
       - run: uv run pytest tests/core/test_tools.py -v --tb=no -rN -p no:logging
+        if: steps.token.outputs.local == 'true'
