@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-28
+
 ### Fixed
 
 - `Agent` **"Did people press personals?" counts only defensives.** A callout asking for personals or defensives counts a player only when they pressed a defensive (or a tank cooldown), not any spell; those who pressed something else instead are named apart.
