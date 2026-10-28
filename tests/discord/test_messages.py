@@ -45,6 +45,28 @@ async def test_each_view_gets_its_actions_on_its_last_picture(recorded):
     assert [a.what for a in card[0].actions] == ["top", "night"]
     against = await pictures_for([(b"1", "compare_with_top", {**player, "aspects": ["casts"]})])
     assert [a.what for a in against[0].actions] == ["night"]
+    own = await pictures_for([(b"1", "player_pull", player)], lang="no", mine="scopidruid")
+    assert [a.item.label for a in own[0].actions if isinstance(a, Act)] == ["Mot toppene", "Min natt"]  # in Norwegian
+    assert own[0].lang == "no" and [a.what for a in own[0].actions] == ["top", "mynight"]
+
+
+def test_the_buttons_speak_the_answers_language():
+    assert messages.language("**Cooldownene dine sitter der toppene har dem, bortsett fra Vanish.** Du brukte den "
+                             "1 gang.") == "no"
+    assert messages.language("**Your cooldowns line up with the top players' but for Vanish.**") == "en"
+    assert messages.locale_language(discord.Locale.norwegian) == "no"
+    assert messages.locale_language(discord.Locale.american_english) == "en"
+
+
+def test_the_footer_goes_last_under_a_thin_line():
+    view = answer_layout("**Spread out.**", [messages.Picture("wipebot-1.webp", "https://www.warcraftlogs.com/r",
+                                                              lang="no")],
+                         follow=[messages.FollowUp(7, 0, "Klar for P2?")], footer="-# $0.32")
+    kinds = [type(c) for c in view.children]
+    assert kinds[-3:] == [discord.ui.ActionRow, discord.ui.Separator, discord.ui.TextDisplay]
+    assert cast(discord.ui.TextDisplay, view.children[-1]).content == "-# $0.32"
+    links = [c for c in view.walk_children() if isinstance(c, discord.ui.Button) and c.url]
+    assert [b.label for b in links] == ["Åpne i Warcraft Logs"]
 
 
 async def test_four_pictures_with_their_actions_fit_in_one_message(recorded):
@@ -68,8 +90,9 @@ async def test_a_button_two_pictures_share_goes_once(recorded):
 class Clicked:
     """A click on an action: what the bot answered, to whom."""
 
-    def __init__(self, user_id: int = 7, store: Any = None):
+    def __init__(self, user_id: int = 7, store: Any = None, locale: str = "en-US"):
         self.user = SimpleNamespace(id=user_id)
+        self.locale = locale
         self.client = SimpleNamespace(store=store)
         self.said: list[dict] = []
         self.response = SimpleNamespace(defer=self._defer, send_message=self._send)

@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Agent` **How many were on their spot.** A check of a raid plan against a pull says, at each moment, how many players were on their spot out of those placed, so an answer's headline matches the count.
 - `Agent` **What holds off the enrage.** When a boss's enrage ends most pulls of a night, the review looks up what holds it off (a stack, a soak, a kick) and puts that first, before the deaths that left it short.
+- `Discord` **Tighter answers.** Only the opening verdict's first sentence is bold, bullets are at most two short sentences, and answers no longer end on what only the raiders who were there could know. A player's or boss ability's icon shows on its first mention only.
+- `Discord` **Buttons in your language.** A Norwegian answer's buttons are Norwegian ("Åpne i Warcraft Logs", "Mot toppene"), and a click's reply follows your Discord's language. Your own card offers **My night** instead of "Their night".
+- `Discord` **The cost line comes last.** In an answer with a picture it sits under the follow-up buttons, below a thin line.
+- `Discord` **Shorter meters.** A ranking of players draws the top 10 as bars and the rest on one line, so it no longer fills a phone's screen.
 
 ## [0.19.0] - 2026-10-28
 

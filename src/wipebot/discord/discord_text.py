@@ -67,7 +67,25 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
         specs |= specs_in(results, icons)
         specs |= {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()}
         text = add_icons(text, specs, icons)
-    return tight_lists(text)
+    return tight_lists(verdict_bold(text))
+
+
+# The end of a sentence in the opening verdict: a stop and a capital after it ("f.eks. 0:07" and "nr. 2" go on)
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-ZÆØÅÄÖÜ])")
+
+
+def verdict_bold(text: str) -> str:
+    """The answer with only its verdict's first sentence bold, when the model bolded more of its opening line: the
+    verdict is one short sentence, and a bold block of three is a wall before the picture."""
+    first, nl, rest = text.partition("\n")
+    if not (first.startswith("**") and first.endswith("**") and len(first) > 4 and "**" not in first[2:-2]):
+        return text
+    inner = first[2:-2]
+    links = [m.span() for m in MARKDOWN_LINK.finditer(inner)]
+    for m in SENTENCE_END.finditer(inner):
+        if not any(a <= m.start() < b for a, b in links):
+            return f"**{inner[:m.start()]}** {inner[m.end():]}{nl}{rest}"
+    return text
 
 
 def specs_in(results: Sequence[str], icons: Mapping[str, str]) -> dict[str, tuple[str, str]]:
@@ -289,11 +307,11 @@ def _either(names: Iterable[str]) -> str:
 
 def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[str, str]) -> str:
     """The bot's emojis in an answer: a raid marker's for every {skull} or {rt8} and before every "skull marker", a
-    spec's before every mention of a player (`specs`: name -> WCL's class and spec), and a boss ability's before
-    its Wowhead link and before every mention of it, capitalised, without one. Not before a spec or class named as
-    such ("the shaman cooldowns", a plan's spot labelled "Priest"): one icon per player is enough to read. A marker
-    in a link's text goes after the link, as Discord shows no emoji there. Code is left alone, and links but for
-    that; without an emoji, the text stays as it is."""
+    spec's before a player's first mention (`specs`: name -> WCL's class and spec), and a boss ability's before its
+    first mention, its Wowhead link or its name capitalised: once is enough to know them by, and more is noise in a
+    long answer. Not before a spec or class named as such ("the shaman cooldowns", a plan's spot labelled "Priest").
+    A marker in a link's text goes after the link, as Discord shows no emoji there. Code is left alone, and links but
+    for that; without an emoji, the text stays as it is."""
     if not icons:
         return text
 
@@ -318,31 +336,44 @@ def add_icons(text: str, specs: Mapping[str, tuple[str, str]], icons: Mapping[st
     parts = [f"(?P<player>{_either(players)})"] if players else []
     parts.append(f"(?i:(?P<marker>{'|'.join(MARKERS)})(?= markers?\\b))")
 
+    seen: set[str] = set()  # the players and boss abilities with their icon already
+
     def icon(m: re.Match) -> str:
         said = m.group(0)
         if skipped(m.start(), spans):
             return said
         if m.lastgroup == "marker":
             found = icons.get(marker_emoji(said.lower()))
+        elif said in seen:
+            return said
         else:
             c, s = players[said]
             found = icons.get(spec_emoji(c, s)) or icons.get(spec_emoji(c))
+            seen.add(said)
         return f"{found} {said}" if found else said
     text = re.sub(rf"(?<![\w\[])(?:{'|'.join(parts)})(?![\w\]])", icon, text)
-    # a boss ability's icon before its Wowhead link, and before every mention of it without one
-    def ability(m: re.Match) -> str:  # by its id, else by its name (a cast and its debuff have different ids)
-        found = icons.get(spell_emoji(m.group(2))) or icons.get(ability_key(m.group(1)))
-        return f"{found} {m.group(0)}" if found else m.group(0)
-    text = SPELL_LINK.sub(ability, text)
+    # a boss ability's icon before its first mention: its Wowhead link or its name, by the icon (a cast and its
+    # debuff have different ids, and one icon)
+    def once(said: str, found: str | None) -> str:
+        if not found or found in seen:
+            return said
+        seen.add(found)
+        return f"{found} {said}"
+    found_at = [(m.start(), m.end(), icons.get(spell_emoji(m.group(2))) or icons.get(ability_key(m.group(1))))
+                for m in SPELL_LINK.finditer(text)]
     abilities = [key.split(":", 1)[1] for key in icons if key.startswith("ability:")]
-    if not abilities:
-        return text
-    spans = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
-
-    def plain(m: re.Match) -> str:  # capitalised: a name, not the word ("sever")
-        said = m.group(0)
-        return said if not said[0].isupper() or skipped(m.start(), spans) else f"{icons[ability_key(said)]} {said}"
-    return re.sub(rf"(?<![\w\[])(?i:{_either(abilities)})(?![\w\]])", plain, text)
+    named = re.compile(rf"(?<![\w\[])(?i:{_either(abilities)})(?![\w\]])") if abilities else None
+    skip = [m.span() for pattern in SKIPPED for m in pattern.finditer(text)]
+    if named:  # capitalised: a name, not the word ("sever")
+        found_at += [(m.start(), m.end(), icons[ability_key(m.group(0))]) for m in named.finditer(text)
+                     if m.group(0)[0].isupper() and not skipped(m.start(), skip)]
+    out, at = [], 0
+    for a, b, found in sorted(found_at, key=lambda t: t[:2]):
+        if a < at:
+            continue
+        out += [text[at:a], once(text[a:b], found)]
+        at = b
+    return "".join(out) + text[at:]
 
 
 def _spec_pairs(icons: Mapping[str, str]) -> list[tuple[str, str]]:

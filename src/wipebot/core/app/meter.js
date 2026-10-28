@@ -1,10 +1,11 @@
 // ---- a ranking of players as in-game damage meters draw it: a bar per player in their class colour, scaled to the
 // top, with the amount, per second and share, the tool's few words of each, and the deaths a mechanic set up
 // (breakdown by player, mechanic_hits for one ability, enemies' damage on adds). A panel (data-panel) per meter,
-// each its own picture in Discord ----
+// each its own picture in Discord, where a picture of a whole raid's bars fills a phone's screen: the top players
+// get a bar, the rest a line with their amounts ----
 views.meter = (() => {
   let D = null, root = null;
-  const SHOWN = 25;  // rows drawn; a raid is 20-30, the rest are a line
+  const SHOWN = 10;  // rows drawn; a raid is 20-30, the rest are a line
   const SKULL = '<svg class="skull" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1C3.2 1 1.5 2.9 1.5 5.3c0 1.5.7 2.6 1.8 3.2V10c0 .5.4 1 1 1h3.4c.6 0 1-.5 1-1V8.5c1.1-.6 1.8-1.7 1.8-3.2C10.5 2.9 8.8 1 6 1Zm-2 6a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 4 7Zm4 0a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 8 7Z" fill="currentColor"/></svg>';
 
   async function show(into, key) {
@@ -40,7 +41,9 @@ views.meter = (() => {
         + `<span class="dd">${b.died_after ? `${SKULL}${b.died_after}` : ""}</span>`
         + `<span class="val">${amount(m, b.value)}<small>${kit.esc(per)}</small></span><span class="pc">${share}</span></li>`;
     }).join("");
-    const more = m.bars.length > SHOWN ? `<div class="note">and ${m.bars.length - SHOWN} more</div>` : "";
+    const rest = m.bars.slice(SHOWN).map((b, i) =>
+      `<span style="white-space:nowrap">${SHOWN + i + 1} ${kit.esc(b.name)} ${amount(m, b.value)}</span>`);
+    const more = rest.length ? `<div class="note">${rest.join(" · ")}</div>` : "";
     return `<div class="meter-rows"><ol>${shown}</ol><div class="median" style="left:${med.toFixed(2)}%"><span>median</span></div></div>${more}`;
   }
 

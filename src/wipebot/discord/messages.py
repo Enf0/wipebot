@@ -8,8 +8,10 @@ the clicker's own card on a pull or their own night ("How did I do?", "My night"
 Each button and menu carries what it acts on in its custom_id (report, boss, pull, player), so the ones on old
 messages still work after a restart (discord.py's DynamicItem, registered in WipeBot.setup_hook).
 
-The follow-ups an answer offers are buttons too (FollowUp), last: a click asks it in the asker's conversation, as if
-they had typed it, and only the asker's click does."""
+The follow-ups an answer offers are buttons too (FollowUp), then the cost line under a thin line: a click asks it in
+the asker's conversation, as if they had typed it, and only the asker's click does.
+
+The buttons and menus speak the answer's language (`language`; a click's reply, the clicker's Discord's)."""
 import io
 import logging
 import re
@@ -33,6 +35,20 @@ GUILD_BEST = "**new guild best!**"  # pull_summary's post marks a wipe that beat
 SEP = "|"  # between the parts of a custom_id; no report code, boss or character name has one
 ID_CHARS = 100  # Discord's limit for a custom_id
 CHOICES = 25  # Discord's limit for a menu's options
+# Words far more common in one language than the other, to tell which the answer is in (the model answers in the
+# question's): Norwegian, else English
+NORWEGIAN = re.compile(r"(?i)(?<!\w)(?:og|ikke|det|er|på|du|som|med|til|av|har|var|den|jeg|dere|hvor|hva|også)(?!\w)")
+ENGLISH = re.compile(r"(?i)(?<!\w)(?:and|not|the|is|on|you|with|to|of|has|was|it|are|what|also|your)(?!\w)")
+
+
+def language(text: str) -> str:
+    """'no' for an answer in Norwegian, else 'en': the language of its buttons."""
+    return "no" if len(NORWEGIAN.findall(text)) > len(ENGLISH.findall(text)) else "en"
+
+
+def locale_language(locale: object) -> str:
+    """'no' for a Discord client in Norwegian, else 'en'."""
+    return "no" if str(locale).startswith(("no", "nb", "nn")) else "en"
 
 
 @dataclass(frozen=True)
@@ -45,6 +61,7 @@ class Picture:
     best: bool = False
     actions: tuple[Act | Pick, ...] = field(default=(), compare=False)
     at: int | None = field(default=None, compare=False)
+    lang: str = field(default="en", compare=False)  # its buttons' language
 
     @classmethod
     def of(cls, name: str, call: ToolCall) -> Picture:
@@ -53,12 +70,13 @@ class Picture:
 
 
 def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence[Act] = (),
-                  follow: Sequence[FollowUp] = ()) -> discord.ui.LayoutView:
+                  follow: Sequence[FollowUp] = (), footer: str = "") -> discord.ui.LayoutView:
     """A message as Components V2: its text (none for a picture alone) with `actions` under it (the message's own
     buttons, not a picture's), then each picture (an attachment by its name) whole in a gallery of its own, boxed with
-    its buttons and menus (one already above left out), the box edged gold for a new guild best, and last the
-    follow-ups it offers. A picture placed in the text (Picture.at) goes there instead, next to the part it backs.
-    Several attachments on a plain message are shown as a grid, each cropped to its tile."""
+    its buttons and menus (one already above left out), the box edged gold for a new guild best, then the follow-ups
+    it offers, and last the small `footer` line under a thin line. A picture placed in the text (Picture.at) goes
+    there instead, next to the part it backs. Several attachments on a plain message are shown as a grid, each
+    cropped to its tile."""
     view = discord.ui.LayoutView(timeout=None)
     used: set[str] = set()  # Discord refuses a message with two items of one custom_id: the second does the same
     if actions:
@@ -78,6 +96,9 @@ def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence
             view.add_item(_boxed(p, used))
     if follow:
         view.add_item(discord.ui.ActionRow(*(cast(Any, f) for f in follow)))
+    if footer:
+        view.add_item(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        view.add_item(discord.ui.TextDisplay(footer))
     return view
 
 
@@ -85,7 +106,7 @@ def _boxed(p: Picture, used: set[str]) -> discord.ui.Container:
     """A picture whole in a gallery of its own, boxed with its buttons and menus (those in `used` left out, and the
     rest added to it), edged gold for a new guild best."""
     items: list[discord.ui.Item] = [discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{p.name}"))]
-    buttons: list[discord.ui.Item] = [discord.ui.Button(label="Open in Warcraft Logs", url=p.link)] \
+    buttons: list[discord.ui.Item] = [discord.ui.Button(label=OPEN[p.lang], url=p.link)] \
         if p.link else []
     acts = [a for a in p.actions if a.item.custom_id not in used]
     used.update(a.item.custom_id for a in acts if a.item.custom_id)
@@ -104,17 +125,21 @@ def _id(prefix: str, *parts: object) -> str | None:
 
 
 _FIELDS = r"(?P<what>[a-z]+)\|(?P<report>[^|]*)\|(?P<boss>[^|]*)\|(?P<pull>[^|]*)\|(?P<player>[^|]*)"
-LABELS = {"death": "First death", "top": "Against top", "night": "Their night", "ppull": "Their pull",
-          "mynight": "My night", "mypull": "How did I do?"}
+LABELS = {"en": {"death": "First death", "top": "Against top", "night": "Their night", "ppull": "Their pull",
+                 "mynight": "My night", "mypull": "How did I do?"},
+          "no": {"death": "Første død", "top": "Mot toppene", "night": "Natten deres", "ppull": "Pullen deres",
+                 "mynight": "Min natt", "mypull": "Hvordan gikk det for meg?"}}
+OPEN = {"en": "Open in Warcraft Logs", "no": "Åpne i Warcraft Logs"}
 MINE = {"mynight", "mypull"}  # actions on the clicker's own character
 
 
 class Act(discord.ui.DynamicItem[discord.ui.Button], template=r"wb\|" + _FIELDS):
-    """A button: what it does (LABELS) and what to: the report, boss, pull and player."""
+    """A button: what it does (LABELS, in `lang`) and what to: the report, boss, pull and player."""
 
-    def __init__(self, what: str, report: str, boss: str = "", pull: str | int = "", player: str = "") -> None:
+    def __init__(self, what: str, report: str, boss: str = "", pull: str | int = "", player: str = "",
+                 lang: str = "en") -> None:
         self.what, self.report, self.boss, self.pull, self.player = what, report, boss, str(pull), player
-        super().__init__(discord.ui.Button(label=LABELS[what], style=discord.ButtonStyle.secondary,
+        super().__init__(discord.ui.Button(label=LABELS[lang][what], style=discord.ButtonStyle.secondary,
                                            custom_id=_id("wb", what, report, boss, pull, player) or "wb|none"))
 
     @classmethod
@@ -130,14 +155,15 @@ class Pick(discord.ui.DynamicItem[discord.ui.Select], template=r"wbs\|" + _FIELD
     """A menu: what a choice opens ("player": that player's pull, "ppull": the player's card on that pull, "pull": that
     pull), the report, boss, pull and player it's about, and its choices as (label, value)."""
 
-    PLACEHOLDERS = {"player": "A player's pull", "ppull": "A pull of theirs", "pull": "A pull"}
+    PLACEHOLDERS = {"en": {"player": "A player's pull", "ppull": "A pull of theirs", "pull": "A pull"},
+                    "no": {"player": "En spillers pull", "ppull": "En av pullene deres", "pull": "En pull"}}
 
     def __init__(self, what: str, report: str, boss: str = "", pull: str | int = "", player: str = "",
-                 choices: Sequence[tuple[str, str]] = ()) -> None:
+                 choices: Sequence[tuple[str, str]] = (), lang: str = "en") -> None:
         self.what, self.report, self.boss, self.pull, self.player = what, report, boss, str(pull), player
         super().__init__(discord.ui.Select(
             custom_id=_id("wbs", what, report, boss, pull, player) or "wbs|none",
-            placeholder=self.PLACEHOLDERS[what],
+            placeholder=self.PLACEHOLDERS[lang][what],
             options=[discord.SelectOption(label=label[:100], value=value) for label, value in choices[:CHOICES]]
             or [discord.SelectOption(label="none", value="")]))
 
@@ -226,9 +252,10 @@ def tool_of(what: str, report: str, boss: str, pull: str, player: str) -> tuple[
 
 async def act(interaction: discord.Interaction, what: str, report: str, boss: str, pull: str, player: str) -> None:
     """An action, answered to the one who clicked alone: the picture it opens, with that picture's own actions."""
+    store = getattr(interaction.client, "store", None)
+    mine = (store.raider(interaction.user.id).character if store else None) or ""
     if what in MINE:
-        store = getattr(interaction.client, "store", None)
-        player = (store.raider(interaction.user.id).character if store else None) or ""
+        player = mine
         if not player:
             await interaction.response.send_message(
                 "I don't know which character is yours yet. Tell me in a message (\"my character is ...\") and I'll "
@@ -244,7 +271,8 @@ async def act(interaction: discord.Interaction, what: str, report: str, boss: st
     if not images:
         await interaction.followup.send("I couldn't draw that one.", ephemeral=True)
         return
-    pictures = await pictures_for([(i, tool, args) for i in images])
+    pictures = await pictures_for([(i, tool, args) for i in images], lang=locale_language(interaction.locale),
+                                  mine=mine)
     files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
     await interaction.followup.send(view=answer_layout("", pictures), files=files, ephemeral=True)
 
@@ -262,10 +290,12 @@ async def _not_in_pull(report: str, boss: str, pull: str, player: str) -> str | 
     return None
 
 
-async def pictures_for(drawn: Sequence[tuple[bytes, str, dict]], results: Sequence[str] = ()) -> list[Picture]:
+async def pictures_for(drawn: Sequence[tuple[bytes, str, dict]], results: Sequence[str] = (), lang: str = "en",
+                       mine: str = "") -> list[Picture]:
     """The pictures for (image, tool, its arguments), named in order; the last of each tool's pictures (a view's
     last panel) gets its actions, and each its pull's link; `results` are the tools' texts when known (an answer's),
-    for the link and a new guild best as the text states them."""
+    for the link and a new guild best as the text states them. Their buttons speak `lang`, and a player's card of
+    `mine` (the asker's character) offers their own night."""
     out = []
     for n, (_, tool, args) in enumerate(drawn):
         name = f"wipebot-{n + 1}.webp"
@@ -273,18 +303,20 @@ async def pictures_for(drawn: Sequence[tuple[bytes, str, dict]], results: Sequen
         last = n == len(drawn) - 1 or drawn[n + 1][1:] != (tool, args)
         link, actions = None, ()
         try:
-            link, actions = await _extras(tool, args, with_actions=last)
+            link, actions = await _extras(tool, args, with_actions=last, lang=lang, mine=mine)
             actions = [a for a in actions if not (a.item.custom_id or "").endswith("|none")]  # what an id couldn't hold
         except (FactError, ValueError, KeyError) as e:  # a picture still goes, without them
             log.warning("no actions for %s %s: %s", tool, args, e)
         found = PULL_LINK.search(text)
         out.append(Picture(name, found[0] if found else link, tool == "pull_summary" and GUILD_BEST in text,
-                           tuple(actions)))
+                           tuple(actions), lang=lang))
     return out
 
 
-async def _extras(tool: str, args: dict, with_actions: bool) -> tuple[str | None, list[Act | Pick]]:
-    """A view's pull on Warcraft Logs, and (`with_actions`) what can be done from it."""
+async def _extras(tool: str, args: dict, with_actions: bool, lang: str = "en",
+                  mine: str = "") -> tuple[str | None, list[Act | Pick]]:
+    """A view's pull on Warcraft Logs, and (`with_actions`) what can be done from it, in `lang`; on a card of `mine`
+    (the asker's character), their own night."""
     key = await server.view_key(tool, args)
     if key is None:
         return None, []
@@ -302,18 +334,21 @@ async def _extras(tool: str, args: dict, with_actions: bool) -> tuple[str | None
             first = rep.names.get(deaths[0]["targetID"]) if deaths else None
             order = {"tank": 0, "healer": 1}
             here = sorted(rep.pull_players(f).values(), key=lambda p: (order.get(p.role, 2), p.name))
-            return link, [Act("mypull", code, boss, key["pull"]),
-                          *([Act("death", code, boss, key["pull"], first)] if first else []),
-                          Pick("player", code, boss, key["pull"], choices=[(p.name, p.name) for p in here])]
+            return link, [Act("mypull", code, boss, key["pull"], lang=lang),
+                          *([Act("death", code, boss, key["pull"], first, lang=lang)] if first else []),
+                          Pick("player", code, boss, key["pull"], choices=[(p.name, p.name) for p in here],
+                               lang=lang)]
         case "player":
-            return link, [*([] if key.get("top") else [Act("top", code, boss, key["pull"], key["player"])]),
-                          Act("night", code, boss, "", key["player"])]
+            own = bool(mine) and key["player"].lower() == mine.lower()
+            return link, [*([] if key.get("top") else [Act("top", code, boss, key["pull"], key["player"], lang=lang)]),
+                          Act("mynight", code, boss, lang=lang) if own
+                          else Act("night", code, boss, "", key["player"], lang=lang)]
         case "death":
-            return link, [Act("ppull", code, boss, key["pull"], key["player"])]
+            return link, [Act("ppull", code, boss, key["pull"], key["player"], lang=lang)]
         case "player_night":
-            return link, [Pick("ppull", code, boss, "", key["player"], choices=pulls)]
+            return link, [Pick("ppull", code, boss, "", key["player"], choices=pulls, lang=lang)]
         case "night":
-            return link, [Act("mynight", code, boss), Pick("pull", code, boss, choices=pulls)]
+            return link, [Act("mynight", code, boss, lang=lang), Pick("pull", code, boss, choices=pulls, lang=lang)]
     return link, []
 
 

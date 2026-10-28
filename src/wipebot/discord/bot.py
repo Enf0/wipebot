@@ -35,6 +35,7 @@ from .messages import (  # noqa: F401 (Picture: the tests')
     Pick,
     Picture,
     answer_layout,
+    language,
     pictures_for,
     without_follow_ups,
 )
@@ -598,7 +599,8 @@ class WipeBot(discord.Client):
                 log.info("no post after %s pull %s for %s: nothing called for one", pull.boss, pull.pull_no,
                          self._shown(f.name))
                 return []
-            sent = await self._send(f.channel or await f.user.create_dm(), answer, actions=mine, asker=f.user.id)
+            sent = await self._send(f.channel or await f.user.create_dm(), answer, actions=mine, asker=f.user.id,
+                                    mine=self._character(f.user.id))
             for message_id in sent:  # a reply to it is about this pull
                 self.store.remember_message(message_id, pull.report, pull.fight)
             return sent
@@ -719,7 +721,8 @@ class WipeBot(discord.Client):
             log.info("question %s (report %s)", where, code)
 
         async def send(answer: Answer) -> list[int]:
-            return await self._send(message.channel, answer, reply_to=None if is_dm else message, asker=author.id)
+            return await self._send(message.channel, answer, reply_to=None if is_dm else message, asker=author.id,
+                                    mine=self._character(author.id))
         progress = Progress(message, self.icons.get(emojis.SPINNER, FALLBACK_SPINNER))
         ctx.on_tool, ctx.on_done = progress.tool, progress.done
         async with message.channel.typing():
@@ -729,6 +732,10 @@ class WipeBot(discord.Client):
                 await progress.close()
         if failed:
             await respond(message, failed)
+
+    def _character(self, user_id: int) -> str:
+        """The character the store has for a Discord user, as they last said ("" when none)."""
+        return self.store.raider(user_id).character or ""
 
     def _context(self, s: ServerSettings, user: discord.User | discord.Member, name: str, code: str, where: str,
                  channel: discord.abc.Messageable | None, asker: str | None = None, pull: int | None = None,
@@ -777,7 +784,7 @@ class WipeBot(discord.Client):
         dm = await user.create_dm()
 
         async def send(answer: Answer) -> list[int]:
-            return await self._send(dm, answer, asker=user.id)
+            return await self._send(dm, answer, asker=user.id, mine=self._character(user.id))
         ctx = self._context(s, user, name, code, "in a DM", None)
         if failed := await self._answer("chat", ("dm", user.id), code, question, ctx, name, send):
             await dm.send(failed)
@@ -827,7 +834,8 @@ class WipeBot(discord.Client):
         log.info("follow-up %s (report %s)%s", where, code, f": {question}" if self.record_answers else "")
 
         async def send(answer: Answer) -> list[int]:
-            return await self._send(channel, answer, reply_to=None if is_dm else asked, asker=user.id)
+            return await self._send(channel, answer, reply_to=None if is_dm else asked, asker=user.id,
+                                    mine=self._character(user.id))
         async with channel.typing():
             failed = await self._answer("chat", key, code, question, ctx, name, send,
                                         channel_id=getattr(channel, "id", None))
@@ -906,7 +914,7 @@ class WipeBot(discord.Client):
         except Exception:
             log.exception("the cost line failed")
             return answer
-        return replace(answer, text=f"{answer.text}\n{line}")
+        return replace(answer, footer=line)
 
     def _spent(self, kind: str, ctx: Context, answer: Answer | None) -> None:
         """Keep what an answer cost under its server and asker (store.spend), recorded or not."""
@@ -1121,21 +1129,24 @@ class WipeBot(discord.Client):
 
     @staticmethod
     async def _send(channel: discord.abc.Messageable, answer: Answer, reply_to: discord.Message | None = None,
-                    footer: str | None = None, actions: Sequence[Act] = (), asker: int | None = None) -> list[int]:
+                    footer: str | None = None, actions: Sequence[Act] = (), asker: int | None = None,
+                    mine: str = "") -> list[int]:
         """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES messages, without link
-        previews, with `footer` in a small line at the end, `actions` under its text unless a picture has the same one,
-        and the follow-ups it offers as buttons for `asker` (none without). With pictures (maps, views), Components V2
-        messages (`answer_layout`), the pictures on the last, each whole and where the answer placed it; without, plain
-        messages, whose text a notification shows (a V2 message has none to show). Returns the ids of the messages
-        sent."""
+        previews, with `footer` (else the answer's) in a small line at the end, `actions` under its text unless a
+        picture has the same one, and the follow-ups it offers as buttons for `asker` (none without), the buttons in
+        the answer's language. With pictures (maps, views), Components V2 messages (`answer_layout`), the pictures on
+        the last, each whole and where the answer placed it, a player's card of `mine` (the asker's character) with
+        their own night, and the footer last; without, plain messages, whose text a notification shows (a V2 message
+        has none to show), the footer above the buttons. Returns the ids of the messages sent."""
         pictured = bool(answer.pictures)
         limit = TEXT_LIMIT if pictured else DISCORD_LIMIT
-        chunks = split_message(answer.text, limit)
+        tail = f"-# {footer}" if footer else answer.footer
+        # in a V2 message the footer is a text of its own, and counts towards the message's
+        chunks = split_message(answer.text, limit - len(tail) - 1 if pictured and tail else limit)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
             chunks[-1] = chunks[-1][:limit - len(CUT) - 3].rstrip() + " …\n" + CUT
-        if footer:
-            tail = f"-# {footer}"
+        if tail and not pictured:
             if chunks and len(chunks[-1]) + len(tail) + 1 <= limit:
                 chunks[-1] += "\n" + tail
             else:
@@ -1157,7 +1168,8 @@ class WipeBot(discord.Client):
         for i, chunk in enumerate(chunks):
             last = i == len(chunks) - 1
             drawn = answer.pictures if last else []
-            pictures = await pictures_for([(image, c.name, c.args) for image, c in drawn], [c.result for _, c in drawn])
+            pictures = await pictures_for([(image, c.name, c.args) for image, c in drawn], [c.result for _, c in drawn],
+                                          language(answer.text), mine)
             if len(chunks) == 1:  # where the answer placed them, its text whole in one message
                 pictures = [replace(p, at=answer.place(c)) for p, (_, c) in zip(pictures, drawn, strict=True)]
             files = [discord.File(io.BytesIO(image), filename=p.name) for p, (image, _) in zip(pictures, drawn,
@@ -1167,10 +1179,12 @@ class WipeBot(discord.Client):
             extra = [a for a in actions if (a.what, a.pull) not in shown] if last else []
             follows = follow if last else []
             try:
-                sent.append(await post(view=answer_layout(chunk, pictures, extra, follows), files=files))
+                sent.append(await post(view=answer_layout(chunk, pictures, extra, follows, tail if last else ""),
+                                       files=files))
             except discord.Forbidden:  # invited before the bot asked for Attach Files: the answer without its pictures
                 if not files:
                     raise
                 log.warning("couldn't attach the answer's pictures: the bot lacks Attach Files there")
-                sent.append(await post(view=answer_layout(chunk, actions=extra, follow=follows)))
+                sent.append(await post(view=answer_layout(chunk, actions=extra, follow=follows,
+                                                          footer=tail if last else "")))
         return [m.id for m in sent]

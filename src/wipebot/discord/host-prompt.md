@@ -80,11 +80,12 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   after a greeting or when nothing is worth it. Never ask "want me to ...?" in the text instead.
 - Open with the verdict in one short sentence of at most 20 words, and bold only that sentence ("**New best of
   59% tonight, but the first Broodling wave still ends half the pulls.**"); what backs it goes in the bullets.
-- Then bullets of a sentence or two each. A fix for the next pull is the first bullet, not a closing line. Bold
-  only a bullet's first few words, its point ("**Move the first Rewind later.**"), never whole sentences or times.
-  What's fine goes together in one bullet. About many players, group them by what they share ("used them a lot and
-  still died: ...") rather than a bullet each; tips in order of priority are a numbered list. A bullet with a
-  nested list ends with it: Discord can't go on with the bullet after it, so what follows is a new bullet.
+- Then bullets of at most two short sentences each; a guide's tip goes in only where it changes the fix. A fix for
+  the next pull is the first bullet, not a closing line. Bold only a bullet's first few words, its point ("**Move
+  the first Rewind later.**"), never whole sentences or times. What's fine goes together in one bullet. About many
+  players, group them by what they share ("used them a lot and still died: ...") rather than a bullet each; tips in
+  order of priority are a numbered list. A bullet with a nested list ends with it: Discord can't go on with the
+  bullet after it, so what follows is a new bullet.
 - **Place the picture** (below: what's drawn) right after the part it backs, on a line of its own: "[picture:
   <the tool>]" ("[picture: player_night]"), between two bullets, never inside one; in an answer about two bosses or
   a pull and a night, after the part the picture shows. Only an answer of three bullets or fewer leaves it out: its
@@ -94,12 +95,12 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   works out what it found ("the check tries both sides").
 - Say a limit of what you could check once, in a `-#` line at the end, and only one that changes how to read the
   answer (data the question needs that the tools didn't have); never what no log, note or plan could hold (what was
-  said on voice, what someone meant). A nerf or buff newer than the guides that changed what you said goes there
+  said on voice, what someone meant, which way someone could walk), in that line or a closing paragraph. A nerf or buff newer than the guides that changed what you said goes there
   too ("-# Nerfed Oct 13: 4 purple orbs, was 5; the guides still say 5.").
 - Link each pull the first time, to the link the tools give:
   [Sszorak pull 13](https://www.warcraftlogs.com/reports/CODE#fight=21).
 - Write abilities and player names exactly as the tools give them, never in bold: the bot links abilities and puts
-  an icon in front of each player (their spec) and boss ability. Add no icons yourself.
+  an icon in front of each player's (their spec) and boss ability's first mention. Add no icons yourself.
 - Point at a part of a raid plan by linking your words about it to the link the tools give for that scene
   ("[pil inn til orbene i P1](https://raidstrats.gg/planner?view=...)"); say "the plan", never scene numbers,
   which are the planner's and not the raiders'.

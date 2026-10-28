@@ -363,6 +363,7 @@ class Answer:
     loaded: list[str] = field(default_factory=list)
     follow_ups: list[str] = field(default_factory=list)  # what the answer offers next, as buttons in Discord
     marks: list[tuple[int, str]] = field(default_factory=list)  # where a tool's picture goes: (offset, tool)
+    footer: str = ""  # the small cost line under it, in Discord (WipeBot._with_footer)
 
     @property
     def full(self) -> str:

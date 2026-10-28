@@ -21,6 +21,7 @@ from wipebot.discord.discord_text import (
     unlink_broken,
     unlink_elsewhere,
     unlink_wrong,
+    verdict_bold,
 )
 
 
@@ -188,8 +189,8 @@ SPECS = {"Brightleaf": ("Paladin", "Holy"), "Torvek": ("DeathKnight", "Frost"), 
                  "Go to the <:raid_skull:8> skull marker, then the <:raid_star:1> Star marker; skull.",
                  id="before a marker named as one"),
     pytest.param("**Brightleaf** heals; Brightleaf again.",
-                 "**<:Paladin_Holy:21> Brightleaf** heals; <:Paladin_Holy:21> Brightleaf again.",
-                 id="a player's spec, every time"),
+                 "**<:Paladin_Holy:21> Brightleaf** heals; Brightleaf again.",
+                 id="a player's spec, the first time"),
     pytest.param("Torvek died.", "<:DeathKnight:30> Torvek died.", id="no icon for the spec: the class's"),
     pytest.param("Holy Paladins and the shaman cooldowns.", "Holy Paladins and the shaman cooldowns.",
                  id="none for a spec or class named as such"),
@@ -287,11 +288,25 @@ def test_a_boss_ability_linked_by_another_of_its_ids_gets_its_icon_by_name():
                                          f"{spell('Sever', 1299684)}."
 
 
-def test_a_boss_ability_gets_its_icon_on_every_mention_linked_or_not():
+def test_a_boss_ability_gets_its_icon_on_its_first_mention_linked_or_not():
     icons = {"ability:toxic deluge": "<:spell_1:1>", "ability:sever": "<:spell_2:2>", "ability:guillotine": "<:g:3>"}
     text = (f"- **Toxic Deluge:** ikke stå i dem. Toxic Deluge igjen.\n- **Sever:** tank-frontalen; ikke sever noe.\n"
             f"- Får du {spell('Guillotine', 1283485)}, si fra. Guillotine treffer igjen.")
     assert add_icons(text, {}, icons) == (
-        "- **<:spell_1:1> Toxic Deluge:** ikke stå i dem. <:spell_1:1> Toxic Deluge igjen.\n- **<:spell_2:2> Sever:** "
-        f"tank-frontalen; ikke sever noe.\n- Får du <:g:3> {spell('Guillotine', 1283485)}, si fra. <:g:3> Guillotine "
+        "- **<:spell_1:1> Toxic Deluge:** ikke stå i dem. Toxic Deluge igjen.\n- **<:spell_2:2> Sever:** "
+        f"tank-frontalen; ikke sever noe.\n- Får du <:g:3> {spell('Guillotine', 1283485)}, si fra. Guillotine "
         "treffer igjen.")  # never the lowercase word
+    assert add_icons(f"Guillotine først, så {spell('Guillotine', 1283485)}.", {}, icons) == (
+        f"<:g:3> Guillotine først, så {spell('Guillotine', 1283485)}.")  # the first mention, linked or not
+
+
+@pytest.mark.parametrize("text, expected", [
+    pytest.param("**Ja, samme bakke. Og du har rett: f.eks. nr. 2 var feil.**\n- a",
+                 "**Ja, samme bakke.** Og du har rett: f.eks. nr. 2 var feil.\n- a", id="the first sentence"),
+    pytest.param("**Vanish på [pull 3. Two](https://x) var sen.**", "**Vanish på [pull 3. Two](https://x) var sen.**",
+                 id="not in a link"),
+    pytest.param("**One sentence, f.eks. nr. 2.**\n- a", "**One sentence, f.eks. nr. 2.**\n- a", id="one"),
+    pytest.param("**Bold** lead. Then text.", "**Bold** lead. Then text.", id="not a bold line"),
+])
+def test_only_the_verdicts_first_sentence_is_bold(text, expected):
+    assert verdict_bold(text) == expected
