@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **Your own guild, without setup.** In a server where nobody ran `/wipebot setup`, a raider signed in with `/login` asks "why did we wipe?" or "how did the night go?" without a link: the bot finds their guild's live report or latest night, from the characters they claimed on Warcraft Logs (their remembered character's guild first). Posts after wipes and raid notes still need setup. Signed in before? Run `/login` again so the bot learns your guild.
+
 ## [0.26.0] - 2026-10-28
 
 ### Changed

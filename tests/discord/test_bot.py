@@ -299,6 +299,20 @@ async def test_a_server_not_set_up_answers_about_the_report_its_raiders_link(bot
     assert ctx.guild is None and ctx.notebook is None and ctx.server_id == 2002
 
 
+async def test_a_raider_signed_in_asks_about_their_own_guild_where_nobody_set_up(bot, message, asked, follower):
+    """In a server nobody set up, the guild of a raider signed in with /login stands in: its live report or latest
+    night, found by itself; posts after wipes and raid notes still need setup."""
+    bot.store.save_login(7, 101, "Rowan", "token-abc", 2e9, guild=(555, "Other Guild", "draenor", "eu"))
+    bot.followers[("login", 555)] = follower
+    follower.code = "THEIRS1"
+    await bot.on_message(message("<@99> why did we wipe?", guild_id=2002))
+    assert [a[1] for a in asked] == ["THEIRS1"]
+    ctx = asked[0][3]
+    assert ctx.guild == "Other Guild, draenor, eu" and ctx.notebook is None and ctx.server_id == 2002
+    assert "need the server set up" in await ctx.tools["follow_pulls"]({"request": "deaths"})
+    assert bot.followers[1001] is follower  # the set-up server's own follower stays its own
+
+
 @pytest.mark.parametrize("set_up", [False, True])
 async def test_a_question_without_a_report_is_answered_about_the_game(bot, message, asked, follower, set_up):
     if set_up:  # nothing live, and no recent report found

@@ -42,7 +42,7 @@ from .messages import (  # noqa: F401 (Picture: the tests')
 from .posts import Following, Posts
 from .progress import FALLBACK_SPINNER, Progress
 from .prompt import plain, post_prefetch, post_question
-from .store import INTERACTION_DAYS, ServerSettings, Store
+from .store import INTERACTION_DAYS, LoginGuild, ServerSettings, Store
 
 log = logging.getLogger(__name__)
 
@@ -398,7 +398,8 @@ class WipeBot(discord.Client):
         self.allowance = allowance.Allowance(store, key, share) if share and key else None
         for command in commands.build_everyone(self):
             self.tree.add_command(command)
-        self.followers: dict[int, Follower] = {}  # per server: its live report
+        # per server: its live report; per guild for a raider's own (LoginGuild), ("login", its id)
+        self.followers: dict[Hashable, Follower] = {}
         self.posts = Posts(store, library, record_answers)  # who asked for posts after wipes
         # After Claude's API refused a question or Warcraft Logs didn't answer, the conversation goes on.
         self.conversations = Conversations(self._open_session, survives=(ModelError, WCLError),
@@ -561,11 +562,12 @@ class WipeBot(discord.Client):
     # ---------- the live report: posts after wipes ----------
 
     def _follower(self, s: ServerSettings) -> Follower:
-        if s.discord_guild_id not in self.followers:
+        key: Hashable = ("login", s.wcl_guild_id) if isinstance(s, LoginGuild) else s.discord_guild_id
+        if key not in self.followers:
             test = self.test_report if s.discord_guild_id == self.test_server else None
             store = Store(":memory:") if test else self.store  # a replay doesn't mark the real pulls handled
-            self.followers[s.discord_guild_id] = Follower(self.library, store, s.wcl_guild_id, test)
-        return self.followers[s.discord_guild_id]
+            self.followers[key] = Follower(self.library, store, s.wcl_guild_id, test)
+        return self.followers[key]
 
     @tasks.loop(seconds=POLL_S)
     async def poll(self) -> None:
@@ -726,7 +728,11 @@ class WipeBot(discord.Client):
             return settings
         if message.guild is None:
             return None
-        return self.store.settings(message.guild.id) or ServerSettings.unset(message.guild.id)
+        if found := self.store.settings(message.guild.id):
+            return found
+        if own := self.store.login_guild(message.author.id):  # nobody set it up: the asker's own guild stands in
+            return LoginGuild(message.guild.id, *own)
+        return ServerSettings.unset(message.guild.id)
 
     async def _refusal(self, message: discord.Message, s: ServerSettings, is_dm: bool) -> str | None:
         """Why a question for the bot won't be answered, if it won't: the asker lacks the chat role, or the bot is
@@ -806,10 +812,11 @@ class WipeBot(discord.Client):
         async def not_set_up(args: dict) -> str:
             return ("Posts after wipes need the server set up with its guild: an admin runs `/wipebot setup`. "
                     "Say so in a line.")
+        posts = s.set_up and not isinstance(s, LoginGuild)
 
         return Context(asker=asker or raider.character, discord_name=name, where=where, pull=pull, boss=boss,
                        notes=raider.notes, guild=f"{s.wcl_guild}, {s.wcl_server}, {s.wcl_region}" if s.set_up else None,
-                       tools={"follow_pulls": follow_pulls if s.set_up else not_set_up, "remember": remember,
+                       tools={"follow_pulls": follow_pulls if posts else not_set_up, "remember": remember,
                               "answer_in_dm": answer_in_dm},
                        icons=self.icons, server_id=s.discord_guild_id, user_id=user.id,
                        language=self.store.language(s.discord_guild_id),
@@ -1097,7 +1104,7 @@ class WipeBot(discord.Client):
     def _raid_notes(self, s: ServerSettings) -> dict:
         """Context's raid note and plan fields for a server: what its guild saved (an officer's paste)."""
         book, guild = self.store.notebook, s.wcl_guild_id
-        if not s.set_up:
+        if not s.set_up or isinstance(s, LoginGuild):  # a raider's own guild: its notes are saved where it's set up
             return {"notebook": None, "guild_id": 0, "noted": [], "planned": []}
         return {"notebook": book, "guild_id": guild, "noted": [n.boss for n in book.latest_notes(guild)],
                 "planned": list(dict.fromkeys(p.boss for p in book.latest_plans(guild)))}

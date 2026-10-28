@@ -1,15 +1,17 @@
 """/login: a raider signs in with Warcraft Logs, so their own Warcraft Logs points pay first for what they ask.
 
-The sign-in is the authorization code flow of the client the bot reads with (core/accounts.py, as the remote
-server's), with the code pasted back: Warcraft Logs sends the browser to WIPEBOT_WCL_CALLBACK, a page that shows its
-address (one of the client's redirect URLs, which the host adds on warcraftlogs.com), and the raider pastes that
-address into Discord. The token is kept encrypted (keys.py), read with only for that raider's questions
-(Context.wcl_token, wcl.reading_as), and its scope reads only what the bot reads anyway. `/login private:True` is a
-second sign-in with `view-private-reports` too, whose token is kept apart and read with only for a report the bot
-can't read itself (Context.wcl_private, wcl.mark_private). Without WIPEBOT_WCL_CALLBACK the bot offers no sign-in.
+The sign-in is the authorization code flow of the client the bot reads with (core/accounts.py, as the remote server's),
+with the code pasted back: Warcraft Logs sends the browser to WIPEBOT_WCL_CALLBACK, a page that shows its address (one
+of the client's redirect URLs, which the host adds on warcraftlogs.com), and the raider pastes that address into
+Discord. The token is kept encrypted (keys.py), read with only for that raider's questions (Context.wcl_token,
+wcl.reading_as), and its scope reads only what the bot reads anyway. The guild of the characters they claimed is kept
+too: in a server nobody set up, it stands in for setup (store.LoginGuild). `/login private:True` is a second sign-in
+with `view-private-reports` too, whose token is kept apart and read with only for a report the bot can't read itself
+(Context.wcl_private, wcl.mark_private). Without WIPEBOT_WCL_CALLBACK the bot offers no sign-in.
 """
 import os
 import secrets
+from collections import Counter
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
@@ -76,12 +78,30 @@ async def sign_in(choices: Choices, user_id: int, pasted: str) -> str:
         account = await accounts.login(choices.client_id, choices.secret, code, choices.verifier, choices.callback)
     except accounts.AccountError as e:
         return f"Warcraft Logs didn't sign you in ({e}). Start again from `/login`."
-    choices.store.save_login(user_id, account.id, account.name, account.token, account.expires, choices.private)
+    guild = None if choices.private else home_guild(account.characters, choices.store.raider(user_id).character)
+    choices.store.save_login(user_id, account.id, account.name, account.token, account.expires, choices.private,
+                             guild)
     if choices.private:
         return (f"Done: Wipebot now reads the private reports **{account.name}** may open on Warcraft Logs, for your "
                 "questions only. `/login private:True remove:True` stops it.")
-    return (f"Signed in as **{account.name}** on Warcraft Logs. Your own Warcraft Logs points now pay first for what "
+    said = (f"Signed in as **{account.name}** on Warcraft Logs. Your own Warcraft Logs points now pay first for what "
             "you ask; `/login remove:True` signs you out.")
+    if guild:
+        said += (f" In a server where Wipebot isn't set up, your guild **{guild[1]}** stands in: ask about its latest "
+                 "night without a link.")
+    return said
+
+
+def home_guild(characters: list[dict], character: str | None) -> tuple[int, str, str, str] | None:
+    """The guild of a raider's claimed characters (id, name, realm slug, region): their remembered `character`'s, or
+    else the one most of them are in; None when none is in a guild."""
+    found = [c for c in accounts.members(characters, None) if c.guild_id]
+    if not found:
+        return None
+    mine = [c for c in found if character and c.name.casefold() == character.casefold()]
+    counts = Counter(c.guild_id for c in found)
+    top = mine[0] if mine else max(found, key=lambda c: counts[c.guild_id])  # the first of the most common on a tie
+    return top.guild_id or 0, top.guild, top.guild_realm, top.guild_region
 
 
 # Told with a report the bot can't read, to a raider who hasn't let it read their private reports

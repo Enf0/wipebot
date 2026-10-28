@@ -46,6 +46,11 @@ class ServerSettings:
         return bool(self.wcl_guild_id)
 
 
+class LoginGuild(ServerSettings):
+    """A server nobody set up, for a question from a raider signed in with /login: their guild stands in for setup,
+    so its latest night is found by itself. Not saved, and it posts nothing after wipes (no server follows it)."""
+
+
 @dataclass
 class Raider:
     """What the bot remembers about one Discord user across conversations, which they can see and clear."""
@@ -105,7 +110,8 @@ DROPPED_COLUMNS = {"server_settings": ("posts_channel_id",)}
 ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "officer_role_id", "INTEGER"),
                  ("interactions", "wcl_points", "TEXT"), ("logins", "private_sealed", "TEXT"),
                  ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
-                 ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER")]
+                 ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
+                 ("logins", "guild", "TEXT")]
 
 
 class Store:
@@ -231,7 +237,8 @@ class Store:
                 expires REAL NOT NULL,
                 added_at REAL NOT NULL,
                 private_sealed TEXT,     -- their token that reads their private reports too (/login private)
-                private_expires REAL
+                private_expires REAL,
+                guild TEXT               -- their guild on Warcraft Logs, as JSON [id, name, realm slug, region]
             );
             CREATE TABLE IF NOT EXISTS spend (  -- what each answer cost, kept whether or not answers are recorded
                 at REAL NOT NULL,
@@ -531,21 +538,24 @@ class Store:
         return bool(dropped)
 
     def save_login(self, user_id: int, wcl_id: int, wcl_name: str, token: str, expires: float,
-                   private: bool = False) -> None:
-        """Keep a raider's Warcraft Logs sign-in, its token encrypted, in place of any before; with `private`, their
-        token that reads their private reports, beside the first (one signed in to another account goes)."""
+                   private: bool = False, guild: tuple[int, str, str, str] | None = None) -> None:
+        """Keep a raider's Warcraft Logs sign-in, its token encrypted, in place of any before, with their `guild`
+        (id, name, realm slug, region); with `private`, their token that reads their private reports, beside the first
+        (one signed in to another account goes)."""
         if private:
             self._db.execute("DELETE FROM logins WHERE user_id = ? AND wcl_id != ?", (user_id, wcl_id))
-            self._db.execute("INSERT INTO logins VALUES (?, ?, ?, '', 0, ?, ?, ?) ON CONFLICT (user_id) DO UPDATE "
-                             "SET private_sealed = excluded.private_sealed, private_expires = excluded.private_expires",
+            self._db.execute("INSERT INTO logins VALUES (?, ?, ?, '', 0, ?, ?, ?, NULL) ON CONFLICT (user_id) DO "
+                             "UPDATE SET private_sealed = excluded.private_sealed, private_expires = "
+                             "excluded.private_expires",
                              (user_id, wcl_id, wcl_name, time.time(), keys.seal(token), expires))
         else:
-            self._db.execute("INSERT INTO logins VALUES (?, ?, ?, ?, ?, ?, NULL, NULL) ON CONFLICT (user_id) DO UPDATE "
-                             "SET wcl_id = excluded.wcl_id, wcl_name = excluded.wcl_name, sealed = excluded.sealed, "
-                             "expires = excluded.expires, added_at = excluded.added_at, private_sealed = CASE WHEN "
-                             "wcl_id = excluded.wcl_id THEN private_sealed END, private_expires = CASE WHEN wcl_id = "
-                             "excluded.wcl_id THEN private_expires END",
-                             (user_id, wcl_id, wcl_name, keys.seal(token), expires, time.time()))
+            self._db.execute("INSERT INTO logins VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?) ON CONFLICT (user_id) DO "
+                             "UPDATE SET wcl_id = excluded.wcl_id, wcl_name = excluded.wcl_name, sealed = "
+                             "excluded.sealed, expires = excluded.expires, added_at = excluded.added_at, guild = "
+                             "excluded.guild, private_sealed = CASE WHEN wcl_id = excluded.wcl_id THEN private_sealed "
+                             "END, private_expires = CASE WHEN wcl_id = excluded.wcl_id THEN private_expires END",
+                             (user_id, wcl_id, wcl_name, keys.seal(token), expires, time.time(),
+                              json.dumps(list(guild)) if guild else None))
         self._db.commit()
 
     def login(self, user_id: int) -> tuple[str, str] | None:
@@ -555,6 +565,15 @@ class Store:
         if row is None or not row[1] or row[2] < time.time() or not (token := keys.unseal(row[1])):
             return None
         return row[0], token
+
+    def login_guild(self, user_id: int) -> tuple[int, str, str, str] | None:
+        """The guild of a raider signed in with /login (id, name, realm slug, region); None when they aren't signed
+        in or Warcraft Logs had them in no guild."""
+        row = self._db.execute("SELECT guild FROM logins WHERE user_id = ?", (user_id,)).fetchone()
+        if not row or not row[0] or self.login(user_id) is None:
+            return None
+        id, name, realm, region = json.loads(row[0])
+        return int(id), str(name), str(realm), str(region)
 
     def private_login(self, user_id: int) -> tuple[str, str] | None:
         """A raider's Warcraft Logs name and their token that reads their private reports, as `login`."""

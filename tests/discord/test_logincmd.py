@@ -7,6 +7,7 @@ import pytest
 
 from wipebot.core import accounts, wcl
 from wipebot.discord import logincmd
+from wipebot.discord.store import Raider
 
 CALLBACK = "https://wipebot.example/signed-in"
 
@@ -38,6 +39,29 @@ async def test_the_pasted_address_signs_the_raider_in(store, monkeypatch):
     assert "Signed in as **Kaelnor**" in said
     assert asked == {"code": "abc123DEF_-x", "verifier": choices.verifier, "redirect_uri": CALLBACK}
     assert store.login(7) == ("Kaelnor", "token-abc")
+
+
+def character(id: int, name: str, guild: tuple[int, str] | None) -> dict:
+    return {"id": id, "name": name, "server": {"slug": "draenor", "region": {"slug": "EU"}},
+            "guilds": [{"id": guild[0], "name": guild[1], "server": {"slug": "draenor", "region": {"slug": "EU"}}}]
+            if guild else []}
+
+
+async def test_signing_in_keeps_the_raiders_guild_to_stand_in_for_setup(store, monkeypatch):
+    choices = logincmd.Choices(store, CALLBACK, "client-id", "secret")
+
+    async def login(*args):
+        return accounts.Account(101, "Kaelnor", [character(1, "Alt", (9, "Alts")), character(2, "Main", (5, "Mains")),
+                                                 character(3, "Bank", (5, "Mains"))], "token-abc", 2e9)
+    monkeypatch.setattr(accounts, "login", login)
+    said = await logincmd.sign_in(choices, 7, f"{CALLBACK}?code=abc123DEF_-x&state={choices.state}")
+    assert store.login_guild(7) == (5, "Mains", "draenor", "eu") and "your guild **Mains** stands in" in said
+    store.save_raider(7, Raider(character="alt"))  # the character they play picks theirs
+    await logincmd.sign_in(choices, 7, f"{CALLBACK}?code=abc123DEF_-x&state={choices.state}")
+    assert store.login_guild(7) == (9, "Alts", "draenor", "eu")
+    assert logincmd.home_guild([character(4, "Pug", None)], None) is None
+    store.drop_login(7)
+    assert store.login_guild(7) is None
 
 
 async def test_the_private_reports_sign_in_asks_for_them_and_keeps_its_token_apart(store, monkeypatch):

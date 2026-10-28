@@ -196,7 +196,9 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
     if s is None or not s.set_up:
         parts.append("**Here:** not set up, so put a warcraftlogs.com report link in your question. An admin can run "
                      "`/wipebot setup` with the guild's warcraftlogs.com page: then I look at its latest raid by "
-                     "myself, post after wipes and keep raid notes.")
+                     "myself, post after wipes and keep raid notes." + (
+                         " Until then, a raider signed in with `/login` asks about their own guild's latest raid "
+                         "without a link." if logincmd.callback_url() else ""))
     else:
         who = f"<@&{s.required_role_id}>" if s.required_role_id else "anyone in the server"
         parts.append(f"**Here:** the guild **{s.wcl_guild}** ({s.wcl_server}-{s.wcl_region.upper()}); who can chat: "
