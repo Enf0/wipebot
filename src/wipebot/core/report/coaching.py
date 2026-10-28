@@ -1,6 +1,7 @@
 """One player: a pull of theirs (`player_pull`), a night of theirs (`player_night`), and a buff at
 their casts (`buff_at_casts`)."""
 import asyncio
+import math
 import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -614,45 +615,50 @@ async def buff_at_casts(rep: Report, player: str, buff: str, spell: str, pull: P
         p = rep.in_pull(f, rep.player(player))
         buff_ids, buff_name = await _buff_ids(rep, buff, [(f, p)])
         where = f"{rep.boss_key(f)} pull {rep.pull_no(f)}"
-        states, stacked = await _buff_states(rep, f, p, buff_ids, spell_ids)
+        states, stacked = await _buff_states(rep, f, p, buff_ids, spell_ids, await _is_debuff(rep, [(f, p)], buff_ids))
         if not states:
             return f"{p.name} didn't cast {spell} on {where}."
-        if not any(n for _, n in states) and not stacked and states[0][1] is None:
+        if not any(n for _, n, _ in states) and not stacked and states[0][1] is None:
             return (f"{buff_name} was never on {p.name} on {where}, at any of their "
                     f"{plural(len(states), spell_name + ' cast')}. If it's a buff they should have had, check its "
                     "name: the log may name it differently (a raid buff's name depends on who cast it).")
         lines = [f"{buff_name} on {p.name} at each {spell_name} cast, {where} (the buff's state just before the cast):"]
-        lines += [f"- {clock(at)}: {_state(n, stacked)}" for at, n in states]
-        tally = _tally([n for _, n in states], stacked)
-        return "\n".join(lines + [f"Over the {plural(len(states), 'cast')}: {tally}."])
+        lines += [f"- {clock(at)}: {_state(n, stacked, came, spell_name)}" for at, n, came in states]
+        tally = _tally([n for _, n, _ in states], stacked)
+        return "\n".join(lines + [f"Over the {plural(len(states), 'cast')}: {tally}{_covered(states, spell_name)}."])
     who = rep.player(player)
     fights = rep.pulls_with(who, rep.by_boss[rep.boss_key(f)])
     played = [rep.in_pull(g, who) for g in fights]
     await rep.events_for([(g["id"], {"sourceID": q.id}) for g, q in zip(fights, played, strict=True)], "Buffs")
     buff_ids, buff_name = await _buff_ids(rep, buff, list(zip(fights, played, strict=True)))
+    if debuff := await _is_debuff(rep, list(zip(fights, played, strict=True)), buff_ids):  # every pull's at once
+        await rep.events_for([(g["id"], {}) for g in fights], "Debuffs", hostilityType="Friendlies")
     await rep.events_for([(g["id"], {"sourceID": q.id}) for g, q in zip(fights, played, strict=True)], "Casts")
-    found = [(g, *await _buff_states(rep, g, q, buff_ids, spell_ids)) for g, q in zip(fights, played, strict=True)]
+    found = [(g, *await _buff_states(rep, g, q, buff_ids, spell_ids, debuff))
+             for g, q in zip(fights, played, strict=True)]
     stacked = any(st for _, _, st in found)
     cast_on = [(g, states) for g, states, _ in found if states]
     lines = [f"{buff_name} on {who.name} at each {spell_name} cast, on each {rep.boss_key(f)} pull they were in "
              f"({len(fights)}; the buff's state just before each cast):"]
     for g, states, _ in found:
         if len(states) > LISTED_CASTS:  # a spell cast all the time: what the buff was, and the first cast
-            text = (f"{len(states)} casts, {_tally([n for _, n in states], stacked)}; first at {clock(states[0][0])} "
-                    f"{_state(states[0][1], stacked)}")
+            text = (f"{len(states)} casts, {_tally([n for _, n, _ in states], stacked)}; first at "
+                    f"{clock(states[0][0])} {_state(states[0][1], stacked, states[0][2], spell_name)}")
         else:
-            text = ", ".join(f"{clock(at)} {_state(n, stacked)}" for at, n in states) or f"no {spell_name}"
+            text = ", ".join(f"{clock(at)} {_state(n, stacked, came, spell_name)}" for at, n, came in states) \
+                or f"no {spell_name}"
         lines.append(f"  pull {rep.pull_no(g)}: {text}")
-    every = [n for _, states in cast_on for _, n in states]
+    every = [n for _, states in cast_on for _, n, _ in states]
     if not every:
         return f"{who.name} didn't cast {spell} on any {rep.boss_key(f)} pull."
     firsts = [(g, states[0][0]) for g, states in cast_on]
     last = max(firsts, key=lambda x: x[1])
-    lines.append(f"Over the {plural(len(every), 'cast')}: {_tally(every, stacked)}. First {spell_name} on "
+    lines.append(f"Over the {plural(len(every), 'cast')}: {_tally(every, stacked)}"
+                 f"{_covered([x for _, states in cast_on for x in states], spell_name)}. First {spell_name} on "
                  f"{len(firsts)} of {plural(len(fights), 'pull')}: median "
                  f"{clock(statistics.median(t for _, t in firsts))}, earliest {clock(min(t for _, t in firsts))}, "
                  f"latest pull {rep.pull_no(last[0])} at {clock(last[1])}.")
-    if not any(every) and not stacked:
+    if not any(every) and not stacked and not any(x[2] is not None for _, st in cast_on for x in st):
         lines.append(f"{buff_name} was never up at a cast: if it's a buff they should have had, check its name (a raid "
                      "buff's name depends on who cast it).")
     return "\n".join(lines)
@@ -781,17 +787,69 @@ async def _buff_ids(rep: Report, buff: str, items: list[tuple[dict, Player]]) ->
     return found, f"Bloodlust ({', '.join(names)})" if names else "Bloodlust"
 
 
-async def _buff_states(rep: Report, f: dict, p: Player, buff_ids: set[int], spell_ids: set[int]
-                       ) -> tuple[list[tuple[float, int | None]], bool]:
+AURA_TYPES = ("applybuff", "applybuffstack", "removebuffstack", "removebuff")
+
+
+async def _auras_on(rep: Report, f: dict, p: Player, ids: set[int], debuff: bool = False) -> list[dict]:
+    """The events of a buff on the player, or with `debuff` of a debuff on them (a boss's mark) as buff events, in
+    time order."""
+    auras = [e for e in await rep.events(f["id"], "Buffs", sourceID=p.id)
+             if e.get("abilityGameID") in ids and e["type"] in AURA_TYPES]
+    if debuff:
+        auras = [e | {"type": e["type"].replace("debuff", "buff")}
+                 for e in await rep.events(f["id"], "Debuffs", hostilityType="Friendlies")
+                 if e.get("targetID") == p.id and e.get("abilityGameID") in ids
+                 and e["type"].replace("debuff", "buff") in AURA_TYPES]
+    return sorted(auras, key=lambda e: e["timestamp"])
+
+
+def _spans(auras: list[dict]) -> list[tuple[float, float]]:
+    """(from, to) of each time an aura was up, in ms of the log; one up when the pull ended runs on."""
+    spans, since = [], None
+    for e in auras:
+        if e["type"] == "applybuff" and since is None:
+            since = e["timestamp"]
+        elif e["type"] == "removebuff" and since is not None:
+            spans.append((since, e["timestamp"]))
+            since = None
+    return spans + ([(since, math.inf)] if since is not None else [])
+
+
+COVER_MS = 1000  # a spell's own buff counted as its cast's from this soon after it
+
+
+async def _gained_while(rep: Report, f: dict, p: Player, auras: list[dict], spell_ids: set[int],
+                        casts: list[dict]) -> list[float | None]:
+    """For each cast, when the buff came on (ms from the pull's start) while the spell's own buff from that cast
+    lasted (a defensive pressed just before a debuff landed), or None."""
+    own = _spans(await _auras_on(rep, f, p, spell_ids))
+    came = [e["timestamp"] for e in auras if e["type"] == "applybuff"]
+    out: list[float | None] = []
+    for c in casts:
+        span = next((s for s in own if c["timestamp"] - COVER_MS <= s[0] <= c["timestamp"] + COVER_MS), None)
+        at = next((t for t in came if span and c["timestamp"] < t <= span[1]), None)
+        out.append(at - f["startTime"] if at is not None else None)
+    return out
+
+
+async def _is_debuff(rep: Report, items: list[tuple[dict, Player]], ids: set[int]) -> bool:
+    """Whether the aura is a debuff on the players rather than a buff: no pull has it as a buff."""
+    for f, p in items:
+        if any(e.get("abilityGameID") in ids for e in await rep.events(f["id"], "Buffs", sourceID=p.id)):
+            return False
+    return True
+
+
+async def _buff_states(rep: Report, f: dict, p: Player, buff_ids: set[int], spell_ids: set[int], debuff: bool
+                       ) -> tuple[list[tuple[float, int | None, float | None]], bool]:
     """Each cast of the spell on a pull: (ms from the pull's start, the buff's stacks then: 0 not up, None when
-    the buff never showed on the pull), and whether the buff stacks."""
-    auras = sorted((e for e in await rep.events(f["id"], "Buffs", sourceID=p.id) if e.get("abilityGameID") in buff_ids
-                    and e["type"] in ("applybuff", "applybuffstack", "removebuffstack", "removebuff")),
-                   key=lambda e: e["timestamp"])
+    the buff never showed on the pull, and when the buff came on while the spell's own buff lasted), and whether
+    the buff stacks."""
+    auras = await _auras_on(rep, f, p, buff_ids, debuff)
     casts = [c for c in await rep.events(f["id"], "Casts", sourceID=p.id)
              if c.get("type") == "cast" and c.get("abilityGameID") in spell_ids]
     if not auras:
-        return [(c["timestamp"] - f["startTime"], None) for c in casts], False
+        return [(c["timestamp"] - f["startTime"], None, None) for c in casts], False
     # What the buff was when the pull started: up if the first thing it did was come off.
     first = auras[0]
     up_at_start = 0
@@ -800,21 +858,29 @@ async def _buff_states(rep: Report, f: dict, p: Player, buff_ids: set[int], spel
     elif first["type"] == "removebuffstack":
         up_at_start = first.get("stack", 0) + 1
     stacked = any(e["type"] in ("applybuffstack", "removebuffstack") for e in auras)
-    out: list[tuple[float, int | None]] = []
-    for c in casts:
+    gained = await _gained_while(rep, f, p, auras, spell_ids, casts)
+    out: list[tuple[float, int | None, float | None]] = []
+    for c, came in zip(casts, gained, strict=True):
         stacks, i = up_at_start, 0
         while i < len(auras) and auras[i]["timestamp"] < c["timestamp"]:
             e = auras[i]
             stacks = (1 if e["type"] == "applybuff" else 0 if e["type"] == "removebuff"
                       else e.get("stack", stacks))
             i += 1
-        out.append((c["timestamp"] - f["startTime"], stacks))
+        out.append((c["timestamp"] - f["startTime"], stacks, came if not stacks else None))
     return out, stacked
 
 
-def _state(stacks: int | None, stacked: bool) -> str:
+def _state(stacks: int | None, stacked: bool, came: float | None = None, spell: str = "") -> str:
     n = stacks or 0
-    return f"{n} stack{'s' * (n != 1)}" if stacked else "up" if n else "not up"
+    text = f"{n} stack{'s' * (n != 1)}" if stacked else "up" if n else "not up"
+    return text + (f", came on at {clock(came)} while {spell} was up" if came is not None else "")
+
+
+def _covered(states: list[tuple[float, int | None, float | None]], spell: str) -> str:
+    """'; on 2 more it came on while Divine Shield was up': the buff landed during the spell's own buff."""
+    n = sum(came is not None for _, _, came in states)
+    return f"; on {n} more it came on while {spell} was up" if n else ""
 
 
 def _tally(stacks: list[int | None], stacked: bool) -> str:

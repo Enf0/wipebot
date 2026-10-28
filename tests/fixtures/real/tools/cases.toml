@@ -145,6 +145,8 @@ buff-at-casts = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", pull = 13
 buff-at-casts-lust = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", pull = 13, player = "Scopidruid", buff = "Bloodlust", spell = "Starsurge" }
 # every pull: a spell cast all the time, tallied per pull, with the first cast on each
 buff-at-casts-night = { tool = "buff_at_casts", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid", buff = "Starlord", spell = "Starsurge", all_pulls = true }
+# a debuff on them (the purple orb), and the bubbles pressed just before it landed
+buff-at-casts-debuff = { tool = "buff_at_casts", report = "64hVgfmydQGNxC7A", boss = "The Coiled Altar", player = "Cptola", buff = "Mutagenic Venom", spell = "Divine Shield", all_pulls = true }
 # a resource: Holy Power before each Divine Toll, and what its Holy Shocks lost at the cap
 resource-at-casts = { tool = "buff_at_casts", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", pull = 37, player = "Cptola", buff = "Holy Power", spell = "Divine Toll" }
 

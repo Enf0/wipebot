@@ -239,3 +239,20 @@ def test_hotfixes_are_listed_against_the_guides_written_before_them():
     assert bosses.hotfixes_after("The Coiled Altar", newest, (["https://post"], [fix(13, "x")])).startswith(
         "# No hotfix to The Coiled Altar since 2026-10-14.")
     assert "unknown" in bosses.hotfixes_after("The Coiled Altar", newest, KnowledgeError("down"))
+
+
+async def test_a_mechanic_on_the_wrong_boss_is_found_on_its_own(monkeypatch):
+    async def raids():
+        return [("The Venomous Abyss", ["The Lost Explorers", "The Coiled Altar"]), ("Sporefall", ["Rotmire"])]
+
+    async def boss_spells(boss):
+        return [{"name": "Axegrinder"}] if boss == "The Coiled Altar" else [{"name": "Shell Spin"}]
+
+    async def no_abilities(boss):
+        return []
+    monkeypatch.setattr(bosses, "raids", raids)
+    monkeypatch.setattr(bosses, "boss_spells", boss_spells)
+    monkeypatch.setattr(bosses, "_abilities", no_abilities)
+    assert await bosses.boss_naming("axegrinder", "The Lost Explorers") == ("The Venomous Abyss", "The Coiled Altar")
+    assert await bosses.boss_naming("Axegrinder", "The Coiled Altar") is None
+    assert await bosses.boss_naming("Shell Spin", "Rotmire") == ("The Venomous Abyss", "The Lost Explorers")

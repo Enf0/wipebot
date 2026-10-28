@@ -793,8 +793,9 @@ class WipeBot(discord.Client):
             if not (question := " ".join(str(args.get("question") or "").split())):
                 return "Give the question to answer in their DM."
             asyncio.create_task(self._in_dm(s, user, name, code, question))
-            return ("Their DM gets the answer now, as if they had asked it there. Say so here in a line, and don't "
-                    "answer it here too.")
+            return ("Their DM is answering it now, as if they had asked it there, and the answer lands there when it's "
+                    "done (a minute or more). Say here in a line that it's on its way to their DM, not that it's sent, "
+                    "and don't answer it here too.")
         async def not_set_up(args: dict) -> str:
             return ("Posts after wipes need the server set up with its guild: an admin runs `/wipebot setup`. "
                     "Say so in a line.")

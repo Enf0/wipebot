@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A defensive pressed just before a debuff lands.** "Was my bubble up for the orb?" reads a debuff on the player (a boss's mark) as well as a buff, and says when it came on while the defensive was still up, where before a bubble pressed a second early read as not covering it.
+- `Agent` **A mechanic asked about on the wrong boss.** Asked for a mechanic under a boss that doesn't have it, Wipebot finds the raid boss that does and reads its guide, instead of trying boss after boss.
+- `Discord` **"It's on its way to your DM".** Asked to answer in DMs, the bot says the answer is on its way, not that it was sent while it was still being worked out.
+
 ## [0.25.0] - 2026-10-28
 
 ### Added

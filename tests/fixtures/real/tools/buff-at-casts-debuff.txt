@@ -1,0 +1,23 @@
+Mutagenic Venom on Cptola at each Divine Shield cast, on each The Coiled Altar pull they were in (21; the buff's state just before each cast):
+  pull 1: no Divine Shield
+  pull 2: no Divine Shield
+  pull 3: no Divine Shield
+  pull 4: no Divine Shield
+  pull 5: no Divine Shield
+  pull 6: no Divine Shield
+  pull 7: 0:10 not up, came on at 0:12 while Divine Shield was up
+  pull 8: no Divine Shield
+  pull 9: 0:51 not up, came on at 0:55 while Divine Shield was up
+  pull 10: 0:24 not up
+  pull 11: 1:41 not up, came on at 1:42 while Divine Shield was up
+  pull 12: 1:41 up
+  pull 13: 1:36 not up, came on at 1:38 while Divine Shield was up
+  pull 14: 1:34 not up, came on at 1:35 while Divine Shield was up
+  pull 15: no Divine Shield
+  pull 16: 0:07 not up, came on at 0:09 while Divine Shield was up
+  pull 17: no Divine Shield
+  pull 18: 1:21 not up
+  pull 19: no Divine Shield
+  pull 20: 0:51 not up, came on at 0:59 while Divine Shield was up
+  pull 21: no Divine Shield
+Over the 10 casts: up on 1 of 10; on 7 more it came on while Divine Shield was up. First Divine Shield on 10 of 21 pulls: median 1:06, earliest 0:07, latest pull 12 at 1:41.

@@ -1674,6 +1674,10 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
     try:
         return await _boss_guide(boss, topic, difficulty, raid, spec, report, mechanic)
     except KnowledgeError as e:  # a name no guide has: the model picks the boss from the raid's list and asks again
+        if mechanic and (found := await knowledge.boss_naming(mechanic, boss)):  # another boss's mechanic
+            other_raid, other = found
+            return (f"{mechanic} is an ability of {other} ({other_raid}), not of {boss}: {other}'s guide.\n\n"
+                    + await _boss_guide(other, topic, difficulty, other_raid, spec, report, mechanic))
         try:
             rep = await lib().report(report)
             if rep.zone_id is None:

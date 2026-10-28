@@ -846,7 +846,7 @@ async def test_asked_in_a_channel_to_answer_in_a_dm_it_answers_there_as_if_asked
     msg.author.create_dm = lambda: asyncio.sleep(0, dm)
     await bot.on_message(msg)
     told = await asked[0][3].tools["answer_in_dm"]({"question": "who missed their kicks on Twin Fangs tonight?"})
-    assert "DM gets the answer" in told
+    assert "on its way to their DM" in told
     for _ in range(5):  # the DM's answer runs on its own
         await asyncio.sleep(0)
     key, _, question, ctx = asked[1]
