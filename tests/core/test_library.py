@@ -154,6 +154,24 @@ async def test_the_latest_raid_skips_a_side_log_and_a_pug():
     assert await library.latest_raid(lib, []) is None
 
 
+async def test_the_latest_raid_is_the_newest_on_the_guilds_hardest_difficulty():
+    class Library:
+        async def report(self, code):
+            async def guild_run_doubt():
+                return "only 9 of its 20 players are in the guild" if code == "MYTHIC_PUG" else ""
+            return SimpleNamespace(guild_run_doubt=guild_run_doubt)
+
+    lib = cast(library.Library, Library())
+    reports = [{"code": "OLDER", "startTime": 1, "pulls": 39, "pulls_by_difficulty": {5: 39}},
+               {"code": "MYTHIC", "startTime": 2, "pulls": 34, "pulls_by_difficulty": {5: 34}},
+               {"code": "HEROIC", "startTime": 3, "pulls": 13, "pulls_by_difficulty": {4: 13}},
+               {"code": "ONE_MYTHIC", "startTime": 4, "pulls": 14, "pulls_by_difficulty": {4: 13, 5: 1}}]
+    assert await library.latest_raid(lib, reports) == "MYTHIC"  # newer: a Heroic run after it, with one Mythic try
+    assert await library.latest_raid(lib, reports[2:]) == "ONE_MYTHIC"  # only Heroic ones: the newest
+    pug = {"code": "MYTHIC_PUG", "startTime": 5, "pulls": 9, "pulls_by_difficulty": {5: 9}}
+    assert await library.latest_raid(lib, [pug, *reports[2:]]) == "ONE_MYTHIC"  # a raider's Mythic pug isn't it
+
+
 async def test_the_latest_raid_asked_for_at_once_is_looked_up_once(monkeypatch):
     asked = []
 

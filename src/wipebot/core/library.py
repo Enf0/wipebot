@@ -8,6 +8,7 @@ import time
 from collections.abc import Awaitable, Callable, Iterable
 
 from . import clock, wcl
+from .pulls import DIFFICULTIES
 from .report import FactError, Report
 from .report.night import RAID_PULLS
 from .wcl import WCL
@@ -122,11 +123,13 @@ LATEST_RAID_DAYS = 7  # how far back the guild's latest raid night is looked for
 
 
 async def latest_raid(library: Library, reports: list[dict]) -> str | None:
-    """The guild's latest raid night: of the newest few reports, the newest with at least RAID_PULLS boss pulls
-    (`pulls`) whose players are mostly in the guild, since raiders log their pugs to the guild's page too; else
-    the newest with enough pulls; else the newest."""
+    """The guild's latest raid night: of the newest few reports with at least RAID_PULLS boss pulls (`pulls`), the
+    newest on the hardest difficulty one has that many pulls on (`pulls_by_difficulty`), since raiders log their
+    Heroic or alt runs after a Mythic night, whose players are mostly in the guild, since they log their pugs to
+    the guild's page too; else the first of those; else the newest."""
     newest = sorted(reports, key=lambda r: -r["startTime"])
-    raids = [r for r in newest[:RAID_REPORTS_CHECKED] if r.get("pulls", 0) >= RAID_PULLS]
+    raids = sorted((r for r in newest[:RAID_REPORTS_CHECKED] if r.get("pulls", 0) >= RAID_PULLS),
+                   key=lambda r: (-_hardest(r), -r["startTime"]))
     for r in raids:
         try:
             if not (doubt := await (await library.report(r["code"])).guild_run_doubt()):
@@ -135,6 +138,12 @@ async def latest_raid(library: Library, reports: list[dict]) -> str | None:
         except Exception:
             _log.exception("loading report %s failed", r["code"])
     return raids[0]["code"] if raids else newest[0]["code"] if newest else None
+
+
+def _hardest(report: dict) -> int:
+    """The hardest raid difficulty a report (wcl.guild_reports with `pulls`) has RAID_PULLS boss pulls on, or 0."""
+    return max((d for d, n in (report.get("pulls_by_difficulty") or {}).items()
+                if d in DIFFICULTIES and n >= RAID_PULLS), default=0)
 
 
 class LatestRaids:

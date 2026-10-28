@@ -4,6 +4,7 @@ from ..pulls import DIFFICULTIES
 from ..text import date, name_key, plural
 from ..wcl import GUILD_REPORTS_S, WCL
 from .base import GUILD_RUN_SHARE, FactError
+from .night import RAID_PULLS
 
 
 async def guild_reports(wcl: WCL, days: int, since_ms: float, guild: str | None = None, realm: str | None = None,
@@ -12,7 +13,9 @@ async def guild_reports(wcl: WCL, days: int, since_ms: float, guild: str | None 
                         current: tuple[int, str] | None = None) -> str:
     """The reports of a guild (by name, realm and region), else of each of `guilds` (name, realm, region), else of
     the logged-in user's guilds, since `since_ms`, newest first; with `player`, only those they're in. A report
-    most of whose players aren't in the guild is marked: a raider's pug or another group logged to its page.
+    most of whose players aren't in the guild is marked: a raider's pug or another group logged to its page; so is
+    one on an easier difficulty than the guild's raids of those days (at least RAID_PULLS pulls on one): a Heroic or
+    alt run after the Mythic night.
     `current` is the current report's guild (id, name): a guild named like it needs no realm or region."""
     if guild and not (realm and region) and current and name_key(guild) == name_key(current[1]):
         targets = [current]
@@ -46,6 +49,7 @@ async def guild_reports(wcl: WCL, days: int, since_ms: float, guild: str | None 
     for guild_id, guild_name in targets:
         members = await wcl.guild_members(guild_id)
         reports = await wcl.guild_reports(guild_id, since_ms, players=True, cache_for=GUILD_REPORTS_S)
+        raids = max((_hardest(r) for r in reports if not _pug(r, members)), default=0)
         for rep in sorted(reports, key=lambda x: -x["startTime"]):
             names = rep["players"]
             if (wanted and not any(name_key(n) == wanted for n in names)) or rep["startTime"] > clock.now() * 1000:
@@ -56,11 +60,26 @@ async def guild_reports(wcl: WCL, days: int, since_ms: float, guild: str | None 
                                for b, (n, k) in (rep.get("bosses") or {}).items())
             line = (f"- {rep['code']}: {rep['title']} ({guild_name}), {date(rep['startTime'], with_time=True)}: "
                     + (f"boss pulls {pulls}: {bosses}" if pulls else "no boss pulls"))
-            if members and names and (inside := sum(n in members for n in names)) < GUILD_RUN_SHARE * len(names):
-                line += (f"; only {inside} of its {plural(len(names), 'player')} are in the guild: a pug, not a "
-                         "guild raid night")
+            if doubt := _pug(rep, members):
+                line += f"; {doubt}"
+            elif pulls and max((d for d in rep["pulls_by_difficulty"] if d in DIFFICULTIES), default=0) < raids:
+                line += (f"; an easier run than the guild's {DIFFICULTIES[raids]} raids in these days, not its raid "
+                         "night")
             lines.append(line)
     return "\n".join(lines) if len(lines) > 1 else lines[0] + " none"
+
+
+def _pug(rep: dict, members: set[str]) -> str:
+    """Why a report (wcl.guild_reports with `players`) is a pug, or '' when most of its players are in the guild."""
+    names = rep["players"]
+    if members and names and (inside := sum(n in members for n in names)) < GUILD_RUN_SHARE * len(names):
+        return f"only {inside} of its {plural(len(names), 'player')} are in the guild: a pug, not a guild raid night"
+    return ""
+
+
+def _hardest(rep: dict) -> int:
+    """The hardest raid difficulty a report has RAID_PULLS boss pulls on, or 0."""
+    return max((d for d, n in rep["pulls_by_difficulty"].items() if d in DIFFICULTIES and n >= RAID_PULLS), default=0)
 
 
 async def character_reports(wcl: WCL, player: str, realm: str, region: str, days: int, since_ms: float) -> str:
