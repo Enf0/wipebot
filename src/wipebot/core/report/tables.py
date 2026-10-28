@@ -271,6 +271,9 @@ async def _summed(rep: Report, q: Asked) -> str:
         parse = (f", parse {ordinal(s.parses[name])} percentile of the spec" if p and name in s.parses
                  and metric_of(p) == s.metric else "")
         parsed = parsed or bool(parse)
+        if q.data_type == "Healing" and dur_s and (over := s.counts.get(name, Counter())["overheal"]):
+            # ", overheal 45%" leads a healing row's extra: what was healed with the overheal, per second, after it
+            extra = extra.replace("%", f"% ({short((value + over) / dur_s)}/s with it)", 1)
         lines.append(f"  {k}. {who}{tag}: {_fmt_value(value, q.data_type, dur_s, total_time)}{share}{parse}{extra}")
     if not rows:
         lines.append("  nothing recorded")
@@ -278,6 +281,10 @@ async def _summed(rep: Report, q: Asked) -> str:
         lines.append(f"  Not healing: {name}: {_fmt_value(value, q.data_type, dur_s, total_time)}{extra}: health "
                      "taken from players to give to others. Warcraft Logs counts it as negative healing and takes it "
                      "off the healer's total; it is left out of the total and the shares above.")
+    if q.data_type == "Healing" and any(c["overheal"] for c in s.counts.values()):
+        lines.append("Overheal is healing past full health. Heals over time and passive healing overheal more by "
+                     "design, and the more healers share the damage, the more each overheals: compare it only within "
+                     "one spec and as many healers. It costs mana and casts, nothing more.")
     if parsed:
         lines.append(f"Parses are Warcraft Logs' {s.metric} percentiles against the same spec on this kill, for the "
                      "players ranked by it: compare players by these, not by the totals across specs.")

@@ -305,3 +305,54 @@ facts = ["Mythic average of each boss's best kill 75.2 over 7 bosses",
          "the Mythic kill at item level 335"]
 wrong = ["says it can't find Martin because he isn't in the report",
          "gives another player's parses as Martin's"]
+
+[[case]]
+id = "real-healers-overheal-vs-top"  # overheal read as the healers' problem, raw healing worked out by hand (#1037)
+tools = ["breakdown", "compare_with_top", "healing"]
+report = "64hVgfmydQGNxC7A"
+question = """Vinne var nok et dårlig ord, er mest interessert i å optimalisere stats for vårt oppsett. Men bare for å \
+grave litt mer i ovwrhealingproblematikken, kan du sammenligne rå healing inkludert overheal for alle healerne for \
+alle coiled altar trøyene, og sammenligne opp mot top logs?"""
+asker = "Miralupa"
+expect = """Gives each healer's healing with overheal over the 21 Coiled Altar pulls (the priests about 750k/s with
+it, 410-415k/s without) and says overheal isn't the healers' problem: no healer ran short of mana, and with five
+healers sharing the damage each overheals more; it compares overheal only within a spec, and says whether a fifth
+healer is needed shows in the damage spikes, not in overheal."""
+drifts = ["754", "726", "664", "725"]
+facts = ["Namsus 414.50k/s, overheal 45%; Miralupa 406.57k/s, overheal 44%",
+         "the raid healed 2.14M/s",
+         "the top Holy Priests overhealed about 25-31% in raids of 4 healers"]
+wrong = ["says the priests' overheal is a problem they should fix",
+         "says mastery or Echo of Light loses more to overheal than other healing",
+         "compares overheal percentages across specs as a measure of who healed well"]
+
+[[case]]
+id = "real-healer-overheal-pushback"  # a Holy Priest pushes back: overheal alone says nothing (#1039)
+tools = ["healing", "spec_guide"]
+# The method under test: check each point against the tools; agree where the log agrees, correct or mark as
+# unchecked what it doesn't, rather than taking all of it on faith.
+report = "64hVgfmydQGNxC7A"
+question = """Her vil jeg gjerne dele noen tanker, som jeg synes wipeboy overser eller svarer litt feil på.
+
+Vi har ikke et overhealing probelm. og overhealing helt sånn isolert sett er en verdiløs stat og se på og \
+sammenligne healere på. Ta for.eks at jeg skal poppe hymn for at du skal få mest mulig ut av apoen din. Da vil jeg \
+gjerne ha 1-2 ticks oppe (Som gir deg mer healing) fordi det øker healinga de med 10% (Dette kan være tall som ikke \
+stemmer helt) Da vil jeg få overhealing men generelt sett vil vi heale mer. Du vil også som priest kontinuerlig \
+caste POM, Serenity og flash heals for å holde oppe echos renew og jakte benediction procs. Overhealing er i min bok \
+KUN  et probelm om vi sliter med mana, eller vi ser at det er steder der vi mangler healing, å da må vi flytte på \
+cds da brorparten av overhealing er fordi vi topper raids.
+
+Personlig når det kommer til priest mener jeg også at Mastery/Crit er like viktig i Raids så bør du ha haste til du \
+er komfortabel (Jeg liker å ha 14% nå med den daggern som gir deg hasteprocc) versa er 💩"""
+asker = "Namsus"
+expect = """Agrees that overheal alone doesn't measure a healer and that the log shows no overheal problem on Coiled
+Altar: no healer went under 30% mana (lowest 39%), and the priests overhealed less in the damage spikes (28-30%)
+than the rest of the time (45-46%). It checks the rest rather than agreeing to all of it: the guide's raid stat
+order (Crit > Mastery > Versatility > Haste) against theirs, and Divine Hymn's 4% a tick, or it says what it
+didn't check."""
+facts = ["healing cooldowns ready and unused in the spikes: Spirit Link Totem and Rewind 14 times each",
+         "the spikes at 0:44-0:52 and 2:09 had 34 deaths each",
+         "Method's guide ranks Versatility above Haste in raid"]
+wrong = ["says the priests have an overhealing problem",
+         "states that each Divine Hymn tick adds about 10% healing",
+         "agrees that Versatility is a weak stat for Holy Priests in raid"]

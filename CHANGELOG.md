@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Discord` **Clearer pictures.** The damage meter draws every class's bar at one lightness with the class colour as its end cap, so names read as well on a priest's bar as on a warlock's; the raid's night colours only the four most common ways pulls ended (the rest grey) and its list of endings is the legend; a raider's plan map over the night says what green and red mean and labels only their three furthest misses.
   ![The damage meter on Sszorak pull 13, every bar at the same lightness with a class-coloured end cap](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-meter-even-fills.webp)
+- `Agent` **Overheal read the way healers read it.** Overheal is no longer treated as a healer's fault or compared across specs: it costs only when mana runs out or healing falls short in the damage spikes, and whether the raid needs another healer is read from the spikes. The healing meter gives each healer's healing with overheal per second, so it isn't worked out from rounded percentages.
+- `Agent` **Pushback checked point by point.** When a raider disagrees or adds what they know, Wipebot checks each point: it changes what the new fact changes, keeps what the log still supports, and says which points it couldn't check instead of agreeing to all of them.
 
 ## [0.24.1] - 2026-10-28
 
