@@ -81,7 +81,7 @@ async def test_a_debuff_applied_again_while_up_starts_anew_and_a_refresh_changes
     hits([], [event(f, e, 5, "removedebuff"), event(f, e, 20, "applydebuff"), event(f, e, 30, "refreshdebuff"),
               event(f, e, 40, "applydebuff"), event(f, e, 50, "removedebuff")])
     applied: Counter = Counter()
-    spans = await mechanics._debuff_spans(rep, [f["id"]], [POOL], lambda e: True, applied)
+    spans = await mechanics._debuff_spans(rep, [f["id"]], [POOL], lambda e: True, applied, Counter())
     t0 = f["startTime"]
     assert spans == {e: [[t0 + 20_000, t0 + 40_000], [t0 + 40_000, t0 + 50_000]]} and applied == {e: 2}
 

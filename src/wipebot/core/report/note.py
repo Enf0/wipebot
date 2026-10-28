@@ -429,7 +429,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
         else:
             line += f"no kick ({k.state}); their cast, begun at {clock(k.cast[0])}, {_cast_end(k.cast)}"
         lines.append(line)
-    if before := _through_before(c):
+    if before := through_before(c):
         lines.append(f"  Went through in the {LOST_AFTER_MS // 1000} s before the wipe was decided at "
                      f"{clock(c.until)}: " + ", ".join(_through(k) for k in before))
     if c.unavailable:
@@ -668,17 +668,47 @@ def _cast_end(cast: tuple[float, str, str | None]) -> str:
 
 # ---------- every pull on the boss ----------
 
-async def _night(rep: Report, found: list[Version], fights: list[dict], source: str) -> str:
-    """Each pull checked against its version of the note, then counted per player: soaks, planned cooldowns,
-    callouts. Everything the pulls need is fetched first in a few queries (`_prefetch`)."""
+@dataclass
+class Night:
+    """Every pull on a boss checked against its version of the note."""
+    fights: list[dict]
+    checks: list[PullCheck]
+    usable: list[Version]  # the versions with a part for the boss
+    by_pull: dict[int, Version]  # each pull's version, by its fight id
+    used: list[int]  # the versions the pulls used (their ids), in order
+    change: OrderChange | None  # the pull the note's kick order came in at, with one version for every pull
+
+
+async def check_night(rep: Report, text: str, boss: str | None = None) -> Night:
+    """Every ended pull on the boss checked against the note's version saved before it began (`_check`), with
+    everything the pulls need fetched first in a few queries (`_prefetch`): what the night's text counts and the
+    raid note's view draws."""
+    f = rep.fight(None, boss)
+    found = versions(text)
+    if not any(for_boss(v.notes, f["encounterID"]) for v in found):
+        raise FactError(f"the note has no part for {f['name']}")
+    return await _check_night(rep, found, rep.ended(rep.by_boss[rep.boss_key(f)]))
+
+
+async def _check_night(rep: Report, found: list[Version], fights: list[dict]) -> Night:
     encounter = fights[0]["encounterID"]
     usable = [v for v in found if for_boss(v.notes, encounter)]
     by_pull = {f["id"]: _version(usable, (rep.start_ms + f["startTime"]) / 1000) for f in fights}
     notes = {f["id"]: n for f in fights if (n := for_boss(by_pull[f["id"]].notes, encounter))}  # every pull's
     await _prefetch(rep, fights, notes)
     checks = [await _check(rep, f, notes[f["id"]]) for f in fights]
-    latest = notes[fights[-1]["id"]]
     used = list(dict.fromkeys(id(by_pull[f["id"]]) for f in fights))
+    tanks = {p.name for f in fights for p in rep.pull_players(f).values() if p.role == "tank"}
+    change = _order_change(checks, tanks) if len(used) == 1 else None
+    return Night(fights, checks, usable, by_pull, used, change)
+
+
+async def _night(rep: Report, found: list[Version], fights: list[dict], source: str) -> str:
+    """Each pull checked against its version of the note, then counted per player: soaks, planned cooldowns,
+    callouts."""
+    night = await _check_night(rep, found, fights)
+    checks, by_pull, usable, used, change = night.checks, night.by_pull, night.usable, night.used, night.change
+    latest = checks[-1].note
     if len(used) == 1 and by_pull[fights[0]["id"]].saved_at is not None:
         source = by_pull[fights[0]["id"]].source() + (f"; {source}" if source else "")
     lines = [_head(latest).replace("the boss", rep.boss_key(fights[0])) + (f", {source}" if source else "")
@@ -690,8 +720,6 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
             f"{v.source()}: pulls " + ", ".join(str(rep.pull_no(f)) for f in fights if by_pull[f["id"]] is v)
             for v in usable if id(v) in used))
     lines += _saved_late(rep, fights, by_pull)
-    tanks = {p.name for f in fights for p in rep.pull_players(f).values() if p.role == "tank"}
-    change = _order_change(checks, tanks) if len(used) == 1 else None
     if change:
         lines.append(_change_text(rep, fights, change))
     lines += _assignments(latest)
@@ -1008,7 +1036,7 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
     if through:
         out.append("  Their casts that went through, per assignment: " + ", ".join(
             f"\"{t}\" {n}" for t, n in _by_count(through)))
-    lost = [(c, before) for c in checks if (before := _through_before(c))]
+    lost = [(c, before) for c in checks if (before := through_before(c))]
     if lost:
         out.append(f"  Pulls whose wipe was decided within {LOST_AFTER_MS // 1000} s after casts on assignments went "
                    f"through, {len(lost)} of {len(checks)} (when it was decided, then the casts, first one first): "
@@ -1037,7 +1065,7 @@ def _first_through(rep: Report, lost: list[tuple[PullCheck, list[KickCheck]]]) -
             + (f"; no one's, the first cast's player dead or not in the pull: {', '.join(no_one)}" if no_one else ""))
 
 
-def _through_before(c: PullCheck) -> list[KickCheck]:
+def through_before(c: PullCheck) -> list[KickCheck]:
     """The kick assignments whose casts went through in the LOST_AFTER_MS before the pull's wipe was decided."""
     if c.decided is None:
         return []

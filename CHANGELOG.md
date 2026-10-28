@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **The raid note over the night, drawn.** Checking a raid note against every pull on a boss now posts two pictures: each kick assignment pull by pull (kicked, covered by another, went through, with the first cast that went through before a wipe ringed and counted by player), and each planned cooldown pull by pull (on time, a little off, late, not cast).
+- `Discord` **Who gets hit, pull by pull.** A mechanic's hits over the whole night add a second picture under the meter: each player's hits on each pull, the ones that led to a death marked, and the raid's total per pull.
+- `MCP` `Discord` **Damage spikes on the pull chart.** The pull's chart marks each moment of raid damage taken at twice the usual or more, with its value, and lists the healer cooldowns used in the 10 seconds before it.
+
 ## [0.21.0] - 2026-10-28
 
 ### Added

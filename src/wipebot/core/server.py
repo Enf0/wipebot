@@ -605,9 +605,10 @@ def _supports_apps(ctx: Context) -> bool:
 
 # The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
 # with their casts against top players, for one player's casts. A meter draws the ranking of players breakdown,
-# mechanic_hits and enemies state, in the bot only: in Claude and ChatGPT each tool with a view costs tokens.
+# mechanic_hits and enemies state, and raid_note's over every pull on a boss, in the bot only: in Claude and ChatGPT
+# each tool with a view costs tokens.
 VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player",
-              "player_night": "player_night", "death_recap": "death", "progress": "night",
+              "player_night": "player_night", "death_recap": "death", "progress": "night", "raid_note": "note",
               **dict.fromkeys(views.METER_TOOLS, "meter")}
 
 
@@ -620,6 +621,11 @@ async def view_key(tool: str, args: dict) -> dict | None:
                                                           and "casts" in (args.get("aspects") or ["casts"]))):
         return None
     rep = await lib().report(args.get("report"))
+    if view == "note":  # only over every pull on the boss: one pull's check is its text
+        if not args.get("all_pulls") or args.get("upcoming") or (args.get("boss") and not pulled(rep, args["boss"])):
+            return None
+        asked = {k: v for k, v in args.items() if v is not None and k != "report"}
+        return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked}
     if view == "meter":  # only when the call ranks players
         asked = {k: v for k, v in args.items() if v is not None and k != "report"}
         if not await views.meters_of(rep, tool, asked):
@@ -657,14 +663,16 @@ async def _shown(tool: str, args: dict, text: str, ctx: Context) -> str | CallTo
     return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=key)
 
 
-async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night or death")],
+async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night, death, night, "
+                                                             "meter or note")],
                     pull: Pull = None, boss: Boss = None, report: Report_ = None,
                     player: Annotated[str | None, Field(description="the player view's player")] = None,
                     top: Annotated[bool, Field(description="the player view with their casts against top players "
                                                            "(slower: reads the top parses)")] = False,
                     death: Annotated[int, Field(description="the death view's death of the player in the pull")] = 1,
-                    tool: Annotated[str | None, Field(description="the meter's tool")] = None,
-                    args: Annotated[dict | None, Field(description="the meter's tool's arguments")] = None,
+                    tool: Annotated[str | None, Field(description="the meter's or the note's tool")] = None,
+                    args: Annotated[dict | None, Field(description="the meter's or the note's tool's "
+                                                                  "arguments")] = None,
                     weeks: Annotated[int | None, Field(description="the night view with the boss's best pull on "
                                                                    "each raid night over this many weeks back",
                                                        ge=1, le=12)] = None,
@@ -673,7 +681,10 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
     rep = await lib().report(report)
     try:
         nights = await boss_nights(rep, boss, weeks) if view == "night" and weeks else None
-        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights)
+        note = ""
+        if view == "note":  # the note raid_note was given, else the one the guild saved
+            note = (args or {}).get("note") or (await _saved_note(rep, None, boss, True))[0]
+        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights, note)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],

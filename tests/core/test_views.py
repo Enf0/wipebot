@@ -82,6 +82,14 @@ async def test_the_pull_view_states_what_pull_summary_states(recorded):
     assert len(json.dumps(data)) < 150_000 // 10  # far under Claude's limit for a tool result
 
 
+def test_damage_peaks_are_the_runs_pull_timeline_marks_twice_the_median():
+    damage = {0: 100.0, 1: 100.0, 2: 250.0, 3: 300.0, 4: 100.0, 5: 100.0, 6: 199.0, 7: 200.0, 8: 100.0}  # median 100
+    step = views.DAMAGE_BUCKET_MS
+    assert views.damage_peaks(damage) == [{"from_ms": 2 * step, "to_ms": 4 * step, "per_s": 300},
+                                          {"from_ms": 7 * step, "to_ms": 8 * step, "per_s": 200}]
+    assert views.damage_peaks({}) == []
+
+
 DEATH_CASE = CASES["death-recap"]  # Scopidruid's death on the same pull
 
 
@@ -205,6 +213,17 @@ async def test_a_meter_shows_the_deaths_a_mechanic_set_up(recorded):
     assert f"{plural(sum(b['killed_by'] for b in m['bars']), 'death')} with it as the killing blow" in m["note"]
 
 
+async def test_a_mechanics_meter_over_the_night_counts_each_players_hits_pull_by_pull(recorded):
+    data = await meter_data("mechanic-hits")
+    [m] = data["meters"]
+    assert m["per_pull"] == "hits" and len(m["pulls"]) > 1
+    for b in m["bars"]:
+        assert len(b["per_pull"]) == len(m["pulls"])
+        hits = re.match(r"(\d+) hits?", b["note"])
+        assert sum(v or 0 for v in b["per_pull"]) == (int(hits.group(1)) if hits else 0), b["name"]
+        assert len(b["died_in"]) <= b["died_after"] and all(b["per_pull"][i] is not None for i in b["died_in"])
+
+
 @pytest.mark.parametrize("case", ["damage-taken", "mechanic-outliers", "buffs", "damage-by-pull", "breakdown-casts",
                                   "healing-by-ability"])
 async def test_a_call_that_ranks_no_players_has_no_meter(recorded, case):
@@ -220,6 +239,71 @@ async def test_the_meter_draws_a_panel_per_meter_without_errors(recorded, tmp_pa
         assert s.height > 100
         for m in data["meters"]:
             assert m["title"] in s.text and m["bars"][0]["name"] in s.text
+
+
+# ---- the raid note against every pull on a boss: kicks and planned cooldowns pull by pull, in the bot only ----
+
+NOTE_CASES = ["raid-note-order-change", "raid-note-night"]  # The Twin Fangs' kicks; Sszorak's cooldowns
+
+
+async def note_data(case: str) -> dict:
+    c = CASES[case]
+    key = await server.view_key(c.tool, c.args)
+    assert key is not None and key["view"] == "note" and key["tool"] == "raid_note", case
+    result = await server.view_data(**key)
+    assert result.structured_content is not None
+    return result.structured_content
+
+
+async def test_the_note_view_matches_its_snapshot(recorded):
+    assert_snapshot(REAL / "views" / "note.txt", readable(await note_data("raid-note-order-change")))
+
+
+async def test_the_note_view_counts_the_kicks_raid_note_counts(recorded):
+    data, (text, failed) = await note_data("raid-note-order-change"), await server.call(
+        "raid_note", CASES["raid-note-order-change"].args)
+    assert not failed
+    k = data["kicks"]
+    assert f"Kicks are counted for pulls {k['from_pull']}-" in text
+    counts = re.findall(r"^  \S+ \(Kick[^)]*\): kicked (\d+) of (\d+)", text, re.MULTILINE)
+    made, alive = sum(int(m) for m, _ in counts), sum(int(a) for _, a in counts)
+    assert (k["made"], k["alive"]) == (made, alive)
+    assert f"went through, {k['lost']} of {k['counted']} (" in text
+    first = re.search(r"whose cast went through first while they were alive.*?: (.*?)(?:; no one's|$)", text,
+                      re.MULTILINE)
+    assert first and [(f["name"], f["count"]) for f in k["first"]] == [
+        (n, int(c)) for n, c in re.findall(r"(?:^|; )(\S+) (\d+):", first.group(1))]
+    leads = [c for p in k["pulls"] for cell in p["cells"] for c in cell if c["lead"]]
+    assert len(leads) == sum(f["count"] for f in k["first"]) and all(c["state"] == "through" for c in leads)
+
+
+async def test_the_note_view_states_the_planned_cooldowns_raid_note_states(recorded):
+    data, (text, _) = await note_data("raid-note-night"), await server.call("raid_note", CASES["raid-note-night"].args)
+    c = data["cooldowns"]
+    assert c and c["uses"]
+    cells = [x for p in c["pulls"] for x in p["cells"] if x]
+    totals = re.findall(r"^  \S+: (\d+) planned uses; (.*)$", text, re.MULTILINE)
+    assert len(cells) == sum(int(n) for n, _ in totals)
+    for state in ("on time", "not cast", "dead"):
+        assert sum(x["state"] == state for x in cells) == sum(
+            int(m.group(1)) for _, rest in totals if (m := re.search(rf"\b{state} (\d+)", rest))), state
+    assert sum(x["state"] in ("early", "late") for x in cells) == sum(
+        int(n) for _, rest in totals for n in re.findall(r"\b(?:early|late) (\d+)", rest))
+
+
+@pytest.mark.parametrize("case", ["raid-note", "raid-note-kicks"])
+async def test_one_pulls_note_check_has_no_view(recorded, case):
+    assert await server.view_key(CASES[case].tool, CASES[case].args) is None
+
+
+async def test_the_note_view_draws_a_panel_each_without_errors(recorded, tmp_path):
+    data = await note_data("raid-note-order-change")
+    taken = await shots(tmp_path, "raid_note", CASES["raid-note-order-change"].args, themes=("dark", "light"),
+                        widths=(320, 760))
+    for s in taken:
+        assert not s.errors, (s.path.name, s.errors)
+        assert s.height > 300
+        assert "Kick assignments" in s.text and data["kicks"]["slots"][0]["player"] in s.text
 
 
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):

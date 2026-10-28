@@ -8,7 +8,8 @@ import asyncio
 import functools
 import hashlib
 import statistics
-from collections import Counter
+from collections import Counter, defaultdict
+from collections.abc import Callable
 from importlib import resources
 from typing import Any
 
@@ -17,6 +18,7 @@ from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, phase_label, wipe_pct, wipe_pcts
 from ..text import clock, day, ordinal
 from . import adds, mechanics, tables
+from . import note as notes
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, casting, raid_pauses, without
@@ -33,9 +35,10 @@ from .top import cast_comparison
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
 SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "meter.js",
-           "replay.js", "main.js"]
+           "replay.js", "note.js", "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
-VIEWS = ("pull", "player", "player_night", "death", "night", "meter")  # what view_data draws (the replay: maps.replay)
+# what view_data draws (the replay: maps.replay)
+VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "note")
 METER_TOOLS = ("breakdown", "mechanic_hits", "enemies")  # the tools whose rows a meter draws (meters_of)
 
 
@@ -55,14 +58,16 @@ def page_uri() -> str:
 
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
                     player: str | None = None, top: bool = False, death: int = 1, tool: str | None = None,
-                    args: dict | None = None, nights: list[BossNight] | None = None) -> dict:
+                    args: dict | None = None, nights: list[BossNight] | None = None, note: str = "") -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
     player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`); the
     meter's `tool` and the `args` it was called with; the night view with the boss on each raid night (`nights`,
-    progress's `weeks`)."""
+    progress's `weeks`); the raid note's view with the `note` checked against every pull on `boss`."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
+    if view == "note":
+        return await note_view(rep, note, boss)
     if view == "meter":
         return await meter_view(rep, tool or "", args or {})
     if view not in ("pull", "night") and not player:
@@ -119,7 +124,8 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
                     "name": rep.phase_names.get((f["encounterID"], t["id"]), "")}
                    for t in f.get("phaseTransitions") or []],
         "health": health,
-        "damage": {"step_ms": DAMAGE_BUCKET_MS, "per_s": [[b * DAMAGE_BUCKET_MS, round(v)] for b, v in damage.items()]},
+        "damage": {"step_ms": DAMAGE_BUCKET_MS, "per_s": [[b * DAMAGE_BUCKET_MS, round(v)] for b, v in damage.items()],
+                   "peaks": damage_peaks(damage)},
         "casts": [{"ms": round(c.at - t0), "name": c.name, "tracked": c.tracked, "icon": icon(found.ids.get(c.name))}
                   for c in casts],
         "cooldowns": [{"ms": round(at - t0), "kind": kind.split()[0], "name": name, "player": who}
@@ -127,6 +133,27 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         "lusts": lusts,
         "deaths": out_deaths,
     }
+
+
+PEAK = 2  # a raid damage peak: averages at this many times the pull's median or more, as pull_timeline marks them
+
+
+def damage_peaks(damage: dict[int, float]) -> list[dict]:
+    """The pull's raid damage peaks: runs of DAMAGE_BUCKET_MS averages at PEAK times the median or more (the median
+    as pull_timeline takes it), each with its start, end and highest average per second."""
+    if not damage:
+        return []
+    typical = sorted(damage.values())[len(damage) // 2]
+    peaks: list[dict] = []
+    for b, v in damage.items():
+        if v < PEAK * typical:
+            continue
+        if peaks and peaks[-1]["to_ms"] == b * DAMAGE_BUCKET_MS:
+            peaks[-1]["to_ms"] += DAMAGE_BUCKET_MS
+            peaks[-1]["per_s"] = max(peaks[-1]["per_s"], round(v))
+        else:
+            peaks.append({"from_ms": b * DAMAGE_BUCKET_MS, "to_ms": (b + 1) * DAMAGE_BUCKET_MS, "per_s": round(v)})
+    return peaks
 
 
 async def _best(rep: Report, f: dict) -> dict | None:
@@ -482,6 +509,102 @@ async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
     }
 
 
+async def note_view(rep: Report, text: str, boss: str | None) -> dict:
+    """The raid note against every pull on the boss, as raid_note with all_pulls counts it: each kick assignment's
+    casts pull by pull (kicked by its player, covered by another, went through, its player dead), the pulls whose
+    wipe followed casts that went through and whose cast went through first; each planned cooldown pull by pull (on
+    time, early, late, not cast, dead)."""
+    night = await notes.check_night(rep, text, boss)
+    f0 = night.fights[0]
+    def color(name: str) -> str:
+        p = rep.find_player(name)
+        return class_hex(p.class_name) if p else "#9aa3b8"
+    return {"view": "note", "report": rep.code, "boss": rep.boss_key(f0), "url": rep.url(f0).split("#")[0],
+            "title": f"{rep.boss_key(f0)}: the raid note",
+            "kicks": _note_kicks(rep, night, color), "cooldowns": _note_cooldowns(rep, night, color)}
+
+
+def _note_kicks(rep: Report, night: notes.Night, color: Callable[[str], str]) -> dict | None:
+    """Each kick assignment ("Kick #1 left", in the note's order) with its player, and per pull its casts in order:
+    kicked, covered (by whom), went through, dead or not in the pull. The pulls before the note's kick order came in
+    are drawn but not counted, as raid_note counts them."""
+    start = night.change.start if night.change else 0
+    rows = [(i, c, k) for i, c in enumerate(night.checks) for k in c.kicks]
+    if not rows:
+        return None
+    first_at: dict[str, float] = {}
+    who: dict[str, Counter] = defaultdict(Counter)
+    for i, _, k in rows:
+        first_at[k.callout.text] = min(first_at.get(k.callout.text, k.at), k.at)
+        if i >= start:
+            who[k.callout.text][k.player] += 1
+    slots = sorted(first_at, key=lambda s: first_at[s])
+
+    def cell(k: notes.KickCheck) -> dict:
+        at, how, by = k.cast
+        if k.state != "alive":
+            state = "dead" if k.state.startswith("dead") else "absent"
+        elif k.kicked:
+            state = "kicked"
+        elif how == "kicked":
+            state = "covered"
+        else:
+            state = "through"
+        return {"ms": round(at), "state": state, "player": k.player, "how": how, "by": by or ""}
+    out_pulls: list[dict] = []
+    first: Counter = Counter()
+    made = alive = 0
+    for i, c in enumerate(night.checks):
+        before = notes.through_before(c) if i >= start else []
+        lead = before[0] if before and before[0].state == "alive" else None
+        if lead:
+            first[lead.player] += 1
+        cells = {s: [] for s in slots}
+        for k in sorted(c.kicks, key=lambda k: k.at):
+            cells[k.callout.text].append(cell(k) | {"lead": k is lead})
+            if i >= start and k.state == "alive":
+                alive += 1
+                made += k.kicked
+        out_pulls.append({"pull": rep.pull_no(c.f), "counted": i >= start, "lost": bool(before),
+                          "cells": [cells[s] for s in slots]})
+    return {"slots": [{"text": s, "player": (n := who[s].most_common(1)[0][0] if who[s] else ""),
+                       "color": color(n) if n else "#9aa3b8"} for s in slots],
+            "from_pull": rep.pull_no(night.checks[start].f) if start else None,
+            "made": made, "alive": alive, "lost": sum(p["lost"] for p in out_pulls if p["counted"]),
+            "counted": sum(p["counted"] for p in out_pulls),
+            "first": [{"name": n, "count": k, "color": color(n)}
+                      for n, k in sorted(first.items(), key=lambda i: (-i[1], i[0]))],
+            "pulls": out_pulls}
+
+
+def _note_cooldowns(rep: Report, night: notes.Night, color: Callable[[str], str]) -> dict | None:
+    """Each planned cooldown (player, spell, its time in the note) and per pull that reached it before the wipe was
+    decided: on time (within 1 s), early or late (by how much), not cast within raid_note's window while alive, or
+    dead."""
+    uses = [(c, u) for c in night.checks if c.planned for u in c.planned.uses]
+    if not uses:
+        return None
+    key = lambda u: (u.cooldown.player, u.cooldown.spell, u.cooldown.phase, u.cooldown.at)  # noqa: E731
+    planned: dict[tuple, notes.PlannedUse] = {}
+    for _, u in sorted(uses, key=lambda cu: cu[1].at):
+        planned.setdefault(key(u), u)
+    order = list(planned)
+    by_pull: dict[int, dict[tuple, dict]] = defaultdict(dict)
+    for c, u in uses:
+        if u.cast_at is not None:
+            off = (u.cast_at - u.at) / 1000
+            state = "on time" if abs(off) < 1 else "early" if off < 0 else "late"
+            cell = {"state": state, "off_s": round(off, 1)}
+        else:
+            cell = {"state": "not cast" if u.state == "alive" else "dead" if u.state.startswith("dead") else "absent"}
+        by_pull[c.f["id"]][key(u)] = cell | {"ms": round(u.at)}
+    return {"uses": [{"player": (u := planned[k]).cooldown.player, "spell": rep.ability(u.cooldown.spell),
+                      "icon": icon(u.cooldown.spell), "phase": u.cooldown.phase, "at_s": u.cooldown.at,
+                      "color": color(u.cooldown.player)} for k in order],
+            "pulls": [{"pull": rep.pull_no(c.f), "cells": [by_pull[c.f["id"]].get(k) for k in order]}
+                      for c in night.checks]}
+
+
 async def meters_of(rep: Report, tool: str, args: dict) -> list[Meter]:
     """The meters a tool's answer ranks players in, from its own rows: breakdown by player (damage, healing, damage
     taken, kicks, dispels), mechanic_hits for one ability, enemies' damage on adds. None for another call: a table
@@ -513,11 +636,13 @@ async def meter_view(rep: Report, tool: str, args: dict) -> dict:
         p = players.get(b.name)
         return {"name": b.name, "value": b.value, "note": b.note, "died_after": b.died_after,
                 "killed_by": b.killed_by, "color": class_hex(p.class_name) if p else "#9aa3b8",
-                "spec": spaced(p.spec) if p else "", "role": p.role if p else ""}
+                "spec": spaced(p.spec) if p else "", "role": p.role if p else ""} | (
+                    {"per_pull": b.per_pull, "died_in": b.died_in} if b.per_pull else {})
     meters = [{"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 1),
                "icon": icon(m.ability), "note": m.note, "others": m.others,
                "total": sum(b.value for b in m.bars), "median": statistics.median(b.value for b in m.bars),
-               "bars": [bar(b) for b in m.bars]} for m in found]
+               "bars": [bar(b) for b in m.bars]} | ({"pulls": m.pulls, "per_pull": m.per_pull} if m.pulls else {})
+              for m in found]
     return {"view": "meter", "report": rep.code, "tool": tool, "args": args, "title": found[0].title,
             "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0], "meters": meters}
 

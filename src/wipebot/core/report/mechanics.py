@@ -30,6 +30,10 @@ class Hits:
     # A hit while the debuff from an earlier hit is still up: how long after the hit before it, per player
     rehit_gaps: dict[int, list[float]] = field(default_factory=lambda: defaultdict(list))
     spans: dict[int, list[list[float]]] = field(default_factory=dict)  # per player, each [applied, removed]
+    # per (pull's fight id, player): hits (not ticks), debuffs, and deaths with a hit from it just before
+    pull_hits: Counter = field(default_factory=Counter)
+    pull_debuffs: Counter = field(default_factory=Counter)
+    pull_died_after: Counter = field(default_factory=Counter)
 
     @property
     def by_debuff(self) -> bool:
@@ -96,14 +100,19 @@ async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | Non
     if len(who) < MIN_BARS:
         return None
     by_debuff = h.by_debuff
+    in_pull = [set(rep.pull_players(f)) for f in fights]
     bars = []
     for w in sorted(who, key=lambda w: (-h.debuffs[w], -h.damage[w]) if by_debuff else (-h.damage[w], -h.hits[w])):
         note = (plural(h.hits[w], "hit") if h.hits[w] else "") + (", " if h.hits[w] and h.ticks[w] else "") + (
             plural(h.ticks[w], "tick") if h.ticks[w] else "")
         if by_debuff:
             note = ", ".join(x for x in (short(h.damage[w]) if h.damage[w] else "", note) if x)
+        per = h.pull_debuffs if by_debuff else h.pull_hits
         bars.append(Bar(rep.names[w], h.debuffs[w] if by_debuff else h.damage[w], note, h.died_after[w],
-                        h.killed_by[w]))
+                        h.killed_by[w],
+                        [per[(f["id"], w)] if w in here else None for f, here in zip(fights, in_pull, strict=True)]
+                        if all_pulls else [],
+                        [i for i, f in enumerate(fights) if h.pull_died_after[(f["id"], w)]] if all_pulls else []))
     present = {p.id: p.name for f in fights for p in rep.pull_players(f).values()}
     scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
     if window:
@@ -114,7 +123,9 @@ async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | Non
                  note=(f"{plural(sum(h.killed_by.values()), 'death')} with it as the killing blow, "
                        f"{sum(h.died_after.values())} within {HIT_THEN_DEATH_MS // 1000} s of a hit (the deaths it "
                        "set up)."),
-                 others=sorted(n for pid, n in present.items() if pid not in who))
+                 others=sorted(n for pid, n in present.items() if pid not in who),
+                 pulls=[rep.pull_no(f) for f in fights] if all_pulls else [],
+                 per_pull="debuffs" if by_debuff else "hits")
 
 
 def _counting(fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None) -> Callable[[dict], bool]:
@@ -191,7 +202,7 @@ async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts:
     ids = [f["id"] for f in fights]
     await rep.all_deaths(fights)
     t = await rep.table(ids, "DamageTaken", hostilityType="Friendlies", viewBy="Ability")
-    deaths = [d for f in fights for d in (await rep.deaths(f)) if counts({**d, "fight": f["id"]})]
+    deaths = [{**d, "fight": f["id"]} for f in fights for d in (await rep.deaths(f)) if counts({**d, "fight": f["id"]})]
     all_hits: dict[int, list[tuple[float, bool]]] = defaultdict(list)  # every hit (not tick): time, before the cut
     hit_times: dict[int, list[float]] = defaultdict(list)  # of every id: a death after hits of two counts once
     for gid in [e["guid"] for e in t["entries"] if e["guid"] in ability_ids]:
@@ -203,6 +214,8 @@ async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts:
                     all_hits[e["targetID"]].append((e["timestamp"], counts(e)))
                 if counts(e):
                     (out.ticks if e.get("tick") else out.hits)[e["targetID"]] += 1
+                    if not e.get("tick"):
+                        out.pull_hits[(e.get("fight", ids[0]), e["targetID"])] += 1
                     out.damage[e["targetID"]] += e.get("amount", 0) + e.get("absorbed", 0)
                     hit_times[e["targetID"]].append(e["timestamp"])
     for d in deaths:
@@ -210,7 +223,8 @@ async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts:
             out.killed_by[d["targetID"]] += 1
         if any(0 <= d["timestamp"] - at <= HIT_THEN_DEATH_MS for at in hit_times[d["targetID"]]):
             out.died_after[d["targetID"]] += 1
-    spans = out.spans = await _debuff_spans(rep, ids, ability_ids, counts, out.debuffs)
+            out.pull_died_after[(d["fight"], d["targetID"])] += 1
+    spans = out.spans = await _debuff_spans(rep, ids, ability_ids, counts, out.debuffs, out.pull_debuffs)
     # The log can't tell whether a hit with the debuff up was the same source again or another one (every hit has
     # the boss as its source).
     for who, theirs in spans.items():
@@ -221,8 +235,9 @@ async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts:
 
 
 async def _debuff_spans(rep: Report, fight_ids: list[int], ability_ids: list[int], counts: Callable[[dict], bool],
-                        applied: Counter) -> dict[int, list[list[float]]]:
-    """Per player, each [applied, removed] of the ability's debuff; `applied` counts those before the cut."""
+                        applied: Counter, per_pull: Counter) -> dict[int, list[list[float]]]:
+    """Per player, each [applied, removed] of the ability's debuff; `applied` counts those before the cut, and
+    `per_pull` by (pull's fight id, player)."""
     spans: dict[int, list[list[float]]] = defaultdict(list)
     for gid in ability_ids:
         for e in sorted(await rep.events(fight_ids, "Debuffs", hostilityType="Friendlies", abilityID=gid),
@@ -236,6 +251,7 @@ async def _debuff_spans(rep: Report, fight_ids: list[int], ability_ids: list[int
                 theirs.append([e["timestamp"], math.inf])
                 if counts(e):
                     applied[e["targetID"]] += 1
+                    per_pull[(e.get("fight", fight_ids[0]), e["targetID"])] += 1
             elif e.get("type") == "removedebuff" and theirs and theirs[-1][1] == math.inf:
                 theirs[-1][1] = e["timestamp"]
     return spans

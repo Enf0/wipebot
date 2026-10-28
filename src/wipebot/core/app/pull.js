@@ -98,6 +98,7 @@ views.pull = (() => {
   }
 
   const { labels, niceMax } = kit;
+  const PEAK_BEFORE_MS = 10000;  // a healer cooldown this long before a damage peak is named with it
 
   function chart({ W, L, R, plotH, lanes }) {
     const x = (ms) => L + ms / D.duration_ms * (W - L - R);
@@ -156,6 +157,16 @@ views.pull = (() => {
     if (per.length) {
       const max = niceMax(Math.max(...per.map((p) => p[1])));
       const yD = (v) => bottom - v / max * plotH;
+      // the peaks (twice the pull's median or more): a band behind, its height on top, the healer cooldowns near it
+      for (const pk of D.damage.peaks || []) {
+        const near = D.cooldowns.filter((c) => c.kind === "healing" && c.ms >= pk.from_ms - PEAK_BEFORE_MS && c.ms <= pk.to_ms);
+        const tip = `Raid damage peak ${kit.clock(pk.from_ms)}-${kit.clock(pk.to_ms)}: up to ${kit.short(pk.per_s)}/s, twice the pull's median or more`
+          + (near.length ? `\nHealer cooldowns from ${PEAK_BEFORE_MS / 1000} s before: ${near.map((c) => `${c.name}${c.player ? ` (${c.player})` : ""} ${kit.clock(c.ms)}`).join(", ")}`
+            : `\nNo healer cooldown from ${PEAK_BEFORE_MS / 1000} s before`);
+        o += `<rect x="${x(pk.from_ms)}" y="${top}" width="${Math.max(2, x(pk.to_ms) - x(pk.from_ms))}" height="${plotH}" fill="var(--dead)" opacity=".09"${kit.tip(tip)}/>`;
+        const s = kit.short(pk.per_s), cx = (x(pk.from_ms) + x(pk.to_ms)) / 2;
+        o += kit.text(cx, Math.max(top + 9, yD(pk.per_s) - 5), s, "td", 'font-size="9.5" font-weight="600" text-anchor="middle" pointer-events="none"');
+      }
       const pts = per.map(([ms, v]) => [Math.min(ms + step / 2, D.duration_ms), v]);
       o += `<path d="M${x(pts[0][0])} ${bottom} ${pts.map(([ms, v]) => `L${x(ms)} ${yD(v)}`).join(" ")} L${x(pts[pts.length - 1][0])} ${bottom}Z" fill="var(--blue)" opacity=".18"/>`;
       o += `<path d="${pts.map(([ms, v], i) => `${i ? "L" : "M"}${x(ms)} ${yD(v)}`).join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.2" opacity=".8"/>`;

@@ -177,3 +177,20 @@ table.pulls td.fallout { color: var(--muted); }
 .meter .head h1 .ic { width: 18px; height: 18px; vertical-align: -4px; }
 svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2px; margin-right: 3px; color: var(--dead); }
 @media (max-width: 480px) { .meter-rows .nm small.nt, .meter-rows .val small { display: none; } }
+
+/* the raid note against every pull: a grid of squares, pulls down; its legend and the count under it */
+.note-board { padding-top: 2px; margin-bottom: 14px; }
+.note-board .grid { overflow-x: auto; margin: 2px 2px 6px; }
+.note-board .grid svg { min-width: 520px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--muted); margin: 4px 2px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.note-board .sec { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 12px 2px 4px; }
+.tally { list-style: none; margin: 0 2px; padding: 0; display: grid; gap: 3px; max-width: 420px; }
+.tally li { display: grid; grid-template-columns: 110px 1fr 24px; gap: 8px; align-items: center; font-size: 12.5px; }
+.tally .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tally .bar { height: 10px; border-radius: 3px; background: var(--panel); overflow: hidden; }
+.tally .bar i { display: block; height: 100%; opacity: .8; }
+.tally .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
+/* a name in its class colour, a step toward the ink so a priest's white still reads on a light page */
+.note-board .cls { fill: color-mix(in srgb, var(--c) 78%, var(--ink)); color: color-mix(in srgb, var(--c) 78%, var(--ink)); }
+:root[data-theme="light"] .note-board .cls { fill: color-mix(in srgb, var(--c) 62%, var(--ink)); color: color-mix(in srgb, var(--c) 62%, var(--ink)); }
