@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-28
+
 ### Added
 
 - `Discord` **Who does what, before the pull.** Asked about the next raid or a boss not pulled yet, the bot draws the saved raid note: each player's row under tanks, healers and damage, their planned cooldowns and callouts at their times, and their jobs and groups under their name.
