@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **What's new posts only what raiders care about.** A release whose changes are small tweaks or behind the scenes posts nothing in the what's new channel; its changes wait for the next post.
+
 ## [0.27.0] - 2026-10-28
 
 ### Added

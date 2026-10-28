@@ -1,5 +1,6 @@
 """What's new in each release, posted to the channel a server chose (news.py, WipeBot._post_news, /wipebot news)."""
 import json
+import re
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -85,16 +86,29 @@ async def test_the_model_words_the_lines_in_the_servers_language_and_code_counts
 
 
 async def test_without_the_model_a_post_has_each_items_lead_and_first_sentence():
+    post = await news.write(CHANGELOG, "0.2.0", "Wipebot")
+    assert post is not None
+    assert post.lines == ['**Raid damage at a moment.** "What was our raid DPS at 2:15?" is answered from a '
+                          'window.', "**The footer's points.** They're counted once."]
+    assert post.more == 0 and "All of it in the changelog" in post.text("Wipebot")
+    assert await news.write("## [0.2.0]\n\n- `MCP` Claude's.\n\n## [0.1.0]\n", "0.1.0", "Wipebot") is None
+
+
+async def test_nothing_is_posted_when_the_model_keeps_nothing_or_fails():
     async def fails(prompt: str) -> str:
         raise RuntimeError("the API is down")
 
-    for ask in (None, fails):
-        post = await news.write(CHANGELOG, "0.2.0", "Wipebot", ask)
-        assert post is not None
-        assert post.lines == ['**Raid damage at a moment.** "What was our raid DPS at 2:15?" is answered from a '
-                              'window.', "**The footer's points.** They're counted once."]
-        assert post.more == 0 and "All of it in the changelog" in post.text("Wipebot")
-    assert await news.write("## [0.2.0]\n\n- `MCP` Claude's.\n\n## [0.1.0]\n", "0.1.0", "Wipebot") is None
+    async def nothing_worth_it(prompt: str) -> str:
+        return json.dumps({"lines": [], **news.LABELS})
+
+    for ask in (fails, nothing_worth_it):
+        assert await news.write(CHANGELOG, "0.2.0", "Wipebot", ask) is None
+
+
+async def keeps_all(prompt: str) -> str:
+    """The model keeping every change, each by its bold lead."""
+    leads = re.findall(r"^(\d+)\. \([^)]*\) (\*\*.+?\*\*)", prompt, re.M)
+    return json.dumps({"lines": [{"item": int(n), "line": lead} for n, lead in leads], **news.LABELS})
 
 
 class Channel:
@@ -113,9 +127,7 @@ async def test_a_new_release_is_posted_once_to_each_chosen_channel_and_the_first
     channels = {30: Channel(30), 31: Channel(31)}
     monkeypatch.setattr(bot, "get_channel", channels.get)
 
-    async def write_news(prompt: str) -> str:
-        return "not JSON"  # the lines without the model, in English
-    monkeypatch.setattr(bot, "_write_news", write_news)
+    monkeypatch.setattr(bot, "_write_news", keeps_all)
     bot.store.set_news_channel(1001, 30)
     bot.store.set_news_channel(1002, 31)
     bot.store.set_language(1002, "Norwegian")
@@ -183,9 +195,7 @@ async def test_a_patch_posts_nothing_and_the_next_minor_posts_it_too(bot, monkey
     channel = Channel(30)
     monkeypatch.setattr(bot, "get_channel", {30: channel}.get)
 
-    async def write_news(prompt: str) -> str:
-        return "not JSON"
-    monkeypatch.setattr(bot, "_write_news", write_news)
+    monkeypatch.setattr(bot, "_write_news", keeps_all)
     bot.store.set_news_channel(1001, 30)
     bot.store.set_state("news_version", "0.1.0")
     await bot._post_news()
@@ -193,5 +203,29 @@ async def test_a_patch_posts_nothing_and_the_next_minor_posts_it_too(bot, monkey
     newer = "## [0.3.0] - 2026-10-29\n\n### Added\n\n- `Discord` **Newer.** A thing.\n\n"
     changelog[0] = newer + patch[patch.index("## [0.2.1]"):]
     await bot._post_news()
-    assert channel.texts[0].startswith("### What's new in Wipebot 0.3.0\n- **Newer.** A thing.")
+    assert channel.texts[0].startswith("### What's new in Wipebot 0.3.0\n- **Newer.**")
     assert "**Raid damage at a moment.**" in channel.texts[0]  # the patch's, and 0.2.0's
+
+
+async def test_a_minor_with_nothing_worth_it_waits_for_the_next_post(bot, monkeypatch):
+    changelog = [CHANGELOG]
+    monkeypatch.setattr(news, "read", lambda: changelog[0])
+    channel = Channel(30)
+    monkeypatch.setattr(bot, "get_channel", {30: channel}.get)
+    asked: list[str] = []
+
+    async def nothing_worth_it(prompt: str) -> str:
+        asked.append(prompt)
+        return json.dumps({"lines": [], **news.LABELS})
+    monkeypatch.setattr(bot, "_write_news", nothing_worth_it)
+    bot.store.set_news_channel(1001, 30)
+    bot.store.set_state("news_version", "0.1.0")
+    await bot._post_news()
+    await bot._post_news()  # a restart: not asked again
+    assert channel.texts == [] and len(asked) == 1 and bot.store.state("news_version") == "0.1.0"
+    changelog[0] = "## [0.4.0] - 2026-10-30\n\n### Added\n\n- `Discord` **Newer.** A thing.\n\n" + CHANGELOG[
+        CHANGELOG.index("## [0.3.0]"):]
+    monkeypatch.setattr(bot, "_write_news", keeps_all)
+    await bot._post_news()
+    assert "**Newer.**" in channel.texts[0] and "**Raid damage at a moment.**" in channel.texts[0]  # 0.3.0's too
+    assert bot.store.state("news_version") == "0.4.0"

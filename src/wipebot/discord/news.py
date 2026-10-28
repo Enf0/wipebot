@@ -30,14 +30,18 @@ ENGLISH = "English"
 LABELS = {"heading": "What's new in", "more": "more in the changelog", "all": "All of it in the changelog"}
 
 REWRITE = """These changes are in a new release of {name}, a Discord bot that answers raiders' questions about their \
-World of Warcraft raid logs from Warcraft Logs. Say each change a raider using the bot in Discord would notice in one \
-short, plain line for raiders, in {language} (at most 25 words), starting with its name in bold, like \
+World of Warcraft raid logs from Warcraft Logs. Be critical: a raider reads this in the guild's channel, so keep \
+only the changes they'd be glad to hear about (something new to ask or see, or an answer that is clearly better), \
+not small tweaks, wording, fixes few would notice or how the bot works inside. If none is worth it, answer with no \
+lines: then nothing is posted. Say each one you keep in one short, plain line for raiders, in {language} (at \
+most 25 words), starting with its name in bold, like \
 "**Kicks by pull.** You can now ask who missed their kick on each pull, and see it drawn." Leave out what only \
 matters in Claude or ChatGPT, to whoever runs the bot, or to the server's admins (setup, settings and admin \
 commands: raiders never use them), keep command names and game terms as they are written, and \
 put those with a picture first (the post shows it under the line), then the most important, at most {shown}. \
 Answer with JSON only:
-{{"lines": [{{"item": <its number>, "line": "<the line>"}}], "heading": "<'What's new in' in {language}>", \
+{{"lines": [{{"item": <its number>, "line": "<the line>"}}], "heading": "<'What's new in' in {language}, \
+without the name: it follows>", \
 "more": "<'more in the changelog' in {language}>", "all": "<'All of it in the changelog' in {language}>"}}
 
 {items}"""
@@ -158,17 +162,17 @@ def items(changelog: str, after: str) -> list[Item]:
     return sorted(out, key=lambda i: rank.get(i.section, len(SECTIONS)))  # stable: newest first in a section
 
 
-def picked(answer: str, count: int) -> tuple[list[tuple[int, str]], dict[str, str]]:
-    """The model's lines, (item's index, its line), and the post's own words; none when the answer isn't what was
-    asked."""
+def picked(answer: str, count: int) -> tuple[list[tuple[int, str]], dict[str, str]] | None:
+    """The model's lines, (item's index, its line), none when it kept none, and the post's own words; None when the
+    answer isn't what was asked."""
     try:
         found = json.loads(answer[answer.index("{"):answer.rindex("}") + 1])
         picks = [(int(p["item"]) - 1, " ".join(str(p["line"]).split())) for p in found["lines"]]
         labels = {k: " ".join(str(found[k]).split()) for k in LABELS}
     except (ValueError, TypeError, KeyError, AttributeError):
-        return [], {}
+        return None
     if not all(0 < len(v) <= 60 for v in labels.values()):
-        return [], {}
+        return None
     seen: set[int] = set()
     out = []
     for n, line in picks:
@@ -181,25 +185,24 @@ def picked(answer: str, count: int) -> tuple[list[tuple[int, str]], dict[str, st
 async def write(changelog: str, after: str, name: str, ask: Callable[[str], Awaitable[str]] | None = None,
                 language: str | None = None) -> Post | None:
     """What's new since version `after`, for Discord, its lines by the model (`ask`: a prompt to its answer) in
-    `language` (English for None) or, without one or when it fails, in English, each item's bold lead and first
-    sentence. None when nothing is new for Discord."""
+    `language` (English for None) or, without one, in English, each item's bold lead and first sentence. None when
+    nothing is new for Discord, the model found nothing worth a raider's read, or it failed."""
     found = items(changelog, after)
     version = latest(changelog)
     if not found or not version:
         return None
-    picks: list[tuple[int, str]] = []
+    picks: list[tuple[int, str]] = [(n, i.short) for n, i in enumerate(found[:SHOWN])]
     labels = dict(LABELS)
     if ask:
         numbered = "\n".join(f"{n}. ({i.section}{', with a picture' if i.pictures else ''}) {i.text}"
                              for n, i in enumerate(found, 1))
         prompt = REWRITE.format(name=name, shown=SHOWN, items=numbered, language=language or ENGLISH)
         try:
-            picks, labels = picked(await ask(prompt), len(found))
-        except Exception:  # the post goes out without the model's lines
-            picks = []
-        if not picks:
-            labels = dict(LABELS)
-    if not picks:
-        picks = [(n, i.short) for n, i in enumerate(found[:SHOWN])]
+            answer = picked(await ask(prompt), len(found))
+        except Exception:  # nothing posted: its changes wait for the next post
+            answer = None
+        if answer is None or not answer[0]:
+            return None
+        picks, labels = answer
     return Post(version, [line for _, line in picks], [found[n].pictures for n, _ in picks],
                 len(found) - len(picks), labels)

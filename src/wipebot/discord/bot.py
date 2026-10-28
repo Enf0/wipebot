@@ -462,16 +462,20 @@ class WipeBot(discord.Client):
         await self._post_news()
 
     async def _post_news(self) -> None:
-        """On a minor release not posted yet, what's new in it and in those since the last one posted (patches
-        included) to each server's channel for it, in the server's language. A patch posts nothing: its changes go
-        in the next minor's post. The first start posts nothing: it only notes the release it runs and keeps its
-        post, for /wipebot news to show."""
+        """On a minor release not looked at yet, what's new in it and in those since the last one posted (patches
+        included) to each server's channel for it, in the server's language, when the model finds any of it worth a
+        raider's read. A patch, or a release with nothing worth it, posts nothing: its changes wait for the next
+        post. The first start posts nothing: it only notes the release it runs and keeps its post, for
+        /wipebot news to show."""
         changelog, posted = news.read(), self.store.state("news_version")
-        if not changelog or not (version := news.latest(changelog)) or version == posted:
+        if not changelog or not (version := news.latest(changelog)) or version in (posted,
+                                                                                  self.store.state("news_checked")):
             return
         if posted and not version.endswith(".0"):
             return
-        self.store.set_state("news_version", version)  # first: a restart midway doesn't post it twice
+        self.store.set_state("news_checked", version)  # first: a restart midway doesn't post it twice
+        if posted is None:
+            self.store.set_state("news_version", version)
         after = posted or news.previous(changelog) or version
         channels = self.store.news_channels() if posted else []
         posts: dict[str, news.Post | None] = {}
@@ -481,6 +485,8 @@ class WipeBot(discord.Client):
                 posts[key] = post = await news.write(changelog, after, self.name, self._write_news, lang)
                 if post:
                     self.store.set_state(key, post.to_json())
+        if any(posts.values()):
+            self.store.set_state("news_version", version)
         for _, channel_id, lang in channels:
             if not (post := posts[commands.news_key(lang)]):
                 continue
