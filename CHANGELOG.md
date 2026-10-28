@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **Clearer pictures.** The damage meter draws every class's bar at one lightness with the class colour as its end cap, so names read as well on a priest's bar as on a warlock's; the raid's night colours only the four most common ways pulls ended (the rest grey) and its list of endings is the legend; a raider's plan map over the night says what green and red mean and labels only their three furthest misses.
+  ![The damage meter on Sszorak pull 13, every bar at the same lightness with a class-coloured end cap](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-meter-even-fills.webp)
+
 ## [0.24.1] - 2026-10-28
 
 ### Fixed

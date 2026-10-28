@@ -14,10 +14,12 @@ views.night = (() => {
     new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
   }
 
-  // Each way pulls ended keeps a colour, the most common first; a reset is grey and a kill gold
+  // The ways most pulls ended keep a colour each, the most common first, and the rest share grey ("other": more hues
+  // than that can't be told apart); a reset is faint and a kill gold
+  const HUES = 4;
+  const named = () => D.ends.map(([what]) => what).filter((w) => !QUIET.has(w));
   function colorOf() {
-    const named = D.ends.map(([what]) => what).filter((w) => !QUIET.has(w));
-    const m = new Map(named.slice(0, COLORS.length).map((w, i) => [w, COLORS[i]]));
+    const m = new Map(named().slice(0, HUES).map((w, i) => [w, COLORS[i]]));
     return (w) => w === "a kill" ? "var(--gold)" : w === "a reset" || w === "called off" ? "var(--line)" : m.get(w) || "var(--muted)";
   }
 
@@ -50,7 +52,7 @@ views.night = (() => {
 
   // Pull by pull: boss health left (lower is better) in the colour of what ended the pull, the night's best so far
   // (a line), the guild's best before the night (dashed)
-  function chart(W, lanes) {
+  function chart(W, lanes, legend) {
     const color = colorOf(), n = D.pulls.length, L = 40, R = 16, T = 12, plotH = lanes ? 200 : 130;
     const band = (W - L - R) / Math.max(n, 1), x = (i) => L + i * band, bw = Math.max(2, Math.min(20, band * 0.72));
     const y = (v) => T + plotH - v / 100 * plotH;
@@ -79,10 +81,13 @@ views.night = (() => {
     }
     const every = Math.max(1, Math.ceil(24 / band));
     D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle" font-size="10"'); });
-    // the legend: the endings by how many pulls, then the lines
-    const keys = D.ends.filter(([w]) => w !== "still going").slice(0, 6).map(([w, k]) =>
+    // the legend, only where the list of how the pulls ended isn't drawn under it (that list is the legend): the
+    // coloured endings by how many pulls, the rest as one "other", then the line
+    const hued = new Set(named().slice(0, HUES)), other = D.ends.filter(([w]) => !QUIET.has(w) && !hued.has(w)).reduce((n, [, k]) => n + k, 0);
+    const keys = !legend ? [] : D.ends.filter(([w]) => w !== "still going" && (QUIET.has(w) || hued.has(w))).map(([w, k]) =>
       [(lx, ly) => w === "a kill" ? `<path d="M${lx + 5} ${ly - 10} l4 8 l-8 0z" fill="var(--gold)"/>` : `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="${color(w)}"/>`,
        `${w.replace(/ killing many$/, "")} ${k}`]);
+    if (legend && other) keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="var(--muted)"/>`, `other ${other}`]);
     keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="1.6"/>`, "best so far"]);
     let lx = 6, ly = T + plotH + 34;
     for (const [mark, name] of keys) {
@@ -161,7 +166,8 @@ views.night = (() => {
     const color = colorOf(), counted = D.pulls.filter((r) => !r.live).length;
     const max = Math.max(1, ...D.ends.map(([, k]) => k), ...D.firsts.map(([, k]) => k));
     const bar = (k, c) => `<span class="bar"><span style="width:${Math.round(100 * k / max)}%;background:${c}"></span></span>`;
-    const ends = D.ends.map(([w, k]) => `<li><span>${kit.esc(w)}</span>${bar(k, color(w))}<span class="count">${k}</span></li>`).join("");
+    const swatch = (w) => w === "a kill" ? '<i class="sw" style="background:var(--gold)"></i>' : `<i class="sw" style="background:${color(w)}"></i>`;
+    const ends = D.ends.map(([w, k]) => `<li><span>${swatch(w)}${kit.esc(w)}</span>${bar(k, color(w))}<span class="count">${k}</span></li>`).join("");
     const firsts = D.firsts.map(([w, k]) => `<li><span>${kit.esc(w)}</span>${bar(k, "var(--dead)")}<span class="count">${k}</span></li>`).join("");
     return `<div class="section-title">How the ${counted} pulls ended</div><ul class="ranked">${ends}</ul>`
       + `<div class="section-title">What killed the first ${D.first_n} deaths of each pull</div><ul class="ranked">${firsts}</ul>`;
@@ -181,11 +187,12 @@ views.night = (() => {
     const full = app.context().displayMode === "fullscreen", picture = app.picture();
     drawnWidth = root.clientWidth;
     const width = Math.max(300, drawnWidth || 640);
-    const tonight = `<div data-panel="pulls">${head()}${stats()}${chart(width, full)}</div>`;
-    // Asked night by night, those come first; a picture then leaves out how tonight's pulls ended
+    // Asked night by night, those come first; a picture then leaves out how tonight's pulls ended, and the chart has
+    // its own legend
     const nights = D.weeks && D.weeks.length ? weeks(width) : "";
-    const panels = nights ? nights + tonight + (picture ? "" : `<div data-panel="endings">${endings()}</div>`)
-      : `${tonight}<div data-panel="endings">${endings()}</div>`;
+    const listed = !(nights && picture);
+    const tonight = `<div data-panel="pulls">${head()}${stats()}${chart(width, full, !listed)}</div>`;
+    const panels = nights + tonight + (listed ? `<div data-panel="endings">${endings()}</div>` : "");
     if (picture) { root.innerHTML = panels; return; }
     root.innerHTML = (full ? bosses() : "") + panels + (full ? table()
       : `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="rn-open">Open night</button>' : ""}</div>`);

@@ -551,8 +551,12 @@ async def _night(rep: Report, versions: list[Plan], fights: list[dict], ability:
                  "room once for each way the raid used it (as drawn and mirrored, each where it fitted best), "
                  f"{asked}'s spot as a filled ring of the tolerance's radius, the other spots as small dots, and a dot "
                  "where they stood each time, laid over the plan the same way: green within the tolerance of their "
-                 "spot, red further, labelled pull·moment. Refer to it; don't describe it again.")
+                 f"spot, red further, the {LABELLED} furthest labelled pull·moment. Refer to it; don't describe it "
+                 "again.")
     return lines, await maps.drawn(sc)
+
+
+LABELLED = 3  # a player's map over the night labels this many of their furthest misses
 
 
 async def _player_scene(rep: Report, good: list[tuple[Scene, Checked]], name: str) -> maps.Scene | None:
@@ -581,6 +585,7 @@ async def _player_scene(rep: Report, good: list[tuple[Scene, Checked]], name: st
             sc.spots.append(maps.Spot(x * 100, y * 100, (120, 220, 200) if i == own else (150, 156, 170),
                                       fill=i == own))
     count: Counter = Counter()
+    misses = []
     for _, c, s in mine:
         assert c.fit
         ref = refs[c.fit.mirrored][1].fit
@@ -591,4 +596,11 @@ async def _player_scene(rep: Report, good: list[tuple[Scene, Checked]], name: st
         on = s.off_yd <= c.fit.tolerance
         sc.marks.append(maps.Mark(x * 100, y * 100, (90, 214, 140) if on else (255, 110, 110),
                                   "" if on else f"{pull}·{count[pull]}"))
+        if not on:
+            misses.append((s.off_yd, len(sc.marks) - 1))
+    far = {i for _, i in sorted(misses, reverse=True)[:LABELLED]}  # labels on every miss pile up in a cluster
+    for i, mk in enumerate(sc.marks):
+        if i not in far:
+            mk.label = ""
+    sc.title += f" · green: on their spot, red: more than {sc.ring_yd:.0f} yd off"
     return sc
