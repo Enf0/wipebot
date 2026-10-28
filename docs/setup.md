@@ -115,8 +115,8 @@ they then press **Connect** on the plugin's connector and sign in with Warcraft 
 
 Raiders @mention it or reply to it in a channel, or DM it; `/help` tells them what to ask, and `/usage` what's left of
 the hour's Warcraft Logs points (and of the budget, [below](#a-budget-the-guild-chips-in-to)). With
-`WIPEBOT_WCL_CALLBACK` set, `/login` signs a raider in with Warcraft Logs, so their own points pay first. Every
-command: [features.md](features.md#discord-commands).
+`WIPEBOT_WCL_CALLBACK` set, `/login` signs a raider in with Warcraft Logs, so their own points pay first, and
+`/login private:True` lets the bot read their private reports for their own questions. Every command: [features.md](features.md#discord-commands).
 
 ### A budget the guild chips in to
 

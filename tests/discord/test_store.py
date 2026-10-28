@@ -218,3 +218,19 @@ def test_a_sign_in_is_kept_until_it_lapses_or_the_raider_signs_out(store, monkey
     store.save_login(8, 102, "Other", "token-old", expires=time.time() - 1)
     assert store.login(8) is None and store.login(9) is None
     assert store.drop_login(7) and not store.drop_login(7) and store.login(7) is None
+
+
+def test_a_private_reports_sign_in_is_kept_apart_from_the_first(store):
+    """/login private: its token reads only private reports, so it never stands in for the first one."""
+    later = time.time() + 3600
+    store.save_login(7, 101, "Kaelnor", "private-abc", later, private=True)  # without the first sign-in
+    assert store.login(7) is None and store.private_login(7) == ("Kaelnor", "private-abc")
+    store.save_login(7, 101, "Kaelnor", "token-abc", later)
+    assert store.login(7) == ("Kaelnor", "token-abc") and store.private_login(7) == ("Kaelnor", "private-abc")
+    store.save_login(7, 202, "Alt", "token-alt", later)  # another Warcraft Logs account: its private token goes
+    assert store.private_login(7) is None
+    store.save_login(7, 202, "Alt", "private-alt", later, private=True)
+    assert store.drop_private_login(7) and store.login(7) == ("Alt", "token-alt") and store.private_login(7) is None
+    store.save_login(8, 303, "Pug", "private-pug", later, private=True)
+    assert store.drop_private_login(8)
+    assert store._db.execute("SELECT * FROM logins WHERE user_id = 8").fetchone() is None  # it was all there was

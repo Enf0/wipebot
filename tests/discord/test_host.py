@@ -54,15 +54,16 @@ async def test_a_signed_in_askers_calls_read_warcraft_logs_with_their_token(monk
     read_as = []
 
     async def call(name, args):
-        read_as.append(wcl._user.get())
+        read_as.append((wcl._user.get(), wcl.private_token()))
         return "ok", False, [], None
     monkeypatch.setattr(host, "tool_call", call)
-    token = None
-    tools = {t.name: t for t in await sdk_tools("R", wcl_token=lambda: token)}
+    tokens = (None, None, None)
+    tools = {t.name: t for t in await sdk_tools("R", wcl_token=lambda: tokens)}
     await tools["pull_summary"].handler({"pull": 13})
-    token = "token-abc"
+    tokens = ("token-abc", "private-abc", None)
     await tools["pull_summary"].handler({"pull": 13})
-    assert read_as == [None, "token-abc"] and wcl._user.get() is None
+    assert read_as == [(None, None), ("token-abc", "private-abc")] and wcl._user.get() is None
+    assert wcl.private_token() is None
 
 
 async def test_a_tool_error_goes_to_the_model_as_a_failed_call(monkeypatch):
@@ -570,3 +571,9 @@ async def test_a_saved_conversation_resumes_when_its_transcript_is_there(monkeyp
     monkeypatch.setattr(host, "get_session_info", lambda sid, directory: object() if found else None)
     session = await Session(cast(server.Library, SimpleNamespace(report=report)), "R1", resume="s1").__aenter__()
     assert (seen[0].resume, session.resumed, session.session_id) == (("s1", True, "s1") if found else (None, False, ""))
+
+
+def test_a_call_that_read_a_private_report_keeps_no_result_in_the_record():
+    call = ToolCall("pull_summary", {"report": "R"}, "the raid's private secrets", False, [], 0.0, 1.0,
+                    {"queries": 2, "private": True})
+    assert call.record(0.0)["result"] == server.PRIVATE_KEPT and call.result == "the raid's private secrets"

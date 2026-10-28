@@ -5,6 +5,8 @@ Over HTTP the tools read Warcraft Logs with the client credentials only: a user 
 its private reports to everyone, so the server won't start with one, nor read with one saved later. Added here:
 
 - `my_characters`: the signed-in user's characters, so "how did I do?" needs no name.
+- Private reports: a user who lets Wipebot read theirs (signin.py, /wcl/private) gets them in their own calls only
+  (library.Library, wcl.mark_private); a report Warcraft Logs won't show anyone else says where to allow it.
 - `report_answer` (allow_reports, on a server that keeps its calls): an answer the user says is wrong, missing
   something or slow, sent to whoever runs the server. MCP never gives a server the user's message or the model's
   answer, so this is how its maintainers see one; the report is a kept call like any other, its arguments the report.
@@ -47,7 +49,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError, maps, views
 
 from . import plugin
-from .signin import CALLBACK_PATH, CONSENT_PATH, Access, SignIn
+from .signin import CALLBACK_PATH, CONSENT_PATH, PRIVATE_PATH, Access, SignIn
 
 # Claude caches an app's page by its address: a changed page gets a new one. Any older address still gets today's
 # page (`_any_views_address`), so a host with an older tool list doesn't break.
@@ -74,7 +76,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
         guilds=guilds, user_name=lambda subject: (signin.user(int(subject)) or (f"account {subject}", []))[0],
         record=record,
         guild_ids=lambda subject: _guild_ids(signin, subject),
-        wcl_token=lambda subject: signin.wcl_token(int(subject)), limits=limits))
+        wcl_token=lambda subject: signin.wcl_token(int(subject)),
+        wcl_private_token=lambda subject: signin.wcl_token(int(subject), private=True),
+        private_reports_url=public + PRIVATE_PATH, limits=limits))
     site_routes = site(signin.access, signin.resource) if site else []
     mcp = server.new_server(
         website_url=public, icons=[Icon(src=f"{public}/icon.png", mime_type="image/png", sizes=["256x256"])],
@@ -118,6 +122,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     _any_views_address(mcp, public)
     mcp.custom_route(CALLBACK_PATH, ["GET"])(signin.callback)
     mcp.custom_route(CONSENT_PATH, ["GET", "POST"])(signin.consent)
+    mcp.custom_route(PRIVATE_PATH, ["GET", "POST"])(signin.private_reports)
     mcp.custom_route("/img/{path:path}", ["GET"])(_img)
     mcp.custom_route("/health", ["GET"])(_health)  # compose.yml's healthcheck
     mcp.custom_route(plugin.PATH, ["GET"])(_plugin(signin))

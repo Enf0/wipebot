@@ -98,8 +98,14 @@ class Context:
     user_id: int = 0  # is kept under them (store.spend); 0 for none
     env: dict | None = None  # what the session runs on when the server brought its own key (keys.ServerKey.env)
     wcl_token: str | None = field(default=None, repr=False)  # the asker's Warcraft Logs token, signed in (/login)
+    wcl_private: str | None = field(default=None, repr=False)  # ...and the one reading their private reports
+    private_hint: str | None = None  # how they'd let Wipebot read their private reports, told with one it can't
     noted: Sequence[str] = ()  # the bosses with a raid note saved in the server
     planned: Sequence[str] = ()  # the bosses with a raid plan saved in the server
+
+    def tokens(self) -> tuple[str | None, str | None, str | None]:
+        """What the asker's tool calls read with (wcl.reading_as) and the hint for a report they can't read."""
+        return self.wcl_token, self.wcl_private, None if self.wcl_private else self.private_hint
 
 
 SERVER = "wipebot"  # the tools' MCP server: the model calls mcp__wipebot__<tool>
@@ -254,7 +260,8 @@ class ToolCall:
     def record(self, asked: float) -> dict:
         """For the interaction record, with when it started counted from `asked` (the question's time.monotonic()):
         the images stay out."""
-        return {"name": self.name, "args": self.args, "result": self.result, "failed": self.failed,
+        return {"name": self.name, "args": self.args,
+                "result": server.PRIVATE_KEPT if self.wcl_points.get("private") else self.result, "failed": self.failed,
                 "images": len(self.images), "started_s": round(self.started - asked, 2),
                 "duration_s": round(self.duration_s, 2), "wcl_points": self.wcl_points}
 
@@ -263,14 +270,15 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                     guild: Callable[[], str | None] | None = None,
                     note: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
                     plan: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
-                    wcl_token: Callable[[], str | None] | None = None) -> list:
+                    wcl_token: Callable[[], tuple[str | None, str | None, str | None]] | None = None) -> list:
     """The core's MCP tools, wrapped for the Agent SDK's in-process server. Tools that take a report get `code`
     when the model names none, so sessions about different servers' reports don't mix. `on_result` gets every
     call, failed ones too. `guild` gives the server's guild as "name, realm, region": find_reports asked with no
     guild, or for that guild by name alone, gets the guild's name, realm and region. With `note`, raid_note
     takes no note from the model: `note` finds the saved one for the call's pull, (note, where it's from), or says
     why there's none. `plan` does the same for raid_plan (where it's from may be "": the plan's text says).
-    `wcl_token` gives the asker's Warcraft Logs token, which a call reads with, so their own points pay first."""
+    `wcl_token` gives the asker's Warcraft Logs token, which a call reads with, so their own points pay first, their
+    token that reads their private reports, and how they'd let Wipebot read them (server.telling_unreadable)."""
     saved_args = {"raid_note": ("note", note), "raid_plan": ("plan", plan)}
 
     def wrap(name: str, description: str, schema: dict):
@@ -289,7 +297,8 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                 args = with_own_guild(args, own)
             started = time.monotonic()
             drawing = None
-            with wcl.reading_as(wcl_token() if wcl_token else None), wcl.counting_points() as points:
+            token, private, hint = wcl_token() if wcl_token else (None, None, None)
+            with wcl.reading_as(token, private), server.telling_unreadable(hint), wcl.counting_points() as points:
                 try:
                     found = await find(args) if find else None
                     if isinstance(found, str):
@@ -491,7 +500,7 @@ class Session:
         bot = self.system_prompt is None  # else a client with only the connector: the core's raid_note and raid_plan
         tools = await sdk_tools(self.code, self._returned,lambda: self._ctx.guild if self._ctx else None,
                                 self._saved_note if bot else None, self._saved_plan if bot else None,
-                                lambda: self._ctx.wcl_token if self._ctx else None)
+                                lambda: self._ctx.tokens() if self._ctx else (None, None, None))
         if bot:
             tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
         options = ClaudeAgentOptions(
@@ -557,7 +566,7 @@ class Session:
         asked = time.monotonic()
         if self.code:
             self.report = await self.library.report(self.code)  # picks up new pulls of a live report
-        ran = [await self._prefetched(name, args, ctx.wcl_token) for name, args in ctx.prefetch]
+        ran = [await self._prefetched(name, args, ctx.tokens()) for name, args in ctx.prefetch]
         question += "".join(prompt.PREFETCHED.format(tool=c.name, result=c.result) for c in ran if not c.failed)
         report = self.report
         text = no_paths(prompt.message(question, ctx, report, await report.guild_run_doubt() if report else "",
@@ -597,9 +606,11 @@ class Session:
         await pictures_drawn(answer.calls)
         text = texts[-1].strip() if texts else NO_ANSWER  # the last text is the answer
         text, answer.follow_ups = follow_ups(text)
+        with wcl.reading_as(*ctx.tokens()[:2]):  # a private report the asker read too
+            read = await self._reports_read(answer.calls)
         answer.text, answer.marks = placed(polish(
-            picture_marks(text), [c.result for c in answer.calls if not c.failed],
-            await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx)))
+            picture_marks(text), [c.result for c in answer.calls if not c.failed], read, ctx.icons,
+            await self._roster(ctx)))
         view = next((c.name for _, c in answer.pictures if c.name in server.VIEW_TOOLS), None)
         answer.marks = placed_by_default(answer.text, answer.marks, view)
         return answer
@@ -617,11 +628,13 @@ class Session:
             log.info("no roster from Viserio for the icons: %s", e)
             return {}
 
-    async def _prefetched(self, name: str, args: dict, wcl_token: str | None = None) -> ToolCall:
+    async def _prefetched(self, name: str, args: dict,
+                          tokens: tuple[str | None, str | None, str | None] = (None, None, None)) -> ToolCall:
         """One of a question's `prefetch` tools, run as the model's own call would be, on the session's report."""
         args = {"report": self.code, **args} if self.code else args
         started, drawing = time.monotonic(), None
-        with wcl.reading_as(wcl_token), wcl.counting_points() as points:
+        with wcl.reading_as(tokens[0], tokens[1]), server.telling_unreadable(tokens[2]), \
+                wcl.counting_points() as points:
             try:
                 text, failed, images, drawing = await tool_call(name, args)
             except (ToolError, FactError) as e:

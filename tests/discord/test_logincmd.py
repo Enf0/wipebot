@@ -40,6 +40,20 @@ async def test_the_pasted_address_signs_the_raider_in(store, monkeypatch):
     assert store.login(7) == ("Kaelnor", "token-abc")
 
 
+async def test_the_private_reports_sign_in_asks_for_them_and_keeps_its_token_apart(store, monkeypatch):
+    choices = logincmd.Choices(store, CALLBACK, "client-id", "secret", private=True)
+    link = cast(discord.ui.Button, choices.children[0])
+    assert parse_qs(urlparse(link.url or "").query)["scope"] == [accounts.PRIVATE_SCOPES]
+
+    async def login(*args):
+        return accounts.Account(101, "Kaelnor", [], "private-abc", 2e9)
+    monkeypatch.setattr(accounts, "login", login)
+    said = await logincmd.sign_in(choices, 7, f"{CALLBACK}?code=abc123DEF_-x&state={choices.state}")
+    assert "now reads the private reports **Kaelnor**" in said
+    assert store.login(7) is None and store.private_login(7) == ("Kaelnor", "private-abc")
+    assert "reads the private reports **Kaelnor** may open" in logincmd.status(store, 7)
+
+
 async def test_an_address_from_another_sign_in_or_without_a_code_saves_nothing(store, monkeypatch):
     choices = logincmd.Choices(store, CALLBACK, "client-id", "secret")
     assert "another sign-in" in await logincmd.sign_in(choices, 7, f"{CALLBACK}?code=abc123DEF_-x&state=other")

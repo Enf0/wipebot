@@ -38,6 +38,7 @@ ACCOUNTS = {  # what a Warcraft Logs login code stands for
     "social": accounts.Account(2, "Social", [character(21, "Social", rank=8, guilds=[LANTERNS])]),
     "stranger": accounts.Account(3, "Stranger", [character(31, "Pug", "silvermoon")]),
     "unclaimed": accounts.Account(4, "Unclaimed", []),
+    "raider-private": accounts.Account(1, "Raider", [], "raider's private-reports token", 4e9),  # /wcl/private
     "officer": accounts.Account(5, "Lead", [character(51, "Halvard", rank=1, guilds=[LANTERNS])],
                                 "lead's warcraft logs token", 4e9),
 }
@@ -332,6 +333,38 @@ def test_a_users_warcraft_logs_token_goes_when_they_leave_the_guild_or_have_no_g
     users._db.execute("UPDATE users SET signed_in = 0")
     users._purge(now_=True)
     assert users._db.execute("SELECT wcl_token FROM users WHERE id = 5").fetchone() == (None,)
+
+
+def private_sign_in(c: TestClient, who: str, stop: bool = False):
+    """/wcl/private's button, then Warcraft Logs sending the browser back: the response of our callback."""
+    r = c.post(signin.PRIVATE_PATH, data={"stop": "1"} if stop else {}, follow_redirects=False)
+    assert r.status_code == 303, r.text
+    q = urllib.parse.parse_qs(urllib.parse.urlparse(r.headers["location"]).query)
+    assert q["scope"] == [accounts.SCOPES if stop else accounts.PRIVATE_SCOPES]
+    return c.get("/wcl/callback", params={"code": who, "state": q["state"][0]})
+
+
+def test_a_signed_in_user_lets_wipebot_read_their_private_reports_then_stops_it(client, users):
+    """A second sign-in, so members who read only public logs never see that consent; its token is kept apart."""
+    page = client.get(signin.PRIVATE_PATH)
+    assert page.status_code == 200 and "Let Wipebot read my private reports" in page.text
+    r = private_sign_in(client, "raider-private")
+    assert r.status_code == 403 and "Sign in to Wipebot first" in r.text and users.wcl_token(1, private=True) is None
+    client_id = register(client)
+    tokens(client, client_id)
+    r = private_sign_in(client, "raider-private")
+    assert r.status_code == 200 and "now reads the private reports" in r.text
+    assert users.wcl_token(1, private=True) == "raider's private-reports token"
+    assert users.wcl_token(1) == "raider's warcraft logs token"  # the first token stays the one read with
+    tokens(client, client_id)  # signing in again keeps it
+    assert users.wcl_token(1, private=True) == "raider's private-reports token"
+    r = private_sign_in(client, "raider", stop=True)
+    assert "no longer reads" in r.text and users.wcl_token(1, private=True) is None and users.wcl_token(1)
+    private_sign_in(client, "raider-private")
+    users._db.execute("DELETE FROM tokens")  # signed out: it goes with the first token
+    users._db.execute("UPDATE users SET signed_in = 0")
+    users._purge(now_=True)
+    assert users.wcl_token(1, private=True) is None
 
 
 def test_a_user_with_no_grant_left_is_forgotten_after_a_while(client, users):
@@ -871,7 +904,7 @@ def test_a_sign_in_database_half_brought_up_to_date_is_finished(tmp_path):
     db.commit()
     db.close()
     users = SignIn(PUBLIC, Access([GUILD], find_guild), CLIENT, SECRET, path)
-    assert users.user(1) == ("Raider", []) and users._db.execute("PRAGMA user_version").fetchone()[0] == 3
+    assert users.user(1) == ("Raider", []) and users._db.execute("PRAGMA user_version").fetchone()[0] == 4
     assert {"checked", "wcl_token", "wcl_expires"} <= {r[1] for r in users._db.execute("PRAGMA table_info(users)")}
     assert users.wcl_token(1) is None  # signed in before tokens were kept
 

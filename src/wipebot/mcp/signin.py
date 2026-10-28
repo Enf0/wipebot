@@ -25,6 +25,11 @@ the registered clients and each user's Warcraft Logs user id, name and guild cha
 token, encrypted with a key made from WCL_CLIENT_SECRET, nothing else; a user with no grant left is forgotten after
 GONE_USER_S. Their tool calls read Warcraft Logs with that
 token (`wcl_token`), so their own Warcraft Logs points pay first; it goes when they lose access or have no grant left.
+
+Private reports are a second sign-in at /wcl/private (PRIVATE_PATH), after the first, so members who only read their
+guild's public logs never see that consent: Warcraft Logs' `view-private-reports` too, whose token is kept apart
+(`wcl_private_token`) and read with only for a report the client credentials can't read (wcl.mark_private). The same
+page stops it (a sign-in with the first scope only, to tell who asks), and it goes with the first token.
 """
 import base64
 import dataclasses
@@ -78,6 +83,7 @@ MEMBERSHIP_GRACE_S = 86400  # with Warcraft Logs down, a user stays in this long
 OFFICER_RANK = 1  # WIPEBOT_OFFICER_RANK's default: WoW's default Guild Master (0) and Officer (1) ranks
 CALLBACK_PATH = "/wcl/callback"
 CONSENT_PATH = "/wcl/consent"
+PRIVATE_PATH = "/wcl/private"  # the second sign-in: the user's private reports
 COOKIE = "wipebot_signin"  # the browser's sign-in nonce, which each of its sign-ins is bound to
 CLIENT_HOSTS = ("claude.ai", "chatgpt.com")  # whose client ID metadata documents we fetch
 CLIENT_DOC_TTL_S = 86400
@@ -252,7 +258,7 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         self._db.execute("BEGIN IMMEDIATE")  # all of the migration or none, one server at a time
         try:
             self._migrate(self._db.execute("PRAGMA user_version").fetchone()[0])
-            self._db.execute("PRAGMA user_version = 3")
+            self._db.execute("PRAGMA user_version = 4")
             self._db.execute("COMMIT")
         except BaseException:
             self._db.execute("ROLLBACK")
@@ -268,7 +274,11 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                                                expires REAL NOT NULL, grant_id TEXT NOT NULL, grace REAL);
             CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL,
                                               characters TEXT NOT NULL, signed_in REAL NOT NULL, checked REAL,
-                                              wcl_token TEXT, wcl_expires REAL);
+                                              wcl_token TEXT, wcl_expires REAL, wcl_private TEXT,
+                                              wcl_private_expires REAL);
+            -- the second sign-ins under way (PRIVATE_PATH): letting Wipebot read private reports, or stopping it
+            CREATE TABLE IF NOT EXISTS private_logins (state TEXT PRIMARY KEY, verifier TEXT NOT NULL,
+                                                       stop INTEGER NOT NULL, expires REAL NOT NULL);
         """)
         self._documents: dict[str, tuple[DocumentClient | None, float]] = {}  # url -> (client, fresh until)
         self._purged = 0.0
@@ -276,7 +286,7 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         self._purge()
 
     def _migrate(self, version: int) -> None:
-        """A store from before brought up to version 3 (the tables are then created as they are now)."""
+        """A store from before brought up to version 4 (the tables are then created as they are now)."""
         if version < 1:
             # The users were Battle.net accounts before: their ids mean nothing now, so everyone signs in again.
             for table in ("logins", "codes", "tokens", "users"):
@@ -294,6 +304,12 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
             for column, kind in (("wcl_token", "TEXT"), ("wcl_expires", "REAL")):
                 if columns and column not in columns:
                     self._db.execute(f"ALTER TABLE users ADD COLUMN {column} {kind}")
+        if version < 4:
+            # The user's token for their private reports, from a second sign-in
+            columns = {r[1] for r in self._db.execute("PRAGMA table_info(users)")}
+            for column, kind in (("wcl_private", "TEXT"), ("wcl_private_expires", "REAL")):
+                if columns and column not in columns:
+                    self._db.execute(f"ALTER TABLE users ADD COLUMN {column} {kind}")
 
     def _purge(self, now_: bool = False) -> None:
         """Drop what has expired, and registered clients without a token unused for UNUSED_CLIENT_S (never used for
@@ -302,14 +318,15 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         if now - self._purged < PURGE_EVERY_S and not now_:
             return
         self._purged = now
-        for table in ("logins", "codes", "tokens"):
+        for table in ("logins", "codes", "tokens", "private_logins"):
             self._db.execute(f"DELETE FROM {table} WHERE expires < ?", (now,))
         self._db.execute("DELETE FROM clients WHERE client_id NOT IN (SELECT client_id FROM tokens) AND "
                          "(created < ? OR (used IS NULL AND created < ?))",
                          (now - UNUSED_CLIENT_S, now - NEVER_USED_CLIENT_S))
         # A user with no grant left (signed out, revoked, lapsed) has no use for their Warcraft Logs token; one just
         # back from Warcraft Logs is still exchanging their code for one
-        self._db.execute("UPDATE users SET wcl_token = NULL, wcl_expires = NULL WHERE wcl_token IS NOT NULL AND "
+        self._db.execute("UPDATE users SET wcl_token = NULL, wcl_expires = NULL, wcl_private = NULL, "
+                         "wcl_private_expires = NULL WHERE (wcl_token IS NOT NULL OR wcl_private IS NOT NULL) AND "
                          "id NOT IN (SELECT user FROM tokens) AND signed_in < ?", (now - CODE_TTL_S,))
         # ...and is forgotten once they haven't signed in or been checked for GONE_USER_S
         self._db.execute("DELETE FROM users WHERE id NOT IN (SELECT user FROM tokens) AND "
@@ -458,6 +475,10 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
     async def callback(self, request: Request) -> Response:
         """Warcraft Logs sends the browser back here: let the user in (a code for the client) or say why not."""
         state = request.query_params.get("state", "")
+        if private := self._db.execute("SELECT verifier, stop FROM private_logins WHERE state = ? AND expires > ?",
+                                       (state, time.time())).fetchone():
+            self._db.execute("DELETE FROM private_logins WHERE state = ?", (state,))
+            return await self._private_callback(request, private[0], bool(private[1]))
         row = self._login(state)
         if not row:
             return _expired()
@@ -490,8 +511,10 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                          "rank that may use Wipebot. Claim your character on warcraftlogs.com (your character's "
                          "page, <b>Claim</b>), then sign in again. If you joined the guild recently, Warcraft Logs "
                          "can take a day or two to see it.", 403)
-        self._db.execute("INSERT OR REPLACE INTO users (id, name, characters, signed_in, checked, wcl_token, "
-                         "wcl_expires) VALUES (?, ?, ?, ?, ?, ?, ?)", (
+        self._db.execute("INSERT INTO users (id, name, characters, signed_in, checked, wcl_token, wcl_expires) "
+                         "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name, characters "
+                         "= excluded.characters, signed_in = excluded.signed_in, checked = excluded.checked, "
+                         "wcl_token = excluded.wcl_token, wcl_expires = excluded.wcl_expires", (
             account.id, account.name, json.dumps([c.__dict__ for c in allowed]), time.time(), time.time(),
             self._fernet.encrypt(account.token.encode()).decode() if account.token else None,
             account.expires or None))
@@ -505,6 +528,56 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         self._db.execute("INSERT INTO codes VALUES (?, ?, ?)", (_hash(code), auth_code.model_dump_json(),
                                                                 auth_code.expires_at))
         return RedirectResponse(construct_redirect_uri(back, code=code, state=params.state, iss=self.public_url), 302)
+
+    async def private_reports(self, request: Request) -> Response:
+        """/wcl/private: what letting Wipebot read the user's private reports means, with a button on to Warcraft
+        Logs for it (POST), and one to stop (POST with `stop`, a sign-in with the first scope only)."""
+        if request.method == "GET":
+            return _page("Your private reports", "Wipebot reads public Warcraft Logs reports. To ask about private "
+                         "ones too (yours, or your guild's when you may open them), let it read your private reports: "
+                         "Warcraft Logs asks you once more. They're read only for your own questions, never kept on "
+                         "disk or shown to anyone else, and the records of those questions leave their answers out. "
+                         "Sign in to Wipebot from Claude or ChatGPT first.</p>"
+                         f'<form method="post" action="{PRIVATE_PATH}"><button>Let Wipebot read my private reports'
+                         f'</button></form><form method="post" action="{PRIVATE_PATH}"><input type="hidden" '
+                         'name="stop" value="1"><p>Or <button>stop reading them</button></p></form><p>Revoking '
+                         "Wipebot on warcraftlogs.com (your profile's applications) stops it too.", 200)
+        stop = bool((await request.form()).get("stop"))
+        self._purge()
+        self._make_room("private_logins", "1", "expires", MAX_LOGINS)
+        state = secrets.token_urlsafe(32)
+        verifier, challenge = accounts.pkce()
+        self._db.execute("INSERT INTO private_logins VALUES (?, ?, ?, ?)",
+                         (state, verifier, int(stop), time.time() + LOGIN_TTL_S))
+        return RedirectResponse(accounts.authorize_url(self.client_id, self.callback_url, state, challenge,
+                                                       accounts.SCOPES if stop else accounts.PRIVATE_SCOPES), 303)
+
+    async def _private_callback(self, request: Request, verifier: str, stop: bool) -> Response:
+        """Back from the second sign-in: keep the user's private-reports token, or with `stop`, forget it. Only a
+        user signed in to Wipebot (and still allowed) has one."""
+        if "code" not in request.query_params:
+            return _page("Nothing changed", "Warcraft Logs didn't sign you in, so nothing changed.", 400)
+        try:
+            account = await accounts.login(self.client_id, self.client_secret, request.query_params["code"],
+                                           verifier, self.callback_url)
+        except accounts.AccountError as e:
+            log.warning("private-reports sign-in failed: %s", e)
+            return _page("Warcraft Logs didn't answer", "Signing in with Warcraft Logs failed. Try again in a minute.",
+                         502)
+        if stop:
+            self._db.execute("UPDATE users SET wcl_private = NULL, wcl_private_expires = NULL WHERE id = ?",
+                             (account.id,))
+            log.info("private reports stopped: %s", account.name)
+            return _page("Stopped", "Wipebot no longer reads your private reports.", 200)
+        if not self._db.execute("SELECT 1 FROM users WHERE id = ? AND id IN (SELECT user FROM tokens)",
+                                (account.id,)).fetchone():
+            return _page("Sign in to Wipebot first", f"{html.escape(account.name)} isn't signed in to Wipebot. Add "
+                         "Wipebot in Claude or ChatGPT and sign in there, then come back here.", 403)
+        self._db.execute("UPDATE users SET wcl_private = ?, wcl_private_expires = ? WHERE id = ?", (
+            self._fernet.encrypt(account.token.encode()).decode(), account.expires or None, account.id))
+        log.info("private reports allowed: %s", account.name)
+        return _page("Done", "Wipebot now reads the private reports you may open on Warcraft Logs, for your own "
+                     "questions only. Ask about one in Claude or ChatGPT.", 200)
 
     async def load_authorization_code(self, client: OAuthClientInformationFull,
                                       authorization_code: str) -> AuthorizationCode | None:
@@ -595,7 +668,8 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
             self._db.execute("UPDATE users SET characters = ?, checked = ? WHERE id = ?",
                              (json.dumps([c.__dict__ for c in allowed]), time.time(), user))
         elif allowed is None:
-            self._db.execute("UPDATE users SET wcl_token = NULL, wcl_expires = NULL WHERE id = ?", (user,))
+            self._db.execute("UPDATE users SET wcl_token = NULL, wcl_expires = NULL, wcl_private = NULL, "
+                             "wcl_private_expires = NULL WHERE id = ?", (user,))
         return allowed is not None
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
@@ -608,10 +682,12 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         row = self._db.execute("SELECT name, characters FROM users WHERE id = ?", (user,)).fetchone()
         return (row[0], [accounts.Character(**c) for c in json.loads(row[1])]) if row else None
 
-    def wcl_token(self, user: int) -> str | None:
-        """A signed-in user's Warcraft Logs token, which their tool calls read with; None when they have none (signed
-        in before tokens were kept), it lapsed, or the client secret changed since."""
-        row = self._db.execute("SELECT wcl_token, wcl_expires FROM users WHERE id = ?", (user,)).fetchone()
+    def wcl_token(self, user: int, private: bool = False) -> str | None:
+        """A signed-in user's Warcraft Logs token, which their tool calls read with, or with `private`, the one that
+        reads their private reports (PRIVATE_PATH); None when they have none (signed in before tokens were kept, or
+        never let Wipebot read private reports), it lapsed, or the client secret changed since."""
+        row = self._db.execute(f"SELECT {'wcl_private, wcl_private_expires' if private else 'wcl_token, wcl_expires'} "
+                               "FROM users WHERE id = ?", (user,)).fetchone()
         if not row or not row[0] or (row[1] is not None and row[1] < time.time()):
             return None
         try:

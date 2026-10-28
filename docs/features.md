@@ -250,7 +250,9 @@ The connector brings the tools to Claude.ai, ChatGPT or similar, signed in with 
 characters from the ones you claimed there, and "my guild" means the guilds they're in. It reads the guild's saved
 notes and plans, officers save a pasted one there, and in Claude it shows the pull replay. Tell it an answer was
 wrong, missed something or was slow, and it offers to send a report to the server's maintainers: the question, the
-answer and what you said, sent only once you agree. In Claude, the plugin adds the skill, so Claude reads logs the
+answer and what you said, sent only once you agree. It reads public reports; to ask about private ones you may open
+on Warcraft Logs, allow them at `https://<the server>/wcl/private` (a second Warcraft Logs sign-in, which the answer
+about one it can't read points to): they're read only for your questions, never cached or shown to anyone else. In Claude, the plugin adds the skill, so Claude reads logs the
 same way the bot does; the connector alone, in Claude or elsewhere, gets only the tools
 ([reference/mcp-clients.md](reference/mcp-clients.md)).
 
@@ -288,7 +290,7 @@ Every reply to a command is seen only by whoever used it.
 | --- | --- | --- |
 | `/help` | everyone | what to ask, with examples; the commands you may use; how the server is set up (the guild, who can chat, where names are on). Saying "help" to the bot gives the same, in a DM too |
 | `/usage` | everyone | what's left of the limits every answer shares: the AI budget on a bot that answers through OpenRouter (spent this month, left, and how to chip in), and this hour's Warcraft Logs points (the bot's share, on a copy held to one), and when the hour starts again; signed in, whether your own points are left |
-| `/login` | everyone | signs you in with Warcraft Logs, on a bot whose host set it up: your own Warcraft Logs points then pay first for your questions (on Warcraft Logs' new point system). The token is kept encrypted and reads only public reports. `remove:` signs you out |
+| `/login` | everyone | signs you in with Warcraft Logs, on a bot whose host set it up: your own Warcraft Logs points then pay first for your questions (on Warcraft Logs' new point system). The token is kept encrypted and reads only public reports. `remove:` signs you out. `private:` lets it read the private reports you may open too, for your questions only (a second sign-in; with `remove:`, stops it) |
 | `/wipebot setup` | admins | connects the server to the guild on Warcraft Logs (its warcraftlogs.com page); sets the role needed to chat and the officers' role, and with `footer:` whether answers end with a small line (what the answer cost, its Warcraft Logs points with the bot's left this hour, yours apart when you're signed in, and, on a shared copy, the server's free answers left this month; on by default while a server answers from a shared copy's free answers). Options left out keep what's set |
 | `/wipebot settings` | admins | the setup, the channels where names are on, and the raid notes and plans saved |
 | `/wipebot usage post` | everyone in the channel | posts the AI budget to the channel (spent this month and in all, a bar of how much of the limit is spent, and what's left), on a bot that answers through OpenRouter; on a shared copy, the server's share of the month's free answers |

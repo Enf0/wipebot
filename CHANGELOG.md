@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `Agent` `Discord` **A saved raid note older than Viserio's says so.** On a guild whose host connected its Viserio Cooldowns key, a note checked against a pull, or given for the next raid, says when the note was changed in Viserio after the copy Wipebot has was saved, so an officer knows to paste the new one.
+- `MCP` `Discord` **Private reports.** Wipebot can read the private Warcraft Logs reports you may open, once you allow it: at `/wcl/private` on the connector's server (Claude and ChatGPT), or with `/login private:True` in Discord. It's a second Warcraft Logs sign-in, so members who only read public logs never see it. A private report is read only for your own questions, never cached or shown to anyone else, and the records of those questions leave out what it showed.
 
 ### Changed
 

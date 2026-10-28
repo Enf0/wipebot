@@ -224,10 +224,11 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
 
     @app_commands.command(name="login", description="Sign in with Warcraft Logs, so your own points pay for your "
                                                     "questions")
-    @app_commands.describe(remove="Sign out and forget your Warcraft Logs token")
+    @app_commands.describe(remove="Sign out and forget your Warcraft Logs token",
+                           private="Let Wipebot read your private reports too (with remove: stop it)")
     @app_commands.guild_only()
-    async def login(interaction: discord.Interaction, remove: bool = False) -> None:
-        await logincmd.login_command(bot.store, interaction, remove)
+    async def login(interaction: discord.Interaction, remove: bool = False, private: bool = False) -> None:
+        await logincmd.login_command(bot.store, interaction, remove, private)
 
     return [show_help, show_usage, login]
 

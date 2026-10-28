@@ -10,6 +10,9 @@ same key at once share one fetch; it goes on when they leave (a Warcraft Logs qu
 asked to stop with the last of them (a warcraft_cli command, a process worth killing). Entries older than KEEP_DAYS
 are dropped once a day, and the oldest when the file outgrows MAX_MB (WIPEBOT_CACHE_MAX_MB).
 
+A key naming a report that isn't public (`never_keep`, wcl.mark_private) is never kept, nor its fetch shared by callers
+asking at once: only the users Warcraft Logs lets read that report may see its data.
+
 The evals freeze theirs (WIPEBOT_CACHE_FROZEN=1): nothing is refreshed or dropped, so every run reads the same
 Warcraft Logs data and guides; what's missing is fetched once and kept. Its `recorded_at` is "now" for them
 (clock.py).
@@ -33,6 +36,17 @@ HOUR, DAY = 3600, 86400
 FOREVER = KEEP_DAYS * DAY  # for what never changes, such as a finished pull
 STALE_SERVED = 2  # an entry up to this many times its max age is served while a new one is fetched
 MAX_MB = 2000  # past this, the oldest entries are dropped at the daily purge
+_unkept: set[str] = set()  # words a kept key may not hold: the codes of reports that aren't public
+
+
+def never_keep(word: str) -> None:
+    """From now on, keep nothing whose key holds `word` (a private report's code), in this process."""
+    _unkept.add(word)
+
+
+def keeps(key: str) -> bool:
+    """Whether what's under `key` may be kept and shared: it names no report that isn't public."""
+    return not any(word in key for word in _unkept)
 
 
 class Cache:
@@ -80,10 +94,14 @@ class Cache:
 
     def get(self, key: str) -> tuple[Any, float] | None:
         """(value, age in seconds), or None."""
+        if not keeps(key):
+            return None
         row = self._db.execute("SELECT value, stored_at FROM cache WHERE key = ?", (key,)).fetchone()
         return (json.loads(zlib.decompress(row[0])), time.time() - row[1]) if row else None
 
     def put(self, key: str, value: Any) -> None:
+        if not keeps(key):  # checked again once fetched: the report may have turned out private meanwhile
+            return
         if not self.frozen and time.time() - self._purged_at > DAY:
             self.purge()
         self._db.execute("INSERT OR REPLACE INTO cache (key, stored_at, value) VALUES (?, ?, ?)",
@@ -95,6 +113,8 @@ class Cache:
         STALE_SERVED times that is served at once while `get()` replaces it in the background; an older one is
         served only when `get()` fails. With `cancel`, `get()` is cancelled when the last caller waiting for it is
         (a background refresh goes on)."""
+        if not keeps(key):
+            return await get()
         found = self.get(key)
         if found is not None:
             value, age = found

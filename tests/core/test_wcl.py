@@ -131,8 +131,9 @@ async def test_a_report_gone_private_says_so_instead_of_crashing(cache, monkeypa
     w = WCL()
     answering(w, monkeypatch, {"reportData": {"report": None}},
               {"reportData": {"report": None},
-               GRAPHQL_WARNINGS_KEY: [{"message": "You do not have permission to view this report."}]})
-    for _ in range(2):
+               GRAPHQL_WARNINGS_KEY: [{"message": "You do not have permission to view this report."}]},
+              {"reportData": {"report": None}, GRAPHQL_WARNINGS_KEY: [{"message": "This report does not exist."}]})
+    for _ in range(3):
         with pytest.raises(WCLError, match="won't show report ABC: it's private now") as e:
             await w.query("query { x }", code="ABC")
         assert "ask again" not in str(e.value).replace("asking again won't help", "")

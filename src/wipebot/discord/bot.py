@@ -24,7 +24,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import allowance, commands, config, emojis, host
+from . import allowance, commands, config, emojis, host, logincmd
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .follower import Follower, Pull
@@ -765,6 +765,8 @@ class WipeBot(discord.Client):
                        icons=self.icons, server_id=s.discord_guild_id, user_id=user.id,
                        env=own.env() if (own := self.store.server_key(s.discord_guild_id)) else None,
                        wcl_token=signed[1] if (signed := self.store.login(user.id)) else None,
+                       wcl_private=private[1] if (private := self.store.private_login(user.id)) else None,
+                       private_hint=logincmd.PRIVATE_HINT if logincmd.callback_url() else None,
                        **self._raid_notes(s))
 
     @answering

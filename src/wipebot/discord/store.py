@@ -103,7 +103,8 @@ class SavedConversation:
 DROPPED_COLUMNS = {"server_settings": ("posts_channel_id",)}
 # Columns added since a table was made: (table, column, type).
 ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "officer_role_id", "INTEGER"),
-                 ("interactions", "wcl_points", "TEXT")]
+                 ("interactions", "wcl_points", "TEXT"), ("logins", "private_sealed", "TEXT"),
+                 ("logins", "private_expires", "REAL")]
 
 
 class Store:
@@ -218,9 +219,11 @@ class Store:
                 user_id INTEGER PRIMARY KEY,  -- their Discord id
                 wcl_id INTEGER NOT NULL,
                 wcl_name TEXT NOT NULL,
-                sealed TEXT NOT NULL,    -- their Warcraft Logs token, encrypted (keys.py)
+                sealed TEXT NOT NULL,    -- their Warcraft Logs token, encrypted (keys.py); '' with only the next one
                 expires REAL NOT NULL,
-                added_at REAL NOT NULL
+                added_at REAL NOT NULL,
+                private_sealed TEXT,     -- their token that reads their private reports too (/login private)
+                private_expires REAL
             );
             CREATE TABLE IF NOT EXISTS spend (  -- what each answer cost, kept whether or not answers are recorded
                 at REAL NOT NULL,
@@ -472,19 +475,47 @@ class Store:
         self._db.commit()
         return bool(dropped)
 
-    def save_login(self, user_id: int, wcl_id: int, wcl_name: str, token: str, expires: float) -> None:
-        """Keep a raider's Warcraft Logs sign-in, its token encrypted, in place of any before."""
-        self._db.execute("INSERT OR REPLACE INTO logins VALUES (?, ?, ?, ?, ?, ?)",
-                         (user_id, wcl_id, wcl_name, keys.seal(token), expires, time.time()))
+    def save_login(self, user_id: int, wcl_id: int, wcl_name: str, token: str, expires: float,
+                   private: bool = False) -> None:
+        """Keep a raider's Warcraft Logs sign-in, its token encrypted, in place of any before; with `private`, their
+        token that reads their private reports, beside the first (one signed in to another account goes)."""
+        if private:
+            self._db.execute("DELETE FROM logins WHERE user_id = ? AND wcl_id != ?", (user_id, wcl_id))
+            self._db.execute("INSERT INTO logins VALUES (?, ?, ?, '', 0, ?, ?, ?) ON CONFLICT (user_id) DO UPDATE "
+                             "SET private_sealed = excluded.private_sealed, private_expires = excluded.private_expires",
+                             (user_id, wcl_id, wcl_name, time.time(), keys.seal(token), expires))
+        else:
+            self._db.execute("INSERT INTO logins VALUES (?, ?, ?, ?, ?, ?, NULL, NULL) ON CONFLICT (user_id) DO UPDATE "
+                             "SET wcl_id = excluded.wcl_id, wcl_name = excluded.wcl_name, sealed = excluded.sealed, "
+                             "expires = excluded.expires, added_at = excluded.added_at, private_sealed = CASE WHEN "
+                             "wcl_id = excluded.wcl_id THEN private_sealed END, private_expires = CASE WHEN wcl_id = "
+                             "excluded.wcl_id THEN private_expires END",
+                             (user_id, wcl_id, wcl_name, keys.seal(token), expires, time.time()))
         self._db.commit()
 
     def login(self, user_id: int) -> tuple[str, str] | None:
         """A raider's Warcraft Logs name and token; None when they aren't signed in, the token has lapsed or it
         can't be read any more."""
         row = self._db.execute("SELECT wcl_name, sealed, expires FROM logins WHERE user_id = ?", (user_id,)).fetchone()
-        if row is None or row[2] < time.time() or (token := keys.unseal(row[1])) is None:
+        if row is None or not row[1] or row[2] < time.time() or not (token := keys.unseal(row[1])):
             return None
         return row[0], token
+
+    def private_login(self, user_id: int) -> tuple[str, str] | None:
+        """A raider's Warcraft Logs name and their token that reads their private reports, as `login`."""
+        row = self._db.execute("SELECT wcl_name, private_sealed, private_expires FROM logins WHERE user_id = ?",
+                               (user_id,)).fetchone()
+        if row is None or not row[1] or (row[2] or 0) < time.time() or not (token := keys.unseal(row[1])):
+            return None
+        return row[0], token
+
+    def drop_private_login(self, user_id: int) -> bool:
+        """Forget a raider's private-reports token, keeping their sign-in; whether there was one."""
+        dropped = self._db.execute("UPDATE logins SET private_sealed = NULL, private_expires = NULL WHERE user_id = ? "
+                                   "AND private_sealed IS NOT NULL", (user_id,)).rowcount
+        self._db.execute("DELETE FROM logins WHERE user_id = ? AND sealed = ''", (user_id,))
+        self._db.commit()
+        return bool(dropped)
 
     def drop_login(self, user_id: int) -> bool:
         """Forget a raider's sign-in; whether there was one."""

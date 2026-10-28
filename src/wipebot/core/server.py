@@ -33,7 +33,8 @@ import re
 import secrets
 import time
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Generator
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from importlib import resources
@@ -166,6 +167,9 @@ class Remote:
     guild_ids: Callable[[str], set[int]] = lambda subject: set()
     # A signed-in user -> their Warcraft Logs token, which their calls read with (wcl.reading_as), or None
     wcl_token: Callable[[str], str | None] = lambda subject: None
+    # ...and their token that reads their private reports too, read with only for those, or None
+    wcl_private_token: Callable[[str], str | None] = lambda subject: None
+    private_reports_url: str | None = None  # where a signed-in user lets Wipebot read their private reports
     limits: UserLimits | None = None  # how much one user may ask in an hour
 
 
@@ -250,6 +254,41 @@ def _prompt(fn):
     return fn
 
 
+# Told with a report Warcraft Logs won't show the user, while they haven't let Wipebot read their private reports
+PRIVATE_REPORTS = ("If it's a private report the user can open on Warcraft Logs, they can let Wipebot read their "
+                   "private reports at {url} (a second Warcraft Logs sign-in), then ask again.")
+PRIVATE_KEPT = "(read a report that isn't public: its output isn't kept)"  # a call's record in place of its output
+_unreadable_hint: ContextVar[str | None] = ContextVar("unreadable_hint", default=None)
+
+
+@contextmanager
+def telling_unreadable(hint: str | None) -> Generator[None]:
+    """Within it, a report Warcraft Logs won't show (wcl.Unreadable) is told with `hint` after it: how the user may
+    let Wipebot read their private reports, in the app they ask from."""
+    reset = _unreadable_hint.set(hint)
+    try:
+        yield
+    finally:
+        _unreadable_hint.reset(reset)
+
+
+@contextmanager
+def _as_user(remote: Remote, user: str | None) -> Generator[None]:
+    """A user's call reads with their Warcraft Logs tokens (wcl.reading_as), and a report it can't read is told with
+    how they'd let Wipebot read their private reports, while they haven't."""
+    private = remote.wcl_private_token(user) if user else None
+    url = None if private else remote.private_reports_url
+    with wcl.reading_as(remote.wcl_token(user) if user else None, private), \
+            telling_unreadable(PRIVATE_REPORTS.format(url=url) if url else None):
+        yield
+
+
+def _told(e: Exception) -> str:
+    """An error as the model is told it: a report Warcraft Logs won't show with `telling_unreadable`'s hint."""
+    hint = _unreadable_hint.get() if isinstance(e, wcl.Unreadable) else None
+    return f"{e} {hint}" if hint else str(e)
+
+
 def guarded(fn, setup: Setup = DEFAULT):
     """`fn` as a tool of a server with `setup`. Bad arguments and source failures reach the model as readable tool
     errors. A question about the pull that just ended, before the live log has it, waits for it a little. Serving
@@ -265,7 +304,7 @@ def guarded(fn, setup: Setup = DEFAULT):
                 await asyncio.sleep(PULL_WAIT_S)
                 await e.report.refresh()
             except (FactError, KnowledgeError, WCLError) as e:
-                raise ToolError(str(e)) from e
+                raise ToolError(_told(e)) from e
             except Exception as e:
                 # The MCP server would hide an unexpected error as "Error executing tool X": the model and the
                 # records need to know what it was. Serving many users, they get only an id the log has it under.
@@ -285,7 +324,7 @@ def guarded(fn, setup: Setup = DEFAULT):
         try:
             limited = _limited(remote, user)
             # the user's own points pay first; what the call cost is kept with it
-            with wcl.reading_as(remote.wcl_token(user) if user else None), wcl.counting_points() as points:
+            with _as_user(remote, user), wcl.counting_points() as points:
                 result = await run(*args, **kwargs)
             failed, out = False, _text(result)
             return result
@@ -300,9 +339,9 @@ def guarded(fn, setup: Setup = DEFAULT):
         finally:
             if limited and user:
                 limited.add(user, points.record())
-            if remote.record:
-                remote.record(user, client, fn.__name__, shown, started, time.monotonic() - began, failed, out,
-                              points.record())
+            if remote.record:  # nothing a report that isn't public showed is kept
+                remote.record(user, client, fn.__name__, shown, started, time.monotonic() - began, failed,
+                              PRIVATE_KEPT if points.private else out, points.record())
 
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):

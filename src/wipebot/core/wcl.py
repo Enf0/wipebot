@@ -4,7 +4,7 @@ warcraft_cli's client is synchronous, so each query runs in a worker thread with
 client. It reads with client credentials from WARCRAFTLOGS_CLIENT_ID / WARCRAFTLOGS_CLIENT_SECRET, which Wipebot
 fills from WCL_CLIENT_ID / WCL_CLIENT_SECRET, unless warcraft_cli has a user login saved (`saved_login`), which it
 uses instead; serving many users, never (`client_credentials_only`), but a signed-in user's own token for what they
-ask (`reading_as`).
+ask (`reading_as`), and their private-reports token only for a report that isn't public (`mark_private`).
 """
 import asyncio
 import json
@@ -24,7 +24,7 @@ from typing import Any
 from warcraft_core.auth import load_provider_auth_state
 from warcraftlogs_cli.client import GRAPHQL_WARNINGS_KEY, WarcraftLogsClient, WarcraftLogsClientError
 
-from .cache import DAY, FOREVER, HOUR, cache, cache_key
+from .cache import DAY, FOREVER, HOUR, cache, cache_key, never_keep
 
 log = logging.getLogger(__name__)
 
@@ -267,6 +267,21 @@ ALIASES_PER_QUERY = 40
 
 UNREADABLE = ("Warcraft Logs won't show report {code}: it's private now, was deleted, or the code is wrong. Say so; "
               "asking again won't help.")
+
+
+class WCLError(RuntimeError):
+    pass
+
+
+class Unreadable(WCLError):
+    """Warcraft Logs won't show a report to whoever asked (UNREADABLE)."""
+
+    def __init__(self, code: str):
+        super().__init__(UNREADABLE.format(code=code))
+        self.code = code
+
+
+VISIBILITY = "query($code: String!) { reportData { report(code: $code) { visibility } } }"
 PARTIAL = "Warcraft Logs answered only part of the question ({said}); ask again"
 
 
@@ -282,10 +297,6 @@ def best_wipes(fights: list[dict]) -> dict[tuple[int, int], tuple[float, int, in
         if not f.get("kill") and pct is not None and (key not in best or pct < best[key][0]):
             best[key] = (pct, f.get("id") or 0, pulls[key])
     return best
-
-
-class WCLError(RuntimeError):
-    pass
 
 
 def client_credentials() -> tuple[str, str] | None:
@@ -340,20 +351,49 @@ def client_credentials_only() -> None:
 
 
 _user: ContextVar[str | None] = ContextVar("wcl_user", default=None)  # the token `reading_as` gave
+_private: ContextVar[str | None] = ContextVar("wcl_private", default=None)  # the private-reports token it gave
+_private_codes: set[str] = set()  # reports found not to be public, in this process (`mark_private`)
 
 
 @contextmanager
-def reading_as(token: str | None) -> Generator[None]:
+def reading_as(token: str | None, private: str | None = None) -> Generator[None]:
     """Within it, a server reading with the client credentials only reads with this user's Warcraft Logs token
     instead, at the user endpoint: on Warcraft Logs' new point system the user's own points pay first, and the
     client's once they run out. Its answers are cached for everyone, so the token's scope must read nothing the
     client credentials can't (`view-user-profile`; docs/reference/wcl-api.md, "Point types"). A token Warcraft Logs
-    refuses (expired, revoked) falls back to the client credentials."""
-    reset = _user.set(token or None)
+    refuses (expired, revoked) falls back to the client credentials.
+    `private`, the user's token with the `view-private-reports` scope too, reads only the reports found not to be
+    public (`mark_private`), and nothing else: what it reads is never cached (cache.never_keep)."""
+    reset, reset_private = _user.set(token or None), _private.set(private or None)
     try:
         yield
     finally:
+        _private.reset(reset_private)
         _user.reset(reset)
+
+
+def private_token() -> str | None:
+    """The private-reports token `reading_as` gave, or None."""
+    return _private.get()
+
+
+def mark_private(code: str) -> None:
+    """Report `code` isn't public: from now on, in this process, it's read only with the asker's private-reports
+    token (`reading_as`), and nothing naming it is cached."""
+    never_keep(code)
+    _private_codes.add(code)
+
+
+def is_private(code: str) -> bool:
+    return code in _private_codes
+
+
+def _private_code(query: str, variables: dict) -> str | None:
+    """The report found not to be public that a query names, if any."""
+    if not _private_codes:
+        return None
+    asked = query + json.dumps(variables, default=str)
+    return next((code for code in _private_codes if code in asked), None)
 
 
 COST_ALIAS = "wipebotCost"  # the query's own cost and the hour's points, asked alongside every query (free)
@@ -552,6 +592,7 @@ class Points:
         self._lock = threading.Lock()
         self.spent: Counter = Counter()
         self.queries = 0
+        self.private = False  # whether a query read a report that isn't public (`mark_private`)
 
     def add(self, cost: dict) -> None:
         with self._lock:
@@ -561,11 +602,13 @@ class Points:
                     self.spent[kind] += points
 
     def record(self) -> dict:
-        """{"total": ..., "database": ..., "queries": n} for a record, rounded; {} when nothing was asked."""
+        """{"total": ..., "database": ..., "queries": n} for a record, rounded, with "private": true when a query read a
+        report that isn't public; {} when nothing was asked."""
         with self._lock:
-            if not self.queries:
+            if not self.queries and not self.private:
                 return {}
-            return {**{k: round(v, 2) for k, v in self.spent.items() if v}, "queries": self.queries}
+            return ({**{k: round(v, 2) for k, v in self.spent.items() if v}, "queries": self.queries}
+                    | ({"private": True} if self.private else {}))
 
 
 _points: ContextVar[Points | None] = ContextVar("wcl_points", default=None)
@@ -631,14 +674,31 @@ class WCL:
                 timeout_seconds=WCL_TIMEOUT_S, retry_attempts=WCL_ATTEMPTS)
         return self._local.client
 
-    def _run(self, query: str, variables: dict, keep: bool = False) -> dict:
+    def _run(self, query: str, variables: dict, keep: bool = False, private: str | None = None) -> dict:
         """One query. Warcraft Logs answers some queries only in part (an error next to the data, e.g. a fight it
         couldn't rank right then): an answer meant for the cache, or whole (`keep`), is then refused rather than
-        kept, so an empty ranking never sticks for a day and gets told to raiders as "no ranked kills"."""
+        kept, so an empty ranking never sticks for a day and gets told to raiders as "no ranked kills". One naming a
+        report that isn't public (or `private`, a report's code) reads with the private-reports token only."""
         self._wait_for_points()
         if refused := self._budget.refusal(*self._hour.now(), database=spends_database(query)):
             raise WCLError(refused)
         query, points = _with_cost(query), _points.get()
+        if private := private or _private_code(query, variables):  # read only with the asker's private-reports token
+            if not (token := _private.get()):
+                raise Unreadable(private)
+            if points is not None:
+                points.private = True
+            with reading_as(token, token):
+                try:
+                    data, _endpoint = self._client().raw_graphql(operation_name=None, query=query,
+                                                                 variables=variables)
+                except WarcraftLogsClientError as e:
+                    if e.code == "auth_failed":  # expired or revoked: no other token may read it
+                        raise Unreadable(private) from e
+                    if _says_database_out(str(e)):
+                        raise self._database_out() from e
+                    raise WCLError(f"{e.code}: {e}") from e
+            return self._answer(data, query, variables, keep, points)
         try:
             try:
                 data, _endpoint = self._client().raw_graphql(operation_name=None, query=query, variables=variables)
@@ -653,6 +713,10 @@ class WCL:
             if _says_database_out(str(e)):
                 raise self._database_out() from e
             raise WCLError(f"{e.code}: {e}") from e
+        return self._answer(data, query, variables, keep, points)
+
+    def _answer(self, data: Any, query: str, variables: dict, keep: bool, points: Points | None) -> dict:
+        """A query's answer, its cost noted and Warcraft Logs' warnings raised (`_run`)."""
         data = dict(data or {})
         if cost := data.pop(COST_ALIAS, None):
             self._hour.saw(cost)
@@ -661,8 +725,9 @@ class WCL:
         if warnings := data.pop(GRAPHQL_WARNINGS_KEY, None):
             if _says_database_out(str(warnings)):  # the fields that cost them came back empty
                 raise self._database_out()
-            if "permission" in str(warnings).lower() and "code" in variables:
-                raise WCLError(UNREADABLE.format(code=variables["code"]))
+            # a private report says it's not permitted, or that it doesn't exist (as a wrong code does)
+            if re.search(r"permission|does not exist", str(warnings), re.I) and "code" in variables:
+                raise Unreadable(variables["code"])
             if keep:
                 said = "; ".join(str(w.get("message", w)) if isinstance(w, dict) else str(w) for w in warnings)
                 raise WCLError(PARTIAL.format(said=said))
@@ -685,8 +750,20 @@ class WCL:
                                        lambda: asyncio.to_thread(self._run, query, variables, True))
         found = data.get("reportData")
         if "code" in variables and isinstance(found, dict) and "report" in found and found["report"] is None:
-            raise WCLError(UNREADABLE.format(code=variables["code"]))
+            raise Unreadable(variables["code"])
         return data
+
+    async def private_report(self, code: str) -> bool:
+        """Whether the asker's private-reports token (`reading_as`) reads report `code` and it isn't public: asked of
+        nothing but its visibility, uncached. Only then is it `mark_private`, so no code but a real private report's
+        changes how anything else is read."""
+        if not _private.get():
+            return False
+        try:
+            data = await asyncio.to_thread(self._run, VISIBILITY, {"code": code}, False, code)
+        except WCLError:
+            return False
+        return ((data.get("reportData") or {}).get("report") or {}).get("visibility") not in (None, "public")
 
     async def points(self) -> dict | None:
         """This hour's points (limitPerHour, pointsSpentThisHour, pointsResetIn), read at most every RATE_S; None

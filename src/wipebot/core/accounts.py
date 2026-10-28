@@ -5,8 +5,10 @@ The remote MCP server (`wipebot serve`) lets a user in when a character they cla
 allowed guild at an allowed rank, or anyone, when it's open to every guild. The login is the authorization code
 flow (with PKCE) of the confidential client the server reads with (WCL_CLIENT_ID, WCL_CLIENT_SECRET), whose redirect
 URLs include the server's callback. The user's token is kept (its scope reads only what the client credentials
-read), so their own Warcraft Logs points pay first for what they ask (`wcl.reading_as`). Membership is checked again
-with the client credentials, which read any character's guild and rank. Facts verified live are in
+read), so their own Warcraft Logs points pay first for what they ask (`wcl.reading_as`). A user may sign in a second
+time with `view-private-reports` too (PRIVATE_SCOPES): that token is kept apart and read with only for a report the
+client credentials can't read (wcl.mark_private). Membership is checked again with the client credentials, which read
+any character's guild and rank. Facts verified live are in
 docs/reference/wcl-api.md, "Sign-in" and "Point types".
 """
 import base64
@@ -25,6 +27,7 @@ AUTHORIZE_URL = "https://www.warcraftlogs.com/oauth/authorize"
 TOKEN_URL = "https://www.warcraftlogs.com/oauth/token"
 USER_API = "https://www.warcraftlogs.com/api/v2/user"
 SCOPES = "view-user-profile"
+PRIVATE_SCOPES = "view-user-profile view-private-reports"  # the second sign-in, for the user's private reports
 # A claimed character with its guilds; a guild may be on a connected realm, so its server is the guild's own.
 CHARACTER = "id name guildRank server { slug region { slug } } guilds { id name server { slug region { slug } } }"
 ME = f"{{ userData {{ currentUser {{ id name characters {{ {CHARACTER} }} }} }} }}"
@@ -160,10 +163,10 @@ def challenge(verifier: str) -> str:
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
 
 
-def authorize_url(client_id: str, redirect_uri: str, state: str, challenge: str) -> str:
+def authorize_url(client_id: str, redirect_uri: str, state: str, challenge: str, scopes: str = SCOPES) -> str:
     """Where to send the user's browser to log in."""
     return AUTHORIZE_URL + "?" + urllib.parse.urlencode(dict(
-        response_type="code", client_id=client_id, redirect_uri=redirect_uri, scope=SCOPES, state=state,
+        response_type="code", client_id=client_id, redirect_uri=redirect_uri, scope=scopes, state=state,
         code_challenge=challenge, code_challenge_method="S256"))
 
 

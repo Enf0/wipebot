@@ -32,7 +32,7 @@ from ..pulls import (
     wipe_pct,
 )
 from ..text import clock, fight_url, name_key, plural, ranges
-from ..wcl import WCL, WCLError, boss_ids
+from ..wcl import WCL, Unreadable, WCLError, boss_ids
 from .fetch import Fetched
 
 SAME_DEATH_MS = 1_000  # a player's deaths this close together are one death listed twice
@@ -209,6 +209,8 @@ class Report(Fetched):
     async def _fetch(self) -> dict:
         try:
             report = await self.wcl.report_fights(self.code, self._cache_for or PULLS_FRESH_S)
+        except Unreadable:  # as it is: the library then reads a private report with the asker's own token
+            raise
         except WCLError as e:
             raise FactError(str(e)) from e
         if not report["fights"]:

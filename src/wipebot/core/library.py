@@ -1,6 +1,7 @@
 """The reports a process has loaded (`Library`), shared by every tool call, and the guild's latest raid night: the
 report a tool reads when given none."""
 import asyncio
+import hashlib
 import logging
 import re
 import time
@@ -24,7 +25,10 @@ class Library:
     no report reads `default_report`, else the one `latest()` finds (the guild's latest raid night, serving many
     users). Past KEPT_REPORTS, the one asked for longest ago is let go, but never the default or latest one, nor
     one still being logged that was asked for in the last IDLE_S (one loaded live and never asked for again
-    would otherwise stay for good)."""
+    would otherwise stay for good).
+    A report the client credentials can't read, that the asker's private-reports token (wcl.reading_as) reads, is
+    kept under that token too: another user asking for it reads it with their own, so Warcraft Logs decides who sees
+    it, and nothing of it is cached on disk (wcl.mark_private)."""
 
     def __init__(self, default_report: str | None = None, wcl: WCL | None = None,
                  latest: Callable[[], Awaitable[str | None]] | None = None):
@@ -32,9 +36,10 @@ class Library:
         self.latest = latest
         self._own_wcl = wcl is None  # with our own client, a missing login is offered before the first query
         self.wcl = wcl or WCL()
-        self._reports: dict[str, Report] = {}  # in the order last asked for
-        self._asked_at: dict[str, float] = {}
-        self._loading: dict[str, asyncio.Future] = {}  # reports being loaded now: callers at once share one load
+        # in the order last asked for, by code, or a private report's by (its reader's token hashed, code)
+        self._reports: dict[str | tuple[str, str], Report] = {}
+        self._asked_at: dict[str | tuple[str, str], float] = {}
+        self._loading: dict[str | tuple[str, str], asyncio.Future] = {}  # being loaded now: callers share one load
         self._latest: str | None = None
         self._failed_at: dict[str, float] = {}  # when refreshing a report last failed
 
@@ -48,9 +53,19 @@ class Library:
             code = self._latest = await self.latest()
         if not code:
             raise FactError("no report given: pass a Warcraft Logs report code or URL (find_reports lists recent ones)")
-        cached = self._reports.get(code)
+        try:
+            return await self._report(_key(code), code, max_age_s, settled)
+        except wcl.Unreadable:
+            if wcl.is_private(code) or not await self.wcl.private_report(code):
+                raise
+        wcl.mark_private(code)  # read from now on with each asker's own token, and kept per token
+        self._reports.pop(code, None)
+        return await self._report(_key(code), code, max_age_s, settled)
+
+    async def _report(self, key: str | tuple[str, str], code: str, max_age_s: float, settled: bool) -> Report:
+        cached = self._reports.get(key)
         if cached is None:
-            cached = await self._load(code, settled)
+            cached = await self._load(key, code, settled)
         elif not cached.settled and time.time() - max(cached.loaded_at, self._failed_at.get(code, 0)) >= max_age_s:
             try:
                 await cached.refresh(max_age_s)
@@ -58,11 +73,11 @@ class Library:
                 _log.warning("reading report %s again failed, serving the copy read %.0f s ago: %s", code,
                              time.time() - cached.loaded_at, e)
                 self._failed_at[code] = time.time()
-        self._reports.pop(code, None)
-        self._reports[code] = cached  # the most recently asked for last
-        now = self._asked_at[code] = time.time()
+        self._reports.pop(key, None)
+        self._reports[key] = cached  # the most recently asked for last
+        now = self._asked_at[key] = time.time()
         while len(self._reports) > KEPT_REPORTS and (old := next(
-                (c for c, r in self._reports.items() if c not in (code, self.default_report, self._latest)
+                (c for c, r in self._reports.items() if c not in (key, self.default_report, self._latest)
                  and (r.final or now - self._asked_at.get(c, 0) > IDLE_S)), None)):
             del self._reports[old]
             self._asked_at.pop(old, None)
@@ -73,8 +88,8 @@ class Library:
         return list(await asyncio.gather(*(self.report(code, max_age_s, settled=settled(night_))
                                            for code in night_["codes"])))
 
-    async def _load(self, code: str, settled: bool) -> Report:
-        task = self._loading.get(code)
+    async def _load(self, key: str | tuple[str, str], code: str, settled: bool) -> Report:
+        task = self._loading.get(key)
         if task is None:
             async def load() -> Report:
                 if self._own_wcl:
@@ -82,9 +97,19 @@ class Library:
                 r = Report(self.wcl, code, settled)
                 await r.load()
                 return r
-            task = self._loading[code] = asyncio.ensure_future(load())
-            task.add_done_callback(lambda _: self._loading.pop(code, None))
+            task = self._loading[key] = asyncio.ensure_future(load())
+            task.add_done_callback(lambda _: self._loading.pop(key, None))
         return await asyncio.shield(task)
+
+
+def _key(code: str) -> str | tuple[str, str]:
+    """Where a report is kept: under its code, shared by everyone; one that isn't public (wcl.mark_private) under the
+    asker's private-reports token too, which reads it, or for an asker without one, nowhere."""
+    if not wcl.is_private(code):
+        return code
+    if not (token := wcl.private_token()):
+        raise wcl.Unreadable(code)
+    return hashlib.sha256(token.encode()).hexdigest(), code
 
 
 def settled(night_: dict) -> bool:
