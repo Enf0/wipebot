@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
+from discord import app_commands
 
 from tests.support import NOTE, PLAN
 from wipebot.core.wcl import WCLError
@@ -186,6 +187,8 @@ def test_budget_says_what_the_key_spent_and_has_left():
     empty = describe(KeyBudget(limit=50.0, remaining=0.0, month=50.0, total=50.0), 0, 0.0, None)
     assert empty.endswith("It's used up, so wipebot can't answer until it's topped up.")
     assert describe(KeyBudget(None, None, 3.0, 3.0), 0, 0.0, None).endswith("It has no limit set.")
+    assert describe(b, 0, 0.0, None, with_bar=True).splitlines()[1] == "`███████████████░░░░░` 75% spent"
+    assert describe(KeyBudget(None, None, 3.0, 3.0), 0, 0.0, None, with_bar=True).count("\n") == 1
 
 
 async def test_budget_reads_the_key_from_openrouter(monkeypatch):
@@ -208,9 +211,8 @@ async def test_budget_reads_the_key_from_openrouter(monkeypatch):
 
 def registered(bot, monkeypatch) -> set[str]:
     """Every slash command the bot registers, as typed ("/wipebot setup")."""
-    group = commands.build(bot)
-    return ({f"/{c.name}" for c in commands.build_everyone(bot)}
-            | {f"/{group.name} {c.name}" for c in group.commands})
+    return {f"/{c.qualified_name}" for c in commands.build(bot).walk_commands()
+            if not isinstance(c, app_commands.Group)} | {f"/{c.name}" for c in commands.build_everyone(bot)}
 
 
 def test_the_docs_list_every_command(bot, monkeypatch):
@@ -258,3 +260,13 @@ async def test_setup_turns_the_footer_on_or_off_even_before_the_server_is_connec
     assert bot.store.footer(1001) is False
     told = await setup(link="https://www.warcraftlogs.com/guild/id/14169", footer=True)
     assert told.startswith("wipebot is set up") and bot.store.footer(1001) is True
+
+
+async def test_usage_post_on_a_shared_copy_shows_the_servers_share(bot):
+    async def left(server_id):
+        return 5.0, 1.25
+
+    bot.allowance = SimpleNamespace(left=left)
+    text = await commands.share_text(bot, 1001)
+    assert text.startswith("**This server's free answers:** $1.25 of its $5.00 left this month")
+    assert text.endswith("`███████████████░░░░░` 75% spent")

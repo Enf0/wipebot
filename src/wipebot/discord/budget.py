@@ -31,11 +31,22 @@ async def fetch(key: str) -> KeyBudget:
                      total=(data.get("usage") or 0) + (data.get("byok_usage") or 0))
 
 
-def describe(b: KeyBudget, answers: int, answers_cost: float, note: str | None) -> str:
+def bar(limit: float | None, remaining: float | None, width: int = 20) -> str:
+    """How much of a limit is spent, as a bar of text (for /wipebot usage post); empty without a limit."""
+    if not limit or remaining is None:
+        return ""
+    used = min(max(1 - remaining / limit, 0), 1)
+    full = round(used * width)
+    return f"`{'█' * full}{'░' * (width - full)}` {used:.0%} spent"
+
+
+def describe(b: KeyBudget, answers: int, answers_cost: float, note: str | None, with_bar: bool = False) -> str:
     """What /usage says: this month's spend, what's left and about how many answers that is (from the month's
     answers, `answers` of them costing `answers_cost` in all), and how
-    to chip in."""
+    to chip in; `with_bar` adds a bar of what's spent of the limit."""
     lines = [f"**AI budget:** ${b.month:.2f} spent this month, ${b.total:.2f} in all."]
+    if with_bar and (spent := bar(b.limit, b.remaining)):
+        lines.append(spent)
     if b.remaining is None:
         lines.append("It has no limit set.")
     else:

@@ -290,14 +290,39 @@ def build(bot: WipeBot) -> app_commands.Group:
         text += f"\n\nwipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>."
         await interaction.response.send_message(text, ephemeral=True)
 
+    usage = app_commands.Group(name="usage", description="The bot's AI budget", parent=group)
+
+    @usage.command(name="post", description="Post the AI budget to this channel, for everyone to see")
+    async def post_usage(interaction: discord.Interaction) -> None:
+        if not (key := config.openrouter_key()):
+            await interaction.response.send_message("This bot has no AI budget to post.", ephemeral=True)
+            return
+        await interaction.response.defer(thinking=True)
+        # a shared copy's key is many servers' budget: post this server's share of it
+        text = (await share_text(bot, in_guild(interaction).id) if bot.allowance
+                else await budget_text(bot.store, key, with_bar=True))
+        await interaction.followup.send(text)
+
     return group
 
 
-async def budget_text(store: Store, key: str) -> str:
+async def share_text(bot: WipeBot, discord_guild_id: int) -> str:
+    """/wipebot usage post on a shared copy: this server's share of this month's free answers, with a bar."""
+    if bot.store.server_key_info(discord_guild_id):
+        return "This server answers on its own key (`/wipebot key`), so it has no share of free answers to post."
+    if not bot.allowance or not (left := await bot.allowance.left(discord_guild_id)):
+        return "Couldn't read this server's share of free answers."
+    share, remaining = left
+    return (f"**This server's free answers:** ${remaining:.2f} of its ${share:.2f} left this month, back in full "
+            f"on <t:{int(allowance.next_month().timestamp())}:D>.\n{budget.bar(share, remaining)}")
+
+
+async def budget_text(store: Store, key: str, with_bar: bool = False) -> str:
     try:
         b = await budget.fetch(key)
         b.total += float(os.environ.get("WIPEBOT_SPENT_BEFORE") or 0)  # what the bot spent before this key
     except (httpx.HTTPError, KeyError, ValueError) as e:
         return f"Couldn't read the budget from OpenRouter: {e}"
     month_start = datetime.datetime.now(datetime.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return budget.describe(b, *store.answer_costs(month_start.timestamp()), config.budget_note())
+    note = None if with_bar else config.budget_note()  # the post leaves out how to chip in
+    return budget.describe(b, *store.answer_costs(month_start.timestamp()), note, with_bar)
