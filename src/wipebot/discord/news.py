@@ -34,7 +34,8 @@ World of Warcraft raid logs from Warcraft Logs. Say each change a raider using t
 short, plain line for raiders, in {language} (at most 25 words), starting with its name in bold, like \
 "**Kicks by pull.** You can now ask who missed their kick on each pull, and see it drawn." Leave out what only \
 matters in Claude or ChatGPT or to whoever runs the bot, keep command names and game terms as they are written, and \
-put the most important first, at most {shown}. Answer with JSON only:
+put those with a picture first (the post shows it under the line), then the most important, at most {shown}. \
+Answer with JSON only:
 {{"lines": [{{"item": <its number>, "line": "<the line>"}}], "heading": "<'What's new in' in {language}>", \
 "more": "<'more in the changelog' in {language}>", "all": "<'All of it in the changelog' in {language}>"}}
 
