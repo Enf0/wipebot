@@ -105,12 +105,32 @@ def test_an_answer_sends_its_maps_and_its_first_view_alone():
     assert Answer("", calls=calls).images == [b"N1", b"N2", b"M"]  # the pull's card is a click away from the night's
 
 
+async def test_an_answer_with_two_meters_sends_both_each_drawn_shorter(monkeypatch):
+    drawn = []
+
+    async def picture(name, args, rows=None):
+        drawn.append((args["data_type"], rows))
+        return [args["data_type"].encode()]
+    monkeypatch.setattr(host, "picture", picture)
+
+    def meter(data_type):
+        return ToolCall("breakdown", {"data_type": data_type}, "", False, [b"top 10"])
+    calls = [meter("DamageDone"), meter("Healing"), meter("Healing"), ToolCall("pull_summary", {}, "", False, [b"P"])]
+    answer = Answer("", calls=calls)
+    assert answer.images == [b"top 10", b"top 10"]  # the same call twice is one meter; the pull's a click away
+    await host.meters_shared([c for _, c in answer.pictures])
+    assert drawn == [("DamageDone", 5), ("Healing", 5)] and answer.images == [b"DamageDone", b"Healing"]
+    one = [meter("DamageDone")]
+    await host.meters_shared(one)
+    assert one[0].images == [b"top 10"]  # a meter alone keeps its top ten
+
+
 async def test_a_picture_that_cannot_be_drawn_leaves_the_answer_without_it(monkeypatch):
     class Painter:
         def __init__(self, error):
             self.error, self.asked = error, 0
 
-        async def pictures(self, name, args):
+        async def pictures(self, name, args, rows=None):
             self.asked += 1
             raise self.error
     monkeypatch.setattr(host, "_no_pictures", "")

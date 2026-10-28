@@ -4,12 +4,13 @@
 // each its own picture in Discord, where a picture of a whole raid's bars fills a phone's screen: the top players
 // get a bar, the rest a line with their amounts ----
 views.meter = (() => {
-  let D = null, root = null;
-  const SHOWN = 10;  // rows drawn; a raid is 20-30, the rest are a line
+  let D = null, root = null, SHOWN = 10, LISTED = Infinity;  // rows drawn (a raid is 20-30), and the line with the rest up to
   const SKULL = '<svg class="skull" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1C3.2 1 1.5 2.9 1.5 5.3c0 1.5.7 2.6 1.8 3.2V10c0 .5.4 1 1 1h3.4c.6 0 1-.5 1-1V8.5c1.1-.6 1.8-1.7 1.8-3.2C10.5 2.9 8.8 1 6 1Zm-2 6a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 4 7Zm4 0a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 8 7Z" fill="currentColor"/></svg>';
 
   async function show(into, key) {
     root = into;
+    // fewer where a picture shares the answer with another meter (the Discord bot's), its line the next few
+    [SHOWN, LISTED] = key.rows ? [key.rows, 2 * key.rows] : [10, Infinity];
     D = await app.callTool("view_data", { view: "meter", report: key.report, tool: key.tool, args: key.args });
     render();
   }
@@ -41,8 +42,9 @@ views.meter = (() => {
         + `<span class="dd">${b.died_after ? `${SKULL}${b.died_after}` : ""}</span>`
         + `<span class="val">${amount(m, b.value)}<small>${kit.esc(per)}</small></span><span class="pc">${share}</span></li>`;
     }).join("");
-    const rest = m.bars.slice(SHOWN).map((b, i) =>
+    const rest = m.bars.slice(SHOWN, LISTED).map((b, i) =>
       `<span style="white-space:nowrap">${SHOWN + i + 1} ${kit.esc(b.name)} ${amount(m, b.value)}</span>`);
+    if (m.bars.length > LISTED) rest.push(`${m.bars.length - LISTED} more`);
     const more = rest.length ? `<div class="note">${rest.join(" · ")}</div>` : "";
     return `<div class="meter-rows"><ol>${shown}</ol><div class="median" style="left:${med.toFixed(2)}%"><span>median</span></div></div>${more}`;
   }

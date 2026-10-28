@@ -255,14 +255,16 @@ class Painter:
                 self._browser = await self._pw.chromium.launch(args=["--disable-dev-shm-usage"])
             return self._browser
 
-    async def pictures(self, tool: str, args: dict) -> list[bytes]:
+    async def pictures(self, tool: str, args: dict, rows: int | None = None) -> list[bytes]:
         """The view of the tool's answer to `args` (as the tool was called: report, pull, boss): one picture, or one
         per panel for a view drawn in panels (its [data-panel] parts, the player's night), each a Panel named as its
-        part is (data-panel="callouts"); none for a tool without a view. Raises what went wrong: a view that didn't
-        draw, or drew with errors."""
+        part is (data-panel="callouts"); none for a tool without a view. A meter draws `rows` players' bars, when
+        given. Raises what went wrong: a view that didn't draw, or drew with errors."""
         key = await server.view_key(tool, args)
         if key is None:
             return []
+        if rows:
+            key["rows"] = rows
         browser = await self._ready()
         errors: list[str] = []
         setup = {"tool": tool, "args": args, "result": {"content": [], "structuredContent": key}, "theme": "dark",

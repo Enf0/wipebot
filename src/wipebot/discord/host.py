@@ -229,16 +229,16 @@ async def pictures_drawn(calls: Sequence[ToolCall]) -> None:
         await asyncio.wait(pending, timeout=PICTURE_WAIT_S)
 
 
-async def picture(name: str, args: dict) -> list[bytes]:
-    """The tool's view as pictures (viewhost.Painter: one, or one per panel), or none when it can't be drawn: the
-    answer goes without."""
+async def picture(name: str, args: dict, rows: int | None = None) -> list[bytes]:
+    """The tool's view as pictures (viewhost.Painter: one, or one per panel; a meter with `rows` bars), or none when
+    it can't be drawn: the answer goes without."""
     global _painter, _no_pictures
     if _no_pictures:
         return []
     started = time.monotonic()
     try:
         _painter = _painter or viewhost.Painter()
-        drawn = await _painter.pictures(name, args)
+        drawn = await _painter.pictures(name, args, rows)
     except ImportError as e:
         _no_pictures = f"Playwright isn't installed ({e})"
     except Exception as e:  # noqa: BLE001 (a picture never fails an answer)
@@ -252,6 +252,32 @@ async def picture(name: str, args: dict) -> list[bytes]:
         return []
     log.info("drew %s's view in %.1f s", name, time.monotonic() - started)
     return drawn
+
+
+SHARED_ROWS = 5  # a meter's bars in an answer with several: two top fives take the room of one top ten
+
+
+def meters(calls: Sequence[ToolCall]) -> list[ToolCall]:
+    """The calls whose picture is a meter (a ranking of players), each asked once."""
+    seen: set[str] = set()
+    out = []
+    for c in calls:
+        if not c.failed and c.images and server.VIEW_TOOLS.get(c.name) == "meter" \
+                and (key := f"{c.name} {json.dumps(c.args, sort_keys=True)}") not in seen:
+            seen.add(key)
+            out.append(c)
+    return out
+
+
+async def meters_shared(calls: Sequence[ToolCall]) -> None:
+    """Several meters an answer posts (damage and healing: Answer.pictures), each drawn again with SHARED_ROWS bars,
+    the ranking's rest a line under them as before."""
+    if len(found := meters(calls)) < 2:
+        return
+    for c, images in zip(found, await asyncio.gather(*(picture(c.name, c.args, SHARED_ROWS) for c in found)),
+                         strict=True):
+        if images:
+            c.images[:] = images
 
 
 @dataclass
@@ -425,14 +451,17 @@ class Answer:
     def pictures(self) -> list[tuple[bytes, ToolCall]]:
         """The pictures of the answer's tool calls, to send with it, each with its call; the last few: every map, and
         one view (one panel or several), the first the answer placed (`marks`) or else the first drawn, the others a
-        click away from its buttons and menus, so a few views don't fill the screen under a short answer."""
+        click away from its buttons and menus, so a few views don't fill the screen under a short answer. A meter
+        comes with the answer's other meters (damage and healing), drawn shorter (meters_shared)."""
         if self.unpictured:
             return []
         drawn = [c for c in self.calls if not c.failed and c.images]
         marked = {_tool(m) for _, m in self.marks}  # a view the answer placed comes before the first drawn
         view = next((c for c in drawn if c.name in server.VIEW_TOOLS and c.name in marked), None) \
             or next((c for c in drawn if c.name in server.VIEW_TOOLS), None)
-        out = [(i, c) for c in drawn if c is view or c.name not in server.VIEW_TOOLS for i in c.images]
+        shown = meters(drawn) if view and server.VIEW_TOOLS[view.name] == "meter" else [view]
+        out = [(i, c) for c in drawn if any(c is v for v in shown) or c.name not in server.VIEW_TOOLS
+               for i in c.images]
         named = {m.partition(":")[2] for _, m in self.marks if view and _tool(m) == view.name} - {""}
         if any(getattr(i, "name", "") in named for i, c in out if c is view):  # the panel the answer is about
             out = [(i, c) for i, c in out if c is not view or getattr(i, "name", "") in named]
@@ -657,6 +686,7 @@ class Session:
         answer.unpictured = any(tool == NO_PICTURE for _, tool in answer.marks)
         if answer.unpictured:
             answer.marks = []
+        await meters_shared([c for _, c in answer.pictures])
         view = next((c.name for _, c in answer.pictures if c.name in server.VIEW_TOOLS), None)
         answer.marks = placed_by_default(answer.text, answer.marks, view)
         return answer
