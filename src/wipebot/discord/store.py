@@ -7,6 +7,7 @@ import json
 import os
 import sqlite3
 import time
+from collections import Counter
 from collections.abc import Hashable, Sequence
 from dataclasses import astuple, dataclass, field, fields
 from pathlib import Path
@@ -111,7 +112,7 @@ ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "offi
                  ("interactions", "wcl_points", "TEXT"), ("logins", "private_sealed", "TEXT"),
                  ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
                  ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
-                 ("logins", "guild", "TEXT")]
+                 ("logins", "guild", "TEXT"), ("server_options", "recap_channel", "INTEGER")]
 
 
 class Store:
@@ -216,7 +217,8 @@ class Store:
                 footer INTEGER,          -- the cost line under answers (/wipebot setup footer:); NULL: the default
                 news_channel INTEGER,    -- where what's new in each release is posted (/wipebot news); NULL: nowhere
                 language TEXT,           -- the server's language (/wipebot setup language:); NULL: none set
-                steps INTEGER            -- the steps line under answers (/wipebot setup steps:); NULL: the default
+                steps INTEGER,           -- the steps line under answers (/wipebot setup steps:); NULL: the default
+                recap_channel INTEGER    -- where the night's recap is posted (/wipebot recap); NULL: nowhere
             );
             CREATE TABLE IF NOT EXISTS bot_state (  -- the bot's own, not a server's
                 key TEXT PRIMARY KEY,    -- news: the latest release's post (news.Post), posted or not
@@ -505,6 +507,30 @@ class Store:
         """(server, channel, the server's language) for each server that chose a channel for what's new."""
         return self._db.execute("SELECT discord_guild_id, news_channel, language FROM server_options "
                                 "WHERE news_channel IS NOT NULL").fetchall()
+
+    def recap_channel(self, discord_guild_id: int) -> int | None:
+        """The channel an admin chose for the night's recap; None when they chose none."""
+        row = self._db.execute("SELECT recap_channel FROM server_options WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        return row[0] if row else None
+
+    def set_recap_channel(self, discord_guild_id: int, channel_id: int | None) -> None:
+        self._db.execute("INSERT INTO server_options (discord_guild_id, recap_channel) VALUES (?, ?) ON CONFLICT "
+                         "(discord_guild_id) DO UPDATE SET recap_channel = excluded.recap_channel",
+                         (discord_guild_id, channel_id))
+        self._db.commit()
+
+    def tool_uses(self, discord_guild_id: int, since: float) -> Counter[str]:
+        """How many of the server's answers since a time (time.time()) used each tool, counting each once an answer:
+        what the night's recap offers, the least used first."""
+        uses: Counter[str] = Counter()
+        for (calls,) in self._db.execute("SELECT tool_calls FROM interactions WHERE discord_guild_id = ? AND at >= ? "
+                                         "AND kind = 'chat' AND tool_calls IS NOT NULL", (discord_guild_id, since)):
+            try:
+                uses.update({c["name"] for c in json.loads(calls)})
+            except (ValueError, TypeError, KeyError):
+                continue
+        return uses
 
     def language(self, discord_guild_id: int) -> str | None:
         """The language an admin set for the server, as they wrote it ("Norwegian"); None when none is."""

@@ -1,12 +1,14 @@
 """Discord client for any number of servers, each set up with /wipebot setup.
 
-Per server: answers to members who @mention it (in any channel it can see) or DM it, and, for whoever asks, a
-post after each wipe of the guild's live report where they asked (posts.py).
+Per server: answers to members who @mention it (in any channel it can see) or DM it, for whoever asks, a post after
+each wipe of the guild's live report where they asked (posts.py), and the night's recap in the channel an admin chose
+(recap.py).
 """
 import asyncio
 import datetime
 import functools
 import io
+import json
 import logging
 import re
 import signal
@@ -24,7 +26,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import allowance, commands, config, emojis, host, logincmd, news, progress
+from . import allowance, commands, config, emojis, host, logincmd, news, progress, recap
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .follower import Follower, Pull
@@ -420,6 +422,7 @@ class WipeBot(discord.Client):
         if not self.trying:
             self.poll.start()
             self.keep_logins.start()
+            self.recaps.start()
         try:
             asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, self._on_sigterm)
         except NotImplementedError:  # Windows: SIGTERM stops the bot at once, as before
@@ -431,6 +434,7 @@ class WipeBot(discord.Client):
         self.stopping = True
         self.poll.cancel()  # unhandled pulls stay unhandled: the next start picks them up
         self.keep_logins.cancel()
+        self.recaps.cancel()
         log.info("stopping: finishing %d answers in progress first (up to %d s)", self._answering, DRAIN_S)
         self._drain_task = asyncio.get_running_loop().create_task(self._drain())
 
@@ -617,8 +621,10 @@ class WipeBot(discord.Client):
         if not self.stopping:
             for f, pull in due:
                 asyncio.create_task(self._post(s, f, pull))
+            recapped = self.store.recap_channel(s.discord_guild_id)
             for f in self.posts.finished(s.discord_guild_id):
-                asyncio.create_task(self._night_post(f))
+                if f.channel is None or getattr(f.channel, "id", None) != recapped:  # the recap is the night's there
+                    asyncio.create_task(self._night_post(f))
 
     @answering
     async def _post(self, s: ServerSettings, f: Following, pull: Pull) -> None:
@@ -681,6 +687,69 @@ class WipeBot(discord.Client):
             log.warning("couldn't post the night for %s: %s", self._shown(f.name), e)
             return
         log.info("night's post for %s on report %s", self._shown(f.name), f.code)
+
+    # ---------- the night's recap ----------
+
+    @tasks.loop(seconds=recap.RECAP_CHECK_S)
+    async def recaps(self) -> None:
+        """The night's recap in each server with a channel for it, once its report has stopped being logged."""
+        for s in self.store.all_settings():
+            if self.stopping:
+                return
+            if (channel_id := self.store.recap_channel(s.discord_guild_id)) is None:
+                continue
+            try:  # an exception would end the loop for good
+                await self._recap(s, channel_id)
+            except Exception:
+                log.exception("the night's recap in server %s failed", s.discord_guild_id)
+
+    @recaps.before_loop
+    async def _wait_ready_for_recaps(self) -> None:
+        await self.wait_until_ready()
+
+    async def _recap(self, s: ServerSettings, channel_id: int, now: float | None = None) -> bool:
+        """The night's recap of the guild's report that ended, if one is due (recap.due), posted to `channel_id`;
+        whether one was. A report that isn't the guild's night (a raider's pug on its page) or too short for one is
+        noted as done without a post. Each look asks Warcraft Logs for the guild's reports (one point)."""
+        now = now or time.time()
+        key = recap.last_key(s.discord_guild_id)
+        last = recap.last(self.store.state(key))
+        reports = await self.library.wcl.guild_reports(s.wcl_guild_id, (now - recap.LOOKBACK_S) * 1000)
+        if (due := recap.due(reports, now * 1000, last)) is None:
+            return False
+        done = {"code": due["code"], "end": due["endTime"], "pick": (last or {}).get("pick")}
+        try:
+            rep = await self.library.report(due["code"])
+            doubt = await rep.guild_run_doubt()
+        except FactError:  # no boss pull
+            rep, doubt = None, "no boss pull"
+        lang = recap.language(self.store.language(s.discord_guild_id))
+        made = None if rep is None or doubt else await recap.recap(
+            rep, lang, self.store.tool_uses(s.discord_guild_id, now - recap.USES_DAYS * 86400),
+            bool(self.store.notebook.latest_notes(s.wcl_guild_id)), done["pick"])
+        if made is None or rep is None:
+            log.info("no recap of report %s: %s", due["code"], doubt or "too short a night")
+            self.store.set_state(key, json.dumps(done))
+            return False
+        self.store.set_state(key, json.dumps(done | {"pick": made.pick}))  # first: a failed send isn't sent twice
+        args = {"report": rep.code, "boss": made.boss}
+        images = (await host.picture("progress", args))[:1]  # the night on the boss; its other panel is the endings
+        pictures = await pictures_for([(i, "progress", args) for i in images], lang=lang)
+        files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
+        buttons = [Act("awards", rep.code, made.boss, lang=lang),
+                   *(FollowUp(0, n, q) for n, q in enumerate(made.questions))]
+        try:
+            channel = self.get_channel(channel_id) or await self.fetch_channel(channel_id)
+            sent = await cast(discord.abc.Messageable, channel).send(
+                view=answer_layout(made.text, pictures, follow=buttons), files=files,
+                allowed_mentions=discord.AllowedMentions.none())
+        except discord.HTTPException as e:
+            log.warning("couldn't post the night's recap in server %s: %s", s.discord_guild_id, e)
+            return False
+        self.store.remember_message(sent.id, rep.code, made.fight)  # a reply or a question's button: that boss
+        log.info("the night's recap of report %s in server %s (Discover: %s)", rep.code, s.discord_guild_id,
+                 made.pick or "none")
+        return True
 
     # ---------- questions ----------
 

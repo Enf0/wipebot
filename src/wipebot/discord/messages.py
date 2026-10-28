@@ -3,8 +3,9 @@ a notification shows): the text, then each picture whole in a box with a button 
 picture's own actions (Act, Pick), edged gold for a new guild best.
 
 An action answers the one who clicked with the next picture, which only they see (an ephemeral reply), with its own
-actions in turn: the pull's first death, a player's card, against top players, their night, a pull of the night, and
-the clicker's own card on a pull or their own night ("How did I do?", "My night", by the character the store has).
+actions in turn: the pull's first death, a player's card, against top players, their night, a pull of the night, the
+night's awards, and the clicker's own card on a pull or their own night ("How did I do?", "My night", by the
+character the store has).
 Each button and menu carries what it acts on in its custom_id (report, boss, pull, player), so the ones on old
 messages still work after a restart (discord.py's DynamicItem, registered in WipeBot.setup_hook).
 
@@ -70,7 +71,7 @@ class Picture:
 
 
 def answer_layout(text: str, pictures: Sequence[Picture] = (), actions: Sequence[Act] = (),
-                  follow: Sequence[FollowUp] = (), footer: str = "") -> discord.ui.LayoutView:
+                  follow: Sequence[FollowUp | Act] = (), footer: str = "") -> discord.ui.LayoutView:
     """A message as Components V2: its text (none for a picture alone) with `actions` under it (the message's own
     buttons, not a picture's), then each picture (an attachment by its name) whole in a gallery of its own, boxed with
     its buttons and menus (one already above left out), the box edged gold for a new guild best, then the follow-ups
@@ -126,9 +127,9 @@ def _id(prefix: str, *parts: object) -> str | None:
 
 _FIELDS = r"(?P<what>[a-z]+)\|(?P<report>[^|]*)\|(?P<boss>[^|]*)\|(?P<pull>[^|]*)\|(?P<player>[^|]*)"
 LABELS = {"en": {"death": "First death", "top": "Against top", "night": "Their night", "ppull": "Their pull",
-                 "mynight": "My night", "mypull": "How did I do?"},
+                 "mynight": "My night", "mypull": "How did I do?", "awards": "🏆 Tonight's awards"},
           "no": {"death": "Første død", "top": "Mot toppene", "night": "Natten deres", "ppull": "Pullen deres",
-                 "mynight": "Min natt", "mypull": "Hvordan gikk det for meg?"}}
+                 "mynight": "Min natt", "mypull": "Hvordan gikk det for meg?", "awards": "🏆 Kveldens priser"}}
 OPEN = {"en": "Open in Warcraft Logs", "no": "Åpne i Warcraft Logs"}
 MINE = {"mynight", "mypull"}  # actions on the clicker's own character
 
@@ -185,7 +186,8 @@ class Pick(discord.ui.DynamicItem[discord.ui.Select], template=r"wbs\|" + _FIELD
 class FollowUp(discord.ui.DynamicItem[discord.ui.Button], template=r"wbf\|(?P<asker>\d+)\|(?P<n>\d+)"):
     """A follow-up the answer offered: its label is the question, which a click by the asker asks in their
     conversation (WipeBot.follow_up); the custom_id keeps who asked (Discord's 100 characters can't hold the question,
-    and the label comes back with the click)."""
+    and the label comes back with the click). Asker 0 is anyone's to ask, on a post nobody asked for (the night's
+    recap)."""
 
     def __init__(self, asker: int, n: int, question: str) -> None:
         self.asker, self.question = asker, question
@@ -198,7 +200,7 @@ class FollowUp(discord.ui.DynamicItem[discord.ui.Button], template=r"wbf\|(?P<as
         return cls(int(match["asker"]), int(match["n"]), getattr(item, "label", None) or "")
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        if interaction.user.id != self.asker:
+        if self.asker and interaction.user.id != self.asker:
             await interaction.response.send_message(
                 f"That's <@{self.asker}>'s follow-up. Ask me yourself: mention me with your question.", ephemeral=True,
                 allowed_mentions=discord.AllowedMentions.none())
@@ -243,6 +245,8 @@ def tool_of(what: str, report: str, boss: str, pull: str, player: str) -> tuple[
             return "death_recap", {**where, "player": player}
         case "top":
             return "compare_with_top", {**where, "player": player, "aspects": ["casts"]}
+        case "awards":
+            return "progress", {"report": report, "boss": boss or None, "awards": True}
         case "night" | "mynight":
             return "player_night", {"report": report, "boss": boss or None, "player": player}
         case "ppull" | "mypull":
@@ -268,6 +272,8 @@ async def act(interaction: discord.Interaction, what: str, report: str, boss: st
     tool, args = tool_of(what, report, boss, pull, player)
     log.info("%s clicked %s: %s %s", interaction.user, what, tool, args)
     images = await host.picture(tool, args)
+    if what == "awards":  # its card alone, which the night view draws first: the night is in the post clicked
+        images = images[:1]
     if not images:
         await interaction.followup.send("I couldn't draw that one.", ephemeral=True)
         return

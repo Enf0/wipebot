@@ -20,7 +20,7 @@ from discord import app_commands
 
 from wipebot.core import server
 from wipebot.core.accounts import parse_guild_link
-from wipebot.core.report import FactError
+from wipebot.core.report import REPORT_QUIET_S, FactError
 from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
@@ -188,6 +188,7 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
                      "`/wipebot settings`: the setup, and the raid notes and plans saved",
                      "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
                      "`/wipebot news`: post what's new in each release of mine to a channel",
+                     "`/wipebot recap`: post the night's recap to a channel once the raid stops logging",
                      "`/wipebot setup footer:`: end answers with what they cost, or not",
                      "`/wipebot setup steps:`: end answers with the steps they went through, or not",
                      "`/wipebot setup language:`: the language of posts after wipes and of what's new"]
@@ -330,6 +331,9 @@ def build(bot: WipeBot) -> app_commands.Group:
         channel, language = bot.store.news_channel(gid), bot.store.language(gid)
         text += "\n\n**What's new** in each release: " + (f"posted in <#{channel}>" if channel
                                                             else "not posted (`/wipebot news` turns it on)")
+        recapped = bot.store.recap_channel(gid)
+        text += "\n**The night's recap**: " + (f"posted in <#{recapped}>" if recapped
+                                               else "not posted (`/wipebot recap` turns it on)")
         text += "\n**Language** of posts: " + (language or "none set (`/wipebot setup language:`), so English")
         text += f"\n\nwipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>."
         await interaction.response.send_message(text, ephemeral=True)
@@ -339,6 +343,12 @@ def build(bot: WipeBot) -> app_commands.Group:
     async def news_command(interaction: discord.Interaction, channel: discord.TextChannel | None = None,
                            stop: bool = False) -> None:
         await news_channel(bot, interaction, channel, stop)
+
+    @group.command(name="recap", description="Post the night's recap to a channel once the raid stops logging")
+    @app_commands.describe(channel="Where to post (default this channel)", stop="Stop posting the night's recap")
+    async def recap_command(interaction: discord.Interaction, channel: discord.TextChannel | None = None,
+                            stop: bool = False) -> None:
+        await recap_channel(bot, interaction, channel, stop)
 
     usage = app_commands.Group(name="usage", description="The bot's AI budget", parent=group)
 
@@ -381,6 +391,38 @@ async def news_channel(bot: WipeBot, interaction: discord.Interaction, channel: 
                                             ". The latest release's post looks like this:", ephemeral=True)
     if saved := bot.store.state(news_key(bot.store.language(guild.id))) or bot.store.state(news_key(None)):
         await interaction.followup.send(view=news.Post.from_json(saved).layout(bot.name), ephemeral=True)
+
+
+async def recap_channel(bot: WipeBot, interaction: discord.Interaction, channel: discord.TextChannel | None,
+                        stop: bool) -> None:
+    """/wipebot recap: post the night's recap to `channel` (else this one) once the guild's report stops being
+    logged, or `stop`."""
+    guild = in_guild(interaction)
+    if stop:
+        bot.store.set_recap_channel(guild.id, None)
+        await interaction.response.send_message("The night's recap is no longer posted.", ephemeral=True)
+        return
+    s = bot.store.settings(guild.id)
+    if s is None or not s.set_up:
+        await interaction.response.send_message("Connect the server to the guild first, with `/wipebot setup`: the "
+                                                "recap is of its raid nights.", ephemeral=True)
+        return
+    target = channel or interaction.channel
+    if not isinstance(target, discord.TextChannel | discord.Thread):
+        await interaction.response.send_message("Pick a text channel to post in.", ephemeral=True)
+        return
+    can = target.permissions_for(guild.me)
+    if not (can.view_channel and (can.send_messages_in_threads if isinstance(target, discord.Thread)
+                                  else can.send_messages)):
+        await interaction.response.send_message(f"I can't post in {target.mention}: let me see it and send "
+                                                "messages there first.", ephemeral=True)
+        return
+    bot.store.set_recap_channel(guild.id, target.id)
+    await interaction.response.send_message(
+        f"After each raid night, about {REPORT_QUIET_S // 60} minutes after the log stops, the night's recap is "
+        f"posted in {target.mention}: the best wipe or the kill, the trend and what ended most pulls, the night "
+        "drawn, and buttons for each raider's own night, the awards and a question or two to ask next. It costs "
+        "no answer; the questions' buttons do.", ephemeral=True)
 
 
 def news_key(language: str | None) -> str:

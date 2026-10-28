@@ -272,6 +272,13 @@ same way the bot does; the connector alone, in Claude or elsewhere, gets only th
   you tell it to stop. It works before the raid starts logging, too. Each post comes with the pull drawn and a
   "How did I do?" button for each raider's own card; when the raid stops logging, a last picture of the night, with
   "My night" for each raider's own.
+- **The night's recap:** with `/wipebot recap`, once the raid stops logging (about 20 minutes after the last pull),
+  a post in the channel an admin chose: the kills, the best wipe and whether it beat the guild's best, the trend over
+  the night and what ended most pulls, with the night on the boss pulled most drawn. Under it, "My night" and the
+  night's awards (only the clicker sees them), and questions anyone can ask with a click, answered in the channel:
+  what to fix next time, and one the server's raiders have rarely asked that fits the night (who got hit most by
+  what killed most, whether the assignments were followed, where everyone stood on the best pull, the healers'
+  cooldowns). In English, or Norwegian when that is the server's language. The post itself costs no answer.
 - **Pictures and buttons:** what Claude draws comes as pictures, each next to the part of the answer it backs, with
   buttons for the next thing to look at (the first death, a player's card, their night, their casts against the top);
   what a button opens only the clicker sees. A ranking of players (damage, healing, hits by a mechanic, kicks) comes
@@ -295,6 +302,7 @@ Every reply to a command is seen only by whoever used it.
 | `/wipebot setup` | admins | connects the server to the guild on Warcraft Logs (its warcraftlogs.com page); sets the role needed to chat and the officers' role, and with `footer:` whether answers end with a small line (what the answer cost, its Warcraft Logs points with the bot's left this hour, yours apart when you're signed in, and, on a shared copy, the server's free answers left this month; on by default while a server answers from a shared copy's free answers), with `steps:` whether answers end with a small line of the steps they went through (the tools they looked at, like ✓ Roster · ✓ Pull summary; on by default), and with `language:` the server's language (posts after wipes and what's new are written in it; a question is still answered in its own language). Options left out keep what's set |
 | `/wipebot settings` | admins | the setup, the raid notes and plans saved, where what's new is posted and the server's language |
 | `/wipebot news` | admins | posts what's new in each minor release of Wipebot to this channel (or `channel:`), from the next one on, with the patches since the last post rolled in, when any of it is worth a raider's read: every change raiders would notice, a line each in the server's language, with their pictures, and how many more are in the changelog. Off until an admin turns it on; `stop:` turns it off. It shows the latest release's post as it looks |
+| `/wipebot recap` | admins | posts the night's recap to this channel (or `channel:`) once the guild's raid stops being logged, a post a night: the kills, the best wipe, the trend and what ended most pulls, the night drawn, and buttons for each raider's night, the awards and questions to ask next. Off until an admin turns it on; `stop:` turns it off |
 | `/wipebot usage post` | everyone in the channel | posts the AI budget to the channel (spent this month and in all, a bar of how much of the limit is spent, and what's left), on a bot that answers through OpenRouter; on a shared copy, the server's share of the month's free answers |
 | `/wipebot key` | admins | lets an admin add an AI key they have, so the server's questions run on it past the shared free answers: sign in with OpenRouter, or paste an OpenRouter or Anthropic key; kept encrypted, never shown again. `remove:` goes back to the shared answers |
 

@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Agent` `Discord` **The night's awards.** "Who carried tonight?" gets the raid's best on a boss over the night, each with the runner-up so a close one shows as close: most damage and healing a pull, most kicks and dispels, and the survivor with the fewest deaths before each wipe was decided. Only praise. In Discord, drawn as a card above the night's pulls.
   ![The Twin Fangs' awards over 39 pulls: top damage, top healing, most kicks and survivor, each winner in their class colour with the runner-up under it](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-night-awards.webp)
+- `Discord` **The night's recap.** Once the raid stops logging, a post in the channel an admin picks with `/wipebot recap`: the kills, the best wipe and whether it beat the guild's best, the trend over the night and what ended most pulls, with the night drawn. Under it, each raider's own night, the night's awards, what to fix next time, and one question your raiders haven't asked much that fits the night, such as who got hit most by what killed most or where everyone stood on the best pull.
+  ![The night's recap after 33 pulls on Sszorak: the best wipe, the trend and what ended most wipes, the night drawn with My night and a pull menu, then the buttons Tonight's awards, What do we fix on Sszorak next time? and What did pull 13 do differently from pull 33?](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-night-recap.webp)
 
 ## [0.32.0] - 2026-10-28
 
