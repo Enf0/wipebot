@@ -329,11 +329,13 @@ wrong = ["says they improved over the night",
          "counts deaths after the wipe was decided against them"]
 
 [[case]]
-id = "me-mechanic-against-last-night"  # a mechanic against the night before, by the minute (answer #1089)
-tools = ["find_reports", "mechanic_hits"]
+id = "me-mechanic-against-last-night"  # a mechanic against the night before, by the minute (answer #1089); the
+# night before is linked, as find_reports reads the frozen data's day
+tools = ["mechanic_hits"]
 report = "4N9JMwBFPAjXyV3Z"
-question = """I took a lot of Axegrinder damage last raid night. Looking at all of tonight's wipes, how did it go?
-I feel it went a bit better. Tell me how I rank against the others too, without calling anyone out."""
+question = """I took a lot of Axegrinder damage last raid night (https://www.warcraftlogs.com/reports/64hVgfmydQGNxC7A).
+Looking at all of tonight's wipes, how did it go? I feel it went a bit better. Tell me how I rank against the others
+too, without calling anyone out."""
 asker = "Miralupa"
 boss = "The Coiled Altar"
 expect = """Yes, better: Miralupa took about 0.4M Axegrinder damage per minute of the pulls tonight against about 1.0M
