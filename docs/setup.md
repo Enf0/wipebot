@@ -51,7 +51,6 @@ In `.env` (copy [.env.example](../.env.example)):
 | `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku`; through OpenRouter, another model's OpenRouter id (untested) |
 | `WIPEBOT_EFFORT` | bot | how hard the model thinks: `low`, `medium`, `high`, `xhigh` or `max`; unset, the model's default |
 | `WIPEBOT_CHANNEL_CONTEXT` | bot | `1`: answers also read the channel's last 15 messages and the Discord messages a question links to (needs the Message Content intent) |
-| `WIPEBOT_NAMES_IN_CHANNELS` | bot | `1`: answers in server channels name players, as in a DM (who missed what, died first, took the most damage); unset, they name nobody for a mistake and a raider asks for that in their DMs |
 | `WIPEBOT_RECORD_ANSWERS` | bot | `1`: keep questions and answers for 90 days, for reviewing them |
 | `WIPEBOT_SOURCE_URL` | both | where users get your copy's source, shown on the sign-in page and in `/wipebot settings` (default this repository): set it if you changed the code, as the AGPL asks |
 

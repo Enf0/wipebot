@@ -52,7 +52,7 @@ wrong = ["gives some other player's results as the asker's"]
 [[case]]
 id = "ask-assignment"  # the log shows who was hit, not who was assigned
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "raid_note"]
-where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
+where = "in a DM"  # a DM, as the asker had it
 question = "Who was supposed to soak the Mutilate that killed four people on pull 33?"
 pull = 33
 boss = "Sszorak"

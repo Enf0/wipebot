@@ -263,11 +263,10 @@ same way the bot does; the connector alone, in Claude or elsewhere, gets only th
   with `/login` asks about their own guild's latest raid without one (posts after wipes still need setup). With the
   setting on, it also reads the channel's last 15 messages for context, and the messages, threads or channels a
   question links to, such as your own notes on a boss (only ones the asker can read).
-- **Who it names:** in a server channel it doesn't blame players: it says what went wrong and how to fix it, without
-  names. Praise is fine, and so is feedback on the asker's own play. In a DM it names players. A host can have it
-  name players in channels too (`WIPEBOT_NAMES_IN_CHANNELS`), for a guild that wants it said where it was asked.
+- **Who it names:** it names players wherever it's asked, in a channel as in a DM: who missed what, who died
+  first, who took the most damage, with how to fix it.
 - **In your DMs instead:** ask it in a channel to send something to your DMs, and it answers there as if you'd
-  asked there, where it may name players. It only ever writes to the one who asked.
+  asked there. It only ever writes to the one who asked.
 - **Posts after each wipe:** ask it to follow tonight's raid, and it posts after every wipe, in a DM (your own
   feedback) or in a channel (what you asked for, such as only below 30 % or every 10th pull), until the report ends or
   you tell it to stop. It works before the raid starts logging, too. Each post comes with the pull drawn and a

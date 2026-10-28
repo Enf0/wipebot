@@ -43,7 +43,7 @@ pull = 14
 boss = "Sszorak"
 expect = """The first dominoes, before the Mutilate that killed four more: the Tempest deaths early on and a tank
 death after a late taunt swap."""
-# In a channel the facts are stated by role, not by name. Taunt swaps are often a back-and-forth between the tanks, so
+# Taunt swaps are often a back-and-forth between the tanks, so
 # a late one is a domino, not one tank's fault. pull_summary decides the wipe at 1:11 (half the raid dead): calling the
 # enrage at 1:19 fallout is right, and so is tying it to too few left for Serpent's Fury.
 facts = ["Tempest killed three at 0:46-0:50, and a fourth player died at 0:53",
@@ -84,7 +84,6 @@ facts = ["Fury Unleashed at 9:58, when 26 players had already died; it killed th
          "the boss at 10% at 9:31, with three players alive when Rage of the Shackled and the Venomous Heart came at 9:33"]
 wrong = ["says the enrage (Fury Unleashed) ended the pull, or that the raid ran out of time",
          "says the fix is more damage from rotations, gear or cooldowns, with no word on the deaths before the enrage"]
-wrong_in_channel = ["names a player who died to Caustic Waves or Volatile Purge"]
 [[case]]
 id = "wipe-unkicked-add"  # killing blows that are the raid's own attacks, on players the curse turned
 cause = "deaths from 4:58"  # Sonyom, Soulcoiled; Sjay at 4:14 was battle-ressed. `just evals --endings`
@@ -126,7 +125,6 @@ facts = ["Pulsing Tides killed 14; half the raid was dead at 3:56",
 # when the Berserkers came): it left the raid short, but no item rests on it.
 wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
          "the Swirling Whirlpools deaths (at 3:48-3:49) lost the pull"]
-wrong_in_channel = ["names a player who died"]
 [[case]]
 id = "wipe-tank-death"  # the first domino: a tank death that leaves a tank mechanic to the raid
 cause = "deaths from 7:00"  # what an expert names first; `just evals --endings`
@@ -147,7 +145,6 @@ wrong = ["says the tank's first death at 2:51 lost the pull",
          "says the players who died to Stone Breaker stood in it, or blames the DPS for those deaths",
          "Eternal Venom stacks or Toxic Fumes lost the pull, with no word of the tank death",
          "says a named player failed a soak or the swap"]
-wrong_in_channel = ["names the tank who died"]
 [[case]]
 id = "wipe-droplet-explosion"  # 10 dead in one second to erupting droplets, behind a lone death at 2:26
 cause = "ability: Noxious Blast"  # what an expert names first; `just evals --endings`
@@ -168,7 +165,6 @@ wrong = ["says the death at 2:26 lost the pull",
          "the raid lacked damage, or Mark of Blood / Mark of Acid stacks lost the pull",
          """says a named player failed to clear the droplets or set them off, even as a likely guess, beyond what the
          log or a raid note shows"""]
-wrong_in_channel = ["names the players who died"]
 [[case]]
 id = "wipe-heroic-failed-soak"
 cause = "ability: Calcified Corpse"  # what an expert names first; `just evals --endings`
@@ -188,7 +184,6 @@ facts = ["three Serpent's Bites at 7:43: two were cleared in 10 s and 6 s, one w
 wrong = ["says the tank's death at 7:54, the Caustic Waves or the platform break (Circling Prey) ended the pull",
          "says a lack of damage ended the pull (being behind the kill's pace is a fair side note)",
          "blames the player who carried the unsoaked Serpent's Bite"]
-wrong_in_channel = ["names the player who carried the unsoaked Serpent's Bite, or a player who died"]
 [[case]]
 id = "wipe-second-fury-not-stacked"
 cause = "enrage: Unbound Ferocity"  # what an expert names first; `just evals --endings`
@@ -250,7 +245,6 @@ wrong = ["says the totems were all cleared before Imbibe",
          "the raid lacked damage or hit a damage check",
          "says Congealing Bolt or Catalytic Bile started the wipe",
          "says the healers saved no cooldowns for the Imbibe, or caused the wipe with their cooldowns"]
-wrong_in_channel = ["names who died first, or who should have aimed the Plague Froth waves at the totems"]
 [[case]]
 id = "wipe-dps-in-ravage"  # a non-tank in the tank frontal, asked about by the player who died
 tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_map"]
@@ -271,7 +265,7 @@ wrong = ["a healing gap or a missing defensive is what killed them", "says a def
 id = "wipe-tank-solo-soak"  # a Mutilate soaked by one tank, then a follow-up about the asker's own death
 cause = "deaths from 0:15"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "tank_swaps"]
-where = "in a DM"  # a server channel gets no names (the bot's rule since 12 Oct); a DM may name
+where = "in a DM"  # a DM, as the asker had it
 question = ["Why did we wipe on pull 20?", "ok and what should I personally have done?"]
 asker = "Nexsozz"
 pull = 20

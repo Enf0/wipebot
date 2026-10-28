@@ -46,7 +46,6 @@ after 3:50, and that the fix is stopping the murlocs before the bubble; in a few
 wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
          "the Swirling Whirlpools deaths (at 3:48-3:49) lost the pull",
          "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
-wrong_in_channel = ["names a player who died"]
 
 [[case]]
 id = "post-tank-death"  # wipe-tank-death as a post
@@ -62,7 +61,6 @@ wrong = ["says the tank's first death at 2:51 lost the pull",
          "says the players who died to Stone Breaker stood in it, or blames the DPS for those deaths",
          "says a named player failed a soak or the swap",
          "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
-wrong_in_channel = ["names the tank who died"]
 
 [[case]]
 id = "post-droplet-explosion"  # wipe-droplet-explosion as a post
@@ -78,7 +76,6 @@ wrong = ["says the death at 2:26 lost the pull",
          "the raid lacked damage, or Mark of Blood / Mark of Acid stacks lost the pull",
          "says a named player failed to clear the droplets or set them off",
          "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
-wrong_in_channel = ["names the players who died"]
 
 [[case]]
 id = "post-imbibe-totems"  # wipe-imbibe-totems as a post
@@ -93,7 +90,6 @@ expect = """Says Malignant Totems left uncleared went off at the 1:48 Imbibe (Ma
 wrong = ["the raid lacked damage or hit a damage check",
          "says the healers saved no cooldowns for the Imbibe, or caused the wipe",
          "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
-wrong_in_channel = ["names who died first, or who should have aimed the Plague Froth waves at the totems"]
 
 [[case]]
 id = "post-heroic-failed-soak"  # wipe-heroic-failed-soak as a post
@@ -108,7 +104,6 @@ killed most of the raid; the fix is filling every Serpent's Bite soak; in a few 
 wrong = ["says the tank's death at 7:54, the Caustic Waves or the platform break (Circling Prey) ended the pull",
          "blames the player who carried the unsoaked Serpent's Bite",
          "runs well past four short lines (more than about 700 characters, links' URLs not counted)"]
-wrong_in_channel = ["names the player who carried the unsoaked Serpent's Bite, or a player who died"]
 
 [[case]]
 id = "post-own-tank-mechanic"  # me-dps-hit-by-tank-mechanic as their own feedback

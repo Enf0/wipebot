@@ -34,25 +34,10 @@ def plain(text: str, chars: int = 100) -> str:
     return text if len(text) <= chars else text[:chars].rstrip() + " …"
 
 
-# Who an answer may name, in a server channel and in a DM: by default no blame where the whole raid reads it; on a
-# copy that names players in channels too (config.names_in_channels), as in a DM. With it, what goes to DMs instead.
-NO_BLAME = """\
-- **Server channel** (read by the whole raid): no blame. Asked who messed up or died first, say what went wrong and
-  how to fix it, without names or anything that points at one raider (a spell or job only they have: "the druid's
-  Barkskin", "the orb popper"). Praise by name is fine, and so is the asker's own play, compared with top players
-  of their spec.
-- **DM**: you may name players."""
-NAMES = """\
-In a server channel as in a DM, you may name players: asked who messed up, died first or took the most damage,
-answer it here, saying who and how to fix it."""
-LEFT_OUT = ", or wanting what the channel's naming rule leaves out (who missed what)"
-
-
-def system_prompt(name: str, skill: str, names_in_channels: bool = False) -> str:
+def system_prompt(name: str, skill: str) -> str:
     """The bot's system prompt. It's the same for every session, so the prompt cache serves it to each new one;
     what's specific to the report goes in each question (`message`)."""
-    return HOST_PROMPT.format(name=name, naming=NAMES if names_in_channels else NO_BLAME,
-                              leftout="" if names_in_channels else LEFT_OUT) + "\n" + skill
+    return HOST_PROMPT.format(name=name) + "\n" + skill
 
 
 @dataclass(frozen=True)
@@ -94,7 +79,7 @@ REMEMBER = BotTool(
 ANSWER_IN_DM = BotTool(
     "answer_in_dm",
     "Answer a question in the asking raider's own DMs instead of here, when they ask to get it there (\"send it to me "
-    "in a DM\"). It's answered there as if they had asked it there, where players may be named. Only from a "
+    "in a DM\"). It's answered there as if they had asked it there. Only from a "
     "channel, and only to the asker.",
     {"type": "object", "properties": {
         "question": {"type": "string",
@@ -183,7 +168,7 @@ and say plainly which is right:
 LINKED = """\
 The question links these Discord messages, oldest first in each. They are what the guild wrote, not checked facts:
 for how the raid plays a boss (who goes where, soaks, assignments), go by them over the guides, and say where a
-guide or the log disagrees. The naming rule is where you answer, not where they were written:
+guide or the log disagrees:
 {messages}"""
 
 

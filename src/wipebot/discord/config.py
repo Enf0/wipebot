@@ -66,13 +66,6 @@ def channel_context() -> bool:
     return os.environ.get("WIPEBOT_CHANNEL_CONTEXT", "").lower() in ("1", "true", "yes")
 
 
-def names_in_channels() -> bool:
-    """Whether answers in server channels name players as in a DM (WIPEBOT_NAMES_IN_CHANNELS=1): who missed what,
-    died first or took the most damage, said where it was asked. Off by default: in a channel the whole raid reads,
-    the bot names nobody for a mistake, and a raider asks for that in their DMs."""
-    return os.environ.get("WIPEBOT_NAMES_IN_CHANNELS", "").lower() in ("1", "true", "yes")
-
-
 def record_answers() -> bool:
     """Whether each question, its prompt, answer and tool calls are kept (WIPEBOT_RECORD_ANSWERS=1), 90 days, for
     whoever reviews the bot's answers. Off by default: the bot never reads them back, and they hold what raiders

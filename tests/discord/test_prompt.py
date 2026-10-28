@@ -18,7 +18,6 @@ from wipebot.discord.prompt import (
     post_prefetch,
     post_question,
     report_line,
-    system_prompt,
 )
 
 TZ = datetime.timezone(datetime.timedelta(hours=2))
@@ -172,11 +171,3 @@ async def test_the_host_prompt_names_only_tools_the_bot_has():
     known = {name for name, _ in tools} | {p for _, schema in tools for p in schema.get("properties", {})}
     assert set(re.findall(r"[a-z]+(?:_[a-z]+)+", HOST_PROMPT)) <= known
 
-
-def test_names_in_channels_drops_the_channels_no_blame():
-    """By default a channel's answers blame nobody and who missed what goes to DMs; a host that names players in
-    channels gets neither, and no placeholder is left in either prompt."""
-    default, named = system_prompt("Wipebot", "skill"), system_prompt("Wipebot", "skill", names_in_channels=True)
-    assert "no blame" in default and "leaves out (who missed what)" in default
-    assert "no blame" not in named and "leaves out" not in named and "you may name players" in named
-    assert not re.search(r"\{(naming|leftout)\}", default + named)

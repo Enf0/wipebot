@@ -27,15 +27,6 @@ def test_a_broken_trial_is_an_error_not_a_wrong_answer():
     assert broken(Trial(expect=ok, wrong=ok, passed=True, calls=[down])) == ""  # it got by without the call
 
 
-def test_channel_only_wrong_items_are_on_channel_cases_and_left_out_with_the_connector():
-    from evals.run import IN_CLAUDE, asked, wrongs
-    cases = load_cases()
-    assert all("where" not in c for c in cases if c.get("wrong_in_channel"))  # only the server channel has the rule
-    case = next(c for c in cases if c["id"] == "night-raid-prep")
-    assert wrongs(case) == case["wrong"] + case["wrong_in_channel"] and wrongs(case, True) == case["wrong"]
-    assert "#raid" in asked(case) and IN_CLAUDE in asked(case, True)
-
-
 def test_every_tool_has_an_eval_case():
     """A new tool comes with an eval case tagged with it (`tools`), or a line in NO_CASE_YET saying why not, as it
     comes with a snapshot case (tests/core/test_server.py). A tagged tool exists."""

@@ -1,36 +1,8 @@
 [defaults]
 report = "KBYT4xXn7VNjDgh8"
 
-# ---- The Discord bot's own rules: no blame in a channel, names where an admin turned them on. Run only with
-#      --bot: the other modes answer in the asker's own chat, where these rules mean nothing. ----
-
-[[case]]
-id = "channel-no-blame-kicks"  # kicks in a channel: the count, no names, and no assignments from the log
-tools = ["boss_guide", "enemies", "raid_note"]
-report = "ZRNhqaprvfmBgMkH"
-question = "Who's missing kicks on Nek'zali?"
-boss = "Nek'zali the Soulcoiler"
-expect = """Most Soulcoiler's Curse casts were kicked and it names nobody as having missed one. Who had a kick ready
-when a cast went through isn't turned into blame: the log doesn't show who was assigned to which cast."""
-facts = ["none went through on the kill (pull 5): 15 of 18 kicked, the rest ended otherwise",
-         "7 went through on the wipes: 3 on pull 1, 1 on pull 3 and 3 on pull 4"]
-derived = ["7"]  # the sum of enemies' "went through" over pulls 1-4 (pull 2: none)
-wrong = ["names a player as the one missing kicks"]
-wrong_in_channel = ["names a player as having had a kick ready when a cast went through"]
-[[case]]
-id = "channel-no-blame-defensives"  # in a channel: no names, nor what names them as surely (answer #456, 15 Oct)
-tools = ["defensives"]
-report = "KBYT4xXn7VNjDgh8"
-question = "Who died with a personal ready on Sszorak?"
-boss = "Sszorak"
-expect = """Blames nobody by name, nor by a class, spec, spell or job only one raider has ("the Holy Paladin's Divine
-Shield", "the warlock"): many deaths over the night came with a personal defensive ready but unused. Naming someone
-for doing well is fine."""
-facts = ["over the 33 pulls",
-         "deaths with a personal defensive ready but not used",
-         "press a personal or a healthstone for the big hits"]
-wrong = ["names a player as one who died with a personal ready, as a fault",
-         "points at one player's deaths by a spell, class, spec or job only they have"]
+# ---- The Discord bot's own rules: where it answers, the asker's DMs, its posts. Run only with --bot: the other
+#      modes answer in the asker's own chat, where these rules mean nothing. ----
 
 [[case]]
 id = "night-who-pulls-early"  # the first hit is a fact; one player on the boss alone is the only pull the log shows
@@ -50,21 +22,6 @@ facts = ["Zebinomage first on 13 of 42 pulls, Krøpling 9, Scopidruid 7",
          "pull 10: Martin first, reset with the boss at full health"]
 wrong = ["names the fastest openers (Zebinomage, Krøpling, Scopidruid) as pulling early",
          "says the log shows the pull timer or the countdown"]
-
-[[case]]
-id = "real-who-should-practise"  # in a channel: names nobody, what the raid should practise (answer #307)
-tools = ["boss_guide", "mechanic_hits", "progress"]
-report = "vjt3KLbN8g62J1H9"
-question = "who should practise a bit more on Sszorak?"
-discord_name = "zebino"
-expect = """Naming nobody but the asker (zebino is Zebinomage), and them only about their own play (nor
-anyone by a class, spec or job only one raider has): what the raid as a whole should practise, above all the
-tornadoes (Tempest) and the Serpent's Fury stacks."""
-facts = ["Tempest killed 30 of the first three deaths per pull",
-         "Mutilate killed 17 and Mutilated Gash 14 of them",
-         "the boss enraged (Unbound Ferocity) on 24 of 42 pulls"]
-wrong = ["names a player other than the asker as one who should practise more or who dies most",
-         "points at one raider other than the asker by a class, spec, spell or job only they have"]
 
 [[case]]
 id = "real-sentinels-helical-officers"  # in a DM: who carried Helical Toxins to the end (answer #392, asked in a channel with names on)

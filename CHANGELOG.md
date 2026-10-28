@@ -6,9 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- `Discord` **Names in channels, for hosts who want them.** A copy whose host sets `WIPEBOT_NAMES_IN_CHANNELS=1` answers "who took the most damage?" or "who missed kicks?" by name right in the channel, instead of sending it to the asker's DMs. Unset, channels stay free of blame as before.
+- `Discord` **Names in channels.** Wipebot names players in a server channel as it does in a DM: "who took the most damage?" or "who missed kicks?" is answered right where it's asked, instead of being sent to your DMs. It still answers in your DMs when you ask it to.
 
 ## [0.31.1] - 2026-10-28
 

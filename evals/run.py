@@ -154,7 +154,7 @@ def load_cases(folder: Path = CASES) -> list[dict]:
     for path in sorted(folder.glob("*.toml")):
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         for case in spec["case"]:
-            if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "wrong_in_channel", "derived",
+            if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "derived",
                                        "drifts", "hard", "report", "tools", "calls", "asks_first", "cause", "request",
                                        *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
@@ -216,12 +216,6 @@ def where(case: dict, client: bool = False) -> str:
     return IN_CLAUDE if client else case.get("where", IN_CHANNEL)
 
 
-def wrongs(case: dict, client: bool = False) -> list[str]:
-    """What would make an answer wrong where it's asked: `wrong_in_channel` (naming who died or had a kick ready)
-    only in the server channel, a rule of the bot's."""
-    return case["wrong"] + ([] if client else case.get("wrong_in_channel", []))
-
-
 def asked(case: dict, client: bool = False) -> str:
     """The question as the judge and the labeller see it: who asked it and where (the cases' rules on naming players
     turn on both), and a follow-up after the ones before it."""
@@ -267,7 +261,7 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
     t.answer, t.calls = answer.full, calls
     expect, wrong, stated = await asyncio.gather(
         judge_majority(expect_prompt(asked(case, client), case["expect"], t.answer), judge_model),
-        judge_majority(wrong_prompt(asked(case, client), wrongs(case, client), t.answer), judge_model),
+        judge_majority(wrong_prompt(asked(case, client), case["wrong"], t.answer), judge_model),
         facts(asked(case, client), case["facts"], t.answer, judge_model) if case.get("facts")
         else asyncio.sleep(0))
     t.uncalled = uncalled(case, calls, mode)
@@ -699,14 +693,14 @@ def _ask(items: list[tuple[str, str, tuple[str, ...]]]) -> None:
             if (case_id, check, answer) in done:
                 continue
             ask = (f"Does it get this across? {' '.join(case['expect'].split())}" if check == "expect"
-                   else "Does it state none of these?\n" + "\n".join(f"- {w}" for w in wrongs(case)))
+                   else "Does it state none of these?\n" + "\n".join(f"- {w}" for w in case["wrong"]))
             key = input(f"{ask}\n> ").strip().lower()
             if key == "q":
                 return
             if key in ("y", "n"):
                 with LABELS.open("a", encoding="utf-8") as f:
                     f.write(json.dumps({"case": case_id, "check": check, "question": asked(case),
-                                        "expect": case["expect"], "wrong": wrongs(case), "answer": answer,
+                                        "expect": case["expect"], "wrong": case["wrong"], "answer": answer,
                                         "right": key == "y", "by": "owner", "split": split(case_id, check, answer)},
                                        ensure_ascii=False) + "\n")
 
@@ -714,7 +708,7 @@ def _ask(items: list[tuple[str, str, tuple[str, ...]]]) -> None:
 def label_record(case: dict, check: str, answer: str, right: bool, by: str, **more) -> dict:
     """A label as LABELS keeps it."""
     return {"case": case["id"], "check": check, "question": asked(case), "expect": case["expect"],
-            "wrong": wrongs(case), "answer": answer, "right": right, "by": by,
+            "wrong": case["wrong"], "answer": answer, "right": right, "by": by,
             "split": split(case["id"], check, answer), **more}
 
 
