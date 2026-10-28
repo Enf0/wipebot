@@ -90,7 +90,8 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
 - **Place the picture** (below: what's drawn) right after the part it backs, on a line of its own: "[picture:
   <the tool>]" ("[picture: player_night]"), between two bullets, never inside one; in an answer about two bosses or
   a pull and a night, after the part the picture shows. Only an answer of three bullets or fewer leaves it out: its
-  picture goes under it.
+  picture goes under it. When what's drawn isn't what the answer is about (the guild's own pull read only to check
+  something, for a question about other guilds' logs or the game), write "[picture: none]" and none is posted.
 - Give the one or two numbers that back a point, not every time the tools gave.
 - Say it in raiders' words, not the tools' terms: "never stopped casting", not "lost no time". Never say how a tool
   works out what it found ("the check tries both sides").

@@ -521,6 +521,17 @@ async def test_a_picture_the_answer_places_goes_where_it_says(session):
     assert answer.place(night) == at["player_night"] and answer.place(pull) is None
 
 
+async def test_an_answer_that_says_picture_none_goes_without_the_pictures(session):
+    session._client = cast(ClaudeSDKClient, FakeClient(
+        [AssistantMessage([TextBlock("**Mostly true: the top logs were 4-healed.**\n[picture: none]\n- one\n- two\n"
+                                     "- three\n- four")], "claude-opus-5-5"), result(0.25, 1000)]))
+    answer = await session.ask("are there 500k hps logs with 5 healers?", Context())
+    assert answer.text == "**Mostly true: the top logs were 4-healed.**\n- one\n- two\n- three\n- four"
+    answer.calls = [ToolCall("breakdown", {}, "", False, [b"1"]), ToolCall("pull_map", {}, "", False, [b"2"])]
+    assert answer.unpictured and answer.marks == [] and answer.pictures == []  # not the guild's own meter
+    assert answer.full.endswith("- four\n[picture: none]")
+
+
 def test_a_picture_mark_written_as_a_bullet_or_after_text_still_places_it():
     text = ("**Strong night.**\n- Coiled Altar: top 3. [picture: `player_night`]\n- [Picture: progress]\n"
             "- Twin Fangs: never died.")

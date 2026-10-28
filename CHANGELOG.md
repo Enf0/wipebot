@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `Agent` **The guild's raid night, not the Heroic run after it.** Asked about the latest raid without a report, Wipebot takes the newest night on the difficulty the guild raids (Mythic, say), not a Heroic or alt run raiders logged to the guild's page the day after; and the guild's report list marks such a run as an easier one, not the raid night.
+- `Discord` **Only the pull the answer is about under it.** A question about other guilds' logs or the game no longer comes with the guild's own pull the bot looked at on the way.
 
 ## [0.24.0] - 2026-10-28
 

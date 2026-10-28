@@ -134,6 +134,7 @@ FOLLOW_UP_CHARS = 80  # Discord's limit for a button's label, which is the quest
 PICTURE_MARK = re.compile(r"\[\s*picture\s*:\s*`?([a-z_]+)`?\s*\]", re.I)
 _BARE = re.compile(r"[\s>*_`-]*(?:\d+[.)])?[\s*_`-]*")  # what's left of a line that held only marks: its bullet
 NO_ANSWER = "(no answer)"  # an answer with no text at all: a post after a pull that nothing called for
+NO_PICTURE = "none"  # "[picture: none]": the answer goes without the pictures its tools drew
 _PLACED = "\ue000"  # a picture's place while the text is polished: a private-use character no answer has
 
 
@@ -387,6 +388,7 @@ class Answer:
     loaded: list[str] = field(default_factory=list)
     follow_ups: list[str] = field(default_factory=list)  # what the answer offers next, as buttons in Discord
     marks: list[tuple[int, str]] = field(default_factory=list)  # where a tool's picture goes: (offset, tool)
+    unpictured: bool = False  # the answer said "[picture: none]": what was drawn isn't what it's about
     footer: str = ""  # the small cost line under it, in Discord (WipeBot._with_footer)
 
     @property
@@ -396,6 +398,8 @@ class Answer:
         text = self.text
         for at, name in sorted(self.marks, reverse=True):
             text = f"{text[:at].rstrip(chr(10))}\n[picture: {name}]\n{text[at:].lstrip(chr(10))}".strip("\n")
+        if self.unpictured:
+            text += f"\n[picture: {NO_PICTURE}]"
         return text + "".join(f"\nFollow-up: {q}" for q in self.follow_ups)
 
     def records(self) -> list[dict]:
@@ -414,6 +418,8 @@ class Answer:
         """The pictures of the answer's tool calls, to send with it, each with its call; the last few: every map, and
         one view (one panel or several), the first the answer placed (`marks`) or else the first drawn, the others a
         click away from its buttons and menus, so a few views don't fill the screen under a short answer."""
+        if self.unpictured:
+            return []
         drawn = [c for c in self.calls if not c.failed and c.images]
         marked = {tool for _, tool in self.marks}  # a view the answer placed comes before the first drawn
         view = next((c for c in drawn if c.name in server.VIEW_TOOLS and c.name in marked), None) \
@@ -636,6 +642,9 @@ class Session:
         answer.text, answer.marks = placed(polish(
             picture_marks(text), [c.result for c in answer.calls if not c.failed], read, ctx.icons,
             await self._roster(ctx)))
+        answer.unpictured = any(tool == NO_PICTURE for _, tool in answer.marks)
+        if answer.unpictured:
+            answer.marks = []
         view = next((c.name for _, c in answer.pictures if c.name in server.VIEW_TOOLS), None)
         answer.marks = placed_by_default(answer.text, answer.marks, view)
         return answer
