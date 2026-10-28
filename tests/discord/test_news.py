@@ -73,10 +73,14 @@ async def test_the_model_words_the_lines_in_the_servers_language_and_code_counts
     assert text.splitlines()[:3] == ["### Nytt i Wipeboy 0.3.0", "- **Poeng.** Telles én gang nå.",
                                      "- **Raidskade.** Spør om et hvilket som helst øyeblikk."]
     assert "-# 2 til i endringsloggen: <https://github.com/" in text
-    assert post.pictures == [("The damage at 2:15", "https://raw.githubusercontent.com/example/shot.png")]
-    view = post.layout("Wipeboy")
-    gallery = [c for c in view.walk_children() if isinstance(c, discord.ui.MediaGallery)]
-    assert [i.media.url for i in gallery[0].items] == ["https://raw.githubusercontent.com/example/shot.png"]
+    assert post.pictures == [[], [("The damage at 2:15", "https://raw.githubusercontent.com/example/shot.png")]]
+    # the picture right under its own line, the rest after it
+    parts: list[Any] = [c for c in post.layout("Wipeboy").walk_children()
+                        if isinstance(c, discord.ui.TextDisplay | discord.ui.MediaGallery)]
+    assert [type(p).__name__ for p in parts] == ["TextDisplay", "MediaGallery", "TextDisplay"]
+    assert parts[0].content.endswith("Spør om et hvilket som helst øyeblikk.")
+    assert [i.media.url for i in parts[1].items] == ["https://raw.githubusercontent.com/example/shot.png"]
+    assert parts[2].content.startswith("-# 2 til")
     assert news.Post.from_json(post.to_json()) == post
 
 
@@ -148,7 +152,7 @@ async def test_admins_choose_the_channel_and_see_the_latest_post(bot):
     interaction = cast(Any, SimpleNamespace(guild=SimpleNamespace(id=1001, me=None), channel=here,
                                             response=SimpleNamespace(send_message=say),
                                             followup=SimpleNamespace(send=say)))
-    bot.store.set_state("news_post:english", news.Post("0.3.0", ["**A line.**"], [], 2).to_json())
+    bot.store.set_state("news_post:english", news.Post("0.3.0", ["**A line.**"], [[]], 2).to_json())
     callback = cast(Any, commands.build(bot).get_command("news")).callback
     await callback(interaction)
     assert bot.store.news_channel(1001) == 40 and "posted in <#40>" in said[0]

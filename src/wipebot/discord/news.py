@@ -1,9 +1,9 @@
 """What's new, posted to the channel a server's admins chose (/wipebot news) when the bot starts on a release it
 hasn't posted yet, in the server's language (/wipebot setup language:). From CHANGELOG.md's items a raider in
 Discord notices (tagged `Agent` or `Discord`), the model says each in a short line for raiders, most important
-first, leaving out what only matters elsewhere; the post shows those items' pictures and counts what it left to the
-changelog. Without the model, in English, each item's bold lead and first sentence, Added first, then Changed and
-Fixed."""
+first, leaving out what only matters elsewhere; the post shows each item's pictures under its line and counts what it
+left to the changelog. Without the model, in English, each item's bold lead and first sentence, Added first, then
+Changed and Fixed."""
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -59,23 +59,40 @@ class Item:
 class Post:
     version: str  # the newest it covers
     lines: list[str]
-    pictures: list[tuple[str, str]]  # of the items shown
+    pictures: list[list[tuple[str, str]]]  # each line's item's, (alt, url)
     more: int  # items left to the changelog
     labels: dict[str, str] = field(default_factory=lambda: dict(LABELS))  # in its language
 
-    def text(self, name: str) -> str:
+    def parts(self, name: str) -> list[str | list[tuple[str, str]]]:
+        """The post in order: its texts, and after a line with pictures, those pictures."""
         changelog = f"{server.source_url()}/blob/main/CHANGELOG.md"
         more = f"{self.more} {self.labels['more']}" if self.more else self.labels["all"]
-        return "\n".join([f"### {self.labels['heading']} {name} {self.version}", *(f"- {line}" for line in self.lines),
-                          f"-# {more}: <{changelog}>"])
+        out: list[str | list[tuple[str, str]]] = [f"### {self.labels['heading']} {name} {self.version}"]
+        left = MAX_PICTURES  # in all: a message holds so many
+        for line, pictures in zip(self.lines, self.pictures, strict=True):
+            if isinstance(out[-1], str):
+                out[-1] += f"\n- {line}"
+            else:
+                out.append(f"- {line}")
+            if pictures[:left]:
+                out.append(pictures[:left])
+                left -= len(out[-1])
+        tail = f"-# {more}: <{changelog}>"
+        if isinstance(out[-1], str):
+            out[-1] += "\n" + tail
+        else:
+            out.append(tail)
+        return out
+
+    def text(self, name: str) -> str:
+        return "\n".join(p for p in self.parts(name) if isinstance(p, str))
 
     def layout(self, name: str) -> discord.ui.LayoutView:
-        """The post as Components V2: its text, then its items' pictures in one gallery."""
+        """The post as Components V2: its lines, each item's pictures right under its own."""
         view = discord.ui.LayoutView(timeout=None)
-        view.add_item(discord.ui.TextDisplay(self.text(name)))
-        if self.pictures:
-            view.add_item(discord.ui.MediaGallery(*(discord.MediaGalleryItem(url, description=alt[:256] or None)
-                                                    for alt, url in self.pictures[:MAX_PICTURES])))
+        for part in self.parts(name):
+            view.add_item(discord.ui.TextDisplay(part) if isinstance(part, str) else discord.ui.MediaGallery(
+                *(discord.MediaGalleryItem(url, description=alt[:256] or None) for alt, url in part)))
         return view
 
     def to_json(self) -> str:
@@ -85,7 +102,8 @@ class Post:
     @classmethod
     def from_json(cls, text: str) -> Post:
         d = json.loads(text)
-        return cls(d["version"], d["lines"], [(alt, url) for alt, url in d["pictures"]], d["more"], d["labels"])
+        return cls(d["version"], d["lines"], [[(alt, url) for alt, url in p] for p in d["pictures"]], d["more"],
+                   d["labels"])
 
 
 def read() -> str | None:
@@ -181,5 +199,5 @@ async def write(changelog: str, after: str, name: str, ask: Callable[[str], Awai
             labels = dict(LABELS)
     if not picks:
         picks = [(n, i.short) for n, i in enumerate(found[:SHOWN])]
-    return Post(version, [line for _, line in picks], [p for n, _ in picks for p in found[n].pictures],
+    return Post(version, [line for _, line in picks], [found[n].pictures for n, _ in picks],
                 len(found) - len(picks), labels)
