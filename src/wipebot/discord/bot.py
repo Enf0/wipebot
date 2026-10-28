@@ -74,13 +74,13 @@ QUESTION_CHARS = 2000  # a longer question isn't answered (Discord's limit for a
 # What a raider is told when there's no answer: Claude's API refused the question (host.ModelError's kind), it took
 # too long, or something else went wrong.
 MODEL_ERRORS = {
-    "billing_error": "I'm out of credit for answering this month, so I can't answer for now. An officer can tell "
-                     "you when I'm back.",
+    "billing_error": "I'm out of credit for answering, so I can't answer for now. `/usage` shows the budget.",
     "rate_limit": "Too many questions at once; try again in a minute.",
     "other": "I can't reach Claude right now; try again in a few minutes.",
     **dict.fromkeys(CAPPED, "That needed more digging than I do for one answer, sorry. Try asking something "
                             "narrower."),
 }
+GUILD_COMMANDS_CLEARED = "guild commands cleared"  # bot_state: earlier versions' per-server commands are gone
 TOO_SLOW = "That took too long, sorry. Try asking something narrower."
 SLOW_START = "Loading the report took too long; try again in a minute."
 WENT_WRONG = "Something went wrong while answering that; try again in a moment."
@@ -452,8 +452,7 @@ class WipeBot(discord.Client):
             finally:
                 await self.close()
             return
-        for guild in self.guilds:
-            await self._sync_commands(guild)
+        await self._sync_commands()
         invite = discord.utils.oauth_url(self.application_id or 0, permissions=INVITE_PERMISSIONS,
                                          scopes=("bot", "applications.commands"))
         log.info("logged in as %s in %d servers (%d set up). Invite link: %s", self.user, len(self.guilds),
@@ -514,23 +513,28 @@ class WipeBot(discord.Client):
             log.info("posts after wipes for %s restored (report %s)", self._shown(saved.name),
                      saved.code or "not started")
 
-    async def on_guild_join(self, guild: discord.Guild) -> None:
-        await self._sync_commands(guild)
-
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         """Removed from a server (or it was deleted): forget its setup and stop its posts after wipes."""
         self.store.forget_server(guild.id)
         self.settings_changed(guild.id)
         log.info("removed from a server; forgot its settings")
 
-    async def _sync_commands(self, guild: discord.Guild) -> None:
-        """Register the slash commands in one server; per server, they show up at once."""
+    async def _sync_commands(self) -> None:
+        """Register the slash commands once for every server, a server the bot joins later too. Once, take down the
+        copies earlier versions registered in each server, which would show every command twice."""
         try:
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
+            await self.tree.sync()
         except discord.HTTPException:
-            log.exception("registering commands in %s failed (was the bot invited with applications.commands?)",
-                          guild)
+            log.exception("registering the commands failed")
+        if self.store.state(GUILD_COMMANDS_CLEARED):
+            return
+        for guild in self.guilds:
+            try:
+                await self.tree.sync(guild=guild)  # nothing is added for one server, so this clears its copies
+            except discord.HTTPException:
+                log.exception("clearing the commands registered in %s failed (was the bot invited with "
+                              "applications.commands?)", guild)
+        self.store.set_state(GUILD_COMMANDS_CLEARED, "1")
 
     def _shown(self, name: str) -> str:
         """Who the log names: only with record_answers, as the record does."""
