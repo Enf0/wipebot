@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-28
+
 ### Changed
 
 - `Discord` **The personals picture shows defensive or not.** A raider who pressed some other cooldown at the callout is drawn red like one who pressed nothing, instead of in a colour of its own.
