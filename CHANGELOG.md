@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-28
+
 ### Added
 
 - `Agent` **Raid damage at a moment.** "What was our raid DPS at 2:15 on pull 16?" is answered from the damage in a window of the pull, in a few seconds rather than a minute of the model working it out from raw data. Damage, healing, damage taken and casts all take a window, and a table of damage or healing now starts with the raid's total and per second.
