@@ -122,7 +122,7 @@ views.note = (() => {
   }
 
   const CALLOUT = {  // a player at a pull's callouts: their fill, and the word in the legend
-    answered: ["var(--green)", "pressed what answers it"], some: [NEAR_GREEN, "at some of them"],
+    answered: ["var(--green)", "pressed a defensive"], some: [NEAR_GREEN, "at some of them"],
     other: ["var(--gold)", "only something else"], none: ["var(--dead)", "pressed none"], dead: ["var(--muted)", "dead"],
   };
   // A player's square on a pull, where the callout may come more than once: answered every time it found them alive,
@@ -141,8 +141,7 @@ views.note = (() => {
     let body = "", y = top;
     C.pulls.forEach((p, i) => { if (p === C.pulls[0] || p % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p), "tm", 'font-size="9.5" text-anchor="middle"'); });
     for (const g of C.callouts) {
-      const asks = g.personals ? " · a defensive answers it" : "";
-      body += `<text x="0" y="${y + 11}" class="t" font-size="10.5" font-weight="600">${kit.esc(`"${g.text}"`)}<tspan class="tm" font-weight="400" dx="6">${kit.esc(`to ${g.to} at ${g.times.join(", ")}${asks}`)}</tspan></text>`;
+      body += `<text x="0" y="${y + 11}" class="t" font-size="10.5" font-weight="600">${kit.esc(`"${g.text}"`)}<tspan class="tm" font-weight="400" dx="6">${kit.esc(`to ${g.to} at ${g.times.join(", ")}`)}</tspan></text>`;
       y += head;
       for (const r of g.rows) {
         body += `<text x="0" y="${y + SQ - 0.5}" font-size="10.5" font-weight="600" class="cls" style="--c:${kit.esc(r.color)}">${kit.esc(r.player)}</text>`;
@@ -150,20 +149,19 @@ views.note = (() => {
           if (!cell.length) return;
           const alive = cell.filter((s) => s !== "dead"), made = alive.filter((s) => s === "answered").length;
           body += square(labelW + i * colW, y, CALLOUT[pullState(cell)][0],
-                         `Pull ${C.pulls[i]}, "${g.text}": ${r.player} ` + (alive.length ? `pressed what answers it at ${made} of ${alive.length}` : "dead"));
+                         `Pull ${C.pulls[i]}, "${g.text}": ${r.player} ` + (alive.length ? `pressed a defensive at ${made} of ${alive.length}` : "dead"));
         });
         body += kit.text(w - 4, y + SQ - 0.5, `${r.made} of ${r.alive}`, "tm", 'font-size="10" text-anchor="end"');
         y += ROW;
       }
       y += 6;
     }
-    const personals = C.callouts.some((g) => g.personals);
     const states = new Set(C.callouts.flatMap((g) => g.rows.flatMap((r) => r.cells.filter((c) => c.length).map(pullState))));
-    const hd = `<div class="head"><h1>Callouts</h1><span class="sub">${kit.esc(D.boss)} · ${C.pulls.length} pulls</span></div>`;
+    const hd = `<div class="head"><h1>Personals</h1><span class="sub">${kit.esc(D.boss)} · ${C.pulls.length} pulls</span></div>`;
     const keys = legend(Object.entries(CALLOUT).filter(([s]) => s === "answered" || s === "none" || states.has(s))
-      .map(([s, [fill, word]]) => [fill, s === "answered" && !personals ? "pressed something" : word]));
+      .map(([, [fill, word]]) => [fill, word]));
     return `<section data-panel="callouts" class="note-board">${hd}<div class="grid">${kit.svg(w, h, body, "Callouts by pull")}</div>${keys}`
-      + `<div class="note">What each player pressed from 3 s before to 5 s after the callout. Right: times they pressed what answers it, of the times they were alive.</div></section>`;
+      + `<div class="note">What each player pressed from 3 s before to 5 s after the callout. A defensive or tank cooldown answers it. Right: times they pressed one, of the times they were alive.</div></section>`;
   }
 
   const KIND = ["var(--blue)", "#c084fc", "#2dd4bf", "#f472b6", "#fb923c"];  // a kind of callout (its first word)

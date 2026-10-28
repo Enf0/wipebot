@@ -296,8 +296,9 @@ async def test_the_note_view_states_the_planned_cooldowns_raid_note_states(recor
 async def test_the_note_view_counts_the_callouts_raid_note_counts(recorded):
     data, (text, _) = await note_data("raid-note-night"), await server.call("raid_note", CASES["raid-note-night"].args)
     c = data["callouts"]
-    [personals] = [g for g in c["callouts"] if g["text"] == "Big Personals"]
-    assert personals["personals"] and personals["to"] == "everyone"
+    [personals] = c["callouts"]  # the only one checked: "Trigger Virulence" and the orb popper aren't
+    assert personals["text"] == "Big Personals" and personals["to"] == "everyone"
+    assert '"Trigger Virulence" to Martin at' in text.split("Callouts not checked", 1)[1]
     block = text.split('"Big Personals" to everyone', 1)[1].split("\n  \"", 1)[0]
     counts = {n: (int(a), int(m))
               for n, a, m in re.findall(r"^    (\S+): alive for (\d+); pressed at (\d+)", block, re.MULTILINE)}

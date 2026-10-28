@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **Only callouts for personals are checked.** A callout asking for something the log can't match to a press, such as grabbing an orb or CCing a mind-controlled player, was judged by whether the player pressed any cooldown around it, which said nothing. It's now listed as not checked, and the raid note's callouts picture shows only the personals.
+
+  ![Big Personals on Sszorak over 42 pulls, a row per raider and a square per pull: green where they pressed a defensive, gold where they pressed only something else, red where they pressed nothing](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-note-personals.webp)
+
 ## [0.30.1] - 2026-10-28
 
 ### Fixed

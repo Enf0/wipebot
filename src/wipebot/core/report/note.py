@@ -27,10 +27,13 @@ BURST_MS = 2_000  # hits of an ability this close together are one hit of it (on
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
 EVERYONE = "everyone"
 # A callout whose words ask for personal defensives ("Personals", "Big defs") is answered only by one: a spell Lorrgs
-# tags defensive, or a tank's tank cooldown. Any other callout is answered by any spell pressed.
+# tags defensive, or a tank's tank cooldown. It's the only kind of callout the log can check: another asks for
+# something that isn't a tracked spell (grab an orb, CC a mind-controlled player), so it's listed, not checked.
 PERSONALS = re.compile(r"\b(?:personals?|defensives?|defs?)\b", re.I)
 PERSONAL_TAGS = frozenset({"defensive", "tank"})
 PERSONALS_ARE = "a defensive or tank cooldown"
+UNCHECKED = ("Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match "
+             "to them; only callouts for personals are)")
 # A callout to one player this close to an add beginning a cast someone kicked on the boss tonight is a kick
 # assignment, and its cast is one begun this close to it: which side's add begins first varies from wave to wave, so
 # a note timed for one side is a second off for the other.
@@ -205,15 +208,10 @@ class CalloutCheck:
     dead: list[str]
     others: dict[str, list[tuple[float, dict]]] = field(default_factory=dict)  # of the idle, what they pressed instead
 
-    @property
-    def personals(self) -> bool:
-        """Whether its words ask for personal defensives, which only those answer (`answers`)."""
-        return bool(PERSONALS.search(self.callout.text))
 
-
-def answers(callout: Callout, sp: dict) -> bool:
-    """Whether pressing the spell answers the callout: a defensive for one asking for personals, else any."""
-    return not PERSONALS.search(callout.text) or bool(PERSONAL_TAGS & set(_tags(sp)))
+def answers(sp: dict) -> bool:
+    """Whether pressing the spell answers a callout for personals: a defensive or a tank cooldown."""
+    return bool(PERSONAL_TAGS & set(_tags(sp)))
 
 
 @dataclass
@@ -245,6 +243,7 @@ class PullCheck:
     kicks: list[KickCheck]
     missing: list[str]  # named in the note, not in the pull
     unavailable: str = ""  # why the callouts couldn't be checked
+    unchecked: list[tuple[float, Callout]] = field(default_factory=list)  # callouts the log can't check (PERSONALS)
 
 
 async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | None = None,
@@ -323,13 +322,14 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
 
     until = decided.at_ms if decided else end  # what came after the wipe was decided is only counted
     kicks = await _kicks(rep, f, note, players, state, when, until)
+    calls, unchecked = _callouts_to_check(note, when, until, {id(k.callout) for k in kicks})
     try:
-        callouts, why = await _callouts(rep, f, note, players, died, when, until, {id(k.callout) for k in kicks}), ""
+        callouts, why = await _callouts(rep, f, note, players, died, when, calls), ""
     except KnowledgeError as e:
         callouts, why = [], unavailable("Callouts (Lorrgs' spells for each spec)", e)
     return PullCheck(f, note, decided, until, await _soaks(rep, f, note, players, state, until),
                      await _cooldowns(rep, f, note, players, state, when, until), callouts, kicks,
-                     sorted(n for n in named if n not in players or players[n].name not in in_pull), why)
+                     sorted(n for n in named if n not in players or players[n].name not in in_pull), why, unchecked)
 
 
 def _named(note: Note) -> set[str]:
@@ -408,12 +408,10 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
             lines.append(f"  {c.planned.skipped} planned in phases the pull never reached")
         lines += [f"  {_twice(rep, t)}" for t in c.planned.twice]
     if c.callouts:
-        lines.append(f"Callouts to one player or to everyone, with what each player it names pressed from "
-                     f"{CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it (the spells Lorrgs "
-                     "tracks for their spec, with its tags: defensive, raid_cd, tank, move, dps or untagged; which of "
-                     f"them answer a callout is in its words: one asking for personals, only {PERSONALS_ARE}), and "
-                     "for those who pressed none that answers it, which were ready (cooldowns from Lorrgs, ignoring "
-                     "charges and cooldown reduction):")
+        lines.append(f"Callouts for personals, with what each player it names pressed from {CALL_BEFORE_MS // 1000} "
+                     f"s before to {CALL_AFTER_MS // 1000} s after it (the spells Lorrgs tracks for their spec, with "
+                     f"its tags; only {PERSONALS_ARE} answers it), and for those who pressed none that answers it, "
+                     "which were ready (cooldowns from Lorrgs, ignoring charges and cooldown reduction):")
     for k in c.callouts:
         line = f"  {clock(k.at)} {' '.join(k.callout.players) or 'everyone'}: \"{k.callout.text}\""
         if not k.in_pull:
@@ -424,10 +422,9 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
             continue
         by_tag = Counter(tag for _, mine in k.pressed for tag in {t for _, sp in mine for t in _tags(sp)})
         tags = ", ".join(f"{tag} {n}" for tag, n in _by_count(by_tag))
-        asked = f" ({PERSONALS_ARE})" if k.personals else ""
-        lines.append(line + f": {len(k.pressed) + len(k.idle)} alive; "
-                     + (f"pressed one{asked} {len(k.pressed)}, " if k.personals else "")
-                     + f"players who pressed a spell tagged {tags or 'nothing'}; pressed none{asked} {len(k.idle)}"
+        asked = f" ({PERSONALS_ARE})"
+        lines.append(line + f": {len(k.pressed) + len(k.idle)} alive; pressed one{asked} {len(k.pressed)}, "
+                     f"players who pressed a spell tagged {tags or 'nothing'}; pressed none{asked} {len(k.idle)}"
                      + (f", of them {len(k.others)} only others" if k.others else ""))
         if k.pressed:
             lines.append("    pressed: " + "; ".join(
@@ -439,6 +436,9 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                 + f"ready: {', '.join(_spell(sp) for sp in ready) or 'none of them'})" for n, ready in k.idle))
         if k.dead:
             lines.append("    dead: " + ", ".join(k.dead))
+    if c.unchecked:
+        lines.append(UNCHECKED + ": " + "; ".join(
+            f"{clock(at)} {' '.join(co.players) or EVERYONE} \"{co.text}\"" for at, co in c.unchecked))
     if c.kicks:
         lines.append(KICKS_ARE + ", each with the cast that was theirs and what became of it (covered: another "
                      "player kicked it first, so it was handled and was no one's miss):")
@@ -591,18 +591,23 @@ async def _planned_casts(rep: Report, f: dict, note: Note) -> list[dict]:
     return [c for c in casts if c.get("type") == "cast"]
 
 
-async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player], died: Callable, when,
-                    until: float, kicks: set[int]) -> list[CalloutCheck]:
-    """Each callout that isn't a soak group's (a job for one player, a call to everyone such as "Big Personals"),
-    up to `until`, with what the players it names pressed around it: their casts of the spells Lorrgs tracks for
-    their spec, with the spell's tags, and for those who pressed none, which were off cooldown. What a callout
-    asks for is in its words: one asking for personals is answered only by a defensive (`answers`); for any other,
-    which spells answer it is for the reader to judge from the tags. Kick assignments
-    (`kicks`, the callouts' ids) are checked by `_kicks`."""
+def _callouts_to_check(note: Note, when, until: float,
+                       kicks: set[int]) -> tuple[list[tuple[float, Callout]], list[tuple[float, Callout]]]:
+    """The callouts up to `until` that aren't a soak group's or a kick assignment (`kicks`, their ids), in order:
+    those asking for personals, which the log can check, and the rest, which it can't (PERSONALS)."""
     soak = {frozenset(ns) for gs in _soak_sections(note).values() for ns in gs.values()}
     calls = sorted(((at, c) for c in note.callouts if frozenset(c.players) not in soak and id(c) not in kicks
                     and (at := when(c)) is not None and at <= until),
                    key=lambda x: x[0])
+    return [x for x in calls if PERSONALS.search(x[1].text)], [x for x in calls if not PERSONALS.search(x[1].text)]
+
+
+async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player], died: Callable, when,
+                    calls: list[tuple[float, Callout]]) -> list[CalloutCheck]:
+    """Each callout for personals (a call to everyone such as "Big Personals", or to some players), with what the
+    players it names pressed around it: their casts of the spells Lorrgs tracks for their spec, with the spell's
+    tags, whether one answers it (`answers`), and for those who pressed none, which were off cooldown and what they
+    pressed instead."""
     if not calls:
         return []
     here = rep.pull_players(f)
@@ -626,7 +631,7 @@ async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player]
                 check.dead.append(q.name)
                 continue
             mine = [(t, sp) for t, sp in pressed_at[q.id] if at - CALL_BEFORE_MS <= t <= at + CALL_AFTER_MS]
-            if any(answers(c, sp) for _, sp in mine):
+            if any(answers(sp) for _, sp in mine):
                 check.pressed.append((q.name, mine))
                 continue
             if mine:
@@ -921,23 +926,20 @@ def _twice(rep: Report, twice: tuple[float, float, Cooldown]) -> str:
 def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
     calls = [(c, k) for c in checks for k in c.callouts if k.in_pull]
     if not calls:
-        return []
-    out = [f"Callouts to one player or to everyone over the pulls, per callout and per player it names, most often "
-           f"pressing none first: how many of the callouts they were alive for, at how many they pressed a spell "
-           f"Lorrgs tracks for their spec from {CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after "
-           "it that answers it (callouts by the tag of what they pressed: defensive, raid_cd, tank, move, dps or "
-           f"untagged; which answer a callout is in its words: one asking for personals, only {PERSONALS_ARE}), and "
-           "the ones they pressed none at, with the tags of what was ready then (callouts with a spell of that tag "
-           "ready) and, for personals, of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such "
-           "as Anti-Magic Shell, may be one):"]
+        return _night_unchecked(checks)
+    out = [f"Callouts for personals over the pulls, per callout and per player it names, most often pressing none "
+           f"first: how many of the callouts they were alive for, at how many they pressed {PERSONALS_ARE} from "
+           f"{CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it (callouts by the tag of what "
+           "they pressed), the ones they pressed none at, with the tags of what was ready then (callouts with a spell "
+           "of that tag ready) and of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such as "
+           "Anti-Magic Shell, may be one):"]
     groups: dict[tuple[str, tuple[str, ...]], list[tuple[PullCheck, CalloutCheck]]] = defaultdict(list)
     for c, k in calls:
         groups[(k.callout.text, k.callout.players)].append((c, k))
     for (text, named), rows in groups.items():
         times = sorted({clock(k.at) for _, k in rows})
-        asked = f"; answered by {PERSONALS_ARE}" if rows[0][1].personals else ""
         out.append(f"  \"{text}\" to {' '.join(named) or 'everyone'} ({plural(len(rows), 'callout')} over "
-                   f"{plural(len({id(c) for c, _ in rows}), 'pull')}, at {', '.join(times)}{asked}):")
+                   f"{plural(len({id(c) for c, _ in rows}), 'pull')}, at {', '.join(times)}):")
         alive: Counter = Counter()
         pressed: dict[str, Counter] = defaultdict(Counter)
         pressed_n: Counter = Counter()
@@ -968,7 +970,22 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
                 line += f"; of those, pressed only others at {only} (" + ", ".join(
                     f"{t} {k}" for t, k in _by_count(instead[n])) + ")"
             out.append(line)
-    return out
+    return out + _night_unchecked(checks)
+
+
+def _night_unchecked(checks: list[PullCheck]) -> list[str]:
+    """The callouts the log can't check, each once with its times and how many pulls reached it."""
+    seen: dict[tuple[str, tuple[str, ...]], tuple[set[str], set[int]]] = {}
+    for c in checks:
+        for at, co in c.unchecked:
+            times, pulls = seen.setdefault((co.text, co.players), (set(), set()))
+            times.add(clock(at))
+            pulls.add(c.f["id"])
+    if not seen:
+        return []
+    return [UNCHECKED + ": " + "; ".join(
+        f"\"{text}\" to {' '.join(named) or EVERYONE} at {', '.join(sorted(times))} ({plural(len(pulls), 'pull')})"
+        for (text, named), (times, pulls) in seen.items())]
 
 
 def _saved_late(rep: Report, fights: list[dict], by_pull: dict[int, Version]) -> list[str]:

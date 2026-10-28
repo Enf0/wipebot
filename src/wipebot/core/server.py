@@ -1126,17 +1126,19 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     single-player jobs), each soak's hits against its group (who of the group wasn't hit, alive or dead, who
     else was), each planned cooldown against when the player cast it (on time, early, late, not cast), each kick
     assignment (a callout to one player as an add begins a cast) against who kicked that cast, and each
-    other callout ("Big Personals" to everyone, a job for one player) with what the players it names pressed
-    around it and what they had ready.
+    callout for personals ("Big Personals" to everyone) with what the players it names pressed around it and what
+    they had ready.
     Reading it: a callout's tracked spells carry Lorrgs' tags (defensive, raid_cd, tank, move, dps, untagged);
-    which answer the callout is in its words. One asking for personals or defensives counts only a defensive or a
-    tank cooldown as pressed, and says what else those who pressed none pressed (untagged ones may be a defensive
-    Lorrgs doesn't tag, such as Anti-Magic Shell). Spreads are listed, not checked: raid_plan checks positions.
+    only callouts for personals or defensives are checked, a defensive or a tank cooldown counting as pressed, with
+    what else those who pressed none pressed (untagged ones may be a defensive Lorrgs doesn't tag, such as
+    Anti-Magic Shell). Other callouts (grab an orb, CC a player) ask for nothing the log can match, so they're
+    listed as not checked. Spreads are listed, not checked: raid_plan checks positions.
     With all_pulls, one call checks every pull on the boss (each against the note saved before it began) and counts
     per player: soaks of their group missed while alive, each planned cooldown on time, early, late or not cast,
-    kicks made and missed, and per callout how often they pressed what answers it and what was ready when they didn't;
-    a night's question needs no call per pull. Asked about a boss the report has no pull on, or with `upcoming`,
-    it gives the newest note saved for it, as it is: a pull is checked against the note of its own night."""
+    kicks made and missed, and per callout for personals how often they pressed a defensive and what was ready
+    when they didn't; a night's question needs no call per pull. Asked about a boss the report has no pull on, or
+    with `upcoming`, it gives the newest note saved for it, as it is: a pull is checked against the note of its own
+    night."""
     rep, source = await lib().report(report), ""
     if not note and (upcoming or (boss and not pulled(rep, boss))):
         return await _unpulled_note(rep, boss or rep.boss_key(rep.fight(None, None)), upcoming)

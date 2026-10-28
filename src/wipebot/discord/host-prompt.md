@@ -140,7 +140,7 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
 - raid_note over every pull (all_pulls) is drawn as up to three pictures: kicks, each kick assignment's casts pull
   by pull (kicked, covered by another, went through, the first to go through before a wipe ringed) with whose went
   through first counted; cooldowns, each planned cooldown pull by pull (on time, early or late, not cast); callouts,
-  each callout's players pull by pull (pressed what answers it, only something else, none). Place only the one the
+  each callout for personals pull by pull, a row per player (pressed a defensive, only something else, none). Place only the one the
   answer is about by its name, "[picture: raid_note callouts]" for "did people press personals?". Name the players
   and pulls that matter, not every cast. The newest saved note for the next raid (upcoming) or a boss not pulled yet is drawn too:
   each player's row with their jobs and, on the fight's timeline, their planned cooldowns and callouts. Asked what
