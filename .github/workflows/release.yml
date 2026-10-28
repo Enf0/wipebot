@@ -55,7 +55,14 @@ jobs:
             fi
             # the public copy deploys this release: only a commit whose Checks passed
             checks=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/checks.yml/runs?head_sha=$commit&event=push" \
-              --jq '.workflow_runs[0].conclusion // "none"')
+              --jq '.workflow_runs[0] | .conclusion // .status // "none"')
+            case "$checks" in
+              queued|in_progress|pending|waiting|requested)
+                # an earlier commit's Checks ended first: the version commit's own end runs this again
+                echo "Checks on ${commit::7} (Wipebot $version): $checks, so the release waits for them"
+                exit 0
+                ;;
+            esac
             if [ "$checks" != success ]; then
               echo "::error::Checks on ${commit::7} (Wipebot $version): $checks, so no release"
               exit 1

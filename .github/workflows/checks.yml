@@ -13,9 +13,10 @@ on:
 permissions:
   contents: read
 
-# A newer push to a pull request cancels its run still going; on main every push runs to the end.
+# A newer push to a pull request cancels its run still going; on main every push runs to the end, in a group of its
+# own (in a shared one, a third push would cancel the second while it waits).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
