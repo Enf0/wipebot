@@ -9,6 +9,7 @@ Only members with Manage Server see /wipebot (Discord enforces this), and server
 Server Settings > Integrations.
 """
 import datetime
+import os
 import re
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -295,8 +296,8 @@ def build(bot: WipeBot) -> app_commands.Group:
 async def budget_text(store: Store, key: str) -> str:
     try:
         b = await budget.fetch(key)
+        b.total += float(os.environ.get("WIPEBOT_SPENT_BEFORE") or 0)  # what the bot spent before this key
     except (httpx.HTTPError, KeyError, ValueError) as e:
         return f"Couldn't read the budget from OpenRouter: {e}"
     month_start = datetime.datetime.now(datetime.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return budget.describe(b, *store.answer_costs(month_start.timestamp()), config.budget_note(),
-                           config.spent_before())
+    return budget.describe(b, *store.answer_costs(month_start.timestamp()), config.budget_note())

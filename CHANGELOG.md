@@ -6,10 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added
-
-- `Discord` **Spend from before OpenRouter.** `/usage` counts what the bot spent before it moved to an OpenRouter key in its spend in all, when the host sets it (`WIPEBOT_SPENT_BEFORE`).
-
 ## [0.18.0] - 2026-10-27
 
 ### Changed

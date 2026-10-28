@@ -43,15 +43,6 @@ def budget_note() -> str | None:
     return os.environ.get("WIPEBOT_BUDGET_NOTE") or None
 
 
-def spent_before() -> float:
-    """What the bot spent before its OpenRouter key (WIPEBOT_SPENT_BEFORE, in USD, e.g. an Anthropic key's cost in
-    the Console), which /usage counts in the key's spend in all; 0 when unset."""
-    try:
-        return float(os.environ.get("WIPEBOT_SPENT_BEFORE") or 0)
-    except ValueError:
-        return 0.0
-
-
 def model() -> str:
     """The Claude model for answers (WIPEBOT_MODEL). Opus by default: it answers best in the evals, at a higher
     cost (docs/models.md; `just evals --model sonnet` compares again)."""

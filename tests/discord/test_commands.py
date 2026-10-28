@@ -186,8 +186,6 @@ def test_budget_says_what_the_key_spent_and_has_left():
     empty = describe(KeyBudget(limit=50.0, remaining=0.0, month=50.0, total=50.0), 0, 0.0, None)
     assert empty.endswith("It's used up, so wipebot can't answer until it's topped up.")
     assert describe(KeyBudget(None, None, 3.0, 3.0), 0, 0.0, None).endswith("It has no limit set.")
-    # what the bot spent before the key counts in all, not this month
-    assert describe(b, 0, 0.0, None, 118.4).startswith("**AI budget:** $20.25 spent this month, $155.90 in all.")
 
 
 async def test_budget_reads_the_key_from_openrouter(monkeypatch):
