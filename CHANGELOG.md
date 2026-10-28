@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-10-28
+
 ### Changed
 
 - `Discord` **Damage and healing meters together.** Ask for the best DPS and HPS and the answer posts both meters, the top five of each, instead of only the damage meter, and the text no longer lists them again. A meter on its own still shows the top ten.
