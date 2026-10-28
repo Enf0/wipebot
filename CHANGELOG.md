@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-28
+
 ### Added
 
 - `Agent` `Discord` **Healers' mana and Innervate.** "Was I out of mana, and could I have had an Innervate?" is answered from each healer's mana until the wipe was decided, how low it went and from when, and each druid's Innervate: when, on whom and at what mana, or ready while a healer was under 30%; over the night, the pulls each healer ran low and whom the Innervates went to. In Discord, drawn as a picture.
