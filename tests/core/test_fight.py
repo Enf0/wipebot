@@ -2,6 +2,7 @@
 by the tool cases (test_tools.py) and the summaries (test_pulls.py)."""
 import itertools
 import time
+from collections import Counter
 
 import pytest
 
@@ -119,3 +120,15 @@ async def test_a_pull_still_going_has_no_buffs_at_the_end_and_is_logged_so_far()
 async def test_a_death_of_a_player_warcraft_logs_gave_no_details_for_is_named(rep):
     del rep.players["scopidruid"]  # the first to die on pull 13
     assert "\n1. 0:48 Scopidruid - " in await fight.pull_summary(rep, 13)
+
+
+def test_the_boss_health_follows_the_boss_of_the_next_phase():
+    """The Coiled Altar: Zul'jan (121) dies at the end of P1 and Hex Lord Malacrass (124) is the boss of P2, from
+    its own 100%; an enemy at full health the whole pull (130) never takes over."""
+    series: dict[int, list[tuple[float, float]]] = {
+        121: [(0, 100), (160_000, 50), (167_000, 0)], 124: [(175_000, 100), (230_000, 81)],
+        130: [(0, 100), (240_000, 100)]}
+    track = fight._taken_over(series, 121, Counter({121: 20, 124: 5, 130: 9}))
+    assert track == [(0, 100), (160_000, 50), (167_000, 0), (175_000, 100), (230_000, 81)]
+    assert fight._taken_over({121: [(0, 100), (240_000, 40)], 124: [(0, 100), (240_000, 60)]}, 121,
+                             Counter({121: 9})) == [(0, 100), (240_000, 40)]  # a boss alive to the end stays

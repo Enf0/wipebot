@@ -36,3 +36,9 @@ def test_a_wipe_says_its_bosss_health_and_the_wipe_percent_when_phases_make_them
     # Ula'tek: the summaries say "wipe at 6.4%" (phases weighed in) where the boss had 8.95% health
     assert boss_left({"kill": False, "bossPercentage": 8.95, "fightPercentage": 6.4}) == (
         "the boss at 8.95% health (the wipe at 6.4%, phases weighed in)")
+
+
+def test_a_wipe_on_a_boss_counted_by_phase_names_the_phase_its_health_is_in():
+    # the Coiled Altar: P2's boss had 80.8% health, a wipe Warcraft Logs counts as 74.2% of the whole fight
+    assert boss_left({"kill": False, "bossPercentage": 80.8, "fightPercentage": 74.24, "lastPhase": 2}) == (
+        "the boss at 80.8% health in P2 (the wipe at 74.2%, phases weighed in)")

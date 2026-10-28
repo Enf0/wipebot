@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError
-from ..pulls import is_reset
+from ..pulls import is_reset, phase_health, phase_label
 from ..text import clock, ids_line, ordinal, parse_clock, plural, ranges, short
 from ..wcl import WCL, WCLError
 from .adds import ADD_GROUP_MS, add_wave, boss_units, interruptible_casts
@@ -36,16 +36,18 @@ RAID_WIDE = 3  # a damage dealer's or tank's cooldown is a raid cooldown when it
 
 
 def boss_left(f: dict) -> str:
-    """'the boss at 62.63%' (WCL's own precision), or the health being unknown. A kill is 'the boss dead': WCL often
-    leaves one at 0.01% (an Entombed Sentinels kill), which reads as a near miss."""
+    """'the boss at 62.63%' (WCL's own precision), or the health being unknown; on a boss counted by phase, the
+    phase too ('the boss at 80.8% health in P2'). A kill is 'the boss dead': WCL often leaves one at 0.01% (an
+    Entombed Sentinels kill), which reads as a near miss."""
     if f.get("kill"):
         return "the boss dead"
     pct = f.get("bossPercentage")
     if pct is None:
         return "the boss's health not logged"
+    phase = f" in {phase_label(f)}" if phase_health(f) is not None else ""
     fight = f.get("fightPercentage")  # what the summaries call the wipe: phases weighed in (wipe_pct)
-    return f"the boss at {pct}% health" + (f" (the wipe at {fight:.1f}%, phases weighed in)"
-                                           if fight is not None and abs(fight - pct) >= 0.05 else "")
+    return f"the boss at {pct}% health{phase}" + (f" (the wipe at {fight:.1f}%, phases weighed in)"
+                                                  if fight is not None and abs(fight - pct) >= 0.05 else "")
 
 
 async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
@@ -442,7 +444,7 @@ async def _tracked(rep: Report, f: dict) -> set[int | str]:
 
 
 async def tracks(rep: Report, f: dict) -> dict[str, list[tuple[float, float]]]:
-    return await rep.keep(("tracks", f["id"]), [f["id"]], lambda: boss_tracks(rep.wcl, rep.code, f, rep.bosses),
+    return await rep.keep(("boss tracks", f["id"]), [f["id"]], lambda: boss_tracks(rep.wcl, rep.code, f, rep.bosses),
                           FOREVER)
 
 
@@ -529,23 +531,46 @@ async def _raid_damage(rep: Report, f: dict, lo: float, hi: float) -> str:
 
 async def boss_tracks(wcl: WCL, code: str, fight: dict, bosses: set[int]) -> dict[str, list[tuple[float, float]]]:
     """The boss's health % and power bar (0-100) over a fight, as (ms from the pull, value) from WCL's Resources
-    graph. The power type comes from the boss's own events; a boss without a power bar has no "power"."""
+    graph. The power type comes from the boss's own events; a boss without a power bar has no "power". The health
+    is the boss that cast most, then, once it died or left, the boss that took over (the next phase's boss, such as
+    the Coiled Altar's in P2), each from its own 100%."""
     casts = [c for c in await wcl.events(code, fight["id"], "Casts", hostilityType="Enemies", includeResources=True)
              if c.get("sourceID") in bosses]
     if not casts:
         return {}
-    boss = Counter(c["sourceID"] for c in casts).most_common(1)[0][0]
+    cast_by = Counter(c["sourceID"] for c in casts)
+    boss = cast_by.most_common(1)[0][0]
     power = next((c["classResources"][0].get("type") for c in casts
                   if c.get("sourceID") == boss and c.get("classResources")), None)
     out: dict[str, list[tuple[float, float]]] = {}
     for key, ability in (("health", BOSS_HEALTH), ("power", 100 + power if power is not None else None)):
         if ability is None:
             continue
-        try:
+        try:  # health of every enemy, to follow the boss into the next phase; power the boss's own
             graph = await wcl.graph(code, fight, "Resources", hostilityType="Enemies", abilityID=ability,
-                                    sourceID=boss)
+                                    **({} if key == "health" else {"sourceID": boss}))
         except WCLError:
             continue
-        series = next((x for x in graph.get("series") or [] if x.get("id") == boss), None)
-        out[key] = [(t - fight["startTime"], v) for t, v in (series or {}).get("data") or []]
+        series = {x.get("id"): [(t - fight["startTime"], v) for t, v in x.get("data") or []]
+                  for x in graph.get("series") or [] if x.get("id") in bosses}
+        out[key] = _taken_over(series, boss, cast_by) if key == "health" else series.get(boss, [])
     return out
+
+
+def _taken_over(series: dict[int, list[tuple[float, float]]], boss: int,
+                cast_by: Counter) -> list[tuple[float, float]]:
+    """`boss`'s points, then, after its last, the points of the boss whose health starts changing next (the one
+    that cast most of those starting at the same moment), and so on: one boss's health at a time."""
+    track = list(series.get(boss, []))
+    left = {b: pts for b, pts in series.items() if b != boss and pts}
+    while track and left:
+        end = track[-1][0]
+        later = {b: [p for p in pts if p[0] > end] for b, pts in left.items()}
+        moving = {b: pts for b, pts in later.items()  # a boss standing at full health hasn't taken over yet
+                  if pts and (pts[0][1] < 100 or any(v != pts[0][1] for _, v in pts))}
+        if not moving:
+            break
+        nxt = min(moving, key=lambda b: (moving[b][0][0], -cast_by[b]))
+        track += moving[nxt]
+        left.pop(nxt)
+    return track

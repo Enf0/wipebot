@@ -15,7 +15,16 @@ from typing import Any
 
 from ..classes import class_hex
 from ..knowledge import KnowledgeError, matches_boss, spaced
-from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, phase_label, wipe_pct, wipe_pcts
+from ..pulls import (
+    DIFFICULTIES,
+    FIRST_DEATHS,
+    NO_KILLING_BLOW,
+    is_reset,
+    phase_health,
+    phase_label,
+    wipe_pct,
+    wipe_pcts,
+)
 from ..text import clock, day, ordinal
 from . import adds, mana, mechanics, tables, versus
 from . import note as notes
@@ -126,6 +135,9 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         "title": rep.label(f), "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""),
         "url": rep.url(f), "kill": bool(f["kill"]), "live": bool(f.get("inProgress")), "duration_ms": round(length),
         "boss_pct": f.get("bossPercentage"), "raid": raid, "best": await _best(rep, f),
+        # on a boss counted by phase (pulls.phase_health), boss_pct is the phase's health, and the wipe's own %
+        # (what ranks wipes, as "best" compares them) Warcraft Logs' measure of the whole fight
+        "phase": phase_label(f) if phase_health(f) is not None else None, "wcl_pct": wipe_pct(f),
         "ranking": (await kill_rankings(rep)).get(f["id"]) if f["kill"] else None,
         "ended": _ended(await pull_ending(rep, f)),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,

@@ -43,7 +43,7 @@ async def compare_with_kill(rep: Report, pull: PullRef = None, boss: str | None 
         raise FactError("that fight isn't a kill of the same boss")
     kill_bosses = {b["id"] for b in k["bosses"]}
     ours, theirs = await tracks(rep, f), await rep.keep(
-        ("tracks", code, fight_id), [], lambda: boss_tracks(rep.wcl, code, k, kill_bosses), FOREVER)
+        ("boss tracks", code, fight_id), [], lambda: boss_tracks(rep.wcl, code, k, kill_bosses), FOREVER)
     end = f["endTime"] - f["startTime"]
     lines = [f"{rep.label(f)} ({'kill' if f['kill'] else 'wipe'} at {clock(end)}, raid item level "
              f"{f.get('averageItemLevel') or 0:.1f}) next to a kill: {k.get('guild') or 'a raid'}, "

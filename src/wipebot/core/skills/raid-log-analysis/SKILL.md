@@ -109,10 +109,12 @@ A question about the whole night ("who missed their soak most?", "who pressed pe
 standing off their spot?") is one call with `all_pulls` (`raid_note`, `raid_plan`, `pull_map`, `mechanic_hits`), not
 one per pull: those count per player over every pull on the boss.
 
-Improving or not: the best and average wipes early against late, and how far pulls got. A fight is a damage check
-only when an enrage or a damage race ends it; when mechanics end the pulls, say so (`compare_pulls` against a kill
-shows whether the damage would do once they're fixed). A death inside a window where the boss takes extra damage
-costs double. On a kill, what went right is what differs from the best wipe (`compare_pulls` with `other`).
+Improving or not: the best and average wipes early against late, and how far pulls got. On a boss counted by phase,
+say how far a wipe got as the tools write it, the phase with its health ("P2 80.8%"), never the health alone. A
+fight is a damage check only when an enrage or a damage race ends it; when mechanics end the pulls, say so
+(`compare_pulls` against a kill shows whether the damage would do once they're fixed). A death inside a window where
+the boss takes extra damage costs double. On a kill, what went right is what differs from the best wipe
+(`compare_pulls` with `other`).
 
 A summary for the raid leads with the log's own finding, then the guide's rule for it, never the guide's general
 advice alone.

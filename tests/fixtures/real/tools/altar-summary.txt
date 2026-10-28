@@ -35,4 +35,4 @@ Raid size 23. Deaths in order (time from pull start, players alive after it, a b
 25. 7:28 Biblethump (Unholy Death Knight) - Melee [1] (2 alive, after the boss gained Soulbound, after half the raid was dead)
 The boss gained Soulbound at 7:08, when Hex Lord Malacrass died, and kept it to the end; 5 players had died before that. A buff gained as another boss dies comes with killing that boss, not from a timer: look it up before calling it an enrage.
 Half the raid was dead at 7:16; later deaths are fallout of the wipe.
-Pull ended at 7:29 with the boss at 0.83% health (the wipe at 0.3%, phases weighed in).
+Pull ended at 7:29 with the boss at 0.83% health in P3 (the wipe at 0.3%, phases weighed in).

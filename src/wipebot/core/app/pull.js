@@ -21,7 +21,7 @@ views.pull = (() => {
       out.push(["Execution", `${kit.ordinal(D.ranking.execution)} percentile`, ""]);
     }
     else if (D.ended) out.push(["Ended by", D.ended.text + (D.ended.ms != null ? ` ${kit.clock(D.ended.ms)}` : ""), "decided"]);
-    if (!D.kill && D.boss_pct != null) out.push(["Boss", `${D.boss_pct}%`, ""]);
+    if (!D.kill && D.boss_pct != null) out.push(["Boss", `${D.phase ? `${D.phase} ` : ""}${D.boss_pct}%`, ""]);
     out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), ""]);
     const first = D.deaths[0];
     if (first) out.push(["First death", `${first.name} ${kit.clock(first.ms)}`, "dead"]);
@@ -30,14 +30,16 @@ views.pull = (() => {
       + standing();
   }
 
-  // Where the wipe stands: against the log's earlier wipes on the boss and the guild's earlier logs, as the post says
+  // Where the wipe stands: against the log's earlier wipes on the boss and the guild's earlier logs, as the post says.
+  // On a boss counted by phase, those are Warcraft Logs' whole-fight %, so the wipe's own leads, all named WCL.
   function standing() {
     const b = D.best;
     if (!b) return "";
-    const parts = [];
-    if (b.tonight != null) parts.push(b.new_tonight ? "best of this log so far" : `best of this log ${b.tonight.toFixed(1)}%`);
-    if (b.new_guild) parts.push(`<b class="best">new guild best!</b> (before: ${b.guild.pct.toFixed(1)}%, ${kit.esc(b.guild.day)})`);
-    else if (b.guild) parts.push(`guild best before ${b.guild.pct.toFixed(1)}% (${kit.esc(b.guild.day)})`);
+    const wcl = D.phase ? "WCL " : "";
+    const parts = D.phase && D.wcl_pct != null ? [`WCL ${D.wcl_pct.toFixed(1)}%`] : [];
+    if (b.tonight != null) parts.push(b.new_tonight ? "best of this log so far" : `best of this log ${wcl}${b.tonight.toFixed(1)}%`);
+    if (b.new_guild) parts.push(`<b class="best">new guild best!</b> (before: ${wcl}${b.guild.pct.toFixed(1)}%, ${kit.esc(b.guild.day)})`);
+    else if (b.guild) parts.push(`guild best before ${wcl}${b.guild.pct.toFixed(1)}% (${kit.esc(b.guild.day)})`);
     return parts.length ? `<div class="standing">${parts.join(" · ")}</div>` : "";
   }
 
