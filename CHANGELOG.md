@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-28
+
 ### Added
 
 - `Discord` **Post the AI budget.** Admins can post what the bot has spent and has left to the channel with `/wipebot usage post`, with a bar of how much of the limit is spent. On the public bot it posts the server's share of the month's free answers.
