@@ -1,0 +1,20 @@
+Krøpling (Frost Mage) against Zebinomage (Frost Mage) on The Twin Fangs, 39 pulls both were in, Krøpling / Zebinomage:
+Damage per second alive: 331.90k / 363.58k (-9%)
+Alive: 5373 s / 5472 s; deaths: 39 / 40; item level: 332 / 334
+Per spell, most damage first: casts per minute alive; average hit (ticks too); crit share; share of their damage:
+  Shatter: - / - per min; 90.80k / 97.26k per hit; crit 47% / 55%; 40% / 41%
+  Glacial Spike: 5.3 / 5.8 per min; 139.50k / 128.44k per hit; crit 23% / 25%; 22% / 20%
+  Flurry: 8.6 / 8.4 per min; 31.95k / 33.07k per hit; crit 31% / 38%; 13% / 12%
+  Frostfire Bolt: 12.3 / 17.8 per min; 9.72k / 9.53k per hit; crit 51% / 55%; 9% / 10%  <- casts far apart
+  Ignite: - / - per min; 9.99k / 10.78k per hit; crit 0% / 0%; 6% / 6%
+  Ice Lance: 19.3 / 18.5 per min; 20.40k / 19.27k per hit; crit 32% / 37%; 4% / 3%
+  Frozen Orb: 1.1 / 1.0 per min; 11.18k / 11.13k per hit; crit 31% / 43%; 4% / 3%
+  Hand of Frost: - / - per min; 42.51k / 41.85k per hit; crit 31% / 36%; 2% / 2%
+  Blizzard: - / 0.9 per min; - / 8.99k per hit; crit - / 33%; 0% / 1%
+  Acidbrood Scourge: - / - per min; 12.01k / 11.73k per hit; crit 33% / 36%; <1% / <1%
+  Omnium Folio: - / - per min; 1.18k / 1.18k per hit; crit 0% / 0%; <1% / <1%
+  Winter's End: - / - per min; 9.18k / 9.19k per hit; crit 55% / 43%; <1% / <1%
+  Dragon's Breath: 0.7 / 0.8 per min; 3.36k / 3.38k per hit; crit 36% / 53%; <1% / <1%
+  Mirror Image: 0.0 / 0.2 per min; 122 / 145 per hit; crit 20% / 46%; <1% / <1%
+  Cone of Cold: - / 0.1 per min; - / 3.38k per hit; crit - / 0%; 0% / <1%
+-: none (not cast, or no hits). A cooldown of a minute or more is cast as often as the pulls are long; the average hit moves with item level, crit, buffs lined up with it and how many targets it hit.

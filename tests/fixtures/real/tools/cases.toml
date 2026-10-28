@@ -119,6 +119,8 @@ player-night = { tool = "player_night", local = true, report = "KBYT4xXn7VNjDgh8
 player-pull-holy-power = { tool = "player_pull", local = true, report = "KBYT4xXn7VNjDgh8", player = "Cptola", pull = 13 }
 compare-with-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13, aspects = ["build", "casts"] }
 cooldowns-vs-top = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Enfo", pull = 13, aspects = ["cooldowns"] }
+# two raid mates of a spec side by side over every pull both were in: output per second alive, casts and hits per spell
+compare-raid-mates = { tool = "compare_with_top", report = "p7jRwgv8b1rY6LBd", player = "Krøpling", against = "Zebinomage", boss = "Twin Fangs", all_pulls = true }
 # a boss the report never pulled; none ranked on Mythic yet, so Heroic
 top-builds = { tool = "compare_with_top", local = true, spec = "balance druid", boss = "Kith'ix", aspects = ["build"] }
 # a healer against top healers: the healers in their raid and in each top parse's, beside the casts

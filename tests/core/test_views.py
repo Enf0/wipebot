@@ -15,7 +15,9 @@ from tests.support import assert_snapshot
 from tests.support.paths import REAL
 from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Replay, serve_from
 from wipebot.core import server
+from wipebot.core.notebook import Notebook
 from wipebot.core.report import maps, views
+from wipebot.core.report import note as notes
 from wipebot.core.report.ending import Ending, MassDeath, mass_death_of
 from wipebot.core.text import clock, plural, short
 
@@ -304,6 +306,61 @@ async def test_the_note_view_draws_a_panel_each_without_errors(recorded, tmp_pat
         assert not s.errors, (s.path.name, s.errors)
         assert s.height > 300
         assert "Kick assignments" in s.text and data["kicks"]["slots"][0]["player"] in s.text
+
+
+async def test_the_note_for_the_next_raid_is_drawn_as_it_is_player_by_player(recorded, tmp_path, monkeypatch):
+    c = CASES["raid-note-order-change"]
+    report, note = c.args["report"], c.args["note"]
+    pasted = {"report": report, "boss": "Twin Fangs", "upcoming": True, "note": note}
+    assert await server.view_key("raid_note", pasted) is None  # a pasted note is checked against the pulls
+    key = await server.view_key("raid_note", {"report": report, "boss": "Twin Fangs", "upcoming": True})
+    assert key == {"view": "note", "report": report, "boss": "Twin Fangs", "tool": "raid_note",
+                   "args": {"boss": "Twin Fangs", "upcoming": True}}
+    result = await server.view_data("note", boss="Twin Fangs", report=report, tool="raid_note",
+                                    args={**key["args"], "note": note})
+    data = result.structured_content
+    assert data is not None
+    assert_snapshot(REAL / "views" / "note-plan.txt", readable(data))
+    parsed, rows = notes.parse(note)[0], data["plan"]["rows"]
+    assert sorted((u.player, u.phase, u.at) for u in parsed.cooldowns) == sorted(
+        (r["player"], i["phase"], i["at_s"]) for r in rows for i in r["items"] if "spell" in i)
+    assert sum(len(o.players) for o in parsed.callouts) == sum("text" in i for r in rows for i in r["items"])
+    order = [views.ROLE_ORDER.get(r["role"], 3) for r in rows]
+    assert order == sorted(order)  # tanks, healers, then the rest
+    # drawn from the note the guild saved
+    monkeypatch.setenv("WIPEBOT_NOTES_DB", str(tmp_path / "notes.sqlite"))
+    monkeypatch.setattr(server, "_a_member", lambda guild: True)
+    Notebook().save_note(14169, 3421, "Twin Fangs", note, "Rowan", at=1000.0)
+    taken = await shots(tmp_path, "raid_note", key["args"] | {"report": report}, themes=("dark", "light"),
+                        widths=(320, 760))
+    for s in taken:
+        assert not s.errors, (s.path.name, s.errors)
+        assert "Twin Fangs: who does what" in s.text and rows[0]["player"] in s.text and "saved by Rowan" in s.text
+
+
+VERSUS_CASE = CASES["compare-raid-mates"]  # two Frost Mages over every Twin Fangs pull both were in
+
+
+async def test_two_raid_mates_view_states_what_compare_with_top_states(recorded, tmp_path):
+    key = await server.view_key(VERSUS_CASE.tool, VERSUS_CASE.args)
+    assert key == {"view": "versus", "report": VERSUS_CASE.args["report"], "boss": "The Twin Fangs",
+                   "player": "Krøpling", "tool": "compare_with_top",
+                   "args": {"against": "Zebinomage", "all_pulls": True}}
+    result = await server.view_data(key["view"], boss=key["boss"], report=key["report"], player=key["player"],
+                                    tool=key["tool"], args=key["args"])
+    data = result.structured_content
+    assert data is not None
+    assert_snapshot(REAL / "views" / "versus.txt", readable(data))
+    text, failed = await server.call(VERSUS_CASE.tool, VERSUS_CASE.args)
+    assert not failed
+    assert f"on The Twin Fangs, {data['pulls']} pulls both were in" in text
+    assert f"per second alive: {short(data['a']['per_s'])} / {short(data['b']['per_s'])}" in text
+    assert [s["name"] for s in data["spells"]] == re.findall(r"^  (.+?): ", text, re.MULTILINE)
+    assert [bool(s["far"]) for s in data["spells"]] == [
+        "far apart" in line for line in text.splitlines() if line.startswith("  ")]
+    for s in await shots(tmp_path, VERSUS_CASE.tool, VERSUS_CASE.args, themes=("dark", "light"), widths=(320, 760)):
+        assert not s.errors, (s.path.name, s.errors)
+        assert "Krøpling" in s.text and "Glacial Spike" in s.text
 
 
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):

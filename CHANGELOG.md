@@ -6,13 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **Who does what, before the pull.** Asked about the next raid or a boss not pulled yet, the bot draws the saved raid note: each player's row under tanks, healers and damage, their planned cooldowns and callouts at their times, and their jobs and groups under their name.
+  ![The Twin Fangs' raid note drawn player by player: cooldown icons and kick and soak callouts on the fight's timeline, each player's jobs under their name](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-who-does-what.webp)
+- `Agent` `Discord` **Head-to-head with a raid mate.** "Why does Zebinomage do more than me?" sets two raiders side by side, on a pull or every pull on the boss both played: damage or healing per second alive, time alive, deaths, item level, and per spell casts per minute, average hit and crit, what's far apart marked; in Discord, drawn as a picture.
+  ![Two Frost Mages side by side over 39 Twin Fangs pulls: damage per second alive, time alive, deaths, then each spell's casts per minute as mirrored bars with the average hit at each end](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-head-to-head.webp)
+
 ## [0.22.0] - 2026-10-28
 
 ### Added
 
 - `Discord` **The raid note over the night, drawn.** Checking a raid note against every pull on a boss now posts two pictures: each kick assignment pull by pull (kicked, covered by another, went through, with the first cast that went through before a wipe ringed and counted by player), and each planned cooldown pull by pull (on time, a little off, late, not cast).
+  ![The kick assignments on The Twin Fangs drawn pull by pull: each cast kicked, covered or gone through, the first through before a wipe ringed, and whose went through first counted](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-raid-note-kicks.webp)
 - `Discord` **Who gets hit, pull by pull.** A mechanic's hits over the whole night add a second picture under the meter: each player's hits on each pull, the ones that led to a death marked, and the raid's total per pull.
+  ![Tempest hits on 33 Sszorak pulls as a grid of players by pulls, deaths it set up marked, the raid's total per pull below](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-mechanic-hits-by-pull.webp)
 - `MCP` `Discord` **Damage spikes on the pull chart.** The pull's chart marks each moment of raid damage taken at twice the usual or more, with its value, and lists the healer cooldowns used in the 10 seconds before it.
+  ![Sszorak pull 33 drawn, with the spike of raid damage taken late in the pull marked in red and its value](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-pull-damage-peaks.webp)
 - `Discord` **What's new, in a channel of your choice.** An admin picks a channel with `/wipebot news`, and each new release posts there every change raiders would notice, a line each with its pictures. Off until an admin turns it on.
 - `Discord` **The server's language.** `/wipebot setup language:Norwegian` writes what's new and the posts after wipes in it, and answers a question whose language doesn't show (a bare report link) in it; a question is still answered in its own language.
 

@@ -1,7 +1,9 @@
 // ---- the raid note against every pull on a boss (raid_note with all_pulls): the kick assignments as a grid, pulls
 // down and the note's assignments across, a square per cast in each cell (kicked, covered by another, went through,
 // its player dead), the cast that went through first on a pull its wipe followed ringed; under it, whose cast that
-// was, counted. Then each planned cooldown pull by pull. A panel (data-panel) each, each its own picture in Discord ----
+// was, counted. Then each planned cooldown pull by pull. A panel (data-panel) each, each its own picture in Discord.
+// For a boss not pulled yet or the next raid (raid_note's upcoming), the note as it is: each player's jobs and, on the
+// fight's timeline, their planned cooldowns and the callouts to them ----
 views.note = (() => {
   let D = null, root = null;
   const ROW = 15, SQ = 10, GAP = 2;
@@ -112,8 +114,94 @@ views.note = (() => {
       + (fewer ? ` ${fewer} more planned later, which fewer than ${FEW} pulls reached, aren't drawn.` : "") + "</div></section>";
   }
 
+  const KIND = ["var(--blue)", "#c084fc", "#2dd4bf", "#f472b6", "#fb923c"];  // a kind of callout (its first word)
+  const PLAN_W = 680, NAME_W = 112, PLAN_ROW = 32, SECTION = 18, PHASE_GAP = 10, LONG_HEADING = 18;
+  const ROLES = [["tank", "Tanks"], ["healer", "Healers"], ["dps", "Damage"], ["", "Not in the log"]];
+  const kindOf = (text) => (text.match(/[A-Za-z]+/) || [text])[0].toLowerCase();
+
+  function plan(P) {
+    const x0 = NAME_W, right = PLAN_W - 8, total = P.phases.reduce((a, p) => a + p.length_s, 0);
+    const per = (right - x0 - PHASE_GAP * (P.phases.length - 1)) / Math.max(total, 1);
+    const start = {};
+    let at = x0;
+    for (const p of P.phases) { start[p.phase] = at; at += p.length_s * per + PHASE_GAP; }
+    const X = (i) => start[i.phase] + i.at_s * per;
+    const kinds = [];  // across the raid, so a colour means the same callout on every row
+    for (const r of P.rows) for (const t of r.callouts) if (!kinds.includes(kindOf(t))) kinds.push(kindOf(t));
+    const hue = (t) => KIND[kinds.indexOf(kindOf(t)) % KIND.length];
+    const long = new Map();  // a long group heading is named once under the chart, its labels on the rows
+    const group = (g) => {
+      if (!g.label) return g.heading;
+      if (g.heading.length <= LONG_HEADING) return `${g.heading}: ${g.label}`;
+      long.set(g.heading, new Set([...(long.get(g.heading) || []), g.label]));
+      return g.label;
+    };
+    const sections = ROLES.map(([role, word]) => [word, P.rows.filter((r) => (ROLES.some(([k]) => k && k === r.role) ? r.role : "") === role)])
+      .filter(([, rows]) => rows.length);
+    const lane = P.everyone.length ? 24 : 0, top = 22 + lane;
+    const h = top + sections.length * SECTION + P.rows.length * PLAN_ROW;
+    let body = "", y = top;
+    for (const [word, rows] of sections) {
+      body += kit.text(0, y + 12, word.toUpperCase(), "tm", 'font-size="9" font-weight="600" letter-spacing="0.06em"');
+      y += SECTION;
+      rows.forEach((r, i) => {
+        const mid = y + 11;
+        if (i % 2 === 0) body += `<rect x="0" y="${y - 2}" width="${PLAN_W}" height="${PLAN_ROW}" rx="3" fill="var(--panel)"/>`;
+        body += `<text x="6" y="${mid + 4}" font-size="11.5" font-weight="600" class="cls" style="--c:${kit.esc(r.color)}">${kit.esc(r.player)}</text>`;
+        for (const it of r.items) {
+          const x = X(it), tip = `${r.player}, ${phaseAt(P, it)}: ${it.spell || it.text}`;
+          if (it.text) body += `<rect x="${x - 2}" y="${mid - 7}" width="4" height="14" rx="2" fill="${hue(it.text)}"${kit.tip(tip)}/>`;
+          else if (D.img_base && it.icon) body += kit.icon(D.img_base, it.icon, x - 8, mid - 8, 16, tip);
+          else body += `<circle cx="${x}" cy="${mid}" r="5" fill="var(--green)"${kit.tip(tip)}/>`;
+        }
+        const parts = [...r.callouts.map((t) => [t, hue(t)]), ...r.groups.map((g) => [group(g), ""])];
+        let room = Math.floor((right - x0) / kit.width("x", 9.5)), line = "";
+        for (const [k, [t, fill]] of parts.entries()) {
+          const said = (k ? "  ·  " : "") + t;
+          if (room <= 1) break;
+          const cut = said.length > room ? said.slice(0, Math.max(room - 1, 0)) + "…" : said;
+          line += `<tspan${fill ? ` fill="${fill}"` : ""}>${kit.esc(cut)}</tspan>`;
+          room -= said.length;
+        }
+        if (line) body += `<text x="${x0}" y="${y + 26}" class="tm" font-size="9.5">${line}</text>`;
+        y += PLAN_ROW;
+      });
+    }
+    for (const p of P.phases) {  // the minutes over the rows; a phase's name when there are several
+      const x = start[p.phase], end = x + p.length_s * per;
+      if (P.phases.length > 1) body += kit.text(x, 10, `P${p.phase}`, "t", 'font-size="10" font-weight="600"');
+      for (let s = 0; s < p.length_s; s += 60) {
+        body += kit.line(x + s * per, 14, x + s * per, h, "var(--line)", s ? 'stroke-dasharray="2 4" opacity="0.8"' : "");
+        if (s || P.phases.length === 1) body += kit.text(x + s * per, 10, kit.clock(s * 1000), "tm", `font-size="9" text-anchor="${s ? "middle" : "start"}"`);
+      }
+      if (P.phases.length > 1) body += kit.line(end, 14, end, h, "var(--line)");
+    }
+    if (lane) {  // the callouts to everyone: a gold diamond each, its words where they fit
+      const ly = 22 + 9;
+      body += kit.text(6, ly + 3.5, "Everyone", "t", 'font-size="11" font-weight="600"');
+      for (const e of P.everyone) {
+        const x = X(e);
+        body += `<path d="M${x} ${ly - 5}l5 5l-5 5l-5-5z" fill="var(--gold)"${kit.tip(`${phaseAt(P, e)}: ${e.text}`)}/>`;
+      }
+      body += kit.labels(P.everyone.map((e) => [e, e.text]), X, ly + 3.5, "tm", P.everyone.map(X), right);
+    }
+    const sub = [D.difficulty, D.source && `saved ${D.source.replace(/^saved /, "")}`, "the note as it is, before the pull"];
+    const head = `<div class="head"><h1>${kit.esc(D.boss)}: who does what</h1><span class="sub">${kit.esc(sub.filter(Boolean).join(" · "))}</span></div>`;
+    const texts = (k) => [...new Set(P.rows.flatMap((r) => r.callouts.filter((t) => kindOf(t) === k)))];
+    const keyOf = (k) => texts(k).length === 1 ? texts(k)[0] : `${k[0].toUpperCase()}${k.slice(1)} callouts`;  // its words, or its kind
+    const keys = legend([...kinds.map((k) => [KIND[kinds.indexOf(k) % KIND.length], keyOf(k)]),
+                         ...(lane ? [["var(--gold)", "callout to everyone"]] : [])])
+      .replace('</div>', '<span><i style="background:none;border:1px solid var(--muted)"></i>planned cooldown: its icon</span></div>');
+    const named = [...long].map(([hd, labels]) => `${kit.esc([...labels].join(", "))}: ${kit.esc(hd)}`).join("; ");
+    return `<section data-panel class="note-board plan">${head}<div class="grid">${kit.svg(PLAN_W, h, body, "The raid note by player")}</div>${keys}`
+      + `<div class="note">Under each name: the callouts to them, in their colour, then the groups they're in.${named ? ` ${named}.` : ""}</div></section>`;
+  }
+
+  const phaseAt = (P, i) => `${P.phases.length > 1 ? `P${i.phase} ` : ""}${kit.clock(i.at_s * 1000)}`;
+
   function render() {
     if (!D || !root) return;
+    if (D.plan) { root.innerHTML = plan(D.plan); return; }
     const parts = [D.kicks && kicks(D.kicks), D.cooldowns && cooldowns(D.cooldowns)].filter(Boolean);
     root.innerHTML = parts.join("") || '<div class="note">The note has no kick assignments or planned cooldowns for this boss.</div>';
   }

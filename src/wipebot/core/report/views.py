@@ -14,10 +14,10 @@ from importlib import resources
 from typing import Any
 
 from ..classes import class_hex
-from ..knowledge import KnowledgeError, spaced
+from ..knowledge import KnowledgeError, matches_boss, spaced
 from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, phase_label, wipe_pct, wipe_pcts
 from ..text import clock, day, ordinal
-from . import adds, mechanics, tables
+from . import adds, mechanics, tables, versus
 from . import note as notes
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
@@ -35,10 +35,10 @@ from .top import cast_comparison
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
 SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "meter.js",
-           "replay.js", "note.js", "main.js"]
+           "replay.js", "note.js", "versus.js", "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
 # what view_data draws (the replay: maps.replay)
-VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "note")
+VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "note", "versus")
 METER_TOOLS = ("breakdown", "mechanic_hits", "enemies")  # the tools whose rows a meter draws (meters_of)
 
 
@@ -58,18 +58,25 @@ def page_uri() -> str:
 
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
                     player: str | None = None, top: bool = False, death: int = 1, tool: str | None = None,
-                    args: dict | None = None, nights: list[BossNight] | None = None, note: str = "") -> dict:
+                    args: dict | None = None, nights: list[BossNight] | None = None, note: str = "",
+                    source: str = "") -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
     player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`); the
     meter's `tool` and the `args` it was called with; the night view with the boss on each raid night (`nights`,
-    progress's `weeks`); the raid note's view with the `note` checked against every pull on `boss`."""
+    progress's `weeks`); the raid note's view with the `note` checked against every pull on `boss` (raid_note's `args`
+    with all_pulls), else the note as it is (where it came from, `source`)."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
-    if view == "note":
-        return await note_view(rep, note, boss)
+    if view == "note":  # over every pull on a boss; else, for a boss not pulled yet or the next raid, as it is
+        if (args or {}).get("all_pulls"):
+            return await note_view(rep, note, boss)
+        return await note_plan_view(rep, note, boss or "", source)
     if view == "meter":
         return await meter_view(rep, tool or "", args or {})
+    if view == "versus":
+        a = args or {}
+        return await versus_view(rep, player or "", a.get("against") or "", pull, boss, bool(a.get("all_pulls")))
     if view not in ("pull", "night") and not player:
         raise ValueError(f"the {view} view needs a player")
     if view == "night":
@@ -603,6 +610,79 @@ def _note_cooldowns(rep: Report, night: notes.Night, color: Callable[[str], str]
                       "color": color(u.cooldown.player)} for k in order],
             "pulls": [{"pull": rep.pull_no(c.f), "cells": [by_pull[c.f["id"]].get(k) for k in order]}
                       for c in night.checks]}
+
+
+async def versus_view(rep: Report, player: str, other: str, pull: PullRef, boss: str | None, all_pulls: bool) -> dict:
+    """Two raid mates side by side, as compare_with_top with `against` states it: output per second alive, time alive,
+    deaths and item level, and per spell (most output first) casts per minute alive, average hit, crit share and
+    share of their output, with what's far apart."""
+    v = await versus.versus(rep, player, other, pull, boss, all_pulls)
+    f0 = v.fights[0]
+    def side(s: versus.Side) -> dict:
+        return {"name": s.p.name, "spec": f"{spaced(s.p.spec)} {spaced(s.p.class_name)}",
+                "color": class_hex(s.p.class_name), "per_s": round(s.per_s), "alive_s": round(s.alive_s),
+                "deaths": s.deaths, "ilvl": round(s.ilvl)}
+    def spell(s: versus.Side, n: str) -> dict | None:
+        sp = s.spells.get(n)
+        if not sp:
+            return None
+        return {"cpm": None if sp.cpm is None else round(sp.cpm, 1),
+                "per_hit": round(sp.per_hit) if sp.per_hit else None,
+                "crit": None if sp.crit_share is None else round(sp.crit_share, 2),
+                "share": round(sp.total / s.output, 3) if s.output else 0}
+    one = len(v.fights) == 1
+    return {"view": "versus", "report": rep.code, "boss": rep.boss_key(f0), "metric": v.metric,
+            "url": rep.url(f0) if one else rep.url(f0).split("#")[0], "pull": rep.pull_no(f0) if one else None,
+            "pulls": len(v.fights), "title": f"{v.a.p.name} against {v.b.p.name}", "a": side(v.a), "b": side(v.b),
+            "spells": [{"name": n, "icon": (v.a.spells.get(n) or v.b.spells.get(n) or versus.Spell()).icon or None,
+                        "a": spell(v.a, n), "b": spell(v.b, n), "far": v.far_off(n)} for n in v.order]}
+
+
+PLAN_PAD_S = 15  # the note's timeline runs this far past its last entry in each phase
+ROLE_ORDER = {"tank": 0, "healer": 1, "dps": 2}
+
+
+async def note_plan_view(rep: Report, text: str, boss: str, source: str = "") -> dict:
+    """The raid note as it is, for a boss not pulled yet or the next raid (raid_note's `upcoming`): each player it
+    names with their jobs (the callouts to them and the groups they're in) and, on the fight's timeline phase by
+    phase, their planned cooldowns and callouts; the callouts to everyone above. Players by role, then name."""
+    found = notes.parse(text)
+    n = next((x for x in found if matches_boss(boss, x.boss) or matches_boss(x.boss, boss)), found[0])
+    await rep.name_spells({c.spell for c in n.cooldowns})
+    timed = [*n.cooldowns, *n.callouts]
+    phases = sorted({c.phase for c in timed}) or [1]
+    items: dict[str, list[dict]] = defaultdict(list)
+    said: dict[str, list[str]] = defaultdict(list)  # the callouts to each player, in order
+    groups: dict[str, list[dict]] = defaultdict(list)  # the groups each is in: {heading, label}
+    everyone: list[dict] = []
+    for c in sorted(n.cooldowns, key=lambda c: (c.phase, c.at)):
+        items[c.player].append({"phase": c.phase, "at_s": c.at, "spell": rep.ability(c.spell), "icon": icon(c.spell)})
+    for o in sorted(n.callouts, key=lambda o: (o.phase, o.at)):
+        item = {"phase": o.phase, "at_s": o.at, "text": o.text}
+        if not o.players:
+            everyone.append(item)
+        for name in o.players:
+            items[name].append(item)
+            if o.text not in said[name]:
+                said[name].append(o.text)
+    for heading, labels in n.groups.items():
+        for label, names in labels.items():
+            for name in names:  # a group a callout to them already says (a kick's order) adds nothing
+                if label not in said[name]:
+                    groups[name].append({"heading": heading, "label": "" if label.lower() in heading.lower()
+                                         else label})
+    def row(name: str) -> dict:
+        p = rep.find_player(name)
+        return {"player": name, "color": class_hex(p.class_name) if p else "#9aa3b8", "role": p.role if p else "",
+                "callouts": said.get(name, []), "groups": groups.get(name, []),
+                "items": sorted(items.get(name, []), key=lambda i: (i["phase"], i["at_s"]))}
+    rows = sorted((row(name) for name in {*items, *groups}),
+                  key=lambda r: (ROLE_ORDER.get(r["role"], 3), r["player"].lower()))
+    return {"view": "note", "report": rep.code, "boss": n.boss, "difficulty": n.difficulty, "source": source,
+            "title": f"{n.boss}: the raid note",
+            "plan": {"phases": [{"phase": p, "length_s": max(c.at for c in timed if c.phase == p) + PLAN_PAD_S
+                                 if timed else PLAN_PAD_S} for p in phases],
+                     "everyone": everyone, "rows": rows}}
 
 
 async def meters_of(rep: Report, tool: str, args: dict) -> list[Meter]:

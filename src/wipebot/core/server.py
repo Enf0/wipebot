@@ -70,6 +70,7 @@ from .report import (
     tables,
     tanks,
     top,
+    versus,
     views,
 )
 from .report import guild as guild_logs
@@ -612,19 +613,39 @@ VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top
               **dict.fromkeys(views.METER_TOOLS, "meter")}
 
 
+async def _versus_key(args: dict) -> dict:
+    """compare_with_top's key with `against`: the two players, and their pull or every pull on the boss."""
+    rep = await lib().report(args.get("report"))
+    f = rep.fight(args.get("pull"), args.get("boss"))
+    mate: dict = {"against": rep.player(args["against"]).name}
+    if args.get("all_pulls"):
+        mate["all_pulls"] = True
+    key = {"view": "versus", "report": rep.code, "boss": rep.boss_key(f), "player": rep.player(args["player"]).name,
+           "tool": "compare_with_top", "args": mate}
+    if not args.get("all_pulls"):
+        key["pull"] = rep.pull_no(f)
+    return key
+
+
 async def view_key(tool: str, args: dict) -> dict | None:
     """What a view needs to draw a tool's answer: the view, and the pull and player the call was about, resolved
     (the latest pull, a report's code, the player's name as logged), as a host reads it from the result's
     structuredContent. None for a tool, or a call, without one."""
     view = VIEW_TOOLS.get(tool)
+    if tool == "compare_with_top" and args.get("player") and args.get("against"):  # two raid mates side by side
+        return await _versus_key(args)
     if view is None or (tool == "compare_with_top" and not (args.get("player")
                                                           and "casts" in (args.get("aspects") or ["casts"]))):
         return None
     rep = await lib().report(args.get("report"))
-    if view == "note":  # only over every pull on the boss: one pull's check is its text
-        if not args.get("all_pulls") or args.get("upcoming") or (args.get("boss") and not pulled(rep, args["boss"])):
-            return None
+    if view == "note":  # over every pull on the boss, or the saved note as it is: one pull's check is its text
         asked = {k: v for k, v in args.items() if v is not None and k != "report"}
+        if not args.get("note") and (args.get("upcoming") or (args.get("boss") and not pulled(rep, args["boss"]))):
+            asked.pop("all_pulls", None)
+            boss = args.get("boss") or rep.boss_key(rep.fight(None, None))
+            return {"view": view, "report": rep.code, "boss": boss, "tool": tool, "args": asked}
+        if not args.get("all_pulls") or args.get("upcoming"):
+            return None
         return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked}
     if view == "meter":  # only when the call ranks players
         asked = {k: v for k, v in args.items() if v is not None and k != "report"}
@@ -664,13 +685,14 @@ async def _shown(tool: str, args: dict, text: str, ctx: Context) -> str | CallTo
 
 
 async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night, death, night, "
-                                                             "meter or note")],
+                                                             "meter, note or versus")],
                     pull: Pull = None, boss: Boss = None, report: Report_ = None,
-                    player: Annotated[str | None, Field(description="the player view's player")] = None,
+                    player: Annotated[str | None, Field(description="the player or versus view's player")] = None,
                     top: Annotated[bool, Field(description="the player view with their casts against top players "
                                                            "(slower: reads the top parses)")] = False,
                     death: Annotated[int, Field(description="the death view's death of the player in the pull")] = 1,
-                    tool: Annotated[str | None, Field(description="the meter's or the note's tool")] = None,
+                    tool: Annotated[str | None, Field(description=(
+                        "the meter's, the note's or the versus view's tool"))] = None,
                     args: Annotated[dict | None, Field(description="the meter's or the note's tool's "
                                                                   "arguments")] = None,
                     weeks: Annotated[int | None, Field(description="the night view with the boss's best pull on "
@@ -681,10 +703,17 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
     rep = await lib().report(report)
     try:
         nights = await boss_nights(rep, boss, weeks) if view == "night" and weeks else None
-        note = ""
-        if view == "note":  # the note raid_note was given, else the one the guild saved
+        note, source = "", ""
+        if view == "note" and (args or {}).get("all_pulls"):  # the note raid_note was given, else the guild's
             note = (args or {}).get("note") or (await _saved_note(rep, None, boss, True))[0]
-        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights, note)
+        elif view == "note":  # a boss not pulled yet, or the next raid: the note given, else the newest saved
+            note = (args or {}).get("note") or ""
+            if not note:
+                saved_note = newest_note(notebook.Notebook(readonly=True), _saved_guild(rep, "raid note"), boss or "")
+                if saved_note is None:
+                    raise FactError(f"no raid note is saved for {boss}")
+                note, source = saved_note.note, saved.source(saved_note.saved_at, saved_note.saved_by)
+        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights, note, source)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],
@@ -1120,16 +1149,21 @@ async def _unpulled_note(rep: Report, boss: str, upcoming: bool = False) -> str:
 NOTE_SPELL = re.compile(r"\b(spellid|bossSpell):(\d+)")
 
 
+def newest_note(book: notebook.Notebook, guild: int, boss: str) -> notebook.SavedNote | None:
+    """The newest note `guild` saved for `boss`, if any."""
+    return next((n for n in book.latest_notes(guild)
+                 if knowledge.matches_boss(boss, n.boss) or knowledge.matches_boss(n.boss, boss)), None)
+
+
 async def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: str, upcoming: bool = False) -> str:
     """The newest note `guild` saved for `boss`, which the report has no pull on (or, `upcoming`, for the next raid),
     as it is (the apps' shared rule)."""
-    found = [n for n in book.latest_notes(guild)
-             if knowledge.matches_boss(boss, n.boss) or knowledge.matches_boss(n.boss, boss)]
+    found = newest_note(book, guild, boss)
     why = "For the next raid" if upcoming else f"{boss} has no pull in this report"
-    if not found:  # an answer, not a failure: before the raid, no note is saved yet
+    if found is None:  # an answer, not a failure: before the raid, no note is saved yet
         return (f"{why}, and {rep.guild_name} has no raid note saved for {boss}: the user can paste the boss's note "
                 "(the NSRT note from Viserio)." + NO_JOBS)
-    n = found[0]
+    n = found
     # each spell named where it stands, as the checks name them: no lookup of ids left to the model
     await rep.name_spells({int(m[2]) for m in NOTE_SPELL.finditer(n.note)})
     note = NOTE_SPELL.sub(lambda m: f"{m[0]} ({rep.ability_ref(int(m[2]))})", n.note)
@@ -1318,6 +1352,9 @@ async def compare_with_top(
     count: Annotated[int, Field(description="with only `boss`: how many kills", ge=1, le=top.KILLS_MAX)] = 50,
     regions: Annotated[list[Literal["US", "EU", "KR", "TW", "CN"]] | None, Field(description=(
         "with only `boss`: only kills on these regions' servers"))] = None,
+    against: Annotated[str | None, Field(description=(
+        "a raid mate (character name as in the log) to set the player beside instead of top players"))] = None,
+    all_pulls: Annotated[bool, Field(description="with `against`: every pull on the boss both were in")] = False,
     report: Report_ = None,
 ) -> str:
     """Compare a player with the top players of their spec: is my build right, why is my damage low (after
@@ -1339,7 +1376,12 @@ async def compare_with_top(
     how many kills brought each count, kill time and item level by healers brought, and links to the fastest;
     `kills`, `count` and `regions` pick others ("how many healers did the latest 20 progress kills bring?", "of the
     first 400 kills in EU and US, how many 4-healed?"; 2 Warcraft Logs points per 50 kills and region).
-    Example: player="Draiman", aspects=["casts", "cooldowns"]; or spec="balance druid", boss="Kith'ix"."""
+    With `against`, a raid mate instead ("why does he do more than me?", "compare Pomaa and Sonyosh"): both on the
+    pull, or with all_pulls every pull on the boss both were in: damage (healing for a healer) per second alive,
+    time alive, deaths and item level, and per spell casts per minute alive, average hit, crit share and share of
+    their output, the ones far apart marked; `aspects` don't apply.
+    Example: player="Draiman", aspects=["casts", "cooldowns"]; or spec="balance druid", boss="Kith'ix"; or
+    player="Attractiv", against="Scopidruid", boss="Sszorak", all_pulls=true."""
     if not player:
         if not boss:
             raise FactError("give a player, or a boss (and a spec for what its top players play)")
@@ -1351,6 +1393,8 @@ async def compare_with_top(
         return await _parts({a.capitalize(): run_top[a]() for a in dict.fromkeys(aspects or ("build", "cooldowns"))
                              if a in run_top})
     rep = await lib().report(report)
+    if against:
+        return versus.versus_text(rep, await versus.versus(rep, player, against, pull, boss, all_pulls))
     rep.require_in(rep.fight(pull, boss), rep.player(player))  # a wrong pull or name fails the call, not each part
     wanted = list(dict.fromkeys(aspects or ("build", "casts", "cooldowns")))
 
