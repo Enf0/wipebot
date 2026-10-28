@@ -167,6 +167,13 @@ def placed(text: str) -> tuple[str, list[tuple[int, str]]]:
     return "".join(out).rstrip(), marks
 
 
+# A view's panels that are each their own subject (raid_note's), by the words an answer's headline names it with:
+# an answer that places the view without naming a panel posts the ones its headline is about, else every one.
+PANEL_WORDS = {"kicks": re.compile(r"\b(?:kick|interrupt)", re.I),
+               "cooldowns": re.compile(r"\b(?:cooldowns?|cds?)\b", re.I),
+               "callouts": re.compile(r"\b(?:personals?|defensives?|defs?)\b", re.I)}
+
+
 def _tool(mark: str) -> str:
     """The tool a picture mark names ("raid_note:callouts" -> raid_note)."""
     return mark.partition(":")[0]
@@ -463,6 +470,9 @@ class Answer:
         out = [(i, c) for c in drawn if any(c is v for v in shown) or c.name not in server.VIEW_TOOLS
                for i in c.images]
         named = {m.partition(":")[2] for _, m in self.marks if view and _tool(m) == view.name} - {""}
+        if view and not named:  # the panels the headline is about, the answer not naming one
+            headline = self.text.split("\n", 1)[0]
+            named = {panel for panel, words in PANEL_WORDS.items() if words.search(headline)}
         if any(getattr(i, "name", "") in named for i, c in out if c is view):  # the panel the answer is about
             out = [(i, c) for i, c in out if c is not view or getattr(i, "name", "") in named]
         return out[-MAX_IMAGES:]

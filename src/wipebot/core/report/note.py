@@ -34,10 +34,12 @@ PERSONAL_TAGS = frozenset({"defensive", "tank"})
 PERSONALS_ARE = "a defensive or tank cooldown"
 UNCHECKED = ("Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match "
              "to them; only callouts for personals are)")
-# A callout to one player this close to an add beginning a cast someone kicked on the boss tonight is a kick
-# assignment, and its cast is one begun this close to it: which side's add begins first varies from wave to wave, so
-# a note timed for one side is a second off for the other.
+# A callout to one player whose words say kick ("Kick #1 left") this close to an add beginning a cast someone kicked
+# on the boss tonight is a kick assignment, and its cast is one begun this close to it: which side's add begins first
+# varies from wave to wave, so a note timed for one side is a second off for the other. Another job timed with a
+# cast ("CC Mindcontrol") isn't one.
 KICK_SLOT_MS = 1_500
+KICK_WORDS = re.compile(r"\b(?:kicks?|interrupts?)\b", re.I)
 # A player hit by fewer than this share of their group's soaks while alive, over at least FEW_SOAKS_MIN of them,
 # most likely wasn't soaking with that group: a reserve, a spot changed since the note was written.
 FEW_SOAKS = 0.2
@@ -642,6 +644,11 @@ async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player]
     return out
 
 
+def _kick_call(c: Callout) -> bool:
+    """Whether a callout may be a kick assignment: to one player, its words saying kick (KICK_WORDS)."""
+    return len(c.players) == 1 and bool(KICK_WORDS.search(c.text))
+
+
 async def _kicks(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,
                  until: float) -> list[KickCheck]:
     """Each kick assignment up to `until`: a callout to one player within KICK_SLOT_MS of an add beginning a cast
@@ -651,7 +658,7 @@ async def _kicks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
     pair's swapped, whichever has more players kicking their own. A player who kicked another cast begun within
     KICK_SLOT_MS still kicked theirs; one who didn't kick gets their cast in that reading, so a cast that went
     through is on them and not on their pair."""
-    calls = [(at, c) for c in note.callouts if len(c.players) == 1 and (at := when(c)) is not None and at <= until]
+    calls = [(at, c) for c in note.callouts if _kick_call(c) and (at := when(c)) is not None and at <= until]
     if not calls:
         return []
     kickable = await kicked_tonight(rep, f)
@@ -780,7 +787,7 @@ async def _prefetch(rep: Report, fights: list[dict], notes: dict[int, Note]) -> 
     if planning:
         await rep.events_for([(f["id"], {"filterExpression": _planned_filter(rep, notes[f["id"]])})
                               for f in planning], "Casts")
-    kicking = [(f["id"], {}) for f in fights if any(len(c.players) == 1 for c in notes[f["id"]].callouts)]
+    kicking = [(f["id"], {}) for f in fights if any(_kick_call(c) for c in notes[f["id"]].callouts)]
     if kicking:  # what `_kicks` reads: the adds' casts and the kicks, each pull's and the night's
         await kicked_tonight(rep, fights[0])
         await rep.events_for(kicking, "Casts", hostilityType="Enemies")

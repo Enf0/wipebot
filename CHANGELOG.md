@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Discord` **A question about personals gets only the personals picture.** When an answer doesn't say which of the raid note's pictures it means, it gets the ones its headline is about, instead of kicks, cooldowns and personals all at once.
+- `Agent` **Only callouts that say kick count as kick assignments.** A job timed with an add's cast, such as "CC Mindcontrol", was checked and drawn as a kick nobody made; it's now listed as a callout not checked.
+
 ## [0.30.2] - 2026-10-28
 
 ### Fixed

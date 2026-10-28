@@ -575,7 +575,9 @@ def test_a_mark_naming_a_panel_posts_only_that_panel_of_the_view():
     assert answer.images == [b"3"] and answer.place(note) == marks[0][0]
     assert "[picture: raid_note callouts]" in answer.full
     assert Answer(shown, marks=[(0, "raid_note:soaks")], calls=[note]).images == [b"1", b"2", b"3"]  # none drawn
-    assert Answer(shown, marks=[(0, "raid_note")], calls=[note]).images == [b"1", b"2", b"3"]
+    assert Answer(shown, marks=[(0, "raid_note")], calls=[note]).images == [b"3"]  # the headline is about personals
+    assert Answer("**Kicks and cooldowns were fine.**", marks=[(0, "raid_note")], calls=[note]).images == [b"1", b"2"]
+    assert Answer("**Mostly fine.**\n- personals 3 of 5", calls=[note]).images == [b"1", b"2", b"3"]
 
 
 def test_a_long_answer_that_leaves_its_picture_unplaced_gets_it_after_the_headline():
