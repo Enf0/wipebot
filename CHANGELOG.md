@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Agent` `Discord` **A saved raid note older than Viserio's says so.** On a guild whose host connected its Viserio Cooldowns key, a note checked against a pull, or given for the next raid, says when the note was changed in Viserio after the copy Wipebot has was saved, so an officer knows to paste the new one.
 
+### Changed
+
+- `Agent` **How many were on their spot.** A check of a raid plan against a pull says, at each moment, how many players were on their spot out of those placed, so an answer's headline matches the count.
+- `Agent` **What holds off the enrage.** When a boss's enrage ends most pulls of a night, the review looks up what holds it off (a stack, a soak, a kick) and puts that first, before the deaths that left it short.
+
 ## [0.19.0] - 2026-10-28
 
 ### Added

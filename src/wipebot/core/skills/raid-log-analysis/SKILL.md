@@ -93,7 +93,9 @@ is positioning, not healing. A guide's warning is something to check, not a caus
 
 Look for patterns, not incidents. The same ending on many pulls is the one thing to fix: say how many pulls it
 ended, and when. `progress` counts the pulls by the first thing that ended each ("How the pulls ended"): the biggest
-count is usually that thing. It also names the night's killer, which counts deaths, not pulls lost, so it can be
+count is usually that thing. When it is a buff the boss gained (an enrage), read `boss_guide` with the buff as
+`mechanic`: what holds it off (a stack, a soak, a kick) is what to fix or practise, and early deaths matter as far as
+they leave it short. It also names the night's killer, which counts deaths, not pulls lost, so it can be
 another ability: its deaths, how often it was the first, whom it killed and who took most of its hits. Who keeps
 dying first, to what, and whether that mechanic hits everyone or targets one player or role: the same player dying
 to a raid-wide mechanic again and again points at them; one aimed at a role may be an assignment, so check who was

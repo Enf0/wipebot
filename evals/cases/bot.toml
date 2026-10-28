@@ -63,8 +63,8 @@ tornadoes (Tempest) and the Serpent's Fury stacks."""
 facts = ["Tempest killed 30 of the first three deaths per pull",
          "Mutilate killed 17 and Mutilated Gash 14 of them",
          "the boss enraged (Unbound Ferocity) on 24 of 42 pulls"]
-wrong = ["names a player who should practise more or who dies most",
-         "points at one raider by a class, spec, spell or job only they have"]
+wrong = ["names a player other than the asker as one who should practise more or who dies most",
+         "points at one raider other than the asker by a class, spec, spell or job only they have"]
 
 [[case]]
 id = "real-sentinels-helical-officers"  # in a DM: who carried Helical Toxins to the end (answer #392, asked in a channel with names on)

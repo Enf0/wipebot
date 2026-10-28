@@ -135,10 +135,10 @@ id = "me-season-parses"  # player_history, the tool raiders use most; the asker 
 tools = ["player_history"]
 question = "How have my parses been this season?"
 asker = "Sonyosh"
-expect = """Strong and rising, as Elemental on Mythic: the first kill on a boss was the weakest and the newest the best."""
+expect = """Strong and rising, as Elemental on Mythic: on every boss but Nymrissa the first kill was the weakest and the
+newest the best."""
 drifts = ["30", "44%", "84", "94%", "71.4", "87.4"]
-facts = ["on every boss but Nymrissa",
-         "first kills 30-44%",
+facts = ["first kills 30-44%",
          "newest 84-94%",
          "the lower median (71.4, against 87.4 for the best) comes from those first kills"]
 wrong = ["the single Restoration kill (28%) counted among their Elemental parses",

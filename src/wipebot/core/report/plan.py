@@ -172,8 +172,10 @@ def _moment_line(rep: Report, c: Checked) -> str:
             f"from their spot, off past {c.fit.tolerance:.0f} yd)")
     if not c.fit.holds:
         return head + ": the raid wasn't standing as the plan draws it"
-    parts = ["off their spot: " + (", ".join(f"{s.name} {s.off_yd:.0f} yd" + (
-        f" (at {_spot_of(s.at_spot)})" if s.at_spot else "") for s in c.off()) or "nobody")]
+    off = c.off()
+    parts = [f"{len(c.stood) - len(off)} of {len(c.stood)} on their spot; off: " + (", ".join(
+        f"{s.name} {s.off_yd:.0f} yd" + (f" (at {_spot_of(s.at_spot)})" if s.at_spot else "") for s in off)
+        or "nobody")]
     if c.dead:
         parts.append("dead: " + ", ".join(c.dead))
     if c.unplaced:

@@ -140,8 +140,9 @@ report = "vjt3KLbN8g62J1H9"
 question = ["got any tips for me, slushmania?", "energy being at 100 has to do with mechanics though."]
 asker = "Slushmania"
 expect = """Agrees that most of the time at the energy cap is the fight, because the top Subtlety parses on
-Sszorak sit at the cap about as much, and points instead at what is left to win back: getting back to the boss far
-less often than the top (Shadowstep)."""
+Sszorak sit at the cap about as much, and points instead at what is left to win back from that comparison: getting
+back to the boss far less often than the top on pull 42 (Shadowstep), or a worse pull's extra time at the cap and in
+casting gaps (pull 33: 44% and 19%)."""
 drifts = ["29%", "25", "32%", "1.5", "58", "25th"]
 facts = ["energy at its cap 31% of their time alive on pull 42",
          "top parses at the cap 29% of the time (25-32%)",
