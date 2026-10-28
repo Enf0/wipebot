@@ -73,6 +73,7 @@ from .report import (
     versus,
     views,
 )
+from .report import awards as prizes
 from .report import guild as guild_logs
 from .report import healing as heals
 from .report import mana as manas
@@ -675,7 +676,7 @@ async def view_key(tool: str, args: dict) -> dict | None:
                 "player": rep.player(args["player"]).name}
     if view == "night":  # with `weeks`, the boss's best pull night by night too
         return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss"))} | (
-            {"weeks": args["weeks"]} if args.get("weeks") else {})
+            {"weeks": args["weeks"]} if args.get("weeks") else {}) | ({"awards": True} if args.get("awards") else {})
     f = rep.fight(args.get("pull"), args.get("boss"))
     key: dict = {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
     if view in ("player", "death"):
@@ -711,6 +712,7 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
                     weeks: Annotated[int | None, Field(description="the night view with the boss's best pull on "
                                                                    "each raid night over this many weeks back",
                                                        ge=1, le=12)] = None,
+                    awards: Annotated[bool, Field(description="the night view with the night's awards")] = False,
                     ) -> CallToolResult:
     """What a view draws, for the pull (and player) its tool was asked about."""
     rep = await lib().report(report)
@@ -726,7 +728,8 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
                 if saved_note is None:
                     raise FactError(f"no raid note is saved for {boss}")
                 note, source = saved_note.note, saved.source(saved_note.saved_at, saved_note.saved_by)
-        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights, note, source)
+        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights, note, source,
+                                     awards)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],
@@ -1263,6 +1266,9 @@ async def progress(boss: Annotated[str | None, Field(description=(
                                                                 "killer, the trend)")] = False,
                    first_hits: Annotated[bool, Field(description="also who hit the boss first on each pull, for "
                                                                  "\"who pulls early?\"")] = False,
+                   awards: Annotated[bool, Field(description="also the night's awards on the boss: most damage and "
+                                                             "healing a pull, most kicks and dispels, fewest deaths")]
+                   = False,
                    weeks: Annotated[int | None, Field(description=(
                        "also the boss on each of the guild's raid nights over this many weeks back (1-12), for "
                        "\"are we doing better than last week?\": reads every night, slow"), ge=1, le=12)] = None,
@@ -1275,7 +1281,9 @@ async def progress(boss: Annotated[str | None, Field(description=(
     wipe), duration and first death of each, the guild's best wipe before the night, averages over the
     night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull, and the night's
     killer. With `first_hits`: who hit the boss first on each pull, with what and how far ahead of the next
-    player, and a tally ("who pulled?").
+    player, and a tally ("who pulled?"). With `awards`: the raid's best on the boss over the night, each with the
+    runner-up: damage and healing per pull a player was in, kicks, dispels, and the fewest deaths before each wipe
+    was decided.
     Reading it: deaths after a buff the boss kept to the end are left out of the killers. The night's killer is
     the ability with the most deaths (every death on a kill, a wipe's until it was decided), with the players it
     killed and the players it hit most; a tank tops a "hit most" list by standing at the boss. With `weeks`: each
@@ -1287,10 +1295,13 @@ async def progress(boss: Annotated[str | None, Field(description=(
     texts = list(await asyncio.gather(*([] if boss else [night.overview(rep)]), night.progress(rep, boss)))
     if each_pull or first_hits:
         texts.append(await night.each_pull(rep, boss, each_pull, first_hits))
+    if awards:
+        texts.append(prizes.awards_text(rep, *await prizes.awards(rep, boss)))
     if weeks:
         texts.append(night.weeks_text(rep.boss_key(rep.by_boss[rep.boss(boss)][-1]), weeks,
                                       await boss_nights(rep, boss, weeks)))
-    return await _shown("progress", {"boss": boss, "report": report, "weeks": weeks}, "\n\n".join(texts), ctx)
+    return await _shown("progress", {"boss": boss, "report": report, "weeks": weeks, "awards": awards},
+                        "\n\n".join(texts), ctx)
 
 
 async def boss_nights(rep: Report, boss: str | None, weeks: int) -> list[night.BossNight]:

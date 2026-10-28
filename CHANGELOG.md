@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` `Discord` **The night's awards.** "Who carried tonight?" gets the raid's best on a boss over the night, each with the runner-up so a close one shows as close: most damage and healing a pull, most kicks and dispels, and the survivor with the fewest deaths before each wipe was decided. Only praise. In Discord, drawn as a card above the night's pulls.
+  ![The Twin Fangs' awards over 39 pulls: top damage, top healing, most kicks and survivor, each winner in their class colour with the runner-up under it](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-night-awards.webp)
+
 ### Changed
 
 - `Discord` **Clearer pictures.** The damage meter draws every class's bar at one lightness with the class colour as its end cap, so names read as well on a priest's bar as on a warlock's; the raid's night colours only the four most common ways pulls ended (the rest grey) and its list of endings is the legend; a raider's plan map over the night says what green and red mean and labels only their three furthest misses.
