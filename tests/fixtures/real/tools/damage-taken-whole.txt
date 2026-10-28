@@ -1,4 +1,4 @@
-DamageTaken on Sszorak pull 13, by ability (2:42 of combat):
+DamageTaken on Sszorak pull 13, by ability (2:42 of combat; total 314.25M, 1.93M/s):
   1. Ula'tek's Presence: 89.84M (551.65k/s), 29% of total, 1389 hits, 64.68k on average; most on Namsus 6.61M, Nexsozz 6.49M, Martin 6.27M, Dragepie 6.01M
   2. Mutilated Gash: 75.72M (464.95k/s), 24% of total, 917 hits, 82.57k on average; most on Peggerino 6.32M, Pomaa 5.91M, Sveini 5.83M, Krøpling 5.56M
   3. Viscous Cyst: 34.55M (212.16k/s), 11% of total, 64 hits and 320 ticks, 89.98k on average; most on Peggerino 2.44M, Sveini 2.43M, Sinnatony 2.32M, Cptola 2.31M

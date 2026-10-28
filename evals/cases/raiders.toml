@@ -248,6 +248,20 @@ wrong = ["gives the whole kill's add damage as the last three waves'",
          "counts the Barbed Bulwarks as a wave of adds"]
 
 [[case]]
+id = "real-raid-dps-at-a-moment"  # a moment of a pull; worked out from raw queries in 67 s before (answer #998)
+tools = ["breakdown"]
+report = "64hVgfmydQGNxC7A"
+question = "hva var total raid dps på pull 16 på 2:15"
+asker = "Seaker"
+expect = """Gives the raid's damage per second in a window of a few seconds around 2:15 of The Coiled Altar pull 16,
+from the damage in that window: about 2.64M/s from 2:10 to 2:20 (26.44M in 10 s). Another window around 2:15 gives
+another number (2.39M/s from 2:13 to 2:17, 2.63M/s from 2:12 to 2:18), and is as right when the answer says which."""
+facts = ["Sonyosh did the most in 2:10-2:20 (3.97M), then Nalaxd (3.71M) and Krøpling (2.85M)",
+         "the whole pull until its wipe was decided at 4:22 averaged 2.27M/s"]
+wrong = ["gives the whole pull's average as the raid DPS at 2:15",
+         "says the log can't give the damage at one moment of a pull"]
+
+[[case]]
 id = "real-divine-toll-holy-power"  # Holy Power before each cast and lost right after; counted by hand before (answer #659)
 tools = ["buff_at_casts"]
 report = "p7jRwgv8b1rY6LBd"

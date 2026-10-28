@@ -1,4 +1,4 @@
-Healing on Sszorak pull 13, Enfo only, until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest), by ability (2:32 of combat):
+Healing on Sszorak pull 13, Enfo only, until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest), by ability (2:32 of combat; total 51.26M, 335.09k/s):
   1. Chain Heal: 12.80M (83.70k/s), 25% of total, overheal 17%, 267 hits, 47.95k on average, 43% crits
   2. Healing Rain: 11.54M (75.42k/s), 23% of total, overheal 36%, 865 hits, 13.34k on average, 39% crits
   3. Riptide: 6.05M (39.57k/s), 12% of total, overheal 38%, 37 hits and 413 ticks, 13.45k on average, 47% crits

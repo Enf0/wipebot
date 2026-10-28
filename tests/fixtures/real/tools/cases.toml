@@ -85,6 +85,8 @@ debuffs-by-pull = { tool = "breakdown", report = "kTMfFRQ324Hvx6G7", boss = "Vas
 interrupts = { tool = "breakdown", report = "BfgjDv6LC2HaVbFm", boss = "Nek'zali", data_type = "Interrupts" }
 interrupts-by-pull = { tool = "breakdown", report = "BfgjDv6LC2HaVbFm", boss = "Nek'zali", data_type = "Interrupts", group_by = "pull", pulls = [1, 2] }
 dispels = { tool = "breakdown", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", data_type = "Dispels" }
+# a window of each pull ("raid DPS at 1:35"): a pull whose wipe was decided before it is left out
+damage-window = { tool = "breakdown", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", data_type = "DamageDone", pulls = [15, 16], start = "1:30", end = "1:40" }
 
 # ---- raid notes and plans ----
 # soaks against their groups, planned cooldowns against casts; a long pull, past the wipe being decided

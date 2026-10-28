@@ -7,8 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from ..pulls import attempt
-from ..text import clock, parse_clock, plural, short
-from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, dead_since
+from ..text import clock, plural, short
+from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, dead_since, pull_window
 from .meter import MIN_BARS, Bar, Meter
 
 HIT_THEN_DEATH_MS = 6_000  # a mechanic hit followed by death this soon counts as "died after"
@@ -81,7 +81,7 @@ async def _asked(rep: Report, ability: str, pull: PullRef, boss: str | None, all
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
     fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = {} if whole_pull else await rep.decided_cuts(fights)  # later hits are fallout
-    window = _window(start, end)
+    window = pull_window(start, end)
     found = await _hits(rep, fights, rep.ability_ids(ability), _counting(fights, cut, window))
     return fights, going, cut, window, found
 
@@ -115,16 +115,6 @@ async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | Non
                        f"{sum(h.died_after.values())} within {HIT_THEN_DEATH_MS // 1000} s of a hit (the deaths it "
                        "set up)."),
                  others=sorted(n for pid, n in present.items() if pid not in who))
-
-
-def _window(start: str | None, end: str | None) -> tuple[float, float] | None:
-    """(from, to) in ms from each pull's start, or None for the whole pull."""
-    if start is None and end is None:
-        return None
-    lo, hi = parse_clock(start) if start else 0.0, parse_clock(end) if end else math.inf
-    if lo is None or hi is None or lo > hi:
-        raise FactError(f"start and end are m:ss from the pull's start, the start first (got {start!r}, {end!r})")
-    return lo, hi
 
 
 def _counting(fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None) -> Callable[[dict], bool]:

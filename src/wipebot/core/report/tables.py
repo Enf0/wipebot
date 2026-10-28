@@ -1,10 +1,11 @@
 """`breakdown`: any WCL table over any set of pulls on a boss, grouped by player, ability or pull."""
+import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Literal, get_args
 
 from ..text import clock, name_key, ordinal, plural, short
-from .base import FactError, Player, Report
+from .base import FactError, Player, Report, pull_window
 from .casting import cast_rows
 from .meter import MIN_BARS, Bar, Meter
 from .ranks import kill_parses, metric_of
@@ -28,21 +29,27 @@ class Asked:
     ability: str | None
     ids: list[int | None]  # the ability's ids, or [None] for every ability
     cutoff: int | None
-    ends: dict[int, float]  # fight id -> the moment its wipe was decided, but with whole_pull
+    ends: dict[int, float]  # fight id -> the moment its wipe was decided (but with whole_pull), or its window's end
+    starts: dict[int, float]  # fight id -> its window's start
     head: str
     scope: str  # "all 33 Sszorak pulls", "Sszorak pull 13"
+    window: str  # ", 2:10-2:20" of each pull, or ""
+    cut: bool  # each pull stops where its wipe was decided
 
     @property
     def dur_s(self) -> float:
-        return sum(self.ends.get(f["id"], f["endTime"]) - f["startTime"] for f in self.fights) / 1000
+        return sum(self.ends.get(f["id"], f["endTime"]) - self.starts.get(f["id"], f["startTime"])
+                   for f in self.fights) / 1000
 
 
 async def breakdown(rep: Report, data_type: str, group_by: str = "player", pulls: list[int] | None = None,
                     boss: str | None = None, player: str | None = None, ability: str | None = None,
-                    cutoff: int | None = None, whole_pull: bool = False) -> str:
+                    cutoff: int | None = None, whole_pull: bool = False, start: str | None = None,
+                    end: str | None = None) -> str:
     """Any WCL table over any set of pulls on a boss, grouped by player, ability or pull: those summed per pull
-    (UNTIL_DECIDED_TYPES) each only until its wipe was decided, but with `whole_pull`."""
-    q = await _asked(rep, data_type, group_by, pulls, boss, player, ability, cutoff, whole_pull)
+    (UNTIL_DECIDED_TYPES) each only until its wipe was decided, but with `whole_pull`, and only from `start` to `end`
+    (m:ss) of each pull when given."""
+    q = await _asked(rep, data_type, group_by, pulls, boss, player, ability, cutoff, whole_pull, start, end)
     if q.data_type in ("Interrupts", "Dispels"):
         return await _kicks_text(rep, q)
     if q.group_by == "pull":
@@ -55,15 +62,16 @@ METERS = {"DamageDone": "Damage done", "Healing": "Healing", "DamageTaken": "Dam
 
 
 async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, boss: str | None = None,
-                ability: str | None = None, cutoff: int | None = None, whole_pull: bool = False) -> Meter | None:
+                ability: str | None = None, cutoff: int | None = None, whole_pull: bool = False,
+                start: str | None = None, end: str | None = None) -> Meter | None:
     """The breakdown by player as a meter (its rows, as the text states them), for damage, healing, damage taken,
     kicks and dispels; None for another table or fewer than MIN_BARS players."""
     if data_type not in METERS:
         return None
-    q = await _asked(rep, data_type, "player", pulls, boss, None, ability, cutoff, whole_pull)
+    q = await _asked(rep, data_type, "player", pulls, boss, None, ability, cutoff, whole_pull, start, end)
     title = METERS[data_type] + (f": {q.ability}" if q.ability else "")
-    scope = q.scope + (", each until its wipe was decided" if q.ends and len(q.fights) > 1
-                       else ", until the wipe was decided" if q.ends else "")
+    scope = q.scope + q.window + (", each until its wipe was decided" if q.cut and len(q.fights) > 1
+                       else ", until the wipe was decided" if q.cut else "")
     scope += f", each until its {ordinal(cutoff)} death" if cutoff else ""
     icon = q.ids[0] if q.ability else None
     if data_type in ("Interrupts", "Dispels"):
@@ -87,11 +95,15 @@ async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, bos
 
 
 async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | None, boss: str | None,
-                 player: str | None, ability: str | None, cutoff: int | None, whole_pull: bool) -> Asked:
+                 player: str | None, ability: str | None, cutoff: int | None, whole_pull: bool,
+                 start: str | None = None, end: str | None = None) -> Asked:
     if data_type not in BREAKDOWN_TYPES:
         raise FactError(f"data_type must be one of {', '.join(BREAKDOWN_TYPES)}")
     if group_by not in ("player", "ability", "pull"):
         raise FactError("group_by must be player, ability or pull")
+    window = pull_window(start, end)
+    if window and data_type not in UNTIL_DECIDED_TYPES:
+        raise FactError(f"start and end work for {', '.join(UNTIL_DECIDED_TYPES)}; the other tables are whole pulls")
     cut = not (whole_pull or cutoff) and data_type in UNTIL_DECIDED_TYPES  # a cutoff is its own cut
     b = rep.boss(boss)
     fights = [rep.fight(n, b) for n in pulls] if pulls else rep.ended(rep.by_boss[b])
@@ -110,14 +122,50 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
     ends = await rep.decided_cuts(fights) if cut else {}
     scope = (f"{b} pull{'s' * (len(pulls) > 1)} {', '.join(str(n) for n in pulls)}" if pulls
              else f"all {plural(len(fights), b + ' pull')}")
+    starts: dict[int, float] = {}
+    span, decided_note = "", (await _decided_note(rep, fights, ends) if cut else "")
+    if window:
+        asked = len(fights)
+        fights, starts, ends, clipped = _windowed(rep, fights, window, ends)
+        span = (f", {clock(window[0])}-{clock(window[1])}" if window[1] < math.inf
+                else f", from {clock(window[0])}") + (" of each pull" if asked > 1 else "")
+        if len(fights) < asked:
+            span += f" (the {plural(len(fights), 'pull')} that got there)"
+        decided_note = ("" if not clipped else ", each until its wipe was decided if sooner (whole_pull for the rest)"
+                        if len(fights) > 1 else
+                        f", until {clock(ends[fights[0]['id']] - fights[0]['startTime'])}, when the wipe was decided "
+                        "(whole_pull for the rest)")
+        cut = bool(clipped)
     what = "Debuffs on enemies" if data_type == "EnemyDebuffs" else data_type
     who = (f", applied by {p.name}" if data_type == "EnemyDebuffs" else f", {p.name} only") if p else ""
-    head = (("" if pulls else rep.still_going(rep.by_boss[b])) + f"{what} on {scope}{who}"
+    head = (("" if pulls else rep.still_going(rep.by_boss[b])) + f"{what} on {scope}{span}{who}"
             + (f", {ability} only" if ability else "")
             + (f", each pull until its {ordinal(cutoff)} death" if cutoff else "")
-            + (await _decided_note(rep, fights, ends) if cut else ""))
+            + decided_note)
     return Asked("Debuffs" if data_type == "EnemyDebuffs" else data_type, group_by, fights, p, filters, ability,
-                 ids, cutoff, ends, head, scope)
+                 ids, cutoff, ends, starts, head, scope, span, bool(cut and ends))
+
+
+def _windowed(rep: Report, fights: list[dict], window: tuple[float, float],
+              decided: dict[int, float]) -> tuple[list[dict], dict[int, float], dict[int, float], bool]:
+    """The pulls that got to the window, and each one's window as report times (its start, and its end: the window's,
+    the pull's or the moment its wipe was decided, whichever came first); whether a wipe being decided cut one."""
+    kept, starts, ends, clipped = [], {}, {}, False
+    for f in fights:
+        lo, hi = f["startTime"] + window[0], min(f["startTime"] + window[1], f["endTime"])
+        if f["id"] in decided and decided[f["id"]] < hi:
+            hi, clipped = decided[f["id"]], clipped or decided[f["id"]] > lo
+        if hi > lo:
+            kept.append(f)
+            starts[f["id"]], ends[f["id"]] = lo, hi
+    if not kept:
+        f = fights[0]
+        at = (f"its wipe was decided at {clock(decided[f['id']] - f['startTime'])} (whole_pull for what came after)"
+              if f["id"] in decided else f"it lasted {clock(f['endTime'] - f['startTime'])}")
+        raise FactError(f"{rep.label(f)} never got to {clock(window[0])}: {at}" if len(fights) == 1 else
+                        f"none of the {len(fights)} pulls got to {clock(window[0])} before it ended or its wipe was "
+                        "decided (whole_pull for what came after)")
+    return kept, starts, ends, clipped
 
 
 def _filters(data_type: str, p: Player | None) -> dict:
@@ -160,12 +208,13 @@ async def _kicks_text(rep: Report, q: Asked) -> str:
 
 async def _by_pull(rep: Report, q: Asked) -> str:
     lines = [f"{q.head}, by pull:"]
-    per_pull = await _per_pull_tables(rep, q.fights, q.data_type, q.filters, q.ids, q.ends)
+    per_pull = await _per_pull_tables(rep, q.fights, q.data_type, q.filters, q.ids, q.ends, q.starts)
     for f, tables_ in zip(q.fights, per_pull, strict=True):
         rows, tt, _ = _merged_rows(tables_, q.data_type, "ability" if q.player else "player", q.ids != [None])
         rows = _without_moved(rows, q.data_type)[0]
         # WCL's time is cut at the cutoff too
-        d = (tt if q.cutoff and tt else q.ends.get(f["id"], f["endTime"]) - f["startTime"]) / 1000
+        end, start = q.ends.get(f["id"], f["endTime"]), q.starts.get(f["id"], f["startTime"])
+        d = (tt if q.cutoff and tt else end - start) / 1000
         total = (_fmt_value(sum(v for _, v, _ in rows), q.data_type, d, tt)
                  if q.data_type not in ("Buffs", "Debuffs") else "")
         top = ", ".join(f"{n} {_fmt_value(v, q.data_type, d, tt)}" for n, v, _ in rows[:3])
@@ -192,7 +241,7 @@ async def _summed_rows(rep: Report, q: Asked) -> Summed:
     view = {"viewBy": "Ability"} if q.group_by == "ability" and not auras else {}
     if q.ends:  # each pull cut at its own moment: a table per pull, summed
         tables_ = [t for per in await _per_pull_tables(rep, q.fights, q.data_type, {**q.filters, **view}, q.ids,
-                                                         q.ends) for t in per]
+                                                         q.ends, q.starts) for t in per]
     else:
         tables_ = [await rep.table([f["id"] for f in q.fights], q.data_type, **q.filters, **view, **_only(gid))
                    for gid in q.ids]
@@ -209,7 +258,9 @@ async def _summed(rep: Report, q: Asked) -> str:
     s = await _summed_rows(rep, q)
     rows, dur_s, total_time = s.rows, s.dur_s, s.total_time
     total = sum(v for _, v, _ in rows) or 1
-    lines = [f"{q.head}, by {'aura' if auras else q.group_by} ({clock(dur_s * 1000)} of combat):"]
+    summed = (f"; total {short(total)}" + (f", {short(total / dur_s)}/s" if dur_s else "")
+              if q.data_type in ("DamageDone", "Healing", "DamageTaken") and rows else "")
+    lines = [f"{q.head}, by {'aura' if auras else q.group_by} ({clock(dur_s * 1000)} of combat{summed}):"]
     players = {p.name: p for p in rep.players.values()} if q.group_by == "player" else {}
     parsed = False
     for k, (name, value, extra) in enumerate(rows[:25], 1):
@@ -257,10 +308,14 @@ def _only(ability_id: int | None) -> dict:
 
 
 async def _per_pull_tables(rep: Report, fights: list[dict], data_type: str, filters: dict,
-                           ability_ids: list[int | None], ends: dict[int, float]) -> list[list[dict]]:
+                           ability_ids: list[int | None], ends: dict[int, float],
+                           starts: dict[int, float] | None = None) -> list[list[dict]]:
     """Each pull's tables, one per ability id (WCL filters on one id per query, and an ability can have several
-    ids under one name), each pull up to its end in `ends`; the pulls fetched in one query per ability id."""
-    items = [(f["id"], {"endTime": ends[f["id"]]} if f["id"] in ends else {}) for f in fights]
+    ids under one name), each pull from its start in `starts` up to its end in `ends`; the pulls fetched in one
+    query per ability id."""
+    starts = starts or {}
+    items = [(f["id"], ({"startTime": starts[f["id"]]} if f["id"] in starts else {})
+              | ({"endTime": ends[f["id"]]} if f["id"] in ends else {})) for f in fights]
     per_id = [await rep.tables(items, data_type, **filters, **_only(gid)) for gid in ability_ids]
     return [[t[k] for t in per_id] for k in range(len(fights))]
 

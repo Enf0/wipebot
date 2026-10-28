@@ -1497,12 +1497,18 @@ async def breakdown(
         "include what happened after each wipe was decided (the boss's enrage or half the raid dead); "
         + ", ".join(tables.UNTIL_DECIDED_TYPES) + " leave it out by default (but with a cutoff), the other "
         "tables are always whole pulls"))] = False,
+    start: Annotated[str | None, Field(description=(
+        "only from this m:ss of each pull, for " + ", ".join(tables.UNTIL_DECIDED_TYPES)
+        + "; for a moment (\"raid DPS at 2:15\"), with `end` a few seconds either side of it, e.g. 2:10 to "
+        "2:20"))] = None,
+    end: Annotated[str | None, Field(description="only until this m:ss of each pull")] = None,
     report: Report_ = None,
 ) -> str:
     """For "who did the most damage?", "what hurt us most?", "who kicked or dispelled?", "who played well on the
-    kill?".
+    kill?", "what was our raid DPS at 2:15?".
     Damage, healing, damage taken, casts, buffs, debuffs, interrupts and dispels: any Warcraft Logs table over
-    any set of pulls, with totals and per second, grouped by player, ability or pull.
+    any set of pulls, or a window of each (start, end), with totals and per second, grouped by player, ability or
+    pull.
     Buff or debuff uptime is on players; EnemyDebuffs is on enemies (DoTs, a player's with `player`). Interrupts
     and dispels: began, kicked or dispelled and by whom, went through or ran out; per player who kicked what, per
     pull the counts; who was dispelled, by whom (who had a kick ready for a cast that went through: enemies).
@@ -1516,7 +1522,7 @@ async def breakdown(
     (healing), or who had a kick ready for a cast that went through (enemies).
     Example: data_type="DamageTaken", group_by="ability", pulls=[13]."""
     return await tables.breakdown(await lib().report(report), data_type, group_by, pulls, boss, player, ability, cutoff,
-                                  whole_pull)
+                                  whole_pull, start, end)
 
 
 @_tool

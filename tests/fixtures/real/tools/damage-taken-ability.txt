@@ -1,4 +1,4 @@
-DamageTaken on Sszorak pull 13, Tempest only, until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest), by player (2:32 of combat):
+DamageTaken on Sszorak pull 13, Tempest only, until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest), by player (2:32 of combat; total 9.40M, 61.42k/s):
   1. Sveini (Demonology Warlock): 2.98M (19.46k/s), 32% of total, 5 hits and 6 ticks, 270.62k on average
   2. Krøpling (Arcane Mage): 1.48M (9.65k/s), 16% of total, 4 hits and 2 ticks, 245.90k on average
   3. Namsus (Holy Priest): 906.87k (5.93k/s), 10% of total, 2 hits and 2 ticks, 226.72k on average

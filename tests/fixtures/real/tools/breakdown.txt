@@ -1,4 +1,4 @@
-DamageTaken on Sszorak pull 13, each pull until its 3rd death, by ability (1:28 of combat):
+DamageTaken on Sszorak pull 13, each pull until its 3rd death, by ability (1:28 of combat; total 161.69M, 1.83M/s):
   1. Ula'tek's Presence: 46.22M (522.83k/s), 29% of total, 842 hits, 54.89k on average; most on Cptola 2.77M, Attractîv 2.69M, Peggerino 2.68M, Sinnatony 2.62M
   2. Mutilated Gash: 45.17M (510.93k/s), 28% of total, 732 hits, 61.71k on average; most on Cptola 3.50M, Sonyosh 3.23M, Enfo 3.21M, Sinnatony 3.16M
   3. Virulence: 17.87M (202.17k/s), 11% of total, 202 hits, 88.48k on average; most on Enfo 1.87M, Namsus 1.76M, Cptola 985.10k, Peggerino 981.98k

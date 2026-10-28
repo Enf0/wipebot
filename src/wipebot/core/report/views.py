@@ -490,7 +490,7 @@ async def meters_of(rep: Report, tool: str, args: dict) -> list[Meter]:
     match tool:
         case "breakdown" if a.get("group_by", "player") == "player" and not a.get("player"):
             found = await tables.meter(rep, a.get("data_type", ""), a.get("pulls"), a.get("boss"), a.get("ability"),
-                                       a.get("cutoff"), bool(a.get("whole_pull")))
+                                       a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"), a.get("end"))
             return [found] if found else []
         case "mechanic_hits" if a.get("ability"):
             found = await mechanics.meter(rep, a["ability"], a.get("pull"), a.get("boss"), bool(a.get("all_pulls")),

@@ -69,3 +69,29 @@ async def test_an_ability_given_by_id_matches_interrupts_by_its_name(rep, patch_
     text = await tables.breakdown(rep, "Interrupts", pulls=[13], ability="990001")
     assert "Visceral Burst only" in text and "Visceral Burst: 3 began, 2 kicked, 1 went through" in text
     assert "Other" not in text
+
+
+async def test_a_window_asks_each_pull_from_its_start_to_its_end_or_where_the_wipe_was_decided(rep, patch_wcl):
+    """start and end are m:ss of each pull: a pull's table is asked over that window, cut where its wipe was decided
+    when that came first (and said so); the totals are per second of the window. A pull that never got to the window
+    is left out, and a window no pull got to is an error saying why."""
+    asked = []
+
+    def table(code, fight_ids, data_type, **filters):
+        asked.append(filters)
+        return {"entries": [{"name": "Enfo", "total": 5000}, {"name": "Scopidruid", "total": 3000}]}
+    patch_wcl(rep, table=table)
+    f = rep.fight(13)
+    decided = (await rep.decided_cuts([f]))[f["id"]] - f["startTime"]
+    text = await tables.breakdown(rep, "DamageDone", pulls=[13], start="0:10", end="0:20")
+    assert asked == [{"startTime": f["startTime"] + 10_000, "endTime": f["startTime"] + 20_000}]
+    assert "0:10-0:20, by player (0:10 of combat; total 8.00k, 800/s)" in text and "decided" not in text
+    asked.clear()
+    lo = decided - 5_000
+    text = await tables.breakdown(rep, "DamageDone", pulls=[13], start=str(lo / 1000), end=str(lo / 1000 + 60))
+    assert asked == [{"startTime": f["startTime"] + lo, "endTime": f["startTime"] + decided}]
+    assert "when the wipe was decided" in text and "(0:05 of combat" in text
+    with pytest.raises(FactError, match="never got to .*: its wipe was decided at"):
+        await tables.breakdown(rep, "DamageDone", pulls=[13], start=str(decided / 1000 + 1))
+    with pytest.raises(FactError, match="start and end work for DamageDone"):
+        await tables.breakdown(rep, "Buffs", pulls=[13], start="0:10")

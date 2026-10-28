@@ -1,4 +1,4 @@
-DamageTaken on Sszorak pull 13, until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest), by ability (2:32 of combat):
+DamageTaken on Sszorak pull 13, until 2:32, when the wipe was decided (the boss gained Unbound Ferocity; whole_pull for the rest), by ability (2:32 of combat; total 264.78M, 1.73M/s):
   1. Ula'tek's Presence: 77.03M (503.59k/s), 29% of total, 1353 hits, 56.93k on average; most on Cptola 4.91M, Peggerino 4.80M, Sinnatony 4.72M, Sveini 4.67M
   2. Mutilated Gash: 59.07M (386.18k/s), 22% of total, 889 hits, 66.45k on average; most on Peggerino 4.90M, Pomaa 4.50M, Sveini 4.44M, Krøpling 4.34M
   3. Viscous Cyst: 34.55M (225.88k/s), 13% of total, 64 hits and 320 ticks, 89.98k on average; most on Peggerino 2.44M, Sveini 2.43M, Sinnatony 2.32M, Cptola 2.31M

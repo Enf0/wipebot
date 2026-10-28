@@ -31,7 +31,7 @@ from ..pulls import (
     summarize,
     wipe_pct,
 )
-from ..text import clock, fight_url, name_key, plural, ranges
+from ..text import clock, fight_url, name_key, parse_clock, plural, ranges
 from ..wcl import WCL, Unreadable, WCLError, boss_ids
 from .fetch import Fetched
 
@@ -124,6 +124,16 @@ PullRef = int | str | None
 
 class FactError(ValueError):
     """A bad tool argument (unknown player, pull out of range); the message is shown to the model."""
+
+
+def pull_window(start: str | None, end: str | None) -> tuple[float, float] | None:
+    """A tool's `start` and `end` (m:ss): (from, to) in ms from each pull's start, or None for the whole pull."""
+    if start is None and end is None:
+        return None
+    lo, hi = parse_clock(start) if start else 0.0, parse_clock(end) if end else math.inf
+    if lo is None or hi is None or lo > hi:
+        raise FactError(f"start and end are m:ss from the pull's start, the start first (got {start!r}, {end!r})")
+    return lo, hi
 
 
 class PullNotLogged(FactError):
