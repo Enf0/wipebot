@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Discord` **Ask right after a wipe.** A question now reads the live log again as it comes in, so it sees a pull as soon as Warcraft Logs has it (about 5 to 10 seconds after the pull ends), instead of sometimes missing it for up to 30 seconds more when someone else had just asked.
+
 ## [0.30.0] - 2026-10-28
 
 ### Changed

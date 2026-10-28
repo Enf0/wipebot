@@ -637,7 +637,8 @@ class Session:
         assert self._client, "use 'async with Session(...)'"
         asked = time.monotonic()
         if self.code:
-            self.report = await self.library.report(self.code)  # picks up new pulls of a live report
+            # read again for every question, so a pull that just ended is in it: the tools then reuse this read
+            self.report = await self.library.report(self.code, max_age_s=0)
         ran = [await self._prefetched(name, args, ctx.tokens()) for name, args in ctx.prefetch]
         question += "".join(prompt.PREFETCHED.format(tool=c.name, result=c.result) for c in ran if not c.failed)
         report = self.report
