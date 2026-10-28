@@ -257,8 +257,9 @@ class Painter:
 
     async def pictures(self, tool: str, args: dict) -> list[bytes]:
         """The view of the tool's answer to `args` (as the tool was called: report, pull, boss): one picture, or one
-        per panel for a view drawn in panels (its [data-panel] parts, the player's night); none for a tool without a
-        view. Raises what went wrong: a view that didn't draw, or drew with errors."""
+        per panel for a view drawn in panels (its [data-panel] parts, the player's night), each a Panel named as its
+        part is (data-panel="callouts"); none for a tool without a view. Raises what went wrong: a view that didn't
+        draw, or drew with errors."""
         key = await server.view_key(tool, args)
         if key is None:
             return []
@@ -278,11 +279,12 @@ class Painter:
             if errors:
                 raise RuntimeError("; ".join(errors))
             panels = page.frames[-1].locator("[data-panel]")
-            shots = ([await panels.nth(i).screenshot(type="png") for i in range(await panels.count())]
-                     or [await page.locator("iframe").screenshot(type="png")])
+            shots = ([(await panels.nth(i).get_attribute("data-panel") or "",
+                       await panels.nth(i).screenshot(type="png")) for i in range(await panels.count())]
+                     or [("", await page.locator("iframe").screenshot(type="png"))])
         finally:
             await context.close()
-        return [await asyncio.to_thread(_webp, png) for png in shots]
+        return [Panel(await asyncio.to_thread(_webp, png), name) for name, png in shots]
 
     async def close(self) -> None:
         if self._browser is not None:
@@ -290,6 +292,16 @@ class Painter:
         if self._pw is not None:
             await self._pw.stop()
         self._browser = self._pw = None
+
+
+class Panel(bytes):
+    """A view's picture, with the name of the panel it is (its data-panel), "" for a view drawn whole."""
+    name: str
+
+    def __new__(cls, data: bytes, name: str = "") -> Panel:
+        self = super().__new__(cls, data)
+        self.name = name
+        return self
 
 
 def _webp(png: bytes) -> bytes:

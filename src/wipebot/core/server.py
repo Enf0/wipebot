@@ -1129,11 +1129,12 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     other callout ("Big Personals" to everyone, a job for one player) with what the players it names pressed
     around it and what they had ready.
     Reading it: a callout's tracked spells carry Lorrgs' tags (defensive, raid_cd, tank, move, dps, untagged);
-    which answer the callout is in its words ("personals": their defensives, a tank's tank cooldowns, untagged
-    ones such as Anti-Magic Shell when they are one). Spreads are listed, not checked: raid_plan checks positions.
+    which answer the callout is in its words. One asking for personals or defensives counts only a defensive or a
+    tank cooldown as pressed, and says what else those who pressed none pressed (untagged ones may be a defensive
+    Lorrgs doesn't tag, such as Anti-Magic Shell). Spreads are listed, not checked: raid_plan checks positions.
     With all_pulls, one call checks every pull on the boss (each against the note saved before it began) and counts
     per player: soaks of their group missed while alive, each planned cooldown on time, early, late or not cast,
-    kicks made and missed, and per callout how often they pressed something and what was ready when they didn't;
+    kicks made and missed, and per callout how often they pressed what answers it and what was ready when they didn't;
     a night's question needs no call per pull. Asked about a boss the report has no pull on, or with `upcoming`,
     it gives the newest note saved for it, as it is: a pull is checked against the note of its own night."""
     rep, source = await lib().report(report), ""

@@ -293,6 +293,18 @@ async def test_the_note_view_states_the_planned_cooldowns_raid_note_states(recor
         int(n) for _, rest in totals for n in re.findall(r"\b(?:early|late) (\d+)", rest))
 
 
+async def test_the_note_view_counts_the_callouts_raid_note_counts(recorded):
+    data, (text, _) = await note_data("raid-note-night"), await server.call("raid_note", CASES["raid-note-night"].args)
+    c = data["callouts"]
+    [personals] = [g for g in c["callouts"] if g["text"] == "Big Personals"]
+    assert personals["personals"] and personals["to"] == "everyone"
+    block = text.split('"Big Personals" to everyone', 1)[1].split("\n  \"", 1)[0]
+    counts = {n: (int(a), int(m))
+              for n, a, m in re.findall(r"^    (\S+): alive for (\d+); pressed at (\d+)", block, re.MULTILINE)}
+    assert counts and {r["player"]: (r["alive"], r["made"]) for r in personals["rows"]} == counts
+    assert any(s == "other" for r in personals["rows"] for p in r["cells"] for s in p)
+
+
 @pytest.mark.parametrize("case", ["raid-note", "raid-note-kicks"])
 async def test_one_pulls_note_check_has_no_view(recorded, case):
     assert await server.view_key(CASES[case].tool, CASES[case].args) is None
@@ -489,6 +501,23 @@ async def test_the_painter_draws_the_pull_view_as_a_picture_for_the_bot(recorded
     img = Image.open(io.BytesIO(drawn))
     assert img.format == "WEBP" and img.width == viewhost.PICTURE_WIDTH * viewhost.PICTURE_SCALE
     assert 300 < img.height < 1000 and len(drawn) < 200_000  # the card alone, without its buttons
+
+
+async def test_the_painter_names_each_panel_so_an_answer_can_post_the_one_its_about(recorded):
+    pytest.importorskip("playwright")
+    from playwright.async_api import Error
+
+    from wipebot.core import viewhost
+    painter = viewhost.Painter()
+    try:
+        drawn = await painter.pictures("raid_note", CASES["raid-note-night"].args)
+    except Error as e:
+        if "Executable doesn't exist" in str(e):
+            pytest.skip("needs Playwright's Chromium (just browser)")
+        raise
+    finally:
+        await painter.close()
+    assert [getattr(d, "name", None) for d in drawn] == ["cooldowns", "callouts"]
 
 
 # ---- the player view: real data reads rankings and other guilds' parses (local only); the page draws made-up data ----

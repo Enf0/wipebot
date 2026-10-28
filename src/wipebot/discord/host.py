@@ -130,8 +130,9 @@ FOLLOW_UP_CHARS = 80  # Discord's limit for a button's label, which is the quest
 
 # Where a picture goes in the answer ("[picture: player_night]"): the bot shows that tool's picture there, next to
 # the part it backs, instead of under the whole answer. Asked for on a line of its own; one written as a bullet, in
-# backticks or at the end of a line counts too, and its picture goes after that line.
-PICTURE_MARK = re.compile(r"\[\s*picture\s*:\s*`?([a-z_]+)`?\s*\]", re.I)
+# backticks or at the end of a line counts too, and its picture goes after that line. A view drawn in panels may be
+# narrowed to one ("[picture: raid_note callouts]", its data-panel): only that one is posted.
+PICTURE_MARK = re.compile(r"\[\s*picture\s*:\s*`?([a-z_]+(?:[ \t]+[a-z_]+)?)`?\s*\]", re.I)
 _BARE = re.compile(r"[\s>*_`-]*(?:\d+[.)])?[\s*_`-]*")  # what's left of a line that held only marks: its bullet
 NO_ANSWER = "(no answer)"  # an answer with no text at all: a post after a pull that nothing called for
 NO_PICTURE = "none"  # "[picture: none]": the answer goes without the pictures its tools drew
@@ -150,19 +151,25 @@ def picture_marks(text: str) -> str:
         rest = PICTURE_MARK.sub("", line).rstrip()
         if not _BARE.fullmatch(rest):
             lines.append(rest)
-        lines += [f"{_PLACED}{t.lower()}{_PLACED}" for t in tools]
+        lines += [f"{_PLACED}{':'.join(t.lower().split())}{_PLACED}" for t in tools]
     return "\n".join(lines)
 
 
 def placed(text: str) -> tuple[str, list[tuple[int, str]]]:
-    """The polished answer without its picture tokens, and where each was: (offset in the text, tool)."""
+    """The polished answer without its picture tokens, and where each was: (offset in the text, tool or
+    "tool:panel")."""
     marks, out, at = [], [], 0
-    for m in re.finditer(rf"{_PLACED}([a-z_]+){_PLACED}\n?", text):
+    for m in re.finditer(rf"{_PLACED}([a-z_:]+){_PLACED}\n?", text):
         out.append(text[at:m.start()])
         marks.append((sum(map(len, out)), m[1]))
         at = m.end()
     out.append(text[at:])
     return "".join(out).rstrip(), marks
+
+
+def _tool(mark: str) -> str:
+    """The tool a picture mark names ("raid_note:callouts" -> raid_note)."""
+    return mark.partition(":")[0]
 
 
 SHORT_ANSWER = 3  # bullets an answer may have and still keep its picture under it all
@@ -387,7 +394,7 @@ class Answer:
     # read ("read:examples.md"), in order
     loaded: list[str] = field(default_factory=list)
     follow_ups: list[str] = field(default_factory=list)  # what the answer offers next, as buttons in Discord
-    marks: list[tuple[int, str]] = field(default_factory=list)  # where a tool's picture goes: (offset, tool)
+    marks: list[tuple[int, str]] = field(default_factory=list)  # where a tool's picture goes: (offset, tool[:panel])
     unpictured: bool = False  # the answer said "[picture: none]": what was drawn isn't what it's about
     footer: str = ""  # the small cost line under it, in Discord (WipeBot._with_footer)
 
@@ -397,7 +404,8 @@ class Answer:
         evals' judge."""
         text = self.text
         for at, name in sorted(self.marks, reverse=True):
-            text = f"{text[:at].rstrip(chr(10))}\n[picture: {name}]\n{text[at:].lstrip(chr(10))}".strip("\n")
+            mark = name.replace(":", " ")
+            text = f"{text[:at].rstrip(chr(10))}\n[picture: {mark}]\n{text[at:].lstrip(chr(10))}".strip("\n")
         if self.unpictured:
             text += f"\n[picture: {NO_PICTURE}]"
         return text + "".join(f"\nFollow-up: {q}" for q in self.follow_ups)
@@ -421,14 +429,18 @@ class Answer:
         if self.unpictured:
             return []
         drawn = [c for c in self.calls if not c.failed and c.images]
-        marked = {tool for _, tool in self.marks}  # a view the answer placed comes before the first drawn
+        marked = {_tool(m) for _, m in self.marks}  # a view the answer placed comes before the first drawn
         view = next((c for c in drawn if c.name in server.VIEW_TOOLS and c.name in marked), None) \
             or next((c for c in drawn if c.name in server.VIEW_TOOLS), None)
-        return [(i, c) for c in drawn if c is view or c.name not in server.VIEW_TOOLS for i in c.images][-MAX_IMAGES:]
+        out = [(i, c) for c in drawn if c is view or c.name not in server.VIEW_TOOLS for i in c.images]
+        named = {m.partition(":")[2] for _, m in self.marks if view and _tool(m) == view.name} - {""}
+        if any(getattr(i, "name", "") in named for i, c in out if c is view):  # the panel the answer is about
+            out = [(i, c) for i, c in out if c is not view or getattr(i, "name", "") in named]
+        return out[-MAX_IMAGES:]
 
     def place(self, call: ToolCall) -> int | None:
         """Where in the text the call's picture goes (an offset), when the answer placed it; None: under it all."""
-        return next((at for at, tool in self.marks if tool == call.name), None)
+        return next((at for at, m in self.marks if _tool(m) == call.name), None)
 
     @property
     def images(self) -> list[bytes]:

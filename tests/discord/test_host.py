@@ -544,6 +544,20 @@ def test_a_picture_mark_written_as_a_bullet_or_after_text_still_places_it():
                            "- Twin Fangs: never died.\nFollow-up: Klar for P2?")  # the record shows where it went
 
 
+def test_a_mark_naming_a_panel_posts_only_that_panel_of_the_view():
+    from wipebot.core.viewhost import Panel
+    text = "**Not really: 3 of 20 pressed a defensive.**\n[picture: raid_note callouts]\n- Karadim: 0 of 5."
+    shown, marks = host.placed(host.picture_marks(text))
+    assert marks == [(len("**Not really: 3 of 20 pressed a defensive.**\n"), "raid_note:callouts")]
+    panels: list[bytes] = [Panel(b"1", "kicks"), Panel(b"2", "cooldowns"), Panel(b"3", "callouts")]
+    note = ToolCall("raid_note", {}, "", False, panels)
+    answer = Answer(shown, marks=marks, calls=[note])
+    assert answer.images == [b"3"] and answer.place(note) == marks[0][0]
+    assert "[picture: raid_note callouts]" in answer.full
+    assert Answer(shown, marks=[(0, "raid_note:soaks")], calls=[note]).images == [b"1", b"2", b"3"]  # none drawn
+    assert Answer(shown, marks=[(0, "raid_note")], calls=[note]).images == [b"1", b"2", b"3"]
+
+
 def test_a_long_answer_that_leaves_its_picture_unplaced_gets_it_after_the_headline():
     long = "**Solid night.**\n- one\n- two\n- three\n1. four"
     assert host.placed_by_default(long, [], "player_night") == [(len("**Solid night.**"), "player_night")]

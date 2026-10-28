@@ -1,7 +1,9 @@
 // ---- the raid note against every pull on a boss (raid_note with all_pulls): the kick assignments as a grid, pulls
 // down and the note's assignments across, a square per cast in each cell (kicked, covered by another, went through,
 // its player dead), the cast that went through first on a pull its wipe followed ringed; under it, whose cast that
-// was, counted. Then each planned cooldown pull by pull. A panel (data-panel) each, each its own picture in Discord.
+// was, counted. Then each planned cooldown pull by pull, and each callout's players pull by pull (pressed what answers
+// it, only something else, none). A panel (data-panel) each, each its own picture in Discord, named so an answer
+// can pick the one it's about.
 // For a boss not pulled yet or the next raid (raid_note's upcoming), the note as it is: each player's jobs and, on the
 // fight's timeline, their planned cooldowns and the callouts to them ----
 views.note = (() => {
@@ -17,7 +19,10 @@ views.note = (() => {
     "not cast": ["var(--dead)", "not cast"], dead: ["var(--muted)", "dead by then"], absent: ["var(--line)", "not in the pull"],
   };
 
+  const FEW = 3;  // a planned cooldown, kick assignment or callout fewer pulls than this reached isn't drawn (views.NOTE_FEW)
+  const MIN_W = 520;  // .note-board .grid svg's min-width
   const NEAR_S = 3, NEAR = "color-mix(in srgb, var(--gold) 45%, var(--bg))";  // a cooldown off by 1-3 s: paler
+  const NEAR_GREEN = "color-mix(in srgb, var(--green) 45%, var(--bg))";
 
   async function show(into, key) {
     root = into;
@@ -32,8 +37,10 @@ views.note = (() => {
 
   function kicks(K) {
     const waves = Math.max(1, ...K.pulls.flatMap((p) => p.cells.map((c) => c.length)));
-    const colW = Math.max(waves * (SQ + GAP) + 8, 62), left = 34, top = 34;
-    const w = left + K.slots.length * colW + 16, h = top + K.pulls.length * ROW + 4;
+    const label = Math.max(...K.slots.map((s) => Math.max(kit.width(s.text.replace(/^Kick\s*/i, ""), 9.5), kit.width(s.player, 10.5))));
+    const colW = Math.max(waves * (SQ + GAP) + 8, 62, label + 10), left = 34, top = 34;
+    // at least the grid's least width (page.css), so a note with one or two assignments isn't drawn blown up
+    const w = Math.max(MIN_W, left + K.slots.length * colW + 16), h = top + K.pulls.length * ROW + 4;
     let body = "";
     K.slots.forEach((s, j) => {
       const x = left + j * colW + 2;
@@ -73,10 +80,10 @@ views.note = (() => {
       + "</ol>" : "";
     const keys = legend([[KICK.kicked[0], "kicked"], [KICK.covered[0], "covered by another"], [KICK.through[0], "went through"],
                          [KICK.through[0], "first through, the wipe followed", true], [KICK.dead[0], "their player dead"]]);
-    return `<section data-panel class="note-board">${head}${stats}<div class="grid">${kit.svg(w, h, body, "Kick assignments by pull")}</div>${keys}${first}</section>`;
+    const fewer = K.fewer ? `<div class="note">${K.fewer} more, which fewer than ${FEW} pulls reached, aren't drawn.</div>` : "";
+    return `<section data-panel="kicks" class="note-board">${head}${stats}<div class="grid">${kit.svg(w, h, body, "Kick assignments by pull")}</div>${keys}${fewer}${first}</section>`;
   }
 
-  const FEW = 3;  // a planned cooldown fewer pulls than this reached is counted under the grid, not drawn
 
   function cooldowns(C0) {
     const reached = (r) => C0.pulls.filter((p) => p.cells[r]).length;
@@ -109,9 +116,54 @@ views.note = (() => {
     const head = `<div class="head"><h1>Planned cooldowns</h1><span class="sub">${kit.esc(D.boss)} · each pull until its wipe was decided</span></div>`;
     const keys = legend([[COOLDOWN["on time"][0], "on time (within 1 s)"], [NEAR, `early or late by ${NEAR_S} s at most`], [COOLDOWN.late[0], "more"],
                          [COOLDOWN["not cast"][0], "not cast, alive"], [COOLDOWN.dead[0], "dead by then"]]);
-    return `<section data-panel class="note-board">${head}<div class="grid">${kit.svg(w, h, body, "Planned cooldowns by pull")}</div>${keys}`
+    return `<section data-panel="cooldowns" class="note-board">${head}<div class="grid">${kit.svg(w, h, body, "Planned cooldowns by pull")}</div>${keys}`
       + `<div class="note">Right: on time, of the pulls that reached it before the wipe was decided.`
       + (fewer ? ` ${fewer} more planned later, which fewer than ${FEW} pulls reached, aren't drawn.` : "") + "</div></section>";
+  }
+
+  const CALLOUT = {  // a player at a pull's callouts: their fill, and the word in the legend
+    answered: ["var(--green)", "pressed what answers it"], some: [NEAR_GREEN, "at some of them"],
+    other: ["var(--gold)", "only something else"], none: ["var(--dead)", "pressed none"], dead: ["var(--muted)", "dead"],
+  };
+  // A player's square on a pull, where the callout may come more than once: answered every time it found them alive,
+  // some of the times, never but pressed something else, never, or dead for all of them
+  function pullState(cell) {
+    const alive = cell.filter((s) => s !== "dead"), made = alive.filter((s) => s === "answered").length;
+    if (!alive.length) return "dead";
+    if (made) return made === alive.length ? "answered" : "some";
+    return alive.includes("other") ? "other" : "none";
+  }
+
+  function callouts(C) {
+    const labelW = 130, top = 26, head = 20, colW = Math.max(SQ + 3, Math.min(16, 540 / C.pulls.length)), right = 56;
+    const w = Math.max(MIN_W, labelW + C.pulls.length * colW + right);
+    const h = top + C.callouts.reduce((a, g) => a + head + g.rows.length * ROW + 6, 0);
+    let body = "", y = top;
+    C.pulls.forEach((p, i) => { if (p === C.pulls[0] || p % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p), "tm", 'font-size="9.5" text-anchor="middle"'); });
+    for (const g of C.callouts) {
+      const asks = g.personals ? " · a defensive answers it" : "";
+      body += `<text x="0" y="${y + 11}" class="t" font-size="10.5" font-weight="600">${kit.esc(`"${g.text}"`)}<tspan class="tm" font-weight="400" dx="6">${kit.esc(`to ${g.to} at ${g.times.join(", ")}${asks}`)}</tspan></text>`;
+      y += head;
+      for (const r of g.rows) {
+        body += `<text x="0" y="${y + SQ - 0.5}" font-size="10.5" font-weight="600" class="cls" style="--c:${kit.esc(r.color)}">${kit.esc(r.player)}</text>`;
+        r.cells.forEach((cell, i) => {
+          if (!cell.length) return;
+          const alive = cell.filter((s) => s !== "dead"), made = alive.filter((s) => s === "answered").length;
+          body += square(labelW + i * colW, y, CALLOUT[pullState(cell)][0],
+                         `Pull ${C.pulls[i]}, "${g.text}": ${r.player} ` + (alive.length ? `pressed what answers it at ${made} of ${alive.length}` : "dead"));
+        });
+        body += kit.text(w - 4, y + SQ - 0.5, `${r.made} of ${r.alive}`, "tm", 'font-size="10" text-anchor="end"');
+        y += ROW;
+      }
+      y += 6;
+    }
+    const personals = C.callouts.some((g) => g.personals);
+    const states = new Set(C.callouts.flatMap((g) => g.rows.flatMap((r) => r.cells.filter((c) => c.length).map(pullState))));
+    const hd = `<div class="head"><h1>Callouts</h1><span class="sub">${kit.esc(D.boss)} · ${C.pulls.length} pulls</span></div>`;
+    const keys = legend(Object.entries(CALLOUT).filter(([s]) => s === "answered" || s === "none" || states.has(s))
+      .map(([s, [fill, word]]) => [fill, s === "answered" && !personals ? "pressed something" : word]));
+    return `<section data-panel="callouts" class="note-board">${hd}<div class="grid">${kit.svg(w, h, body, "Callouts by pull")}</div>${keys}`
+      + `<div class="note">What each player pressed from 3 s before to 5 s after the callout. Right: times they pressed what answers it, of the times they were alive.</div></section>`;
   }
 
   const KIND = ["var(--blue)", "#c084fc", "#2dd4bf", "#f472b6", "#fb923c"];  // a kind of callout (its first word)
@@ -202,8 +254,8 @@ views.note = (() => {
   function render() {
     if (!D || !root) return;
     if (D.plan) { root.innerHTML = plan(D.plan); return; }
-    const parts = [D.kicks && kicks(D.kicks), D.cooldowns && cooldowns(D.cooldowns)].filter(Boolean);
-    root.innerHTML = parts.join("") || '<div class="note">The note has no kick assignments or planned cooldowns for this boss.</div>';
+    const parts = [D.kicks && kicks(D.kicks), D.cooldowns && cooldowns(D.cooldowns), D.callouts && callouts(D.callouts)].filter(Boolean);
+    root.innerHTML = parts.join("") || '<div class="note">The note has no kick assignments, planned cooldowns or callouts for this boss.</div>';
   }
 
   return { show, relayout: render };

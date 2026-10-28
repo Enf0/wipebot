@@ -26,6 +26,11 @@ MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it
 BURST_MS = 2_000  # hits of an ability this close together are one hit of it (one soak)
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
 EVERYONE = "everyone"
+# A callout whose words ask for personal defensives ("Personals", "Big defs") is answered only by one: a spell Lorrgs
+# tags defensive, or a tank's tank cooldown. Any other callout is answered by any spell pressed.
+PERSONALS = re.compile(r"\b(?:personals?|defensives?|defs?)\b", re.I)
+PERSONAL_TAGS = frozenset({"defensive", "tank"})
+PERSONALS_ARE = "a defensive or tank cooldown"
 # A callout to one player this close to an add beginning a cast someone kicked on the boss tonight is a kick
 # assignment, and its cast is one begun this close to it: which side's add begins first varies from wave to wave, so
 # a note timed for one side is a second off for the other.
@@ -195,9 +200,20 @@ class CalloutCheck:
     at: float
     callout: Callout
     in_pull: bool  # a callout to players: whether any of them was in the pull
-    pressed: list[tuple[str, list[tuple[float, dict]]]]  # (player, [(ms, spell)])
-    idle: list[tuple[str, list[dict]]]  # (player who pressed none, the spells they had ready)
+    pressed: list[tuple[str, list[tuple[float, dict]]]]  # (player who answered it, [(ms, spell)])
+    idle: list[tuple[str, list[dict]]]  # (player who didn't, the spells they had ready)
     dead: list[str]
+    others: dict[str, list[tuple[float, dict]]] = field(default_factory=dict)  # of the idle, what they pressed instead
+
+    @property
+    def personals(self) -> bool:
+        """Whether its words ask for personal defensives, which only those answer (`answers`)."""
+        return bool(PERSONALS.search(self.callout.text))
+
+
+def answers(callout: Callout, sp: dict) -> bool:
+    """Whether pressing the spell answers the callout: a defensive for one asking for personals, else any."""
+    return not PERSONALS.search(callout.text) or bool(PERSONAL_TAGS & set(_tags(sp)))
 
 
 @dataclass
@@ -395,8 +411,9 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
         lines.append(f"Callouts to one player or to everyone, with what each player it names pressed from "
                      f"{CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it (the spells Lorrgs "
                      "tracks for their spec, with its tags: defensive, raid_cd, tank, move, dps or untagged; which of "
-                     "them answer a callout is in its words), and for those who pressed none, which were ready "
-                     "(cooldowns from Lorrgs, ignoring charges and cooldown reduction):")
+                     f"them answer a callout is in its words: one asking for personals, only {PERSONALS_ARE}), and "
+                     "for those who pressed none that answers it, which were ready (cooldowns from Lorrgs, ignoring "
+                     "charges and cooldown reduction):")
     for k in c.callouts:
         line = f"  {clock(k.at)} {' '.join(k.callout.players) or 'everyone'}: \"{k.callout.text}\""
         if not k.in_pull:
@@ -407,14 +424,19 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
             continue
         by_tag = Counter(tag for _, mine in k.pressed for tag in {t for _, sp in mine for t in _tags(sp)})
         tags = ", ".join(f"{tag} {n}" for tag, n in _by_count(by_tag))
-        lines.append(line + f": {len(k.pressed) + len(k.idle)} alive; players who pressed a spell tagged "
-                     f"{tags or 'nothing'}; pressed none {len(k.idle)}")
+        asked = f" ({PERSONALS_ARE})" if k.personals else ""
+        lines.append(line + f": {len(k.pressed) + len(k.idle)} alive; "
+                     + (f"pressed one{asked} {len(k.pressed)}, " if k.personals else "")
+                     + f"players who pressed a spell tagged {tags or 'nothing'}; pressed none{asked} {len(k.idle)}"
+                     + (f", of them {len(k.others)} only others" if k.others else ""))
         if k.pressed:
             lines.append("    pressed: " + "; ".join(
                 f"{n} " + ", ".join(f"{_spell(sp)} {clock(t)}" for t, sp in mine) for n, mine in k.pressed))
         if k.idle:
-            lines.append("    pressed none: " + "; ".join(
-                f"{n} (ready: {', '.join(_spell(sp) for sp in ready) or 'none of them'})" for n, ready in k.idle))
+            lines.append(f"    pressed none{asked}: " + "; ".join(
+                f"{n} (" + (f"pressed only {', '.join(f'{_spell(sp)} {clock(t)}' for t, sp in k.others[n])}; "
+                            if n in k.others else "")
+                + f"ready: {', '.join(_spell(sp) for sp in ready) or 'none of them'})" for n, ready in k.idle))
         if k.dead:
             lines.append("    dead: " + ", ".join(k.dead))
     if c.kicks:
@@ -574,7 +596,8 @@ async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player]
     """Each callout that isn't a soak group's (a job for one player, a call to everyone such as "Big Personals"),
     up to `until`, with what the players it names pressed around it: their casts of the spells Lorrgs tracks for
     their spec, with the spell's tags, and for those who pressed none, which were off cooldown. What a callout
-    asks for is in its words; which spells answer it is for the reader to judge from the tags. Kick assignments
+    asks for is in its words: one asking for personals is answered only by a defensive (`answers`); for any other,
+    which spells answer it is for the reader to judge from the tags. Kick assignments
     (`kicks`, the callouts' ids) are checked by `_kicks`."""
     soak = {frozenset(ns) for gs in _soak_sections(note).values() for ns in gs.values()}
     calls = sorted(((at, c) for c in note.callouts if frozenset(c.players) not in soak and id(c) not in kicks
@@ -603,9 +626,11 @@ async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player]
                 check.dead.append(q.name)
                 continue
             mine = [(t, sp) for t, sp in pressed_at[q.id] if at - CALL_BEFORE_MS <= t <= at + CALL_AFTER_MS]
-            if mine:
+            if any(answers(c, sp) for _, sp in mine):
                 check.pressed.append((q.name, mine))
                 continue
+            if mine:
+                check.others[q.name] = mine
             check.idle.append((q.name, [sp for sp in kits[q.id] if sp.get("cooldown") and not any(
                 sp is used and at - sp["cooldown"] * 1000 < t <= at for t, used in pressed_at[q.id])]))
         out.append(check)
@@ -900,21 +925,25 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
     out = [f"Callouts to one player or to everyone over the pulls, per callout and per player it names, most often "
            f"pressing none first: how many of the callouts they were alive for, at how many they pressed a spell "
            f"Lorrgs tracks for their spec from {CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after "
-           "it (callouts by the tag of what they pressed: defensive, raid_cd, tank, move, dps or untagged; which "
-           "answer a callout is in its words), and the ones they pressed none at, with the tags of what was ready "
-           "then (callouts with a spell of that tag ready):"]
+           "it that answers it (callouts by the tag of what they pressed: defensive, raid_cd, tank, move, dps or "
+           f"untagged; which answer a callout is in its words: one asking for personals, only {PERSONALS_ARE}), and "
+           "the ones they pressed none at, with the tags of what was ready then (callouts with a spell of that tag "
+           "ready) and, for personals, of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such "
+           "as Anti-Magic Shell, may be one):"]
     groups: dict[tuple[str, tuple[str, ...]], list[tuple[PullCheck, CalloutCheck]]] = defaultdict(list)
     for c, k in calls:
         groups[(k.callout.text, k.callout.players)].append((c, k))
     for (text, named), rows in groups.items():
         times = sorted({clock(k.at) for _, k in rows})
+        asked = f"; answered by {PERSONALS_ARE}" if rows[0][1].personals else ""
         out.append(f"  \"{text}\" to {' '.join(named) or 'everyone'} ({plural(len(rows), 'callout')} over "
-                   f"{plural(len({id(c) for c, _ in rows}), 'pull')}, at {', '.join(times)}):")
+                   f"{plural(len({id(c) for c, _ in rows}), 'pull')}, at {', '.join(times)}{asked}):")
         alive: Counter = Counter()
         pressed: dict[str, Counter] = defaultdict(Counter)
         pressed_n: Counter = Counter()
         none: dict[str, list[tuple[dict, float]]] = defaultdict(list)
         ready: dict[str, Counter] = defaultdict(Counter)
+        instead: dict[str, Counter] = defaultdict(Counter)
         for c, k in rows:
             for n, mine in k.pressed:
                 alive[n] += 1
@@ -924,6 +953,9 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
                 alive[n] += 1
                 none[n].append((c.f, k.at))
                 ready[n].update({t for sp in spells for t in _tags(sp)})
+                if n in k.others:
+                    instead[n][None] += 1
+                    instead[n].update({t for _, sp in k.others[n] for t in _tags(sp)})
         for n in sorted(alive, key=lambda n: (-len(none[n]), n)):
             line = f"    {n}: alive for {alive[n]}; pressed at {pressed_n[n]}"
             if pressed[n]:
@@ -932,6 +964,9 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
                 line += f"; none at {len(none[n])}: {_pulls(rep, none[n])}"
                 if ready[n]:
                     line += " (ready: " + ", ".join(f"{t} {k}" for t, k in _by_count(ready[n])) + ")"
+            if only := instead[n].pop(None, 0):
+                line += f"; of those, pressed only others at {only} (" + ", ".join(
+                    f"{t} {k}" for t, k in _by_count(instead[n])) + ")"
             out.append(line)
     return out
 

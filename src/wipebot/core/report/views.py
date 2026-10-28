@@ -530,11 +530,15 @@ async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
     }
 
 
+NOTE_FEW = 3  # a kick assignment or callout fewer pulls than this reached isn't drawn (nor, in the view, a cooldown)
+
+
 async def note_view(rep: Report, text: str, boss: str | None) -> dict:
     """The raid note against every pull on the boss, as raid_note with all_pulls counts it: each kick assignment's
     casts pull by pull (kicked by its player, covered by another, went through, its player dead), the pulls whose
     wipe followed casts that went through and whose cast went through first; each planned cooldown pull by pull (on
-    time, early, late, not cast, dead)."""
+    time, early, late, not cast, dead); each callout's players pull by pull (pressed what answers it, only something
+    else, none, dead). Kick assignments and callouts fewer than NOTE_FEW pulls reached are left out."""
     night = await notes.check_night(rep, text, boss)
     f0 = night.fights[0]
     def color(name: str) -> str:
@@ -542,7 +546,8 @@ async def note_view(rep: Report, text: str, boss: str | None) -> dict:
         return class_hex(p.class_name) if p else "#9aa3b8"
     return {"view": "note", "report": rep.code, "boss": rep.boss_key(f0), "url": rep.url(f0).split("#")[0],
             "title": f"{rep.boss_key(f0)}: the raid note",
-            "kicks": _note_kicks(rep, night, color), "cooldowns": _note_cooldowns(rep, night, color)}
+            "kicks": _note_kicks(rep, night, color), "cooldowns": _note_cooldowns(rep, night, color),
+            "callouts": _note_callouts(rep, night, color)}
 
 
 def _note_kicks(rep: Report, night: notes.Night, color: Callable[[str], str]) -> dict | None:
@@ -550,7 +555,12 @@ def _note_kicks(rep: Report, night: notes.Night, color: Callable[[str], str]) ->
     kicked, covered (by whom), went through, dead or not in the pull. The pulls before the note's kick order came in
     are drawn but not counted, as raid_note counts them."""
     start = night.change.start if night.change else 0
-    rows = [(i, c, k) for i, c in enumerate(night.checks) for k in c.kicks]
+    reached: dict[str, set[int]] = defaultdict(set)
+    for i, c in enumerate(night.checks):
+        for k in c.kicks:
+            reached[k.callout.text].add(i)
+    kept = {t for t, pulls in reached.items() if len(pulls) >= NOTE_FEW}
+    rows = [(i, c, k) for i, c in enumerate(night.checks) for k in c.kicks if k.callout.text in kept]
     if not rows:
         return None
     first_at: dict[str, float] = {}
@@ -581,7 +591,7 @@ def _note_kicks(rep: Report, night: notes.Night, color: Callable[[str], str]) ->
         if lead:
             first[lead.player] += 1
         cells = {s: [] for s in slots}
-        for k in sorted(c.kicks, key=lambda k: k.at):
+        for k in sorted((k for k in c.kicks if k.callout.text in kept), key=lambda k: k.at):
             cells[k.callout.text].append(cell(k) | {"lead": k is lead})
             if i >= start and k.state == "alive":
                 alive += 1
@@ -591,6 +601,7 @@ def _note_kicks(rep: Report, night: notes.Night, color: Callable[[str], str]) ->
     return {"slots": [{"text": s, "player": (n := who[s].most_common(1)[0][0] if who[s] else ""),
                        "color": color(n) if n else "#9aa3b8"} for s in slots],
             "from_pull": rep.pull_no(night.checks[start].f) if start else None,
+            "fewer": len(reached) - len(kept),
             "made": made, "alive": alive, "lost": sum(p["lost"] for p in out_pulls if p["counted"]),
             "counted": sum(p["counted"] for p in out_pulls),
             "first": [{"name": n, "count": k, "color": color(n)}
@@ -624,6 +635,39 @@ def _note_cooldowns(rep: Report, night: notes.Night, color: Callable[[str], str]
                       "color": color(u.cooldown.player)} for k in order],
             "pulls": [{"pull": rep.pull_no(c.f), "cells": [by_pull[c.f["id"]].get(k) for k in order]}
                       for c in night.checks]}
+
+
+def _note_callouts(rep: Report, night: notes.Night, color: Callable[[str], str]) -> dict | None:
+    """Each callout to one player or to everyone (in the note's order) that NOTE_FEW pulls reached, and per player it
+    names and pull, a square per time it came: they pressed what answers it (for personals, a defensive), only
+    something else, none, or were dead; as raid_note counts them."""
+    groups: dict[tuple[str, tuple[str, ...]], list[tuple[int, notes.CalloutCheck]]] = defaultdict(list)
+    for i, c in enumerate(night.checks):
+        for k in c.callouts:
+            if k.in_pull:
+                groups[(k.callout.text, k.callout.players)].append((i, k))
+    out = []
+    for (text, named), rows in groups.items():
+        if len({i for i, _ in rows}) < NOTE_FEW:
+            continue
+        cells: dict[str, list[list[str]]] = defaultdict(lambda: [[] for _ in night.checks])
+        for i, k in sorted(rows, key=lambda r: r[1].at):
+            for n, _ in k.pressed:
+                cells[n][i].append("answered")
+            for n, _ in k.idle:
+                cells[n][i].append("other" if n in k.others else "none")
+            for n in k.dead:
+                cells[n][i].append("dead")
+        count = {n: (sum(s == "answered" for p in ps for s in p), sum(s != "dead" for p in ps for s in p))
+                 for n, ps in cells.items()}
+        players = sorted(cells, key=lambda n: (count[n][0] / max(count[n][1], 1), n))
+        out.append({"text": text, "to": " ".join(named) or notes.EVERYONE, "personals": rows[0][1].personals,
+                    "times": sorted({clock(k.at) for _, k in rows}),
+                    "rows": [{"player": n, "color": color(n), "made": count[n][0], "alive": count[n][1],
+                              "cells": cells[n]} for n in players]})
+    if not out:
+        return None
+    return {"pulls": [rep.pull_no(c.f) for c in night.checks], "callouts": out}
 
 
 async def versus_view(rep: Report, player: str, other: str, pull: PullRef, boss: str | None, all_pulls: bool) -> dict:
