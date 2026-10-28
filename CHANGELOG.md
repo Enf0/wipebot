@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-28
+
 ### Added
 
 - `Discord` **The raid note over the night, drawn.** Checking a raid note against every pull on a boss now posts two pictures: each kick assignment pull by pull (kicked, covered by another, went through, with the first cast that went through before a wipe ringed and counted by player), and each planned cooldown pull by pull (on time, a little off, late, not cast).
