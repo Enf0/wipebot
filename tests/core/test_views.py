@@ -168,6 +168,25 @@ async def test_the_raid_night_view_draws_and_a_pulls_bar_opens_that_pull(recorde
     assert "Sszorak pull 13" in opened.text  # that pull's card
 
 
+async def test_the_nights_awards_state_what_progress_states_and_draw_first(recorded, tmp_path):
+    case = CASES["awards"]
+    key = await server.view_key("progress", case.args)
+    assert key == {"view": "night", "report": case.args["report"], "boss": "Sszorak", "awards": True}
+    result = await server.view_data(**key)
+    assert result.structured_content is not None
+    data = result.structured_content
+    assert_snapshot(REAL / "views" / "awards.txt", readable({"awards": data["awards"]}))
+    text, failed = await server.call("progress", case.args)
+    assert not failed
+    assert [a["title"] for a in data["awards"]] == ["Top damage", "Top healing", "Most dispels", "Survivor"]
+    for a in data["awards"]:
+        nxt = a["runner_up"]
+        assert f"  {a['title']}: {a['winner']['name']} {a['said']} (next: {nxt['name']} {nxt['said']}" in text, a
+    [shot] = await shots(tmp_path, "progress", case.args, themes=("dark",), widths=(430,), modes=("inline",))
+    page = shot.text.lower()
+    assert not shot.errors and page.index("the night's awards") < page.index("best wipe")
+
+
 # ---- the meter: a ranking of players from breakdown, mechanic_hits and enemies, in the bot only ----
 
 METER_CASES = ["mechanic-hits", "damage-taken-ability", "interrupts", "dispels", "nekzali-enemies-night",

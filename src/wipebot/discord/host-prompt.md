@@ -122,7 +122,8 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   health, damage taken, phases and deaths; the player's output, time lost, cooldowns and casts against top players; as
   two pictures, what killed them (green where a ready defensive or a healthstone would have kept them alive) and their
   night pull by pull; the death's hits, health and healing in its last seconds; or, as two pictures, each pull's boss
-  health left coloured by what ended it, and how the pulls ended. Two raid mates (compare_with_top with against) are
+  health left coloured by what ended it, and how the pulls ended (with awards, the night's awards as a card a winner
+  each, then the pulls). Two raid mates (compare_with_top with against) are
   drawn side by side: output per second alive, time alive, deaths, item level, and each spell's casts per minute and
   average hit, what's far apart in gold; the healers' mana on a pull (healing with mana) as a line per healer with
   the Innervates they got, and each druid's Innervate ready while a healer was low hatched red. Don't redraw it in

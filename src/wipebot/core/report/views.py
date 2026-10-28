@@ -26,7 +26,7 @@ from ..pulls import (
     wipe_pcts,
 )
 from ..text import clock, day, ordinal
-from . import adds, mana, mechanics, tables, versus
+from . import adds, awards, mana, mechanics, tables, versus
 from . import note as notes
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
@@ -68,13 +68,14 @@ def page_uri() -> str:
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
                     player: str | None = None, top: bool = False, death: int = 1, tool: str | None = None,
                     args: dict | None = None, nights: list[BossNight] | None = None, note: str = "",
-                    source: str = "") -> dict:
+                    source: str = "", with_awards: bool = False) -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
     player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`); the
     meter's `tool` and the `args` it was called with; the night view with the boss on each raid night (`nights`,
-    progress's `weeks`); the raid note's view with the `note` checked against every pull on `boss` (raid_note's `args`
-    with all_pulls), else the note as it is (where it came from, `source`)."""
+    progress's `weeks`) and the night's awards (`with_awards`, progress's `awards`); the raid note's view with the
+    `note` checked against every pull on `boss` (raid_note's `args` with all_pulls), else the note as it is (where it
+    came from, `source`)."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
     if view == "note":  # over every pull on a boss; else, for a boss not pulled yet or the next raid, as it is
@@ -91,7 +92,7 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
     if view not in ("pull", "night") and not player:
         raise ValueError(f"the {view} view needs a player")
     if view == "night":
-        return await night_view(rep, rep.boss(boss), nights)
+        return await night_view(rep, rep.boss(boss), nights, with_awards)
     if view == "player_night":
         return await player_night_view(rep, rep.boss(boss), player or "")
     f = rep.fight(pull, boss)
@@ -419,12 +420,12 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
     }
 
 
-async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = None) -> dict:
+async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = None, with_awards: bool = False) -> dict:
     """The raid's night on a boss, as progress states it: each pull's boss health left, phase, length, what ended it
     (pull_summary's "Ended by") and first death; the night's best, the guild's best before it, how the pulls ended
     and the killers of each pull's first deaths, the trend in thirds; and the night's other bosses. With `nights`
     (progress's `weeks`), the boss on each raid night: its pulls, the kill or the best wipe and the phase it got to,
-    and what ended most pulls."""
+    and what ended most pulls. With `with_awards` (progress's `awards`), the night's awards."""
     fights = rep.by_boss[boss]
     await rep.decided_cuts(fights)
     before = await rep.guild_best(fights[0])
@@ -460,7 +461,18 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
         "thirds": [round(t, 1) for t in thirds] if thirds else None,
         "bosses": [{"boss": b, "pulls": len(fs), "kill": any(f["kill"] for f in fs),
                     "best": min(wipe_pcts(fs), default=None)} for b, fs in rep.by_boss.items()],
-    } | ({"weeks": [weeks_row(n) for n in nights]} if nights is not None else {})
+    } | ({"weeks": [weeks_row(n) for n in nights]} if nights is not None else {}) | (
+        {"awards": await awards_rows(rep, boss)} if with_awards else {})
+
+
+async def awards_rows(rep: Report, boss: str) -> list[dict]:
+    """The night's awards on the boss, as progress's `awards` states them."""
+    _, found = await awards.awards(rep, boss)
+    def who(p) -> dict:
+        return {"name": p.name, "color": class_hex(p.class_name), "spec": p.spec}
+    return [{"title": a.title, "unit": a.unit, "winner": who(a.winner), "value": a.value, "said": awards.said(a)}
+            | ({"runner_up": who(a.runner_up[0]) | {"value": a.runner_up[1], "said": awards.said(a, True, brief=True)}}
+               if a.runner_up else {}) for a in found]
 
 
 def weeks_row(n: BossNight) -> dict:

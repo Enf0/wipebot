@@ -63,6 +63,8 @@ pull-map-vashnik = { tool = "pull_map", report = "kTMfFRQ324Hvx6G7", boss = "Vas
 night = { tool = "progress", local = true, report = "KBYT4xXn7VNjDgh8" }
 progress = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
 list-pulls = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Vashnik", each_pull = true }
+# the night's awards: no one kicked on Sszorak, so four
+awards = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", awards = true }
 first-hits = { tool = "progress", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", first_hits = true }
 roster = { tool = "roster", report = "KBYT4xXn7VNjDgh8" }
 defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }

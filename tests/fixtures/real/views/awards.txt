@@ -1,0 +1,6 @@
+"awards": [
+  {"title": "Top damage", "unit": "damage a pull", "winner": {"name": "Nexsozz", "color": "#C41E3A", "spec": "Unholy"}, "value": 18701079.87878788, "said": "18.70M damage a pull", "runner_up": {"name": "Sonyosh", "color": "#0070DD", "spec": "Elemental", "value": 18194805.727272727, "said": "18.19M"}},
+  {"title": "Top healing", "unit": "healing a pull", "winner": {"name": "Namsus", "color": "#FFFFFF", "spec": "Holy"}, "value": 33136389.733333334, "said": "33.14M healing a pull", "runner_up": {"name": "Lïzårðmâñ", "color": "#33937F", "spec": "Preservation", "value": 33026421.696969695, "said": "33.03M"}},
+  {"title": "Most dispels", "unit": "dispels", "winner": {"name": "Sonyosh", "color": "#0070DD", "spec": "Elemental"}, "value": 110, "said": "110 dispels", "runner_up": {"name": "Enfo", "color": "#0070DD", "spec": "Restoration", "value": 66, "said": "66"}},
+  {"title": "Survivor", "unit": "deaths", "winner": {"name": "Namsus", "color": "#FFFFFF", "spec": "Holy"}, "value": 3, "said": "3 deaths in 30 pulls", "runner_up": {"name": "Deathadim", "color": "#C41E3A", "spec": "Blood", "value": 9, "said": "9 deaths"}},
+],

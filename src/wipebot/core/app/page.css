@@ -196,5 +196,13 @@ svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2
 .tally .bar i { display: block; height: 100%; opacity: .8; }
 .tally .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
 /* a name in its class colour, a step toward the ink so a priest's white still reads on a light page */
-.note-board .cls { fill: color-mix(in srgb, var(--c) 78%, var(--ink)); color: color-mix(in srgb, var(--c) 78%, var(--ink)); }
-:root[data-theme="light"] .note-board .cls { fill: color-mix(in srgb, var(--c) 62%, var(--ink)); color: color-mix(in srgb, var(--c) 62%, var(--ink)); }
+.note-board .cls, .awards .cls { fill: color-mix(in srgb, var(--c) 78%, var(--ink)); color: color-mix(in srgb, var(--c) 78%, var(--ink)); }
+:root[data-theme="light"] .note-board .cls, .awards .cls { fill: color-mix(in srgb, var(--c) 62%, var(--ink)); color: color-mix(in srgb, var(--c) 62%, var(--ink)); }
+/* the night's awards: a card each, the winner in their class colour, the runner-up under */
+.awards .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 2px 0 6px; }
+.awards .card { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--gold);
+                border-radius: 8px; padding: 9px 11px 10px; min-width: 0; }
+.awards .card .k { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--gold); font-weight: 650; }
+.awards .card .who { font-size: 16px; font-weight: 700; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.awards .card .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+.awards .card .next { font-size: 11.5px; color: var(--muted); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }

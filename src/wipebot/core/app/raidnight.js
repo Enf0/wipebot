@@ -1,6 +1,6 @@
 // ---- the raid's night on a boss: each pull's boss health left, coloured by what ended it, against the night's best
 // so far and the guild's best before the night; how the pulls ended; the night's other bosses (progress's facts);
-// with progress's weeks, the best pull of each raid night first.
+// with progress's weeks, the best pull of each raid night first; with its awards, the night's awards first of all.
 // Two panels (data-panel), each its own picture in Discord; a pull's bar opens that pull's view ----
 views.night = (() => {
   let D = null, root = null, open = null, drawnWidth = 0;
@@ -9,7 +9,7 @@ views.night = (() => {
 
   async function show(into, key, opener) {
     root = into; open = opener;
-    D = await app.callTool("view_data", { view: "night", report: key.report, boss: key.boss, ...(key.weeks ? { weeks: key.weeks } : {}) });
+    D = await app.callTool("view_data", { view: "night", report: key.report, boss: key.boss, ...(key.weeks ? { weeks: key.weeks } : {}), ...(key.awards ? { awards: true } : {}) });
     render();
     new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
   }
@@ -161,6 +161,17 @@ views.night = (() => {
       + `${weeksStats()}${weeksChart(width)}</div>`;
   }
 
+  // The night's awards (progress's awards): a card each, the winner in their class colour, the runner-up under it
+  function awards() {
+    const name = (p) => `<span class="cls" style="--c:${kit.esc(p.color)}">${kit.esc(p.name)}</span>`;
+    const cards = D.awards.map((a) => `<div class="card"><div class="k">${kit.esc(a.title)}</div>`
+      + `<div class="who">${name(a.winner)}</div><div class="v">${kit.esc(a.said)}</div>`
+      + (a.runner_up ? `<div class="next">next: ${name(a.runner_up)} ${kit.esc(a.runner_up.said)}</div>` : "") + "</div>").join("");
+    const sub = [D.difficulty, `${D.pulls.length} pulls`, D.title.split(", ").pop()].filter(Boolean).join(" · ");
+    return `<div data-panel="awards" class="awards"><div class="head"><h1>${kit.esc(D.boss)}: the night's awards</h1>`
+      + `<span class="sub">${kit.esc(sub)}</span></div><div class="cards">${cards || '<div class="note">No player stood out by these measures.</div>'}</div></div>`;
+  }
+
   // How the pulls ended, and what killed each pull's first deaths: two ranked lists
   function endings() {
     const color = colorOf(), counted = D.pulls.filter((r) => !r.live).length;
@@ -187,12 +198,12 @@ views.night = (() => {
     const full = app.context().displayMode === "fullscreen", picture = app.picture();
     drawnWidth = root.clientWidth;
     const width = Math.max(300, drawnWidth || 640);
-    // Asked night by night, those come first; a picture then leaves out how tonight's pulls ended, and the chart has
-    // its own legend
-    const nights = D.weeks && D.weeks.length ? weeks(width) : "";
-    const listed = !(nights && picture);
+    // Asked night by night or for the awards, those come first; a picture then leaves out how tonight's pulls ended,
+    // and the chart has its own legend
+    const nights = D.weeks && D.weeks.length ? weeks(width) : "", prizes = D.awards ? awards() : "";
+    const listed = !((nights || prizes) && picture);
     const tonight = `<div data-panel="pulls">${head()}${stats()}${chart(width, full, !listed)}</div>`;
-    const panels = nights + tonight + (listed ? `<div data-panel="endings">${endings()}</div>` : "");
+    const panels = prizes + nights + tonight + (listed ? `<div data-panel="endings">${endings()}</div>` : "");
     if (picture) { root.innerHTML = panels; return; }
     root.innerHTML = (full ? bosses() : "") + panels + (full ? table()
       : `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="rn-open">Open night</button>' : ""}</div>`);
