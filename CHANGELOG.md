@@ -9,11 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `Agent` **"Did people press personals?" counts only defensives.** A callout asking for personals or defensives counts a player only when they pressed a defensive (or a tank cooldown), not any spell; those who pressed something else instead are named apart.
-- `Discord` **The raid note's pictures fit the question.** Kick assignments and callouts fewer than three pulls reached aren't drawn, so a late one-off no longer fills a picture with one huge column, and an answer about callouts posts only the callouts picture, not kicks and cooldowns.
 
 ### Added
 
-- `Discord` **The raid note's callouts, pull by pull.** Over a night, each callout's players are drawn pull by pull: pressed what answers it, only something else, nothing, or dead, with how often they answered.
+- `Discord` **The raid note's callouts, pull by pull.** Over a night, each callout's players are drawn pull by pull: pressed what answers it, only something else, nothing, or dead, with how often they answered. An answer about callouts posts only this picture, not the kicks and cooldowns ones, and kick assignments or callouts fewer than three pulls reached aren't drawn (a late one-off drew one huge column).
 
   ![Big Personals on Sszorak over 42 pulls, a row per raider and a square per pull: green where they pressed a defensive, gold where they pressed only something else, red where they pressed nothing](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-note-callouts.webp)
 
