@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.30.3] - 2026-10-28
+
 ### Fixed
 
 - `Discord` **A question about personals gets only the personals picture.** When an answer doesn't say which of the raid note's pictures it means, it gets the ones its headline is about, instead of kicks, cooldowns and personals all at once.
