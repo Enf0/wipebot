@@ -347,6 +347,7 @@ class Reference:
     cpm: dict[str, float | None]
     flow: Casting
     capped: float | None = None  # the share of the kill their resource sat at its cap (None: not read)
+    ids: dict[str, int] = field(default_factory=dict)  # a spell's id by the name it's counted under, for its icon
 
 
 @dataclass
@@ -540,8 +541,10 @@ async def _reference(rep: Report, r: dict, names: SpellNames,
         return None
     # The kill's end isn't in the ranking: the last cast is close enough (the kill's deaths aren't read).
     last = max((e["timestamp"] for e in events), default=0)
-    return Reference(r, names.per_minute(cast_rows(t["entries"]), minutes), casting(events, last + GCD_MAX_MS),
-                     await _capped(rep, code, fight_id, pid, events, *resource) if resource else None)
+    rows = cast_rows(t["entries"])
+    return Reference(r, names.per_minute(rows, minutes), casting(events, last + GCD_MAX_MS),
+                     await _capped(rep, code, fight_id, pid, events, *resource) if resource else None,
+                     {names.canonical(a): a["guid"] for a in rows if a.get("guid")})
 
 
 async def _capped(rep: Report, code: str, fight_id: int, pid: int, events: list[dict], kind: int, most: float

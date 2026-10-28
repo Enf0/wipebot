@@ -9,7 +9,14 @@ const kit = (() => {
   const svg = (w, h, body, label) => `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">${body}</svg>`;
   const text = (x, y, s, cls = "tm", attrs = "") => `<text x="${x}" y="${y}" class="${cls}" font-size="11" ${attrs}>${esc(s)}</text>`;
   const line = (x1, y1, x2, y2, stroke, attrs = "") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" ${attrs}/>`;
-  const width = (s, size = 11) => String(s).length * size * 0.56;  // about, for keeping labels apart
+  // A text's width in the page's font, for keeping labels apart; about, where the page can't measure it
+  const ctx = document.createElement("canvas").getContext("2d");
+  function width(s, size = 11) {
+    const font = getComputedStyle(document.documentElement).getPropertyValue("--font").trim();
+    if (!ctx || !font) return String(s).length * size * 0.56;
+    ctx.font = `${size}px ${font}`;
+    return ctx.measureText(String(s)).width;
+  }
   const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
   // The axis's top: the value rounded up to 1, 2, 2.5 or 5 of its power of ten
   function niceMax(v) {
@@ -23,8 +30,9 @@ const kit = (() => {
     let end = -Infinity, out = "";
     const xs = marks.slice().sort((a, b) => a - b);
     for (const [at0, s] of items) {
-      const at = x(at0) + pad, w = width(s, size), next = xs.find((m) => m > x(at0) + 1) ?? right;
-      if (at > end && at + w < next - 3) { out += text(at, y, s, cls, `font-size="${size}"`); end = at + w + 4; }
+      // measured at 11, the size text() draws at: the size passed comes after its font-size, so the browser keeps 11
+      const at = x(at0) + pad, w = width(s, 11), next = xs.find((m) => m > x(at0) + 1) ?? right;
+      if (at > end && at + w < next - 6) { out += text(at, y, s, cls, `font-size="${size}"`); end = at + w + 4; }
     }
     return out;
   }

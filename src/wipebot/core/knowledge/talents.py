@@ -55,13 +55,15 @@ def hero_tree(tree: dict, node_ids: Collection[int]) -> str | None:
 
 def untaken_spells(tree: dict, talents: Collection[int]) -> set[int]:
     """Spell ids the tree grants only as talents and the picked talent entries don't include: a choice node's
-    other side (Ascendance or Healing Tide Totem) or a talent skipped. Baseline spells aren't in the tree."""
+    other side (Ascendance or Healing Tide Totem) or a talent skipped, by the spell it grants and the one it shows
+    (Avenging Crusader grants 394088 and shows 216331, the id it's cast and listed by). Baseline spells aren't in the
+    tree."""
     grants: dict[int, set[int]] = defaultdict(set)
     for key in ("classNodes", "specNodes", "heroNodes"):
         for n in tree.get(key) or []:
             for e in n.get("entries") or []:
-                if e.get("spellId"):
-                    grants[e["spellId"]].add(e["id"])
+                for spell in {e.get("spellId"), e.get("visibleSpellId")} - {None}:
+                    grants[spell].add(e["id"])
     return {spell for spell, entries in grants.items() if not entries & set(talents)}
 
 

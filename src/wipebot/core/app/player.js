@@ -125,16 +125,25 @@ views.player = (() => {
     let y = 6, o = '<defs><pattern id="pl-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
       + '<rect width="2" height="5" fill="var(--dead)" opacity=".55"/></pattern></defs>';
     const label = (s, yy) => lanes ? kit.text(6, yy, s, "tm", 'font-size="10.5"') : "";
-    // cooldowns
+    const diamond = (cx, top, tip = "") => `<path d="M${cx} ${top} l6 6 l-6 6 l-6 -6z" fill="var(--gold)"${kit.tip(tip)}/>`;
+    // cooldowns: an icon at each use, nudged up a row where it would cover another's; their names in the legend
     const uses = D.cooldowns.flatMap((c) => c.uses.map((ms) => [ms, c.name, c.icon])).sort((a, b) => a[0] - b[0]);
+    const S = 16, ends = [];  // per row, where its last icon ends
+    const placed = uses.map(([ms, name, ic]) => {
+      const left = Math.max(0, x(ms) - S / 2);
+      let row = ends.findIndex((e) => left >= e + 1);
+      if (row < 0) row = ends.push(-Infinity) - 1;
+      ends[row] = left + S;
+      return [ms, name, ic, left, row];
+    });
     if (uses.length) {
-      o += label("Cooldowns", y + 12);
-      for (const [ms, name, ic] of uses) {
+      const top = (row) => y + (ends.length - 1 - row) * (S + 2);
+      o += label("Cooldowns", top(0) + 12);
+      for (const [ms, name, ic, left, row] of placed) {
         const tip = `${name} ${kit.clock(ms)}`;
-        o += kit.icon(D.img_base, ic, x(ms) - 8, y, 16, tip) || `<path d="M${x(ms)} ${y + 2} l6 6 l-6 6 l-6 -6z" fill="var(--gold)"${kit.tip(tip)}/>`;
+        o += kit.icon(D.img_base, ic, left, top(row), S, tip) || diamond(left + S / 2, top(row) + 2, tip);
       }
-      o += kit.labels(uses.map(([ms, name]) => [ms, name]), x, y + 12, "tg", uses.map(([ms]) => x(ms)), W, 10, 11);
-      y += 22;
+      y = top(0) + S + 6;
     }
     // casting
     const bar = y, h = 18, end = Math.min(D.alive_until_ms, D.duration_ms);
@@ -176,7 +185,9 @@ views.player = (() => {
       [(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="8" fill="var(--bg)" stroke="var(--muted)"/>`, "no cast"]];
     if (D.capped.length) keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="4" fill="var(--decided)"/>`, `${D.lost.resource} capped`]);
     if (D.died.length) keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="8" fill="url(#pl-hatch)"/>`, "dead"]);
-    if (uses.length) keys.push([(lx, ly) => `<path d="M${lx + 6} ${ly - 9} l5 5 l-5 5 l-5 -5z" fill="var(--gold)"/>`, "cooldown"]);
+    for (const c of D.cooldowns.filter((c) => c.uses.length)) {
+      keys.push([(lx, ly) => kit.icon(D.img_base, c.icon, lx, ly - 10, 12) || diamond(lx + 6, ly - 10), c.name]);
+    }
     // where the wipe was decided: in the legend, so its label never runs into the cooldowns' at the pull's end
     if (D.decided) keys.push([(lx, ly) => `<line x1="${lx + 6}" y1="${ly - 10}" x2="${lx + 6}" y2="${ly + 1}" stroke="var(--decided)" stroke-width="1.6" stroke-dasharray="3 3"/>`,
                               `wipe decided ${kit.clock(D.decided.ms)}`]);
@@ -236,7 +247,7 @@ views.player = (() => {
 
   function side() {
     const cds = D.cooldowns.map((c) => {
-      const count = c.possible ? `${c.uses.length}/${c.possible}` : `${c.uses.length}`;
+      const count = c.possible && c.uses.length <= c.possible ? `${c.uses.length}/${c.possible}` : `${c.uses.length}`;  // more: a talent shortens it
       return `<li><span>${kit.iconImg(D.img_base, c.icon)}${kit.esc(c.name)}</span><span class="count ${c.possible && c.uses.length < c.possible ? "short" : ""}">${count}</span>`
         + `<span class="times">${c.uses.length ? c.uses.map(kit.clock).join(", ") : "not used"}</span></li>`;
     }).join("");

@@ -751,9 +751,10 @@ async def test_a_mark_shows_its_tooltip_on_hover_and_icons_draw(made_up):
         page = await viewhost._open(browser, setup, errors)
         await viewhost._settled(page)
         view = page.frame_locator("iframe")
-        assert await view.locator("image[href$='spells/114052.jpg']").count() == 1  # Ascendance at its use
+        # Ascendance at its use, and in the legend by its name
+        assert await view.locator("image[href$='spells/114052.jpg']").count() == 2
         assert await view.locator("image").evaluate_all("els => els.every((e) => e.getBBox().width > 0)")
-        await view.locator("image[href$='spells/114052.jpg']").hover()
+        await view.locator("image[href$='spells/114052.jpg'][data-tip]").hover()
         tip = view.locator("#tooltip")
         assert await tip.is_visible() and await tip.inner_text() == "Ascendance 1:00"
         await view.locator("h1").hover()

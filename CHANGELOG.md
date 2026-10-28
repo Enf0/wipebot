@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A cooldown on the other side of a talent choice isn't counted as missed.** A Holy Paladin with Avenging Wrath was told they used Avenging Crusader 0 of 5 times; talents whose spell is cast under another id than the tree grants are now known as not taken.
+- `MCP` **The player card's cooldowns no longer pile up.** Icons used close together stack in rows, each cooldown is named once in the legend by its icon, a spell never cast still gets its icon against top players, and labels keep clear of the next mark.
+
+  ![Cptola's pull on The Coiled Altar: casting, gaps and Holy Power capped over the pull, with Avenging Wrath, Aura Mastery and Divine Toll icons stacked above where they were pressed together, and named in the legend](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/player-pull-cooldowns.webp)
+
 ## [0.31.0] - 2026-10-28
 
 ### Changed

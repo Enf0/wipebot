@@ -336,7 +336,8 @@ async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | s
     if isinstance(c, str):
         return c
     return {"hero": c.hero, "same_hero": c.same_hero, "parses": len(c.found),
-            "rates": [{"name": r.name, "icon": icon(ids.get(r.name) or (c.names.named(r.name) or {}).get("spell_id")),
+            "rates": [{"name": r.name, "icon": icon(ids.get(r.name) or (c.names.named(r.name) or {}).get("spell_id")
+                                                    or next((x.ids[r.name] for x in c.found if r.name in x.ids), None)),
                        "mine": round(r.mine, 1), "median": None if r.median is None
                        else round(r.median, 1), "low": r.low and round(r.low, 1), "high": r.high and round(r.high, 1),
                        "flag": r.flag} for r in c.rates],
