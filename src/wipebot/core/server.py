@@ -75,6 +75,7 @@ from .report import (
 )
 from .report import guild as guild_logs
 from .report import healing as heals
+from .report import mana as manas
 from .report import note as notes
 from .report import plan as plans
 from .report import query as queries
@@ -606,11 +607,25 @@ def _supports_apps(ctx: Context) -> bool:
 
 # The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
 # with their casts against top players, for one player's casts. A meter draws the ranking of players breakdown,
-# mechanic_hits and enemies state, and raid_note's over every pull on a boss, in the bot only: in Claude and ChatGPT
-# each tool with a view costs tokens.
+# mechanic_hits and enemies state, raid_note's, compare_with_top's two raid mates and healing's mana, in the bot
+# only: in Claude and ChatGPT each tool with a view costs tokens.
 VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player",
               "player_night": "player_night", "death_recap": "death", "progress": "night", "raid_note": "note",
-              **dict.fromkeys(views.METER_TOOLS, "meter")}
+              "healing": "mana", **dict.fromkeys(views.METER_TOOLS, "meter")}
+
+
+def _note_key(rep: Report, args: dict) -> dict | None:
+    """raid_note's key: over every pull on the boss, or the saved note as it is; one pull's check is its text."""
+    tool = "raid_note"
+    view = "note"
+    asked = {k: v for k, v in args.items() if v is not None and k != "report"}
+    if not args.get("note") and (args.get("upcoming") or (args.get("boss") and not pulled(rep, args["boss"]))):
+        asked.pop("all_pulls", None)
+        boss = args.get("boss") or rep.boss_key(rep.fight(None, None))
+        return {"view": view, "report": rep.code, "boss": boss, "tool": tool, "args": asked}
+    if not args.get("all_pulls") or args.get("upcoming"):
+        return None
+    return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked}
 
 
 async def _versus_key(args: dict) -> dict:
@@ -638,15 +653,8 @@ async def view_key(tool: str, args: dict) -> dict | None:
                                                           and "casts" in (args.get("aspects") or ["casts"]))):
         return None
     rep = await lib().report(args.get("report"))
-    if view == "note":  # over every pull on the boss, or the saved note as it is: one pull's check is its text
-        asked = {k: v for k, v in args.items() if v is not None and k != "report"}
-        if not args.get("note") and (args.get("upcoming") or (args.get("boss") and not pulled(rep, args["boss"]))):
-            asked.pop("all_pulls", None)
-            boss = args.get("boss") or rep.boss_key(rep.fight(None, None))
-            return {"view": view, "report": rep.code, "boss": boss, "tool": tool, "args": asked}
-        if not args.get("all_pulls") or args.get("upcoming"):
-            return None
-        return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked}
+    if view == "note":
+        return _note_key(rep, args)
     if view == "meter":  # only when the call ranks players
         asked = {k: v for k, v in args.items() if v is not None and k != "report"}
         if not await views.meters_of(rep, tool, asked):
@@ -657,6 +665,11 @@ async def view_key(tool: str, args: dict) -> dict | None:
         if len(pulls) == 1:  # one pull: its link on Warcraft Logs
             key["pull"] = rep.pull_no(rep.fight(pulls[0], args.get("boss")))
         return key
+    if view == "mana":  # only the healers' mana on one pull
+        if not args.get("mana") or args.get("all_pulls"):
+            return None
+        f = rep.fight(args.get("pull"), args.get("boss"))
+        return {"view": view, "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f)}
     if view == "player_night":  # a boss's night: no pull
         return {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")),
                 "player": rep.player(args["player"]).name}
@@ -685,7 +698,7 @@ async def _shown(tool: str, args: dict, text: str, ctx: Context) -> str | CallTo
 
 
 async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night, death, night, "
-                                                             "meter, note or versus")],
+                                                             "meter, note, versus or mana")],
                     pull: Pull = None, boss: Boss = None, report: Report_ = None,
                     player: Annotated[str | None, Field(description="the player or versus view's player")] = None,
                     top: Annotated[bool, Field(description="the player view with their casts against top players "
@@ -1498,6 +1511,8 @@ async def defensives(boss: Boss = None, whole_pull: WholePull = False,
 @_tool
 async def healing(pull: Pull = None, boss: Boss = None,
                   all_pulls: Annotated[bool, Field(description="every pull on the boss")] = False,
+                  mana: Annotated[bool, Field(description=(
+                      "the healers' mana and the druids' Innervates instead of the spikes"))] = False,
                   report: Report_ = None) -> str:
     """For "did the healers keep up?", "when do we take the most damage?", "are our healing cooldowns on the
     peaks?", "who was idle when it hit?".
@@ -1510,8 +1525,14 @@ async def healing(pull: Pull = None, boss: Boss = None,
     the bar. Ready and unused counts a healer's cooldown only when they press it somewhere in the report;
     cooldowns are often planned for one spike and held through another (the raid note says). Overhealing is
     healing past full health: healing is capped by the damage taken, so a high share where the raid took little
-    (heals over time and smart heals landing on players at full health) isn't a fault on its own."""
+    (heals over time and smart heals landing on players at full health) isn't a fault on its own.
+    With `mana` ("was I out of mana?", "did I get an Innervate?", "could a druid have innervated me?"): each healer's
+    mana until the wipe was decided, how low and from when it was under 30%, and each druid's Innervate cast (when,
+    on whom, at what mana) or ready while a healer was under 30%; with all_pulls, per healer the pulls they were low
+    and per druid their casts and the pulls it sat ready while a healer was low."""
     rep = await lib().report(report)
+    if mana:
+        return manas.mana_text(rep, await manas.mana(rep, pull, boss, all_pulls))
     if all_pulls:
         await lib().wcl.ensure_points(HEALING_PULL_POINTS * len(rep.by_boss[rep.boss(boss)]), "all_pulls")
     return await heals.healing(rep, pull, boss, all_pulls)

@@ -127,7 +127,9 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   night pull by pull; the death's hits, health and healing in its last seconds; or, as two pictures, each pull's boss
   health left coloured by what ended it, and how the pulls ended. Two raid mates (compare_with_top with against) are
   drawn side by side: output per second alive, time alive, deaths, item level, and each spell's casts per minute and
-  average hit, what's far apart in gold. Don't redraw it in text or list every time it shows.
+  average hit, what's far apart in gold; the healers' mana on a pull (healing with mana) as a line per healer with
+  the Innervates they got, and each druid's Innervate ready while a healer was low hatched red. Don't redraw it in
+  text or list every time it shows.
 - A ranking of players is drawn the same way, as a damage meter: breakdown by player (damage, healing, damage taken,
   kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit; over all pulls, a second picture
   of each player's hits pull by pull) and enemies (damage on adds). The

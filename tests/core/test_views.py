@@ -363,6 +363,32 @@ async def test_two_raid_mates_view_states_what_compare_with_top_states(recorded,
         assert "Krøpling" in s.text and "Glacial Spike" in s.text
 
 
+MANA_CASE = CASES["healing-mana"]  # healers low late on a Twin Fangs pull, and the druid's Innervates
+
+
+async def test_the_mana_view_states_what_healing_with_mana_states(recorded, tmp_path):
+    key = await server.view_key(MANA_CASE.tool, MANA_CASE.args)
+    assert key == {"view": "mana", "report": MANA_CASE.args["report"], "pull": 25, "boss": "The Twin Fangs"}
+    assert await server.view_key("healing", {k: v for k, v in MANA_CASE.args.items() if k != "mana"}) is None
+    assert await server.view_key("healing", CASES["healing-mana-night"].args) is None
+    result = await server.view_data(**key)
+    data = result.structured_content
+    assert data is not None
+    assert_snapshot(REAL / "views" / "mana.txt", readable(data))
+    text, failed = await server.call(MANA_CASE.tool, MANA_CASE.args)
+    assert not failed
+    for h in data["healers"]:
+        assert f"  {h['name']} ({h['spec']}): lowest {h['lowest'][1]}% at {clock(h['lowest'][0])}" in text
+    casts = re.findall(r"cast (\d+:\d\d) on (\S+) \(at (\d+)%\)", text)
+    assert [(clock(c["ms"]), c["on"], str(c["pct"])) for i in data["innervates"] for c in i["casts"]] == casts
+    ready = re.findall(r"ready (\d+:\d\d)-(\d+:\d\d) while", text)
+    assert [(clock(r["from_ms"]), clock(r["to_ms"])) for i in data["innervates"] for r in i["ready_low"]] == ready
+    assert ready  # the case's point: it sat ready while a healer was low
+    for s in await shots(tmp_path, MANA_CASE.tool, MANA_CASE.args, themes=("dark", "light"), widths=(320, 760)):
+        assert not s.errors, (s.path.name, s.errors)
+        assert "Healers' mana" in s.text and data["healers"][0]["name"] in s.text
+
+
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):
     # a client without MCP Apps (Claude Code) gives the model structuredContent instead of the text: none for it
     no_apps = await server.mcp.call_tool("pull_summary", PULL_CASE.args)

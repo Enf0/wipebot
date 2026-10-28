@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` `Discord` **Healers' mana and Innervate.** "Was I out of mana, and could I have had an Innervate?" is answered from each healer's mana until the wipe was decided, how low it went and from when, and each druid's Innervate: when, on whom and at what mana, or ready while a healer was under 30%; over the night, the pulls each healer ran low and whom the Innervates went to. In Discord, drawn as a picture.
+  ![Four healers' mana over Twin Fangs pull 25 as lines in class colours, the low line at 30%, two Innervates marked on the healer they went to, and the stretch one sat ready while two healers were low hatched red](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-healers-mana.webp)
+
 ## [0.23.0] - 2026-10-28
 
 ### Added

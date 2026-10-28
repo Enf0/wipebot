@@ -1,0 +1,6 @@
+Healers' mana on The Twin Fangs pull 25 (https://www.warcraftlogs.com/reports/p7jRwgv8b1rY6LBd#fight=27), until the wipe was decided (5:40); low is under 30%. Innervate: Wowhead's cooldown 3 min (talents aside), taken as ready at the pull.
+  Cptola (Holy Paladin): lowest 21% at 5:19; under 30% 4:09-5:40; 26% at 5:40
+  Enfo (Restoration Shaman): lowest 51% at 4:45; 65% at 5:40
+  Lïzårðmâñ (Preservation Evoker): lowest 16% at 5:13; under 30% 4:15-5:37; 21% at 5:40; died 5:37
+  Namsus (Holy Priest): lowest 59% at 1:56; 80% at 5:40
+  Innervate, Attractîv (Balance Druid): cast 1:33 on Enfo (at 81%); cast 4:49 on Enfo (at 58%); ready 4:33-4:49 while Cptola, Lïzårðmâñ under 30%

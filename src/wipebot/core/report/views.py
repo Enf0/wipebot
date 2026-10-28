@@ -17,7 +17,7 @@ from ..classes import class_hex
 from ..knowledge import KnowledgeError, matches_boss, spaced
 from ..pulls import DIFFICULTIES, FIRST_DEATHS, NO_KILLING_BLOW, is_reset, phase_label, wipe_pct, wipe_pcts
 from ..text import clock, day, ordinal
-from . import adds, mechanics, tables, versus
+from . import adds, mana, mechanics, tables, versus
 from . import note as notes
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
@@ -35,10 +35,10 @@ from .top import cast_comparison
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
 SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "meter.js",
-           "replay.js", "note.js", "versus.js", "main.js"]
+           "replay.js", "note.js", "versus.js", "mana.js", "main.js"]
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
 # what view_data draws (the replay: maps.replay)
-VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "note", "versus")
+VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "note", "versus", "mana")
 METER_TOOLS = ("breakdown", "mechanic_hits", "enemies")  # the tools whose rows a meter draws (meters_of)
 
 
@@ -74,6 +74,8 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
         return await note_plan_view(rep, note, boss or "", source)
     if view == "meter":
         return await meter_view(rep, tool or "", args or {})
+    if view == "mana":
+        return await mana_view(rep, pull, boss)
     if view == "versus":
         a = args or {}
         return await versus_view(rep, player or "", a.get("against") or "", pull, boss, bool(a.get("all_pulls")))
@@ -636,6 +638,38 @@ async def versus_view(rep: Report, player: str, other: str, pull: PullRef, boss:
             "pulls": len(v.fights), "title": f"{v.a.p.name} against {v.b.p.name}", "a": side(v.a), "b": side(v.b),
             "spells": [{"name": n, "icon": (v.a.spells.get(n) or v.b.spells.get(n) or versus.Spell()).icon or None,
                         "a": spell(v.a, n), "b": spell(v.b, n), "far": v.far_off(n)} for n in v.order]}
+
+
+MANA_STEP = 2  # mana points closer than this many % to the last kept one are left out
+
+
+async def mana_view(rep: Report, pull: PullRef, boss: str | None) -> dict:
+    """The healers' mana over a pull until the wipe was decided and the druids' Innervates, as healing with `mana`
+    states them: each healer's mana, when they were low and died; each Innervate cast (on whom, at what mana) and
+    when it sat ready while a healer was low."""
+    m = await mana.mana(rep, pull, boss)
+    pm = m.pulls[0]
+    f = pm.f
+    def line(points: list[tuple[float, float]]) -> list[list[float]]:
+        kept: list[list[float]] = []
+        for t, v in points:
+            if not kept or abs(v - kept[-1][1]) >= MANA_STEP or t == points[-1][0]:
+                kept.append([round(t), round(v, 1)])
+        return kept
+    def color(p) -> str:
+        return class_hex(p.class_name)
+    return {"view": "mana", "report": rep.code, "boss": rep.boss_key(f), "pull": rep.pull_no(f), "url": rep.url(f),
+            "title": f"{rep.label(f)}: healers' mana", "until_ms": round(pm.until_ms), "decided": pm.decided,
+            "low": mana.LOW, "cooldown_s": m.cooldown_s, "never": m.never,
+            "healers": [{"name": h.p.name, "spec": f"{spaced(h.p.spec)} {spaced(h.p.class_name)}", "color": color(h.p),
+                         "points": line(h.points), "dead_ms": None if h.dead_ms is None else round(h.dead_ms),
+                         "lowest": h.lowest and [round(h.lowest[0]), round(h.lowest[1])],
+                         "low": [[round(a), round(b)] for a, b in h.low()]} for h in pm.healers],
+            "innervates": [{"druid": i.druid.name, "color": color(i.druid),
+                            "casts": [{"ms": round(t), "on": who, "pct": None if v is None else round(v)}
+                                      for t, who, v in i.casts],
+                            "ready_low": [{"from_ms": round(a), "to_ms": round(b), "who": who}
+                                          for a, b, who in i.ready_low]} for i in pm.innervates]}
 
 
 PLAN_PAD_S = 15  # the note's timeline runs this far past its last entry in each phase

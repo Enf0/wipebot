@@ -1,0 +1,6 @@
+Healers' mana on all 39 The Twin Fangs pulls, each until the wipe was decided; low is under 30%. Innervate: Wowhead's cooldown 3 min (talents aside), taken as ready at the pull.
+  Cptola: low on 3 of 39 pulls (17, 25, 37); lowest 18% on pull 37 at 6:37
+  Enfo: low on 1 of 39 pulls (37); lowest 1% on pull 37 at 6:12
+  Lïzårðmâñ: low on 4 of 39 pulls (10, 11, 25, 37); lowest 1% on pull 37 at 6:25
+  Namsus: low on 0 of 39 pulls; lowest 55% on pull 2 at 1:16
+  Innervate, Attractîv: cast 5 times over 28 pulls (on Enfo 5); ready while a healer was low on 3 (17, 25, 37)

@@ -70,6 +70,10 @@ defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "
 healing = { tool = "healing", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", pull = 8 }
 # the spikes that come back at the same moment pull after pull
 healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true }
+# healers going low late in a long pull, and the druid's Innervates: both on a healer above the low line while two
+# were under it, one after it sat ready
+healing-mana = { tool = "healing", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", pull = 25, mana = true }
+healing-mana-night = { tool = "healing", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", all_pulls = true, mana = true }
 
 # ---- breakdown: any table over any pulls ----
 breakdown = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "DamageTaken", group_by = "ability", pulls = [13], cutoff = 3 }
