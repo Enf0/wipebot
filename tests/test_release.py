@@ -49,3 +49,10 @@ def test_a_released_versions_notes_are_its_section():
     cut = release.cut(CHANGELOG, "0.3.0", datetime.date(2026, 10, 23))
     assert release.section(cut, "0.3.0") == release.unreleased(CHANGELOG)
     assert release.section(cut, "0.2.0") == "### Fixed\n\n- `Agent` An older fix."
+
+
+def test_a_line_about_a_picture_needs_the_picture_under_it():
+    notes = ("### Added\n\n- `Discord` **The night, drawn.** A new picture\n  of the night.\n"
+             "- `Discord` **The map, pictured.** A map.\n  ![The map](https://raw.githubusercontent.com/x/map.webp)\n"
+             "- `Agent` **Faster.** No drawing here, no pic.\n- `Agent` A plain fix with a chart in it.")
+    assert release.unpictured(notes) == ["The night, drawn.", "A plain fix with a chart in it."]

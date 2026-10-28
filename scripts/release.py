@@ -5,7 +5,9 @@ release, whose notes are the section (.github/workflows/release.yml, which reads
 Claude Code cloud session may push main, but neither a tag nor a release. Without a version it
 says which one the changelog calls for and changes nothing: a minor version for anything Added, Changed or Removed,
 a patch for fixes only. What goes in the changelog, and the commit's summary (`--summary`), are written by hand
-first; deploying is a deployment's own."""
+first; deploying is a deployment's own. A line about a picture (one drawn, changed or shown) needs that picture
+under it, as the website, the release notes and Discord's what's new show it: the release stops without, unless
+`--without-pictures`."""
 import argparse
 import datetime
 import re
@@ -32,6 +34,26 @@ def section(changelog: str, version: str) -> str:
     start = changelog.index("\n", changelog.index(f"## [{version}]"))
     end = changelog.find("\n## [", start)
     return changelog[start:end if end != -1 else len(changelog)].strip()
+
+
+# What a changelog line says when raiders see something drawn: its picture belongs under it
+DRAWN = re.compile(r"\b(?:pictures?|draw[sn]?|chart|map|meters?|card|image|screenshot)\b", re.I)
+
+
+def unpictured(notes: str) -> list[str]:
+    """The bold leads (else starts) of the lines that talk about a picture and have none under them."""
+    items: list[str] = []
+    for line in notes.splitlines():
+        if line.startswith("- "):
+            items.append(line[2:])
+        elif line.startswith("  ") and items:
+            items[-1] += "\n" + line.strip()
+    out = []
+    for item in items:
+        if DRAWN.search(re.sub(r"!\[[^\]]*\]\([^)]*\)", "", item)) and "![" not in item:
+            lead = re.search(r"\*\*(.+?)\*\*", item)
+            out.append(lead[1] if lead else re.sub(r"^(?:`[^`]+`\s*)*", "", item)[:60])
+    return out
 
 
 def suggest(current: str, notes: str) -> str:
@@ -77,6 +99,8 @@ def main() -> None:
     parser.add_argument("version", nargs="?", help="e.g. 0.3.0; omit to see which the changelog calls for")
     parser.add_argument("--summary", default="", help="the release commit's body: what the version brings")
     parser.add_argument("--notes", action="store_true", help="only print the released version's notes")
+    parser.add_argument("--without-pictures", action="store_true",
+                        help="release even with lines about a picture that have none under them")
     args = parser.parse_args()
     changelog, pyproject = CHANGELOG.read_text(encoding="utf-8"), PYPROJECT.read_text(encoding="utf-8")
     if args.notes:
@@ -99,6 +123,9 @@ def main() -> None:
         sys.exit(f"{tag} exists already")
     if why := ready():
         sys.exit(why)
+    if (missing := unpictured(notes)) and not args.without_pictures:
+        sys.exit("These lines talk about a picture but have none under them (docs/images, by its "
+                 "raw.githubusercontent.com address): " + "; ".join(missing) + ". Add them, or --without-pictures.")
     CHANGELOG.write_text(cut(changelog, args.version, datetime.date.today()), encoding="utf-8")
     PYPROJECT.write_text(bump(pyproject, args.version), encoding="utf-8")
     run("uv", "lock", "--quiet")
