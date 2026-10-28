@@ -213,8 +213,9 @@ The remote server signs people in with Warcraft Logs (`core/accounts.py`).
   the same flow and callback, its token kept apart from the first: it reads only a report the client credentials
   can't, once that token reads the report's `visibility` as not public (`WCL.private_report`, `wcl.mark_private`),
   and nothing naming that report is cached (`cache.never_keep`) or kept loaded for another token
-  (`library.Library`). Not yet verified live: what such a token opens (the user's own uploads only, or their guild's
-  private reports too) and the `visibility` values. A report the client credentials can't read comes back as
+  (`library.Library`). Verified live 28 October 2026 (Wipeboy, Discord `/login private:True`): such a token reads the
+  user's own upload made private, which the client credentials can't. Not yet seen: whether it opens a guild's
+  private reports the user didn't upload, and the `visibility` values. A report the client credentials can't read comes back as
   `report: null` with a warning, "You do not have permission to view this report." or, for a code that doesn't
   exist (verified 28 October 2026), "This report does not exist."; both are `wcl.Unreadable`.
 - `userData.currentUser` (user token, scope `view-user-profile`) gives `id` (an int), `name`, `battleTag` and
