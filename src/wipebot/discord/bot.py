@@ -24,7 +24,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import allowance, commands, config, emojis, host, logincmd, news
+from . import allowance, commands, config, emojis, host, logincmd, news, progress
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .follower import Follower, Pull
@@ -931,25 +931,29 @@ class WipeBot(discord.Client):
         return None
 
     async def _with_footer(self, kind: str, ctx: Context, answer: Answer) -> Answer:
-        """A chat answer with the small cost line under it, where the server has it on: by default while it answers
-        from a shared copy's free answers (/wipebot setup footer: turns it on or off)."""
+        """A chat answer with its small lines under it, where the server has them on: the steps it went through
+        (/wipebot setup steps:, on by default), and what it cost, by default while it answers from a shared copy's
+        free answers (/wipebot setup footer: turns it on or off)."""
+        if kind != "chat" or not answer.text:
+            return answer
+        lines = []
+        if ctx.server_id and self.store.steps(ctx.server_id):
+            lines.append(progress.steps([(c.name, c.failed) for c in answer.calls]))
         on = self.store.footer(ctx.server_id) if ctx.server_id else None
         if on is None:
             on = self.allowance is not None and ctx.env is None
-        if kind != "chat" or not on or not answer.text:
-            return answer
-        try:
-            left = (await self.allowance.left(ctx.server_id) if self.allowance and ctx.env is None and ctx.server_id
-                    else None)
-            if left:  # this answer is spent too, though kept only once it's posted
-                left = (left[0], max(left[1] - (answer.cost_usd or 0), 0.0))
-            points = answer.wcl_points()
-            rate = await self.library.wcl.my_points() if points.get("total") else None  # fresh: its queries
-            line = allowance.footer(answer.cost_usd, points, left, rate, wcl.on_new_point_system())
-        except Exception:
-            log.exception("the cost line failed")
-            return answer
-        return replace(answer, footer=line)
+        if on:
+            try:
+                left = (await self.allowance.left(ctx.server_id)
+                        if self.allowance and ctx.env is None and ctx.server_id else None)
+                if left:  # this answer is spent too, though kept only once it's posted
+                    left = (left[0], max(left[1] - (answer.cost_usd or 0), 0.0))
+                points = answer.wcl_points()
+                rate = await self.library.wcl.my_points() if points.get("total") else None  # fresh: its queries
+                lines.append(allowance.footer(answer.cost_usd, points, left, rate, wcl.on_new_point_system()))
+            except Exception:
+                log.exception("the cost line failed")
+        return replace(answer, footer="\n".join(line for line in lines if line))
 
     def _spent(self, kind: str, ctx: Context, answer: Answer | None) -> None:
         """Keep what an answer cost under its server and asker (store.spend), recorded or not."""

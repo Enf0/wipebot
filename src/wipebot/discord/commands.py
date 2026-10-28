@@ -123,8 +123,9 @@ def updated_settings(existing: ServerSettings | None, discord_guild_id: int, fou
 NO_LANGUAGE = "Give the language's name, like Norwegian or English."
 
 
-def server_options(store: Store, discord_guild_id: int, footer: bool | None, language: str | None) -> list[str]:
-    """/wipebot setup's footer and language, kept for the server set up or not; what changed, for the admin
+def server_options(store: Store, discord_guild_id: int, footer: bool | None, language: str | None,
+                   steps: bool | None = None) -> list[str]:
+    """/wipebot setup's footer, steps and language, kept for the server set up or not; what changed, for the admin
     (NO_LANGUAGE alone, and nothing kept, for a language that can't be one)."""
     if language is not None and not (name := server_language(language)):
         return [NO_LANGUAGE]
@@ -133,6 +134,10 @@ def server_options(store: Store, discord_guild_id: int, footer: bool | None, lan
         store.set_footer(discord_guild_id, footer)
         told.append("Answers here now end with what they cost." if footer
                     else "Answers here no longer end with what they cost.")
+    if steps is not None:
+        store.set_steps(discord_guild_id, steps)
+        told.append("Answers here now end with the steps they went through, like ✓ Roster · ✓ Pull summary." if steps
+                    else "Answers here no longer end with the steps they went through.")
     if language is not None:
         store.set_language(discord_guild_id, name)
         told.append(f"The server's language is now {name}: posts after wipes and what's new are in it, and a "
@@ -184,6 +189,7 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
                      "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
                      "`/wipebot news`: post what's new in each release of mine to a channel",
                      "`/wipebot setup footer:`: end answers with what they cost, or not",
+                     "`/wipebot setup steps:`: end answers with the steps they went through, or not",
                      "`/wipebot setup language:`: the language of posts after wipes and of what's new"]
     commands.append("Officers save a raid note or plan by pasting it to me.")
     parts.append("**Commands:**\n" + "\n".join(f"- {c}" for c in commands))
@@ -273,16 +279,17 @@ def build(bot: WipeBot) -> app_commands.Group:
                                     "(default Manage Server)",
                            footer="End answers with a small line: their cost, Warcraft Logs points and free answers "
                                   "left",
+                           steps="End answers with a small line of the steps they went through (what they looked at)",
                            language="The server's language, e.g. Norwegian: for posts and what's new (questions get "
                                     "answers in theirs)")
     async def setup(interaction: discord.Interaction, link: str | None = None,
                     role: discord.Role | None = None, officers: discord.Role | None = None,
-                    footer: bool | None = None, language: str | None = None) -> None:
-        """Options left out keep what's set. The footer and language are the server's even before it's connected
+                    footer: bool | None = None, language: str | None = None, steps: bool | None = None) -> None:
+        """Options left out keep what's set. The footer, steps and language are the server's even before it's connected
         to a guild."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         gid = in_guild(interaction).id
-        if (told := server_options(bot.store, gid, footer, language)) and (told[0] == NO_LANGUAGE
+        if (told := server_options(bot.store, gid, footer, language, steps)) and (told[0] == NO_LANGUAGE
                                                                           or not (link or role or officers)):
             await interaction.followup.send("\n".join(told), ephemeral=True)
             return

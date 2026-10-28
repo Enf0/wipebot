@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **The steps an answer went through, kept under it.** An answer ends with a small line of what it looked at, like "✓ Raid note · ✓ Roster · ✓ Compare with top players ×2", the steps shown while it was written. `/wipebot setup steps:` turns it off for a server.
+  ![An answer ending with its steps and cost](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-answer-steps.webp)
+
 ### Changed
 
 - `Discord` **Clearer pictures.** The damage meter draws every class's bar at one lightness with the class colour as its end cap, so names read as well on a priest's bar as on a warlock's; the raid's night colours only the four most common ways pulls ended (the rest grey) and its list of endings is the legend; a raider's plan map over the night says what green and red mean and labels only their three furthest misses.

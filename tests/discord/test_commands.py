@@ -262,6 +262,14 @@ async def test_setup_turns_the_footer_on_or_off_even_before_the_server_is_connec
     assert told.startswith("wipebot is set up") and bot.store.footer(1001) is True
 
 
+async def test_setup_keeps_the_steps_under_answers_or_not(setup, bot):
+    assert bot.store.steps(1001) is True
+    assert await setup(steps=False) == "Answers here no longer end with the steps they went through."
+    assert bot.store.steps(1001) is False
+    assert "now end with the steps they went through" in await setup(steps=True)
+    assert bot.store.steps(1001) is True
+
+
 async def test_usage_post_on_a_shared_copy_shows_the_servers_share(bot):
     async def left(server_id):
         return 5.0, 1.25

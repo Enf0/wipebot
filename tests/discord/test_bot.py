@@ -15,6 +15,7 @@ from tests.support.messages import shown
 from wipebot.core import server
 from wipebot.core.wcl import WCLError
 from wipebot.discord import bot as wipebot
+from wipebot.discord import progress
 from wipebot.discord.bot import (
     MODEL_ERRORS,
     SLOW_START,
@@ -921,6 +922,25 @@ async def test_a_quick_answer_shows_no_progress_line(bot, message, monkeypatch):
     await bot.on_message(msg)
     assert msg.replies == ["**Wiped.**"]
 
+
+
+async def test_a_server_can_keep_the_steps_under_its_answers(bot, message, monkeypatch):
+    """By default the answer ends with the tools it went through, each once, failed ones marked; /wipebot setup
+    steps: turns it off."""
+    calls = [ToolCall("Skill", {}, "", False), ToolCall("raid_note", {}, "", False), ToolCall("roster", {}, "", False),
+             ToolCall("compare_with_top", {"spec": "Restoration"}, "", False),
+             ToolCall("compare_with_top", {"spec": "Holy"}, "", False), ToolCall("spell_info", {}, "", True)]
+
+    async def answering(key, code, question, ctx, *args, **kwargs):
+        return Answer("**Cast Riptide more.**", calls=calls)
+    monkeypatch.setattr(bot.conversations, "ask", answering)
+    await bot.on_message(msg := message())
+    assert msg.replies == ["**Cast Riptide more.**\n-# ✓ Raid note · ✓ Roster · ✓ Compare with top players ×2 · "
+                           "✗ Spell info"]
+    bot.store.set_steps(msg.guild.id, False)
+    await bot.on_message(msg := message())
+    assert msg.replies == ["**Cast Riptide more.**"]
+    assert progress.steps([("Skill", False)]) == ""
 
 # ---------- messages a question links to ----------
 

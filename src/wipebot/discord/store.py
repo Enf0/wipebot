@@ -105,7 +105,7 @@ DROPPED_COLUMNS = {"server_settings": ("posts_channel_id",)}
 ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "officer_role_id", "INTEGER"),
                  ("interactions", "wcl_points", "TEXT"), ("logins", "private_sealed", "TEXT"),
                  ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
-                 ("server_options", "language", "TEXT")]
+                 ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER")]
 
 
 class Store:
@@ -209,7 +209,8 @@ class Store:
                 discord_guild_id INTEGER PRIMARY KEY,
                 footer INTEGER,          -- the cost line under answers (/wipebot setup footer:); NULL: the default
                 news_channel INTEGER,    -- where what's new in each release is posted (/wipebot news); NULL: nowhere
-                language TEXT            -- the server's language (/wipebot setup language:); NULL: none set
+                language TEXT,           -- the server's language (/wipebot setup language:); NULL: none set
+                steps INTEGER            -- the steps line under answers (/wipebot setup steps:); NULL: the default
             );
             CREATE TABLE IF NOT EXISTS bot_state (  -- the bot's own, not a server's
                 key TEXT PRIMARY KEY,    -- news: the latest release's post (news.Post), posted or not
@@ -468,6 +469,17 @@ class Store:
     def set_footer(self, discord_guild_id: int, on: bool) -> None:
         self._db.execute("INSERT INTO server_options (discord_guild_id, footer) VALUES (?, ?) ON CONFLICT "
                          "(discord_guild_id) DO UPDATE SET footer = excluded.footer", (discord_guild_id, int(on)))
+        self._db.commit()
+
+    def steps(self, discord_guild_id: int) -> bool:
+        """Whether answers end with the line of the steps they went through: on unless an admin turned it off."""
+        row = self._db.execute("SELECT steps FROM server_options WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        return row is None or row[0] is None or bool(row[0])
+
+    def set_steps(self, discord_guild_id: int, on: bool) -> None:
+        self._db.execute("INSERT INTO server_options (discord_guild_id, steps) VALUES (?, ?) ON CONFLICT "
+                         "(discord_guild_id) DO UPDATE SET steps = excluded.steps", (discord_guild_id, int(on)))
         self._db.commit()
 
     def news_channel(self, discord_guild_id: int) -> int | None:

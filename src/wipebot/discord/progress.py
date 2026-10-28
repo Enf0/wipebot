@@ -1,10 +1,11 @@
 """The line under a question while its answer is written: what the answer has looked at, what it's looking at now,
-and how long it has taken."""
+and how long it has taken; and the steps an answer went through, kept under it where a server wants them."""
 import asyncio
 import logging
 import re
 import time
 from collections import Counter
+from collections.abc import Sequence
 
 import discord
 
@@ -51,6 +52,15 @@ def doing(name: str, args: dict) -> str:
         PULLS.get(str(pull).lower(), f"pull {_clean(pull)}") if pull not in (None, "") else None)
     about = [s for s in (_clean(args.get("boss") or ""), pull, _clean(args.get("spec") or "")) if s]
     return DOING.get(name, server.title(name)) + (f" ({', '.join(about)})" if about else "")
+
+
+def steps(calls: Sequence[tuple[str, bool]]) -> str:
+    """The small line of the steps an answer went through, from its tool calls (name, failed) in order: each tool
+    once, with how often it ran when more than once, ✗ when every call of it failed; none without a step."""
+    runs: Counter[str] = Counter(name for name, _ in calls if name not in NOT_SHOWN)
+    worked = {name for name, failed in calls if not failed}
+    return ("-# " + " · ".join(f"{'✓' if name in worked else '✗'} {server.title(name)}"
+                               + (f" ×{n}" if n > 1 else "") for name, n in runs.items())) if runs else ""
 
 
 class Progress:
