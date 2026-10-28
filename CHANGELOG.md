@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.30.2] - 2026-10-28
+
 ### Fixed
 
 - `Agent` **Only callouts for personals are checked.** A callout asking for something the log can't match to a press, such as grabbing an orb or CCing a mind-controlled player, was judged by whether the player pressed any cooldown around it, which said nothing. It's now listed as not checked, and the raid note's callouts picture shows only the personals.
