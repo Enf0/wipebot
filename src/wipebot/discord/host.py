@@ -586,7 +586,7 @@ class Session:
         if bot:
             tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
         options = ClaudeAgentOptions(
-            system_prompt=(prompt.system_prompt(self.name, server.skill())
+            system_prompt=(prompt.system_prompt(self.name, server.skill(), config.names_in_channels())
                            if self.system_prompt is None else self.system_prompt),
             mcp_servers={SERVER: create_sdk_mcp_server(SERVER, tools=tools)},
             tools=[],  # no built-in tools: no files, shell or web

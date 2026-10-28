@@ -1,7 +1,8 @@
 """Discord client for any number of servers, each set up with /wipebot setup.
 
 Per server: answers to members who @mention it (in any channel it can see) or DM it, and, for whoever asks, a
-post after each wipe of the guild's live report where they asked (posts.py). It names players in DMs only.
+post after each wipe of the guild's live report where they asked (posts.py). It names players in DMs only, unless
+its host turns names on in channels too (config.names_in_channels).
 """
 import asyncio
 import datetime

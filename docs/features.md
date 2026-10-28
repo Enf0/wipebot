@@ -264,7 +264,8 @@ same way the bot does; the connector alone, in Claude or elsewhere, gets only th
   setting on, it also reads the channel's last 15 messages for context, and the messages, threads or channels a
   question links to, such as your own notes on a boss (only ones the asker can read).
 - **Who it names:** in a server channel it doesn't blame players: it says what went wrong and how to fix it, without
-  names. Praise is fine, and so is feedback on the asker's own play. In a DM it names players.
+  names. Praise is fine, and so is feedback on the asker's own play. In a DM it names players. A host can have it
+  name players in channels too (`WIPEBOT_NAMES_IN_CHANNELS`), for a guild that wants it said where it was asked.
 - **In your DMs instead:** ask it in a channel to send something to your DMs, and it answers there as if you'd
   asked there, where it may name players. It only ever writes to the one who asked.
 - **Posts after each wipe:** ask it to follow tonight's raid, and it posts after every wipe, in a DM (your own
