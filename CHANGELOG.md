@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-28
+
 ### Changed
 
 - `Discord` **Names in channels.** Wipebot names players in a server channel as it does in a DM: "who took the most damage?" or "who missed kicks?" is answered right where it's asked, instead of being sent to your DMs. It still answers in your DMs when you ask it to.
