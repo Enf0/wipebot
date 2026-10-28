@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Agent` **Meters in the real class colours.** Each bar is drawn in its class's in-game colour, as damage meters do, with the name on it in black or white, whichever reads on that colour. In the light theme a bar gets an outline a shade darker, so a priest's white shows where it ends.
+
+  ![The healing meter on Sszorak in the dark theme: a bar per healer in their class colour, priests in white with black names, a shaman in blue and a death knight in red with white names](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/meter-class-colours.webp)
+
 ## [0.32.0] - 2026-10-28
 
 ### Changed

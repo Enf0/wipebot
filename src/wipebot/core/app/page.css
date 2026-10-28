@@ -155,17 +155,19 @@ table.pulls td.fallout { color: var(--muted); }
 /* the meter: a bar per player in their class colour, scaled to the top one, as in-game damage meters draw it */
 .meter-rows { position: relative; margin: 2px 2px 6px; }
 .meter-rows ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.meter-rows li { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto 38px; gap: 8px; align-items: center;
-                 height: 24px; padding: 0 8px 0 4px; border-radius: 4px; overflow: hidden; font-size: 13px;
+.meter-rows li { position: relative; height: 24px; border-radius: 4px; overflow: hidden; font-size: 13px;
                  background: color-mix(in srgb, var(--line) 45%, transparent); }
-/* every class's fill at one lightness, so the names on it read the same on a priest's white as on a warlock's purple;
-   the class colour itself is the end cap */
-.meter-rows .fill { position: absolute; inset: 0 auto 0 0; width: var(--w); background: color-mix(in srgb, var(--c) 45%, var(--bg));
-                    background: oklch(from var(--c) .36 calc(c * .55) h); border-right: 3px solid var(--c); }
-:root[data-theme="light"] .meter-rows .fill { background: color-mix(in srgb, var(--c) 30%, var(--bg));
-                                              background: oklch(from var(--c) .87 calc(c * .45) h);
-                                              border-right-color: oklch(from var(--c) .6 c h); }
-.meter-rows li > :not(.fill) { position: relative; text-shadow: 0 0 4px var(--bg), 0 0 2px var(--bg), 0 0 1px var(--bg); }
+.meter-rows .row { position: absolute; inset: 0; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto 38px; gap: 8px;
+                   align-items: center; padding: 0 8px 0 4px; }
+/* the fill in the class's own colour, as the game's meters draw it, and the text on it in black or white, whichever
+   reads on that colour (white on a death knight's red, a demon hunter's purple and a shaman's blue); in the light
+   theme an outline a shade darker than the fill, so a priest's white shows where it ends */
+.meter-rows .fill { position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--c); }
+:root[data-theme="light"] .meter-rows .fill { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 70%, #000); border-radius: 4px 0 0 4px; }
+.meter-rows .row:not(.on) { clip-path: inset(0 0 0 var(--w)); }
+.meter-rows .on { clip-path: inset(0 calc(100% - var(--w)) 0 0); color: #fff; color: oklch(from var(--c) clamp(0, (.58 - l) * 1000, 1) 0 0); }
+.meter-rows li .row.on * { color: inherit; }
+.meter-rows li .on :is(.rk, small, .pc) { opacity: .75; }
 .meter-rows .rk { color: var(--muted); font-size: 11.5px; text-align: right; font-variant-numeric: tabular-nums; }
 .meter-rows .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meter-rows .nm small { font-weight: 400; color: var(--muted); margin-left: 6px; font-size: 11.5px; }

@@ -36,11 +36,13 @@ views.meter = (() => {
       const pct = m.total ? 100 * b.value / m.total : 0, share = pct && pct < 0.5 ? "<1%" : m.total ? `${Math.round(pct)}%` : "";
       const tip = [`${b.name}${b.spec ? ` (${b.spec})` : ""}: ${amount(m, b.value)}${m.unit === "amount" ? "" : ` ${m.unit}`}${per}`, b.note,
                    b.died_after || b.killed_by ? `${b.died_after} deaths within a few seconds of a hit, ${b.killed_by} by it` : ""].filter(Boolean).join("\n");
-      return `<li style="--c:${kit.esc(b.color)};--w:${w.toFixed(2)}%"${kit.tip(tip)}><span class="fill"></span>`
-        + `<span class="rk">${i + 1}</span><span class="nm">${kit.esc(b.name)}${b.role === "tank" ? '<small class="role">tank</small>' : ""}`
+      const row = `<span class="rk">${i + 1}</span><span class="nm">${kit.esc(b.name)}${b.role === "tank" ? '<small class="role">tank</small>' : ""}`
         + `${b.note ? `<small class="nt">${kit.esc(b.note)}</small>` : ""}</span>`
         + `<span class="dd">${b.died_after ? `${SKULL}${b.died_after}` : ""}</span>`
-        + `<span class="val">${amount(m, b.value)}<small>${kit.esc(per)}</small></span><span class="pc">${share}</span></li>`;
+        + `<span class="val">${amount(m, b.value)}<small>${kit.esc(per)}</small></span><span class="pc">${share}</span>`;
+      // the row twice: in the page's colours, and over it in the text colour for the bar, cut to the bar's length
+      return `<li style="--c:${kit.esc(b.color)};--w:${w.toFixed(2)}%"${kit.tip(tip)}><span class="fill"></span>`
+        + `<div class="row">${row}</div><div class="row on" aria-hidden="true">${row}</div></li>`;
     }).join("");
     const rest = m.bars.slice(SHOWN, LISTED).map((b, i) =>
       `<span style="white-space:nowrap">${SHOWN + i + 1} ${kit.esc(b.name)} ${amount(m, b.value)}</span>`);
