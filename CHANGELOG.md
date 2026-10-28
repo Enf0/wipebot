@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.28.1] - 2026-10-28
+
 ### Fixed
 
 - `Agent` **The pull picture counts a wipe by phase.** On a boss whose phases each have their own health bar, such as the Coiled Altar, the pull's card says "P2 80.8%" instead of a bare 80.8% next to Warcraft Logs' whole-fight %s, which it now names "WCL". Its boss health line follows the next phase's boss instead of stopping at 0% when the first one dies, and answers say the phase with the %.
