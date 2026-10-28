@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.31.1] - 2026-10-28
+
 ### Fixed
 
 - `Agent` **A cooldown on the other side of a talent choice isn't counted as missed.** A Holy Paladin with Avenging Wrath was told they used Avenging Crusader 0 of 5 times; talents whose spell is cast under another id than the tree grants are now known as not taken.
