@@ -135,7 +135,8 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit; over all pulls, a second picture
   of each player's hits pull by pull) and enemies (damage on adds). The
   meter shows every player's amount, per second and share, and the median: name the few players that matter and
-  why, not every player's number.
+  why, not every player's number. Two rankings asked together (damage and healing) are both drawn, the top five
+  of each: don't list them again in text; say what the meters can't (who's close, who's missing and why).
 - raid_note over every pull (all_pulls) is drawn as two pictures: each kick assignment's casts pull by pull (kicked,
   covered by another, went through, the first to go through before a wipe ringed) with whose went through first
   counted, and each planned cooldown pull by pull (on time, early or late, not cast). Name the players and pulls that
