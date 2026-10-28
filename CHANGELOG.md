@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-28
+
 ### Added
 
 - `Agent` **Compare a mechanic with another night.** "Did I take less Axegrinder than on Monday?" now gets each night per minute of the pulls, so a longer night doesn't look worse: the raid's and each raider's, their rank both nights, hits and the deaths it set up. In Discord it's one meter: tonight's bars, a tick at Monday's, and the change.
