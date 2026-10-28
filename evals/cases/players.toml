@@ -327,3 +327,21 @@ facts = ["died before the wipe was decided on 4 of 10 pulls in the first third, 
          "the best pull by damage alive was pull 26"]
 wrong = ["says they improved over the night",
          "counts deaths after the wipe was decided against them"]
+
+[[case]]
+id = "me-mechanic-against-last-night"  # a mechanic against the night before, by the minute (answer #1089)
+tools = ["find_reports", "mechanic_hits"]
+report = "4N9JMwBFPAjXyV3Z"
+question = """I took a lot of Axegrinder damage last raid night. Looking at all of tonight's wipes, how did it go?
+I feel it went a bit better. Tell me how I rank against the others too, without calling anyone out."""
+asker = "Miralupa"
+boss = "The Coiled Altar"
+expect = """Yes, better: Miralupa took about 0.4M Axegrinder damage per minute of the pulls tonight against about 1.0M
+on Monday (about 60% less), from the second most of the raid to 13th of 20, while the raid as a whole took more per
+minute (about 11M against 9M)."""
+facts = ["no deaths set up by Axegrinder for Miralupa either night",
+         "5 hits tonight against 7 on Monday",
+         "31 pulls tonight against 21 on Monday, longer ones"]
+wrong = ["says Miralupa took more Axegrinder damage than on Monday, or about the same",
+         "names another raider as taking too much or dying to it",
+         "compares the two nights' totals as if they had as many pulls of the same length"]

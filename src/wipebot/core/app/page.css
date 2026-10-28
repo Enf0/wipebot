@@ -182,7 +182,17 @@ table.pulls td.fallout { color: var(--muted); }
 .meter .stats { padding-bottom: 18px; }
 .meter .head h1 .ic { width: 18px; height: 18px; vertical-align: -4px; }
 svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2px; margin-right: 3px; color: var(--dead); }
-@media (max-width: 480px) { .meter-rows .nm small.nt, .meter-rows .val small { display: none; } }
+/* against another night: a tick at that night's amount, the change last; the one asking ringed */
+.meter-rows li > .was { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; border-radius: 2px;
+                        background: var(--ink); box-shadow: 0 0 0 1.5px var(--bg); }
+.meter-rows .val small.old { margin: 0 6px 0 0; }
+.meter-rows .dl { font-size: 11.5px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.meter-rows .dl.good { color: var(--green); } .meter-rows .dl.bad { color: var(--dead); }
+.meter-rows.then .row { grid-template-columns: 22px minmax(0, 1fr) auto auto 46px; }
+.meter-rows li.ringed { outline: 2px solid var(--gold); outline-offset: 1px; }
+.meter-rows li.gap { background: none; height: 12px; padding-left: 30px; color: var(--muted); line-height: 10px; }
+.legend i.tick { width: 3px; height: 12px; background: var(--ink); opacity: .75; }
+@media (max-width: 480px) { .meter-rows .nm small.nt, .meter-rows .val small:not(.old) { display: none; } }
 
 /* the raid note against every pull: a grid of squares, pulls down; its legend and the count under it */
 .note-board { padding-top: 2px; margin-bottom: 14px; }

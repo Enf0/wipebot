@@ -20,7 +20,8 @@ def recorded(monkeypatch):
 
 def test_a_button_keeps_what_it_acts_on_in_its_id_and_comes_back_from_it():
     b = Act("death", "KBYT4xXn7VNjDgh8", "Sszorak", 13, "Scopidruid")
-    assert b.item.custom_id == "wb|death|KBYT4xXn7VNjDgh8|Sszorak|13|Scopidruid" and b.item.label == "First death"
+    assert b.item.custom_id == "wb|death|KBYT4xXn7VNjDgh8|Sszorak|13|Scopidruid"
+    assert b.item.label == "First death: Scopidruid"  # says where it goes
     match = Act.__discord_ui_compiled_template__.fullmatch(b.item.custom_id)  # as discord.py dispatches a click
     assert match and (match["what"], match["pull"], match["player"]) == ("death", "13", "Scopidruid")
     assert tool_of("death", "KBYT4xXn7VNjDgh8", "Sszorak", "13", "Scopidruid") == (
@@ -46,7 +47,8 @@ async def test_each_view_gets_its_actions_on_its_last_picture(recorded):
     against = await pictures_for([(b"1", "compare_with_top", {**player, "aspects": ["casts"]})])
     assert [a.what for a in against[0].actions] == ["night"]
     own = await pictures_for([(b"1", "player_pull", player)], lang="no", mine="scopidruid")
-    assert [a.item.label for a in own[0].actions if isinstance(a, Act)] == ["Mot toppene", "Min natt"]  # in Norwegian
+    assert [a.item.label for a in own[0].actions if isinstance(a, Act)] == ["Scopidruid mot toppene",
+                                                                          "Min kveld på Sszorak"]  # in Norwegian
     assert own[0].lang == "no" and [a.what for a in own[0].actions] == ["top", "mynight"]
 
 
@@ -120,7 +122,7 @@ async def test_a_click_answers_the_clicker_alone_with_the_next_picture_and_its_a
     assert [f.filename for f in sent["files"]] == ["wipebot-1.webp"]
     labels = [(c.item if isinstance(c, Act) else c).label for c in sent["view"].walk_children()
               if isinstance(c, discord.ui.Button | Act)]
-    assert labels == ["Open in Warcraft Logs", "Their pull"]  # the death's own action, to go on from there
+    assert labels == ["Open in Warcraft Logs", "Scopidruid's pull"]  # the death's own action, to go on from there
 
 
 async def test_my_night_needs_the_clickers_character(recorded, monkeypatch):

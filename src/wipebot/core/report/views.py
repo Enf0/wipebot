@@ -5,6 +5,7 @@ A tool with a view returns a small key ({"view": ..., "report": ..., "pull": ...
 data with it (`view_data`), and draws it. The replay viewer's data is maps.replay.
 """
 import asyncio
+import dataclasses
 import functools
 import hashlib
 import statistics
@@ -68,13 +69,14 @@ def page_uri() -> str:
 async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | None = None,
                     player: str | None = None, top: bool = False, death: int = 1, tool: str | None = None,
                     args: dict | None = None, nights: list[BossNight] | None = None, note: str = "",
-                    source: str = "") -> dict:
+                    source: str = "", other: Report | None = None) -> dict:
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
     player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`); the
-    meter's `tool` and the `args` it was called with; the night view with the boss on each raid night (`nights`,
-    progress's `weeks`); the raid note's view with the `note` checked against every pull on `boss` (raid_note's `args`
-    with all_pulls), else the note as it is (where it came from, `source`)."""
+    meter's `tool` and the `args` it was called with (against the `other` night's report, its `against`); the night
+    view with the boss on each raid night (`nights`, progress's `weeks`); the raid note's view with the `note`
+    checked against every pull on `boss` (raid_note's `args` with all_pulls), else the note as it is (where it came
+    from, `source`)."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
     if view == "note":  # over every pull on a boss; else, for a boss not pulled yet or the next raid, as it is
@@ -82,7 +84,7 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
             return await note_view(rep, note, boss)
         return await note_plan_view(rep, note, boss or "", source)
     if view == "meter":
-        return await meter_view(rep, tool or "", args or {})
+        return await meter_view(rep, tool or "", args or {}, other)
     if view == "mana":
         return await mana_view(rep, pull, boss)
     if view == "versus":
@@ -776,7 +778,7 @@ async def note_plan_view(rep: Report, text: str, boss: str, source: str = "") ->
                      "everyone": everyone, "rows": rows}}
 
 
-async def meters_of(rep: Report, tool: str, args: dict) -> list[Meter]:
+async def meters_of(rep: Report, tool: str, args: dict, other: Report | None = None) -> list[Meter]:
     """The meters a tool's answer ranks players in, from its own rows: breakdown by player (damage, healing, damage
     taken, kicks, dispels), mechanic_hits for one ability, enemies' damage on adds. None for another call: a table
     by ability or pull, one player's part, every ability's outliers, too few players."""
@@ -785,6 +787,10 @@ async def meters_of(rep: Report, tool: str, args: dict) -> list[Meter]:
         case "breakdown" if a.get("group_by", "player") == "player" and not a.get("player"):
             found = await tables.meter(rep, a.get("data_type", ""), a.get("pulls"), a.get("boss"), a.get("ability"),
                                        a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"), a.get("end"))
+            return [found] if found else []
+        case "mechanic_hits" if a.get("ability") and other is not None:  # against another night (`other`)
+            found = await mechanics.meter_against(rep, other, a["ability"], a.get("boss"), bool(a.get("whole_pull")),
+                                                  a.get("start"), a.get("end"))
             return [found] if found else []
         case "mechanic_hits" if a.get("ability"):
             found = await mechanics.meter(rep, a["ability"], a.get("pull"), a.get("boss"), bool(a.get("all_pulls")),
@@ -795,10 +801,10 @@ async def meters_of(rep: Report, tool: str, args: dict) -> list[Meter]:
     return []
 
 
-async def meter_view(rep: Report, tool: str, args: dict) -> dict:
+async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = None) -> dict:
     """A tool's ranking of players as in-game damage meters draw it (meters_of): per meter each player's amount, its
     share of the top's, per second over the combat time, and their class colour, spec and role."""
-    found = await meters_of(rep, tool, args)
+    found = await meters_of(rep, tool, args, other)
     if not found:
         raise ValueError(f"{tool} ranks no players here")
     players = {p.name: p for p in rep.players.values()}
@@ -808,11 +814,13 @@ async def meter_view(rep: Report, tool: str, args: dict) -> dict:
         return {"name": b.name, "value": b.value, "note": b.note, "died_after": b.died_after,
                 "killed_by": b.killed_by, "color": class_hex(p.class_name) if p else "#9aa3b8",
                 "spec": spaced(p.spec) if p else "", "role": p.role if p else ""} | (
-                    {"per_pull": b.per_pull, "died_in": b.died_in} if b.per_pull else {})
+                    {"per_pull": b.per_pull, "died_in": b.died_in} if b.per_pull else {}) | (
+                    {"was": b.was, "was_rank": b.was_rank} if b.was is not None else {})
     meters = [{"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 1),
                "icon": icon(m.ability), "note": m.note, "others": m.others,
                "total": sum(b.value for b in m.bars), "median": statistics.median(b.value for b in m.bars),
                "bars": [bar(b) for b in m.bars]} | ({"pulls": m.pulls, "per_pull": m.per_pull} if m.pulls else {})
+              | ({"then": dataclasses.asdict(m.then)} if m.then else {})
               for m in found]
     return {"view": "meter", "report": rep.code, "tool": tool, "args": args, "title": found[0].title,
             "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0], "meters": meters}

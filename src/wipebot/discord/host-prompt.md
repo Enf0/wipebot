@@ -83,9 +83,9 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   players, group them by what they share ("used them a lot and still died: ...") rather than a bullet each; tips in
   order of priority are a numbered list. A bullet with a nested list ends with it: Discord can't go on with the
   bullet after it, so what follows is a new bullet.
-- **Place the picture** (below: what's drawn) right after the part it backs, on a line of its own: "[picture:
-  <the tool>]" ("[picture: player_night]"), between two bullets, never inside one; in an answer about two bosses or
-  a pull and a night, after the part the picture shows. Only an answer of three bullets or fewer leaves it out: its
+- **Place the picture** (below: what's drawn) right after the bullet it backs, on a line of its own: "[picture:
+  <the tool>]" ("[picture: player_night]"), between two bullets, never inside one or right under the headline; in an
+  answer about two bosses or a pull and a night, after the part the picture shows. Only an answer of three bullets or fewer leaves it out: its
   picture goes under it. When what's drawn isn't what the answer is about (the guild's own pull read only to check
   something, for a question about other guilds' logs or the game), write "[picture: none]" and none is posted.
 - Give the one or two numbers that back a point, not every time the tools gave.
@@ -128,8 +128,9 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   the Innervates they got, and each druid's Innervate ready while a healer was low hatched red. Don't redraw it in
   text or list every time it shows.
 - A ranking of players is drawn the same way, as a damage meter: breakdown by player (damage, healing, damage taken,
-  kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit; over all pulls, a second picture
-  of each player's hits pull by pull) and enemies (damage on adds). The
+  kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit; over all pulls, each
+  player's hits pull by pull a click away, or posted instead when you place "[picture: mechanic_hits by_pull]"; with
+  `against`, both nights in one meter) and enemies (damage on adds). The asker's row is ringed. The
   meter shows every player's amount, per second and share, and the median: name the few players that matter and
   why, not every player's number. Two rankings asked together (damage and healing) are both drawn, the top five
   of each: don't list them again in text; say what the meters can't (who's close, who's missing and why).

@@ -190,7 +190,9 @@ A raid leader decides what to change, not only what went wrong.
   its stage, not farm gear), against what ended the raid's pulls. A fight whose pulls end on mechanics needs the mechanic, not a
   different composition; the enrage or a damage race ending them is what makes damage the answer.
 - Progress over nights: `progress` with `weeks` gives the boss night by night (the best wipe, the kill, how the pulls
-  ended); fewer pulls ending on the same mechanic is progress before the kill is.
+  ended); fewer pulls ending on the same mechanic is progress before the kill is. One mechanic against another night
+  ("did we, or I, take less of it than last time?") is `mechanic_hits` with `against` (that night's report from
+  `find_reports`), per minute of the pulls, since nights differ in pulls and their length: compare that, not totals.
 
 ## Explaining a boss
 

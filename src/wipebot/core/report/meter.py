@@ -15,6 +15,23 @@ class Bar:
     killed_by: int = 0  # deaths it dealt the killing blow
     per_pull: list[int | None] = field(default_factory=list)  # each of the meter's `pulls`' count; None: not in it
     died_in: list[int] = field(default_factory=list)  # the pulls (indices into `pulls`) where it set up their death
+    was: float | None = None  # with the meter's `then`: their amount the other night (None: not there)
+    was_rank: int | None = None
+
+
+@dataclass
+class Then:
+    """The other night a meter compares with (mechanic_hits' `against`): both nights' days, the raid's amount per
+    minute, the deaths it set up, the minutes of pulls, and how many players the other night ranked."""
+    was_day: str
+    day: str
+    raid: float
+    raid_was: float
+    deaths: int
+    deaths_was: int
+    minutes: float
+    minutes_was: float
+    players_was: int
 
 
 @dataclass
@@ -30,3 +47,4 @@ class Meter:
     others: list[str] = field(default_factory=list)  # players in the pulls with no row (not hit, no kicks)
     pulls: list[int] = field(default_factory=list)  # over several pulls, their numbers, for each bar's `per_pull`
     per_pull: str = ""  # what `per_pull` counts: "hits", "debuffs"
+    then: Then | None = None  # the other night it's compared with, each bar's `was`

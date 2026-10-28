@@ -674,7 +674,7 @@ class WipeBot(discord.Client):
         pictures = await pictures_for([(i, tool, args) for i in images])
         files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
         text = (f"**That's the raid.** {f.character}'s night:" if f.character
-                else "**That's the raid.** The night on the last boss; **My night** shows yours, only to you.")
+                else "**That's the raid.** The night on the last boss; the button under it shows yours, only to you.")
         try:
             await (f.channel or await f.user.create_dm()).send(view=answer_layout(text, pictures), files=files)
         except discord.HTTPException as e:

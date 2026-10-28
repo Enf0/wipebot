@@ -17,6 +17,7 @@ from claude_agent_sdk import (
 from wipebot.core import server
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
+from wipebot.core.viewhost import Panel
 from wipebot.discord import host
 from wipebot.discord.host import Answer, Context, ModelError, Session, ToolCall, context_size, sdk_tools
 from wipebot.discord.prompt import FOLLOW_PULLS, REMEMBER
@@ -53,7 +54,7 @@ async def test_a_signed_in_askers_calls_read_warcraft_logs_with_their_token(monk
     from wipebot.core import wcl
     read_as = []
 
-    async def call(name, args):
+    async def call(name, args, mark=None):
         read_as.append((wcl._user.get(), wcl.private_token()))
         return "ok", False, [], None
     monkeypatch.setattr(host, "tool_call", call)
@@ -82,18 +83,18 @@ async def test_a_tool_error_goes_to_the_model_as_a_failed_call(monkeypatch):
 async def test_a_tools_view_goes_with_the_answer_as_a_picture(core_calls, monkeypatch):
     drawn = []
 
-    async def picture(name, args):
-        drawn.append((name, args))
+    async def picture(name, args, mark=None):
+        drawn.append((name, args, mark))
         return [b"WEBP"]
     monkeypatch.setattr(host, "picture", picture)
     recorded: list[ToolCall] = []
     monkeypatch.setattr(host, "_no_pictures", "")
-    tools = {t.name: t for t in await sdk_tools("R", recorded.append)}
+    tools = {t.name: t for t in await sdk_tools("R", recorded.append, asker=lambda: "Miralupa")}
     await tools["pull_summary"].handler({"pull": 13})  # returns at once: the model goes on while it's drawn
     await tools["spell_info"].handler({"spell": "1277027"})  # no view
     assert [c.drawing is not None for c in recorded] == [True, False]
     await host.pictures_drawn(recorded)  # what an answer waits for before it's sent
-    assert drawn == [("pull_summary", {"pull": 13, "report": "R"})]
+    assert drawn == [("pull_summary", {"pull": 13, "report": "R"}, "Miralupa")]  # the asker's row ringed
     assert [c.images for c in recorded] == [[b"WEBP"], []]
     assert Answer("", calls=recorded).images == [b"WEBP"]
 
@@ -108,7 +109,7 @@ def test_an_answer_sends_its_maps_and_its_first_view_alone():
 async def test_an_answer_with_two_meters_sends_both_each_drawn_shorter(monkeypatch):
     drawn = []
 
-    async def picture(name, args, rows=None):
+    async def picture(name, args, rows=None, mark=None):
         drawn.append((args["data_type"], rows))
         return [args["data_type"].encode()]
     monkeypatch.setattr(host, "picture", picture)
@@ -125,12 +126,23 @@ async def test_an_answer_with_two_meters_sends_both_each_drawn_shorter(monkeypat
     assert one[0].images == [b"top 10"]  # a meter alone keeps its top ten
 
 
+def test_one_ranking_over_two_nights_is_one_meter_and_its_hits_by_pull_a_click_away():
+    def hits(report, *images):
+        return ToolCall("mechanic_hits", {"ability": "Axegrinder", "all_pulls": True, "report": report}, "", False,
+                        list(images))
+    calls = [hits("tonight", Panel(b"meter", ""), Panel(b"grid", host.BY_PULL)),
+             hits("monday", Panel(b"meter 2", ""), Panel(b"grid 2", host.BY_PULL))]
+    assert Answer("", calls=calls).images == [b"meter"]  # not four pictures
+    placed = Answer("", calls=calls, marks=[(0, "mechanic_hits:by_pull")])
+    assert placed.images == [b"grid"]  # the answer asked for the hits by pull
+
+
 async def test_a_picture_that_cannot_be_drawn_leaves_the_answer_without_it(monkeypatch):
     class Painter:
         def __init__(self, error):
             self.error, self.asked = error, 0
 
-        async def pictures(self, name, args, rows=None):
+        async def pictures(self, name, args, rows=None, mark=None):
             self.asked += 1
             raise self.error
     monkeypatch.setattr(host, "_no_pictures", "")
@@ -457,7 +469,7 @@ async def test_with_only_the_connector_raid_notes_are_the_cores(monkeypatch):
         async def connect(self):
             pass
 
-    async def tools(code, on_result, guild, note, plan, wcl_token):
+    async def tools(code, on_result, guild, note, plan, wcl_token, asker):
         finders.append((note, plan))
         return []
 
@@ -580,16 +592,20 @@ def test_a_mark_naming_a_panel_posts_only_that_panel_of_the_view():
     assert Answer("**Mostly fine.**\n- personals 3 of 5", calls=[note]).images == [b"1", b"2", b"3"]
 
 
-def test_a_long_answer_that_leaves_its_picture_unplaced_gets_it_after_the_headline():
+def test_a_long_answer_gets_its_picture_after_the_first_bullet_not_the_headline():
     long = "**Solid night.**\n- one\n- two\n- three\n1. four"
-    assert host.placed_by_default(long, [], "player_night") == [(len("**Solid night.**"), "player_night")]
-    assert host.placed_by_default(long, [(3, "progress")], "player_night") == [(3, "progress")]  # its own place
+    first = len("**Solid night.**\n- one")
+    assert host.placed_by_default(long, [], "player_night") == [(first, "player_night")]
+    assert host.placed_by_default(long, [(3, "progress")], "player_night") == [(first, "progress")]  # not on top
+    assert host.placed_by_default(long, [(len("**Solid night.**"), "progress")], "progress") == [(first, "progress")]
+    later = len("**Solid night.**\n- one\n- two")
+    assert host.placed_by_default(long, [(later, "progress")], "player_night") == [(later, "progress")]  # its own
     assert host.placed_by_default("**Short.**\n- one\n- two\n- three", [], "player_night") == []  # under it all
     assert host.placed_by_default(long, [(len(long), "player_night")], "player_night") == [
-        (len("**Solid night.**"), "player_night")]  # a mark after it all: as if left out
+        (first, "player_night")]  # a mark after it all: as if left out
     noted = long + "\n-# Not ranked yet."
     assert host.placed_by_default(noted, [(len(long) + 1, "player_night")], "player_night") == [
-        (len("**Solid night.**"), "player_night")]  # after the last bullet, before a note: the same
+        (first, "player_night")]  # after the last bullet, before a note: the same
     assert host.placed_by_default("**Night.**\nFirst.\nSecond.", [(11, "progress")], "progress") == [(11, "progress")]
     assert host.placed_by_default(long, [], None) == []  # only a map: under it all
     assert host.placed_by_default("**Solid night.** - one - two - three - four", [], "progress") == []

@@ -7,9 +7,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from ..pulls import attempt
-from ..text import clock, plural, short
+from ..text import clock, day, ordinal, plural, short
 from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, dead_since, pull_window
-from .meter import MIN_BARS, Bar, Meter
+from .meter import MIN_BARS, Bar, Meter, Then
 
 HIT_THEN_DEATH_MS = 6_000  # a mechanic hit followed by death this soon counts as "died after"
 SAME_MOMENT_MS = 1_000  # a second hit this soon after the one before landed together with it
@@ -126,6 +126,123 @@ async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | Non
                  others=sorted(n for pid, n in present.items() if pid not in who),
                  pulls=[rep.pull_no(f) for f in fights] if all_pulls else [],
                  per_pull="debuffs" if by_debuff else "hits")
+
+
+@dataclass
+class Night:
+    """One ability's hits on a boss over one night's pulls, per minute of the pulls each player was in (until each
+    wipe was decided): what `against` compares night with night by, as the nights' pulls differ in number and
+    length."""
+    rep: Report
+    fights: list[dict]
+    h: Hits
+    minutes: dict[str, float]  # per player (by name): minutes of the pulls they were in
+    total_minutes: float
+
+    @property
+    def label(self) -> str:
+        return f"{day(self.fights[0]['startTime'] + self.rep.start_ms)}, {plural(len(self.fights), 'pull')}"
+
+    def amount(self, who: int) -> float:
+        return self.h.debuffs[who] if self.h.by_debuff else self.h.damage[who]
+
+    def per_minute(self) -> dict[str, float]:
+        """Each player's amount per minute of the pulls they were in, by name; every player in the pulls."""
+        hit = {self.rep.names[w]: self.amount(w) for w in set(self.h.hits) | set(self.h.ticks) | set(self.h.debuffs)}
+        return {n: hit.get(n, 0) / m for n, m in self.minutes.items() if m > 0}
+
+    def by_name(self, counts: Counter) -> Counter:
+        return Counter({self.rep.names[w]: k for w, k in counts.items()})
+
+
+async def night_of(rep: Report, ability: str, boss: str | None, whole_pull: bool, start: str | None,
+                   end: str | None) -> Night:
+    """The ability's hits over every pull on the boss in `rep`, with each player's minutes in them."""
+    fights, _, cut, window, h = await _asked(rep, ability, None, boss, True, whole_pull, start, end)
+    minutes: dict[str, float] = defaultdict(float)
+    total = 0.0
+    for f in fights:
+        span = min(cut.get(f["id"], f["endTime"]), f["endTime"]) - f["startTime"]
+        if window:
+            span = max(0.0, min(span, window[1]) - window[0])
+        total += span / 60_000
+        for p in rep.pull_players(f).values():
+            minutes[p.name] += span / 60_000
+    return Night(rep, fights, h, dict(minutes), total)
+
+
+def _change(now: float, then: float) -> str:
+    """'+26%', '-3%', 'same'; 'new' against none."""
+    if not then:
+        return "new"
+    pct = round((now / then - 1) * 100)
+    return f"{pct:+d}%" if pct else "same"
+
+
+async def against(rep: Report, other: Report, ability: str, boss: str | None, whole_pull: bool = False,
+                  start: str | None = None, end: str | None = None) -> str:
+    """mechanic_hits' `against`: the ability on the boss over this night's pulls and another night's, per minute of
+    the pulls each player was in, so nights of different lengths compare: the raid's, then each player's with their
+    rank both nights."""
+    now = await night_of(rep, ability, boss, whole_pull, start, end)
+    then = await night_of(other, ability, now.fights[0]["name"], whole_pull, start, end)
+    name = now.h.name or then.h.name or ability
+    unit = "debuff applications" if now.h.by_debuff else "damage"
+    fmt = (lambda v: f"{v:.2f}") if now.h.by_debuff else short
+    a, b = now.per_minute(), then.per_minute()
+    ra = {n: i + 1 for i, n in enumerate(sorted(a, key=lambda n: -a[n]))}
+    rb = {n: i + 1 for i, n in enumerate(sorted(b, key=lambda n: -b[n]))}
+    total_a = sum(now.amount(w) for w in set(now.h.damage) | set(now.h.debuffs))
+    total_b = sum(then.amount(w) for w in set(then.h.damage) | set(then.h.debuffs))
+    per_a, per_b = total_a / max(now.total_minutes, 1e-9), total_b / max(then.total_minutes, 1e-9)
+    set_a, set_b = sum(now.h.died_after.values()), sum(then.h.died_after.values())
+    kb_a, kb_b = sum(now.h.killed_by.values()), sum(then.h.killed_by.values())
+    hits_a, hits_b = now.by_name(now.h.hits), then.by_name(then.h.hits)
+    died_a, died_b = now.by_name(now.h.died_after), then.by_name(then.h.died_after)
+    lines = [f"{name}, this night against another, per minute of the pulls each player was in (each until its wipe "
+             f"was decided), as the nights' pulls differ in number and length: {now.label} ({now.total_minutes:.0f} "
+             f"min) against {then.label} ({then.total_minutes:.0f} min).",
+             f"Raid: {fmt(per_a)} {unit} per minute against {fmt(per_b)} ({_change(per_a, per_b)}); deaths it set up "
+             f"(within {HIT_THEN_DEATH_MS // 1000} s of a hit) {set_a / max(now.total_minutes, 1e-9):.2f} per minute "
+             f"against {set_b / max(then.total_minutes, 1e-9):.2f} ({set_a} against {set_b}); {kb_a} against {kb_b} "
+             f"with {name} as the killing blow.",
+             f"Per player, most {unit} per minute this night first: per minute and rank of the {len(a)} this night, "
+             f"then the other night's of {len(b)}, the change, hits, deaths it set up:"]
+    for n in sorted(a, key=lambda n: -a[n]):
+        if n in b:
+            lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}) against {fmt(b[n])} "
+                         f"({ordinal(rb[n])}), {_change(a[n], b[n])}; hits {hits_a[n]} against {hits_b[n]}; deaths "
+                         f"set up {died_a[n]} against {died_b[n]}")
+        else:
+            lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}), not there the other night; "
+                         f"hits {hits_a[n]}; deaths set up {died_a[n]}")
+    if gone := sorted(set(b) - set(a), key=lambda n: -b[n]):
+        lines.append("Only the other night: " + ", ".join(f"{n} {fmt(b[n])} ({ordinal(rb[n])})" for n in gone))
+    return "\n".join(lines)
+
+
+async def meter_against(rep: Report, other: Report, ability: str, boss: str | None, whole_pull: bool = False,
+                        start: str | None = None, end: str | None = None) -> Meter | None:
+    """`against` as a meter: each player's amount per minute this night, with the other night's (Then)."""
+    now = await night_of(rep, ability, boss, whole_pull, start, end)
+    then = await night_of(other, ability, now.fights[0]["name"], whole_pull, start, end)
+    a, b = now.per_minute(), then.per_minute()
+    if sum(1 for v in a.values() if v) < MIN_BARS:
+        return None
+    rb = {n: i + 1 for i, n in enumerate(sorted(b, key=lambda n: -b[n]))}
+    hits_a, died_a, kb_a = now.by_name(now.h.hits), now.by_name(now.h.died_after), now.by_name(now.h.killed_by)
+    bars = [Bar(n, a[n], plural(hits_a[n], "hit") if hits_a[n] else "", died_a[n], kb_a[n],
+                was=b.get(n), was_rank=rb.get(n)) for n in sorted(a, key=lambda n: -a[n]) if a[n] or n in b]
+    total = lambda nt: sum(nt.amount(w) for w in set(nt.h.damage) | set(nt.h.debuffs))  # noqa: E731
+    day_of = lambda nt: day(nt.fights[0]["startTime"] + nt.rep.start_ms)  # noqa: E731
+    return Meter(now.h.name or ability,
+                 f"{'debuff applications' if now.h.by_debuff else 'damage taken'} per minute in the pulls, "
+                 f"{len(then.fights)} and {len(now.fights)} {rep.boss_key(now.fights[0])} pulls, each until its wipe "
+                 "was decided", bars, "per minute", ability=now.h.ability_id,
+                 then=Then(day_of(then), day_of(now), total(now) / max(now.total_minutes, 1e-9),
+                           total(then) / max(then.total_minutes, 1e-9),
+                           sum(now.h.died_after.values()), sum(then.h.died_after.values()),
+                           now.total_minutes, then.total_minutes, len(b)))
 
 
 def _counting(fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None) -> Callable[[dict], bool]:

@@ -179,18 +179,23 @@ def _tool(mark: str) -> str:
     return mark.partition(":")[0]
 
 
+BY_PULL = "by_pull"  # a meter's panel of each player's hits pull by pull (over every pull)
 SHORT_ANSWER = 3  # bullets an answer may have and still keep its picture under it all
 _BULLET = re.compile(r"^(?:[-*•]|\d+[.)])\s", re.M)  # a bullet at the top level
 
 
 def placed_by_default(text: str, marks: list[tuple[int, str]], view: str | None) -> list[tuple[int, str]]:
     """Where the answer's pictures go: where it placed them, or else, in an answer of more than SHORT_ANSWER bullets,
-    its view right after the headline (its first line), since the model often leaves the mark out or puts it last."""
-    bullets = bool(_BULLET.search(text))  # a mark after the last bullet places nothing: the picture backs no bullet
-    marks = [(at, tool) for at, tool in marks if text[at:].strip() and (not bullets or _BULLET.search(text, at))]
-    if marks or view is None or len(_BULLET.findall(text)) <= SHORT_ANSWER or (end := text.find("\n")) < 0:
+    its view after the first bullet, since the model often leaves the mark out or puts it last; one it put before the
+    first bullet goes there too, so a raider reads the point before the picture that backs it."""
+    found = list(_BULLET.finditer(text))  # a mark after the last bullet places nothing: the picture backs no bullet
+    marks = [(at, tool) for at, tool in marks if text[at:].strip() and (not found or _BULLET.search(text, at))]
+    if len(found) <= SHORT_ANSWER:
         return marks
-    return [(end, view)]
+    first = found[1].start() - 1  # the end of the first bullet (with what's nested in it)
+    if marks:
+        return [(first if at <= found[0].start() else at, tool) for at, tool in marks]
+    return [] if view is None else [(first, view)]
 
 
 def follow_ups(text: str) -> tuple[str, list[str]]:
@@ -217,15 +222,17 @@ _no_pictures = ""  # why views can't be drawn here (no Playwright or no Chromium
 PICTURE_WAIT_S = 20  # an answer waits this long at most for its pictures still being drawn, then goes without
 
 
-async def tool_call(name: str, args: dict) -> tuple[str, bool, list[bytes], asyncio.Task | None]:
+async def tool_call(name: str, args: dict,
+                    mark: str | None = None) -> tuple[str, bool, list[bytes], asyncio.Task | None]:
     """One of the core's tools, run in-process: its text, whether it failed, the pictures for the answer (what the
     tool drew: pull_map's map) and, for a tool with a view, the task drawing the view as Claude and ChatGPT show it
-    (`picture`) into those pictures. The model goes on meanwhile; the answer waits for it (`pictures_drawn`)."""
+    (`picture`) into those pictures, `mark`'s row ringed (the asker's character). The model goes on meanwhile; the
+    answer waits for it (`pictures_drawn`)."""
     text, failed, images = await server.call_with_images(name, args)
     drawing = None
     if not failed and name in server.VIEW_TOOLS and not _no_pictures:
         async def draw() -> None:
-            images.extend(await picture(name, args))
+            images.extend(await picture(name, args, mark=mark))
         drawing = asyncio.create_task(draw())
     return text, failed, images, drawing
 
@@ -236,16 +243,16 @@ async def pictures_drawn(calls: Sequence[ToolCall]) -> None:
         await asyncio.wait(pending, timeout=PICTURE_WAIT_S)
 
 
-async def picture(name: str, args: dict, rows: int | None = None) -> list[bytes]:
-    """The tool's view as pictures (viewhost.Painter: one, or one per panel; a meter with `rows` bars), or none when
-    it can't be drawn: the answer goes without."""
+async def picture(name: str, args: dict, rows: int | None = None, mark: str | None = None) -> list[bytes]:
+    """The tool's view as pictures (viewhost.Painter: one, or one per panel; a meter with `rows` bars and `mark`'s
+    ringed), or none when it can't be drawn: the answer goes without."""
     global _painter, _no_pictures
     if _no_pictures:
         return []
     started = time.monotonic()
     try:
         _painter = _painter or viewhost.Painter()
-        drawn = await _painter.pictures(name, args, rows)
+        drawn = await _painter.pictures(name, args, rows, mark)
     except ImportError as e:
         _no_pictures = f"Playwright isn't installed ({e})"
     except Exception as e:  # noqa: BLE001 (a picture never fails an answer)
@@ -264,13 +271,19 @@ async def picture(name: str, args: dict, rows: int | None = None) -> list[bytes]
 SHARED_ROWS = 5  # a meter's bars in an answer with several: two top fives take the room of one top ten
 
 
+WHERE = ("report", "pull", "pulls", "boss")  # what a ranking is over, not what it ranks
+
+
 def meters(calls: Sequence[ToolCall]) -> list[ToolCall]:
-    """The calls whose picture is a meter (a ranking of players), each asked once."""
+    """The calls whose picture is a meter (a ranking of players), each ranking once: the same one over another night
+    or pull (Axegrinder tonight and on Monday) is the first one's, not a meter of its own beside it (the tool's
+    `against` draws the two in one)."""
     seen: set[str] = set()
     out = []
     for c in calls:
+        ranks = {k: v for k, v in c.args.items() if k not in WHERE}
         if not c.failed and c.images and server.VIEW_TOOLS.get(c.name) == "meter" \
-                and (key := f"{c.name} {json.dumps(c.args, sort_keys=True)}") not in seen:
+                and (key := f"{c.name} {json.dumps(ranks, sort_keys=True)}") not in seen:
             seen.add(key)
             out.append(c)
     return out
@@ -281,7 +294,7 @@ async def meters_shared(calls: Sequence[ToolCall]) -> None:
     the ranking's rest a line under them as before."""
     if len(found := meters(calls)) < 2:
         return
-    for c, images in zip(found, await asyncio.gather(*(picture(c.name, c.args, SHARED_ROWS) for c in found)),
+    for c, images in zip(found, await asyncio.gather(*(picture(c.name, c.args, SHARED_ROWS, c.mark) for c in found)),
                          strict=True):
         if images:
             c.images[:] = images
@@ -299,6 +312,7 @@ class ToolCall:
     duration_s: float = 0.0
     wcl_points: dict = field(default_factory=dict)  # what its Warcraft Logs queries cost (wcl.Points.record)
     drawing: asyncio.Task | None = None  # its view being drawn into `images` (tool_call)
+    mark: str | None = None  # the player its picture rings: the asker's character
 
     def record(self, asked: float) -> dict:
         """For the interaction record, with when it started counted from `asked` (the question's time.monotonic()):
@@ -313,7 +327,8 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                     guild: Callable[[], str | None] | None = None,
                     note: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
                     plan: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
-                    wcl_token: Callable[[], tuple[str | None, str | None, str | None]] | None = None) -> list:
+                    wcl_token: Callable[[], tuple[str | None, str | None, str | None]] | None = None,
+                    asker: Callable[[], str | None] | None = None) -> list:
     """The core's MCP tools, wrapped for the Agent SDK's in-process server. Tools that take a report get `code`
     when the model names none, so sessions about different servers' reports don't mix. `on_result` gets every
     call, failed ones too. `guild` gives the server's guild as "name, realm, region": find_reports asked with no
@@ -321,7 +336,8 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
     takes no note from the model: `note` finds the saved one for the call's pull, (note, where it's from), or says
     why there's none. `plan` does the same for raid_plan (where it's from may be "": the plan's text says).
     `wcl_token` gives the asker's Warcraft Logs token, which a call reads with, so their own points pay first, their
-    token that reads their private reports, and how they'd let Wipebot read them (server.telling_unreadable)."""
+    token that reads their private reports, and how they'd let Wipebot read them (server.telling_unreadable).
+    `asker` gives the asker's character, whose row a picture rings."""
     saved_args = {"raid_note": ("note", note), "raid_plan": ("plan", plan)}
 
     def wrap(name: str, description: str, schema: dict):
@@ -341,6 +357,7 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
             started = time.monotonic()
             drawing = None
             token, private, hint = wcl_token() if wcl_token else (None, None, None)
+            mark = asker() if asker else None
             with wcl.reading_as(token, private), server.telling_unreadable(hint), wcl.counting_points() as points:
                 try:
                     found = await find(args) if find else None
@@ -348,7 +365,7 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                         text, failed, images = found, False, []
                     else:
                         text, failed, images, drawing = await tool_call(name, {**args, arg: found[0]} if found
-                                                                        else args)
+                                                                        else args, mark)
                         if found and found[1] and not failed:
                             text = f"(The {arg} was {found[1]}.)\n{text}"
                 except (ToolError, FactError) as e:
@@ -356,7 +373,7 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                     text, failed, images = str(e), True, []
             if on_result:  # without the note or plan, which is the same in every call
                 on_result(ToolCall(name, args, text, failed, images, started, time.monotonic() - started,
-                                   points.record(), drawing))
+                                   points.record(), drawing, mark))
             # The model gets the text; an image goes to the user with the answer (Answer.images).
             return {"content": [{"type": "text", "text": text}], "is_error": failed}
         # Read-only tools may run side by side: the model often asks for several at once.
@@ -475,6 +492,8 @@ class Answer:
             named = {panel for panel, words in PANEL_WORDS.items() if words.search(headline)}
         if any(getattr(i, "name", "") in named for i, c in out if c is view):  # the panel the answer is about
             out = [(i, c) for i, c in out if c is not view or getattr(i, "name", "") in named]
+        else:  # a meter's hits pull by pull only when placed: else a click away (its button)
+            out = [(i, c) for i, c in out if getattr(i, "name", "") != BY_PULL]
         return out[-MAX_IMAGES:]
 
     def place(self, call: ToolCall) -> int | None:
@@ -580,9 +599,10 @@ class Session:
         # without a report (code ""), it answers about the game, or asks for a report link
         self.report = await self.library.report(self.code) if self.code else None
         bot = self.system_prompt is None  # else a client with only the connector: the core's raid_note and raid_plan
-        tools = await sdk_tools(self.code, self._returned,lambda: self._ctx.guild if self._ctx else None,
+        tools = await sdk_tools(self.code, self._returned, lambda: self._ctx.guild if self._ctx else None,
                                 self._saved_note if bot else None, self._saved_plan if bot else None,
-                                lambda: self._ctx.tokens() if self._ctx else (None, None, None))
+                                lambda: self._ctx.tokens() if self._ctx else (None, None, None),
+                                lambda: self._ctx.asker if self._ctx else None)
         if bot:
             tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
         options = ClaudeAgentOptions(

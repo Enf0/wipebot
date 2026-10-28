@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **Compare a mechanic with another night.** "Did I take less Axegrinder than on Monday?" now gets each night per minute of the pulls, so a longer night doesn't look worse: the raid's and each raider's, their rank both nights, hits and the deaths it set up. In Discord it's one meter: tonight's bars, a tick at Monday's, and the change.
+
+  ![Axegrinder, Mon 26 Oct to Wed 28 Oct: the raid took 8.9M per minute then 11M, and Miralupa, ringed at 13th, went from 1.0M to 398k per minute, down 61%](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/meter-against-night.webp)
+
+### Changed
+
+- `Discord` **Fewer pictures per answer, after the point they back.** An answer posts one view, not the same meter again for another night; a mechanic's hits pull by pull are a button under its meter; two nights' best pulls aren't drawn as a picture of two bars; and a picture comes after the bullet it backs instead of between the headline and the answer. The asker's own row is ringed in a meter, and shown under the top ones when they're further down.
+
+  ![Axegrinder over 31 pulls on The Coiled Altar, the top ten raiders' bars, then Miralupa's row ringed in gold at 13th](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/meter-asker-ringed.webp)
+- `Discord` **Buttons say where they go.** "My night on The Coiled Altar", "First death: Karadim" and "Open a pull on The Coiled Altar…" instead of "My night", "First death" and "A pull".
+
 ## [0.33.0] - 2026-10-28
 
 ### Changed

@@ -188,8 +188,8 @@ views.night = (() => {
     drawnWidth = root.clientWidth;
     const width = Math.max(300, drawnWidth || 640);
     // Asked night by night, those come first; a picture then leaves out how tonight's pulls ended, and the chart has
-    // its own legend
-    const nights = D.weeks && D.weeks.length ? weeks(width) : "";
+    // its own legend. A picture of two nights' best pulls says no more than the answer's text: from three
+    const nights = D.weeks && D.weeks.length >= (picture ? 3 : 1) ? weeks(width) : "";
     const listed = !(nights && picture);
     const tonight = `<div data-panel="pulls">${head()}${stats()}${chart(width, full, !listed)}</div>`;
     const panels = nights + tonight + (listed ? `<div data-panel="endings">${endings()}</div>` : "");

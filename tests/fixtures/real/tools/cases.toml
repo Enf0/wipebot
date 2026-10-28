@@ -29,6 +29,8 @@ death-recap-thrown = { tool = "death_recap", report = "KBYT4xXn7VNjDgh8", player
 mechanic-hits = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", ability = "Tempest", all_pulls = true }
 # a debuff baited onto one player: each time it went on someone else, and whether they were alive
 mechanic-hits-bait = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", ability = "Serpent's Fury", all_pulls = true, whole_pull = true }
+# one mechanic against another night: per minute of the pulls, each player's rank both nights
+mechanic-hits-against = { tool = "mechanic_hits", report = "4N9JMwBFPAjXyV3Z", boss = "The Coiled Altar", ability = "Axegrinder", all_pulls = true, against = "64hVgfmydQGNxC7A" }
 mechanic-outliers = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", pull = 13 }
 tank-swaps = { tool = "tank_swaps", report = "KBYT4xXn7VNjDgh8", pull = 14 }
 # what each tank took a boss with over the guild's nights: Death Grip taunts too

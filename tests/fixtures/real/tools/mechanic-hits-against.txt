@@ -1,0 +1,24 @@
+Axegrinder, this night against another, per minute of the pulls each player was in (each until its wipe was decided), as the nights' pulls differ in number and length: Wed 28 Oct, 31 pulls (76 min) against Mon 26 Oct, 21 pulls (37 min).
+Raid: 11.27M damage per minute against 8.94M (+26%); deaths it set up (within 6 s of a hit) 1.16 per minute against 1.10 (88 against 41); 20 against 9 with Axegrinder as the killing blow.
+Per player, most damage per minute this night first: per minute and rank of the 20 this night, then the other night's of 21, the change, hits, deaths it set up:
+  Wutroll (tank): 1.35M (1st) against 858.81k (3rd), +57%; hits 10 against 5; deaths set up 1 against 1
+  Karadim (tank): 1.18M (2nd) against 1.22M (1st), -3%; hits 12 against 10; deaths set up 5 against 5
+  Enfo: 948.32k (3rd) against 347.71k (11th), +173%; hits 16 against 5; deaths set up 5 against 2
+  Attractîv: 836.81k (4th) against 691.25k (4th), +21%; hits 6 against 6; deaths set up 11 against 5
+  Cptola: 765.65k (5th) against 397.43k (10th), +93%; hits 12 against 6; deaths set up 8 against 6
+  Sveini: 739.16k (6th), not there the other night; hits 5; deaths set up 10
+  Namsus: 602.68k (7th) against 522.63k (7th), +15%; hits 11 against 2; deaths set up 1 against 1
+  Sonyosh: 578.27k (8th) against 579.15k (6th), same; hits 9 against 3; deaths set up 9 against 3
+  Dscopi: 566.53k (9th) against 278.88k (13th), +103%; hits 8 against 4; deaths set up 8 against 2
+  Lïzårðmâñ: 548.06k (10th) against 418.11k (9th), +31%; hits 5 against 3; deaths set up 8 against 1
+  Peggerino: 529.11k (11th) against 623.22k (5th), -15%; hits 7 against 4; deaths set up 4 against 2
+  Dragepie: 399.15k (12th) against 423.71k (8th), -6%; hits 1 against 2; deaths set up 2 against 1
+  Miralupa: 397.78k (13th) against 1.03M (2nd), -61%; hits 5 against 7; deaths set up 0 against 0
+  Nexsozz: 351.44k (14th) against 250.78k (14th), +40%; hits 10 against 0; deaths set up 3 against 1
+  Slushmania: 301.39k (15th) against 302.58k (12th), same; hits 5 against 1; deaths set up 1 against 5
+  Pomaa: 291.35k (16th) against 210.19k (16th), +39%; hits 6 against 0; deaths set up 3 against 0
+  Zebinomage: 281.41k (17th) against 152.65k (18th), +84%; hits 5 against 3; deaths set up 4 against 1
+  Nalaxd: 256.33k (18th) against 177.09k (17th), +45%; hits 28 against 1; deaths set up 3 against 3
+  Krøpling: 243.51k (19th) against 126.65k (19th), +92%; hits 2 against 1; deaths set up 2 against 0
+  Martin: 238.68k (20th) against 224.72k (15th), +6%; hits 9 against 2; deaths set up 0 against 2
+Only the other night: Algmor 114.78k (20th), Agonco 0 (21st)

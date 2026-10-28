@@ -509,6 +509,10 @@ async def mechanic_hits(ability: Annotated[str | None, Field(description=(
                                                                         "pull (\"the first orb set\")")] = None,
                         end: Annotated[str | None, Field(description="with `ability`: only until this m:ss of each "
                                                                       "pull")] = None,
+                        against: Annotated[str | None, Field(description=(
+                            "with `ability`: another night's report code or URL (find_reports) to compare every pull "
+                            "on the boss with, per minute of the pulls (\"did we get better at it than last week?\")"
+                        ))] = None,
                         report: Report_ = None) -> str:
     """For "who stood in it?", "who missed the soak?", "who keeps getting hit by X?".
     Who got hit by a boss ability or its debuff: for one pull or every pull on the boss, each until its wipe was
@@ -516,11 +520,15 @@ async def mechanic_hits(ability: Annotated[str | None, Field(description=(
     With `ability`: per player its hits, damage, debuff applications, deaths soon after a hit, and deaths it dealt
     the killing blow; then each time the debuff went on a player (pull, time, how long they kept it), when few
     did, or for a debuff one player has most of the time ("who took the bait?"), each time anyone else got it and
-    whether that player was alive. Without: every enemy ability that hurt the raid, how many took it, the median
+    whether that player was alive. With `against`, this night's pulls on the boss and another night's instead: the
+    raid's and each player's per minute of the pulls they were in, their rank both nights, hits and deaths it set
+    up. Without `ability`: every enemy ability that hurt the raid, how many took it, the median
     damage per minute alive, and who took twice the median or more (the mechanics people keep failing, and who).
     Not for the raid's damage taken in totals by ability (breakdown), nor whose job a soak was (raid_note).
     Example: ability="Tempest", all_pulls=true."""
     rep = await lib().report(report)
+    if ability and against:
+        return await mechanics.against(rep, await lib().report(against), ability, boss, whole_pull, start, end)
     if ability:
         return await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull, start, end,
                                              jobs=await _jobs(rep, pull, boss, all_pulls))
@@ -642,6 +650,11 @@ async def _versus_key(args: dict) -> dict:
     return key
 
 
+async def _other(args: dict) -> Report | None:
+    """The other night a meter compares with (mechanic_hits' `against`), when there's one."""
+    return await lib().report(args["against"]) if args.get("against") else None
+
+
 async def view_key(tool: str, args: dict) -> dict | None:
     """What a view needs to draw a tool's answer: the view, and the pull and player the call was about, resolved
     (the latest pull, a report's code, the player's name as logged), as a host reads it from the result's
@@ -657,7 +670,7 @@ async def view_key(tool: str, args: dict) -> dict | None:
         return _note_key(rep, args)
     if view == "meter":  # only when the call ranks players
         asked = {k: v for k, v in args.items() if v is not None and k != "report"}
-        if not await views.meters_of(rep, tool, asked):
+        if not await views.meters_of(rep, tool, asked, await _other(asked)):
             return None
         key = {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked}
         pulls = ((args.get("pulls") or []) if tool == "breakdown" else [] if args.get("all_pulls")
@@ -726,7 +739,8 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
                 if saved_note is None:
                     raise FactError(f"no raid note is saved for {boss}")
                 note, source = saved_note.note, saved.source(saved_note.saved_at, saved_note.saved_by)
-        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights, note, source)
+        data = await views.view_data(rep, view, pull, boss, player, top, death, tool, args, nights, note, source,
+                                     await _other(args or {}) if view == "meter" else None)
     except ValueError as e:
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],

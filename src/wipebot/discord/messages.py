@@ -117,6 +117,13 @@ def _boxed(p: Picture, used: set[str]) -> discord.ui.Container:
     return discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None)
 
 
+def label(template: str, boss: str = "", pull: str | int = "", player: str = "", limit: int = 80) -> str:
+    """A button's or menu's label from its template, cut to Discord's `limit` (80 for a button, 150 for a menu's
+    placeholder): a long boss name goes first."""
+    text = template.format(boss=boss, pull=pull, player=player)
+    return text if len(text) <= limit else text[:limit - 1] + "…"
+
+
 def _id(prefix: str, *parts: object) -> str | None:
     """A custom_id from its parts, or None when it can't hold them (too long, or a part with SEP in it)."""
     texts = ["" if p is None else str(p) for p in parts]
@@ -125,10 +132,13 @@ def _id(prefix: str, *parts: object) -> str | None:
 
 
 _FIELDS = r"(?P<what>[a-z]+)\|(?P<report>[^|]*)\|(?P<boss>[^|]*)\|(?P<pull>[^|]*)\|(?P<player>[^|]*)"
-LABELS = {"en": {"death": "First death", "top": "Against top", "night": "Their night", "ppull": "Their pull",
-                 "mynight": "My night", "mypull": "How did I do?"},
-          "no": {"death": "Første død", "top": "Mot toppene", "night": "Natten deres", "ppull": "Pullen deres",
-                 "mynight": "Min natt", "mypull": "Hvordan gikk det for meg?"}}
+# What each button opens, named so a raider sees where it goes ({boss}, {pull} and {player}: what it acts on)
+LABELS = {"en": {"death": "First death: {player}", "top": "{player} against top players",
+                 "night": "{player}'s night", "ppull": "{player}'s pull", "mynight": "My night on {boss}",
+                 "mypull": "How did I do?", "hits": "{player} hits pull by pull"},
+          "no": {"death": "Første død: {player}", "top": "{player} mot toppene", "night": "Kvelden til {player}",
+                 "ppull": "Pullen til {player}", "mynight": "Min kveld på {boss}",
+                 "mypull": "Hvordan gikk det for meg?", "hits": "{player}-treff per pull"}}
 OPEN = {"en": "Open in Warcraft Logs", "no": "Åpne i Warcraft Logs"}
 MINE = {"mynight", "mypull"}  # actions on the clicker's own character
 
@@ -139,7 +149,8 @@ class Act(discord.ui.DynamicItem[discord.ui.Button], template=r"wb\|" + _FIELDS)
     def __init__(self, what: str, report: str, boss: str = "", pull: str | int = "", player: str = "",
                  lang: str = "en") -> None:
         self.what, self.report, self.boss, self.pull, self.player = what, report, boss, str(pull), player
-        super().__init__(discord.ui.Button(label=LABELS[lang][what], style=discord.ButtonStyle.secondary,
+        super().__init__(discord.ui.Button(label=label(LABELS[lang][what], boss, pull, player),
+                                           style=discord.ButtonStyle.secondary,
                                            custom_id=_id("wb", what, report, boss, pull, player) or "wb|none"))
 
     @classmethod
@@ -155,15 +166,17 @@ class Pick(discord.ui.DynamicItem[discord.ui.Select], template=r"wbs\|" + _FIELD
     """A menu: what a choice opens ("player": that player's pull, "ppull": the player's card on that pull, "pull": that
     pull), the report, boss, pull and player it's about, and its choices as (label, value)."""
 
-    PLACEHOLDERS = {"en": {"player": "A player's pull", "ppull": "A pull of theirs", "pull": "A pull"},
-                    "no": {"player": "En spillers pull", "ppull": "En av pullene deres", "pull": "En pull"}}
+    PLACEHOLDERS = {"en": {"player": "Open a player's card on this pull…",
+                           "ppull": "Open {player}'s card on a pull…", "pull": "Open a pull on {boss}…"},
+                    "no": {"player": "Åpne en spillers kort på denne pullen…",
+                           "ppull": "Åpne kortet til {player} på en pull…", "pull": "Åpne en pull på {boss}…"}}
 
     def __init__(self, what: str, report: str, boss: str = "", pull: str | int = "", player: str = "",
                  choices: Sequence[tuple[str, str]] = (), lang: str = "en") -> None:
         self.what, self.report, self.boss, self.pull, self.player = what, report, boss, str(pull), player
         super().__init__(discord.ui.Select(
             custom_id=_id("wbs", what, report, boss, pull, player) or "wbs|none",
-            placeholder=self.PLACEHOLDERS[lang][what],
+            placeholder=label(self.PLACEHOLDERS[lang][what], boss, pull, player, 150),
             options=[discord.SelectOption(label=label[:100], value=value) for label, value in choices[:CHOICES]]
             or [discord.SelectOption(label="none", value="")]))
 
@@ -247,6 +260,8 @@ def tool_of(what: str, report: str, boss: str, pull: str, player: str) -> tuple[
             return "player_night", {"report": report, "boss": boss or None, "player": player}
         case "ppull" | "mypull":
             return "player_pull", {**where, "player": player}
+        case "hits":  # `player` holds the ability
+            return "mechanic_hits", {"report": report, "boss": boss or None, "ability": player, "all_pulls": True}
     return "pull_summary", where
 
 
@@ -268,6 +283,8 @@ async def act(interaction: discord.Interaction, what: str, report: str, boss: st
     tool, args = tool_of(what, report, boss, pull, player)
     log.info("%s clicked %s: %s %s", interaction.user, what, tool, args)
     images = await host.picture(tool, args)
+    if what == "hits":  # the meter's hits pull by pull, not the meter again
+        images = [i for i in images if getattr(i, "name", "") == host.BY_PULL]
     if not images:
         await interaction.followup.send("I couldn't draw that one.", ephemeral=True)
         return
@@ -349,6 +366,8 @@ async def _extras(tool: str, args: dict, with_actions: bool, lang: str = "en",
             return link, [Pick("ppull", code, boss, "", key["player"], choices=pulls, lang=lang)]
         case "night":
             return link, [Act("mynight", code, boss, lang=lang), Pick("pull", code, boss, choices=pulls, lang=lang)]
+        case "meter" if key["tool"] == "mechanic_hits" and key["args"].get("all_pulls") and key["args"].get("ability"):
+            return link, [Act("hits", code, boss, "", key["args"]["ability"], lang=lang)]
     return link, []
 
 
