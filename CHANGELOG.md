@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-28
+
 ### Changed
 
 - `Agent` **Meters in the real class colours.** Each bar is drawn in its class's in-game colour, as damage meters do, with the name on it in black or white, whichever reads on that colour. In the light theme a bar gets an outline a shade darker, so a priest's white shows where it ends.
