@@ -123,15 +123,15 @@ views.note = (() => {
 
   const CALLOUT = {  // a player at a pull's callouts: their fill, and the word in the legend
     answered: ["var(--green)", "pressed a defensive"], some: [NEAR_GREEN, "at some of them"],
-    other: ["var(--gold)", "only something else"], none: ["var(--dead)", "pressed none"], dead: ["var(--muted)", "dead"],
+    none: ["var(--dead)", "no defensive"], dead: ["var(--muted)", "dead"],
   };
   // A player's square on a pull, where the callout may come more than once: answered every time it found them alive,
-  // some of the times, never but pressed something else, never, or dead for all of them
+  // some of the times, never, or dead for all of them
   function pullState(cell) {
     const alive = cell.filter((s) => s !== "dead"), made = alive.filter((s) => s === "answered").length;
     if (!alive.length) return "dead";
     if (made) return made === alive.length ? "answered" : "some";
-    return alive.includes("other") ? "other" : "none";
+    return "none";
   }
 
   function callouts(C) {
@@ -161,7 +161,7 @@ views.note = (() => {
     const keys = legend(Object.entries(CALLOUT).filter(([s]) => s === "answered" || s === "none" || states.has(s))
       .map(([, [fill, word]]) => [fill, word]));
     return `<section data-panel="callouts" class="note-board">${hd}<div class="grid">${kit.svg(w, h, body, "Callouts by pull")}</div>${keys}`
-      + `<div class="note">What each player pressed from 3 s before to 5 s after the callout. A defensive or tank cooldown answers it. Right: times they pressed one, of the times they were alive.</div></section>`;
+      + `<div class="note">A defensive or tank cooldown pressed from 3 s before to 5 s after the callout answers it. Right: times they pressed one, of the times they were alive.</div></section>`;
   }
 
   const KIND = ["var(--blue)", "#c084fc", "#2dd4bf", "#f472b6", "#fb923c"];  // a kind of callout (its first word)

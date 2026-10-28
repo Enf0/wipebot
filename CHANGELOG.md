@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **The personals picture shows defensive or not.** A raider who pressed some other cooldown at the callout is drawn red like one who pressed nothing, instead of in a colour of its own.
+
+  ![Big Personals on Sszorak over 42 pulls, a row per raider and a square per pull: green where they pressed a defensive, red where they didn't](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-note-personals-defensive.webp)
+
 ## [0.30.3] - 2026-10-28
 
 ### Fixed

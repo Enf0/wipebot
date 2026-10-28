@@ -639,7 +639,7 @@ def _note_cooldowns(rep: Report, night: notes.Night, color: Callable[[str], str]
 
 def _note_callouts(rep: Report, night: notes.Night, color: Callable[[str], str]) -> dict | None:
     """Each callout for personals (in the note's order) that NOTE_FEW pulls reached, and per player it names and pull,
-    a square per time it came: they pressed a defensive, only something else, none, or were dead; as raid_note counts
+    a square per time it came: they pressed a defensive, none, or were dead; as raid_note counts
     them. The callouts the log can't check aren't drawn."""
     groups: dict[tuple[str, tuple[str, ...]], list[tuple[int, notes.CalloutCheck]]] = defaultdict(list)
     for i, c in enumerate(night.checks):
@@ -655,7 +655,7 @@ def _note_callouts(rep: Report, night: notes.Night, color: Callable[[str], str])
             for n, _ in k.pressed:
                 cells[n][i].append("answered")
             for n, _ in k.idle:
-                cells[n][i].append("other" if n in k.others else "none")
+                cells[n][i].append("none")
             for n in k.dead:
                 cells[n][i].append("dead")
         count = {n: (sum(s == "answered" for p in ps for s in p), sum(s != "dead" for p in ps for s in p))

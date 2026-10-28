@@ -303,7 +303,7 @@ async def test_the_note_view_counts_the_callouts_raid_note_counts(recorded):
     counts = {n: (int(a), int(m))
               for n, a, m in re.findall(r"^    (\S+): alive for (\d+); pressed at (\d+)", block, re.MULTILINE)}
     assert counts and {r["player"]: (r["alive"], r["made"]) for r in personals["rows"]} == counts
-    assert any(s == "other" for r in personals["rows"] for p in r["cells"] for s in p)
+    assert {s for r in personals["rows"] for p in r["cells"] for s in p} == {"answered", "none", "dead"}
 
 
 @pytest.mark.parametrize("case", ["raid-note", "raid-note-kicks"])
