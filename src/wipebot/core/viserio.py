@@ -2,11 +2,12 @@
 
 A group's admin makes one key for the group (its settings, "API sharing"); the host gives it to Wipebot once
 (`wipebot viserio`, on the command line) and it's kept per guild in the notebook, used only for the guild the group
-names. What's read: the calendar's nights coming up with their sign-ups, and this week's setups, which say per boss
-who's in and who's out. The API's terms (wowutils.com/api-terms) allow a bot serving the key's own group, and ask
-for no copy kept past 30 days, conditional requests and Retry-After respected, and no battletags shown: answers are
-kept in memory only, for FRESH_S, then asked again with their ETag (a 304 costs nothing of the group's hourly
-points). Facts verified live are in docs/reference/sources.md.
+names. What's read: the calendar's nights coming up with their sign-ups, this week's setups, which say per boss
+who's in and who's out, and when each note was last changed (the API gives no note's text). The API's terms
+(wowutils.com/api-terms) allow a bot serving the key's own group, and ask for no copy kept past 30 days, conditional
+requests and Retry-After respected, and no battletags shown: answers are kept in memory only, for FRESH_S, then
+asked again with their ETag (a 304 costs nothing of the group's hourly points). Facts verified live are in
+docs/reference/sources.md.
 """
 import asyncio
 import datetime
@@ -15,6 +16,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from . import knowledge
 from .notebook import Notebook
 from .report import FactError
 
@@ -126,6 +128,18 @@ async def roster_specs(key: str) -> dict[str, tuple[str, str]]:
                 if c.get("playerId") == m.get("mainCharacter") and m.get("displayName"):
                     mains[m["displayName"]] = spec
     return mains | found
+
+
+async def note_changed(key: str, boss: str, difficulty: str = "") -> float | None:
+    """When the group's note for `boss` was last changed in Viserio (epoch seconds), the newest of its notes for the
+    boss, of those on `difficulty` ("Mythic") when there are some; None when the group has none for the boss."""
+    g = await group(key)
+    found = [n for n in (await _get(key, f"/groups/{g.id}/notes?limit=100")).get("data") or []
+             if n.get("updatedAt") and n.get("bossName")
+             and (knowledge.matches_boss(boss, n["bossName"]) or knowledge.matches_boss(n["bossName"], boss))]
+    if same := [n for n in found if difficulty and (n.get("difficulty") or "").lower() == difficulty.lower()]:
+        found = same
+    return max((datetime.datetime.fromisoformat(n["updatedAt"]).timestamp() for n in found), default=None)
 
 
 def _who(entry: dict) -> str:

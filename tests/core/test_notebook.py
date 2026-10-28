@@ -33,6 +33,7 @@ class Night:
     guild_id: int | None = 14169
     guild_name, start_ms, end_ms, code = "The Copper Lanterns", 0, 3 * 3600_000, "tonight"
     wcl = Logs()
+    by_boss = {"Sszorak": [SSZORAK]}
 
     def fight(self, pull, boss):
         return SSZORAK
@@ -164,6 +165,39 @@ async def test_a_note_counts_only_for_the_night_it_was_saved_for(book):
     logs.asked.clear()  # pasted the same day: no need to ask
     assert (await server._saved_note(night(start_s=950, logs=logs), None, None, all_pulls=False))[0] == "the note"
     assert logs.asked == []
+
+
+async def test_a_copy_older_than_the_note_in_viserio_is_flagged(book, monkeypatch):
+    """With the guild's Viserio key, a saved copy is compared with when the note was last changed there (the API gives
+    no text): a change after the copy and before the pull means the pull may have followed a newer note."""
+    changed: list[float | None] = [1200.0]  # after the copy (1000), before the pull (1500)
+    asked: list[tuple[str, str]] = []
+
+    async def note_changed(key, boss, difficulty=""):
+        asked.append((boss, difficulty))
+        return changed[0]
+    monkeypatch.setattr(server.viserio, "note_changed", note_changed)
+    _, source = await server._saved_note(night(), None, None, all_pulls=False)
+    assert "changed" not in source and asked == []  # no key: Viserio isn't asked
+    book.save_viserio_key(14169, "key-1", "Lanterns", "Rowan")
+    _, source = await server._saved_note(night(), None, None, all_pulls=False)
+    assert source.startswith("saved by Rowan") and asked == [("Sszorak", "Mythic")]
+    assert ("; Viserio Cooldowns says the boss's note there was changed Thu 1 Jan 00:20 UTC, after this copy was "
+            "saved (its API gives when, not the text: an officer pastes the new one), before this pull began: the "
+            "pull may have followed the newer one") in source
+    assert "this copy may be out of date" in await server._unpulled_note(night(), "Sszorak", upcoming=True)
+    _, source = await server._saved_note(night(), None, None, all_pulls=True)  # after the newest version that night
+    assert source.endswith("an officer pastes the new one), so the pulls begun since may have followed the newer one")
+    changed[0] = 1600.0  # changed after the pull began: the pull's copy was the note then
+    assert "Viserio" not in (await server._saved_note(night(), None, None, all_pulls=False))[1]
+    assert "this copy may be out of date" in await server._unpulled_note(night(), "Sszorak", upcoming=True)
+    changed[0] = 900.0  # before the copy was saved: it's the note as it is
+    assert "Viserio" not in await server._unpulled_note(night(), "Sszorak", upcoming=True)
+
+    async def unreadable(key, boss, difficulty=""):
+        raise server.viserio.ViserioError("Viserio is busy")
+    monkeypatch.setattr(server.viserio, "note_changed", unreadable)
+    assert (await server._saved_note(night(), None, None, all_pulls=False))[0] == "the note"  # checked without it
 
 
 def test_notes_are_kept_per_guild_and_boss_with_each_version():

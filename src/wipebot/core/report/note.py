@@ -680,7 +680,7 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
     latest = notes[fights[-1]["id"]]
     used = list(dict.fromkeys(id(by_pull[f["id"]]) for f in fights))
     if len(used) == 1 and by_pull[fights[0]["id"]].saved_at is not None:
-        source = by_pull[fights[0]["id"]].source()
+        source = by_pull[fights[0]["id"]].source() + (f"; {source}" if source else "")
     lines = [_head(latest).replace("the boss", rep.boss_key(fights[0])) + (f", {source}" if source else "")
              + f", checked against every {rep.boss_key(fights[0])} pull ({len(fights)}), each until its wipe was "
              "decided (the boss's enrage or half the raid dead) and against the note as it was saved before it "

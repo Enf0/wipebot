@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` `Discord` **A saved raid note older than Viserio's says so.** On a guild whose host connected its Viserio Cooldowns key, a note checked against a pull, or given for the next raid, says when the note was changed in Viserio after the copy Wipebot has was saved, so an officer knows to paste the new one.
+
 ## [0.19.0] - 2026-10-28
 
 ### Added

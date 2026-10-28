@@ -47,6 +47,7 @@ from pydantic import Field
 from . import clock, knowledge, notebook, raidstrats, viserio, wcl
 from .knowledge import KnowledgeError
 from .library import Library, ensure_wcl_access, latest_raid, report_code  # noqa: F401 (imported from here too)
+from .pulls import DIFFICULTIES
 from .report import (
     FactError,
     PullNotLogged,
@@ -829,8 +830,14 @@ async def saved_note(book: notebook.Notebook, guild: int, rep: Report, f: dict,
     start = (rep.start_ms + f["startTime"]) / 1000
     every = book.notes(guild, f["encounterID"])
     since, until = await note_night(rep, f, [n.saved_at for n in every])
-    if all_pulls and (every := [n for n in every if since <= n.saved_at < until]):
-        return "\n".join(f"{saved.mark(n.saved_at, n.saved_by)}\n{n.note}" for n in every), ""
+    difficulty = DIFFICULTIES.get(f.get("difficulty") or 0, "")
+    if all_pulls and (night := [n for n in every if since <= n.saved_at < until]):
+        text = "\n".join(f"{saved.mark(n.saved_at, n.saved_by)}\n{n.note}" for n in night)
+        if not book.viserio_key(guild):
+            return text, ""
+        last = (rep.start_ms + rep.by_boss[rep.boss_key(f)][-1]["startTime"]) / 1000
+        changed = await viserio_changed(book, guild, f["name"], difficulty, night[-1].saved_at, last)
+        return text, changed and f"{changed}, so the pulls begun since may have followed the newer one"
     found = book.note_for(guild, f["encounterID"], start, (since, until))
     if not found:
         return None
@@ -838,7 +845,27 @@ async def saved_note(book: notebook.Notebook, guild: int, rep: Report, f: dict,
     if every and every[-1].saved_at >= until:  # saved after the night: likely the next raid's
         newer = (f"; a newer note is saved since ({saved.source(every[-1].saved_at, every[-1].saved_by)}): "
                  "raid_note with `upcoming` gives it as it is, for the next raid")
+    if changed := await viserio_changed(book, guild, f["name"], difficulty, found.saved_at, start):
+        newer += f"; {changed}, before this pull began: the pull may have followed the newer one"
     return found.note, found.source(start) + newer
+
+
+async def viserio_changed(book: notebook.Notebook, guild: int, boss: str, difficulty: str, copy_at: float,
+                          by: float = math.inf) -> str:
+    """That the guild's note for the boss was changed in Viserio after the copy saved at `copy_at` (and by `by`):
+    the copy may be stale. "" when it wasn't, or the guild gave Wipebot no Viserio key, or Viserio can't be read
+    (a note is checked without it)."""
+    if not (found := book.viserio_key(guild)):
+        return ""
+    try:
+        at = await viserio.note_changed(found[0], boss, difficulty)
+    except viserio.ViserioError as e:
+        _log.info("Viserio's notes can't be read for guild %s: %s", guild, e)
+        return ""
+    if at is None or not copy_at < at <= by:
+        return ""
+    return (f"Viserio Cooldowns says the boss's note there was changed {day(at * 1000, with_time=True)}, after this "
+            "copy was saved (its API gives when, not the text: an officer pastes the new one)")
 
 
 def saved_plans(book: notebook.Notebook, guild: int, rep: Report, f: dict) -> list[str]:
@@ -1056,8 +1083,14 @@ async def unpulled_note(book: notebook.Notebook, guild: int, rep: Report, boss: 
     # each spell named where it stands, as the checks name them: no lookup of ids left to the model
     await rep.name_spells({int(m[2]) for m in NOTE_SPELL.finditer(n.note)})
     note = NOTE_SPELL.sub(lambda m: f"{m[0]} ({rep.ability_ref(int(m[2]))})", n.note)
+    try:
+        difficulty = notes.parse(n.note)[0].difficulty
+    except FactError:
+        difficulty = ""
+    changed = await viserio_changed(book, guild, n.boss, difficulty, n.saved_at)
     return (f"{why}, so here is the newest raid note {rep.guild_name} saved for {n.boss} "
-            f"({saved.source(n.saved_at, n.saved_by)}), as it is, not checked against a pull:\n{note}")
+            f"({saved.source(n.saved_at, n.saved_by)}{changed and f'; {changed}: this copy may be out of date'}), "
+            f"as it is, not checked against a pull:\n{note}")
 
 
 @_tool

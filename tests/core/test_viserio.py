@@ -34,6 +34,11 @@ EVENTS = {"data": [
          {"displayName": "Tor", "status": "absent", "responded": True, "mainCharacter": {"name": "Torvek"}},
          {"displayName": "Brightleaf", "status": "present", "responded": False}]},
     {"eventId": "e2", "name": "Far off", "date": LATER, "startTime": "20:00", "endTime": "23:00", "signups": []}]}
+NOTES = {"data": [  # metadata only: the API gives no note's text
+    {"noteId": "n1", "bossName": "Sszorak", "difficulty": "Mythic", "updatedAt": "2026-10-20T19:00:00.000Z"},
+    {"noteId": "n2", "bossName": "Sszorak", "difficulty": "Heroic", "updatedAt": "2026-10-22T19:00:00.000Z"},
+    {"noteId": "n3", "bossName": "The Coiled Altar", "difficulty": "Mythic", "updatedAt": "2026-10-25T19:00:00.000Z"}],
+    "page": {}}
 
 
 ROSTER = {"members": [
@@ -52,7 +57,8 @@ def api(monkeypatch) -> list[tuple[str, str]]:
     real = httpx.AsyncClient
     answers = {"/v1/groups": {"data": [GROUP]}, "/v1/groups/g1/calendar-events": EVENTS,
                "/v1/groups/g1/latest-reset": {"setups": [{"setupId": 1}]},
-               "/v1/groups/g1/latest-reset/setups/1/full": SETUP, "/v1/groups/g1/roster": ROSTER}
+               "/v1/groups/g1/latest-reset/setups/1/full": SETUP, "/v1/groups/g1/roster": ROSTER,
+               "/v1/groups/g1/notes": NOTES}
 
     def answer(request: httpx.Request) -> httpx.Response:
         assert request.headers["Authorization"] == "Bearer key-1"
@@ -113,6 +119,16 @@ async def test_the_roster_gives_every_character_and_each_players_main(api):
         "Brightleaf": ("Paladin", "Holy"), "Bright": ("Paladin", "Holy")}
     await viserio.roster_specs("key-1")
     assert [path for path, _ in api] == ["/v1/groups", "/v1/groups/g1/roster"]  # kept for the hour
+
+
+async def test_a_notes_last_change_is_its_bosss_newest_on_the_difficulty_asked(api):
+    def at(iso: str) -> float:
+        return datetime.datetime.fromisoformat(iso).timestamp()
+    assert await viserio.note_changed("key-1", "Sszorak", "Mythic") == at("2026-10-20T19:00:00Z")
+    assert await viserio.note_changed("key-1", "Sszorak") == at("2026-10-22T19:00:00Z")  # any difficulty
+    assert await viserio.note_changed("key-1", "Sszorak", "Normal") == at("2026-10-22T19:00:00Z")  # none on it
+    assert await viserio.note_changed("key-1", "Coiled Altar", "Mythic") == at("2026-10-25T19:00:00Z")
+    assert await viserio.note_changed("key-1", "Vashnik") is None
 
 
 def test_without_a_key_the_answer_says_who_connects_one():
