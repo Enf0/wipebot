@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-28
+
 ### Added
 
 - `Discord` **The steps an answer went through, kept under it.** An answer ends with a small line of what it looked at, like "✓ Raid note · ✓ Roster · ✓ Compare with top players ×2", the steps shown while it was written. `/wipebot setup steps:` turns it off for a server.
