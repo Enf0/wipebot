@@ -129,7 +129,7 @@ facts = ["26 of 42 pulls",
          "Focus at its cap 15% of the time alive",
          "no augment rune, and a main-hand enchant 96% of the top replace with Rite of the Hash'ey"]
 wrong = ["says their talents differ from the top's",
-         "says they cast Barbed Shot or Kill Command far less than the top parses"]
+         "makes fewer Barbed Shot or Kill Command casts than the top parses the main thing to fix, over staying alive"]
 
 [[case]]
 id = "real-subtlety-energy-follow-up"  # a Subtlety Rogue pushes back on the energy cap (answers #303-#304)
@@ -139,15 +139,15 @@ tools = ["boss_guide", "compare_with_top", "death_recap", "mechanic_hits", "play
 report = "vjt3KLbN8g62J1H9"
 question = ["got any tips for me, slushmania?", "energy being at 100 has to do with mechanics though."]
 asker = "Slushmania"
-expect = """Agrees that most of the time at the energy cap is the fight, because the top Subtlety parses on
-Sszorak sit at the cap about as much, and points instead at what is left to win back from that comparison: getting
-back to the boss far less often than the top on pull 42 (Shadowstep), or a worse pull's extra time at the cap and in
-casting gaps (pull 33: 44% and 19%)."""
-drifts = ["29%", "25", "32%", "1.5", "58", "25th"]
+expect = """Checks the pushback against the top Subtlety parses on Sszorak, who meet the same mechanics: some of
+the time at the energy cap is the fight (top parses sit there about 16% of the time), but they sit there about twice
+as long (31%), so the rest is theirs to win back; and points at how, from that comparison (getting back to the boss
+far less often than the top on pull 42 with Shadowstep, or a worse pull's extra time at the cap)."""
+drifts = ["16%", "13", "23%", "0.9", "65", "25th"]
 facts = ["energy at its cap 31% of their time alive on pull 42",
-         "top parses at the cap 29% of the time (25-32%)",
-         "Shadowstep 0.3 a minute against 1.5",
-         "57 casts a minute against 58",
+         "top parses at the cap 16% of the time (13-23%)",
+         "Shadowstep 0.3 a minute against 0.9",
+         "64 casts a minute against 65",
          "212.42k/s alive, below the 25th percentile of ranked kills"]
 wrong = ["says the energy cap is nothing to fix because of the mechanics, without comparing with top parses",
          "holds that the time at the cap is theirs to win back, without comparing with top parses",
