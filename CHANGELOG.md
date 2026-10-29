@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **Healing by spell keeps procs apart.** Warcraft Logs folds some spells into another's row (Overflowing Light's absorbs under Holy Shock, a shaman's Tidewaters under Healing Rain), so a breakdown by spell counted them as that spell's heals; each now has its own row, and an item's effects carry its name.
 - `Agent` **A player's spec is the one they played in the pulls asked about.** A healer who tanked another boss that night was called "also Protection in some pulls" over a night they healed throughout, and in Discord got a tank's icon.
 - `Discord` **Pull links open the pull named.** A link to "pull 12" without the boss's name opened pull 12 of whichever boss came first in a night of several bosses; it now opens the boss the answer read, and a pull it can't place stays plain text.
+- `Discord` **What Wipebot remembers is about the asker.** A raider's note could rename another raider, in a channel and in that raider's own answers; notes are now only how to answer the one who asked.
 
 ## [0.34.0] - 2026-10-28
 

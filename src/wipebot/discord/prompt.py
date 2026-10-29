@@ -70,7 +70,8 @@ REMEMBER = BotTool(
     "or everything.",
     {"type": "object", "properties": {
         "character": {"type": "string", "description": "the character they play, as in the log"},
-        "note": {"type": "string", "description": "a standing preference they stated, in a few words"},
+        "note": {"type": "string", "description": "a standing preference they stated about how to answer "
+                 "them, in a few words; never a name or fact about another raider"},
         "forget_note": {"type": "string", "description": "a remembered note they want dropped, as remembered"},
         "forget": {"type": "boolean", "description": "forget their character and all their notes",
                    "default": False},
