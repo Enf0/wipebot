@@ -6,7 +6,7 @@ import re
 import statistics
 import time
 from collections import Counter, defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Sequence, Set
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -369,10 +369,26 @@ def _worn(det: dict) -> set[str] | None:
     return {name_key(g["name"]) for g in gear if g.get("name")} or None
 
 
+async def _up_at_pull(rep: Report, f: dict, p: Player) -> set[str]:
+    """The names of the buffs on a player as the pull began, such as a potion drunk before it: in their combatant
+    info, or one whose first event in the pull is its fading."""
+    infos, buffs = await asyncio.gather(rep.events(f["id"], "CombatantInfo"),
+                                        rep.events(f["id"], "Buffs", sourceID=p.id))
+    out = {rep.abilities.get(a["ability"]) or a.get("name") or "" for info in infos if info.get("sourceID") == p.id
+           for a in info.get("auras") or [] if a.get("ability")}
+    first: dict[int, str] = {}
+    for e in sorted(buffs, key=lambda e: e["timestamp"]):
+        if e.get("targetID") == p.id:
+            first.setdefault(e.get("abilityGameID", 0), e["type"])
+    out |= {rep.abilities.get(a) or "" for a, kind in first.items() if kind in ("removebuff", "refreshbuff")}
+    return {name_key(n) for n in out if n}
+
+
 def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[Reference],
-               lust_casts: set[str], worn: set[str] | None = None) -> list[CastRate]:
+               lust_casts: set[str], worn: set[str] | None = None, up: Set[str] = frozenset()) -> list[CastRate]:
     """Each spell's casts per minute, theirs against the top parses', most cast by the top first. With `worn`, the
-    names of the player's items: an item of the top's they don't wear is "not worn", not "never cast"."""
+    names of the player's items: an item of the top's they don't wear is "not worn", not "never cast"; `up`, the
+    names of the buffs on them as the pull began: one of those was cast before it, not "never cast"."""
     items = {name_key(g["name"]) for x in found for g in x.ranking.get("gear") or [] if g.get("name")}
     def known(n: str) -> list[float]:
         """The references' counts of a spell, those that aren't known left out."""
@@ -393,6 +409,8 @@ def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[R
         once = bool(sp) and ((sp.get("cooldown") or 0) >= 60 or str(sp.get("spell_type") or "").startswith("other"))
         if me == 0 and worn is not None and name_key(n) in items - worn:
             flag = "not worn: an item of theirs the player doesn't have on"
+        elif me == 0 and name_key(n) in up:
+            flag = "cast before the pull: up as it began"
         elif me == 0 and sum(1 for x in others if x > 0) > len(others) / 2:
             flag = "never cast"
         elif med and me < 0.6 * med:
@@ -453,16 +471,16 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
         names, merged = SpellNames([]), " " + unavailable("Lorrgs' spell list, which merges a spell's ids", e)
     landed = [c for c in events if c["type"] == "cast"]
     kind, most = await resource_of(p, landed)
-    found, lust_casts, (_, resource, my_capped) = await asyncio.gather(
+    found, lust_casts, up, (_, resource, my_capped) = await asyncio.gather(
         asyncio.gather(*(_reference(rep, r, names, (kind, most) if kind else None) for r in refs)),
-        _lust_casts(rep, f, p),
+        _lust_casts(rep, f, p), _up_at_pull(rep, f, p),
         resource_use(rep, f, p, landed, alive_s, alive_until) if kind else asyncio.sleep(0, ([], "", [])))
     found = [x for x in found if x]
     if not found:
         return "Couldn't read the casts of any top parse."
     my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
     return CastComparison(p, f, hero, bool(same_hero), alive_s, ilvl, found, names, merged, mine, my_cpm,
-                          cast_rates(names, my_cpm, found, lust_casts, _worn(det)),
+                          cast_rates(names, my_cpm, found, lust_casts, _worn(det), up),
                           casting(events, alive_until, [d["timestamp"] for d in own]), resource, my_capped)
 
 

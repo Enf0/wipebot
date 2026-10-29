@@ -206,22 +206,24 @@ views.player = (() => {
   function topSection(W, n) {
     const t = D.top;
     const counted = t.rates.filter((r) => r.median != null && (r.median >= 0.3 || r.mine >= 0.3));
-    const gap = (r) => r.flag ? 10 : Math.abs(r.mine - r.median) / Math.max(r.median, 0.5);
+    const gap = (r) => /^(never cast|far )/.test(r.flag) ? 10 : Math.abs(r.mine - r.median) / Math.max(r.median, 0.5);
     const rows = (n ? counted.slice().sort((a, b) => gap(b) - gap(a)).slice(0, n) : counted);
     const L = Math.min(170, W * 0.36), R = 86, rh = 22, T = 18;
     let o = kit.text(0, 11, `Casts per minute alive against ${t.parses} top ${who()}${t.same_hero && t.hero ? ` (${t.hero})` : ""} parses`
                      + (n ? ", biggest differences" : ""), "tm", 'font-size="10.5"');
     rows.forEach((r, i) => {
       const y = T + i * rh + 11, max = Math.max(r.high, r.mine) * 1.08 || 1, x = (v) => L + v / max * (W - L - R);
-      // red where the tool flags it (never cast, far fewer, far more), orange outside the top's range
-      const fill = r.flag ? "var(--dead)" : r.mine < r.low || r.mine > r.high ? "var(--decided)" : kit.esc(D.player.color);
+      // red where the tool flags it off (never cast, far fewer, far more), orange outside the top's range; a spell
+      // cast before the pull or an item not worn is no fault
+      const off = /^(never cast|far )/.test(r.flag);
+      const fill = off ? "var(--dead)" : r.mine < r.low || r.mine > r.high ? "var(--decided)" : kit.esc(D.player.color);
       o += kit.icon(D.img_base, r.icon, 0, y - 7, 14) + kit.text(r.icon && D.img_base ? 19 : 0, y + 4, r.name.length > 24 ? r.name.slice(0, 23) + "…" : r.name, "t", 'font-size="11"');
       o += kit.line(L, y, W - R, y, "var(--line)");
       o += `<rect x="${x(r.low)}" y="${y - 4}" width="${Math.max(2, x(r.high) - x(r.low))}" height="8" rx="4" fill="var(--muted)" opacity=".3"/>`;
       o += kit.line(x(r.median), y - 7, x(r.median), y + 7, "var(--gold)", 'stroke-width="2.4"');
       const tip = `${r.name}: ${r.mine.toFixed(1)} a minute alive; the top ${t.parses}: ${r.low.toFixed(1)}–${r.high.toFixed(1)}, median ${r.median.toFixed(1)}` + (r.flag ? `\n${r.flag[0].toUpperCase()}${r.flag.slice(1)}` : "");
       o += `<circle cx="${x(r.mine)}" cy="${y}" r="5" fill="${fill}" stroke="var(--bg)" stroke-width="1.5"/>` + kit.hit(L, y - 9, W - R - L, 18, tip);
-      o += kit.text(W - R + 8, y + 4, `${r.mine.toFixed(1)} / ${r.median.toFixed(1)}`, r.flag ? "td" : "t", 'font-size="10.5"');
+      o += kit.text(W - R + 8, y + 4, `${r.mine.toFixed(1)} / ${r.median.toFixed(1)}`, off ? "td" : "t", 'font-size="10.5"');
     });
     const h = T + rows.length * rh + 4;
     return `<div class="section-title">Against top players</div>` + kit.svg(W, h, o, `${D.player.name}'s casts per minute against top players`)
