@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **"Who did the least damage?" shows the bottom of the meter.** Asking for the least damage or healing now ranks only the damage dealers (or only the healers), least first, and the meter is drawn from the bottom: the lowest players get the bars and the top ones the line under them. Before, the meter showed the top ten with tanks and healers below the damage dealers, and the player the answer named only in the small print.
+
+  ![The damage meter on The Coiled Altar for "who did the least dps?": the 13 damage dealers least first, Dscopi at the top of the bars at 583M, the top three players in the line under them](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/meter-least-damage.webp)
+
 ## [0.35.2] - 2026-10-29
 
 ### Fixed

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Literal, get_args
 
 from ..text import clock, name_key, ordinal, plural, short
-from .base import FactError, Player, Report, pull_window
+from .base import ROLE_NAMES, FactError, Player, Report, pull_window
 from .casting import cast_rows
 from .meter import MIN_BARS, Bar, Meter
 from .ranks import kill_parses, metric_of
@@ -45,28 +45,48 @@ class Asked:
 async def breakdown(rep: Report, data_type: str, group_by: str = "player", pulls: list[int] | None = None,
                     boss: str | None = None, player: str | None = None, ability: str | None = None,
                     cutoff: int | None = None, whole_pull: bool = False, start: str | None = None,
-                    end: str | None = None) -> str:
+                    end: str | None = None, least: bool = False) -> str:
     """Any WCL table over any set of pulls on a boss, grouped by player, ability or pull: those summed per pull
     (UNTIL_DECIDED_TYPES) each only until its wipe was decided, but with `whole_pull`, and only from `start` to `end`
-    (m:ss) of each pull when given."""
+    (m:ss) of each pull when given; by player with `least`, least first among the role the table is for
+    (LEAST_AMONG)."""
     q = await _asked(rep, data_type, group_by, pulls, boss, player, ability, cutoff, whole_pull, start, end)
+    if least and (q.group_by != "player" or q.player or q.data_type not in LEAST_TYPES):
+        raise FactError(f"least ranks players by {', '.join(LEAST_TYPES)}, without a player")
     if q.data_type in ("Interrupts", "Dispels"):
         return await _kicks_text(rep, q)
     if q.group_by == "pull":
         return await _by_pull(rep, q)
-    return await _summed(rep, q)
+    return await _summed(rep, q, least)
 
 
 METERS = {"DamageDone": "Damage done", "Healing": "Healing", "DamageTaken": "Damage taken", "Interrupts": "Kicks",
           "Dispels": "Dispels"}  # the tables a meter draws by player, and its title
+LEAST_TYPES = ("DamageDone", "Healing", "DamageTaken")  # the tables ranked from the least (`least`)
+LEAST_AMONG = {"DamageDone": "dps", "Healing": "healer"}  # the role their least is among: a tank's or healer's damage
+# isn't their job, so "who did the least damage" is of the damage dealers
+
+
+def _least(rep: Report, q: Asked, rows: list[tuple]) -> tuple[list[tuple], str]:
+    """The rows of the players the table's least is among (LEAST_AMONG), and the heading's words for them: "damage
+    dealers only (2 tanks and 5 healers left out)"."""
+    role = LEAST_AMONG.get(q.data_type)
+    if not role:
+        return rows, ""
+    players = {p.name: p for p in rep.players.values()}
+    roles = {r[0]: rep.over(p, q.fights).role for r in rows if (p := players.get(r[0]))}
+    out = Counter(x for x in roles.values() if x != role)
+    left = " and ".join(plural(n, ROLE_NAMES[x].removesuffix("s")) for x, n in sorted(out.items()))
+    return [r for r in rows if roles.get(r[0]) == role], \
+        f", {ROLE_NAMES[role]} only" + (f" ({left} left out)" if left else "")
 
 
 async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, boss: str | None = None,
                 ability: str | None = None, cutoff: int | None = None, whole_pull: bool = False,
-                start: str | None = None, end: str | None = None) -> Meter | None:
+                start: str | None = None, end: str | None = None, least: bool = False) -> Meter | None:
     """The breakdown by player as a meter (its rows, as the text states them), for damage, healing, damage taken,
-    kicks and dispels; None for another table or fewer than MIN_BARS players."""
-    if data_type not in METERS:
+    kicks and dispels, with `least` from the least; None for another table or fewer than MIN_BARS players."""
+    if data_type not in METERS or least and data_type not in LEAST_TYPES:
         return None
     q = await _asked(rep, data_type, "player", pulls, boss, None, ability, cutoff, whole_pull, start, end)
     title = METERS[data_type] + (f": {q.ability}" if q.ability else "")
@@ -81,9 +101,11 @@ async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, bos
         return Meter(title, scope, bars, "kicks" if data_type == "Interrupts" else "dispels", ability=icon) \
             if len(bars) >= MIN_BARS else None
     s = await _summed_rows(rep, q)
+    rows, among = _least(rep, q, s.rows) if least else (s.rows, "")
+    scope += among.split(" (")[0]
     players = {p.name: p for p in rep.players.values()}
     bars = []
-    for name, value, _ in s.rows:
+    for name, value, _ in rows:
         p, c = players.get(name), s.counts[name]
         parse = f"parse {ordinal(s.parses[name])}" if p and name in s.parses and metric_of(p) == s.metric else ""
         overheal = (f"overheal {100 * c['overheal'] / (c['overheal'] + value):.0f}%"
@@ -91,7 +113,8 @@ async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, bos
         hits = ", ".join(plural(c[k], k[:-1]) for k in ("hits", "ticks") if c[k]) if q.ability else ""
         bars.append(Bar(name, value, ", ".join(x for x in (parse, overheal, hits) if x)))
     note = (f"Parses: Warcraft Logs' {s.metric} percentiles against the same spec on this kill." if s.parses else "")
-    return Meter(title, scope, bars, seconds=s.dur_s, ability=icon, note=note) if len(bars) >= MIN_BARS else None
+    return Meter(title, scope, bars, seconds=s.dur_s, ability=icon, note=note, least=least) \
+        if len(bars) >= MIN_BARS else None
 
 
 async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | None, boss: str | None,
@@ -252,18 +275,21 @@ async def _summed_rows(rep: Report, q: Asked) -> Summed:
     return Summed(rows, moved, dur_s, total_time, parses, metric, counts)
 
 
-async def _summed(rep: Report, q: Asked) -> str:
-    """The table over every pull, one row per player, ability or aura."""
+async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
+    """The table over every pull, one row per player, ability or aura; with `least`, the players least first."""
     auras = q.data_type in ("Buffs", "Debuffs")
     s = await _summed_rows(rep, q)
     rows, dur_s, total_time = s.rows, s.dur_s, s.total_time
     total = sum(v for _, v, _ in rows) or 1
     summed = (f"; total {short(total)}" + (f", {short(total / dur_s)}/s" if dur_s else "")
               if q.data_type in ("DamageDone", "Healing", "DamageTaken") and rows else "")
-    lines = [f"{q.head}, by {'aura' if auras else q.group_by} ({clock(dur_s * 1000)} of combat{summed}):"]
+    rows, among = _least(rep, q, rows) if least else (rows, "")
+    lines = [f"{q.head}, by {'aura' if auras else q.group_by} ({clock(dur_s * 1000)} of combat{summed})"
+             f"{', least first' if least else ''}{among}:"]
     players = {p.name: p for p in rep.players.values()} if q.group_by == "player" else {}
     parsed = False
-    for k, (name, value, extra) in enumerate(rows[:25], 1):
+    ranked = list(enumerate(rows, 1))
+    for k, (name, value, extra) in ranked[::-1][:25] if least else ranked[:25]:
         share = f", {100 * value / total:.0f}% of total" if not auras else ""
         tag = rep.tank_tag(name) if q.data_type == "DamageTaken" and q.group_by == "player" else ""
         p = players.get(name)

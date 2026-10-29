@@ -48,3 +48,4 @@ class Meter:
     pulls: list[int] = field(default_factory=list)  # over several pulls, their numbers, for each bar's `per_pull`
     per_pull: str = ""  # what `per_pull` counts: "hits", "debuffs"
     then: Then | None = None  # the other night it's compared with, each bar's `was`
+    least: bool = False  # for "who did the least?": drawn from the bottom of the ranking

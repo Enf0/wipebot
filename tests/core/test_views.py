@@ -171,7 +171,7 @@ async def test_the_raid_night_view_draws_and_a_pulls_bar_opens_that_pull(recorde
 # ---- the meter: a ranking of players from breakdown, mechanic_hits and enemies, in the bot only ----
 
 METER_CASES = ["mechanic-hits", "damage-taken-ability", "interrupts", "dispels", "nekzali-enemies-night",
-               "vashnik-enemies"]
+               "vashnik-enemies", "damage-least"]
 
 
 async def meter_data(case: str) -> dict:
@@ -224,6 +224,18 @@ async def test_a_mechanics_meter_over_the_night_counts_each_players_hits_pull_by
         hits = re.match(r"(\d+) hits?", b["note"])
         assert sum(v or 0 for v in b["per_pull"]) == (int(hits.group(1)) if hits else 0), b["name"]
         assert len(b["died_in"]) <= b["died_after"] and all(b["per_pull"][i] is not None for i in b["died_in"])
+
+
+async def test_a_meter_of_the_least_ranks_the_damage_dealers_and_is_drawn_from_the_bottom(recorded, tmp_path):
+    """For "who did the least damage?" (breakdown's least) the meter ranks only the damage dealers, as its text, and
+    draws the least first: the bottom players get a bar, the top ones the line."""
+    data = await meter_data("damage-least")
+    [m] = data["meters"]
+    assert m.get("least") and {b["role"] for b in m["bars"]} == {"dps"} and "damage dealers only" in m["scope"]
+    [s] = await shots(tmp_path, "breakdown", CASES["damage-least"].args, themes=("dark",), widths=(760,))
+    assert not s.errors and "least" in s.text.lower()
+    least, top = m["bars"][-1]["name"], m["bars"][0]["name"]
+    assert s.text.index(least) < s.text.index(top)
 
 
 @pytest.mark.parametrize("case", ["damage-taken", "mechanic-outliers", "buffs", "damage-by-pull", "breakdown-casts",

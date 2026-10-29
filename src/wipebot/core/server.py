@@ -1600,10 +1600,13 @@ async def breakdown(
         + "; for a moment (\"raid DPS at 2:15\"), with `end` a few seconds either side of it, e.g. 2:10 to "
         "2:20"))] = None,
     end: Annotated[str | None, Field(description="only until this m:ss of each pull")] = None,
+    least: Annotated[bool, Field(description=(
+        "by player, for \"who did the least damage or healing?\": least first, of the damage dealers for "
+        "DamageDone and of the healers for Healing"))] = False,
     report: Report_ = None,
 ) -> str:
-    """For "who did the most damage?", "what hurt us most?", "who kicked or dispelled?", "who played well on the
-    kill?", "what was our raid DPS at 2:15?".
+    """For "who did the most or the least damage?", "what hurt us most?", "who kicked or dispelled?", "who played
+    well on the kill?", "what was our raid DPS at 2:15?".
     Damage, healing, damage taken, casts, buffs, debuffs, interrupts and dispels: any Warcraft Logs table over
     any set of pulls, or a window of each (start, end), with totals and per second, grouped by player, ability or
     pull.
@@ -1620,7 +1623,7 @@ async def breakdown(
     (healing), or who had a kick ready for a cast that went through (enemies).
     Example: data_type="DamageTaken", group_by="ability", pulls=[13]."""
     return await tables.breakdown(await lib().report(report), data_type, group_by, pulls, boss, player, ability, cutoff,
-                                  whole_pull, start, end)
+                                  whole_pull, start, end, least)
 
 
 @_tool

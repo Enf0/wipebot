@@ -4,7 +4,8 @@
 // each its own picture in Discord, where a picture of a whole raid's bars fills a phone's screen: the top players
 // get a bar, the rest a line with their amounts. Against another night (mechanic_hits' against), each bar per minute
 // with a tick at the other night's and the change. The player the picture is for (key.mark, the one asking) is ringed,
-// and their bar shown under the top ones when it's further down ----
+// and their bar shown under the top ones when it's further down. For "who did the least?" (breakdown's least) it's
+// drawn from the bottom, least first, the top players in the line ----
 views.meter = (() => {
   let D = null, root = null, SHOWN = 10, LISTED = Infinity, MARK = "";  // rows drawn (a raid is 20-30), and the line with the rest up to
   const SKULL = '<svg class="skull" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1C3.2 1 1.5 2.9 1.5 5.3c0 1.5.7 2.6 1.8 3.2V10c0 .5.4 1 1 1h3.4c.6 0 1-.5 1-1V8.5c1.1-.6 1.8-1.7 1.8-3.2C10.5 2.9 8.8 1 6 1Zm-2 6a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 4 7Zm4 0a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 8 7Z" fill="currentColor"/></svg>';
@@ -37,11 +38,11 @@ views.meter = (() => {
 
   function stats(m) {
     if (m.then) return thenStats(m);
-    const top = m.bars[0], hit = m.bars.reduce((n, b) => n + b.died_after, 0), killed = m.bars.reduce((n, b) => n + b.killed_by, 0);
+    const top = m.bars[m.least ? m.bars.length - 1 : 0], hit = m.bars.reduce((n, b) => n + b.died_after, 0), killed = m.bars.reduce((n, b) => n + b.killed_by, 0);
     return kit.stats([
       m.unit === "amount" ? ["Total", kit.short(m.total), "", m.seconds ? `${kit.short(m.total / m.seconds)}/s over ${kit.clock(m.seconds * 1000)}` : ""]
         : ["Total", `${Math.round(m.total)} ${m.unit}`, "", ""],
-      ["Most", top.name, "", `${amount(m, top.value)}, ${(top.value / Math.max(m.median, 1)).toFixed(1)}× the median`],
+      [m.least ? "Least" : "Most", top.name, "", `${amount(m, top.value)}, ${(top.value / Math.max(m.median, 1)).toFixed(1)}× the median`],
       ["Median", amount(m, m.median), "", `of ${m.bars.length} players`],
       hit || killed ? ["Deaths", `${hit} set up`, "dead", `${killed} by it as the killing blow`] : null,
     ]);
@@ -68,11 +69,13 @@ views.meter = (() => {
 
   function rows(m) {
     const top = Math.max(m.bars[0].value, ...(m.then ? m.bars.map((b) => b.was || 0) : []), 1), med = m.median / top * 100;
-    const mine = m.bars.findIndex(marked), below = mine >= SHOWN;  // the ringed player's bar, under the top ones
-    const shown = m.bars.slice(0, SHOWN).map((b, i) => bar(m, b, i, top)).join("")
-      + (below ? `<li class="gap" aria-hidden="true">⋮</li>${bar(m, m.bars[mine], mine, top)}` : "");
-    const rest = m.bars.slice(SHOWN, LISTED).map((b, i) => [b, SHOWN + i]).filter(([b]) => !marked(b)).map(([b, i]) =>
-      `<span style="white-space:nowrap">${i + 1} ${kit.esc(b.name)} ${amount(m, b.value)}</span>`);
+    // the ranks in the order drawn: from the top, or from the bottom (least)
+    const order = m.bars.map((_, i) => i), ranks = m.least ? order.reverse() : order;
+    const mine = ranks.findIndex((i) => marked(m.bars[i])), below = mine >= SHOWN;  // the ringed player's bar, under the others
+    const shown = ranks.slice(0, SHOWN).map((i) => bar(m, m.bars[i], i, top)).join("")
+      + (below ? `<li class="gap" aria-hidden="true">⋮</li>${bar(m, m.bars[ranks[mine]], ranks[mine], top)}` : "");
+    const rest = ranks.slice(SHOWN, LISTED).filter((i) => !marked(m.bars[i])).map((i) =>
+      `<span style="white-space:nowrap">${i + 1} ${kit.esc(m.bars[i].name)} ${amount(m, m.bars[i].value)}</span>`);
     if (m.bars.length > LISTED) rest.push(`${m.bars.length - LISTED} more`);
     const more = rest.length ? `<div class="note">${rest.join(" · ")}</div>` : "";
     const keys = m.then ? `<div class="legend"><span><i class="tick"></i>${kit.esc(m.then.was_day)}</span><span>bar: ${kit.esc(m.then.day)}</span>`

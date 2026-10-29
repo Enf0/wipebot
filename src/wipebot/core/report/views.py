@@ -799,7 +799,8 @@ async def meters_of(rep: Report, tool: str, args: dict, other: Report | None = N
     match tool:
         case "breakdown" if a.get("group_by", "player") == "player" and not a.get("player"):
             found = await tables.meter(rep, a.get("data_type", ""), a.get("pulls"), a.get("boss"), a.get("ability"),
-                                       a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"), a.get("end"))
+                                       a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"), a.get("end"),
+                                       bool(a.get("least")))
             return [found] if found else []
         case "mechanic_hits" if a.get("ability") and other is not None:  # against another night (`other`)
             found = await mechanics.meter_against(rep, other, a["ability"], a.get("boss"), bool(a.get("whole_pull")),
@@ -833,7 +834,7 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
                "icon": icon(m.ability), "note": m.note, "others": m.others,
                "total": sum(b.value for b in m.bars), "median": statistics.median(b.value for b in m.bars),
                "bars": [bar(b) for b in m.bars]} | ({"pulls": m.pulls, "per_pull": m.per_pull} if m.pulls else {})
-              | ({"then": dataclasses.asdict(m.then)} if m.then else {})
+              | ({"then": dataclasses.asdict(m.then)} if m.then else {}) | ({"least": True} if m.least else {})
               for m in found]
     return {"view": "meter", "report": rep.code, "tool": tool, "args": args, "title": found[0].title,
             "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0], "meters": meters}
