@@ -39,9 +39,12 @@ first; leave out small tweaks, wording, fixes few would notice and how the bot w
 in one short, plain line for raiders, in {language} (at most 25 words), starting with its name in bold, like \
 "**Kicks by pull.** You can now ask who missed their kick on each pull, and see it drawn." Leave out what only \
 matters in Claude or ChatGPT, to whoever runs the bot, or to the server's admins (setup, settings and admin \
-commands: raiders never use them), keep command names and game terms as they are written, and among the new ones \
-put those with a picture first (the post shows it under the line), then the most important, at most {shown} lines \
-in all. Answer with JSON only:
+commands: raiders never use them), and keep command names as they are written. Raiders who speak another language \
+still say most game terms in English, so keep them in English, in that language's grammar, never translated: \
+"holy paladin" (not "hellig paladin"), "spec" (not "spesialisering"), "healere" (not "helere"), "guilden" (not \
+"gildet"), "armor" (not "rustning"), "pulls" (not "trekk"), "parse", "kill", "wipe", "cooldown", "DPS" and \
+abilities' names. Among the new ones, put those with a picture \
+first (the post shows it under the line), then the most important, at most {shown} lines in all. Answer with JSON only:
 {{"lines": [{{"item": <its number>, "line": "<the line>"}}], "heading": "<'What's new in' in {language}, \
 without the name: it follows>", \
 "more": "<'more in the changelog' in {language}>", "all": "<'All of it in the changelog' in {language}>"}}
