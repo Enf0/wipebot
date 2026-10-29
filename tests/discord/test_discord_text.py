@@ -123,9 +123,14 @@ async def test_pull_links_get_the_pulls_fight(night):
     assert right != f"{base}#fight=13"  # resets and other bosses in between
     other = "[pull 2](https://www.warcraftlogs.com/reports/OtherReport00001#fight=2)"
     made_up = f"On [Sszorak pull 13]({base}#fight=13) and [pull 13]({base}), see {other}."
-    assert fix_pull_links(made_up, report) == (
-        f"On [Sszorak pull 13]({right}) and [pull 13]({base}), see {other}.")  # no boss named, two in the report;
-    # another report: left alone
+    read = ["Sszorak pull 13: wipe at 41%", *(f"{b}: 2 pulls" for b in report.by_boss)]  # most named: Sszorak
+    assert fix_pull_links(made_up, report, read) == (
+        f"On [Sszorak pull 13]({right}) and [pull 13]({right}), see {other}.")  # another report: left alone
+    latest = report.boss(None)
+    pulls = len(report.by_boss[latest])
+    last = report.url(report.by_boss[latest][-1])
+    assert fix_pull_links(f"[pull {pulls}]({base})", report) == f"[pull {pulls}]({last})"  # no boss read: the latest
+    assert fix_pull_links(f"[pull {pulls + 1}]({base})", report) == f"pull {pulls + 1}"  # no such pull: only its text
 
 
 def test_polish_turns_a_broken_link_into_a_proper_one():

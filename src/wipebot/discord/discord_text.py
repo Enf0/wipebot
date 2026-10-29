@@ -60,7 +60,7 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
     if not icons:  # with icons, each name is marked by its icon: bold on top of them is noise
         text = bold_players(text, {p.name for r in reports for p in r.players.values()})
     for report in reports:
-        text = fix_pull_links(text, report)
+        text = fix_pull_links(text, report, results)
     if icons:
         classes = {name.lower(): name for name in icons if "_" not in name and ":" not in name}
         specs = dict(roster) | planned_classes(results, classes)
@@ -272,18 +272,23 @@ def bold_players(text: str, names: Iterable[str]) -> str:
     return re.sub(rf"(?<![\w\[])(?:{'|'.join(map(re.escape, names))})(?!\w)", bold, text)
 
 
-def fix_pull_links(text: str, report: Report) -> str:
+def fix_pull_links(text: str, report: Report, results: Sequence[str] = ()) -> str:
     """Links to pulls of the report with the right fight: the model makes "[pull 42](...#fight=42)" up from the
     pull number when a tool printed no link (pull 42 of Sszorak was fight 46). The boss is the one the link's text
-    names, else the report's only boss; a link it can't place is left alone."""
+    names, else the boss of the report the tools' `results` name most (a night's overview names every boss once),
+    else the latest pull's, as the tools take it; a link it can't place keeps only its text, as it would open
+    another pull."""
+    times = {b: sum(r.count(b) for r in results) for b in report.by_boss} if PULL_LINK.search(text) else {}
+    most = max(times.values(), default=0)
+    named = [b for b, n in times.items() if n == most] if most else []
+
     def fixed(m: re.Match) -> str:
         label, pull, code = m.group(1), int(m.group(2)), m.group(3)
         if code != report.code:
             return m.group(0)
-        bosses = [b for b in report.by_boss if b.lower() in label.lower()] or (
-            list(report.by_boss) if len(report.by_boss) == 1 else [])
+        bosses = [b for b in report.by_boss if b.lower() in label.lower()] or named or [report.boss(None)]
         if len(bosses) != 1 or not 1 <= pull <= len(report.by_boss[bosses[0]]):
-            return m.group(0)
+            return label
         return f"[{label}]({report.url(report.by_boss[bosses[0]][pull - 1])})"
     return PULL_LINK.sub(fixed, text)
 
