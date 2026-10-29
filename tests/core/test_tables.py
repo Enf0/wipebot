@@ -95,3 +95,20 @@ async def test_a_window_asks_each_pull_from_its_start_to_its_end_or_where_the_wi
         await tables.breakdown(rep, "DamageDone", pulls=[13], start=str(decided / 1000 + 1))
     with pytest.raises(FactError, match="start and end work for DamageDone"):
         await tables.breakdown(rep, "Buffs", pulls=[13], start="0:10")
+
+
+def test_a_composite_damage_or_healing_row_is_split_by_name_and_its_parts_of_one_name_added_up():
+    from wipebot.core.report.tables import _amount_rows
+
+    holy_shock = {"name": "Holy Shock", "composite": True, "total": 9, "subentries": [
+        {"name": "Holy Shock", "total": 4, "hitCount": 3}, {"name": "Holy Shock", "total": 2, "hitCount": 2},
+        {"name": "Overflowing Light", "total": 3, "hitCount": 5}]}
+    folio = {"name": "Omnium Folio", "composite": True, "total": 3, "subentries": [
+        {"name": "Rune of Lingering", "total": 1}, {"name": "Rune of Unleashed Fire", "total": 2}]}
+    trinket = {"name": "Soulcoiler Ritual Vessel", "composite": True, "total": 5,
+               "subentries": [{"name": "Soulcoil Barrier", "total": 5}]}
+    rows = {r["name"]: r for r in _amount_rows([holy_shock, folio, trinket])}
+    assert rows["Holy Shock"]["total"] == 6 and rows["Holy Shock"]["hitCount"] == 5
+    assert rows["Overflowing Light"]["total"] == 3
+    assert rows["Rune of Lingering (Omnium Folio)"]["total"] == 1
+    assert rows["Soulcoiler Ritual Vessel"]["total"] == 5

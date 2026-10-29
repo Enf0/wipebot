@@ -477,6 +477,31 @@ async def _dispelled(rep: Report, fights: list[dict], p: Player | None, ability:
     return out
 
 
+AMOUNTS = ("total", "overheal", "hitCount", "tickCount", "critHitCount", "critTickCount")
+
+
+def _amount_rows(entries: list[dict]) -> list[dict]:
+    """A damage or healing table's rows with each composite row split by name: a one-player table nests some spells
+    in one row (Overflowing Light's absorbs under Holy Shock), and parts with one name (a spell logged under two ids)
+    are added up. A row of one name's parts keeps its own (a trinket's, over its effect's), and parts of a row named
+    for none of them (an item's) carry its name: "Rune of Lingering (Omnium Folio)"."""
+    rows = []
+    for e in entries:
+        names = {sub["name"] for sub in e.get("subentries") or []}
+        if not e.get("composite") or len(names) < 2:
+            rows.append(e)
+            continue
+        parts: dict[str, dict] = {}
+        for sub in e["subentries"]:
+            name = sub["name"] if e["name"] in names else f"{sub['name']} ({e['name']})"
+            part = parts.setdefault(name, {"name": name, "guid": sub.get("guid")})
+            for k in AMOUNTS:
+                part[k] = (part.get(k) or 0) + (sub.get(k) or 0)
+            part["targets"] = (part.get("targets") or []) + (sub.get("targets") or [])
+        rows += parts.values()
+    return rows
+
+
 def _table_rows(t: dict, data_type: str) -> list[tuple[str, float, Counter]]:
     """(name, value, counts) rows of a WCL table, biggest first: applications of an aura; overhealing, hits,
     periodic ticks and crits of the rest."""
@@ -485,7 +510,7 @@ def _table_rows(t: dict, data_type: str) -> list[tuple[str, float, Counter]]:
         for a in t.get("auras", []):
             rows.append((a["name"], a.get("totalUptime", 0), Counter(applications=a.get("totalUses", 0))))
     else:
-        for e in cast_rows(t.get("entries", [])) if data_type == "Casts" else t.get("entries", []):
+        for e in cast_rows(t.get("entries", [])) if data_type == "Casts" else _amount_rows(t.get("entries", [])):
             counts: Counter = Counter(
                 overheal=e.get("overheal") or 0, hits=e.get("hitCount") or 0, ticks=e.get("tickCount") or 0,
                 crits=(e.get("critHitCount") or 0) + (e.get("critTickCount") or 0))
