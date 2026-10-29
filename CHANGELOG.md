@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A new guild best is called one.** A night's pulls now say themselves whether the night's best wipe beat the guild's best before it, and mark the pull that did, so "P2 64.0%" against Monday's "P2 68.3%" can't be read backwards as a miss. Night by night, a night that got further than every one before says so too.
+
 ## [0.35.1] - 2026-10-29
 
 ### Fixed

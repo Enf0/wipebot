@@ -12,6 +12,7 @@ from ..pulls import (
     DIFFICULTIES,
     FIRST_DEATHS,
     Decided,
+    GuildBest,
     attempt,
     by_phase,
     is_reset,
@@ -274,6 +275,39 @@ def _ended(ending: Ending | None, decided: Decided | None) -> str:
     return f", ended by {kind_of_end(ending)}" + (f", decided at {clock(decided.at_ms)}" if decided else "")
 
 
+def _marks(fights: list[dict], before: GuildBest | None) -> tuple[dict[int, str], tuple[int, dict, float] | None]:
+    """Each pull's mark in `progress` by its number (a kill, a reset, the night's best until then and a new guild
+    best), and the night's best wipe: its number, the fight and its %."""
+    marks: dict[int, str] = {}
+    best = None
+    for i, f in enumerate(fights, 1):
+        pct = None if f["kill"] else wipe_pct(f)
+        if f["kill"]:
+            marks[i] = " KILL"
+        elif f.get("inProgress"):
+            marks[i] = " in progress"
+        elif is_reset(f):
+            marks[i] = " reset"
+        elif pct is not None and (best is None or pct < best[2]):
+            best = i, f, pct
+            marks[i] = " best of the night until then" + (", new guild best" if before and pct < before.pct else "")
+    return marks, best
+
+
+def _record(before: GuildBest, fights: list[dict], best: tuple[int, dict, float] | None, phased: bool) -> str:
+    """Whether the night's best wipe beat the guild's best before it, said by code: on a boss counted by phase, "P2
+    64.0%" against "P2 68.3%" reads either way."""
+    if kill := next((n for n, f in enumerate(fights, 1) if f["kill"]), None):
+        return f" Killed tonight on pull {kill}."
+    if best is None:
+        return " No wipe tonight to set against it."
+    i, f, pct = best
+    said = wipe_text(f) if phased else pct_text(pct)
+    if pct < before.pct:
+        return f" Tonight's best wipe, {said} on pull {i}, got further than that: a new guild best."
+    return f" Tonight's best wipe, {said} on pull {i}, didn't get as far: the guild's best stands."
+
+
 async def progress(rep: Report, boss: str | None = None) -> str:
     b = rep.boss(boss)
     fights = rep.by_boss[b]
@@ -285,12 +319,14 @@ async def progress(rep: Report, boss: str | None = None) -> str:
     lines = [f"{b}: {plural(len(fights), 'pull')} on the night (pull, {how_far}, duration, what ended it "
              "(pull_summary's \"Ended by\") and when the wipe was decided, first death, buffs the boss gained and kept "
              "to the end)"]
-    if before := await rep.guild_best(fights[0]):
-        lines.append(f"The guild's best wipe before the night: {before.text(wcl)}.")
+    before = await rep.guild_best(fights[0])
+    marks, best = _marks(fights, before)
+    if before:
+        record = _record(before, fights, best, phased)
+        lines.append(f"The guild's best wipe before the night: {before.text(wcl)}.{record}")
     first_killers: Counter = Counter()
     ends: Counter = Counter()  # what ended each pull, by kind_of_end
     kept: dict[str, list[float]] = defaultdict(list)  # end buff -> when it was gained, per pull
-    best = None
     for i, f in enumerate(fights, 1):
         deaths = await rep.deaths(f)
         buffs = await rep.end_buffs(f)
@@ -302,15 +338,6 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         for d in early[:FIRST_DEATHS]:
             first_killers[rep.ability(d.get("killingAbilityGameID"))] += 1
         pct = 0.0 if f["kill"] else wipe_pct(f)
-        mark = ""
-        if f["kill"]:
-            mark = " KILL"
-        elif f.get("inProgress"):
-            mark = " in progress"
-        elif is_reset(f):
-            mark = " reset"
-        elif pct is not None and (best is None or pct < best):
-            best, mark = pct, " best of the night until then"
         first = (f"{rep.names[deaths[0]['targetID']]} ({rep.ability(deaths[0].get('killingAbilityGameID'))}, "
                  f"{clock(deaths[0]['timestamp'] - f['startTime'])})" if deaths else "-")
         result = wipe_text(f) if phased and not f["kill"] else f"{pct_text(pct)} {phase_label(f) or ''}"
@@ -320,7 +347,7 @@ async def progress(rep: Report, boss: str | None = None) -> str:
             ends[kind_of_end(ending)] += 1
         end = _end_buffs(buffs, enrages, decided)
         lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_ended(ending, decided)}; first death "
-                     f"{first}{end}{mark}")
+                     f"{first}{end}{marks.get(i, '')}")
     wipes = wipe_pcts(fights)
     if thirds := wipe_thirds(wipes):
         lines.append(f"Average {wcl}wipe % (resets left out): " + "first third {:.1f}, middle {:.1f}, last third {:.1f}"
@@ -443,9 +470,13 @@ def weeks_text(boss: str, weeks: int, nights: list[BossNight]) -> str:
         return f"The guild's raid nights of the last {plural(weeks, 'week')} have no pulls on {boss}."
     lines = [f"{boss} night by night over the last {plural(weeks, 'week')} (the guild's raid nights in this raid: "
              "pulls, the kill, the best wipe before it, and how the pulls ended, by the first thing that ended each):"]
-    for n in nights:
+    furthest = None  # the lowest best wipe of the nights so far: lower got further, across phases too (WCL %)
+    for i, n in enumerate(nights):
         kill = f"killed on pull {n.kill}" if n.kill else "no kill"
         best = f", best wipe {n.best_text()} (pull {n.best[1]})" if n.best else ""
+        if n.best and not any(m.kill for m in nights[:i]) and (furthest is None or n.best[0] < furthest):
+            best += ", further than any night before" if furthest is not None else ""
+            furthest = n.best[0]
         ends = ", ".join(f"{what} {k}" for what, k in n.ends if what != "a kill")
         lines.append(f"  {date(n.start_ms)}: {plural(n.pulls, 'pull')}, {kill}{best}; ended by {ends or 'nothing yet'}")
     bests = [f"kill on pull {n.kill}" if n.kill else f"{n.best[0]:.1f}" if n.best else "-" for n in nights]

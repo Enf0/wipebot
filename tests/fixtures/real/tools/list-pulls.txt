@@ -1,5 +1,5 @@
 Vashnik the Malignant: 2 pulls on the night (pull, boss %, phase, duration, what ended it (pull_summary's "Ended by") and when the wipe was decided, first death, buffs the boss gained and kept to the end)
-The guild's best wipe before the night: 9.4% on Mon 28 Sep (pull 16, https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=38).
+The guild's best wipe before the night: 9.4% on Mon 28 Sep (pull 16, https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=38). Killed tonight on pull 2.
   1: 50.9%  3:30, ended by Malignance killing many, decided at 3:16; first death Algmor (Plague Wave, 1:00) best of the night until then
   2: 0.0%  6:56; first death Krøpling (Toxic Vapor, 1:38) KILL
 How the pulls ended, by the first thing that ended each (pull_summary's "Ended by"): Malignance killing many 1, a kill 1.

@@ -1,16 +1,16 @@
 Sszorak: 42 pulls on the night (pull, boss %, phase, duration, what ended it (pull_summary's "Ended by") and when the wipe was decided, first death, buffs the boss gained and kept to the end)
-The guild's best wipe before the night: 62.6% on Mon 5 Oct (pull 13, https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21).
+The guild's best wipe before the night: 62.6% on Mon 5 Oct (pull 13, https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Tonight's best wipe, 34.1% on pull 42, got further than that: a new guild best.
   1: 86.1% P1 0:41, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 0:39; first death Agonco (Mutilate, 0:08); boss Unbound Ferocity from 0:39 best of the night until then
   2: 78.0% P1 1:31, ended by Mutilate killing many, decided at 1:23; first death Sveini (Virulence, 0:37); boss Unbound Ferocity from 1:25 (after the wipe was decided at 1:23: fallout) best of the night until then
   3: 79.8% P1 1:19, ended by deaths one after another, decided at 1:12; first death Agonco (Virulence, 0:40)
-  4: 57.2% P1 (2nd time) 2:47, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 2:31; first death Agonco (Tempest, 1:27); boss Unbound Ferocity from 2:31 best of the night until then
+  4: 57.2% P1 (2nd time) 2:47, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 2:31; first death Agonco (Tempest, 1:27); boss Unbound Ferocity from 2:31 best of the night until then, new guild best
   5: 78.6% P1 1:25, ended by Mutilate killing many, decided at 1:17; first death Agonco (Tempest, 0:51); boss Unbound Ferocity from 1:18 (after the wipe was decided at 1:17: fallout)
   6: 75.9% P1 1:30, ended by Mutilate killing many, decided at 1:16; first death Krøpling (Mutilate, 1:07); boss Unbound Ferocity from 1:16
   7: 60.4% P1 (2nd time) 2:45, ended by Mutilate killing many, decided at 2:32; first death Sonyosh (Tempest, 0:40); boss Unbound Ferocity from 2:32
   8: 72.3% P2 1:57, ended by deaths one after another, decided at 1:42; first death Dragepie (Mutilated Gash, 0:44)
   9: 72.6% P2 1:48, ended by deaths one after another, decided at 1:47; first death Krøpling (Tempest, 0:47)
   10: 100.0% P1 0:41; first death Martin (Melee, 0:00); boss Unbound Ferocity from 0:39 (after the wipe was decided at 0:16: fallout) reset
-  11: 55.3% P1 (2nd time) 2:44, ended by Mutilate killing many, decided at 2:31; first death Agonco (Virulence, 1:20); boss Unbound Ferocity from 2:31 best of the night until then
+  11: 55.3% P1 (2nd time) 2:44, ended by Mutilate killing many, decided at 2:31; first death Agonco (Virulence, 1:20); boss Unbound Ferocity from 2:31 best of the night until then, new guild best
   12: 80.4% P1 1:08, ended by deaths one after another, decided at 0:59; first death Scopidruid (Tempest, 0:29)
   13: 77.0% P1 1:26, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 1:18; first death Krøpling (Tempest, 0:14); boss Unbound Ferocity from 1:18
   14: 64.5% P1 (2nd time) 2:15, ended by many dying at once, no killing blow, decided at 2:06; first death Nexsozz (Tempest, 1:05)
@@ -41,7 +41,7 @@ The guild's best wipe before the night: 62.6% on Mon 5 Oct (pull 13, https://www
   39: 65.2% P1 (2nd time) 2:10, ended by many dying at once, no killing blow, decided at 1:57; first death Algmor (Mutilated Gash, 0:31)
   40: 63.4% P1 (2nd time) 2:27, ended by many dying at once, no killing blow, decided at 2:06; first death Scopidruid (Ula'tek's Presence, 1:32)
   41: 69.3% P2 1:56, ended by many dying at once, no killing blow, decided at 1:46; first death Nexsozz (Tempest, 0:49)
-  42: 34.1% P1 (3rd time) 4:49, ended by deaths one after another, decided at 4:08; first death Peggerino (Virulence, 2:36); boss Unbound Ferocity from 4:39 (after the wipe was decided at 4:08: fallout) best of the night until then
+  42: 34.1% P1 (3rd time) 4:49, ended by deaths one after another, decided at 4:08; first death Peggerino (Virulence, 2:36); boss Unbound Ferocity from 4:39 (after the wipe was decided at 4:08: fallout) best of the night until then, new guild best
 Average wipe % (resets left out): first third 72.2, middle 70.9, last third 66.6
 The boss gained Unbound Ferocity and kept it to the end on 24 of 42 pulls, gained at 0:39 (3 pulls), 1:16-1:25 (13 pulls), 2:30-2:32 (7 pulls), 4:39 (1 pull).
 How the pulls ended, by the first thing that ended each (pull_summary's "Ended by"): the boss gaining Unbound Ferocity and keeping it to the end 11, Mutilate killing many 8, deaths one after another 8, many dying at once, no killing blow 7, Viscous Cyst killing many 3, a reset 2, Raging Crosswinds killing many 1, Ravage killing many 1, Tempest killing many 1.
