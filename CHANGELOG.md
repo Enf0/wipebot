@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.3] - 2026-10-29
+
 ### Fixed
 
 - `Agent` **"Who did the least damage?" shows the bottom of the meter.** Asking for the least damage or healing now ranks only the damage dealers (or only the healers), least first, and the meter is drawn from the bottom: the lowest players get the bars and the top ones the line under them. Before, the meter showed the top ten with tanks and healers below the damage dealers, and the player the answer named only in the small print.
