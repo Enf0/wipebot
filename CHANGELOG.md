@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.4] - 2026-10-29
+
 ### Fixed
 
 - `Agent` **Talent forms of a spell are counted.** A Devourer's Reap and Cull after a full Void Ray become Eradicate, which the log records with no cast, so the comparison with top players missed every one and read Cull as "far fewer". They now count with the spell, for the player and the top players. When a player has none of a spell asked about (Curse of Tongues), the breakdown names what they had instead (Curse of the Satyr, which does its job), and a raid note's spell a player never cast all night says another spell may do its job.
