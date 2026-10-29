@@ -23,6 +23,7 @@ from .adds import interruptible_casts, kicked_tonight
 from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since, unavailable
 
 MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it this close to its time
+NEVER_CAST_MIN = 3  # pulls a planned spell was missed on, never cast at all, before the night says so
 BURST_MS = 2_000  # hits of an ability this close together are one hit of it (one soak)
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
 PLANNED_NEAR_MS = 10_000  # a cooldown the note plans for a player this close to a callout is their answer to it
@@ -939,16 +940,22 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
 
     def missed(rows: list[tuple[PullCheck, PlannedUse]]) -> int:
         return sum(r[1].cast_at is None and r[1].state == "alive" for r in rows)
+    never: dict[str, set[int]] = {}  # per player, the planned spells they cast on none of the pulls
     for name in sorted(per_player, key=lambda n: (-sum(missed(r) for r in per_player[n].values()), n)):
         entries = per_player[name]
         everything = [r for rows in entries.values() for r in rows]
+        spells = {r[1].cooldown.spell for r in everything}
+        never[name] = {sp for sp in spells if sum(missed([r]) for r in everything if r[1].cooldown.spell == sp)
+                       >= NEVER_CAST_MIN and not any(r[1].casts for r in everything if r[1].cooldown.spell == sp)}
         out.append(f"  {name}: {len(everything)} planned uses; {tally(everything)}")
         for rows in sorted(entries.values(), key=lambda rows: rows[0][1].at):
             u = rows[0][1]
             line = f"    {clock(u.at)} {rep.ability_ref(u.cooldown.spell)}"
             if u.cooldown.boss_spell:
                 line += f" for {rep.ability_ref(u.cooldown.boss_spell)}"
-            out.append(line + f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}")
+            out.append(line + f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}"
+                       + ("; never cast on any of these pulls: a talent may replace it, or another spell do its job "
+                          "(breakdown of their casts)" if u.cooldown.spell in never[name] else ""))
     twice = {(cd.player, cd.spell, first, again): (first, again, cd)
              for c in checks if c.planned for first, again, cd in c.planned.twice}
     return out + [f"  {_twice(rep, t)}" for t in twice.values()]

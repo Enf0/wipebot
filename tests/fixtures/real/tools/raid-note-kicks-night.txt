@@ -22,7 +22,7 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     0:43 Stasis (Store) [370537], 13 pulls: on time 1, early 1 (22 s), not cast 11 (p3, p4, p5, p7, p8, p9, p11, p12, p13, p14, p15)
     1:01 Zephyr [374227], 6 pulls: on time 1, early 4 (2 s), not cast 1 (p12)
   Attractîv: 6 planned uses; not cast 5, dead 1
-    0:58 Stampeding Roar [106898], 6 pulls: not cast 5 (p3, p6, p10, p11, p15), dead 1
+    0:58 Stampeding Roar [106898], 6 pulls: not cast 5 (p3, p6, p10, p11, p15), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
   Cptola: 15 planned uses; on time 1, early 12 (4 s), not cast 2
     0:43 Avenging Wrath [31884], 13 pulls: on time 1, early 10 (4 s), not cast 2 (p5, p7)
     1:48 Aura Mastery [31821], 2 pulls: early 2 (3 s)

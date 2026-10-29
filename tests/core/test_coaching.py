@@ -37,7 +37,7 @@ async def test_the_resource_judged_is_the_one_the_spec_spends(rep, patch_wcl, fa
     assert lines == ["Maelstrom at its cap (125) for 10% of their time alive (what it gained then was lost); longest "
                      "stretches: 0:10-0:20 (10 s).",
                      "Maelstrom gained 240, of it lost at the cap 30 (12%); by source (Warcraft Logs' names), lost "
-                     "of gained: Lava Burst 30 of 200, Elemental Blast 0 of 40"]
+                     "of gained: Lava Burst 30 of 200, Elemental Blast 0 of 40" + coaching.CAP_READING]
     assert (name, capped) == ("Maelstrom", [(t0 + 10_000, t0 + 20_000)])
     essence = Player(p.id, p.name, "Evoker", "Devastation", "dps")
     casts[1]["classResources"] = [{"type": 19, "max": 6}]
@@ -66,7 +66,7 @@ async def test_a_healer_who_spends_holy_power_is_judged_on_mana_and_on_holy_powe
     assert lines[0].startswith("Mana over the pull: 0:00 100%")
     assert lines[1].startswith("Holy Power at its cap (5) for 30% of their time alive")
     assert lines[2] == ("Holy Power gained 218, of it lost at the cap 76 (35%); by source (Warcraft Logs' names), "
-                        "lost of gained: Holy Shock 52 of 150, Beacon of Light 24 of 68")
+                        "lost of gained: Holy Shock 52 of 150, Beacon of Light 24 of 68" + coaching.CAP_READING)
     assert (name, capped) == ("Holy Power", [(t0 + 10_000, t0 + 40_000)])
     # A cat-weaving druid's Energy isn't the healer's resource: only mana is judged
     casts[-1]["classResources"] = [{"type": 3, "max": 100}]
@@ -84,7 +84,8 @@ async def test_a_source_that_drains_the_resource_is_not_counted_as_gained(rep, p
                                         {"name": "Consume Soul", "gains": 3156, "wasted": 928}]})
     assert await coaching.lost_at_cap(rep, [f["id"]], p, 17) == (
         "Fury gained 4830, of it lost at the cap 1130 (23%); by source (Warcraft Logs' names), lost of gained: "
-        "Consume Soul 928 of 3156, Devour 202 of 1674; drained by Void Metamorphosis 14216 (net)")
+        "Consume Soul 928 of 3156, Devour 202 of 1674; drained by Void Metamorphosis 14216 (net)"
+        + coaching.CAP_READING)
 
 
 def test_a_stat_below_zero_is_said_and_left_out_of_the_shares():

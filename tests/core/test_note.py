@@ -137,3 +137,20 @@ def test_a_callout_isnt_missed_by_one_the_note_gives_another_cooldown_or_a_tank_
     assert note._excused(rep, plan, players, cast(Player, tank), 60_000, when, [(72_000, wall)]) == (
         "a tank, kept Shield Wall for 1:12")
     assert note._excused(rep, plan, players, cast(Player, tank), 60_000, when, [(90_000, wall)]) == ""  # too late
+
+
+def test_a_planned_spell_never_cast_on_any_pull_says_another_may_do_its_job():
+    """The note gave Peggerino Curse of Tongues; they cast Curse of the Satyr, a talent's curse that does its job, so
+    Tongues read as not cast on every pull and an answer said they never cursed (corrected by the raider,
+    4N9JMwBFPAjXyV3Z). A spell cast on some pulls, if not at its time, says nothing more."""
+    rep = SimpleNamespace(pull_no=lambda f: f["id"], ability_ref=lambda spell: f"Spell [{spell}]")
+    tongues, wind = note.Cooldown(190, 1, "Peggerino", 1714), note.Cooldown(41, 1, "Enfo", 192077)
+
+    def check(i: int) -> Any:
+        uses = [note.PlannedUse(190_000, tongues, None, "alive", []),
+                note.PlannedUse(41_000, wind, None, "alive", [90_000] if i == 1 else [])]
+        return SimpleNamespace(f={"id": i}, planned=note.Planned(uses, [], 0))
+    lines = note._night_cooldowns(cast(Any, rep), [check(i) for i in (1, 2, 3)])
+    assert ("    3:10 Spell [1714], 3 pulls: not cast 3 (p1, p2, p3); never cast on any of these pulls: a talent may "
+            "replace it, or another spell do its job (breakdown of their casts)") in lines
+    assert "    0:41 Spell [192077], 3 pulls: not cast 3 (p1, p2, p3)" in lines

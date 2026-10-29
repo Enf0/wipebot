@@ -38,6 +38,24 @@ async def test_a_players_part_is_asked_by_who_had_the_aura_cast_or_took_the_dama
     assert asked == [("Healing", {"sourceID": p.id})] and "decided" not in text
 
 
+async def test_a_player_with_none_of_the_ability_asked_about_gets_what_they_had_instead(rep, patch_wcl):
+    """Asked who cast Curse of Tongues, Peggerino had none: Curse of the Satyr, a talent's curse that does its job,
+    was theirs, and an answer said they never cursed (corrected by the raider, 4N9JMwBFPAjXyV3Z). With an ability
+    and a player and nothing found, their other rows are named."""
+    def table(code, fight_ids, data_type, **filters):
+        if "abilityID" in filters:
+            return {"auras": []}
+        return {"auras": [{"name": "Agony", "guid": 980, "totalUptime": 9000},
+                          {"name": "Curse of the Satyr", "guid": 440057, "totalUptime": 3000}]}
+    patch_wcl(rep, table=table)
+    p = rep.player("Enfo")
+    ability = rep.abilities.get(next(iter(rep.abilities)))
+    text = await tables.breakdown(rep, "EnemyDebuffs", pulls=[13], player=p.name, ability=ability)
+    assert "nothing recorded" in text
+    assert text.endswith(f"{p.name} had no {ability} here; what they had instead, most first (a talent may replace "
+                         "it, or another spell do its job): Agony, Curse of the Satyr")
+
+
 
 async def test_healing_on_one_kill_gives_each_players_spec_and_parse(rep, patch_wcl):
     """By player on one kill, healing and damage rows carry the spec and the parse (the test night's players are all

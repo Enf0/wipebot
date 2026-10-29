@@ -6,7 +6,7 @@ import re
 import statistics
 import time
 from collections import Counter, defaultdict
-from collections.abc import Callable, Sequence, Set
+from collections.abc import Callable, Iterable, Sequence, Set
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -37,6 +37,8 @@ from .ranks import (
 REFERENCE_PARSES = 5  # top parses a player's casts are compared with
 FAR_MORE_PER_MIN = 2.0  # casts per minute above the top median that mean something (one cast on a short pull doesn't)
 LUST_CAST_MS = 2000  # a cast this close before a Bloodlust landed is the Bloodlust (or its kin) itself
+UPGRADED = re.compile(r"^(?P<talent>.+) \((?P<spell>.+)\)$")  # "Eradicate (Cull)": a talent's form of a spell
+UPGRADED_CAST_MS = 500  # an upgraded form's hits this close after its first are one cast (a cone hits at once)
 
 
 async def _encounter(wcl: WCL, boss: str) -> tuple[int, int, str]:
@@ -312,8 +314,10 @@ async def _typical_code(wcl: WCL, top: list[dict], talents: list[set[int]], pool
 class SpellNames:
     """A spec's spells from Lorrgs, to count a spell once: it can log under two ids (Eternity Surge with and without
     Font of Magic, a Mutilate per hand) or under a replacing talent's name (Incarnation for Celestial Alignment), so
-    casts are merged by name, and by Lorrgs' spell for the ids it lists as one spell's variations."""
+    casts are merged by name, and by Lorrgs' spell for the ids it lists as one spell's variations. `upgraded`: the ids
+    of a talent's form of a spell the log records with no cast (upgraded_forms), by that spell's name."""
     spells: list[dict]
+    upgraded: dict[int, str] = field(default_factory=dict)
     by_id: dict[int, dict] = field(init=False)
     by_name: dict[str, dict] = field(init=False)
 
@@ -323,6 +327,8 @@ class SpellNames:
 
     def canonical(self, a: dict) -> str:
         """The name a Casts table row is counted under."""
+        if a.get("guid") in self.upgraded:
+            return self.upgraded[a["guid"]]
         sp = self.by_id.get(a.get("guid")) or self.named(a["name"])  # type: ignore[arg-type]
         return sp["name"] if sp else a["name"]
 
@@ -340,6 +346,37 @@ class SpellNames:
             else:
                 cpm.setdefault(n, None)
         return cpm
+
+
+def upgraded_forms(names: SpellNames, casts: list[dict], damage: list[dict]) -> dict[int, str]:
+    """The ids of a talent's form of a spell that the log records with no cast, by the name the spell is counted
+    under: a damage row named "Talent (Spell)" whose spell the player casts and whose talent and id they don't (a
+    Devourer's Reap after a full Void Ray is Eradicate, logged as Eradicate (Reap) damage alone)."""
+    cast_ids = {a.get("guid") for a in casts}
+    cast_names = {name_key(names.canonical(a)): names.canonical(a) for a in casts}
+    out = {}
+    for a in cast_rows(damage):
+        m = UPGRADED.match(a["name"])
+        if (m and a.get("guid") not in cast_ids and name_key(m["spell"]) in cast_names
+                and name_key(m["talent"]) not in cast_names):
+            out[a["guid"]] = cast_names[name_key(m["spell"])]
+    return out
+
+
+def upgraded_casts(hits: list[dict], forms: Set[int], abilities: dict[int, str]) -> list[dict]:
+    """Casts table rows for the upgraded forms (upgraded_forms) from their damage events: a cast per hit, and
+    the hits within UPGRADED_CAST_MS after it on other targets its own."""
+    starts: dict[int, list[float]] = defaultdict(list)
+    for e in sorted(hits, key=lambda e: e["timestamp"]):
+        gid = e.get("abilityGameID", 0)
+        if e.get("type") == "damage" and gid in forms and not (
+                starts[gid] and e["timestamp"] - starts[gid][-1] <= UPGRADED_CAST_MS):
+            starts[gid].append(e["timestamp"])
+    return [{"name": abilities.get(gid, str(gid)), "guid": gid, "total": len(ts)} for gid, ts in starts.items()]
+
+
+def _hits_filter(forms: Iterable[int]) -> str:
+    return f"ability.id in ({', '.join(map(str, sorted(forms)))})"
 
 
 @dataclass
@@ -455,8 +492,9 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
     rep.require_in(f, p)
     p = rep.in_pull(f, p)
     # A player's own Casts table: the all-players one keeps only each player's top five spells.
-    details, deaths, events, table = await asyncio.gather(
-        rep.details(f), rep.deaths(f), rep.cast_events(f, p), rep.table(f["id"], "Casts", sourceID=p.id))
+    details, deaths, events, table, damage = await asyncio.gather(
+        rep.details(f), rep.deaths(f), rep.cast_events(f, p), rep.table(f["id"], "Casts", sourceID=p.id),
+        rep.table(f["id"], "DamageDone", sourceID=p.id))
     det = details.get(p.id) or {}
     own = [d for d in deaths if d["targetID"] == p.id]
     alive_s, alive_until = alive(rep, f, p, own, [c for c in events if c["type"] == "cast"])
@@ -478,6 +516,10 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
         names, merged = SpellNames(await rep.spells(p)), ""
     except KnowledgeError as e:
         names, merged = SpellNames([]), " " + unavailable("Lorrgs' spell list, which merges a spell's ids", e)
+    if forms := upgraded_forms(names, mine, damage.get("entries") or []):
+        names.upgraded = forms
+        mine += upgraded_casts(await rep.events(f["id"], "DamageDone", sourceID=p.id,
+                                                filterExpression=_hits_filter(forms)), set(forms), rep.abilities)
     landed = [c for c in events if c["type"] == "cast"]
     kind, most = await resource_of(p, landed)
     found, lust_casts, up, (_, resource, my_capped) = await asyncio.gather(
@@ -518,6 +560,10 @@ async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: st
                  "minute. Every cast event counts (procs and items too); a spell logged under several ids or a "
                  "replacing talent's name counts as one. Cooldowns of a minute or more depend on the pull's "
                  "length, and a pull with Bloodlust at the start is busier than a whole kill.")
+    if forms := c.names.upgraded:
+        lines.append(", ".join(sorted({rep.ability(i) for i in forms})) + ": a talent's form of a spell that the log "
+                     "records with no cast, counted with that spell from its hits (the hits within "
+                     f"{UPGRADED_CAST_MS} ms one cast), theirs and the top parses'.")
     lines.append(_gaps_line(c.flow, [x.flow for x in found]))
     theirs = sorted(100 * x.capped for x in found if x.capped is not None)
     if c.resource and theirs:
@@ -558,11 +604,15 @@ async def _reference(rep: Report, r: dict, names: SpellNames,
         if r.get("name") not in ids:
             return None
         pid = ids[r["name"]]
-        t, events = await asyncio.gather(
+        t, events, hits = await asyncio.gather(
             rep.keep(("casts", code, fight_id, pid), [],
                      lambda: rep.wcl.table(code, [fight_id], "Casts", sourceID=pid), FOREVER),
             rep.keep(("cast_events", code, fight_id, pid), [],
-                     lambda: rep.wcl.events(code, [fight_id], "Casts", sourceID=pid), FOREVER))
+                     lambda: rep.wcl.events(code, [fight_id], "Casts", sourceID=pid), FOREVER),
+            rep.keep(("upgraded_hits", code, fight_id, pid, *sorted(names.upgraded)), [],
+                     lambda: rep.wcl.events(code, [fight_id], "DamageDone", sourceID=pid,
+                                            filterExpression=_hits_filter(names.upgraded)), FOREVER)
+            if names.upgraded else asyncio.sleep(0, []))
     except WCLError:
         return None
     minutes = (r.get("duration") or 0) / 60000
@@ -570,7 +620,7 @@ async def _reference(rep: Report, r: dict, names: SpellNames,
         return None
     # The kill's end isn't in the ranking: the last cast is close enough (the kill's deaths aren't read).
     last = max((e["timestamp"] for e in events), default=0)
-    rows = cast_rows(t["entries"])
+    rows = cast_rows(t["entries"]) + upgraded_casts(hits, set(names.upgraded), rep.abilities)
     return Reference(r, names.per_minute(rows, minutes), casting(events, last + GCD_MAX_MS),
                      await _capped(rep, code, fight_id, pid, events, *resource) if resource else None,
                      {names.canonical(a): a["guid"] for a in rows if a.get("guid")})

@@ -67,3 +67,25 @@ def test_an_item_the_top_use_and_the_player_doesnt_wear_isnt_never_cast():
     assert flags == {"Voracious Heart of Ula'tek": "not worn: an item of theirs the player doesn't have on",
                      "Hunter's Mark": "never cast"}
     assert {r.flag for r in top.cast_rates(names, mine, found, set(), None)} == {"never cast"}
+
+
+def test_a_talents_form_of_a_spell_logged_with_no_cast_counts_as_that_spell_from_its_hits():
+    """A Devourer's Cull after a full Void Ray is Eradicate, which the log records as Eradicate (Cull) damage with no
+    cast: Dscopi's 7 read as Cull "far fewer" until counted (pull 29, 4N9JMwBFPAjXyV3Z). A form whose first name is
+    a spell they cast (Void Ray (Void Metamorphosis), Void Ray's damage in it) is that spell's damage, not a cast."""
+    names = top.SpellNames([])
+    casts = [entry("Cull", 1245453, 1), entry("Reap", 1226019, 6), entry("Void Ray", 473728, 13)]
+    damage = [{"name": "Eradicate", "guid": 1226033, "composite": True,
+               "subentries": [entry("Eradicate (Cull)", 1279200, 0), entry("Eradicate (Reap)", 1225827, 0)]},
+              {"name": "Void Ray", "guid": 473728, "composite": True,
+               "subentries": [entry("Void Ray (Void Metamorphosis)", 1214595, 0), entry("Void Ray", 1213649, 0)]},
+              entry("Cull", 1245455, 0)]
+    forms = top.upgraded_forms(names, casts, damage)
+    assert forms == {1279200: "Cull", 1225827: "Reap"}
+    # A cone's hits on several targets at once are one cast; the next one is another.
+    hits = [{"type": "damage", "abilityGameID": 1225827, "timestamp": t} for t in (1000, 1001, 1300, 9000)]
+    hits.append({"type": "absorbed", "abilityGameID": 1279200, "timestamp": 5000})
+    rows = top.upgraded_casts(hits, set(forms), {1225827: "Eradicate (Reap)"})
+    assert rows == [{"name": "Eradicate (Reap)", "guid": 1225827, "total": 2}]
+    names.upgraded = forms
+    assert names.per_minute(casts + rows, 1.0)["Reap"] == 8

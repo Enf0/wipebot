@@ -27,6 +27,9 @@ POWER_TYPES = {0: "Mana", 1: "Rage", 2: "Focus", 3: "Energy", 4: "Combo Points",
 AT_CAP = 0.98  # a resource this close to its maximum is capped: what it gains now is lost
 CAP_STRETCHES = 4  # the longest stretches at the cap named, with their times
 CAP_STRETCH_MS = 2000  # a shorter one is a cast's worth
+# A loss at the cap read alone sounds like a fault: a Devourer's 24% over a night was the spec's, as top players' was
+CAP_READING = (". Some loss at the cap comes with the spec and the fight: top players' time at the cap "
+               "(compare_with_top casts) says how much is theirs to win back.")
 LOST_SOURCES = 5  # the sources of a resource named with what they gained and lost at the cap
 HEALER_SPENDER_MAX = 10  # a healer's resource besides mana is their spec's when built in this few units
 
@@ -304,7 +307,8 @@ async def lost_at_cap(rep: Report, fight_ids: list[int], p: Player, kind: int, u
     return (f"{POWER_TYPES[kind]} gained {gained:.0f}, of it lost at the cap {lost:.0f} "
             f"({100 * lost / gained:.0f}%); by source (Warcraft Logs' names), lost of gained: "
             + ", ".join(f"{r['name']} {r.get('wasted') or 0:.0f} of {r['gains']:.0f}" for r in rows[:LOST_SOURCES])
-            + "".join(f"; drained by {r['name']} {-r['gains']:.0f} (net)" for r in drains))
+            + "".join(f"; drained by {r['name']} {-r['gains']:.0f} (net)" for r in drains)
+            + (CAP_READING if lost else ""))
 
 
 async def _heals(p: Player) -> bool:

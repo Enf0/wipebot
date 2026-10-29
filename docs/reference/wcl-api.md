@@ -395,6 +395,11 @@ user's own pool, spent first on fields labelled [User-Eligible Points] when a qu
   (Verdant Embrace: total 0, its 360995 subentry 5; Hand of Fate 0, Fatebound Coin 9), or the same cast under
   several ids (Odyn's Fury 3 with 385059, 385060 and 385062 at 3 each and the off-hand 6), so neither the row's
   total nor the sum of its subentries is the casts. The all-players Casts table sums them (that Mind Blast: 69).
+- Some talent forms of a spell log no cast at all (verified 2026-10-29, 4N9JMwBFPAjXyV3Z fight 43): a Devourer's
+  Reap or Cull after a full Void Ray is Eradicate (talent 1239524, "upgrades your Reap to Eradicate"), whose only
+  events are the Eradicate buff's removal and the damage, named "Eradicate (Cull)" (1279200) and "Eradicate (Reap)"
+  (1225827) under a composite "Eradicate" row of the DamageDone table with no `uses`. Dscopi's 7 Eradicate Culls
+  that pull were in neither the Casts table nor the cast events, which had 1 Cull.
 - A player's Casts events are `cast` (an instant, or a hard cast landing), `begincast` (a hard cast starting)
   and `empowerstart`/`empowerend` (an Evoker's empowers); none carries a duration or the GCD, and a channel's end
   isn't logged. A hard cast landing and the next one beginning share a millisecond, landing first in the data. A

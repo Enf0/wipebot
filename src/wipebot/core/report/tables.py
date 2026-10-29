@@ -1,7 +1,7 @@
 """`breakdown`: any WCL table over any set of pulls on a boss, grouped by player, ability or pull."""
 import math
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, get_args
 
 from ..text import clock, name_key, ordinal, plural, short
@@ -16,6 +16,7 @@ BREAKDOWN_TYPES = get_args(BreakdownType)
 GroupBy = Literal["player", "ability", "pull"]
 UNTIL_DECIDED_TYPES = ("DamageDone", "Healing", "DamageTaken", "Casts")  # tables summed per pull, cut at a moment
 TARGETS_SHOWN = 4  # damage taken by ability: the players who took most of each
+BY_ANOTHER_NAME = 30  # a player's other rows named when they have none of the ability asked about
 
 
 @dataclass
@@ -246,6 +247,17 @@ async def _by_pull(rep: Report, q: Asked) -> str:
     return "\n".join(lines)
 
 
+async def _without_ability(rep: Report, q: Asked) -> str:
+    """For a player with nothing of the ability asked about, what they have in the same table: a talent can
+    replace a spell, or another spell do its job (Curse of the Satyr where the note says Curse of Tongues)."""
+    s = await _summed_rows(rep, replace(q, ability=None, ids=[None], group_by="ability"))
+    if not s.rows:
+        return ""
+    return (f"  {q.player.name if q.player else ''} had no {q.ability} here; what they had instead, most first (a "
+            "talent may replace it, or another spell do its job): "
+            + ", ".join(name for name, _, _ in s.rows[:BY_ANOTHER_NAME]))
+
+
 @dataclass
 class Summed:
     """A table over every pull, one row per player, ability or aura: (name, value, extra text) rows biggest first,
@@ -303,6 +315,8 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
         lines.append(f"  {k}. {who}{tag}: {_fmt_value(value, q.data_type, dur_s, total_time)}{share}{parse}{extra}")
     if not rows:
         lines.append("  nothing recorded")
+        if q.ability and q.player and (others := await _without_ability(rep, q)):
+            lines.append(others)
     for name, value, extra in s.moved:
         lines.append(f"  Not healing: {name}: {_fmt_value(value, q.data_type, dur_s, total_time)}{extra}: health "
                      "taken from players to give to others. Warcraft Logs counts it as negative healing and takes it "
