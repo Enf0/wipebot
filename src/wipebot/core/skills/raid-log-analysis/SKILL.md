@@ -67,7 +67,9 @@ then every death with the players alive after it, the buffs the boss kept to the
   lethal cap (the cause is where the extra stacks came from).
 - A raid-wiping mechanic: many dying to one ability in the same second or two, or in pulses over a few seconds.
   Find which mechanic failed and how: who carried it, who soaked it (who should have, only the raid note says),
-  what was left alive.
+  what was left alive. A death in it says nothing about that player's fault either way: read `raid_note` before
+  saying whose it was or wasn't. Many dying early to something no guide explains: `pull_map` at that moment shows
+  where they stood against the rest.
 - A cascade: deaths one after another, each making the next more likely.
 
 "Ended by" names the deaths one after another that led into a moment killing many ("Before it, 5 deaths ... from
@@ -148,9 +150,11 @@ spender that overheals, a resource that caps), give it. A fix added to an answer
   guides take, an AoE build on a single-target boss), checked against the spec guide's build for that kind of
   fight. One utility talent for another is a choice; a different hero tree only when asked. A missing consumable
   is a concrete find.
-- How they play (`compare_with_top`, casts and cooldowns): waste first (a resource at its cap, charges left full,
-  a buff or DoT falling off, a cooldown held for nothing), then core casts and cooldown timing against top players
-  of the same spec and hero tree. The same cast dropped again and again is a habit worth a sentence.
+- How they play (`compare_with_top`, casts and cooldowns): waste first (a resource at its cap longer than top
+  players of the spec on that boss, charges left full, a buff or DoT falling off, a cooldown held for nothing), then
+  core casts and cooldown timing against top players of the same spec and hero tree. A proc is wasted only when its
+  buff was up and not spent (`buff_at_casts`), never from a cast count. The same cast dropped again and again is a
+  habit worth a sentence.
 
 A difference from top players is a question until you've ruled out the plain reasons: a talent choice, a spell
 logged under another id, a cooldown held for Bloodlust or adds, a cast before the pull, a short pull, or the fight
@@ -168,7 +172,8 @@ even when it costs a use).
   health is paced right; out early, or lots left as the raid died, both cost), a resource they spend besides mana
   lost at the cap (Holy Power, Essence), dispels. Healing on a wipe is capped
   by damage taken. Overheal says what the spec and the raid around a healer do (heals over time overheal by
-  design, more healers share the same damage), not how they healed: never read it alone or across specs. It costs
+  design, more healers share the same damage), not how they healed: never read it alone, across specs or against
+  raids with another number of healers. It costs
   only when mana runs out or healing falls short in the spikes (`healing` shows both), and whether the raid needs
   another healer is read from the spikes and the deaths in them, not from overheal.
 - Tanks: staying alive, defensives on tank hits, taunts (`tank_swaps`), active mitigation while holding the boss.
