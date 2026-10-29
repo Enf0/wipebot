@@ -71,17 +71,17 @@ async def test_the_model_words_the_lines_in_the_servers_language_and_code_counts
     assert "4. (Fixed) **The footer's points.**" in asked[0] and "Claude only" not in asked[0]
     assert "1. (Added, with a picture) **Raid damage" in asked[0] and "in Norwegian" in asked[0]
     text = post.text("Wipeboy")
-    assert text.splitlines()[:3] == ["### Nytt i Wipeboy 0.3.0", "- **Poeng.** Telles én gang nå.",
+    assert text.splitlines()[:2] == ["### Nytt i Wipeboy 0.3.0",  # what's new first, the fix after it
                                      "- **Raidskade.** Spør om et hvilket som helst øyeblikk."]
     assert "-# 2 til i endringsloggen: <https://github.com/" in text
-    assert post.pictures == [[], [("The damage at 2:15", "https://raw.githubusercontent.com/example/shot.png")]]
+    assert post.pictures == [[("The damage at 2:15", "https://raw.githubusercontent.com/example/shot.png")], []]
     # the picture right under its own line, the rest after it
     parts: list[Any] = [c for c in post.layout("Wipeboy").walk_children()
                         if isinstance(c, discord.ui.TextDisplay | discord.ui.MediaGallery)]
     assert [type(p).__name__ for p in parts] == ["TextDisplay", "MediaGallery", "TextDisplay"]
     assert parts[0].content.endswith("Spør om et hvilket som helst øyeblikk.")
     assert [i.media.url for i in parts[1].items] == ["https://raw.githubusercontent.com/example/shot.png"]
-    assert parts[2].content.startswith("-# 2 til")
+    assert parts[2].content.startswith("- **Poeng.** Telles én gang nå.\n-# 2 til")
     assert news.Post.from_json(post.to_json()) == post
 
 
@@ -103,6 +103,13 @@ async def test_nothing_is_posted_when_the_model_keeps_nothing_or_fails():
 
     for ask in (fails, nothing_worth_it):
         assert await news.write(CHANGELOG, "0.2.0", "Wipebot", ask) is None
+
+
+def test_fixes_follow_whats_new_a_few_at_most_and_alone_post_nothing():
+    found = [news.Item("Fixed", f"fix {n}") for n in range(5)] + [news.Item("Added", "new")]
+    picks = [(n, f"line {n}") for n in range(6)]
+    assert news.shaped(picks, found) == [(5, "line 5"), *picks[:news.FIXES]]
+    assert news.shaped(picks[:5], found) == []
 
 
 async def keeps_all(prompt: str) -> str:

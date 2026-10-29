@@ -2,8 +2,8 @@
 hasn't posted yet, in the server's language (/wipebot setup language:). From CHANGELOG.md's items a raider in
 Discord notices (tagged `Agent` or `Discord`), the model says each in a short line for raiders, most important
 first, leaving out what only matters elsewhere; the post shows each item's pictures under its line and counts what it
-left to the changelog. Without the model, in English, each item's bold lead and first sentence, Added first, then
-Changed and Fixed."""
+left to the changelog. What's new decides whether a post is worth it and leads it; a few fixes may follow. Without
+the model, in English, each item's bold lead and first sentence, Added first, then Changed and Fixed."""
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -18,6 +18,7 @@ from wipebot.core import server
 CHANGELOG = next((d / "CHANGELOG.md" for d in Path(__file__).resolve().parents
                   if (d / "CHANGELOG.md").exists()), Path("CHANGELOG.md"))
 SHOWN = 10  # lines in a post at most; the rest are counted
+FIXES = 3  # lines on fixes in a post at most, after the new things that make it worth posting
 SECTIONS = ("Added", "Changed", "Removed", "Fixed")  # in the order a post takes them
 FOR_DISCORD = {"Agent", "Discord"}  # an item tagged only `MCP` is Claude's and ChatGPT's
 VERSION = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.M)
@@ -30,16 +31,17 @@ ENGLISH = "English"
 LABELS = {"heading": "What's new in", "more": "more in the changelog", "all": "All of it in the changelog"}
 
 REWRITE = """These changes are in a new release of {name}, a Discord bot that answers raiders' questions about their \
-World of Warcraft raid logs from Warcraft Logs. Be critical: a raider reads this in the guild's channel, so keep \
-only the changes they'd be glad to hear about (something new to ask or see, or an answer that is clearly better), \
-not small tweaks, wording, fixes few would notice or how the bot works inside. If none is worth it, answer with no \
-lines: then nothing is posted. Say each one you keep in one short, plain line for raiders, in {language} (at \
-most 25 words), starting with its name in bold, like \
+World of Warcraft raid logs from Warcraft Logs. A raider reads this in the guild's channel. Be critical about what \
+makes a post worth it: something new to ask or see, or an answer that is clearly better (Added and Changed). If none \
+is, answer with no lines: then nothing is posted, and these changes wait for the next post. When one is, the post \
+leads with those, then may add up to {fixes} fixes or improvements a raider would notice (Fixed), most noticed \
+first; leave out small tweaks, wording, fixes few would notice and how the bot works inside. Say each one you keep \
+in one short, plain line for raiders, in {language} (at most 25 words), starting with its name in bold, like \
 "**Kicks by pull.** You can now ask who missed their kick on each pull, and see it drawn." Leave out what only \
 matters in Claude or ChatGPT, to whoever runs the bot, or to the server's admins (setup, settings and admin \
-commands: raiders never use them), keep command names and game terms as they are written, and \
-put those with a picture first (the post shows it under the line), then the most important, at most {shown}. \
-Answer with JSON only:
+commands: raiders never use them), keep command names and game terms as they are written, and among the new ones \
+put those with a picture first (the post shows it under the line), then the most important, at most {shown} lines \
+in all. Answer with JSON only:
 {{"lines": [{{"item": <its number>, "line": "<the line>"}}], "heading": "<'What's new in' in {language}, \
 without the name: it follows>", \
 "more": "<'more in the changelog' in {language}>", "all": "<'All of it in the changelog' in {language}>"}}
@@ -182,6 +184,13 @@ def picked(answer: str, count: int) -> tuple[list[tuple[int, str]], dict[str, st
     return out[:SHOWN], labels
 
 
+def shaped(picks: list[tuple[int, str]], found: list[Item]) -> list[tuple[int, str]]:
+    """A post's lines as it goes out: what's new first, then at most FIXES fixes; none when only fixes are left, as
+    fixes alone aren't worth a post (they wait for the next)."""
+    new = [(n, line) for n, line in picks if found[n].section != "Fixed"]
+    return new + [(n, line) for n, line in picks if found[n].section == "Fixed"][:FIXES] if new else []
+
+
 async def write(changelog: str, after: str, name: str, ask: Callable[[str], Awaitable[str]] | None = None,
                 language: str | None = None) -> Post | None:
     """What's new since version `after`, for Discord, its lines by the model (`ask`: a prompt to its answer) in
@@ -196,7 +205,7 @@ async def write(changelog: str, after: str, name: str, ask: Callable[[str], Awai
     if ask:
         numbered = "\n".join(f"{n}. ({i.section}{', with a picture' if i.pictures else ''}) {i.text}"
                              for n, i in enumerate(found, 1))
-        prompt = REWRITE.format(name=name, shown=SHOWN, items=numbered, language=language or ENGLISH)
+        prompt = REWRITE.format(name=name, shown=SHOWN, fixes=FIXES, items=numbered, language=language or ENGLISH)
         try:
             answer = picked(await ask(prompt), len(found))
         except Exception:  # nothing posted: its changes wait for the next post
@@ -204,5 +213,7 @@ async def write(changelog: str, after: str, name: str, ask: Callable[[str], Awai
         if answer is None or not answer[0]:
             return None
         picks, labels = answer
+    if not (picks := shaped(picks, found)):
+        return None
     return Post(version, [line for _, line in picks], [found[n].pictures for n, _ in picks],
                 len(found) - len(picks), labels)
