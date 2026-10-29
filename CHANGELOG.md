@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- `Agent` **Orb carriers aren't blamed for their own orb.** A damage over time that ticks as it's put on a player, like the Coiled Altar's Mutagenic Venom, was counted as hitting them from another carrier whose orb ran out at the same moment, even 75 yd away; it's now their own. A night's map also gives how far apart each pair stood.
+- `Agent` **Orb carriers aren't blamed for their own orb.** A damage over time that ticks as it's put on a player, like the Coiled Altar's Mutagenic Venom, was counted as hitting them from another carrier whose orb ran out at the same moment, even 75 yd away; it's now their own. Over a night, each such hit also says how far apart the two stood.
 - `Agent` **Healing by spell keeps procs apart.** Warcraft Logs folds some spells into another's row (Overflowing Light's absorbs under Holy Shock, a shaman's Tidewaters under Healing Rain), so a breakdown by spell counted them as that spell's heals; each now has its own row, and an item's effects carry its name.
 - `Agent` **A player's spec is the one they played in the pulls asked about.** A healer who tanked another boss that night was called "also Protection in some pulls" over a night they healed throughout, and in Discord got a tank's icon.
 - `Discord` **Pull links open the pull named.** A link to "pull 12" without the boss's name opened pull 12 of whichever boss came first in a night of several bosses; it now opens the boss the answer read, and a pull it can't place stays plain text.
@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **A potion drunk before the pull isn't "never cast".** Comparing casts with top players flagged a pre-pull potion as never cast; a buff up as the pull began now reads "cast before the pull", and the player picture no longer marks it, or an item not worn, red.
 - `Agent` **A night's pulls say what ended each.** The list of pulls now gives each one's ending and when the wipe was decided, and how many pulls ended in each phase, so a wipe isn't blamed on a death a minute before it was decided; a mechanic's hits over the night add the raid's totals pull by pull.
 - `Agent` **A player's night says which deaths a defensive would have saved.** It now gives how many of their deaths a ready defensive or a healthstone would have survived, and on which pulls, and their best pull is one long enough to judge (a minute or more), not a 30-second wipe of opening burst.
+- `Agent` **Time at the resource cap is weighed against top players.** A player's card called Fury capped 19% of a pull a fix when top players of the spec cap as much on that boss; it's now flagged only beyond theirs, with their share beside it.
 
 ## [0.34.0] - 2026-10-28
 

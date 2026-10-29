@@ -839,6 +839,14 @@ def test_a_players_notes_put_the_weightiest_first_and_leave_raid_cooldowns_out_o
     assert views.player_notes(wiped)["fix"] == []
 
 
+def test_time_at_the_cap_is_a_fix_only_beyond_top_players():
+    capped = _facts(lost={"until_ms": 180000, "dead_s": 0, "gaps_s": 2, "capped_s": 36, "resource": "Fury"})
+    assert views.player_notes(capped)["fix"] == ["Fury capped for 36 s (20%)"]  # without top players: their share
+    assert views.player_notes(capped | {"top": {"capped": 0.18}})["fix"] == []  # the top cap as much: the fight's
+    less = capped | {"top": {"capped": 0.05}}
+    assert views.player_notes(less)["fix"] == ["Fury capped for 36 s (20%; top players 5%)"]
+
+
 def test_a_death_in_a_hit_killing_many_is_one_of_that_hit():
     burst = MassDeath(412_000, "Visceral Burst", (1308386,), 4, 2)
     ended = Ending("moments", 20, 422_000, (burst,))

@@ -196,7 +196,7 @@ async def _best(rep: Report, f: dict) -> dict | None:
 CASTS_SHOWN = 12  # a player's most cast spells in their view
 GAPS_SHARE = 0.05  # casting gaps over this share of their time until the wipe was decided are worth fixing
 STEADY_SHARE = 0.02  # under this share, worth saying they kept casting
-CAPPED_SHARE = 0.10  # their resource capped over this share of it
+CAPPED_SHARE = 0.10  # their resource capped over this share of it more than top players' (when read)
 NOTES = 2  # things that went well, and things to fix, on a player's card
 
 
@@ -214,9 +214,12 @@ def player_notes(out: dict) -> dict[str, list[str]]:
     if died:
         to = "" if died["by"] == NO_KILLING_BLOW else f" to {died['by']}"
         fix.append((100, f"Died at {clock(died['ms'])}{to}, before the wipe was decided"))
-    if lost["capped_s"] >= CAPPED_SHARE * until_s:
-        share = lost["capped_s"] / until_s
-        fix.append((60 * share, f"{lost['resource']} capped for {round(lost['capped_s'])} s ({round(100 * share)}%)"))
+    # Top players meet the same fight: only time at the cap beyond theirs is gain lost.
+    share = lost["capped_s"] / until_s
+    top = against.get("capped") if isinstance(against := out.get("top"), dict) else None
+    if share - (top or 0) >= CAPPED_SHARE:
+        fix.append((60 * (share - (top or 0)), f"{lost['resource']} capped for {round(lost['capped_s'])} s "
+                    f"({round(100 * share)}%" + (f"; top players {round(100 * top)}%)" if top is not None else ")")))
     if lost["gaps_s"] >= GAPS_SHARE * until_s:
         share = lost["gaps_s"] / until_s
         fix.append((80 * share, f"{round(lost['gaps_s'])} s without casting ({round(100 * share)}%)"))
@@ -326,9 +329,9 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
                     for c in boss if c.tracked],
         "top": None,
     }
-    out["notes"] = player_notes(out)
     if top:
         out["top"] = await _against_top(rep, f, p, ids)
+    out["notes"] = player_notes(out)
     return out
 
 
@@ -344,7 +347,10 @@ async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | s
                        else round(r.median, 1), "low": r.low and round(r.low, 1), "high": r.high and round(r.high, 1),
                        "flag": r.flag} for r in c.rates],
             "total": [round(sum(v or 0 for v in c.my_cpm.values())),
-                      round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))]}
+                      round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))],
+            # the share of their kill the top players' resource sat at its cap, median (None: not read)
+            "capped": statistics.median(capped) if (capped := [x.capped for x in c.found if x.capped is not None])
+            else None}
 
 
 async def player_night_view(rep: Report, boss: str, player: str) -> dict:
