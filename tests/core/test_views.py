@@ -558,8 +558,11 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     n = len(data["pulls"])
     assert f"Died before the wipe was decided on {data['died']} of {n} pulls" in text
     assert f"dead for {data['dead_s']} s of the {data['counted_s']} s" in text and f"({data['dead_pct']}%" in text
-    best = f"pull {data['best']['pull']} ({kit_short(data['best']['per_s_alive'])}/s)"
+    best = f"pull {data['best']['pull']} ({kit_short(data['best']['per_s_alive'])}/s"
     assert f"Best pull by {data['what']} per second alive: {best}" in text
+    lived = data["lived"]
+    assert f"would have kept them alive at {lived['saved']} of the {lived['of']} deaths that count" in text
+    assert f"can't tell at {lived['unknown']} " in text if lived["unknown"] else "can't tell" not in text
     if data["thirds"]:
         died = " / ".join(f"{t['died']} of {len(t['pulls'])}" for t in data["thirds"])
         assert f"deaths that count (as above) on {died};" in text

@@ -32,7 +32,7 @@ from . import note as notes
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, casting, raid_pauses, without
-from .coaching import dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
+from .coaching import best_pulls, dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
 from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending
@@ -396,8 +396,8 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
                            "outright": bool(replay and replay.outright)})
     judged = [x["saved"] for k in killers.values() for x in k["pulls"]]
     dead_s, counted_s = sum(x.dead_s for x in pulls), sum(x.counted_s for x in pulls)  # unrounded, as the text sums
-    ranked = [r for r in rows if r["per_s_alive"] is not None and not r["reset"] and r["role"] == role]
-    best = max(ranked, key=lambda r: r["per_s_alive"], default=None)
+    eligible = {rep.pull_no(x.f) for x in best_pulls(pulls, role)}  # as the text picks it
+    best = max((r for r in rows if r["pull"] in eligible), key=lambda r: r["per_s_alive"], default=None)
     return {
         "view": "player_night", "report": rep.code, "boss": boss, "title": f"{p.name} on {boss}",
         "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),

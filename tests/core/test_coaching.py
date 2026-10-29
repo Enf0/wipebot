@@ -1,5 +1,7 @@
 """One player's pull (report/coaching.py): the resource their spec spends, and where their time went."""
 import time
+from types import SimpleNamespace
+from typing import cast
 
 from tests.support import CODE, RESTO_SPELLS, FakeWCL, Night
 from wipebot.core import server
@@ -139,3 +141,13 @@ def test_a_resource_is_named_as_raiders_write_it_and_mana_is_not_one():
     assert coaching.power_type("Holy Power") == coaching.power_type("holy power") == 9
     assert coaching.power_type("combo point") == coaching.power_type("Combo Points") == 4
     assert coaching.power_type("Mana") is None and coaching.power_type("Starlord") is None
+
+
+def test_a_nights_best_pull_is_one_long_enough_to_judge():
+    def pull(counted_s: float, role: str = "dps", pct: float = 50.0) -> coaching.NightPull:
+        f = {"kill": False, "fightPercentage": pct, "bossPercentage": pct}
+        return cast(coaching.NightPull, SimpleNamespace(f=f, mine={"total": 1}, counted_s=counted_s,
+                                                       played=SimpleNamespace(role=role)))
+    short, long, healing, reset = pull(25), pull(140), pull(200, "healer"), pull(300, pct=100)
+    assert coaching.best_pulls([short, long, healing, reset], "dps") == [long]
+    assert coaching.best_pulls([short], "dps") == [short]  # none long enough: the short ones

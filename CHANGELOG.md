@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Discord` **What Wipebot remembers is about the asker.** A raider's note could rename another raider, in a channel and in that raider's own answers; notes are now only how to answer the one who asked.
 - `Agent` **A potion drunk before the pull isn't "never cast".** Comparing casts with top players flagged a pre-pull potion as never cast; a buff up as the pull began now reads "cast before the pull", and the player picture no longer marks it, or an item not worn, red.
 - `Agent` **A night's pulls say what ended each.** The list of pulls now gives each one's ending and when the wipe was decided, and how many pulls ended in each phase, so a wipe isn't blamed on a death a minute before it was decided; a mechanic's hits over the night add the raid's totals pull by pull.
+- `Agent` **A player's night says which deaths a defensive would have saved.** It now gives how many of their deaths a ready defensive or a healthstone would have survived, and on which pulls, and their best pull is one long enough to judge (a minute or more), not a 30-second wipe of opening burst.
 
 ## [0.34.0] - 2026-10-28
 

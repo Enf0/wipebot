@@ -16,6 +16,7 @@ from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report,
 from .build import gear_stats, hero_of, prepared
 from .casting import alive, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
+from .deaths import Replayed, replay_deaths, savers
 from .ending import MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
 
@@ -375,6 +376,16 @@ class NightPull:
         return bool(self.death) and not self.fallout and not self.mass
 
 
+BEST_MIN_S = 60  # a player's best pull of a night is one this long until its wipe was decided, when there is one
+
+
+def best_pulls(pulls: list[NightPull], role: str) -> list[NightPull]:
+    """The pulls a player's best pull of the night is picked from: those in their main role with their output, not
+    resets, and of BEST_MIN_S or more until the wipe was decided when any is (a short pull is all opening burst)."""
+    ranked = [x for x in pulls if x.mine and not is_reset(x.f) and x.played.role == role]
+    return [x for x in ranked if x.counted_s >= BEST_MIN_S] or ranked
+
+
 @dataclass
 class NightCooldowns:
     """A player's major cooldowns summed over a night's pulls."""
@@ -404,9 +415,40 @@ async def player_night(rep: Report, player: str, boss: str | None = None) -> str
     fights = [f for f in rep.pulls_with(p, rep.by_boss[b]) if not f.get("inProgress")]
     if not fights:
         raise FactError(f"{p.name}'s only pull on {b} is still going: ask again once it has ended")
-    pulls, skipped, unavailable_why = await night_pulls(rep, p, fights)
-    return _night_text(rep, p, b, pulls, night_cooldowns(pulls, skipped, unavailable_why),
-                       await _night_lost_at_cap(rep, p, fights))
+    (pulls, skipped, unavailable_why), replayed, lost = await asyncio.gather(
+        night_pulls(rep, p, fights), replay_deaths(rep, p, fights), _night_lost_at_cap(rep, p, fights))
+    return _night_text(rep, p, b, pulls, night_cooldowns(pulls, skipped, unavailable_why), lost,
+                       _night_lived(rep, pulls, replayed))
+
+
+def night_lived(rep: Report, pulls: list[NightPull], replayed: list[Replayed]) -> list[tuple[int, dict, list[str],
+                                                                                          bool | None]]:
+    """Each death of a player's night that counts (their first in a pull, before its wipe was decided, not in a hit
+    killing many), replayed with what was ready: (pull, the death, what would have kept them alive, whether
+    something ready would have: None when the log can't tell, no overkill or health logged)."""
+    replays = {(r.f["id"], r.d["timestamp"]): r for r in replayed}
+    out = []
+    for x in pulls:
+        if x.counted and x.death:
+            r = replays.get((x.f["id"], x.death[1]["timestamp"]))
+            more = savers(r.more) if r else []
+            out.append((rep.pull_no(x.f), x.death[1], more,
+                        True if more else False if r and (r.more or r.outright) else None))
+    return out
+
+
+def _night_lived(rep: Report, pulls: list[NightPull], replayed: list[Replayed]) -> str | None:
+    """player_night's line on whether something ready would have kept them alive at their deaths that count."""
+    if not (lived := night_lived(rep, pulls, replayed)):
+        return None
+    saved = [(n, more) for n, _, more, ok in lived if ok]
+    by = Counter(s for _, more in saved for s in more)
+    unknown = sum(ok is None for *_, ok in lived)
+    return (f"A ready defensive or a healthstone would have kept them alive at {len(saved)} of the "
+            f"{plural(len(lived), 'death')} that count (death_recap replays each)"
+            + (f": pull{'s' if len(saved) > 1 else ''} {', '.join(str(n) for n, _ in saved)}; "
+               + ", ".join(f"{s} {n}" for s, n in by.most_common()) if saved else "")
+            + (f"; can't tell at {unknown} (no overkill or health logged)" if unknown else "") + ".")
 
 
 async def _night_lost_at_cap(rep: Report, p: Player, fights: list[dict]) -> str | None:
@@ -518,7 +560,7 @@ def _night_trend(pulls: list[NightPull], role: str, what: str) -> str | None:
 
 
 def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: NightCooldowns,
-                lost: str | None = None) -> str:
+                lost: str | None = None, lived: str | None = None) -> str:
     main_role = Counter(pull.played.role for pull in pulls).most_common(1)[0][0]
     what = "healing" if main_role == "healer" else "damage"
     counted = [pull for pull in pulls if pull.counted]
@@ -526,8 +568,8 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
     first = sum(pull.death[0] == 0 for pull in counted if pull.death)
     early = sum(pull.death[0] < FIRST_DEATHS for pull in counted if pull.death)
     dead_s, counted_s = sum(pull.dead_s for pull in pulls), sum(pull.counted_s for pull in pulls)
-    ranked = [(pull.mine["total"] / max(pull.alive_s, 1), rep.pull_no(pull.f)) for pull in pulls
-              if pull.mine and not is_reset(pull.f) and pull.played.role == main_role]
+    ranked = [((pull.mine or {}).get("total", 0) / max(pull.alive_s, 1), rep.pull_no(pull.f))
+              for pull in best_pulls(pulls, main_role)]
     best = max(ranked, key=lambda x: x[0], default=None)  # the first of equals, as pulls go
     live = [rep.pull_no(f) for f in rep.by_boss[b] if f.get("inProgress")]
     total = len(rep.by_boss[b]) - len(live)
@@ -544,7 +586,11 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
              f"{dead_s:.0f} s of the {counted_s:.0f} s before each wipe was decided "
              f"({100 * dead_s / max(counted_s, 1):.0f}%: no output then)."]
     if best:
-        lines.append(f"Best pull by {what} per second alive: pull {best[1]} ({short(best[0])}/s).")
+        lines.append(f"Best pull by {what} per second alive: pull {best[1]} ({short(best[0])}/s"
+                     + (f"; of the pulls of {BEST_MIN_S} s or more before the wipe was decided, as a short one is "
+                        "all opening burst" if any(x.counted_s < BEST_MIN_S for x in pulls) else "") + ").")
+    if lived:
+        lines.append(lived)
     if trend := _night_trend(pulls, main_role, what):
         lines.append(trend)
     never = cds.never
