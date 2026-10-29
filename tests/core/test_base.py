@@ -315,15 +315,17 @@ async def test_the_guilds_best_is_its_furthest_wipe_in_earlier_logs_on_that_diff
 
     def log(code: str, ends: float, best: dict) -> dict:
         return {"code": code, "startTime": ends - 3_600_000, "endTime": ends, "best_wipes": best}
+    ended = {"fightPercentage": 35.0, "bossPercentage": 64.0, "lastPhase": 2, "kill": False}
     patch_wcl(rep, guild_wipes=[
-        log(CODE, rep.end_ms, {key: (5.0, 30, 30)}),  # this log
-        log("sameNight", rep.start_ms + 1, {key: (10.0, 2, 2)}),  # another log of the same night
-        log("heroic", rep.start_ms - 86_400_000, {(key[0], 4): (1.0, 9, 9)}),
-        log("older", rep.start_ms - 86_400_000, {key: (40.0, 7, 3)}),
-        log("oldest", rep.start_ms - 2 * 86_400_000, {key: (35.0, 12, 8)}),
+        log(CODE, rep.end_ms, {key: (5.0, 30, 30, {})}),  # this log
+        log("sameNight", rep.start_ms + 1, {key: (10.0, 2, 2, {})}),  # another log of the same night
+        log("heroic", rep.start_ms - 86_400_000, {(key[0], 4): (1.0, 9, 9, {})}),
+        log("older", rep.start_ms - 86_400_000, {key: (40.0, 7, 3, {})}),
+        log("oldest", rep.start_ms - 2 * 86_400_000, {key: (35.0, 12, 8, ended)}),
         log("none", rep.start_ms - 86_400_000, {})])
     best = await rep.guild_best(f)
     assert best is not None and (best.pct, best.code, best.fight, best.pull_no) == (35.0, "oldest", 12, 8)
+    assert best.text("WCL ").startswith("P2 64.0% (WCL 35.0%) on ")  # as raiders count it, its phase's health
     rep.guild_id = None  # a personal log
     assert await rep.guild_best(f) is None
 

@@ -47,10 +47,22 @@ class GuildBest:
     fight: int
     pull_no: int
     start_ms: float  # the log's start, UNIX ms
+    ended: dict = field(default_factory=dict)  # the fight's phase fields (wcl.WIPE_FIELDS): where it got to
 
-    def text(self) -> str:
-        return (f"{self.pct:.1f}% on {day(self.start_ms)} (pull {self.pull_no}, "
-                f"{fight_url(self.code, self.fight)})")
+    @property
+    def phase(self) -> str | None:
+        return phase_label(self.ended)
+
+    @property
+    def health(self) -> float | None:
+        """The boss's health in the phase it ended in, on a boss counted by phase (phase_health)."""
+        return phase_health(self.ended) if self.ended else None
+
+    def text(self, wcl: str = "") -> str:
+        """'P2 64.0% (WCL 69.2%) on ...' where its phase is known on a boss counted by phase, else its % ('62.6%'),
+        after `wcl` ("WCL ") on such a boss."""
+        how = wipe_text(self.ended) if self.health is not None else f"{wcl}{self.pct:.1f}%"
+        return f"{how} on {day(self.start_ms)} (pull {self.pull_no}, {fight_url(self.code, self.fight)})"
 
 
 @dataclass
@@ -233,9 +245,9 @@ def best_marks(pct: float, tonight: float | None, before: GuildBest | None, wcl:
         marks.append("best of this log so far" if pct < tonight else f"best of this log {wcl}{tonight:.1f}%")
     if before is not None:
         if pct < min(before.pct, tonight if tonight is not None else before.pct):
-            marks.append(f"**new guild best!** (before this log: {wcl}{before.text()})")
+            marks.append(f"**new guild best!** (before this log: {before.text(wcl)})")
         else:
-            marks.append(f"guild best before this log {wcl}{before.text()}")
+            marks.append(f"guild best before this log {before.text(wcl)}")
     return marks
 
 

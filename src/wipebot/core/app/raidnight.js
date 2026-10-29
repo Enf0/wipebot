@@ -24,6 +24,9 @@ views.night = (() => {
   }
 
   const pct = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
+  // how far a wipe got as raiders say it: on a boss counted by phase the phase and the boss's health in it ("P2 64%"),
+  // else the boss's % (the bars stand on Warcraft Logs' % of the whole fight, which ranks wipes across phases)
+  const said = (r) => r.health != null ? `${r.phase.split(" ")[0]} ${pct(r.health)}` : pct(r.pct);
 
   function stats() {
     const wipes = D.pulls.filter((r) => !r.kill && !r.reset && !r.live && r.pct != null);
@@ -32,10 +35,10 @@ views.night = (() => {
     const g = D.guild_best, beat = g && best && best.pct < g.pct;
     return kit.stats([
       kill ? ["Killed", `pull ${kill.pull}`, "good", `after ${D.pulls.length} pulls`]
-        : best ? ["Best wipe", pct(best.pct), "", `pull ${best.pull}`] : null,
-      g ? ["Guild best before", pct(g.pct), "", beat ? "beaten tonight" : g.day] : null,
+        : best ? ["Best wipe", said(best), "", `pull ${best.pull}`] : null,
+      g ? ["Guild best before", said(g), "", beat ? "beaten tonight" : g.day] : null,
       top ? ["Ended most pulls", top[0].replace(/ killing many$/, ""), "decided", `${top[1]} of ${counted}${/killing many$/.test(top[0]) ? ", killing many" : ""}`] : null,
-      D.thirds ? ["Average wipe", D.thirds.map((t) => `${Math.round(t)}%`).join(" → "), "", "first, middle, last third"] : null,
+      D.thirds ? ["Average wipe", D.thirds.map((t) => `${Math.round(t)}%`).join(" → "), "", D.phased ? "WCL %, first, middle, last third" : "first, middle, last third"] : null,
     ]);
   }
 
@@ -58,11 +61,13 @@ views.night = (() => {
     const y = (v) => T + plotH - v / 100 * plotH;
     let o = "";
     for (const v of [0, 50, 100]) o += kit.line(L, y(v), W - R, y(v), "var(--line)", v ? 'opacity=".5"' : "") + kit.text(L - 6, y(v) + 4, `${v}%`, "tm", 'text-anchor="end" font-size="10"');
+    if (D.phased) o += kit.text(L - 6, y(75) + 4, "WCL", "tm", 'text-anchor="end" font-size="9"');  // the bars' %
     let best = null;
     const line = [];
     D.pulls.forEach((r, i) => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
-      const tip = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : r.live ? "still going" : `${pct(v)} left`}${r.phase ? ` (${r.phase})` : ""}, ${kit.clock(r.duration_ms)}`
+      const left = r.health != null ? `${r.phase} at ${pct(r.health)} (WCL ${pct(v)})` : `${pct(v)} left${r.phase ? ` (${r.phase})` : ""}`;
+      const tip = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : r.live ? "still going" : left}, ${kit.clock(r.duration_ms)}`
         + `\nEnded by: ${r.ended}` + (r.first ? `\nFirst death: ${r.first.name} (${r.first.by}, ${kit.clock(r.first.ms)})` : "") + "\nClick for this pull";
       if (r.kill) o += `<path d="M${cx} ${y(0) - 12} l4 8 l-8 0z" fill="var(--gold)"/>`;
       else o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="2" fill="${color(r.ended)}"${r.reset ? ' opacity=".6"' : ""}/>`;
@@ -73,11 +78,13 @@ views.night = (() => {
     if (line.length > 1) o += `<path d="${line.map(([px, py], i) => `${i ? "L" : "M"}${px} ${py}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.6" pointer-events="none"/>`;
     // the night's best wipe, named: a bar near 0% is too short to see
     const top = D.pulls.reduce((b, r, i) => (!r.kill && !r.reset && !r.live && r.pct != null && (b < 0 || r.pct < D.pulls[b].pct) ? i : b), -1);
-    if (top >= 0 && !D.pulls.some((r) => r.kill)) o += kit.text(x(top) + band / 2, y(D.pulls[top].pct) - 6, pct(D.pulls[top].pct), "t", 'text-anchor="middle" font-size="10.5" font-weight="700"');
+    if (top >= 0 && !D.pulls.some((r) => r.kill)) o += kit.text(x(top) + band / 2, y(D.pulls[top].pct) - 6, said(D.pulls[top]), "t", 'text-anchor="middle" font-size="10.5" font-weight="700"');
     if (D.guild_best) {
       const gy = y(D.guild_best.pct);
       o += kit.line(L, gy, W - R, gy, "var(--gold)", 'stroke-width="1.4" stroke-dasharray="5 4" pointer-events="none"');
-      o += kit.text(W - R, gy - 5, `guild best before: ${pct(D.guild_best.pct)}`, "tg", 'text-anchor="end" font-size="10" font-weight="600"');
+      // named at the end away from the night's best bar, whose own label sits just above the line when it's close
+      const left = top >= 0 && top >= n / 2;
+      o += kit.text(left ? L + 4 : W - R, gy - 5, `guild best before: ${said(D.guild_best)}`, "tg", `text-anchor="${left ? "start" : "end"}" font-size="10" font-weight="600"`);
     }
     const every = Math.max(1, Math.ceil(24 / band));
     D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle" font-size="10"'); });

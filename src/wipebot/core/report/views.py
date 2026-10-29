@@ -20,6 +20,7 @@ from ..pulls import (
     DIFFICULTIES,
     FIRST_DEATHS,
     NO_KILLING_BLOW,
+    by_phase,
     is_reset,
     phase_health,
     phase_label,
@@ -379,6 +380,7 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
                      "fallout": x.fallout, "mass": x.mass}
         rows.append({
             "pull": rep.pull_no(f), "kill": bool(f["kill"]), "reset": is_reset(f), "wipe_pct": wipe_pct(f),
+            "phase": phase_label(f), "health": phase_health(f),
             "duration_ms": round(f["endTime"] - f["startTime"]), "role": x.played.role,
             "spec": spaced(x.played.spec), "per_s_alive": round(mine["total"] / max(x.alive_s, 1)) if mine else None,
             "rank": x.peers.index(mine) + 1 if mine and mine in x.peers else None, "of": len(x.peers),
@@ -453,7 +455,7 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
         first = deaths[0] if deaths else None
         rows.append({"pull": rep.pull_no(f), "pct": pct, "kill": bool(f["kill"]), "reset": is_reset(f),
                      "live": bool(f.get("inProgress")), "duration_ms": round(f["endTime"] - f["startTime"]),
-                     "phase": phase_label(f), "ended": kind_of_end(e), "best": new,
+                     "phase": phase_label(f), "health": phase_health(f), "ended": kind_of_end(e), "best": new,
                      "first": {"name": rep.names.get(first["targetID"], "?"),
                                "by": rep.ability(first.get("killingAbilityGameID")),
                                "ms": round(first["timestamp"] - f["startTime"])} if first else None})
@@ -463,7 +465,9 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
         "view": "night", "report": rep.code, "boss": boss, "title": f"{boss}, {day(rep.start_ms)}",
         "difficulty": DIFFICULTIES.get(fights[0].get("difficulty"), ""), "url": rep.url(fights[0]).split("#")[0],
         "combat_ms": round(sum(f["endTime"] - f["startTime"] for f in fights)), "pulls": rows,
-        "guild_best": {"pct": before.pct, "day": day(before.start_ms), "pull": before.pull_no} if before else None,
+        "guild_best": {"pct": before.pct, "day": day(before.start_ms), "pull": before.pull_no,
+                       "phase": before.phase, "health": before.health} if before else None,
+        "phased": by_phase(fights),
         "ends": ends.most_common(), "firsts": firsts.most_common(6), "first_n": FIRST_DEATHS,
         "thirds": [round(t, 1) for t in thirds] if thirds else None,
         "bosses": [{"boss": b, "pulls": len(fs), "kill": any(f["kill"] for f in fs),

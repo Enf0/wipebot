@@ -94,8 +94,12 @@ views.player_night = (() => {
   function counts(d) { return d && !d.fallout && !d.mass; }
   function why(d) { return d.fallout ? ", after the wipe was decided" : d.mass ? ", in a hit killing many" : ""; }
 
+  // how far a wipe got as raiders say it: the phase and the boss's health in it on a boss counted by phase, with
+  // Warcraft Logs' % of the whole fight (what the line stands on); else the boss's %
+  const got = (r) => r.health != null ? `${r.phase.split(" ")[0]} ${r.health}% (WCL ${r.wipe_pct}%)` : `${r.wipe_pct}%`;
+
   function tipOf(r) {
-    const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : `${r.wipe_pct}%`}, ${kit.clock(r.duration_ms)}`;
+    const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : got(r)}, ${kit.clock(r.duration_ms)}`;
     const out = r.per_s_alive != null ? `${kit.short(r.per_s_alive)}/s alive` + (r.rank ? `, rank ${r.rank} of ${r.of} ${D.role_name}` : "") : `no ${D.what}`;
     const died = !r.death ? "survived"
       : `died ${kit.clock(r.death.ms)} (#${r.death.place}) to ${r.death.by}` + why(r.death);
@@ -166,7 +170,7 @@ views.player_night = (() => {
 
   function table() {
     const rows = D.pulls.map((r) => {
-      const result = r.kill ? "kill" : r.reset ? "reset" : `${r.wipe_pct}%`;
+      const result = r.kill ? "kill" : r.reset ? "reset" : r.health != null ? `${r.phase.split(" ")[0]} ${r.health}%` : `${r.wipe_pct}%`;
       const out = r.per_s_alive != null ? kit.short(r.per_s_alive) : "–";
       const rank = r.rank ? `${r.rank}/${r.of}` : "";
       const died = !r.death ? "" : `${kit.iconImg(D.img_base, r.death.icon)}${kit.clock(r.death.ms)} #${r.death.place}`;

@@ -286,7 +286,7 @@ async def progress(rep: Report, boss: str | None = None) -> str:
              "(pull_summary's \"Ended by\") and when the wipe was decided, first death, buffs the boss gained and kept "
              "to the end)"]
     if before := await rep.guild_best(fights[0]):
-        lines.append(f"The guild's best wipe before the night: {wcl}{before.text()}.")
+        lines.append(f"The guild's best wipe before the night: {before.text(wcl)}.")
     first_killers: Counter = Counter()
     ends: Counter = Counter()  # what ended each pull, by kind_of_end
     kept: dict[str, list[float]] = defaultdict(list)  # end buff -> when it was gained, per pull

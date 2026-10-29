@@ -41,7 +41,9 @@ query($guild: Int!, $since: Float!, $page: Int!) {
 GUILD_WIPES = """
 query($guild: Int!, $zone: Int!, $since: Float!, $page: Int!) {
   reportData { reports(guildID: $guild, zoneID: $zone, startTime: $since, limit: 50, page: $page) {
-    data { code startTime endTime fights(killType: Encounters) { id encounterID difficulty kill fightPercentage } }
+    data { code startTime endTime fights(killType: Encounters) {
+      id encounterID difficulty kill fightPercentage bossPercentage lastPhase lastPhaseIsIntermission
+    } }
     has_more_pages
   } }
 }
@@ -285,17 +287,21 @@ VISIBILITY = "query($code: String!) { reportData { report(code: $code) { visibil
 PARTIAL = "Warcraft Logs answered only part of the question ({said}); ask again"
 
 
-def best_wipes(fights: list[dict]) -> dict[tuple[int, int], tuple[float, int, int]]:
+# What a guild's best wipe keeps of its fight, for the phase it ended in and the boss's health there (pulls.wipe_text)
+WIPE_FIELDS = ("fightPercentage", "bossPercentage", "lastPhase", "lastPhaseIsIntermission", "kill")
+
+
+def best_wipes(fights: list[dict]) -> dict[tuple[int, int], tuple[float, int, int, dict]]:
     """A log's furthest wipe on each boss, from its boss pulls in order: {(encounter id, difficulty): (fight %,
-    fight id, pull number on that boss and difficulty)}."""
-    best: dict[tuple[int, int], tuple[float, int, int]] = {}
+    fight id, pull number on that boss and difficulty, the fight's WIPE_FIELDS)}."""
+    best: dict[tuple[int, int], tuple[float, int, int, dict]] = {}
     pulls: Counter = Counter()
     for f in fights:
         key = (f.get("encounterID") or 0, f.get("difficulty") or 0)
         pulls[key] += 1
         pct = f.get("fightPercentage")
         if not f.get("kill") and pct is not None and (key not in best or pct < best[key][0]):
-            best[key] = (pct, f.get("id") or 0, pulls[key])
+            best[key] = (pct, f.get("id") or 0, pulls[key], {k: f.get(k) for k in WIPE_FIELDS})
     return best
 
 

@@ -807,14 +807,14 @@ class Report(Fetched):
             return None
         since = self.start_ms - GUILD_BEST_WEEKS * 7 * 86400 * 1000
         try:  # the logs before this one hardly change: kept a day, and for good once this one is settled
-            reports = await self.keep(("guild wipes", since), [], lambda: self.wcl.guild_wipes(
+            reports = await self.keep(("guild wipes, phases", since), [], lambda: self.wcl.guild_wipes(
                 guild, zone, since, FOREVER if self.settled else DAY))
         except WCLError:
             return None
         key = (fight["encounterID"], fight.get("difficulty") or 0)
-        found = [GuildBest(pct, r["code"], fight_id, pull_no, r["startTime"])
+        found = [GuildBest(pct, r["code"], fight_id, pull_no, r["startTime"], ended)
                  for r in reports if r["code"] != self.code and r["endTime"] <= self.start_ms
-                 and (b := (r.get("best_wipes") or {}).get(key)) for pct, fight_id, pull_no in [b]]
+                 and (b := (r.get("best_wipes") or {}).get(key)) for pct, fight_id, pull_no, ended in [b]]
         return min(found, key=lambda g: g.pct) if found else None
 
     def phases(self, fight: dict, encounter: int | None = None) -> str:

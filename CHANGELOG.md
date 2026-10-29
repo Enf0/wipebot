@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **A player's night says which deaths a defensive would have saved.** It now gives how many of their deaths a ready defensive or a healthstone would have survived, and on which pulls, and their best pull is one long enough to judge (a minute or more), not a 30-second wipe of opening burst.
 - `Agent` **Time at the resource cap is weighed against top players.** A player's card called Fury capped 19% of a pull a fix when top players of the spec cap as much on that boss; it's now flagged only beyond theirs, with their share beside it.
 - `Agent` **Personals checks know the rest of the note.** A player who pressed the raid cooldown the note plans for them at a "Big Personals" callout, or a tank who kept a cooldown for the hit just after, was marked as missing it; they're now counted apart, in the text and in blue on the Personals picture.
+- `Agent` **A night's picture counts a wipe by its phase.** On a boss with phases, the night's best wipe and the guild's best before it now read as raiders say them ("P2 64%"), with Warcraft Logs' % in each pull's tooltip, and the guild's best in the text gives its phase too; a player's night does the same.
+  ![The Coiled Altar over 31 pulls: the best wipe P2 64% on pull 25 against the guild's best before, P2 68%, each bar coloured by what ended the pull](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-phase-health.webp)
 
 ## [0.34.0] - 2026-10-28
 
