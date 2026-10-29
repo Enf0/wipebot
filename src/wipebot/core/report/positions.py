@@ -245,9 +245,10 @@ def _stints(rep: Report, f: dict, events: list[dict]) -> Stints:
     return {who: sorted(ss) for who, ss in spans.items()}
 
 
-def _carrying(stints: Stints, p: int, t: float) -> bool:
-    """Whether a player had the debuff since before `t` (its own damage lands on them as it ends, too)."""
-    return any(a < t - TICK_MS and t <= b + TICK_MS for a, b in stints.get(p, []))
+def _carrying(stints: Stints, p: int, t: float, since: float = TICK_MS) -> bool:
+    """Whether a player had the debuff at `t`, put on them over `since` ms before it (its own damage lands on them
+    as it ends, too)."""
+    return any(a < t - since and t <= b + TICK_MS for a, b in stints.get(p, []))
 
 
 def _bursts(hits: list[list[dict]], stints: list[Stints]) -> set[int]:
@@ -313,11 +314,12 @@ def _moments(f: dict, event: Event, stints: Stints, casts: list[tuple[float, int
 
 def _from_another(e: dict, carried: dict[int, tuple[float, float]], stints: Stints, burst: set[int]) -> bool:
     """A hit that came from another player's debuff of this moment: on someone without it while they had it, or a
-    burst as theirs ended."""
-    t, p = e["timestamp"], e["targetID"]
-    return any(q != p and a <= t <= b + TICK_MS and (
-        not _carrying(stints, p, t) or e["abilityGameID"] in burst and abs(b - t) <= TICK_MS)
-        for q, (a, b) in carried.items())
+    burst as theirs ended. A hit with the player's own debuff as it's put on them is theirs (a damage over time
+    ticks as it lands), unless it's a burst, which can be what put it on them."""
+    t, p, bursts = e["timestamp"], e["targetID"], e["abilityGameID"] in burst
+    own = _carrying(stints, p, t, TICK_MS if bursts else -TICK_MS)
+    return any(q != p and a <= t <= b + TICK_MS and (not own or bursts and abs(b - t) <= TICK_MS)
+               for q, (a, b) in carried.items())
 
 
 @dataclass

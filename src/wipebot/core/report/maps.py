@@ -10,7 +10,7 @@ import base64
 import io
 import math
 import struct
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Collection
 from dataclasses import dataclass, field
 
@@ -268,6 +268,14 @@ async def _pull_mechanic(rep: Report, f: dict, mech: Mechanic, focus: set[int], 
     return MapAnswer("\n".join(lines), m.at - f["startTime"], await drawn(sc) if draw_it else None)
 
 
+def _yards(ys: list[float]) -> str:
+    """How far apart a pair stood over their moments: ' (9 yd)', ' (9–12 yd)', or nothing with no positions."""
+    if not ys:
+        return ""
+    lo, hi = round(min(ys)), round(max(ys))
+    return f" ({lo} yd)" if lo == hi else f" ({lo}–{hi} yd)"
+
+
 async def _night(rep: Report, mech: Mechanic, fights: list[dict], focus, draw_it: bool) -> MapAnswer:
     """Every pull's moments counted per player and per pair; for a player asked about, each of their moments and a
     map of where they stood at every one."""
@@ -276,6 +284,10 @@ async def _night(rep: Report, mech: Mechanic, fights: list[dict], focus, draw_it
     found = [facts(m, p) for m, p in zip(moments, await window_positions(rep, [window(m) for m in moments]),
                                          strict=True)]
     pairs = Counter((s, d) for fx in found for s, d, _ in fx.merged())
+    apart: dict[tuple[int, int], list[float]] = defaultdict(list)
+    for fx in found:
+        for s, d, yd in fx.merged():
+            apart[(s, d)] += [yd] if yd is not None else []
     on = Counter(p for m in moments for p in m.on)
     gave, took = Counter(s for s, _ in pairs.elements()), Counter(d for _, d in pairs.elements())
     verb = "had it" if mech.event in ("ends", "applied") else "hit"
@@ -286,8 +298,8 @@ async def _night(rep: Report, mech: Mechanic, fights: list[dict], focus, draw_it
                                                                                          rep.names[p]))))
     if pairs:
         shown = pairs.most_common(LISTED)
-        lines.append("Hit by someone else's (whose -> whom, moments): "
-                     + ", ".join(f"{rep.names[s]} -> {rep.names[d]} {n}x" for (s, d), n in shown)
+        lines.append("Hit by someone else's (whose -> whom, moments, yards apart): "
+                     + ", ".join(f"{rep.names[s]} -> {rep.names[d]} {n}x{_yards(apart[(s, d)])}" for (s, d), n in shown)
                      + (f"; {len(pairs) - LISTED} more pairs" if len(pairs) > LISTED else ""))
     if not focus:
         return MapAnswer("\n".join(lines), moments[0].at - moments[0].f["startTime"] if moments else 0, None)
