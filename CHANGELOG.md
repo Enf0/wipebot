@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-29
+
 ### Added
 
 - `Agent` **Top players from raids with your healer count.** Comparing a healer's casts with top players now takes top parses from kills with as many healers as their raid had, and you can ask for any count: "the best holy paladin in a 5-heal kill?" is one ranking, where it took a minute and a half of hand-made queries.
