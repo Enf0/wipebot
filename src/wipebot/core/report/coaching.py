@@ -535,7 +535,8 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
              else f"in {len(pulls)} of the {plural(total, 'pull')} (not in the others, so not judged on them)")
     which += "".join(f"; pull {n} is still going and left out until it ends" for n in live)
     # Everyone dies on a wipe, so "died in 42 of 42" says nothing: only the deaths before a wipe was decided count.
-    lines = [f"{p.label} on {b}, {which}. Died before the wipe was decided on {len(counted)} of "
+    played = rep.over(p, [pull.f for pull in pulls])  # "also Protection" only for the pulls asked about
+    lines = [f"{played.label} on {b}, {which}. Died before the wipe was decided on {len(counted)} of "
              f"{plural(len(pulls), 'pull')} (later deaths are fallout and don't count"
              + (f"; nor {plural(mass, 'death')} in a hit killing many, the raid's to stop" if mass else "")
              + "); first death "

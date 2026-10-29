@@ -740,6 +740,16 @@ class Report(Fetched):
         """A player as they played a pull (see pull_players)."""
         return self.pull_players(fight).get(p.id, p)
 
+    def over(self, p: Player, fights: list[dict]) -> Player:
+        """A player as they played some pulls: the spec played most in them, the others in them `also`. One who
+        tanked only another boss is no tank on this one's pulls."""
+        played = Counter(x.spec for f in fights if (x := self.pull_players(f).get(p.id)))
+        if not played:
+            return p
+        spec = played.most_common(1)[0][0]
+        return replace(p, spec=spec, role=self.spec_roles.get((p.id, spec), p.role),
+                       also=tuple(s for s in played if s != spec))
+
     async def guild_share(self) -> tuple[int, int] | None:
         """(players who are in the report's guild, players), or None for a personal log or when Warcraft Logs
         doesn't say."""

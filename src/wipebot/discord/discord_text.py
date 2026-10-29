@@ -50,9 +50,9 @@ BLANK_BEFORE_LIST = re.compile(r"^(?![ \t]*(?:[-*]|\d+\.) )(\S.*)\n[ \t]*\n(?=[ 
 def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: Mapping[str, str] = {},
            roster: Mapping[str, tuple[str, str]] = {}) -> str:
     """The answer as posted, from what the tools returned (`results`) and the reports they read, the session's
-    first, with the bot's emojis (`icons`, by name) where it has them. A player's spec for their icon is the
-    report's, else what a tool result says of them, else the guild's `roster` (name -> WCL's class and spec). A
-    broken link is undone first, so the ability in it gets a proper one."""
+    first, with the bot's emojis (`icons`, by name) where it has them. A player's spec for their icon is what a tool
+    result says of them (the pulls asked about), else the report's, else the guild's `roster` (name -> WCL's class
+    and spec). A broken link is undone first, so the ability in it gets a proper one."""
     abilities = {spell: name for r in reports[::-1] for spell, name in r.abilities.items()}  # the first report wins
     text = unlink_wrong(unlink_broken(unlink_elsewhere(text)), abilities)
     text = link_items(link_abilities(text, results, abilities), results)
@@ -64,8 +64,8 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
     if icons:
         classes = {name.lower(): name for name in icons if "_" not in name and ":" not in name}
         specs = dict(roster) | planned_classes(results, classes)
-        specs |= specs_in(results, icons)
         specs |= {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()}
+        specs |= specs_in(results, icons)  # the pulls asked about, over the spec played most in the report
         text = add_icons(text, specs, icons)
     return tight_lists(verdict_bold(text))
 

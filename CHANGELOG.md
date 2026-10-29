@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Agent` **Orb carriers aren't blamed for their own orb.** A damage over time that ticks as it's put on a player, like the Coiled Altar's Mutagenic Venom, was counted as hitting them from another carrier whose orb ran out at the same moment, even 75 yd away; it's now their own. A night's map also gives how far apart each pair stood.
 - `Agent` **Healing by spell keeps procs apart.** Warcraft Logs folds some spells into another's row (Overflowing Light's absorbs under Holy Shock, a shaman's Tidewaters under Healing Rain), so a breakdown by spell counted them as that spell's heals; each now has its own row, and an item's effects carry its name.
+- `Agent` **A player's spec is the one they played in the pulls asked about.** A healer who tanked another boss that night was called "also Protection in some pulls" over a night they healed throughout, and in Discord got a tank's icon.
 
 ## [0.34.0] - 2026-10-28
 

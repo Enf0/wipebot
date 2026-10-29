@@ -254,7 +254,7 @@ def test_tool_results_give_the_specs_of_the_players_they_name():
                                         "Deathadim": ("DeathKnight", "Blood"), "Rowan": ("Paladin", "")}
 
 
-def test_a_players_spec_is_the_reports_then_the_tools_then_the_rosters():
+def test_a_players_spec_is_the_tools_then_the_reports_then_the_rosters():
     report = cast(Report, SimpleNamespace(players={1: SimpleNamespace(name="Brightleaf", class_name="Paladin",
                                                                       spec="Holy")}, abilities={}, code="x"))
     icons = {"Paladin_Holy": "<:Paladin_Holy:1>", "Paladin_Retribution": "<:Paladin_Retribution:2>",
@@ -263,6 +263,9 @@ def test_a_players_spec_is_the_reports_then_the_tools_then_the_rosters():
     roster = {"Brightleaf": ("Paladin", "Retribution"), "Grusarn": ("Warrior", "Arms"), "Miralupa": ("Priest", "Holy")}
     text = polish("Brightleaf, Grusarn and Miralupa.", ["Grusarn (Fury Warrior)"], [report], icons, roster)
     assert text == "<:Paladin_Holy:1> Brightleaf, <:Warrior_Fury:3> Grusarn and <:Priest_Holy:5> Miralupa."  # no bold
+    # a tool about the pulls asked about says how they played them, over the spec played most in the report
+    text = polish("Brightleaf.", ["Brightleaf (Retribution Paladin)"], [report], icons, roster)
+    assert text == "<:Paladin_Retribution:2> Brightleaf."
 
 
 def test_a_marker_in_a_links_text_goes_after_the_link_and_a_class_named_spot_gets_no_icon():

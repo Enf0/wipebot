@@ -1,6 +1,6 @@
 DamageDone on Vashnik the Malignant pulls 15, 16, 1:30-1:40 of each pull (the 1 pull that got there), by player (0:10 of combat; total 14.83M, 1.48M/s):
   1. Sonyosh (Elemental Shaman): 1.95M (195.44k/s), 13% of total
-  2. Peggerino (Demonology Warlock; also Destruction in some pulls): 1.78M (177.93k/s), 12% of total
+  2. Peggerino (Demonology Warlock): 1.78M (177.93k/s), 12% of total
   3. Nalaw (Arms Warrior): 1.46M (146.27k/s), 10% of total
   4. Pomaa (Fury Warrior): 1.27M (127.20k/s), 9% of total
   5. Attractîv (Balance Druid): 1.22M (122.08k/s), 8% of total
@@ -12,7 +12,7 @@ DamageDone on Vashnik the Malignant pulls 15, 16, 1:30-1:40 of each pull (the 1 
   11. Krøpling (Arcane Mage): 681.74k (68.17k/s), 5% of total
   12. Deathadim (Blood Death Knight): 611.98k (61.20k/s), 4% of total
   13. Fappachino (Havoc Demon Hunter): 558.37k (55.84k/s), 4% of total
-  14. Martin (Beast Mastery Hunter; also Marksmanship in some pulls): 546.98k (54.70k/s), 4% of total
+  14. Martin (Beast Mastery Hunter): 546.98k (54.70k/s), 4% of total
   15. Dragepie (Devastation Evoker): 362.25k (36.22k/s), 2% of total
   16. Lïzårðmâñ (Preservation Evoker): 65.99k (6.60k/s), 0% of total
-  17. Providence (Holy Paladin; also Retribution in some pulls): 10.88k (1.09k/s), 0% of total
+  17. Providence (Holy Paladin): 10.88k (1.09k/s), 0% of total

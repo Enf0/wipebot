@@ -267,7 +267,7 @@ async def _summed(rep: Report, q: Asked) -> str:
         share = f", {100 * value / total:.0f}% of total" if not auras else ""
         tag = rep.tank_tag(name) if q.data_type == "DamageTaken" and q.group_by == "player" else ""
         p = players.get(name)
-        who = p.label if p else name
+        who = rep.over(p, q.fights).label if p else name
         parse = (f", parse {ordinal(s.parses[name])} percentile of the spec" if p and name in s.parses
                  and metric_of(p) == s.metric else "")
         parsed = parsed or bool(parse)

@@ -358,3 +358,20 @@ def test_a_heal_counts_only_with_time_to_press_it_and_room_to_heal():
     assert deaths._heal_in_time([hit(9_500, 60), hit(10_022, 0)], 1000, 250)[0] == 0
     # left at 40% two seconds before the kill: the whole healthstone counts
     assert deaths._heal_in_time([hit(8_000, 400), hit(9_500, 300), hit(10_000, 0)], 1000, 250)[0] == 250
+
+
+def test_a_player_over_some_pulls_has_the_spec_played_most_in_them_and_only_their_others_also():
+    from types import SimpleNamespace
+    from typing import cast
+
+    from wipebot.core.report.base import Player, Report
+
+    holy = Player(1, "Cptola", "Paladin", "Holy", "healer", also=("Protection",))
+    fights = [{"id": i, "friendlyPlayers": [1], "friendlySpecs": [spec]}
+              for i, spec in enumerate(["Protection", "Holy", "Holy"])]
+    ns = SimpleNamespace(players={"cptola": holy}, spec_roles={(1, "Holy"): "healer", (1, "Protection"): "tank"})
+    ns.pull_players = lambda f: Report.pull_players(cast(Report, ns), f)
+    over = Report.over.__get__(cast(Report, ns))
+    assert over(holy, fights[1:]).label == "Cptola (Holy Paladin)"
+    assert over(holy, fights).also == ("Protection",)
+    assert over(holy, fights[:1]).role == "tank"
