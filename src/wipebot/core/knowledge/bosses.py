@@ -430,6 +430,7 @@ def journal_on(raw: str, difficulty: str) -> str:
 WOWHEAD_GEAR = re.compile(r"^gear\b", re.I)  # "Gear", "Gear Drop Information for ..."
 WOWHEAD_MORE_REWARDS = re.compile(r"^(?:more|all other) .*rewards", re.I)
 _GEAR_ROW = re.compile(r"\[item=(\d+)[^\]]*\]\[/td\]\s*\[td[^\]]*\]([^\[]+)\[/td\]")
+DIFFICULTIES = ("LFR", "Normal", "Heroic", "Mythic")
 _ILVL_ROW = re.compile(r"\[td[^\]]*\](?:\[pad\])*\s*(LFR|Raid F\w+|Normal|Heroic|Mythic)\s*\[/td\]\s*"
                        r"\[td[^\]]*\]\s*(\d+)\s*(?:\[i\]([^\[]+)\[/i\])?", re.I)
 # Tooltip text around the stats: the name, difficulty and item level before; requirements and selling after.
@@ -534,6 +535,10 @@ async def boss_loot_text(boss: str, spec: str | None = None) -> str:
         lines.append("Item level of the drops: " + ", ".join(
             f"{'LFR' if d.lower().startswith(('lfr', 'raid f')) else d.title()} {lvl}"
             + (f" ({track})" if track else "") for d, lvl, track in loot.levels))
+        named = {"LFR" if d.lower().startswith(("lfr", "raid f")) else d.title() for d, _, _ in loot.levels}
+        if missing := [d for d in DIFFICULTIES if d not in named]:
+            lines.append(f"Not in Wowhead's table: {', '.join(missing)}; its item level and upgrade track aren't "
+                         "known here (a gear page or the raider's own sim may give them)")
     who = (spec or "").title()
     if loot.gear_pages:
         read = "; ".join(f"{p.site} {p.url} ({updated(p.last_updated)})" for p in loot.gear_pages)

@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **A potion drunk before the pull isn't "never cast".** Comparing casts with top players flagged a pre-pull potion as never cast; a buff up as the pull began now reads "cast before the pull", and the player picture no longer marks it, or an item not worn, red.
 - `Agent` **Time at the resource cap is weighed against top players.** A player's card called Fury capped 19% of a pull a fix when top players of the spec cap as much on that boss; it's now flagged only beyond theirs, with their share beside it.
 - `Agent` **Personals checks know the rest of the note.** A player who pressed the raid cooldown the note plans for them at a "Big Personals" callout, or a tank who kept a cooldown for the hit just after, was marked as missing it; they're now counted apart, in the text and in blue on the Personals picture.
+- `Agent` **Loot doesn't guess a difficulty's item level.** When Wowhead's table of a boss's drops leaves out a difficulty (the Coiled Altar's had no Mythic row), the answer now says it isn't known instead of working one out, and an item's worth goes by the raider's own sim at the level they'd get it at.
 - `Agent` **A boss's guide is the one for the difficulty you're on.** Asked during a first Mythic pull, the guide for a boss cleared on Heroic earlier that night came as Heroic's; it's now the hardest difficulty the night pulled the boss on. A mechanic named under the wrong boss is looked for in the night's raid first, which is faster.
 
 ## [0.34.0] - 2026-10-28

@@ -209,6 +209,9 @@ notes its raid leaders posted where the question was asked.
 - A hotfix `boss_guide` lists is newer than the guides it names: where it changes a number or a mechanic the
   answer covers, give the hotfix's, and say in a line that it changed (when, and what it was), since raiders may
   have read the guide.
+- An item's worth to a raider is their own sim's number at the item level they'd get it at (difficulty, bonus
+  roll, upgrade track and its limits as the tools or gear pages give them): a gear page's list or a tooltip at
+  another level doesn't overrule it. An item level or upgrade limit no tool gave isn't stated.
 - Where the guides disagree with each other, or with the guild's notes, on something that matters, say so in a line
   and which one the answer follows.
 

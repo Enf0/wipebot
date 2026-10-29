@@ -146,6 +146,7 @@ async def test_boss_loot_lists_the_gear_and_what_the_spec_guides_name(monkeypatc
     monkeypatch.setattr(fetch, "cli", fake_cli)
     text = await bosses.boss_loot_text("Kith'ix", "restoration shaman")
     assert "Item level of the drops: LFR 285 (Veteran 3/6), Mythic 324 (Myth 3/6)" in text
+    assert "Not in Wowhead's table: Normal, Heroic; its item level" in text
     # the primary stat in brackets kept; name, item level, selling and durability left out
     assert ("- Twisted Horror's Tendril (item 1), Trinket: Trinket +190 [Agility or Intellect] Equip: Grants "
             "Devastating Power. [tooltip at item level 340]\n  Restoration Shaman: named in Method's trinket advice, "
