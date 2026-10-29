@@ -15,6 +15,7 @@ Serpent's Fury on all 33 Sszorak pulls. Per player, most debuff applications fir
   Lïzårðmâñ: 0 hits, 0, 1 application, 0 deaths soon after, 0 with it as the killing blow
   Enfo: 0 hits, 0, 1 application, 0 deaths soon after, 0 with it as the killing blow
 Total with Serpent's Fury as the killing blow: 0
+The raid's per pull (pull: hits (+ticks), damage, debuff applications, deaths with it as the killing blow): 1: 0, 0, 2, 0; 2: 0, 0, 1, 0; 3: 0, 0, 2, 0; 4: 0, 0, 4, 0; 5: 0, 0, 2, 0; 6: 0, 0, 2, 0; 7: 0, 0, 5, 0; 8: 0, 0, 7, 0; 9: 0, 0, 3, 0; 10: 0, 0, 2, 0; 11: 0, 0, 6, 0; 12: 0, 0, 3, 0; 13: 0, 0, 3, 0; 14: 0, 0, 2, 0; 15: 0, 0, 3, 0; 16: 0, 0, 1, 0; 17: 0, 0, 4, 0; 18: 0, 0, 2, 0; 19: 0, 0, 3, 0; 20: 0, 0, 1, 0; 21: 0, 0, 5, 0; 22: 0, 0, 4, 0; 23: 0, 0, 2, 0; 24: 0, 0, 2, 0; 25: 0, 0, 4, 0; 26: 0, 0, 1, 0; 27: 0, 0, 2, 0; 28: 0, 0, 4, 0; 29: 0, 0, 5, 0; 30: 0, 0, 5, 0; 31: 0, 0, 3, 0; 32: 0, 0, 2, 0; 33: 0, 0, 4, 0
 Serpent's Fury went on Martin 58 of 101 times; each time it went on someone else (pull, when, who, how long they kept it, whether Martin was alive):
   Sszorak pull 1 0:00: Fappachino, kept 40 s; Martin alive
   Sszorak pull 1 0:40: Draiman, kept 4 s; Martin dead since 0:40

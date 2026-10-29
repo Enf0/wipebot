@@ -1,37 +1,37 @@
-Sszorak: 33 pulls on the night (pull, boss %, phase, duration, first death, buffs the boss gained and kept to the end)
-  1: 86.1% P1 0:45 first death Dragepie (Tempest, 0:40); boss Unbound Ferocity from 0:39 best of the night until then
-  2: 84.6% P1 0:44 first death Wutroll (Melee, 0:40); boss Unbound Ferocity from 0:39 best of the night until then
-  3: 79.3% P1 1:27 first death Pomaa (Virulence, 0:38); boss Unbound Ferocity from 1:25 best of the night until then
-  4: 80.9% P1 1:28 first death Cptola (Tempest, 0:42)
-  5: 80.1% P1 1:21 first death Scopidruid (Tempest, 0:22); boss Unbound Ferocity from 1:17 (after the wipe was decided at 1:14: fallout)
-  6: 81.3% P1 1:22 first death Scopidruid (Tempest, 0:27); boss Unbound Ferocity from 1:18 (after the wipe was decided at 1:07: fallout)
-  7: 66.8% P1 (2nd time) 2:38 first death Dragepie (Virulence, 0:31); boss Unbound Ferocity from 2:32 (after the wipe was decided at 2:19: fallout) best of the night until then
-  8: 68.1% P1 (2nd time) 2:36 first death Cptola (Mutilated Gash, 1:19); boss Unbound Ferocity from 2:33 (after the wipe was decided at 2:18: fallout)
-  9: 100.0% P1 0:24 first death Lïzårðmâñ (no killing blow recorded, 0:11) reset
-  10: 79.5% P1 1:22 first death Scopidruid (Virulence, 0:30); boss Unbound Ferocity from 1:18
-  11: 70.8% P2 2:03 first death Krøpling (Virulence, 1:19)
-  12: 70.4% P1 (2nd time) 2:23 first death Sveini (Tempest, 0:28)
-  13: 62.6% P1 (2nd time) 2:42 first death Scopidruid (Ula'tek's Presence, 0:48); boss Unbound Ferocity from 2:32 best of the night until then
-  14: 78.9% P1 1:25 first death Fappachino (Tempest, 0:46); boss Unbound Ferocity from 1:19 (after the wipe was decided at 1:11: fallout)
-  15: 68.5% P1 (2nd time) 2:27 first death Scopidruid (Tempest, 0:28)
-  16: 87.9% P1 0:32 first death Martin (Tempest, 0:28)
-  17: 77.8% P1 1:23 first death Sonyosh (Raging Crosswinds, 0:47); boss Unbound Ferocity from 1:17
-  18: 79.6% P1 1:23 first death Cptola (Virulence, 0:31); boss Unbound Ferocity from 1:17 (after the wipe was decided at 1:02: fallout)
-  19: 73.9% P2 1:50 first death Sonyosh (Tempest, 0:45)
-  20: 88.5% P1 0:39 first death Deathadim (Mutilate, 0:15)
-  21: 72.2% P2 2:03 first death Cptola (Tempest, 1:20)
-  22: 66.9% P1 (2nd time) 2:32 first death Scopidruid (Mutilated Gash, 1:20)
-  23: 77.1% P1 1:23 first death Attractîv (Tempest, 0:29); boss Unbound Ferocity from 1:18
-  24: 76.9% P1 1:28 first death Peggerino (Virulence, 0:29); boss Unbound Ferocity from 1:18
-  25: 73.9% P1 (2nd time) 2:08 first death Attractîv (Virulence, 1:20)
-  26: 88.9% P1 0:37 first death Attractîv (Tempest, 0:27)
-  27: 90.7% P1 0:43 first death Draiman (Mutilate, 0:08); boss Unbound Ferocity from 0:40 (after the wipe was decided at 0:33: fallout)
-  28: 75.7% P2 1:50 first death Sveini (Tempest, 0:49)
-  29: 80.5% P1 1:23 first death Martin (Ravage, 0:08); boss Unbound Ferocity from 1:18
-  30: 65.6% P1 (2nd time) 2:45 first death Martin (Ravage, 0:08); boss Unbound Ferocity from 2:32
-  31: 63.9% P1 (2nd time) 2:41 first death Pomaa (Virulence, 1:21); boss Unbound Ferocity from 2:32
-  32: 81.4% P1 1:23 first death Pomaa (Ravage, 0:08); boss Unbound Ferocity from 1:17 (after the wipe was decided at 1:03: fallout)
-  33: 63.1% P1 (2nd time) 2:50 first death Peggerino (Venomous Surge, 1:29); boss Unbound Ferocity from 2:32
+Sszorak: 33 pulls on the night (pull, boss %, phase, duration, what ended it (pull_summary's "Ended by") and when the wipe was decided, first death, buffs the boss gained and kept to the end)
+  1: 86.1% P1 0:45, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 0:39; first death Dragepie (Tempest, 0:40); boss Unbound Ferocity from 0:39 best of the night until then
+  2: 84.6% P1 0:44, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 0:39; first death Wutroll (Melee, 0:40); boss Unbound Ferocity from 0:39 best of the night until then
+  3: 79.3% P1 1:27, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 1:25; first death Pomaa (Virulence, 0:38); boss Unbound Ferocity from 1:25 best of the night until then
+  4: 80.9% P1 1:28, ended by Mutilate killing many, decided at 1:11; first death Cptola (Tempest, 0:42)
+  5: 80.1% P1 1:21, ended by Mutilate killing many, decided at 1:14; first death Scopidruid (Tempest, 0:22); boss Unbound Ferocity from 1:17 (after the wipe was decided at 1:14: fallout)
+  6: 81.3% P1 1:22, ended by Mutilate killing many, decided at 1:07; first death Scopidruid (Tempest, 0:27); boss Unbound Ferocity from 1:18 (after the wipe was decided at 1:07: fallout)
+  7: 66.8% P1 (2nd time) 2:38, ended by deaths one after another, decided at 2:19; first death Dragepie (Virulence, 0:31); boss Unbound Ferocity from 2:32 (after the wipe was decided at 2:19: fallout) best of the night until then
+  8: 68.1% P1 (2nd time) 2:36, ended by deaths one after another, decided at 2:18; first death Cptola (Mutilated Gash, 1:19); boss Unbound Ferocity from 2:33 (after the wipe was decided at 2:18: fallout)
+  9: 100.0% P1 0:24; first death Lïzårðmâñ (no killing blow recorded, 0:11) reset
+  10: 79.5% P1 1:22, ended by Virulence killing many, decided at 1:18; first death Scopidruid (Virulence, 0:30); boss Unbound Ferocity from 1:18
+  11: 70.8% P2 2:03, ended by many dying at once, no killing blow, decided at 1:48; first death Krøpling (Virulence, 1:19)
+  12: 70.4% P1 (2nd time) 2:23, ended by deaths one after another, decided at 1:53; first death Sveini (Tempest, 0:28)
+  13: 62.6% P1 (2nd time) 2:42, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 2:32; first death Scopidruid (Ula'tek's Presence, 0:48); boss Unbound Ferocity from 2:32 best of the night until then
+  14: 78.9% P1 1:25, ended by Mutilate killing many, decided at 1:11; first death Fappachino (Tempest, 0:46); boss Unbound Ferocity from 1:19 (after the wipe was decided at 1:11: fallout)
+  15: 68.5% P1 (2nd time) 2:27, ended by deaths one after another, decided at 2:06; first death Scopidruid (Tempest, 0:28)
+  16: 87.9% P1 0:32, ended by Virulence killing many, decided at 0:28; first death Martin (Tempest, 0:28)
+  17: 77.8% P1 1:23, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 1:17; first death Sonyosh (Raging Crosswinds, 0:47); boss Unbound Ferocity from 1:17
+  18: 79.6% P1 1:23, ended by Mutilate killing many, decided at 1:02; first death Cptola (Virulence, 0:31); boss Unbound Ferocity from 1:17 (after the wipe was decided at 1:02: fallout)
+  19: 73.9% P2 1:50, ended by Viscous Cyst killing many, decided at 1:44; first death Sonyosh (Tempest, 0:45)
+  20: 88.5% P1 0:39, ended by many dying at once, no killing blow, decided at 0:30; first death Deathadim (Mutilate, 0:15)
+  21: 72.2% P2 2:03, ended by many dying at once, no killing blow, decided at 1:48; first death Cptola (Tempest, 1:20)
+  22: 66.9% P1 (2nd time) 2:32, ended by deaths one after another, decided at 2:20; first death Scopidruid (Mutilated Gash, 1:20)
+  23: 77.1% P1 1:23, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 1:18; first death Attractîv (Tempest, 0:29); boss Unbound Ferocity from 1:18
+  24: 76.9% P1 1:28, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 1:18; first death Peggerino (Virulence, 0:29); boss Unbound Ferocity from 1:18
+  25: 73.9% P1 (2nd time) 2:08, ended by Virulence killing many, decided at 1:47; first death Attractîv (Virulence, 1:20)
+  26: 88.9% P1 0:37, ended by Virulence killing many, decided at 0:27; first death Attractîv (Tempest, 0:27)
+  27: 90.7% P1 0:43, ended by Mutilate killing many, decided at 0:33; first death Draiman (Mutilate, 0:08); boss Unbound Ferocity from 0:40 (after the wipe was decided at 0:33: fallout)
+  28: 75.7% P2 1:50, ended by Tempest killing many, decided at 1:38; first death Sveini (Tempest, 0:49)
+  29: 80.5% P1 1:23, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 1:18; first death Martin (Ravage, 0:08); boss Unbound Ferocity from 1:18
+  30: 65.6% P1 (2nd time) 2:45, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 2:32; first death Martin (Ravage, 0:08); boss Unbound Ferocity from 2:32
+  31: 63.9% P1 (2nd time) 2:41, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided at 2:32; first death Pomaa (Virulence, 1:21); boss Unbound Ferocity from 2:32
+  32: 81.4% P1 1:23, ended by deaths one after another, decided at 1:03; first death Pomaa (Ravage, 0:08); boss Unbound Ferocity from 1:17 (after the wipe was decided at 1:03: fallout)
+  33: 63.1% P1 (2nd time) 2:50, ended by Mutilate killing many, decided at 2:32; first death Peggerino (Venomous Surge, 1:29); boss Unbound Ferocity from 2:32
 Average wipe % (resets left out): first third 77.7, middle 75.4, last third 76.1
 The boss gained Unbound Ferocity and kept it to the end on 20 of 33 pulls, gained at 0:39-0:40 (3 pulls), 1:17-1:25 (11 pulls), 2:32-2:33 (6 pulls).
 How the pulls ended, by the first thing that ended each (pull_summary's "Ended by"): the boss gaining Unbound Ferocity and keeping it to the end 10, Mutilate killing many 7, deaths one after another 6, Virulence killing many 4, many dying at once, no killing blow 3, a reset 1, Viscous Cyst killing many 1, Tempest killing many 1.

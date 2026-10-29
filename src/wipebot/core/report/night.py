@@ -25,7 +25,7 @@ from ..pulls import (
 from ..text import clock, clusters, date, ordinal, plural
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
-from .ending import kind_of_end, pull_ending
+from .ending import Ending, kind_of_end, pull_ending
 
 
 def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
@@ -267,6 +267,13 @@ def _end_buffs(buffs: list[tuple[str, float]], enrages: list[tuple[str, float]],
     return "; boss " + ", ".join(f"{n} from {clock(at)}{why(n, at)}" for n, at in buffs) if buffs else ""
 
 
+def _ended(ending: Ending | None, decided: Decided | None) -> str:
+    """What ended a wipe and when it was decided, for its line in `progress`; nothing for a kill or a reset."""
+    if not ending or ending.kind in ("reset", "live"):
+        return ""
+    return f", ended by {kind_of_end(ending)}" + (f", decided at {clock(decided.at_ms)}" if decided else "")
+
+
 async def progress(rep: Report, boss: str | None = None) -> str:
     b = rep.boss(boss)
     fights = rep.by_boss[b]
@@ -275,11 +282,13 @@ async def progress(rep: Report, boss: str | None = None) -> str:
     how_far = ("phase and the boss's health in it as raiders count a wipe, then Warcraft Logs' % of the whole fight, "
                "which ranks wipes across phases" if phased else "boss %, phase")
     wcl = "WCL " if phased else ""
-    lines = [f"{b}: {plural(len(fights), 'pull')} on the night (pull, {how_far}, duration, first death, buffs "
-             "the boss gained and kept to the end)"]
+    lines = [f"{b}: {plural(len(fights), 'pull')} on the night (pull, {how_far}, duration, what ended it "
+             "(pull_summary's \"Ended by\") and when the wipe was decided, first death, buffs the boss gained and kept "
+             "to the end)"]
     if before := await rep.guild_best(fights[0]):
         lines.append(f"The guild's best wipe before the night: {wcl}{before.text()}.")
     first_killers: Counter = Counter()
+    ends: Counter = Counter()  # what ended each pull, by kind_of_end
     kept: dict[str, list[float]] = defaultdict(list)  # end buff -> when it was gained, per pull
     best = None
     for i, f in enumerate(fights, 1):
@@ -305,8 +314,12 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         first = (f"{rep.names[deaths[0]['targetID']]} ({rep.ability(deaths[0].get('killingAbilityGameID'))}, "
                  f"{clock(deaths[0]['timestamp'] - f['startTime'])})" if deaths else "-")
         result = wipe_text(f) if phased and not f["kill"] else f"{pct_text(pct)} {phase_label(f) or ''}"
-        end = _end_buffs(buffs, enrages, await rep.decided_at(f))
-        lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])} first death "
+        decided = await rep.decided_at(f)
+        ending = None if f.get("inProgress") else await pull_ending(rep, f)
+        if not f.get("inProgress"):
+            ends[kind_of_end(ending)] += 1
+        end = _end_buffs(buffs, enrages, decided)
+        lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_ended(ending, decided)}; first death "
                      f"{first}{end}{mark}")
     wipes = wipe_pcts(fights)
     if thirds := wipe_thirds(wipes):
@@ -315,7 +328,11 @@ async def progress(rep: Report, boss: str | None = None) -> str:
     for name, times in kept.items():
         lines.append(f"The boss gained {name} and kept it to the end on {len(times)} of {plural(len(fights), 'pull')}, "
                      f"gained at {clusters(times)}.")
-    ends = Counter([kind_of_end(await pull_ending(rep, f)) for f in fights if not f.get("inProgress")])
+    reached = Counter((phase_label(f) or "").split(" (")[0] for f in fights
+                      if not f.get("inProgress") and not is_reset(f))  # the phase each pull ended in
+    if phased and reached:
+        lines.append("Pulls by the phase they ended in (resets left out): "
+                     + ", ".join(f"{ph} {n}" for ph, n in sorted(reached.items(), reverse=True)) + ".")
     lines.append("How the pulls ended, by the first thing that ended each (pull_summary's \"Ended by\"): "
                  + ", ".join(f"{what} {n}" for what, n in ends.most_common()) + ".")
     lines.append(f"Killers of the first {FIRST_DEATHS} deaths per pull"

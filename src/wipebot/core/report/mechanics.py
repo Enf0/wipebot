@@ -34,6 +34,10 @@ class Hits:
     pull_hits: Counter = field(default_factory=Counter)
     pull_debuffs: Counter = field(default_factory=Counter)
     pull_died_after: Counter = field(default_factory=Counter)
+    # per pull's fight id, the raid's: ticks, damage, and deaths with it as the killing blow
+    pull_ticks: Counter = field(default_factory=Counter)
+    pull_damage: Counter = field(default_factory=Counter)
+    pull_killed_by: Counter = field(default_factory=Counter)
 
     @property
     def by_debuff(self) -> bool:
@@ -74,8 +78,22 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
     lines.append(f"Total with {name} as the killing blow: {sum(h.killed_by.values())}"
                  + (f" ({n} death{'s' if n > 1 else ''} within {HIT_THEN_DEATH_MS // 1000} s of a hit: the "
                     "deaths it set up, by any killing blow)" if (n := sum(h.died_after.values())) else ""))
-    return "\n".join(lines[:31] + await _applications(rep, fights, h, _counting(fights, cut, window), name)
+    if all_pulls:
+        lines = lines[:31] + [_per_pull(rep, fights, h)]
+    return "\n".join(lines[:32] + await _applications(rep, fights, h, _counting(fights, cut, window), name)
                      + [jobs])
+
+
+def _per_pull(rep: Report, fights: list[dict], h: Hits) -> str:
+    """The raid's totals pull by pull: what to sum when a question is about some of the pulls."""
+    def total(c: Counter, f: dict) -> int:
+        return sum(n for (fid, _), n in c.items() if fid == f["id"])
+    return ("The raid's per pull (pull: hits (+ticks), damage, debuff applications, deaths with it as the killing "
+            "blow): " + "; ".join(
+                f"{rep.pull_no(f)}: {total(h.pull_hits, f)}" + (f" (+{h.pull_ticks[f['id']]})" if h.pull_ticks[f["id"]]
+                                                                  else "")
+                + f", {short(h.pull_damage[f['id']])}, {total(h.pull_debuffs, f)}, {h.pull_killed_by[f['id']]}"
+                for f in fights))
 
 
 async def _asked(rep: Report, ability: str, pull: PullRef, boss: str | None, all_pulls: bool, whole_pull: bool,
@@ -331,13 +349,18 @@ async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts:
                     all_hits[e["targetID"]].append((e["timestamp"], counts(e)))
                 if counts(e):
                     (out.ticks if e.get("tick") else out.hits)[e["targetID"]] += 1
-                    if not e.get("tick"):
-                        out.pull_hits[(e.get("fight", ids[0]), e["targetID"])] += 1
+                    fight = e.get("fight", ids[0])
+                    if e.get("tick"):
+                        out.pull_ticks[fight] += 1
+                    else:
+                        out.pull_hits[(fight, e["targetID"])] += 1
                     out.damage[e["targetID"]] += e.get("amount", 0) + e.get("absorbed", 0)
+                    out.pull_damage[fight] += e.get("amount", 0) + e.get("absorbed", 0)
                     hit_times[e["targetID"]].append(e["timestamp"])
     for d in deaths:
         if d.get("killingAbilityGameID") in ability_ids:
             out.killed_by[d["targetID"]] += 1
+            out.pull_killed_by[d["fight"]] += 1
         if any(0 <= d["timestamp"] - at <= HIT_THEN_DEATH_MS for at in hit_times[d["targetID"]]):
             out.died_after[d["targetID"]] += 1
             out.pull_died_after[(d["fight"], d["targetID"])] += 1

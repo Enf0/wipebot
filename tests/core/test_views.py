@@ -155,7 +155,7 @@ async def test_the_raid_night_view_states_what_progress_states(recorded):
     for r in data["pulls"]:
         d = r["first"]
         first = f" first death {d['name']} ({d['by']}, {clock(d['ms'])})" if d else ""
-        assert re.search(rf"^  {r['pull']}: .*{clock(r['duration_ms'])}{re.escape(first)}", text, re.MULTILINE), r
+        assert re.search(rf"^  {r['pull']}: .*{clock(r['duration_ms'])}[^;]*;{re.escape(first)}", text, re.MULTILINE), r
     ends = ", ".join(f"{w} {n}" for w, n in data["ends"])
     assert f"(pull_summary's \"Ended by\"): {ends}." in text
     assert "first third {:.1f}, middle {:.1f}, last third {:.1f}".format(*data["thirds"]) in text
