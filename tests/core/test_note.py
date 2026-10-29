@@ -8,7 +8,7 @@ from typing import Any, cast
 import pytest
 
 from tests.support import NOTE
-from wipebot.core.report import FactError, note
+from wipebot.core.report import FactError, Player, Report, note
 
 VASHNIK = "EncounterID:3418;Difficulty:Mythic;Name:Vashnik\ntime:30;ph:2;tag:Torvek;spellid:98008;\n"
 
@@ -120,3 +120,20 @@ async def test_one_cooldown_written_twice_in_a_note_is_checked_as_one_use(monkey
     assert planned.twice == [(42_000, 43_000, plan.cooldowns[1])] and planned.skipped == 0
     assert note._twice(cast(Any, rep), planned.twice[0]) == (
         "The note plans Lïzårðmâñ's Zephyr [374227] at both 0:42 and 0:43: one use written twice, checked as the first")
+
+
+def test_a_callout_isnt_missed_by_one_the_note_gives_another_cooldown_or_a_tank_keeping_one_for_after():
+    rep = cast(Report, SimpleNamespace(is_spell=lambda c, sp: c["abilityGameID"] == sp["spell_id"]))
+    cry = {"name": "Rallying Cry", "spell_id": 97462, "tags": ["raid_cd"]}
+    warrior, tank = SimpleNamespace(id=1, role="dps"), SimpleNamespace(id=2, role="tank")
+    plan = note.Note(0, "Mythic", "Sszorak", cooldowns=[note.Cooldown(62, 1, "Brightleaf", 97462)])
+    players = cast(dict[str, Player], {"Brightleaf": warrior, "Stonewall": tank})
+    def when(c: note.Cooldown) -> float:  # one phase, from the pull's start
+        return c.at * 1000
+    assert note._excused(rep, plan, players, cast(Player, warrior), 60_000, when, [(61_000, cry)]) == (
+        "pressed Rallying Cry at 1:01, the note's plan for them then")
+    assert note._excused(rep, plan, players, cast(Player, warrior), 60_000, when, []) == ""  # planned, not pressed
+    wall = {"name": "Shield Wall", "spell_id": 871, "tags": ["tank"]}
+    assert note._excused(rep, plan, players, cast(Player, tank), 60_000, when, [(72_000, wall)]) == (
+        "a tank, kept Shield Wall for 1:12")
+    assert note._excused(rep, plan, players, cast(Player, tank), 60_000, when, [(90_000, wall)]) == ""  # too late

@@ -123,13 +123,14 @@ views.note = (() => {
 
   const CALLOUT = {  // a player at a pull's callouts: their fill, and the word in the legend
     answered: ["var(--green)", "pressed a defensive"], some: [NEAR_GREEN, "at some of them"],
-    none: ["var(--dead)", "no defensive"], dead: ["var(--muted)", "dead"],
+    none: ["var(--dead)", "no defensive"], excused: ["var(--blue)", "the note's cooldown for them, or a tank's kept for after"],
+    dead: ["var(--muted)", "dead"],
   };
   // A player's square on a pull, where the callout may come more than once: answered every time it found them alive,
   // some of the times, never, or dead for all of them
   function pullState(cell) {
-    const alive = cell.filter((s) => s !== "dead"), made = alive.filter((s) => s === "answered").length;
-    if (!alive.length) return "dead";
+    const alive = cell.filter((s) => s === "answered" || s === "none"), made = alive.filter((s) => s === "answered").length;
+    if (!alive.length) return cell.includes("excused") ? "excused" : "dead";
     if (made) return made === alive.length ? "answered" : "some";
     return "none";
   }
@@ -147,9 +148,10 @@ views.note = (() => {
         body += `<text x="0" y="${y + SQ - 0.5}" font-size="10.5" font-weight="600" class="cls" style="--c:${kit.esc(r.color)}">${kit.esc(r.player)}</text>`;
         r.cells.forEach((cell, i) => {
           if (!cell.length) return;
-          const alive = cell.filter((s) => s !== "dead"), made = alive.filter((s) => s === "answered").length;
+          const alive = cell.filter((s) => s === "answered" || s === "none"), made = alive.filter((s) => s === "answered").length;
           body += square(labelW + i * colW, y, CALLOUT[pullState(cell)][0],
-                         `Pull ${C.pulls[i]}, "${g.text}": ${r.player} ` + (alive.length ? `pressed a defensive at ${made} of ${alive.length}` : "dead"));
+                         `Pull ${C.pulls[i]}, "${g.text}": ${r.player} ` + (alive.length ? `pressed a defensive at ${made} of ${alive.length}`
+                           : cell.includes("excused") ? "not counted: pressed the cooldown the note plans for them, or a tank kept one for just after" : "dead"));
         });
         body += kit.text(w - 4, y + SQ - 0.5, `${r.made} of ${r.alive}`, "tm", 'font-size="10" text-anchor="end"');
         y += ROW;

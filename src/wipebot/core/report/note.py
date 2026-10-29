@@ -25,6 +25,8 @@ from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since
 MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it this close to its time
 BURST_MS = 2_000  # hits of an ability this close together are one hit of it (one soak)
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
+PLANNED_NEAR_MS = 10_000  # a cooldown the note plans for a player this close to a callout is their answer to it
+HELD_MS = 15_000  # a tank's cooldown pressed this soon after a callout's window was kept for what came next
 EVERYONE = "everyone"
 # A callout whose words ask for personal defensives ("Personals", "Big defs") is answered only by one: a spell Lorrgs
 # tags defensive, or a tank's tank cooldown. It's the only kind of callout the log can check: another asks for
@@ -209,6 +211,9 @@ class CalloutCheck:
     idle: list[tuple[str, list[dict]]]  # (player who didn't, the spells they had ready)
     dead: list[str]
     others: dict[str, list[tuple[float, dict]]] = field(default_factory=dict)  # of the idle, what they pressed instead
+    # who pressed none but isn't counted as missing it: (player, why) for a cooldown the note plans for them then, or
+    # a tank's cooldown kept for just after
+    excused: list[tuple[str, str]] = field(default_factory=list)
 
 
 def answers(sp: dict) -> bool:
@@ -419,13 +424,14 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
         if not k.in_pull:
             lines.append(line + ": not in this pull")
             continue
-        if not k.pressed and not k.idle:
+        if not k.pressed and not k.idle and not k.excused:
             lines.append(line + ": dead by then (" + ", ".join(k.dead) + ")")
             continue
         by_tag = Counter(tag for _, mine in k.pressed for tag in {t for _, sp in mine for t in _tags(sp)})
         tags = ", ".join(f"{tag} {n}" for tag, n in _by_count(by_tag))
         asked = f" ({PERSONALS_ARE})"
-        lines.append(line + f": {len(k.pressed) + len(k.idle)} alive; pressed one{asked} {len(k.pressed)}, "
+        lines.append(line + f": {len(k.pressed) + len(k.idle) + len(k.excused)} alive; pressed one{asked} "
+                     f"{len(k.pressed)}, "
                      f"players who pressed a spell tagged {tags or 'nothing'}; pressed none{asked} {len(k.idle)}"
                      + (f", of them {len(k.others)} only others" if k.others else ""))
         if k.pressed:
@@ -436,6 +442,9 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                 f"{n} (" + (f"pressed only {', '.join(f'{_spell(sp)} {clock(t)}' for t, sp in k.others[n])}; "
                             if n in k.others else "")
                 + f"ready: {', '.join(_spell(sp) for sp in ready) or 'none of them'})" for n, ready in k.idle))
+        if k.excused:
+            lines.append("    pressed none, not counted against them: " + "; ".join(f"{n} ({why})"
+                                                                              for n, why in k.excused))
         if k.dead:
             lines.append("    dead: " + ", ".join(k.dead))
     if c.unchecked:
@@ -636,12 +645,33 @@ async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player]
             if any(answers(sp) for _, sp in mine):
                 check.pressed.append((q.name, mine))
                 continue
+            if why := _excused(rep, note, players, q, at, when, pressed_at[q.id]):
+                check.excused.append((q.name, why))
+                continue
             if mine:
                 check.others[q.name] = mine
             check.idle.append((q.name, [sp for sp in kits[q.id] if sp.get("cooldown") and not any(
                 sp is used and at - sp["cooldown"] * 1000 < t <= at for t, used in pressed_at[q.id])]))
         out.append(check)
     return out
+
+
+def _excused(rep: Report, note: Note, players: dict[str, Player], q: Player, at: float, when,
+             pressed: list[tuple[float, dict]]) -> str:
+    """Why a player who pressed no personal at a callout isn't counted as missing it: they pressed a cooldown the note
+    plans for them within PLANNED_NEAR_MS of it (what it asks of them then), or they tank and pressed a tank cooldown
+    just after the callout's window (kept for what came next); "" for neither."""
+    for cd in note.cooldowns:
+        if (o := players.get(cd.player)) and o.id == q.id and (t := when(cd)) is not None \
+                and abs(t - at) <= PLANNED_NEAR_MS:
+            for t, sp in pressed:
+                if abs(t - at) <= PLANNED_NEAR_MS and rep.is_spell({"abilityGameID": cd.spell}, sp):
+                    return f"pressed {sp['name']} at {clock(t)}, the note's plan for them then"
+    if q.role == "tank":
+        for t, sp in pressed:
+            if at + CALL_AFTER_MS < t <= at + HELD_MS and "tank" in _tags(sp):
+                return f"a tank, kept {sp['name']} for {clock(t)}"
+    return ""
 
 
 def _kick_call(c: Callout) -> bool:
@@ -935,11 +965,12 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
     if not calls:
         return _night_unchecked(checks)
     out = [f"Callouts for personals over the pulls, per callout and per player it names, most often pressing none "
-           f"first: how many of the callouts they were alive for, at how many they pressed {PERSONALS_ARE} from "
-           f"{CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it (callouts by the tag of what "
-           "they pressed), the ones they pressed none at, with the tags of what was ready then (callouts with a spell "
-           "of that tag ready) and of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such as "
-           "Anti-Magic Shell, may be one):"]
+           f"first: how many of the callouts they were alive and counted for, at how many they pressed "
+           f"{PERSONALS_ARE} from {CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it "
+           "(callouts by the tag of what they pressed), the ones they pressed none at, with the tags of what was ready "
+           "then (callouts with a spell of that tag ready) and of what they pressed instead (untagged: a defensive "
+           "Lorrgs doesn't tag, such as Anti-Magic Shell, may be one), and those not counted against them (they "
+           "pressed the cooldown the note plans for them then, or a tank kept a tank cooldown for just after):"]
     groups: dict[tuple[str, tuple[str, ...]], list[tuple[PullCheck, CalloutCheck]]] = defaultdict(list)
     for c, k in calls:
         groups[(k.callout.text, k.callout.players)].append((c, k))
@@ -953,6 +984,7 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
         none: dict[str, list[tuple[dict, float]]] = defaultdict(list)
         ready: dict[str, Counter] = defaultdict(Counter)
         instead: dict[str, Counter] = defaultdict(Counter)
+        excused: dict[str, list[str]] = defaultdict(list)  # pressed none, not counted against them: why
         for c, k in rows:
             for n, mine in k.pressed:
                 alive[n] += 1
@@ -965,6 +997,10 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
                 if n in k.others:
                     instead[n][None] += 1
                     instead[n].update({t for _, sp in k.others[n] for t in _tags(sp)})
+            for n, why in k.excused:
+                alive[n] += 0  # listed, not counted
+                excused[n].append(why.split(" for ")[0] if why.startswith("a tank")
+                                  else "pressed the note's plan for them")
         for n in sorted(alive, key=lambda n: (-len(none[n]), n)):
             line = f"    {n}: alive for {alive[n]}; pressed at {pressed_n[n]}"
             if pressed[n]:
@@ -976,6 +1012,9 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
             if only := instead[n].pop(None, 0):
                 line += f"; of those, pressed only others at {only} (" + ", ".join(
                     f"{t} {k}" for t, k in _by_count(instead[n])) + ")"
+            if excused[n]:
+                line += f"; not counted at {len(excused[n])} (" + ", ".join(
+                    f"{why} {k}" for why, k in Counter(excused[n]).most_common()) + ")"
             out.append(line)
     return out + _night_unchecked(checks)
 

@@ -648,8 +648,9 @@ def _note_cooldowns(rep: Report, night: notes.Night, color: Callable[[str], str]
 
 def _note_callouts(rep: Report, night: notes.Night, color: Callable[[str], str]) -> dict | None:
     """Each callout for personals (in the note's order) that NOTE_FEW pulls reached, and per player it names and pull,
-    a square per time it came: they pressed a defensive, none, or were dead; as raid_note counts
-    them. The callouts the log can't check aren't drawn."""
+    a square per time it came: they pressed a defensive, none, were dead, or pressed none but aren't counted (they
+    pressed the cooldown the note plans for them then, or a tank kept one for just after); as raid_note counts them.
+    The callouts the log can't check aren't drawn."""
     groups: dict[tuple[str, tuple[str, ...]], list[tuple[int, notes.CalloutCheck]]] = defaultdict(list)
     for i, c in enumerate(night.checks):
         for k in c.callouts:
@@ -665,9 +666,11 @@ def _note_callouts(rep: Report, night: notes.Night, color: Callable[[str], str])
                 cells[n][i].append("answered")
             for n, _ in k.idle:
                 cells[n][i].append("none")
+            for n, _ in k.excused:
+                cells[n][i].append("excused")
             for n in k.dead:
                 cells[n][i].append("dead")
-        count = {n: (sum(s == "answered" for p in ps for s in p), sum(s != "dead" for p in ps for s in p))
+        count = {n: (sum(s == "answered" for p in ps for s in p), sum(s in ("answered", "none") for p in ps for s in p))
                  for n, ps in cells.items()}
         players = sorted(cells, key=lambda n: (count[n][0] / max(count[n][1], 1), n))
         out.append({"text": text, "to": " ".join(named) or notes.EVERYONE,
