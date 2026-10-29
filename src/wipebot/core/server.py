@@ -1385,6 +1385,9 @@ async def compare_with_top(
     against: Annotated[str | None, Field(description=(
         "a raid mate (character name as in the log) to set the player beside instead of top players"))] = None,
     all_pulls: Annotated[bool, Field(description="with `against`: every pull on the boss both were in")] = False,
+    healers: Annotated[int | None, Field(description=(
+        "top parses only from kills with this many healers (a healer's casts default to their raid's count)"),
+        ge=1, le=10)] = None,
     report: Report_ = None,
 ) -> str:
     """Compare a player with the top players of their spec: is my build right, why is my damage low (after
@@ -1396,13 +1399,15 @@ async def compare_with_top(
       (talents against those of their hero tree; stats against the top 10's own logs) and the guides' builds;
     - casts: casts per minute of every spell against the 5 top parses of their spec and hero tree closest in item
       level: spells they cast far less or more often, or never; casting gaps and time at the resource cap; for a
-      healer, how many healers each raid had and the healer's share of their healing;
+      healer, top parses from kills with as many healers as their raid had (`healers` for another count, when
+      any are ranked), how many healers each raid had and the healer's share of their healing;
     - cooldowns: their cooldown casts in one phase against Lorrgs' top parses of the spec on the boss, with when.
     Without a player: the top 50 parses of `spec` on `boss`: hero trees, the talents where they differ, the guides'
     builds against them, trinkets, item level, kill time, links to the top logs (a healer's with their raid's
-    healers), where the spec's ranked kills spread ("what's a realistic target?") and a typical build's import
-    string; and their major cooldowns: how many pressed each, and when the top 5 did beside the boss's casts
-    ("where do I want my cooldowns?"). With only `boss`: the 50 fastest kills' tanks, healers, melee and ranged,
+    healers; `healers` for kills with that many: "the best holy paladin in a 5-heal kill?"), where the spec's
+    ranked kills spread ("what's a realistic target?") and a typical build's import string; and their major
+    cooldowns: how many pressed each, and when the top 5 did beside the boss's casts ("where do I want my
+    cooldowns?"). With only `boss`: the 50 fastest kills' tanks, healers, melee and ranged,
     how many kills brought each count, kill time and item level by healers brought, and links to the fastest;
     `kills`, `count` and `regions` pick others ("how many healers did the latest 20 progress kills bring?", "of the
     first 400 kills in EU and US, how many 4-healed?"; 2 Warcraft Logs points per 50 kills and region).
@@ -1418,7 +1423,7 @@ async def compare_with_top(
         if not spec:
             return await top.top_kills(lib().wcl, boss, difficulty, kills, count, regions)
         name = await top.boss_name(lib().wcl, boss)
-        run_top = {"build": lambda: top.top_builds(lib().wcl, spec, boss, difficulty),
+        run_top = {"build": lambda: top.top_builds(lib().wcl, spec, boss, difficulty, healers),
                    "cooldowns": lambda: knowledge.top_cooldowns_text(spec, name, difficulty)}
         return await _parts({a.capitalize(): run_top[a]() for a in dict.fromkeys(aspects or ("build", "cooldowns"))
                              if a in run_top})
@@ -1435,7 +1440,7 @@ async def compare_with_top(
                 + f"\n{p.name}'s own buffs already up at the pull (cast or drunk before it, so not in their casts): "
                 + (", ".join(early) or "none"))
     run = {"build": lambda: build.compare_build(rep, player, pull, boss),
-           "casts": lambda: top.compare_casts(rep, player, pull, boss), "cooldowns": cooldowns_part}
+           "casts": lambda: top.compare_casts(rep, player, pull, boss, healers), "cooldowns": cooldowns_part}
     return await _parts({a.capitalize(): run[a]() for a in wanted})
 
 

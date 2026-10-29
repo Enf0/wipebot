@@ -133,6 +133,8 @@ top-builds = { tool = "compare_with_top", local = true, spec = "balance druid", 
 compare-with-top-healer = { tool = "compare_with_top", local = true, report = "KBYT4xXn7VNjDgh8", player = "Cptola", pull = 13, aspects = ["casts"] }
 # a healer's top parses with their raids' healers, and where the spec's kills spread ("a realistic target?")
 top-builds-healer = { tool = "compare_with_top", local = true, spec = "holy priest", boss = "The Twin Fangs", difficulty = "Mythic", aspects = ["build"] }
+# kills with five healers only: the site's filter, for "the best holy priest in a 5-heal kill?"
+top-builds-five-healers = { tool = "compare_with_top", local = true, spec = "holy priest", boss = "The Twin Fangs", difficulty = "Mythic", aspects = ["build"], healers = 5 }
 # what the fastest kills brought ("is it a 4-heal fight?"), the boss named as a raider wrote it
 top-kills = { tool = "compare_with_top", local = true, boss = "vashnik" }
 # the latest progress kills on two regions' servers ("how many healers did the last 20 progress kills bring?")

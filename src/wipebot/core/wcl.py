@@ -171,10 +171,10 @@ query($code: String!, $metric: ReportRankingMetricType!) {
 # for a while after it opens, so each ranking query takes a partition and falls back to the one before.
 CHARACTER_RANKINGS = """
 query($encounter: Int!, $class: String!, $spec: String!, $difficulty: Int!, $metric: CharacterRankingMetricType!,
-      $partition: Int) {
+      $partition: Int, $filter: String) {
   worldData { encounter(id: $encounter) {
     characterRankings(className: $class, specName: $spec, difficulty: $difficulty, metric: $metric,
-                      includeCombatantInfo: true, partition: $partition)
+                      includeCombatantInfo: true, partition: $partition, filter: $filter)
   } }
 }
 """
@@ -1138,12 +1138,14 @@ class WCL:
                 for i in range(len(kills))]
 
     async def top_rankings(self, encounter_id: int, class_name: str, spec: str, difficulty: int,
-                           metric: str) -> list[dict]:
-        """The top 100 parses of one spec on one boss, with their talents and gear; from the partition before
-        the default when the default is empty (a new patch's)."""
+                           metric: str, healers: int | None = None) -> list[dict]:
+        """The top 100 parses of one spec on one boss, with their talents and gear, of kills with exactly `healers`
+        healers when given (the site's filter "healers.N"); from the partition before the default when the default
+        is empty (a new patch's)."""
         async def ask(partition: int | None) -> list[dict]:
             data = await self.query(CHARACTER_RANKINGS, DAY, encounter=encounter_id, **{"class": class_name},
-                                    spec=spec, difficulty=difficulty, metric=metric, partition=partition)
+                                    spec=spec, difficulty=difficulty, metric=metric, partition=partition,
+                                    filter=f"healers.{healers}" if healers else None)
             return ((data["worldData"]["encounter"] or {}).get("characterRankings") or {}).get("rankings") or []
         ranked = await ask(None)
         for partition in [] if ranked else await self.older_partitions(encounter_id=encounter_id):

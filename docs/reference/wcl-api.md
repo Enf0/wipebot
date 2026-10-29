@@ -109,6 +109,9 @@ What the GraphQL API does that its schema doesn't say, each checked against real
 - `character.encounterRankings(metric: …)` ranks every kill by the metric asked for, whatever the spec: a
   Restoration kill gets a dps percentile (a 20k dps Restoration Vashnik kill: 78%) and an Elemental kill an hps one.
   `specName` filters to one spec. Which specs heal: `lorrgs specs` (`role: heal`).
+- `encounter.characterRankings(filter: "healers.N")` keeps only kills with exactly N healers, as the site's filter
+  does (Holy Paladin on Mythic Coiled Altar: `healers.5` gives 100 rankings, every top log checked with 5 healers;
+  `healers.3` gives none; verified 2026-10-29). Unfiltered, the top is mostly 4-healer kills.
 - `character.zoneRankings(zoneID, difficulty, metric, role, specName)` is the character page and the guild
   rankings page: per boss the best kill, `bestPerformanceAverage` (the page's "Avg"), `medianPerformanceAverage`,
   `allStars` per spec. Its metric is a `CharacterPageRankingMetricType`, not `CharacterRankingMetricType`.

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **Top players from raids with your healer count.** Comparing a healer's casts with top players now takes top parses from kills with as many healers as their raid had, and you can ask for any count: "the best holy paladin in a 5-heal kill?" is one ranking, where it took a minute and a half of hand-made queries.
+- `Agent` **A night's pulls say what ended each.** The list of pulls now gives each one's ending and when the wipe was decided, and how many pulls ended in each phase, so a wipe isn't blamed on a death a minute before it was decided; a mechanic's hits over the night add the raid's totals pull by pull.
+- `Agent` **A player's night says which deaths a defensive would have saved.** It now gives how many of their deaths a ready defensive or a healthstone would have survived, and on which pulls, and their best pull is one long enough to judge (a minute or more), not a 30-second wipe of opening burst.
+
+### Changed
+
+- `Agent` **A night's picture counts a wipe by its phase.** On a boss with phases, the night's best wipe and the guild's best before it now read as raiders say them ("P2 64%"), with Warcraft Logs' % in each pull's tooltip, and the guild's best in the text gives its phase too; a player's night does the same.
+
+  ![The Coiled Altar over 31 pulls: the best wipe P2 64% on pull 25 against the guild's best before, P2 68%, each bar coloured by what ended the pull](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-phase-health.webp)
+
 ### Fixed
 
 - `Agent` **Orb carriers aren't blamed for their own orb.** A damage over time that ticks as it's put on a player, like the Coiled Altar's Mutagenic Venom, was counted as hitting them from another carrier whose orb ran out at the same moment, even 75 yd away; it's now their own. Over a night, each such hit also says how far apart the two stood.
@@ -14,12 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Discord` **Pull links open the pull named.** A link to "pull 12" without the boss's name opened pull 12 of whichever boss came first in a night of several bosses; it now opens the boss the answer read, and a pull it can't place stays plain text.
 - `Discord` **What Wipebot remembers is about the asker.** A raider's note could rename another raider, in a channel and in that raider's own answers; notes are now only how to answer the one who asked.
 - `Agent` **A potion drunk before the pull isn't "never cast".** Comparing casts with top players flagged a pre-pull potion as never cast; a buff up as the pull began now reads "cast before the pull", and the player picture no longer marks it, or an item not worn, red.
-- `Agent` **A night's pulls say what ended each.** The list of pulls now gives each one's ending and when the wipe was decided, and how many pulls ended in each phase, so a wipe isn't blamed on a death a minute before it was decided; a mechanic's hits over the night add the raid's totals pull by pull.
-- `Agent` **A player's night says which deaths a defensive would have saved.** It now gives how many of their deaths a ready defensive or a healthstone would have survived, and on which pulls, and their best pull is one long enough to judge (a minute or more), not a 30-second wipe of opening burst.
 - `Agent` **Time at the resource cap is weighed against top players.** A player's card called Fury capped 19% of a pull a fix when top players of the spec cap as much on that boss; it's now flagged only beyond theirs, with their share beside it.
 - `Agent` **Personals checks know the rest of the note.** A player who pressed the raid cooldown the note plans for them at a "Big Personals" callout, or a tank who kept a cooldown for the hit just after, was marked as missing it; they're now counted apart, in the text and in blue on the Personals picture.
-- `Agent` **A night's picture counts a wipe by its phase.** On a boss with phases, the night's best wipe and the guild's best before it now read as raiders say them ("P2 64%"), with Warcraft Logs' % in each pull's tooltip, and the guild's best in the text gives its phase too; a player's night does the same.
-  ![The Coiled Altar over 31 pulls: the best wipe P2 64% on pull 25 against the guild's best before, P2 68%, each bar coloured by what ended the pull](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-phase-health.webp)
 
 ## [0.34.0] - 2026-10-28
 

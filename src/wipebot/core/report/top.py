@@ -148,9 +148,10 @@ def _day(ms: float) -> str:
     return time.strftime("%a %Y-%m-%d", time.gmtime(ms / 1000))
 
 
-async def top_builds(wcl: WCL, spec: str, boss: str, difficulty: str | None = None) -> str:
+async def top_builds(wcl: WCL, spec: str, boss: str, difficulty: str | None = None, healers: int | None = None) -> str:
     """What the top parses of a spec on a boss play, with no pull of the asker's needed: hero tree, the talents
-    where they differ, trinkets, item level and kill time, the top logs, and a typical build's import string."""
+    where they differ, trinkets, item level and kill time, the top logs, and a typical build's import string; of
+    kills with `healers` healers when given."""
     class_name, spec_name = await knowledge.class_and_spec(spec)
     label = f"{spaced(spec_name)} {spaced(class_name)}"
     zone, eid, boss_name = await _encounter(wcl, boss)
@@ -160,14 +161,14 @@ async def top_builds(wcl: WCL, spec: str, boss: str, difficulty: str | None = No
     top: list[dict] = []
     for diff in tried:
         try:
-            top = (await wcl.top_rankings(eid, class_name, spec_name, ids[diff], metric))[:TOP_PARSES]
+            top = (await wcl.top_rankings(eid, class_name, spec_name, ids[diff], metric, healers))[:TOP_PARSES]
         except WCLError as e:
             raise FactError(f"Warcraft Logs rankings unavailable: {e}") from e
         if top:
             break
     if not top:
-        return (f"Warcraft Logs has no ranked {label} kills of {boss_name} on "
-                + " or ".join(tried) + " yet.")
+        return (f"Warcraft Logs has no ranked {label} kills of {boss_name} on " + " or ".join(tried)
+                + (f" with {healers} healers" if healers else " yet") + ".")
     n = len(top)
     half = n // 2
     tree = await knowledge.tree_for(class_name, spec_name)
@@ -180,6 +181,7 @@ async def top_builds(wcl: WCL, spec: str, boss: str, difficulty: str | None = No
     heroes = [knowledge.build_hero(tree, t) if tree else None for t in talents]
     skipped = tried[:tried.index(diff)]
     lines = [f"The top {plural(n, metric + ' parse')} of {label} on {boss_name} ({diff}"
+             + (f", kills with {healers} healers" if healers else "")
              + (f"; none ranked on {' or '.join(skipped)} yet" if skipped else "") + "): "
              f"median kill {clock(sorted(float(r.get('duration') or 0) for r in top)[half])}, median item level "
              f"{sorted(float(r.get('bracketData') or 0) for r in top)[half]:.0f}, best "
@@ -428,6 +430,7 @@ class CastComparison:
     f: dict
     hero: str | None
     same_hero: bool  # the top parses are of the player's hero tree
+    healers: int | None  # the top parses are of kills with this many healers (None: any)
     alive_s: float
     ilvl: float
     found: list[Reference]
@@ -441,10 +444,12 @@ class CastComparison:
     my_capped: list[tuple[float, float]]  # its stretches at the cap
 
 
-async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: str | None = None
-                          ) -> CastComparison | str:
+async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: str | None = None,
+                          healers: int | None = None) -> CastComparison | str:
     """A player's casts per minute of each spell on a pull, next to top parses of their spec and hero tree on the
-    same boss, the closest in item level; or why there's nothing to compare."""
+    same boss, the closest in item level; or why there's nothing to compare. A healer's are of kills with `healers`
+    healers, by default as many as their raid had (more healers share the same damage), else of any when none
+    such is ranked."""
     f = rep.fight(pull, boss)
     p = rep.player(player)
     rep.require_in(f, p)
@@ -457,7 +462,11 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
     alive_s, alive_until = alive(rep, f, p, own, [c for c in events if c["type"] == "cast"])
     if not (mine := cast_rows(table.get("entries") or [])):
         return f"No casts recorded for {p.name} on {rep.label(f)}."
-    top = [r for r in await top_parses(rep, f, p) if readable(r)]
+    if p.role == "healer" and healers is None:
+        healers = sum(d.get("role") == "healers" for d in details.values()) or None
+    top = [r for r in await top_parses(rep, f, p, healers) if readable(r)] if healers else []
+    if not top:
+        healers, top = None, [r for r in await top_parses(rep, f, p) if readable(r)]
     if not top:
         return NO_TOP.format(spec=spaced(p.spec), cls=spaced(p.class_name), boss=f["name"])
     hero, tree = await asyncio.gather(hero_of(rep, p, det), knowledge.tree_for(p.class_name, p.spec))
@@ -479,22 +488,24 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
     if not found:
         return "Couldn't read the casts of any top parse."
     my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
-    return CastComparison(p, f, hero, bool(same_hero), alive_s, ilvl, found, names, merged, mine, my_cpm,
+    return CastComparison(p, f, hero, bool(same_hero), healers, alive_s, ilvl, found, names, merged, mine, my_cpm,
                           cast_rates(names, my_cpm, found, lust_casts, _worn(det), up),
                           casting(events, alive_until, [d["timestamp"] for d in own]), resource, my_capped)
 
 
-async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: str | None = None) -> str:
+async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: str | None = None,
+                        healers: int | None = None) -> str:
     """Casts per minute of each spell for a player on a pull, next to top parses of their spec and hero tree on
-    the same boss, the closest in item level."""
-    c = await cast_comparison(rep, player, pull, boss)
+    the same boss, the closest in item level (cast_comparison)."""
+    c = await cast_comparison(rep, player, pull, boss, healers)
     if isinstance(c, str):
         return c
     p, f, found, alive_s = c.p, c.f, c.found, c.alive_s
     lines = [f"{p.label}{f', {c.hero}' if c.hero else ''}, casts per minute alive on {rep.label(f)} ({alive_s:.0f} s "
              f"alive) next to {plural(len(found), 'top ' + metric_of(p) + ' parse')} of their spec"
-             + (f" and hero tree ({c.hero})" if c.same_hero else "") + f" on {f['name']}, the closest to their item "
-             f"level {c.ilvl:.0f}: " + "; ".join(
+             + (f" and hero tree ({c.hero})" if c.same_hero else "")
+             + (f", of kills with {c.healers} healers" if c.healers else "")
+             + f" on {f['name']}, the closest to their item level {c.ilvl:.0f}: " + "; ".join(
                  f"{x.ranking['name']} ({float(x.ranking.get('bracketData') or 0):.0f}, kill "
                  f"{clock(x.ranking.get('duration') or 0)}, "
                  f"{fight_url(x.ranking['report']['code'], x.ranking['report']['fightID'])})" for x in found),

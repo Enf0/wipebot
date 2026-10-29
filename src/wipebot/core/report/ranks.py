@@ -194,13 +194,14 @@ def readable(r: dict) -> bool:
     return bool(r.get("report")) and not r.get("hidden")
 
 
-async def top_parses(rep: Report, f: dict, p: Player) -> list[dict]:
-    """The top ranked kills of the player's spec on the boss and difficulty."""
+async def top_parses(rep: Report, f: dict, p: Player, healers: int | None = None) -> list[dict]:
+    """The top ranked kills of the player's spec on the boss and difficulty, of raids with `healers` healers when
+    given."""
     metric = metric_of(p)
     try:
-        return await rep.keep(("top", f["encounterID"], p.class_name, p.spec, f.get("difficulty"), metric), [],
-                              lambda: rep.wcl.top_rankings(f["encounterID"], p.class_name, p.spec,
-                                                           f.get("difficulty") or 5, metric))
+        return await rep.keep(("top", f["encounterID"], p.class_name, p.spec, f.get("difficulty"), metric, healers),
+                              [], lambda: rep.wcl.top_rankings(f["encounterID"], p.class_name, p.spec,
+                                                               f.get("difficulty") or 5, metric, healers))
     except WCLError as e:
         raise FactError(f"Warcraft Logs rankings unavailable: {e}") from e
 

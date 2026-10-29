@@ -24,7 +24,10 @@ async def test_casts_vs_top_merges_a_spells_ids_and_flags_only_gaps_that_matter(
     async def table(code, fight_ids, data_type, **filters):
         return {"entries": mine if code == rep.code else refs[filters["sourceID"]]}
 
-    async def top_parses(r, fight, player):
+    asked = []
+
+    async def top_parses(r, fight, player, healers=None):
+        asked.append(healers)
         return [{"name": f"Ref{i}", "bracketData": 300, "duration": 360_000, "report": {"code": f"R{i}", "fightID": 1}}
                 for i in (1, 2)]
 
@@ -37,6 +40,8 @@ async def test_casts_vs_top_merges_a_spells_ids_and_flags_only_gaps_that_matter(
     alive_s, _ = casting.alive(rep, f, p, [d for d in await rep.deaths(f) if d["targetID"] == p.id], [])
     minutes = alive_s / 60
     lines = (await top.compare_casts(rep, "Enfo", 13)).splitlines()
+    healers = sum(d.get("role") == "healers" for d in (await rep.details(f)).values())
+    assert asked == [healers] and f"of kills with {healers} healers" in lines[0]  # a healer's: their raid's count
     # Both Mutilate ids count as one spell, for the player and the top parses.
     assert f"  Mutilate [1329, 27576]: {60 / minutes:.1f} / 5.0 (5.0-5.0)  <- far more" in lines
     # A replacing talent's casts are the spell Lorrgs lists, and a cooldown of a minute or more is never "far more".
