@@ -228,19 +228,24 @@ async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: st
     return "\n\n".join(parts + [f"(Not available: {e})" for e in missing])
 
 
-async def boss_naming(mechanic: str, but: str) -> tuple[str, str] | None:
+async def boss_naming(mechanic: str, but: str, raid: str | None = None) -> tuple[str, str] | None:
     """(raid, boss) of the current expansion's raids, `but` aside, whose abilities (Lorrgs' and those Wowhead's
-    guide links) include `mechanic`; None when none does or the raids can't be read."""
+    guide links) include `mechanic`; None when none does or the raids can't be read. The bosses of `raid` (the
+    report's) are read first, the other raids' only when none of them has it."""
     try:
-        bosses = [(raid, b) for raid, names in await raids() for b in names if not names_boss(b, but)]
+        bosses = [(r, b) for r, names in await raids() for b in names if not names_boss(b, but)]
     except KnowledgeError:
         return None
     async def names(boss: str) -> set[str]:
         tracked = await asyncio.gather(boss_spells(boss), return_exceptions=True)
         listed = [s.get("name") or "" for s in tracked[0]] if isinstance(tracked[0], list) else []
         return {_plain(n) for n in listed + [s.name for s in await _abilities(boss)]}
-    found = await asyncio.gather(*(names(b) for _, b in bosses))
-    return next((rb for rb, known in zip(bosses, found, strict=True) if _plain(mechanic) in known), None)
+    near = [rb for rb in bosses if raid and rb[0] == raid]
+    for part in (near, [rb for rb in bosses if rb not in near]):
+        found = await asyncio.gather(*(names(b) for _, b in part))
+        if hit := next((rb for rb, known in zip(part, found, strict=True) if _plain(mechanic) in known), None):
+            return hit
+    return None
 
 
 async def _abilities(boss: str) -> list[Spell]:

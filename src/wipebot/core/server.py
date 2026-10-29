@@ -1696,7 +1696,7 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
     try:
         return await _boss_guide(boss, topic, difficulty, raid, spec, report, mechanic)
     except KnowledgeError as e:  # a name no guide has: the model picks the boss from the raid's list and asks again
-        if mechanic and (found := await knowledge.boss_naming(mechanic, boss)):  # another boss's mechanic
+        if mechanic and (found := await knowledge.boss_naming(mechanic, boss, raid or await _zone(report))):
             other_raid, other = found
             return (f"{mechanic} is an ability of {other} ({other_raid}), not of {boss}: {other}'s guide.\n\n"
                     + await _boss_guide(other, topic, difficulty, other_raid, spec, report, mechanic))
@@ -1711,6 +1711,14 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
                              + ", ".join(b["name"] for b in bosses)) from None
 
 
+async def _zone(report: str | None) -> str | None:
+    """The raid of the report, None without one."""
+    try:
+        return (await lib().report(report)).zone
+    except (FactError, WCLError):
+        return None
+
+
 async def _boss_guide(boss: str, topic: str, difficulty: str | None, raid: str | None, spec: str | None,
                       report: str | None, mechanic: str | None = None) -> str:
     if topic == "tooltips":
@@ -1722,9 +1730,11 @@ async def _boss_guide(boss: str, topic: str, difficulty: str | None, raid: str |
             raid = (await lib().report(report)).zone
         except FactError:
             raise FactError("give the raid name (no report to take it from)") from None
-    if not difficulty:
+    if not difficulty:  # the hardest the report pulled the boss on, a pull still going too (a first Mythic pull)
         try:
-            f = (await lib().report(report)).fight(None, boss)
+            rep = await lib().report(report)
+            pulls = [f for b in rep.by_boss if knowledge.matches_boss(boss, b) for f in rep.by_boss[b]]
+            f = max(pulls, key=lambda f: (f.get("difficulty") or 0, f["startTime"])) if pulls else rep.fight(None, boss)
             boss, difficulty = f["name"], "mythic" if f.get("difficulty") == 5 else "heroic"
         except FactError:
             difficulty = "mythic"

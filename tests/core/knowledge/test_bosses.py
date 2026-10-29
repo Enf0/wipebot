@@ -256,3 +256,12 @@ async def test_a_mechanic_on_the_wrong_boss_is_found_on_its_own(monkeypatch):
     assert await bosses.boss_naming("axegrinder", "The Lost Explorers") == ("The Venomous Abyss", "The Coiled Altar")
     assert await bosses.boss_naming("Axegrinder", "The Coiled Altar") is None
     assert await bosses.boss_naming("Shell Spin", "Rotmire") == ("The Venomous Abyss", "The Lost Explorers")
+    read = []
+
+    async def counted(boss):
+        read.append(boss)
+        return await boss_spells(boss)
+    monkeypatch.setattr(bosses, "boss_spells", counted)
+    assert await bosses.boss_naming("Axegrinder", "The Lost Explorers", "The Venomous Abyss") == (
+        "The Venomous Abyss", "The Coiled Altar")
+    assert read == ["The Coiled Altar"]  # found in the report's raid: the other raids aren't read
