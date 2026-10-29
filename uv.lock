@@ -1505,7 +1505,7 @@ provides-extras = ["dev", "redis"]
 
 [[package]]
 name = "wipebot"
-version = "0.35.0"
+version = "0.35.1"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

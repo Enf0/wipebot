@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.1] - 2026-10-29
+
 ### Fixed
 
 - `Discord` **Norwegian answers keep the game's English words.** Answers and what's new posts in another language no longer translate the terms raiders say in English: "holy paladin", not "hellig paladin"; "guild", "armor", "pulls" and "healere", not "gild", "rustning", "trekk" or "helere".
