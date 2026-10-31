@@ -20,6 +20,9 @@ def boss_units(rep: Report, f: dict) -> set[int]:
     return {n["id"] for n in f.get("enemyNPCs") or [] if n["id"] in rep.bosses and (n.get("instanceCount") or 1) == 1}
 
 
+KICK_LAG_MS = 50  # a cast an add logs this close to a kick on it is the kick's own, not one gone through
+
+
 async def interruptible_casts(rep: Report, f: dict) -> dict[tuple[str, str], list[tuple[float, str, str | None, int]]]:
     """Per (add, ability), the interruptible casts (those with a cast bar: a begincast) the enemies other than
     the bosses began in a pull, in order: (when, how it ended, who kicked it, ability id). An interrupt event on
@@ -44,7 +47,11 @@ async def interruptible_casts(rep: Report, f: dict) -> dict[tuple[str, str], lis
     orphans: list[dict] = []
     for evs in by_unit.values():
         begun = None
-        for e in sorted(evs, key=lambda e: e["timestamp"]):
+        evs = sorted(evs, key=lambda e: (e["timestamp"], e["type"] != "interrupt"))
+        kicks = [e["timestamp"] for e in evs if e["type"] == "interrupt"]
+        for e in evs:
+            if e["type"] == "cast" and any(abs(k - e["timestamp"]) <= KICK_LAG_MS for k in kicks):
+                continue  # the kick's own: an add can log a cast as it's kicked (Spiteful Soulcoiler's Wail of Terror)
             if e["type"] == "begincast":
                 if begun:
                     ended(begun, "ended otherwise")
