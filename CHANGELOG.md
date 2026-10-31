@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.5] - 2026-10-31
+
 ### Fixed
 
 - `Agent` **Kicks on adds are counted.** An add that logs a cast of the same name as it's kicked (The Coiled Altar's Spiteful Soulcoiler and its Wail of Terror) had every kick counted as a cast gone through, so the bot said 2 of 169 Wails were kicked where 89 were, and told a raid to set up a kick rotation it already had. The adds' casts, who had a kick ready and the raid note's kick checks now count them as Warcraft Logs does.
