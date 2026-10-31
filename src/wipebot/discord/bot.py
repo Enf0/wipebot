@@ -892,8 +892,9 @@ class WipeBot(discord.Client):
         async def send(answer: Answer) -> list[int]:
             return await self._send(channel, answer, reply_to=None if is_dm else asked, asker=user.id,
                                     mine=self._character(user.id))
-        async with channel.typing():
-            failed = await self._answer("chat", key, code, question, ctx, name, send,
+        async with channel.typing():  # with the question posted as the message: a conversation that closed since
+            # (grown long, idle, a restart) starts again with what was said before it, a report linked there too
+            failed = await self._answer("chat", key, code, question, ctx, name, send, asked,
                                         channel_id=getattr(channel, "id", None))
         if failed:
             await channel.send(failed)

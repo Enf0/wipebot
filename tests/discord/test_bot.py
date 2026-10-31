@@ -200,9 +200,11 @@ class Asked(list):
     def __init__(self):
         super().__init__()
         self.answers: list[Answer | Exception] = []
+        self.earlier: list[tuple] = []  # each question's `earlier` and message id
 
     async def ask(self, key, code, question, ctx, earlier=None, message_id=None, timeout=None) -> Answer:
         self.append((key, code, question, ctx))
+        self.earlier.append((earlier, message_id))
         answer = self.answers.pop(0) if self.answers else Answer("**Wiped.**")
         if isinstance(answer, Exception):
             raise answer
@@ -636,7 +638,8 @@ class Click:
         self.client: Any = None
         self.said: list[tuple[str | None, dict]] = []
         self.response = SimpleNamespace(send_message=self._send)
-        self.question = SimpleNamespace(id=900, reply=None)  # what the bot posts as the asker's question
+        self.question = SimpleNamespace(id=900, reply=None, guild=SimpleNamespace(id=1001),
+                                        channel=channel)  # what the bot posts as the asker's question
 
     async def _send(self, content=None, **kwargs):
         self.said.append((content, kwargs))
@@ -658,6 +661,9 @@ async def test_a_follow_up_is_asked_in_the_askers_conversation_as_if_typed(bot, 
     [(key, code, question, ctx)] = asked
     assert (key, code, question, ctx.where) == ((20, 7), "LIVE1", "Replay the deaths?", "in #raid")
     assert len(replied) == 1 and recorded(bot.store)[0][2] == "Replay the deaths?"
+    # what was said before it reaches a conversation that closed since (a report linked earlier, who "he" is)
+    [(earlier, message_id)] = asked.earlier
+    assert earlier is not None and message_id == click.question.id
 
 
 async def test_a_plain_answer_keeps_its_links_previews_off_when_its_follow_ups_go(bot, asked, channel, member,

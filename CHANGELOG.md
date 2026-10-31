@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `Agent` **Kicks on adds are counted.** An add that logs a cast of the same name as it's kicked (The Coiled Altar's Spiteful Soulcoiler and its Wail of Terror) had every kick counted as a cast gone through, so the bot said 2 of 169 Wails were kicked where 89 were, and told a raid to set up a kick rotation it already had. The adds' casts, who had a kick ready and the raid note's kick checks now count them as Warcraft Logs does.
+- `Discord` **A suggested follow-up keeps what came before it.** Clicking one after a long conversation had started over lost the earlier messages, so a follow-up about a log linked earlier was answered about the guild's latest raid instead, or said the player wasn't there.
 
 ## [0.35.4] - 2026-10-29
 
