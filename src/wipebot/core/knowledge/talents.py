@@ -67,6 +67,12 @@ def untaken_spells(tree: dict, talents: Collection[int]) -> set[int]:
     return {spell for spell, entries in grants.items() if not entries & set(talents)}
 
 
+def tree_spells(tree: dict) -> set[int]:
+    """Every spell id the tree grants or shows, taken or not: a cooldown outside it is baseline or a PvP talent."""
+    return {spell for key in ("classNodes", "specNodes", "heroNodes") for n in tree.get(key) or []
+            for e in n.get("entries") or [] for spell in (e.get("spellId"), e.get("visibleSpellId")) if spell}
+
+
 async def versions_difference(entry: int, other: int) -> str:
     """How two versions of one spell on a choice node (`choice_versions`) differ, from their Wowhead tooltips:
     'their tooltips differ only in "a selected location" / "your target"'; '' when a tooltip can't be read."""

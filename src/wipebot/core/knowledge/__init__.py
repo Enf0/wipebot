@@ -25,16 +25,26 @@ from .players import character_experience_text
 from .raidbots import choice_versions, consumable_items, enchant_names, talent_names, talent_parts, talent_trees
 from .specs import heals, spec_cooldowns_text, spec_guide_text, spec_spells
 from .spells import (
-                     defensive_effect,
-                     items_granting,
-                     lust_debuffs,
-                     lust_duration_s,
-                     spell_cooldown,
-                     spell_icon,
-                     spell_name,
-                     spell_text,
+    defensive_effect,
+    items_granting,
+    lust_debuffs,
+    lust_duration_s,
+    pvp_talent,
+    spell_cooldown,
+    spell_icon,
+    spell_name,
+    spell_text,
 )
-from .talents import build_hero, class_and_spec, guide_builds, hero_tree, tree_for, untaken_spells, versions_difference
+from .talents import (
+    build_hero,
+    class_and_spec,
+    guide_builds,
+    hero_tree,
+    tree_for,
+    tree_spells,
+    untaken_spells,
+    versions_difference,
+)
 from .top_parses import cooldown_comparison_text, top_cooldowns_text
 
 __all__ = [
@@ -46,9 +56,10 @@ __all__ = [
     "top_cooldowns_text",
     "defensive_effect", "enchant_names", "guide_builds", "heals", "hero_tree", "hotfixes_text", "items_granting",
     "lust_debuffs", "lust_duration_s", "map_bounds", "map_image", "matches_boss",
-    "names_boss", "raids", "read_text", "search_text",
+    "names_boss", "pvp_talent", "raids", "read_text", "search_text",
     "spaced",
     "spec_cooldowns_text", "spec_guide_text", "spec_spells", "spell_cooldown", "spell_name",
-    "spell_text", "talent_names", "talent_parts", "talent_trees", "tree_for", "untaken_spells", "versions_difference",
+    "spell_text", "talent_names", "talent_parts", "talent_trees", "tree_for", "tree_spells", "untaken_spells",
+    "versions_difference",
     "wcl_image",
 ]

@@ -28,7 +28,7 @@ async def cooldown_lines(rep: Report, f: dict, p: Player, casts: list[dict]) -> 
         rows, untalented = await cooldown_use(rep, p, f, casts, early)
     except KnowledgeError as e:
         return lines + [unavailable("Major cooldowns", e)]
-    if not rows:
+    if not rows and not untalented:
         return lines + [f"Lorrgs lists no cooldowns for {p.spec} {p.class_name}."]
     judged = [r for r in rows if not NOT_ON_COOLDOWN & set(r[0].get("tags") or [])]
     moments = [r for r in rows if NOT_ON_COOLDOWN & set(r[0].get("tags") or [])]
@@ -168,8 +168,8 @@ async def cooldown_use(rep: Report, p: Player, f: dict, casts: list[dict], early
     Lorrgs tags but gives no cooldown for: (spell, use times from pull start, possible uses in the pull, or None
     when the cooldown isn't known; one whose buff was already up at the pull, in `early`, used at 0:00, cast
     before it: Stormkeeper before the pull); and the names of those their talents leave out (one side of a choice
-    node, a talent skipped), or None when the talents aren't in the log. Uses and possible uses count until the
-    player died (for good) or the wipe was decided."""
+    node, a talent skipped, a PvP talent Lorrgs still lists), or None when the talents aren't in the log. Uses and
+    possible uses count until the player died (for good) or the wipe was decided."""
     _, alive_until = alive(rep, f, p, [d for d in await rep.deaths(f) if d["targetID"] == p.id], casts)
     decided = await rep.decided_at(f)
     end_ms = min(alive_until, f["startTime"] + decided.at_ms if decided else f["endTime"]) - f["startTime"]
@@ -177,6 +177,7 @@ async def cooldown_use(rep: Report, p: Player, f: dict, casts: list[dict], early
     talents = ((await rep.details(f)).get(p.id, {}).get("combatantInfo") or {}).get("talentTree") or []
     tree = await knowledge.tree_for(p.class_name, p.spec) if talents else None
     untaken = knowledge.untaken_spells(tree, {t["id"] for t in talents}) if tree else set()
+    in_tree = knowledge.tree_spells(tree) if tree else set()
     rows, skipped = [], []
     for sp in await rep.spells(p):
         cd = sp.get("cooldown") or 0
@@ -187,7 +188,8 @@ async def cooldown_use(rep: Report, p: Player, f: dict, casts: list[dict], early
                              and (t := c["timestamp"] - f["startTime"]) <= end_ms])
         if name_key(sp["name"]) in {name_key(e) for e in early}:
             times.insert(0, 0.0)
-        if sp["spell_id"] in untaken and not times:
+        if not times and (sp["spell_id"] in untaken or tree and sp["spell_id"] not in in_tree
+                          and await knowledge.pvp_talent(sp["spell_id"])):
             skipped.append(sp["name"])
             continue
         rows.append((sp, times, None if unknown else int(dur_s // cd) + 1))

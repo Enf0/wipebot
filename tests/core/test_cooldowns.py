@@ -53,6 +53,27 @@ async def test_cooldowns_left_out_by_the_talents_are_not_judged(rep, pull, fake_
            "cooldown): Healing Tide Totem" in lines
 
 
+async def test_a_pvp_talent_lorrgs_still_lists_is_not_a_missed_cooldown(rep, pull, fake_knowledge, monkeypatch):
+    f, p, cast = pull
+    # Outside the tree: a baseline cooldown (judged) and a PvP talent (Emerald Communion for a Preservation Evoker)
+    spells = [{"spell_id": 2825, "name": "Bloodlust", "cooldown": 300.0, "tags": ["raid_cd"]},
+              {"spell_id": 370960, "name": "Emerald Communion", "cooldown": 180.0, "tags": ["raid_cd"]}]
+    talents = {"talentTree": [{"id": 101912, "nodeID": 81032}]}
+
+    async def details(fight):
+        return {p.id: {"combatantInfo": talents}}
+
+    async def spec_spells(player):
+        return spells
+    fake_knowledge(tree_for=TREE, pvp_talent=lambda spell_id: spell_id == 370960)
+    monkeypatch.setattr(rep, "details", details)
+    monkeypatch.setattr(rep, "spells", spec_spells)
+    lines = "\n".join(await cooldowns.cooldown_lines(rep, f, p, []))
+    assert "  Bloodlust [2825] (raid_cd): 0/1" in lines
+    assert "Emerald Communion [" not in lines
+    assert "missed cooldown): Emerald Communion" in lines
+
+
 async def test_cooldowns_count_a_replacing_talent_an_unknown_cooldown_and_when_one_came_back(rep, pull, monkeypatch):
     f, p, cast = pull
     spells = RESTO_SPELLS + [

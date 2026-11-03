@@ -132,6 +132,19 @@ async def spell_cooldown(spell_id: int) -> float | None:
     return float(m.group(1)) * (60 if m.group(2).lower() == "min" else 1) if m else None
 
 
+_PVP_TALENT = re.compile(r"\bPvP Talent\b", re.I)
+
+
+async def pvp_talent(spell_id: int) -> bool:
+    """Whether Wowhead's tooltip calls the spell a PvP talent (Emerald Communion since Midnight): Lorrgs still lists
+    some as a spec's cooldowns, and a raid log never has them. False when Wowhead has no such spell or can't be
+    read, so the cooldown is still judged."""
+    try:
+        return bool(_PVP_TALENT.search((await tooltip(spell_id)).text))
+    except KnowledgeError:
+        return False
+
+
 _spell_names = Memo()
 
 
