@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.7] - 2026-11-03
+
 ### Fixed
 
 - `Agent` **Cooldowns and defensives are back.** Lorrgs moved its game data to new addresses on 2 November, so since then answers had no major cooldowns, defensives, raid cooldowns or boss timeline to go on, and said the cooldown timing couldn't be fetched. They're read from the new addresses again.
