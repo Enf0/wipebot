@@ -37,6 +37,8 @@ MODULES = {
     "lorrgs": "lorrgs_cli", "icy-veins": "icy_veins_cli", "warcraftlogs": "warcraftlogs_cli",
     "raiderio": "raiderio_cli", "warcraft-wiki": "warcraft_wiki_cli",
 }
+# Code run before a command, for a source that changed before warcraft_cli did (each module says when to remove it)
+STOPGAPS = {"lorrgs": "from wipebot.core.knowledge.lorrgs_routes import patch; patch(); "}
 CLI_CONCURRENCY = 6
 CLI_TIMEOUT_S = 60  # a hung command (a site that stops answering) gives up rather than holding an answer forever
 
@@ -107,7 +109,7 @@ async def _run(tool: str, *args: str) -> dict:
     use_wcl_env_names()
     async with _limit():
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, "-c", f"from {MODULES[tool]}.main import run; run()", *args,
+            sys.executable, "-c", (STOPGAPS.get(tool, "") + f"from {MODULES[tool]}.main import run; run()"), *args,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         try:
             out, err = await asyncio.wait_for(proc.communicate(), CLI_TIMEOUT_S)

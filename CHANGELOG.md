@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Agent` **Cooldowns and defensives are back.** Lorrgs moved its game data to new addresses on 2 November, so since then answers had no major cooldowns, defensives, raid cooldowns or boss timeline to go on, and said the cooldown timing couldn't be fetched. They're read from the new addresses again.
 - `Agent` **Bloodlust from an Evoker counts.** Fury of the Aspects refreshes itself every few seconds in the log, so asking whether Bloodlust was up at a player's casts said it never was when an Evoker cast it.
 
 ## [0.35.6] - 2026-11-03
