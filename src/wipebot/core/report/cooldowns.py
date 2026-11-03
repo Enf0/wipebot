@@ -188,7 +188,9 @@ async def cooldown_use(rep: Report, p: Player, f: dict, casts: list[dict], early
                              and (t := c["timestamp"] - f["startTime"]) <= end_ms])
         if name_key(sp["name"]) in {name_key(e) for e in early}:
             times.insert(0, 0.0)
+        # A defensive or a movement spell is listed only when used, so only a judged one is looked up
         if not times and (sp["spell_id"] in untaken or tree and sp["spell_id"] not in in_tree
+                          and not NOT_ON_COOLDOWN & set(sp.get("tags") or [])
                           and await knowledge.pvp_talent(sp["spell_id"])):
             skipped.append(sp["name"])
             continue
