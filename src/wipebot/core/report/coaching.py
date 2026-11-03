@@ -1,6 +1,7 @@
 """One player: a pull of theirs (`player_pull`), a night of theirs (`player_night`), and a buff at
 their casts (`buff_at_casts`)."""
 import asyncio
+import itertools
 import math
 import statistics
 from collections import Counter, defaultdict
@@ -809,6 +810,22 @@ async def _resource_casts(rep: Report, f: dict, p: Player, kind: int, spell_ids:
 LUST_NAMES = ("lust", "bloodlust", "heroism", "hero")  # what raiders call Bloodlust and its kin
 LUST_SAME_MS = 100  # a buff gained this close to a player's Sated (& co.) came with it
 LUST_LASTED = 0.75  # and lasted at least this share of Bloodlust's duration, or until the pull ended
+REFRESH_MS = 50  # a buff removed and gained again this close together is one buff refreshed
+
+
+def _aura_end(auras: list[dict], i: int, pull_end: int) -> int:
+    """When the buff gained at `auras[i]` ran out: its first removal not gained again at once (a buff refreshed as
+    a removal and a gain at the same moment, as Fury of the Aspects is, runs on), or the pull's end."""
+    aura = auras[i].get("abilityGameID")
+    for j in range(i + 1, len(auras)):
+        x = auras[j]
+        if x["type"] != "removebuff" or x.get("abilityGameID") != aura:
+            continue
+        until = x["timestamp"] + REFRESH_MS
+        soon = itertools.takewhile(lambda y: y["timestamp"] <= until, auras[j + 1:])
+        if not any(y["type"] == "applybuff" and y.get("abilityGameID") == aura for y in soon):
+            return x["timestamp"]
+    return pull_end
 
 
 async def _buff_ids(rep: Report, buff: str, items: list[tuple[dict, Player]]) -> tuple[set[int], str]:
@@ -830,8 +847,7 @@ async def _buff_ids(rep: Report, buff: str, items: list[tuple[dict, Player]]) ->
         for i, e in enumerate(auras):
             if e["type"] != "applybuff" or not any(abs(e["timestamp"] - t) <= LUST_SAME_MS for t in sated):
                 continue
-            end = next((x["timestamp"] for x in auras[i + 1:] if x["type"] == "removebuff"
-                        and x.get("abilityGameID") == e.get("abilityGameID")), f["endTime"])
+            end = _aura_end(auras, i, f["endTime"])
             if end - e["timestamp"] >= LUST_LASTED * duration or end >= f["endTime"] - LUST_GROUP_MS:
                 found.add(e["abilityGameID"])
     names = sorted({rep.ability(i) for i in found})

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **Bloodlust from an Evoker counts.** Fury of the Aspects refreshes itself every few seconds in the log, so asking whether Bloodlust was up at a player's casts said it never was when an Evoker cast it.
+
 ## [0.35.6] - 2026-11-03
 
 ### Fixed
