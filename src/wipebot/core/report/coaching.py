@@ -1,7 +1,6 @@
 """One player: a pull of theirs (`player_pull`), a night of theirs (`player_night`), and a buff at
 their casts (`buff_at_casts`)."""
 import asyncio
-import itertools
 import math
 import statistics
 from collections import Counter, defaultdict
@@ -821,8 +820,7 @@ def _aura_end(auras: list[dict], i: int, pull_end: int) -> int:
         x = auras[j]
         if x["type"] != "removebuff" or x.get("abilityGameID") != aura:
             continue
-        until = x["timestamp"] + REFRESH_MS
-        soon = itertools.takewhile(lambda y: y["timestamp"] <= until, auras[j + 1:])
+        soon = (y for y in auras[j + 1:] if y["timestamp"] <= x["timestamp"] + REFRESH_MS)
         if not any(y["type"] == "applybuff" and y.get("abilityGameID") == aura for y in soon):
             return x["timestamp"]
     return pull_end
