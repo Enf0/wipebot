@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.6] - 2026-11-03
+
 ### Fixed
 
 - `Agent` **A PvP talent isn't a missed cooldown.** Lorrgs still lists some PvP talents among a spec's cooldowns (Emerald Communion for a Preservation Evoker), so a raid log showed them as never pressed, and the bot told a healer to use one for mana. They're now listed with the cooldowns the player's talents leave out.
