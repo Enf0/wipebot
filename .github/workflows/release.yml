@@ -72,7 +72,14 @@ jobs:
             git push origin "$tag"
           fi
           python3 -m scripts.release --notes "$version" > "$RUNNER_TEMP/notes.md"
-          gh release create "$tag" --verify-tag --title "Wipebot $version" --notes-file "$RUNNER_TEMP/notes.md"
+          # GitHub's API answers a 502 now and then: try again, unless the failed call made the release after all
+          for wait in 10 30 60 0; do
+            gh release create "$tag" --verify-tag --title "Wipebot $version" --notes-file "$RUNNER_TEMP/notes.md" && break
+            if gh release view "$tag" > /dev/null 2>&1; then break; fi
+            if [ "$wait" = 0 ]; then exit 1; fi
+            echo "::warning::making the release failed, trying again in $wait s"
+            sleep "$wait"
+          done
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Deploy the public copy
         env:
