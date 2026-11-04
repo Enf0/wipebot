@@ -147,3 +147,21 @@ def test_a_player_in_only_some_pulls_gets_their_rate_over_those():
     assert tables._in_fewer(rep, q, p, 9_000_000) == ", in 2 of 3 pulls (100.00k/s over them)"
     assert tables._in_fewer(rep, replace(q, fights=[fights[0]]), p, 1) == ""
     assert tables._in_fewer(rep, replace(q, data_type="Casts"), p, 1) == ""
+
+
+def test_damage_on_one_enemy_is_asked_by_its_name_over_the_pulls_it_was_in():
+    # #1259 of the bot's answers: damage on one add in a window of the pull, which only a raw query could tell.
+    actors = {1: "Spiteful Soulcoiler", 2: "Manifestation of Dread", 3: "Zul'jan"}
+    rep = cast(Report, SimpleNamespace(actor=lambda i: actors[i]))
+    fights = [{"id": 1, "enemyNPCs": [{"id": 1}, {"id": 3}]}, {"id": 2, "enemyNPCs": [{"id": 2}, {"id": 3}]}]
+    assert tables._target(rep, fights, "soulcoiler") == ("Spiteful Soulcoiler", [fights[0]])
+    assert tables._target(rep, fights, "zul'jan") == ("Zul'jan", fights)
+    with pytest.raises(FactError, match="No enemy named \"Axegrinder\" in these pulls. Enemies: Manifestation"):
+        tables._target(rep, fights, "Axegrinder")
+    with pytest.raises(FactError, match="matches Manifestation of Dread, Spiteful Soulcoiler: which one?"):
+        tables._target(rep, fights, "i")
+
+
+async def test_a_target_is_for_damage_done(rep):
+    with pytest.raises(FactError, match="target works for DamageDone"):
+        await tables.breakdown(rep, "Healing", target="Sszorak")

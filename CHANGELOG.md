@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `Agent` **The build comparison shows each piece of gear with its stats.** Asking about a player's gear against the top now lists every slot with the item, its item level and its secondary stats as worn (a crafted piece's chosen stats, an upgraded piece's level), so the bot can say which piece gives the stat a raider is short of, not only the totals.
+- `Agent` **Damage on one enemy.** Asking who did the most damage to one add or one boss of a council, over a pull, a night or a few seconds of each pull, now counts only the damage on that enemy.
 
 ## [0.35.8] - 2026-11-04
 

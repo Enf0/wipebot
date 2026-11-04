@@ -1603,6 +1603,9 @@ async def breakdown(
     least: Annotated[bool, Field(description=(
         "by player, for \"who did the least damage or healing?\": least first, of the damage dealers for "
         "DamageDone and of the healers for Healing"))] = False,
+    target: Annotated[str | None, Field(description=(
+        "DamageDone on one enemy only, by its name (an add, a boss of a council), for \"who did the most damage "
+        "to it?\", with start and end for a window"))] = None,
     report: Report_ = None,
 ) -> str:
     """For "who did the most or the least damage?", "what hurt us most?", "who kicked or dispelled?", "who played
@@ -1623,7 +1626,7 @@ async def breakdown(
     (healing), or who had a kick ready for a cast that went through (enemies).
     Example: data_type="DamageTaken", group_by="ability", pulls=[13]."""
     return await tables.breakdown(await lib().report(report), data_type, group_by, pulls, boss, player, ability, cutoff,
-                                  whole_pull, start, end, least)
+                                  whole_pull, start, end, least, target)
 
 
 @_tool

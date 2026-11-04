@@ -1,10 +1,11 @@
 """`breakdown`: any WCL table over any set of pulls on a boss, grouped by player, ability or pull."""
+import json
 import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass, replace
 from typing import Literal, get_args
 
-from ..text import clock, name_key, ordinal, plural, short
+from ..text import clock, fold, name_key, ordinal, plural, short
 from .base import ROLE_NAMES, FactError, Player, Report, pull_window
 from .casting import cast_rows
 from .meter import MIN_BARS, Bar, Meter
@@ -36,6 +37,7 @@ class Asked:
     scope: str  # "all 33 Sszorak pulls", "Sszorak pull 13"
     window: str  # ", 2:10-2:20" of each pull, or ""
     cut: bool  # each pull stops where its wipe was decided
+    target: str | None = None  # one enemy's name: damage done on it only
 
     @property
     def dur_s(self) -> float:
@@ -46,12 +48,12 @@ class Asked:
 async def breakdown(rep: Report, data_type: str, group_by: str = "player", pulls: list[int] | None = None,
                     boss: str | None = None, player: str | None = None, ability: str | None = None,
                     cutoff: int | None = None, whole_pull: bool = False, start: str | None = None,
-                    end: str | None = None, least: bool = False) -> str:
+                    end: str | None = None, least: bool = False, target: str | None = None) -> str:
     """Any WCL table over any set of pulls on a boss, grouped by player, ability or pull: those summed per pull
     (UNTIL_DECIDED_TYPES) each only until its wipe was decided, but with `whole_pull`, and only from `start` to `end`
-    (m:ss) of each pull when given; by player with `least`, least first among the role the table is for
-    (LEAST_AMONG)."""
-    q = await _asked(rep, data_type, group_by, pulls, boss, player, ability, cutoff, whole_pull, start, end)
+    (m:ss) of each pull when given; damage done on one enemy only with `target`; by player with `least`, least
+    first among the role the table is for (LEAST_AMONG)."""
+    q = await _asked(rep, data_type, group_by, pulls, boss, player, ability, cutoff, whole_pull, start, end, target)
     if least and (q.group_by != "player" or q.player or q.data_type not in LEAST_TYPES):
         raise FactError(f"least ranks players by {', '.join(LEAST_TYPES)}, without a player")
     if q.data_type in ("Interrupts", "Dispels"):
@@ -84,13 +86,14 @@ def _least(rep: Report, q: Asked, rows: list[tuple]) -> tuple[list[tuple], str]:
 
 async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, boss: str | None = None,
                 ability: str | None = None, cutoff: int | None = None, whole_pull: bool = False,
-                start: str | None = None, end: str | None = None, least: bool = False) -> Meter | None:
+                start: str | None = None, end: str | None = None, least: bool = False,
+                target: str | None = None) -> Meter | None:
     """The breakdown by player as a meter (its rows, as the text states them), for damage, healing, damage taken,
     kicks and dispels, with `least` from the least; None for another table or fewer than MIN_BARS players."""
     if data_type not in METERS or least and data_type not in LEAST_TYPES:
         return None
-    q = await _asked(rep, data_type, "player", pulls, boss, None, ability, cutoff, whole_pull, start, end)
-    title = METERS[data_type] + (f": {q.ability}" if q.ability else "")
+    q = await _asked(rep, data_type, "player", pulls, boss, None, ability, cutoff, whole_pull, start, end, target)
+    title = METERS[data_type] + (f": {q.ability}" if q.ability else "") + (f" on {q.target}" if q.target else "")
     scope = q.scope + q.window + (", each until its wipe was decided" if q.cut and len(q.fights) > 1
                        else ", until the wipe was decided" if q.cut else "")
     scope += f", each until its {ordinal(cutoff)} death" if cutoff else ""
@@ -120,9 +123,11 @@ async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, bos
 
 async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | None, boss: str | None,
                  player: str | None, ability: str | None, cutoff: int | None, whole_pull: bool,
-                 start: str | None = None, end: str | None = None) -> Asked:
+                 start: str | None = None, end: str | None = None, target: str | None = None) -> Asked:
     if data_type not in BREAKDOWN_TYPES:
         raise FactError(f"data_type must be one of {', '.join(BREAKDOWN_TYPES)}")
+    if target and data_type != "DamageDone":
+        raise FactError("target works for DamageDone: the damage done on one enemy")
     if group_by not in ("player", "ability", "pull"):
         raise FactError("group_by must be player, ability or pull")
     window = pull_window(start, end)
@@ -138,6 +143,10 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
     elif p:
         fights = rep.pulls_with(p, fights)
     filters = _filters(data_type, p)
+    if target:
+        target, fights = _target(rep, fights, target)
+        # by name: an enemy that comes several times (adds) is one actor per copy
+        filters["filterExpression"] = f"target.name = {json.dumps(target, ensure_ascii=False)}"
     if cutoff:
         filters["wipeCutoff"] = cutoff  # WCL ignores everything after this many deaths in each pull
     ids: list[int | None] = list(rep.ability_ids(ability)) if ability else [None]
@@ -164,10 +173,24 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
     who = (f", applied by {p.name}" if data_type == "EnemyDebuffs" else f", {p.name} only") if p else ""
     head = (("" if pulls else rep.still_going(rep.by_boss[b])) + f"{what} on {scope}{span}{who}"
             + (f", {ability} only" if ability else "")
+            + (f", damage on {target} only" if target else "")
             + (f", each pull until its {ordinal(cutoff)} death" if cutoff else "")
             + decided_note)
     return Asked("Debuffs" if data_type == "EnemyDebuffs" else data_type, group_by, fights, p, filters, ability,
-                 ids, cutoff, ends, starts, head, scope, span, bool(cut and ends))
+                 ids, cutoff, ends, starts, head, scope, span, bool(cut and ends), target)
+
+
+def _target(rep: Report, fights: list[dict], typed: str) -> tuple[str, list[dict]]:
+    """An enemy of the pulls by its name or part of it (accents optional), and the pulls it was in."""
+    def enemies(f: dict) -> set[str]:
+        return {rep.actor(n["id"]) for n in f.get("enemyNPCs") or []}
+    names = sorted(set().union(*(enemies(f) for f in fights)))
+    want = fold(typed).casefold().strip()
+    found = [n for n in names if fold(n).casefold() == want] or [n for n in names if want in fold(n).casefold()]
+    if len(found) != 1:
+        raise FactError((f"\"{typed}\" matches {', '.join(found)}: which one?" if found else
+                         f"No enemy named \"{typed}\" in these pulls.") + " Enemies: " + ", ".join(names))
+    return found[0], [f for f in fights if found[0] in enemies(f)]
 
 
 def _windowed(rep: Report, fights: list[dict], window: tuple[float, float],
@@ -348,7 +371,7 @@ async def _parses(rep: Report, q: Asked) -> tuple[dict[str, int], str]:
     """({player: parse}, metric) for damage or healing by player on one whole kill; ({}, "") otherwise (a wipe,
     several pulls, a cutoff, one ability: the parse is of the whole kill)."""
     metric = {"DamageDone": "dps", "Healing": "hps"}.get(q.data_type, "")
-    one_kill = len(q.fights) == 1 and q.fights[0]["kill"] and not (q.cutoff or q.ends or q.ability)
+    one_kill = len(q.fights) == 1 and q.fights[0]["kill"] and not (q.cutoff or q.ends or q.ability or q.target)
     if not metric or q.group_by != "player" or not one_kill:
         return {}, ""
     return await kill_parses(rep, q.fights[0], metric), metric

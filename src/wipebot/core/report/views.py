@@ -800,7 +800,7 @@ async def meters_of(rep: Report, tool: str, args: dict, other: Report | None = N
         case "breakdown" if a.get("group_by", "player") == "player" and not a.get("player"):
             found = await tables.meter(rep, a.get("data_type", ""), a.get("pulls"), a.get("boss"), a.get("ability"),
                                        a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"), a.get("end"),
-                                       bool(a.get("least")))
+                                       bool(a.get("least")), a.get("target"))
             return [found] if found else []
         case "mechanic_hits" if a.get("ability") and other is not None:  # against another night (`other`)
             found = await mechanics.meter_against(rep, other, a["ability"], a.get("boss"), bool(a.get("whole_pull")),
