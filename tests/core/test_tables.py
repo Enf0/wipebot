@@ -1,8 +1,12 @@
 """`breakdown` (report/tables.py): what it asks Warcraft Logs for. What it makes of the answers is pinned by the tool
 cases on real pulls (test_tools.py: damage taken, healing, buffs, by pull, interrupts, dispels)."""
+from dataclasses import replace
+from types import SimpleNamespace
+from typing import cast
+
 import pytest
 
-from wipebot.core.report import FactError, tables
+from wipebot.core.report import FactError, Player, Report, tables
 
 
 @pytest.mark.parametrize("args, error", [
@@ -130,3 +134,16 @@ def test_a_composite_damage_or_healing_row_is_split_by_name_and_its_parts_of_one
     assert rows["Overflowing Light"]["total"] == 3
     assert rows["Rune of Lingering (Omnium Folio)"]["total"] == 1
     assert rows["Soulcoiler Ritual Vessel"]["total"] == 5
+
+
+def test_a_player_in_only_some_pulls_gets_their_rate_over_those():
+    # #1269 of the bot's answers: a Retribution Paladin in 20 of 28 pulls ranked on 168k/s over the night, the
+    # pulls they sat out counted as time doing nothing; 215k/s over their own pulls.
+    p = Player(7, "Nalaxd", "Paladin", "Retribution", "dps")
+    fights = [{"id": i, "startTime": i * 100_000, "endTime": i * 100_000 + 60_000} for i in (1, 2, 3)]
+    rep = cast(Report, SimpleNamespace(pull_players=lambda f: {7: p} if f["id"] != 2 else {}))
+    q = tables.Asked("DamageDone", "player", fights, None, {}, None, [None], None, {3: 330_000}, {}, "", "", "",
+                     False)
+    assert tables._in_fewer(rep, q, p, 9_000_000) == ", in 2 of 3 pulls (100.00k/s over them)"
+    assert tables._in_fewer(rep, replace(q, fights=[fights[0]]), p, 1) == ""
+    assert tables._in_fewer(rep, replace(q, data_type="Casts"), p, 1) == ""

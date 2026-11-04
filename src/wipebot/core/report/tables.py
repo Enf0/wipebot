@@ -312,7 +312,8 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
         if q.data_type == "Healing" and dur_s and (over := s.counts.get(name, Counter())["overheal"]):
             # ", overheal 45%" leads a healing row's extra: what was healed with the overheal, per second, after it
             extra = extra.replace("%", f"% ({short((value + over) / dur_s)}/s with it)", 1)
-        lines.append(f"  {k}. {who}{tag}: {_fmt_value(value, q.data_type, dur_s, total_time)}{share}{parse}{extra}")
+        lines.append(f"  {k}. {who}{tag}: {_fmt_value(value, q.data_type, dur_s, total_time)}{share}{parse}"
+                     f"{_in_fewer(rep, q, p, value) if p else ''}{extra}")
     if not rows:
         lines.append("  nothing recorded")
         if q.ability and q.player and (others := await _without_ability(rep, q)):
@@ -329,6 +330,18 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
         lines.append(f"Parses are Warcraft Logs' {s.metric} percentiles against the same spec on this kill, for the "
                      "players ranked by it: compare players by these, not by the totals across specs.")
     return "\n".join(lines)
+
+
+def _in_fewer(rep: Report, q: Asked, p: Player, value: float) -> str:
+    """For a player in only some of the pulls summed, how many and their rate over those: the rate over every pull
+    counts the pulls they sat out as time doing nothing."""
+    if q.cutoff or q.data_type not in ("DamageDone", "Healing", "DamageTaken"):
+        return ""
+    present = [f for f in q.fights if p.id in rep.pull_players(f)]
+    if not present or len(present) == len(q.fights):
+        return ""
+    own = sum(q.ends.get(f["id"], f["endTime"]) - q.starts.get(f["id"], f["startTime"]) for f in present) / 1000
+    return f", in {len(present)} of {len(q.fights)} pulls ({short(value / own)}/s over them)" if own else ""
 
 
 async def _parses(rep: Report, q: Asked) -> tuple[dict[str, int], str]:
