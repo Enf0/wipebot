@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.8] - 2026-11-04
+
 ### Fixed
 
 - `Agent` **Damage and healing over a night show each player's rate over the pulls they were in.** A player who sat out some pulls was shown only at their rate over every pull, as if they did nothing in the ones they missed: a Retribution Paladin in 20 of 28 pulls showed 168k/s, where they did 215k/s in their own. Such a player's row now says how many pulls they were in and their rate over those.
