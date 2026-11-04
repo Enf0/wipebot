@@ -173,6 +173,16 @@ def test_end_buffs_count_from_the_pull_and_its_edges():
     assert lost_buffs(fight, [buff(t0 + 99_000, 1, "removebuff"), buff(t0 + 98_999, 2, "removebuff")]) == {2}
 
 
+def test_a_buff_gained_as_a_phase_began_is_the_phase_not_the_end():
+    # The Coiled Altar pull 28 of fk2z6bCw4xRLNvht: Stage Three began at 6:46, the boss gained Soulbound with it and
+    # Corrupted Toxin 4 s later, and the raid died to Venom Rupture at 6:59; neither buff was what ended the pull.
+    t0 = 1_000_000
+    fight = {"startTime": t0, "endTime": t0 + 431_000,
+             "phaseTransitions": [{"id": 1, "startTime": t0}, {"id": 4, "startTime": t0 + 406_000}]}
+    events = [buff(t0 + 406_000, 1), buff(t0 + 410_000, 2), buff(t0 + 412_000, 3)]
+    assert end_buffs(fight, events) == [(3, 412_000)]
+
+
 def test_a_wipe_with_no_death_after_the_decision_or_none_says_plainly_what_killed():
     deaths = [{"timestamp": 30_000, "targetID": 7, "killingAbilityGameID": 1}]
     for decided in (None, 45_000):

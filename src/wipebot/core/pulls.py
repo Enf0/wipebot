@@ -12,7 +12,7 @@ FIRST_DEATHS = 3  # the deaths that usually start a wipe; later ones are mostly 
 KILLERS_SHOWN = 5
 TREND_LENGTH = 5
 RESET_PCT = 99.0  # a wipe with the boss still above this was a reset, not an attempt
-BUFF_GRACE_MS = 5_000  # boss buffs gained this early are part of the pull's setup
+BUFF_GRACE_MS = 5_000  # boss buffs gained this early in the pull, or in a phase, are part of its setup
 END_SLACK_MS = 1_000  # a buff removed this close to the end was still up when the pull ended
 # An enrage ends a pull within seconds (Sszorak's within 18 s); a buff the boss carries for minutes to the end
 # (Vashnik's Flame Infusion from 0:24, Nymrissa's Wavecaller's Might) is part of the fight, not what ended it.
@@ -125,12 +125,15 @@ def end_buffs(fight: dict, buff_events: list[dict], routine: Collection[int] = (
     """(ability id, ms from pull start) of each buff a boss gained shortly before the end of a pull (within
     END_BUFF_WINDOW_MS) and still had at the end, such as an enrage. `buff_events` are the bosses'
     applybuff/removebuff events of this fight; `routine` are buffs the boss was seen to lose during earlier pulls,
-    which are left out (a pull that ends during a routine buff says nothing)."""
+    which are left out (a pull that ends during a routine buff says nothing), as are buffs gained as a phase began
+    (the Coiled Altar's Soulbound in Stage Three), what the phase is, not what ended it."""
     routine = set(routine) | lost_buffs(fight, buff_events)
     t0 = fight["startTime"]
+    starts = [t0] + [p["startTime"] for p in fight.get("phaseTransitions") or [] if p.get("startTime")]
     found: dict[int, float] = {}
     for e in buff_events:
-        if e["type"] == "applybuff" and e["abilityGameID"] not in routine and e["timestamp"] - t0 >= BUFF_GRACE_MS \
+        if e["type"] == "applybuff" and e["abilityGameID"] not in routine \
+                and not any(0 <= e["timestamp"] - s < BUFF_GRACE_MS for s in starts) \
                 and fight["endTime"] - e["timestamp"] <= END_BUFF_WINDOW_MS:
             found[e["abilityGameID"]] = min(found.get(e["abilityGameID"], e["timestamp"]), e["timestamp"])
     return sorted(((a, at - t0) for a, at in found.items()), key=lambda x: x[1])

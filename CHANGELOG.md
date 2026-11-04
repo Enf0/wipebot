@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A buff the boss gains as a phase begins isn't what ended the pull.** The Coiled Altar gains Soulbound as Stage Three starts, so a pull that reached it was said to end on that buff like an enrage, and every death after it was left out as fallout. The bot then said Soulbound ended the night's best pull, when Venom Rupture killed the raid 13 s later. Such buffs now count as part of the phase.
+
 ## [0.35.7] - 2026-11-03
 
 ### Fixed
