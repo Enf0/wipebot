@@ -38,7 +38,8 @@ MODULES = {
     "raiderio": "raiderio_cli", "warcraft-wiki": "warcraft_wiki_cli",
 }
 # Code run before a command, for a source that changed before warcraft_cli did (each module says when to remove it)
-STOPGAPS = {"lorrgs": "from wipebot.core.knowledge.lorrgs_routes import patch; patch(); "}
+STOPGAPS = {"lorrgs": "from wipebot.core.knowledge.lorrgs_routes import patch; patch(); ",
+            "wowhead": "from wipebot.core.knowledge.wowhead_bonus import patch; patch(); "}
 CLI_CONCURRENCY = 6
 CLI_TIMEOUT_S = 60  # a hung command (a site that stops answering) gives up rather than holding an answer forever
 

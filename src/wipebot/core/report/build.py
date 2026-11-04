@@ -206,6 +206,7 @@ async def compare_build(rep: Report, player: str, pull: PullRef = None, boss: st
     lines += _enchant_lines(gaps["enchants"], n_all)
     lines.append("Gems most top players have and they don't: " + (", ".join(gaps["no_gem"]) or "none missing"))
     lines.append(gear_stats(gaps["det"]))
+    lines.append(await gear_by_slot(gaps["det"]))
     lines.append(await _top_stats(rep, gaps))
     lines.append(await prepared(rep, f, p))
     try:
@@ -304,6 +305,38 @@ def gear_stats(det: dict) -> str:
             + (f" ({' and '.join(below)} below zero as the log gives it; the log doesn't say why)" if below else "")
             + "".join(f"; {n} {v}" for n, v in primary)
             + ("; " + ", ".join(f"{n} {v}" for n, v in minor) if minor else "") + ".")
+
+
+STAT_SHORT = {"Critical Strike": "Crit"}
+
+
+async def gear_by_slot(det: dict) -> str:
+    """Each piece the player wore at the pull: its item, item level and secondary and minor stats, from Wowhead's
+    tooltip with the piece's bonus IDs (its upgrade, a crafted piece's chosen stats)."""
+    gear = sorted((g for g in (det.get("combatantInfo") or {}).get("gear") or []
+                   if g.get("id") and g.get("slot") in SLOTS), key=lambda g: g["slot"])
+    if not gear:
+        return "Gear by slot: not in the log (needs advanced combat logging)."
+
+    async def one(g: dict) -> tuple[str, int | None, list[tuple[str, int]]] | None:
+        try:
+            return await knowledge.worn_item(int(g["id"]), [int(b) for b in g.get("bonusIDs") or []])
+        except KnowledgeError:
+            return None
+    pieces = []
+    for g, tip in zip(gear, await asyncio.gather(*(one(g) for g in gear)), strict=True):
+        level = g.get("itemLevel") or (tip[1] if tip else None)
+        text = f"{SLOTS[g['slot']]} {g.get('name') or (tip[0] if tip else f'item {g['id']}')}"
+        text += f" ({level})" if level else ""
+        if tip is None:
+            text += ": stats unknown (Wowhead didn't answer)"
+        elif tip[2]:
+            text += ": " + ", ".join(f"{v} {STAT_SHORT.get(n, n)}" for n, v in tip[2])
+            if tip[1] and level and tip[1] != level:
+                text += f" (Wowhead's tooltip is item level {tip[1]}: its stats are at that level)"
+        pieces.append(text)
+    return ("Gear by slot at the pull (item level from the log; secondary and minor stats from Wowhead's tooltip with "
+            "the piece's bonus IDs, before gems and enchants): " + "; ".join(pieces) + ".")
 
 
 async def raid_prep(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:

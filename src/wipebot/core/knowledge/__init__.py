@@ -15,6 +15,7 @@ from .bosses import (
     boss_tooltips_text,
     raid_boss_spells,
     raids,
+    worn_item,
 )
 from .fetch import KnowledgeError
 from .maps import game_file, map_bounds, map_image, wcl_image
@@ -61,5 +62,5 @@ __all__ = [
     "spec_cooldowns_text", "spec_guide_text", "spec_spells", "spell_cooldown", "spell_name",
     "spell_text", "talent_names", "talent_parts", "talent_trees", "tree_for", "tree_spells", "untaken_spells",
     "versions_difference",
-    "wcl_image",
+    "wcl_image", "worn_item",
 ]

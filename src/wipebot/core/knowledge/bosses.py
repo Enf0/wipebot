@@ -498,14 +498,27 @@ async def boss_loot(boss: str, spec: str | None = None) -> Loot:
     return loot
 
 
-async def _item_tooltip(item_id: int) -> tuple[str, str]:
+async def _item_tooltip(item_id: int, bonus_ids: list[int] | None = None) -> tuple[str, str]:
     """(an item's name, its tooltip as text). Read from the tooltip's markup: Wowhead's plain text drops what's in
-    brackets, such as the primary stat of armor ("+189 [Agility or Intellect]")."""
-    data = await fetch.cli("wowhead", "entity", "item", str(item_id))
+    brackets, such as the primary stat of armor ("+189 [Agility or Intellect]"). With bonus IDs, the piece as worn."""
+    bonus = ("--no-include-comments", "--linked-entity-preview-limit", "0",
+             "--bonus", ":".join(map(str, bonus_ids))) if bonus_ids else ()
+    data = await fetch.cli("wowhead", "entity", "item", str(item_id), *bonus)
     entity, tip = data.get("entity") or {}, data.get("tooltip") or {}
     h = re.sub(r"<!--.*?-->", "", tip.get("html") or "", flags=re.S)
     text = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", h)).split()) or (tip.get("text") or "").strip()
     return entity.get("name") or f"item {item_id}", text
+
+
+_STAT = re.compile(r"\+\s*([\d,]+) (Critical Strike|Haste|Mastery|Versatility|Leech|Avoidance|Speed)\b")
+
+
+async def worn_item(item_id: int, bonus_ids: list[int]) -> tuple[str, int | None, list[tuple[str, int]]]:
+    """A piece as worn, from Wowhead's tooltip with its bonus IDs (its upgrade, a crafted piece's chosen stats):
+    (its name, its item level, its secondary and minor stats in the tooltip's order)."""
+    name, text = await _item_tooltip(item_id, bonus_ids)
+    level = re.search(r"Item Level (\d+)", text)
+    return name, int(level[1]) if level else None, [(stat, int(v.replace(",", ""))) for v, stat in _STAT.findall(text)]
 
 
 async def _mark_gear_pages(loot: Loot, spec: str) -> None:
