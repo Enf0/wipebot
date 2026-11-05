@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Discord` **A shorter `/usage`.** The AI budget, the Warcraft Logs points and a server's free answers now say only what's left, without the limit they're out of, and the budget no longer adds up what was spent in all.
 
+### Fixed
+
+- `Discord` **The bot says when its budget is used up.** With the AI budget spent, the bot answered that it couldn't reach Claude; it now says it's out of credit for answering, and `/usage` shows the budget.
+
 ## [0.37.1] - 2026-11-05
 
 ### Fixed

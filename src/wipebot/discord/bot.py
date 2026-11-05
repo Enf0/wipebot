@@ -16,6 +16,7 @@ from dataclasses import replace
 from typing import cast
 
 import discord
+import httpx
 from discord import app_commands
 from discord.ext import tasks
 
@@ -24,7 +25,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import allowance, commands, config, emojis, host, logincmd, news, progress
+from . import allowance, budget, commands, config, emojis, host, logincmd, news, progress
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .follower import Follower, Pull
@@ -93,6 +94,18 @@ MAX_MESSAGES = 4  # an answer is cut after this many Discord messages
 CUT = "-# The answer was cut here: it ran past four messages."
 # An answer with pictures is Components V2: up to this many characters of text in it (a plain message holds 2000)
 TEXT_LIMIT = 4000
+
+
+async def budget_used_up() -> bool:
+    """Whether the bot's own OpenRouter key has no credit left: OpenRouter refuses such a key's requests with a 403,
+    which Claude Code reports as authentication_failed, not billing_error."""
+    if not (key := config.openrouter_key()):
+        return False
+    try:
+        b = await budget.fetch(key)
+    except (httpx.HTTPError, KeyError, ValueError):
+        return False
+    return b.remaining is not None and b.remaining <= 0
 
 
 def message_text(m: discord.Message) -> str:
@@ -961,6 +974,8 @@ class WipeBot(discord.Client):
             log.error("%s answer to %s failed: Claude's API refused (%s)", kind, shown, e.kind)
             record(error=f"model: {e.kind}", answer=e.answer)  # what it cost, when it hit a cap
             self._spent(kind, ctx, e.answer)
+            if e.kind not in MODEL_ERRORS and ctx.env is None and await budget_used_up():
+                return MODEL_ERRORS["billing_error"]
             return MODEL_ERRORS.get(e.kind, MODEL_ERRORS["other"])
         except WCLError as e:  # loading the report, before the model got the question
             log.error("%s answer to %s failed: Warcraft Logs didn't answer (%s)", kind, shown, e)

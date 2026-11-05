@@ -15,7 +15,7 @@ from tests.support.messages import shown
 from wipebot.core import server
 from wipebot.core.wcl import WCLError
 from wipebot.discord import bot as wipebot
-from wipebot.discord import progress
+from wipebot.discord import config, progress
 from wipebot.discord.bot import (
     MODEL_ERRORS,
     SLOW_START,
@@ -357,12 +357,29 @@ async def test_messages_the_bot_doesnt_answer(bot, message, asked, settings, fol
     (WCLError("timed out"), WCL_DOWN, "wcl: timed out"),  # loading the report failed
     (ModelError("error_max_budget_usd"), MODEL_ERRORS["error_max_budget_usd"], "model: error_max_budget_usd"),
 ])
-async def test_a_question_without_an_answer_is_recorded_and_the_asker_told(bot, message, asked, error, told, why):
+async def test_a_question_without_an_answer_is_recorded_and_the_asker_told(bot, message, asked, monkeypatch, error,
+                                                                          told, why):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)  # or "overloaded" asks OpenRouter whether it's used up
     asked.answers.append(error)
     msg = message()
     await bot.on_message(msg)
     assert msg.replies == [told]
     assert recorded(bot.store) == [("chat", "Rowan", "why did we wipe?", None, why, None)]
+
+
+@pytest.mark.parametrize("remaining, told", [(0.0, MODEL_ERRORS["billing_error"]), (5.0, MODEL_ERRORS["other"])])
+async def test_a_key_out_of_credit_says_so(bot, message, asked, monkeypatch, remaining, told):
+    # OpenRouter refuses a key past its limit with a 403, which Claude Code calls authentication_failed
+    from wipebot.discord import budget
+    monkeypatch.setattr(config, "openrouter_key", lambda: "sk-or-k")
+
+    async def fetch(key):
+        return budget.KeyBudget(limit=82.0, remaining=remaining, month=40.0)
+    monkeypatch.setattr(budget, "fetch", fetch)
+    asked.answers.append(ModelError("authentication_failed"))
+    msg = message()
+    await bot.on_message(msg)
+    assert msg.replies == [told]
 
 
 async def test_an_answer_that_hit_a_cap_is_recorded_with_what_it_cost(bot, message, asked):
