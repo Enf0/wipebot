@@ -9,7 +9,6 @@ Only members with Manage Server see /wipebot (Discord enforces this), and server
 Server Settings > Integrations.
 """
 import datetime
-import os
 import re
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -212,11 +211,11 @@ def usage_text(rate: dict | None) -> str:
     if not rate:
         return "Warcraft Logs didn't say how many points are left this hour; try again in a minute."
     left = max(rate["limitPerHour"] - rate["pointsSpentThisHour"], 0)
-    text = (f"**Warcraft Logs points:** {left:,.0f} of {rate['limitPerHour']:,} left this hour, shared by "
+    text = (f"**Warcraft Logs points:** {left:,.0f} left this hour, shared by "
             f"everyone using this bot; the hour starts again in {rate['pointsResetIn'] // 60 + 1} min.")
     if db := rate.get("databaseLimitPerHour"):
         db_left = max(db - rate.get("databasePointsSpentThisHour", 0), 0)
-        text += f"\n**Warcraft Logs database points** (rankings, other guilds): {db_left:,.0f} of {db:,} left."
+        text += f"\n**Warcraft Logs database points** (rankings, other guilds): {db_left:,.0f} left."
     return text
 
 
@@ -228,8 +227,7 @@ async def server_usage(bot: WipeBot, discord_guild_id: int) -> str | None:
     if info := bot.store.server_key_info(discord_guild_id):
         return f"{mine}, on its own {keycmd.NAMES.get(info[0], info[0])} key (`/wipebot key`)."
     if bot.allowance and (left := await bot.allowance.left(discord_guild_id)):
-        share, remaining = left
-        return (f"{mine}: ${remaining:.2f} of its ${share:.2f} of free answers left, back in full on "
+        return (f"{mine}: ${left[1]:.2f} of free answers left this month, back in full on "
                 f"<t:{int(allowance.next_month().timestamp())}:D>. An admin can add the server's own key with "
                 "`/wipebot key`.")
     return None
@@ -395,14 +393,13 @@ async def share_text(bot: WipeBot, discord_guild_id: int) -> str:
     if not bot.allowance or not (left := await bot.allowance.left(discord_guild_id)):
         return "Couldn't read this server's share of free answers."
     share, remaining = left
-    return (f"**This server's free answers:** ${remaining:.2f} of its ${share:.2f} left this month, back in full "
+    return (f"**This server's free answers:** ${remaining:.2f} left this month, back in full "
             f"on <t:{int(allowance.next_month().timestamp())}:D>.\n{budget.bar(share, remaining)}")
 
 
 async def budget_text(store: Store, key: str, with_bar: bool = False) -> str:
     try:
         b = await budget.fetch(key)
-        b.total += float(os.environ.get("WIPEBOT_SPENT_BEFORE") or 0)  # what the bot spent before this key
     except (httpx.HTTPError, KeyError, ValueError) as e:
         return f"Couldn't read the budget from OpenRouter: {e}"
     month_start = datetime.datetime.now(datetime.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)

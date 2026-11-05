@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Discord` **Wipebot reads the pictures you send it.** Attach your stat sheet, a screenshot of your debuffs or the meter to a question, and the answer goes by what's on it. Before, the bot didn't see them. Up to 4 per question.
 
+### Changed
+
+- `Discord` **A shorter `/usage`.** The AI budget, the Warcraft Logs points and a server's free answers now say only what's left, without the limit they're out of, and the budget no longer adds up what was spent in all.
+
 ## [0.37.1] - 2026-11-05
 
 ### Fixed

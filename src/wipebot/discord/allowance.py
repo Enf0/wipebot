@@ -95,9 +95,8 @@ def footer(cost: float | None, points: dict, left: tuple[float, float] | None, r
     yours = min(points.get("user", 0), total) if user_points else 0
     spent = f"{yours:,.0f} yours, {total - yours:,.0f} the bot's" if yours else f"{total:,.0f}"
     if rate and isinstance(limit := rate.get("limitPerHour"), int | float):
-        spent += f" ({max(limit - rate.get('pointsSpentThisHour', 0), 0):,.0f}/{limit:,} left this hour)"
+        spent += f" ({max(limit - rate.get('pointsSpentThisHour', 0), 0):,.0f} left this hour)"
     parts = [f"${cost or 0:.2f}", f"Warcraft Logs points: {spent}"]
     if left:
-        share, remaining = left
-        parts.append(f"${remaining:.2f} of this server's ${share:.2f} left this month")
+        parts.append(f"${left[1]:.2f} of free answers left this month")
     return "-# " + " · ".join(parts)

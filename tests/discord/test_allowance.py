@@ -14,7 +14,7 @@ def _notes(tmp_path, monkeypatch):
 
 def pool(monkeypatch, limit, remaining):
     async def fetch(key):
-        return budget.KeyBudget(limit=limit, remaining=remaining, month=0, total=0)
+        return budget.KeyBudget(limit=limit, remaining=remaining, month=0)
     monkeypatch.setattr(budget, "fetch", fetch)
 
 
@@ -68,11 +68,10 @@ async def test_the_footer_says_the_cost_points_and_the_servers_share_left(store,
     points = {"total": 92.4, "application": 92.4, "user": 60, "queries": 3}  # not added up: total is the sum
     rate = {"limitPerHour": 3600, "pointsSpentThisHour": 480}
     assert allowance.footer(0.18, points, left, rate) == (
-        "-# $0.18 · Warcraft Logs points: 92 (3,120/3,600 left this hour) · $7.50 of this server's $10.00 left this "
-        "month")
+        "-# $0.18 · Warcraft Logs points: 92 (3,120 left this hour) · $7.50 of free answers left this month")
     # on the new point system, a signed-in asker's own points pay first
     assert allowance.footer(0.18, points, None, rate, user_points=True) == (
-        "-# $0.18 · Warcraft Logs points: 60 yours, 32 the bot's (3,120/3,600 left this hour)")
+        "-# $0.18 · Warcraft Logs points: 60 yours, 32 the bot's (3,120 left this hour)")
     assert allowance.footer(None, {}, None) == "-# $0.00 · Warcraft Logs points: 0"
 
 

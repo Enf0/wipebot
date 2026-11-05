@@ -178,17 +178,17 @@ def test_a_note_needs_the_server_set_up_for_its_guild(store):
 
 def test_budget_says_what_the_key_spent_and_has_left():
     from wipebot.discord.budget import KeyBudget, describe
-    b = KeyBudget(limit=50.0, remaining=12.5, month=20.25, total=37.5)
-    assert describe(b, 0, 0.0, None) == ("**AI budget:** $20.25 spent this month, $37.50 in all.\n"
-                                         "**$12.50** left of $50.00.")
+    b = KeyBudget(limit=50.0, remaining=12.5, month=20.25)
+    assert describe(b, 0, 0.0, None) == ("**AI budget:** $20.25 spent this month.\n"
+                                         "**$12.50** left.")
     assert describe(b, 81, 20.25, "Vipps to Oscar, 12345678").splitlines()[1:] == [
-        "**$12.50** left of $50.00: about 50 more answers at this month's $0.25 an answer.",
+        "**$12.50** left: about 50 more answers at this month's $0.25 an answer.",
         "To chip in: Vipps to Oscar, 12345678"]
-    empty = describe(KeyBudget(limit=50.0, remaining=0.0, month=50.0, total=50.0), 0, 0.0, None)
+    empty = describe(KeyBudget(limit=50.0, remaining=0.0, month=50.0), 0, 0.0, None)
     assert empty.endswith("It's used up, so wipebot can't answer until it's topped up.")
-    assert describe(KeyBudget(None, None, 3.0, 3.0), 0, 0.0, None).endswith("It has no limit set.")
+    assert describe(KeyBudget(None, None, 3.0), 0, 0.0, None).endswith("It has no limit set.")
     assert describe(b, 0, 0.0, None, with_bar=True).splitlines()[1] == "`███████████████░░░░░` 75% spent"
-    assert describe(KeyBudget(None, None, 3.0, 3.0), 0, 0.0, None, with_bar=True).count("\n") == 1
+    assert describe(KeyBudget(None, None, 3.0), 0, 0.0, None, with_bar=True).count("\n") == 1
 
 
 async def test_budget_reads_the_key_from_openrouter(monkeypatch):
@@ -206,7 +206,7 @@ async def test_budget_reads_the_key_from_openrouter(monkeypatch):
 
     real = httpx.AsyncClient
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(reply), **kw))
-    assert await budget.fetch("sk-or-k") == budget.KeyBudget(limit=50, remaining=12.5, month=20.25, total=37.5)
+    assert await budget.fetch("sk-or-k") == budget.KeyBudget(limit=50, remaining=12.5, month=20.25)
 
 
 def registered(bot, monkeypatch) -> set[str]:
@@ -251,7 +251,7 @@ def test_usage_says_whats_left_of_the_hours_points():
     rate = {"limitPerHour": 18000, "pointsSpentThisHour": 4500.5, "pointsResetIn": 1500,
             "databaseLimitPerHour": 600, "databasePointsSpentThisHour": 700}
     text = commands.usage_text(rate)
-    assert "13,500 of 18,000 left" in text and "in 26 min" in text and "0 of 600 left" in text
+    assert "13,500 left this hour" in text and "in 26 min" in text and ": 0 left." in text
     assert "didn't say" in commands.usage_text(None)
 
 
@@ -276,7 +276,7 @@ async def test_usage_post_on_a_shared_copy_shows_the_servers_share(bot):
 
     bot.allowance = SimpleNamespace(left=left)
     text = await commands.share_text(bot, 1001)
-    assert text.startswith("**This server's free answers:** $1.25 of its $5.00 left this month")
+    assert text.startswith("**This server's free answers:** $1.25 left this month")
     assert text.endswith("`███████████████░░░░░` 75% spent")
 
 

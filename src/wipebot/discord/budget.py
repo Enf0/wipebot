@@ -17,7 +17,6 @@ class KeyBudget:
     limit: float | None  # USD; None when the key has no limit
     remaining: float | None
     month: float  # spent this calendar month (UTC), on OpenRouter credits and through BYOK together
-    total: float  # spent since the key was made
 
 
 async def fetch(key: str) -> KeyBudget:
@@ -27,8 +26,7 @@ async def fetch(key: str) -> KeyBudget:
         r.raise_for_status()
         data = r.json()["data"]
     return KeyBudget(limit=data.get("limit"), remaining=data.get("limit_remaining"),
-                     month=(data.get("usage_monthly") or 0) + (data.get("byok_usage_monthly") or 0),
-                     total=(data.get("usage") or 0) + (data.get("byok_usage") or 0))
+                     month=(data.get("usage_monthly") or 0) + (data.get("byok_usage_monthly") or 0))
 
 
 def bar(limit: float | None, remaining: float | None, width: int = 20) -> str:
@@ -44,13 +42,13 @@ def describe(b: KeyBudget, answers: int, answers_cost: float, note: str | None, 
     """What /usage says: this month's spend, what's left and about how many answers that is (from the month's
     answers, `answers` of them costing `answers_cost` in all), and how
     to chip in; `with_bar` adds a bar of what's spent of the limit."""
-    lines = [f"**AI budget:** ${b.month:.2f} spent this month, ${b.total:.2f} in all."]
+    lines = [f"**AI budget:** ${b.month:.2f} spent this month."]
     if with_bar and (spent := bar(b.limit, b.remaining)):
         lines.append(spent)
     if b.remaining is None:
         lines.append("It has no limit set.")
     else:
-        left = f"**${b.remaining:.2f}** left of ${b.limit:.2f}"
+        left = f"**${b.remaining:.2f}** left"
         if answers and answers_cost > 0:
             per = answers_cost / answers
             left += f": about {int(b.remaining // per)} more answers at this month's ${per:.2f} an answer"
