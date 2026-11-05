@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-11-05
+
 ### Fixed
 
 - `Agent` **A player's stats come from their gear.** The stats the log gives at the pull can be far from what a player's gear gives: a Balance Druid was told their stats were skewed toward Mastery from the log's 2,925 Mastery, when their pieces give 969. The build comparison now sums the stats of each piece, and says the log's numbers can differ.
