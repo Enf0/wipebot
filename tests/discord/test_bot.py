@@ -1095,3 +1095,18 @@ async def test_a_dm_can_link_the_servers_messages_that_the_asker_may_read(bot, m
     [(key, _, _, ctx)] = asked
     assert key == ("dm", 7) and "tanks swap at 3 stacks" in ctx.linked
     assert ctx.linked.endswith(f"{LINK}/40/41: not read, not found, or the asker can't read it")
+
+
+async def test_pictures_sent_with_a_question_are_read_and_the_rest_noted():
+    # #1311 and #1369 of the bot's answers: a screenshot of debuffs and a stat sheet the model never saw
+    def attachment(kind, size=10, data=b"png"):
+        async def read():
+            return data
+        return SimpleNamespace(content_type=kind, size=size, read=read)
+    message = cast(discord.Message, SimpleNamespace(attachments=[
+        attachment("image/png"), attachment("text/plain"), attachment("image/heic"),
+        attachment("image/jpeg", size=wipebot.MAX_IMAGE_BYTES + 1)]))
+    images, note = await wipebot.images_of(message)
+    assert images == [("image/png", b"png")]
+    assert note.startswith("2 picture(s) attached and not read")
+    assert await wipebot.images_of(cast(discord.Message, SimpleNamespace(attachments=[]))) == ([], "")

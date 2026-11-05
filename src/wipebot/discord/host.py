@@ -5,6 +5,7 @@ The tools are the core's MCP server, run in-process (no subprocess, one set of l
 answer for Discord in discord_text.py. Only this module knows about the SDK.
 """
 import asyncio
+import base64
 import functools
 import json
 import logging
@@ -14,7 +15,7 @@ import tempfile
 import time
 import warnings
 from collections import Counter
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from claude_agent_sdk import (
@@ -69,6 +70,16 @@ def _empty_dir() -> str:
     return path
 
 
+def with_images(text: str, images: list[tuple[str, bytes]]) -> AsyncIterator[dict]:
+    """A question with the pictures sent with it, as one user message of a text block and image blocks."""
+    async def one() -> AsyncIterator[dict]:
+        yield {"type": "user", "parent_tool_use_id": None, "message": {"role": "user", "content": [
+            {"type": "text", "text": text},
+            *({"type": "image", "source": {"type": "base64", "media_type": kind,
+                                           "data": base64.b64encode(data).decode()}} for kind, data in images)]}}
+    return one()
+
+
 @dataclass
 class Context:
     """What a Discord message tells us besides its text: who asked, where, about which pull, and what the bot's own
@@ -83,6 +94,7 @@ class Context:
     follow_up: bool = False  # `earlier` is what was said since the conversation's previous question (SINCE)
     linked: str = ""  # the Discord messages the question links to (LINKED), from bot.linked_messages
     notes: list[str] = field(default_factory=list)  # the asker's standing preferences, remembered across conversations
+    images: list[tuple[str, bytes]] = field(default_factory=list)  # pictures sent with the question: (type, bytes)
     tools: dict[str, Callable[[dict], Awaitable[str]]] = field(default_factory=dict)  # follow_pulls, remember
     # each tool the model calls for this question, (name, arguments), as it calls it, and as the call returns
     on_tool: Callable[[str, dict], None] | None = None
@@ -675,7 +687,7 @@ class Session:
         text = no_paths(prompt.message(question, ctx, report, await report.guild_run_doubt() if report else "",
                                        raids=await report.raids() if report else None))
         self._ctx = ctx
-        await self._client.query(text)
+        await self._client.query(with_images(text, ctx.images) if ctx.images else text)
         self._calls[:] = ran
         answer = Answer("", prompt=text, asked=asked)
         texts: list[str] = []

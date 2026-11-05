@@ -306,6 +306,8 @@ def _bot_commands(sub) -> None:
     ask.add_argument("--boss", help="boss for --pull, default the last boss in the report")
     ask.add_argument("--note", help="a raid note file, as if an officer pasted it to the bot")
     ask.add_argument("--plan", help="a raid plan file (raidstrats.gg's export), as if an officer pasted it")
+    ask.add_argument("--image", action="append", help="a picture sent with the first question, as a raider's "
+                                                     "attachment; repeat for more")
     ask.add_argument("-q", "--question", action="append",
                      help="ask this and exit; repeat for follow-ups in the same conversation")
     note = sub.add_parser("note", help="save a raid note or plan in the bot's database, as an officer's paste does")

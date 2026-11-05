@@ -318,6 +318,30 @@ async def pasted_note(message: discord.Message) -> str | None:
     return None
 
 
+IMAGE_TYPES = ("image/png", "image/jpeg", "image/gif", "image/webp")  # what the model reads
+MAX_IMAGES = 4
+MAX_IMAGE_BYTES = 3_750_000  # the API's 5 MB limit is on the base64, a third larger
+
+
+async def images_of(message: discord.Message) -> tuple[list[tuple[str, bytes]], str]:
+    """The pictures attached to a question, for the model to see, and a note on those it can't ("" when none)."""
+    images, skipped = [], 0
+    for a in message.attachments:
+        kind = (a.content_type or "").split(";")[0].strip()
+        if not kind.startswith("image/"):
+            continue
+        if kind not in IMAGE_TYPES or a.size > MAX_IMAGE_BYTES or len(images) >= MAX_IMAGES:
+            skipped += 1
+            continue
+        try:
+            images.append((kind, await a.read()))
+        except discord.HTTPException:
+            skipped += 1
+    note = (f"{skipped} picture(s) attached and not read: too large, too many or not PNG, JPEG, GIF or WebP"
+            if skipped else "")
+    return images, note
+
+
 def log_tool(name: str, args: dict) -> None:
     """Log each tool call as it starts, so the console shows what an answer is working on."""
     shown = ", ".join(f"{k}={v!r}" for k, v in args.items() if k != "report")
@@ -758,6 +782,9 @@ class WipeBot(discord.Client):
         guild = self.get_guild(s.discord_guild_id) if is_dm else None
         name = display((guild.get_member(author.id) if guild else None) or author)
         ctx = self._context(s, author, name, code, where, None if is_dm else message.channel)
+        ctx.images, unread = await images_of(message)
+        if unread:
+            question += f" [{unread}]"
         if MESSAGE_LINK.search(question):
             ctx.linked = await self._linked(question, s, author)
         if message.reference and (posted := self.store.pull_for_message(message.reference.message_id)):

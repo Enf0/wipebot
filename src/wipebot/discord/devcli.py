@@ -6,6 +6,7 @@ With -q the questions are asked in order in one conversation (so later ones are 
 program exits. Otherwise it is interactive; type /help for the commands.
 """
 import asyncio
+import mimetypes
 import sys
 import tempfile
 from pathlib import Path
@@ -42,11 +43,12 @@ def _print_tool(name: str, args: dict) -> None:
 
 
 async def chat(code: str, asker: str | None, pull: int | None, boss: str | None, questions: list[str],  # noqa: C901, PLR0915
-               note: str | None = None, plan: str | None = None) -> None:
+               note: str | None = None, plan: str | None = None, images: list[str] | None = None) -> None:
     library = server.configure(server.report_code(code))
     show_tools = True
     report = await library.report()
     ctx = Context(asker=asker, pull=pull, boss=boss)
+    ctx.images = [(mimetypes.guess_type(f)[0] or "image/png", Path(f).read_bytes()) for f in images or []]
 
     async def remember(args: dict) -> str:  # for this run only: the bot keeps it in its database
         if args.get("character"):
@@ -135,6 +137,7 @@ async def chat(code: str, asker: str | None, pull: int | None, boss: str | None,
 async def _answer(session: Session, question: str, ctx: Context) -> None:
     try:
         a = await session.ask(question, ctx)
+        ctx.images = []  # the pictures go with the first question
     except FactError as e:
         print(f"error: {e}")
         return
@@ -157,4 +160,4 @@ async def _chat_then_drain(*args) -> None:
 
 def main(args) -> None:
     asyncio.run(_chat_then_drain(args.code, args.asker, args.pull, args.boss, args.question or [], args.note,
-                                  args.plan))
+                                  args.plan, args.image))

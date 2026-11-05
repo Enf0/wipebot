@@ -640,3 +640,11 @@ def test_a_call_that_read_a_private_report_keeps_no_result_in_the_record():
     call = ToolCall("pull_summary", {"report": "R"}, "the raid's private secrets", False, [], 0.0, 1.0,
                     {"queries": 2, "private": True})
     assert call.record(0.0)["result"] == server.PRIVATE_KEPT and call.result == "the raid's private secrets"
+
+
+async def test_a_question_with_pictures_is_one_message_of_text_and_images():
+    from wipebot.discord.host import with_images
+    sent = [m async for m in with_images("what's slowing me?", [("image/png", b"\x89PNG")])]
+    assert sent == [{"type": "user", "parent_tool_use_id": None, "message": {"role": "user", "content": [
+        {"type": "text", "text": "what's slowing me?"},
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "iVBORw=="}}]}}]
