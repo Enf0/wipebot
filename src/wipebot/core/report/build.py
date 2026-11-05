@@ -205,7 +205,7 @@ async def compare_build(rep: Report, player: str, pull: PullRef = None, boss: st
                  + ", ".join(f"{t} ({100 * c // n_all}%)" for t, c in gaps["trinkets"].most_common(5)))
     lines += _enchant_lines(gaps["enchants"], n_all)
     lines.append("Gems most top players have and they don't: " + (", ".join(gaps["no_gem"]) or "none missing"))
-    lines.append(gear_stats(gaps["det"]))
+    lines.append(gear_stats(gaps["det"], pieces_below=True))
     lines.append(await gear_by_slot(gaps["det"]))
     lines.append(await _top_stats(rep, gaps))
     lines.append(await prepared(rep, f, p))
@@ -285,7 +285,7 @@ async def _top_stats(rep: Report, gaps: dict) -> str:
                    "(spec_guide), and a gap from them is a note beside it, not a new priority.")
 
 
-def gear_stats(det: dict) -> str:
+def gear_stats(det: dict, pieces_below: bool = False) -> str:
     """A player's stats at the pull from the log's combatant info: their gear's ratings, before buffs (a flask,
     a trinket's proc)."""
     stats = (det.get("combatantInfo") or {}).get("stats") or {}
@@ -300,9 +300,12 @@ def gear_stats(det: dict) -> str:
     primary = [(n, v) for n in ("Strength", "Agility", "Intellect") if (v := value(n))]
     minor = [(n, v) for n in ("Leech", "Avoidance", "Speed") if (v := value(n))]
     below = [n for n, v in secondary if v < 0]
-    return ("Stats from their gear at the pull (ratings, before buffs such as a flask or a trinket's proc): "
+    return ("Stats at the pull as the log gives them (ratings, before buffs such as a flask or a trinket's proc; they "
+            "can differ a lot from what the gear gives, and the log doesn't say why"
+            + (": the gear's own are the pieces' sum below): " if pieces_below else
+               "; compare_with_top build sums the pieces): ")
             + " · ".join(f"{n} {v}" for n, v in secondary)
-            + (f" ({' and '.join(below)} below zero as the log gives it; the log doesn't say why)" if below else "")
+            + (f" ({' and '.join(below)} below zero as the log gives it)" if below else "")
             + "".join(f"; {n} {v}" for n, v in primary)
             + ("; " + ", ".join(f"{n} {v}" for n, v in minor) if minor else "") + ".")
 
@@ -323,7 +326,7 @@ async def gear_by_slot(det: dict) -> str:
             return await knowledge.worn_item(int(g["id"]), [int(b) for b in g.get("bonusIDs") or []])
         except KnowledgeError:
             return None
-    pieces = []
+    pieces, summed = [], Counter()
     for g, tip in zip(gear, await asyncio.gather(*(one(g) for g in gear)), strict=True):
         level = g.get("itemLevel") or (tip[1] if tip else None)
         text = f"{SLOTS[g['slot']]} {g.get('name') or (tip[0] if tip else f'item {g['id']}')}"
@@ -331,12 +334,18 @@ async def gear_by_slot(det: dict) -> str:
         if tip is None:
             text += ": stats unknown (Wowhead didn't answer)"
         elif tip[2]:
+            summed.update(dict(tip[2]))
             text += ": " + ", ".join(f"{v} {STAT_SHORT.get(n, n)}" for n, v in tip[2])
             if tip[1] and level and tip[1] != level:
                 text += f" (Wowhead's tooltip is item level {tip[1]}: its stats are at that level)"
         pieces.append(text)
+    total = [(STAT_SHORT.get(n, n), summed[n]) for n in ("Critical Strike", "Haste", "Mastery", "Versatility")]
+    rated = sum(v for _, v in total)
     return ("Gear by slot at the pull (item level from the log; secondary and minor stats from Wowhead's tooltip with "
-            "the piece's bonus IDs, before gems and enchants): " + "; ".join(pieces) + ".")
+            "the piece's bonus IDs, before gems and enchants): " + "; ".join(pieces) + "."
+            + (" Summed over the pieces read (before gems and enchants): " + ", ".join(
+                f"{n} {v} ({100 * v / rated:.0f}%)" for n, v in sorted(total, key=lambda x: -x[1])) + "."
+               if rated else ""))
 
 
 async def raid_prep(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:

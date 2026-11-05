@@ -92,9 +92,10 @@ def test_a_stat_below_zero_is_said_and_left_out_of_the_shares():
     det = {"combatantInfo": {"stats": {"Mastery": {"max": 2901}, "Haste": {"max": 1255}, "Crit": {"max": 626},
                                        "Versatility": {"max": -213}, "Intellect": {"max": 3535}}}}
     assert build.gear_stats(det) == (
-        "Stats from their gear at the pull (ratings, before buffs such as a flask or a trinket's proc): Mastery 2901 · "
-        "Haste 1255 · Crit 626 · Versatility -213 (Versatility below zero as the log gives it; the log doesn't say "
-        "why); Intellect 3535.")
+        "Stats at the pull as the log gives them (ratings, before buffs such as a flask or a trinket's proc; they can "
+        "differ a lot from what the gear gives, and the log doesn't say why; compare_with_top build sums the pieces): "
+        "Mastery 2901 · Haste 1255 · Crit 626 · Versatility -213 (Versatility below zero as the log gives it); "
+        "Intellect 3535.")
     assert build._secondary(det["combatantInfo"]["stats"]) == {}
 
 def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_decided():

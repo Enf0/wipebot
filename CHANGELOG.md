@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A player's stats come from their gear.** The stats the log gives at the pull can be far from what a player's gear gives: a Balance Druid was told their stats were skewed toward Mastery from the log's 2,925 Mastery, when their pieces give 969. The build comparison now sums the stats of each piece, and says the log's numbers can differ.
+- `Agent` **Maps at a mechanic the raid stopped.** Asking where everyone stood when Eternal Nightfall began said it never happened, since the cast is never finished when the raid breaks the shield. A map at an ability given by its number also works again.
+
 ## [0.37.0] - 2026-11-05
 
 ### Changed

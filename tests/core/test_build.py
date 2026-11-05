@@ -21,5 +21,13 @@ async def test_each_piece_has_its_item_level_from_the_log_and_its_stats_from_its
         "Gear by slot at the pull (item level from the log; secondary and minor stats from Wowhead's tooltip with "
         "the piece's bonus IDs, before gems and enchants): head Stare (321): 128 Crit, 62 Mastery, 82 Leech; neck "
         "Reliquary (334): stats unknown (Wowhead didn't answer); ring Band (321): 225 Versatility (Wowhead's tooltip "
-        "is item level 315: its stats are at that level).")
+        "is item level 315: its stats are at that level). Summed over the pieces read (before gems and enchants): "
+        "Versatility 225 (54%), Crit 128 (31%), Mastery 62 (15%), Haste 0 (0%).")
     assert await build.gear_by_slot({}) == "Gear by slot: not in the log (needs advanced combat logging)."
+
+
+def test_the_log_s_stats_are_not_said_to_be_the_gear_s():
+    # #1362 of the bot's answers: a Balance Druid's log gave 2925 Mastery where their pieces sum to 969, and the bot
+    # called their stats skewed from it (#1368, where the raider showed it wrong).
+    det = {"combatantInfo": {"stats": {"Mastery": {"max": 2925}, "Haste": {"max": 1067}, "Crit": {"max": 522}}}}
+    assert "can differ a lot from what the gear gives" in build.gear_stats(det)
