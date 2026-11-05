@@ -153,7 +153,7 @@ async def pull_map(rep: Report, pull: PullRef = None, boss: str | None = None, a
     `players`, else the pull's first death. With an ability and `all_pulls`, every pull on the boss."""
     f = rep.fight(pull, boss)
     focus = [rep.in_pull(f, rep.player(n)) if not all_pulls else rep.player(n) for n in players or []]
-    at_ms = parse_clock(at_) if at_ else None
+    at_ms = at_ms_of(at_, f)
     if at_ and at_ms is None:
         pulls = rep.by_boss[rep.boss_key(f)]
         fights = rep.ended(pulls) if all_pulls else [f]
@@ -181,6 +181,13 @@ async def pull_map(rep: Report, pull: PullRef = None, boss: str | None = None, a
              + _legend([p.name for p in focus])]
     lines += _around(rep, f, sc, focus[0].name if focus else None)
     return MapAnswer("\n".join(lines), t - f["startTime"], await drawn(sc) if draw_it else None)
+
+
+def at_ms_of(at_: str | None, f: dict) -> float | None:
+    """`at` as ms from the pull's start; None for an ability, by name or by id: a number past the pull's end is an
+    ability's id ([id] in pull_summary), not seconds."""
+    ms = parse_clock(at_) if at_ else None
+    return None if at_ and at_.strip().isdigit() and ms is not None and ms > f["endTime"] - f["startTime"] else ms
 
 
 def _legend(focus: list[str], extra: str = "") -> str:

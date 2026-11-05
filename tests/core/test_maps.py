@@ -38,3 +38,22 @@ def test_a_damage_over_time_ticking_as_it_lands_is_the_players_own_not_from_anot
     # a burst that puts the debuff on whom it hits as another's ends stays the other's
     hit = {"timestamp": 9_460, "targetID": 3, "abilityGameID": 1310691}
     assert positions._from_another(hit, carried, stints, burst={1310691})
+
+
+def test_an_ability_s_id_in_at_is_the_ability_not_seconds():
+    # #1351 of the bot's answers: at="1283832" (Axegrinder's id) was read as 1283832 seconds into the pull
+    f = {"startTime": 0, "endTime": 209_000}
+    assert maps.at_ms_of("1283832", f) is None
+    assert maps.at_ms_of("151", f) == 151_000
+    assert maps.at_ms_of("2:31", f) == 151_000
+    assert maps.at_ms_of(None, f) is None
+
+
+def test_a_cast_begun_and_never_finished_counts_from_when_it_began():
+    # #1378: Eternal Nightfall, a channel the raid ends by breaking the boss's shield, logs only its begincast, so
+    # the map said it didn't happen
+    casts = [{"timestamp": 1_000, "type": "begincast", "sourceID": 9}, {"timestamp": 3_000, "type": "cast",
+                                                                       "sourceID": 9},
+             {"timestamp": 40_000, "type": "begincast", "sourceID": 9},
+             {"timestamp": 90_000, "type": "cast", "sourceID": 8}]
+    assert positions._cast_times(casts) == [3_000, 40_000, 90_000]

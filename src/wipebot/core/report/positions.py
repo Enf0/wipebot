@@ -275,7 +275,7 @@ async def mechanic(rep: Report, fights: list[dict], ability: str, event: Event |
     casts = await rep.events_for(items, "Casts", hostilityType="Enemies")
     taken = await rep.events_for(items, "DamageTaken", hostilityType="Friendlies")
     stints = [_stints(rep, f, d) for f, d in zip(fights, debuffs, strict=True)]
-    cast_times = [[(e["timestamp"], 0) for e in c if e.get("type") == "cast"] for c in casts]
+    cast_times = [[(t, 0) for t in _cast_times(c)] for c in casts]
     hits = [[e for e in t if e.get("type") in ("damage", "absorbed") and e.get("targetID") in rep.names]
             for t in taken]
     logged = {"ends": sum(len(v) for s in stints for v in s.values()), "cast": sum(map(len, cast_times)),
@@ -285,6 +285,26 @@ async def mechanic(rep: Report, fights: list[dict], ability: str, event: Event |
     moments = {f["id"]: _moments(f, chosen, st, cs, hs, burst) if chosen else []
                for f, st, cs, hs in zip(fights, stints, cast_times, hits, strict=True)}
     return Mechanic(name, ids, chosen if any(moments.values()) else None, moments, logged)
+
+
+CAST_BAR_MAX_MS = 30_000  # a begun cast with no cast this long after it never finished
+
+
+def _cast_times(events: list[dict]) -> list[float]:
+    """When each cast went off: its cast event, or for one begun that never finished (a channel such as Eternal
+    Nightfall, cut short by its shield breaking), when it began."""
+    out, begun = [], {}
+    for e in sorted(events, key=lambda e: e["timestamp"]):
+        src = (e.get("sourceID"), e.get("sourceInstance"))
+        if e.get("type") == "cast":
+            begun.pop(src, None)
+            out.append(e["timestamp"])
+        elif e.get("type") == "begincast":
+            if src in begun:
+                out.append(begun[src])
+            begun[src] = e["timestamp"]
+    out += [t for t in begun.values() if all(not t < c <= t + CAST_BAR_MAX_MS for c in out)]
+    return sorted(out)
 
 
 def _moments(f: dict, event: Event, stints: Stints, casts: list[tuple[float, int]], hits: list[dict],
