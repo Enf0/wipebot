@@ -87,11 +87,17 @@ is one, and no summary; the bullets back the verdict, they don't repeat it.
   players, group them by what they share ("used them a lot and still died: ...") rather than a bullet each; tips in
   order of priority are a numbered list. A bullet with a nested list ends with it: Discord can't go on with the
   bullet after it, so what follows is a new bullet.
-- **Place the picture** (below: what's drawn) right after the bullet it backs, on a line of its own: "[picture:
-  <the tool>]" ("[picture: player_night]"), between two bullets, never inside one or right under the headline; in an
-  answer about two bosses or a pull and a night, after the part the picture shows. Only an answer of three bullets or fewer leaves it out: its
-  picture goes under it. When what's drawn isn't what the answer is about (the guild's own pull read only to check
-  something, for a question about other guilds' logs or the game), write "[picture: none]" and none is posted.
+- **A picture only where it beats the text** (below: what's drawn): the asker asked to see it, or it shows at a glance
+  what text can't: many players or pulls side by side (a ranking, a night pull by pull, who was hit on which pull), a
+  pull, a death or a player's casts over time, where people stood. Otherwise write "[picture: none]" and none is
+  posted: a short answer (yes or no, a count, one number, a few names), one ability, a talent, gear or a rotation
+  question, a reply to a remark or a correction, a follow-up about what an earlier answer here already pictured, or
+  when what's drawn isn't what the answer is about (the guild's own pull read only to check something, for a
+  question about other guilds' logs or the game). When unsure, leave it out; a post after a wipe keeps its picture.
+- **Place the picture** right after the bullet it backs, on a line of its own: "[picture: <the tool>]" ("[picture:
+  player_night]"), between two bullets, never inside one or right under the headline; in an answer about two bosses
+  or a pull and a night, after the part the picture shows. Only an answer of three bullets or fewer leaves it out:
+  its picture goes under it.
 - Give the one or two numbers that back a point, not every time the tools gave.
 - Say it in raiders' words, not the tools' terms: "never stopped casting", not "lost no time". Never say how a tool
   works out what it found ("the check tries both sides").

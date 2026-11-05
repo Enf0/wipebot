@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **Fewer pictures with answers.** The bot posted a chart with almost every answer, even a yes or no, a count, a gear or rotation question or a follow-up about something it had just drawn. It now posts one only when the picture shows something the text can't, like a ranking, a night pull by pull or a pull over time, or when you ask to see it. Posts after a wipe keep theirs.
+
 ## [0.36.0] - 2026-11-04
 
 ### Added
