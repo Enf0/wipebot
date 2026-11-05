@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-05
+
 ### Added
 
 - `Discord` **Wipebot reads the pictures you send it.** Attach your stat sheet, a screenshot of your debuffs or the meter to a question, and the answer goes by what's on it. Before, the bot didn't see them. Up to 4 per question.
