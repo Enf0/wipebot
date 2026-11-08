@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-08
+
 ### Added
 
 - `MCP` **Try Wipebot on its website.** [wipebot.enfo.dev](https://wipebot.enfo.dev/#try) now has a demo: pick a question about a real Mythic night and read Wipebot's answer at once, pictures included, or sign in with Warcraft Logs to ask 3 questions of your own a month, about that night or a report of yours.
