@@ -44,7 +44,7 @@ In `.env` (copy [.env.example](../.env.example)):
 | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required; or `OPENROUTER_API_KEY` in place of the Anthropic key (below) |
 | `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/usage` ([below](#a-budget-the-guild-chips-in-to)) |
 | `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/usage`, e.g. `Vipps to Oscar, 12345678` |
-| `WIPEBOT_SERVER_SHARE` | bot | for a copy many servers share: the part of the OpenRouter key's limit (set to reset monthly) one server may spend a month, e.g. `0.1`; past it, that server's raiders are told when the free answers are back |
+| `WIPEBOT_OWN_KEYS` | bot | `1` for a copy many servers share: each server answers only on its own key, which an admin adds with `/wipebot key`; until then its raiders are told to ask an admin. The bot then needs no key of its own |
 | `WIPEBOT_KEY_SECRET` | bot | what the AI keys admins add for their servers (`/wipebot key`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
 | `WIPEBOT_OPENROUTER_CALLBACK` | bot | where OpenRouter sends an admin after "Sign in with OpenRouter" in `/wipebot key`: a page that shows the address to paste back; default a localhost address that doesn't load, whose address bar holds it |
 | `WIPEBOT_WCL_CALLBACK` | bot | turns on `/login`: where Warcraft Logs sends a raider after they sign in, a page that shows its address to paste back into Discord (any page does: the address bar holds the code). Add it to your Warcraft Logs client's redirect URLs (comma-separated) |
@@ -193,7 +193,7 @@ With the officer role set, Manage Server alone doesn't make someone an officer: 
 The connector keeps who signed in (Warcraft Logs id, name, guild characters); the bot keeps each raider's character
 and the preferences they ask it to remember, and for a raider who used `/login`, their Warcraft Logs id, name and
 token (encrypted) until they sign out. It also keeps what each answer cost, with the server and the asker, for 90
-days (`/usage` and the free answers' share read it), each server's settings and the AI key its admin added (encrypted) until it's
+days (`/usage` reads it), each server's settings and the AI key its admin added (encrypted) until it's
 removed, and the conversations Claude Code keeps on disk so follow-ups and restarts go on from them. With
 `WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its prompt (with the channel's messages it read),
 answer and tool calls for 90 days, for reviewing answers. All of it stays in `./data`; only what an answer needs goes

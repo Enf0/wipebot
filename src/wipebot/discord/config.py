@@ -13,10 +13,10 @@ OPENROUTER_URL = "https://openrouter.ai/api"
 def check_settings() -> None:
     """Exit, naming every one of them, when settings the bot can't start without aren't set: an Anthropic or
     OpenRouter API key (it answers other people: on the API, never on a Claude subscription), the Discord token and
-    the Warcraft Logs client."""
+    the Warcraft Logs client. A copy that answers only on servers' own keys (own_keys) needs no key of its own."""
     from wipebot.core import wcl
     missing = [name for name in ("DISCORD_TOKEN",) if not os.environ.get(name)]
-    if not os.environ.get("ANTHROPIC_API_KEY") and not openrouter_key():
+    if not os.environ.get("ANTHROPIC_API_KEY") and not openrouter_key() and not own_keys():
         missing.insert(0, "ANTHROPIC_API_KEY or OPENROUTER_API_KEY")
     if not wcl.client_credentials():
         missing.append("WCL_CLIENT_ID and WCL_CLIENT_SECRET: a client from https://www.warcraftlogs.com/api/clients")
@@ -35,6 +35,12 @@ def model_env() -> dict[str, str]:
     (OpenRouter's guide to the Agent SDK); else nothing, and it answers on ANTHROPIC_API_KEY."""
     key = openrouter_key()
     return {"ANTHROPIC_BASE_URL": OPENROUTER_URL, "ANTHROPIC_AUTH_TOKEN": key, "ANTHROPIC_API_KEY": ""} if key else {}
+
+
+def own_keys() -> bool:
+    """Whether each server answers only on its own key, added with /wipebot key (WIPEBOT_OWN_KEYS=1): a copy many
+    servers share, whose host pays for no server's answers. A server without one is told how to add it."""
+    return os.environ.get("WIPEBOT_OWN_KEYS", "").lower() in ("1", "true", "yes")
 
 
 def budget_note() -> str | None:

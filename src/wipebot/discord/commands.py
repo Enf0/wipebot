@@ -178,7 +178,7 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
              + ". For example:\n" + "\n".join(f"- {q}" for q in EXAMPLES)
              + "\nTell me your character once (\"I'm Jekå\") and \"I\" means them from then on. A warcraftlogs.com "
                "report link asks about that report instead of the guild's latest."]
-    budget = "the AI budget, how to chip in, and " if config.openrouter_key() else ""
+    budget = "the AI budget and " if config.openrouter_key() or config.own_keys() else ""
     commands = ["`/help`: this", f"`/usage`: what's left of {budget}this hour's Warcraft Logs points"]
     if logincmd.callback_url():
         commands.append("`/login`: sign in with Warcraft Logs, so your own points pay for your questions")
@@ -220,17 +220,23 @@ def usage_text(rate: dict | None) -> str:
 
 
 async def server_usage(bot: WipeBot, discord_guild_id: int) -> str | None:
-    """/usage's line about this server: what it spent this month, and its share of a shared copy's free answers or
-    its own key; None on a bot that's neither."""
+    """/usage's line about this server: what it spent this month on its own key, or on a bot that answers only on
+    servers' own keys, that it has none yet; None on a server that answers on the bot's key."""
     n, spent, _ = bot.store.spent(allowance.month_start().timestamp(), discord_guild_id=discord_guild_id)
-    mine = f"**This server:** {n} answers this month, ${spent:.2f}"
     if info := bot.store.server_key_info(discord_guild_id):
-        return f"{mine}, on its own {keycmd.NAMES.get(info[0], info[0])} key (`/wipebot key`)."
-    if bot.allowance and (left := await bot.allowance.left(discord_guild_id)):
-        return (f"{mine}: ${left[1]:.2f} of free answers left this month, back in full on "
-                f"<t:{int(allowance.next_month().timestamp())}:D>. An admin can add the server's own key with "
-                "`/wipebot key`.")
+        return (f"**This server:** {n} answers this month, ${spent:.2f}, on its own "
+                f"{keycmd.NAMES.get(info[0], info[0])} key (`/wipebot key`).")
+    if bot.own_keys:
+        return "**This server** has no AI key for answers yet: an admin adds one with `/wipebot key`."
     return None
+
+
+def budget_key(bot: WipeBot, discord_guild_id: int) -> str | None:
+    """The OpenRouter key whose budget this server sees: its own (/wipebot key), else the bot's, unless the bot
+    answers only on servers' own keys; None when that's no OpenRouter key."""
+    if own := bot.store.server_key(discord_guild_id):
+        return own.key if own.provider == "openrouter" else None
+    return None if bot.own_keys else config.openrouter_key()
 
 
 def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
@@ -249,11 +255,12 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
     async def show_usage(interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True, thinking=True)
         points = usage_text(await bot.library.wcl.my_points())  # its share of the account's hour
-        # the bot's OpenRouter key's credit limit is the AI budget raiders see
-        text = f"{await budget_text(bot.store, key)}\n\n{points}" if (key := config.openrouter_key()) else points
+        # the OpenRouter key's credit limit is the AI budget raiders see: the server's own key's, else the bot's
+        gid = in_guild(interaction).id
+        text = f"{await budget_text(bot.store, key, gid)}\n\n{points}" if (key := budget_key(bot, gid)) else points
         if mine := await logincmd.points_line(bot.store, bot.library.wcl, interaction.user.id):
             text = f"{text}\n{mine}"
-        if here := await server_usage(bot, in_guild(interaction).id):
+        if here := await server_usage(bot, gid):
             text = f"{here}\n\n{text}"
         await interaction.followup.send(text, ephemeral=True)
 
@@ -277,8 +284,7 @@ def build(bot: WipeBot) -> app_commands.Group:
                            role="Role needed to chat with wipebot (default anyone)",
                            officers="Officers' role: save raid notes and plans, stop others' posts after wipes "
                                     "(default Manage Server)",
-                           footer="End answers with a small line: their cost, Warcraft Logs points and free answers "
-                                  "left",
+                           footer="End answers with a small line: their cost and Warcraft Logs points",
                            steps="End answers with a small line of the steps they went through (what they looked at)",
                            language="The server's language, e.g. Norwegian: for posts and what's new (questions get "
                                     "answers in theirs)")
@@ -315,9 +321,9 @@ def build(bot: WipeBot) -> app_commands.Group:
                                         ephemeral=True)
 
     @group.command(name="key", description="Answer this server's questions on its own OpenRouter or Anthropic key")
-    @app_commands.describe(remove="Go back to the shared free answers and forget the key")
+    @app_commands.describe(remove="Forget the server's key")
     async def own_key(interaction: discord.Interaction, remove: bool = False) -> None:
-        await keycmd.key_command(bot.store, interaction, remove, shared=bot.allowance is not None)
+        await keycmd.key_command(bot.store, interaction, remove, required=bot.own_keys)
 
     @group.command(name="settings", description="Show how wipebot is set up in this server")
     async def show(interaction: discord.Interaction) -> None:
@@ -342,14 +348,13 @@ def build(bot: WipeBot) -> app_commands.Group:
 
     @usage.command(name="post", description="Post the AI budget to this channel, for everyone to see")
     async def post_usage(interaction: discord.Interaction) -> None:
-        if not (key := config.openrouter_key()):
-            await interaction.response.send_message("This bot has no AI budget to post.", ephemeral=True)
+        gid = in_guild(interaction).id
+        if not (key := budget_key(bot, gid)):
+            await interaction.response.send_message("This server's answers have no AI budget to post: it shows for "
+                                                    "an OpenRouter key.", ephemeral=True)
             return
         await interaction.response.defer(thinking=True)
-        # a shared copy's key is many servers' budget: post this server's share of it
-        text = (await share_text(bot, in_guild(interaction).id) if bot.allowance
-                else await budget_text(bot.store, key, with_bar=True))
-        await interaction.followup.send(text)
+        await interaction.followup.send(await budget_text(bot.store, key, gid, with_bar=True))
 
     return group
 
@@ -386,22 +391,16 @@ def news_key(language: str | None) -> str:
     return f"news_post:{(language or news.ENGLISH).lower()}"
 
 
-async def share_text(bot: WipeBot, discord_guild_id: int) -> str:
-    """/wipebot usage post on a shared copy: this server's share of this month's free answers, with a bar."""
-    if bot.store.server_key_info(discord_guild_id):
-        return "This server answers on its own key (`/wipebot key`), so it has no share of free answers to post."
-    if not bot.allowance or not (left := await bot.allowance.left(discord_guild_id)):
-        return "Couldn't read this server's share of free answers."
-    share, remaining = left
-    return (f"**This server's free answers:** ${remaining:.2f} left this month, back in full "
-            f"on <t:{int(allowance.next_month().timestamp())}:D>.\n{budget.bar(share, remaining)}")
-
-
-async def budget_text(store: Store, key: str, with_bar: bool = False) -> str:
+async def budget_text(store: Store, key: str, discord_guild_id: int | None = None, with_bar: bool = False) -> str:
+    """What an OpenRouter key has spent and has left, at this month's cost an answer: the server's own key's answers
+    with its `discord_guild_id`, else every answer the bot gave; the host's note on chipping in only on its own key."""
+    own = discord_guild_id is not None and store.server_key_info(discord_guild_id) is not None
     try:
         b = await budget.fetch(key)
     except (httpx.HTTPError, KeyError, ValueError) as e:
         return f"Couldn't read the budget from OpenRouter: {e}"
     month_start = datetime.datetime.now(datetime.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    note = None if with_bar else config.budget_note()  # the post leaves out how to chip in
-    return budget.describe(b, *store.answer_costs(month_start.timestamp()), note, with_bar)
+    note = None if with_bar or own else config.budget_note()  # the post leaves out how to chip in
+    costs = store.spent(month_start.timestamp(), discord_guild_id=discord_guild_id)[:2] if own else \
+        store.answer_costs(month_start.timestamp())
+    return budget.describe(b, *costs, note, with_bar)

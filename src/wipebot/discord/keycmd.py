@@ -1,4 +1,5 @@
-"""/wipebot key: a server brings its own model key, so its answers no longer come from the copy's shared allowance.
+"""/wipebot key: a server brings its own model key for its answers, which a copy many servers share needs
+(config.own_keys), and any other copy uses in place of its host's key.
 
 Two ways in, from one private reply:
 - Sign in with OpenRouter (its OAuth PKCE flow): the admin approves wipebot on openrouter.ai, which sends the
@@ -96,8 +97,7 @@ async def save(store: Store, interaction: discord.Interaction, key: ServerKey) -
     assert interaction.guild_id is not None
     store.save_server_key(interaction.guild_id, key, interaction.user.id)
     return (f"Saved. This server's questions now run on its own {NAMES[key.provider]} key, with no limit from "
-            "the bot; set a spend limit on the key itself. `/wipebot key remove:True` goes back to the shared free "
-            "answers.")
+            "the bot; set a spend limit on the key itself. `/wipebot key remove:True` forgets it.")
 
 
 
@@ -169,12 +169,12 @@ class KeyChoices(discord.ui.View):
         await interaction.response.send_modal(PasteKey(self.store))
 
 
-def status(store: Store, discord_guild_id: int, bot_name: str, shared: bool) -> str:
-    """Whose key answers the server: its own, the shared free answers of a bot many servers share, or else the key of
-    whoever runs the bot."""
+def status(store: Store, discord_guild_id: int, bot_name: str, required: bool) -> str:
+    """Whose key answers the server: its own, none on a bot that answers only on servers' own keys (`required`), or
+    else the key of whoever runs the bot."""
     row = store.server_key_info(discord_guild_id)
     if row is None:
-        return (f"This server answers from {bot_name}'s shared free answers." if shared else
+        return (f"This server has no key yet, and {bot_name} answers only on a server's own key." if required else
                 f"This server's questions are answered on {bot_name}'s own key, which its host set up: nothing to "
                 "do here, unless the server should pay for its answers itself.")
     provider, added_by, added_at = row
@@ -183,21 +183,22 @@ def status(store: Store, discord_guild_id: int, bot_name: str, shared: bool) -> 
             f"<t:{int(when.timestamp())}:R>.")
 
 
-async def key_command(store: Store, interaction: discord.Interaction, remove: bool, shared: bool) -> None:
+async def key_command(store: Store, interaction: discord.Interaction, remove: bool, required: bool) -> None:
     """/wipebot key: the server's key status with the ways to add one, or with `remove`, the key forgotten."""
     assert interaction.guild_id is not None
     if remove:
         dropped = store.drop_server_key(interaction.guild_id)
-        back = "the shared free answers" if shared else "the bot's own key"
+        back = ("aren't answered until an admin adds a key again" if required
+                else "go back to the bot's own key")
         await interaction.response.send_message(
-            f"Removed: this server's questions go back to {back}. To revoke the key too, delete it on openrouter.ai "
+            f"Removed: this server's questions {back}. To revoke the key too, delete it on openrouter.ai "
             "or in Anthropic's Console." if dropped else "This server has no key of its own.",
             ephemeral=True)
         return
     name = interaction.client.user.name if interaction.client.user else "the bot"
-    how = (f"To answer on your own key, with no limit from {name}: sign in with OpenRouter and paste the address it "
-           "ends on (it may not load, that's fine), or paste an OpenRouter or Anthropic key." if shared else
+    how = ("To answer on your own key: sign in with OpenRouter and paste the address it ends on (it may not load, "
+           "that's fine), or paste an OpenRouter or Anthropic key." if required else
            "To answer on another key instead, paste an OpenRouter or Anthropic key.")
     await interaction.response.send_message(
-        status(store, interaction.guild_id, name, shared) + f"\n\n{how} It's kept encrypted and never shown again.",
-        view=KeyChoices(store, sign_in=shared), ephemeral=True)
+        status(store, interaction.guild_id, name, required) + f"\n\n{how} It's kept encrypted and never shown again.",
+        view=KeyChoices(store, sign_in=required), ephemeral=True)

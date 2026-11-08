@@ -84,6 +84,8 @@ MODEL_ERRORS = {
 GUILD_COMMANDS_CLEARED = "guild commands cleared"  # bot_state: earlier versions' per-server commands are gone
 TOO_SLOW = "That took too long, sorry. Try asking something narrower."
 SLOW_START = "Loading the report took too long; try again in a minute."
+NEEDS_KEY = ("This server hasn't added an AI key for my answers yet: an admin adds one with `/wipebot key` "
+             "(OpenRouter or Anthropic).")
 WENT_WRONG = "Something went wrong while answering that; try again in a moment."
 WCL_DOWN = "Warcraft Logs isn't answering, so I can't look at the logs; try again in a few minutes."
 MENTION = re.compile(r"<@[!&]?\d+>|<#\d+>")
@@ -96,10 +98,10 @@ CUT = "-# The answer was cut here: it ran past four messages."
 TEXT_LIMIT = 4000
 
 
-async def budget_used_up() -> bool:
-    """Whether the bot's own OpenRouter key has no credit left: OpenRouter refuses such a key's requests with a 403,
-    which Claude Code reports as authentication_failed, not billing_error."""
-    if not (key := config.openrouter_key()):
+async def budget_used_up(key: str | None) -> bool:
+    """Whether an OpenRouter key (the bot's own, or a server's) has no credit left: OpenRouter refuses such a key's
+    requests with a 403, which Claude Code reports as authentication_failed, not billing_error."""
+    if not key:
         return False
     try:
         b = await budget.fetch(key)
@@ -430,9 +432,8 @@ class WipeBot(discord.Client):
         self.test_report, self.test_server, self.try_question = test_report, test_server, try_question
         self.tree = app_commands.CommandTree(self)
         self.tree.add_command(commands.build(self))
-        # a copy many servers share: each may spend its share of the key's monthly limit (allowance.py)
-        share, key = allowance.server_share(), config.openrouter_key()
-        self.allowance = allowance.Allowance(store, key, share) if share and key else None
+        # a copy many servers share: each server answers only on its own key (/wipebot key)
+        self.own_keys = config.own_keys()
         for command in commands.build_everyone(self):
             self.tree.add_command(command)
         # per server: its live report; per guild for a raider's own (LoginGuild), ("login", its id)
@@ -784,6 +785,8 @@ class WipeBot(discord.Client):
             return f"Chatting with wipebot needs the <@&{s.required_role_id}> role."
         if self.stopping:
             return "I'm restarting; ask again in a minute."
+        if self.own_keys and self.store.server_key(s.discord_guild_id) is None:
+            return NEEDS_KEY
         return None
 
     async def _chat(self, message: discord.Message, s: ServerSettings, code: str, question: str, where: str,
@@ -952,11 +955,10 @@ class WipeBot(discord.Client):
             return self._record(kind, code, question, started, message, asker=who, fight=fight,
                                 channel_id=channel_id, **row)
         shown = self._shown(who)
-        if self.allowance and ctx.server_id and ctx.env is None and (  # a server's own key has no allowance
-                refused := await self.allowance.refusal(ctx.server_id)):
-            log.info("%s answer to %s refused: the server's free answers are used up", kind, shown)
-            record(error="allowance used up")
-            return refused
+        if self.own_keys and ctx.env is None:  # the key was removed since, or a post after a wipe
+            log.info("%s answer to %s refused: the server has no key of its own", kind, shown)
+            record(error="no key")
+            return NEEDS_KEY
         earlier = (lambda after, seen: self._earlier(message, after, seen)) if message else None
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
             answer = await self.conversations.ask(key, code, question, ctx, earlier, message.id if message else None,
@@ -974,7 +976,8 @@ class WipeBot(discord.Client):
             log.error("%s answer to %s failed: Claude's API refused (%s)", kind, shown, e.kind)
             record(error=f"model: {e.kind}", answer=e.answer)  # what it cost, when it hit a cap
             self._spent(kind, ctx, e.answer)
-            if e.kind not in MODEL_ERRORS and ctx.env is None and await budget_used_up():
+            if e.kind not in MODEL_ERRORS and await budget_used_up(
+                    ctx.env.get("ANTHROPIC_AUTH_TOKEN") if ctx.env else config.openrouter_key()):
                 return MODEL_ERRORS["billing_error"]
             return MODEL_ERRORS.get(e.kind, MODEL_ERRORS["other"])
         except WCLError as e:  # loading the report, before the model got the question
@@ -996,25 +999,17 @@ class WipeBot(discord.Client):
 
     async def _with_footer(self, kind: str, ctx: Context, answer: Answer) -> Answer:
         """A chat answer with its small lines under it, where the server has them on: the steps it went through
-        (/wipebot setup steps:, on by default), and what it cost, by default while it answers from a shared copy's
-        free answers (/wipebot setup footer: turns it on or off)."""
+        (/wipebot setup steps:, on by default), and what it cost (/wipebot setup footer:, off by default)."""
         if kind != "chat" or not answer.text:
             return answer
         lines = []
         if ctx.server_id and self.store.steps(ctx.server_id):
             lines.append(progress.steps([(c.name, c.failed) for c in answer.calls]))
-        on = self.store.footer(ctx.server_id) if ctx.server_id else None
-        if on is None:
-            on = self.allowance is not None and ctx.env is None
-        if on:
+        if ctx.server_id and self.store.footer(ctx.server_id):
             try:
-                left = (await self.allowance.left(ctx.server_id)
-                        if self.allowance and ctx.env is None and ctx.server_id else None)
-                if left:  # this answer is spent too, though kept only once it's posted
-                    left = (left[0], max(left[1] - (answer.cost_usd or 0), 0.0))
                 points = answer.wcl_points()
                 rate = await self.library.wcl.my_points() if points.get("total") else None  # fresh: its queries
-                lines.append(allowance.footer(answer.cost_usd, points, left, rate, wcl.on_new_point_system()))
+                lines.append(allowance.footer(answer.cost_usd, points, rate, wcl.on_new_point_system()))
             except Exception:
                 log.exception("the cost line failed")
         return replace(answer, footer="\n".join(line for line in lines if line))

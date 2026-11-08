@@ -36,8 +36,9 @@ async def test_the_steps_show_in_the_order_theyre_used(store):
 
 
 def test_the_status_says_whose_key_answers(store):
-    assert "Wipebot's shared free answers" in keycmd.status(store, 1001, "Wipebot", shared=True)
+    assert "no key yet, and Wipebot answers only on a server's own key" in keycmd.status(
+        store, 1001, "Wipebot", required=True)
     # a guild's own bot
-    assert "on Wipeboy's own key, which its host set up" in keycmd.status(store, 1001, "Wipeboy", shared=False)
+    assert "on Wipeboy's own key, which its host set up" in keycmd.status(store, 1001, "Wipeboy", required=False)
     store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-v1-abc"), added_by=7)
-    assert "its own OpenRouter key, added by <@7>" in keycmd.status(store, 1001, "Wipeboy", shared=False)
+    assert "its own OpenRouter key, added by <@7>" in keycmd.status(store, 1001, "Wipeboy", required=False)

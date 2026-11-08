@@ -11,7 +11,7 @@ from discord import app_commands
 
 from tests.support import NOTE, PLAN
 from wipebot.core.wcl import WCLError
-from wipebot.discord import commands
+from wipebot.discord import budget, commands, keys
 from wipebot.discord.commands import parse_guild_link, save_pasted, updated_settings
 from wipebot.discord.store import ServerSettings
 
@@ -270,14 +270,25 @@ async def test_setup_keeps_the_steps_under_answers_or_not(setup, bot):
     assert bot.store.steps(1001) is True
 
 
-async def test_usage_post_on_a_shared_copy_shows_the_servers_share(bot):
-    async def left(server_id):
-        return 5.0, 1.25
+async def test_usage_reads_the_servers_own_key_on_a_copy_that_needs_one(bot, monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-host")
+    bot.own_keys = True
+    assert commands.budget_key(bot, 1001) is None  # never the host's key
+    assert "no AI key for answers yet" in (await commands.server_usage(bot, 1001) or "")
+    bot.store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-guild"), added_by=7)
+    assert commands.budget_key(bot, 1001) == "sk-or-guild"
+    bot.store.add_spend(1001, 7, "chat", 0.5, 0)
+    bot.store.add_spend(2002, 8, "chat", 9.0, 0)  # another server's answers aren't this key's
 
-    bot.allowance = SimpleNamespace(left=left)
-    text = await commands.share_text(bot, 1001)
-    assert text.startswith("**This server's free answers:** $1.25 left this month")
-    assert text.endswith("`███████████████░░░░░` 75% spent")
+    async def fetch(key):
+        assert key == "sk-or-guild"
+        return budget.KeyBudget(limit=20.0, remaining=5.0, month=15.0)
+    monkeypatch.setattr(budget, "fetch", fetch)
+    text = await commands.budget_text(bot.store, "sk-or-guild", 1001, with_bar=True)
+    assert "**$5.00** left: about 10 more answers at this month's $0.50 an answer" in text
+    assert "`███████████████░░░░░` 75% spent" in text
+    bot.store.save_server_key(1001, keys.ServerKey("anthropic", "sk-ant-x"), added_by=7)
+    assert commands.budget_key(bot, 1001) is None  # Anthropic's keys say nothing of a budget
 
 
 async def test_setup_sets_the_servers_language_even_before_the_server_is_connected(setup, bot):

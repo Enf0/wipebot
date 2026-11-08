@@ -15,7 +15,7 @@ from tests.support.messages import shown
 from wipebot.core import server
 from wipebot.core.wcl import WCLError
 from wipebot.discord import bot as wipebot
-from wipebot.discord import config, progress
+from wipebot.discord import config, keys, progress
 from wipebot.discord.bot import (
     MODEL_ERRORS,
     SLOW_START,
@@ -334,6 +334,7 @@ async def test_a_question_without_a_report_is_answered_about_the_game(bot, messa
     (dict(content="hi", dm=True), None, "I can only chat with members of a server where wipebot is set up"),
     (dict(content="<@99> hi"), "role", "Chatting with wipebot needs the <@&111> role."),
     (dict(content="<@99> hi"), "stopping", "I'm restarting; ask again in a minute."),
+    (dict(content="<@99> hi"), "own_keys", "This server hasn't added an AI key for my answers yet"),
     (dict(content="<@99> " + "why " * 600), None, "That's a long one: ask me in at most 2000 characters."),
 ])
 async def test_messages_the_bot_doesnt_answer(bot, message, asked, settings, follower, make, setup, reply):
@@ -341,11 +342,20 @@ async def test_messages_the_bot_doesnt_answer(bot, message, asked, settings, fol
         bot.store.save_settings(replace(settings, required_role_id=111))
     elif setup == "stopping":
         bot.stopping = True
+    elif setup == "own_keys":  # a copy many servers share, and this one hasn't added its key
+        bot.own_keys = True
     msg = message(**make)
     await bot.on_message(msg)
     said = msg.replies + getattr(msg.channel, "sent", [])
     assert not asked
     assert said == [] if reply is None else (len(said) == 1 and said[0].startswith(reply))
+
+
+async def test_a_server_with_its_own_key_is_answered_on_a_copy_that_needs_one(bot, message, asked):
+    bot.own_keys = True
+    bot.store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-v1-abc"), added_by=7)
+    await bot.on_message(message(content="<@99> why did we wipe?"))
+    assert len(asked) == 1
 
 
 @pytest.mark.parametrize("error, told, why", [
