@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-08
+
 ### Changed
 
 - `Discord` **The public Wipebot bot answers on your server's own AI key.** The small monthly share of free answers is gone: an admin adds an OpenRouter or Anthropic key with `/wipebot key`, and until then the bot says so. `/usage` and `/wipebot usage post` show what's left on the server's own OpenRouter key, and the bot says when that key's credit is used up.
