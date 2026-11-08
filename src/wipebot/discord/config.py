@@ -38,7 +38,7 @@ def model_env() -> dict[str, str]:
 
 
 def own_keys() -> bool:
-    """Whether each server answers only on its own key, added with /wipebot key (WIPEBOT_OWN_KEYS=1): a copy many
+    """Whether each server answers only on its own key, added with /wipebot setup (WIPEBOT_OWN_KEYS=1): a copy many
     servers share, whose host pays for no server's answers. A server without one is told how to add it."""
     return os.environ.get("WIPEBOT_OWN_KEYS", "").lower() in ("1", "true", "yes")
 

@@ -30,7 +30,7 @@ async def fetch(key: str) -> KeyBudget:
 
 
 def bar(limit: float | None, remaining: float | None, width: int = 20) -> str:
-    """How much of a limit is spent, as a bar of text (for /wipebot usage post); empty without a limit."""
+    """How much of a limit is spent, as a bar of text (the budget an admin posts from /usage); empty without a limit."""
     if not limit or remaining is None:
         return ""
     used = min(max(1 - remaining / limit, 0), 1)

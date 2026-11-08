@@ -98,7 +98,7 @@ async def test_anyone_can_ask_for_posts_in_a_channel_and_only_they_or_an_officer
     for args in ({"stop": True}, {"request": "the deaths"}):
         assert await posts.follow_pulls(SERVER, halvard, "Halvard", args, "LIVE1", "LIVE1", channel) == (
             "Rowan asked for the posts after wipes here (who died first and why): only they, or an officer "
-            "(/wipebot settings says who), can change or stop them.")
+            "(/wipebot setup says who), can change or stop them.")
     assert places(posts) == {20: (None, "who died first and why", "LIVE1")}
     assert await posts.follow_pulls(SERVER, officer, "Brann", {"stop": True}, "LIVE1", "LIVE1", channel,
                                     officer=True) == \

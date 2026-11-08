@@ -1,4 +1,4 @@
-"""/wipebot key: reading what an admin pastes, and the OpenRouter sign-in link."""
+"""/wipebot setup's AI key: reading what an admin pastes, and the OpenRouter sign-in link."""
 import base64
 import hashlib
 from types import SimpleNamespace

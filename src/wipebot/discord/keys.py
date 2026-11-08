@@ -1,4 +1,4 @@
-"""Servers' own model keys (/wipebot key) and raiders' Warcraft Logs tokens (/login), kept encrypted: the database
+"""Servers' own model keys (/wipebot setup) and raiders' Warcraft Logs tokens (/login), kept encrypted: the database
 alone never gives them away.
 
 The encryption key comes from the host's settings, never the database: WIPEBOT_KEY_SECRET, or else the Warcraft

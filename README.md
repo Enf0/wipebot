@@ -11,7 +11,7 @@ A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and bes
 
 - **Claude:** **Add to Claude** on that page, then **Continue** and sign in with Warcraft Logs.
 - **ChatGPT and others:** add `https://wipebot.enfo.dev/mcp` as a custom MCP server and sign in with Warcraft Logs.
-- **Discord:** **Add to Discord** on that page, then an admin adds the server's AI key with `/wipebot key`
+- **Discord:** **Add to Discord** on that page, then an admin runs `/wipebot setup` and adds the server's AI key
   (sign in with OpenRouter, or paste an OpenRouter or Anthropic key): the server's answers run on it. Then DM or
   mention the bot.
 
@@ -55,7 +55,7 @@ explains their output. The tools are an [MCP](https://modelcontextprotocol.io) s
 - **Connector**: members add your server to Claude, ChatGPT or similar and sign in with Warcraft Logs; answers run
   on their own subscription.
 - **Discord bot**: the guild asks in channels and DMs, and it can post after each wipe; answers run on the host's
-  Anthropic or OpenRouter key, or on an AI key a server's admin added (`/wipebot key`).
+  Anthropic or OpenRouter key, or on an AI key a server's admin added (`/wipebot setup`).
 
 ## Setup
 

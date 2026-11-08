@@ -1,4 +1,4 @@
-"""What's new in each release, posted to the channel a server chose (news.py, WipeBot._post_news, /wipebot news)."""
+"""What's new in each release, posted to the channel a server chose (news.py, WipeBot._post_news, setup news:)."""
 import json
 import re
 from types import SimpleNamespace
@@ -168,18 +168,20 @@ async def test_admins_choose_the_channel_and_see_the_latest_post(bot):
         def permissions_for(self, obj):
             return allowed
     here = Here()
+    async def nothing(**kwargs):
+        pass
     interaction = cast(Any, SimpleNamespace(guild=SimpleNamespace(id=1001, me=None), channel=here,
-                                            response=SimpleNamespace(send_message=say),
+                                            response=SimpleNamespace(defer=nothing),
                                             followup=SimpleNamespace(send=say)))
     bot.store.set_state("news_post:english", news.Post("0.3.0", ["**A line.**"], [[]], 2).to_json())
-    callback = cast(Any, commands.build(bot).get_command("news")).callback
-    await callback(interaction)
+    callback = cast(Any, commands.build(bot).get_command("setup")).callback
+    await callback(interaction, news=here)
     assert bot.store.news_channel(1001) == 40 and "posted in <#40>" in said[0]
     assert isinstance(said[1], discord.ui.LayoutView)
     allowed.send_messages = False
-    await callback(interaction)
-    assert "I can't post in <#40>" in said[2]
-    await callback(interaction, stop=True)
+    await callback(interaction, news=here)
+    assert "I can't post what's new in <#40>" in said[2]
+    await callback(interaction, news_stop=True)
     assert bot.store.news_channel(1001) is None and "no longer posted" in said[3]
 
 

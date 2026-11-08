@@ -84,7 +84,7 @@ MODEL_ERRORS = {
 GUILD_COMMANDS_CLEARED = "guild commands cleared"  # bot_state: earlier versions' per-server commands are gone
 TOO_SLOW = "That took too long, sorry. Try asking something narrower."
 SLOW_START = "Loading the report took too long; try again in a minute."
-NEEDS_KEY = ("This server hasn't added an AI key for my answers yet: an admin adds one with `/wipebot key` "
+NEEDS_KEY = ("This server hasn't added an AI key for my answers yet: an admin adds one with `/wipebot setup` "
              "(OpenRouter or Anthropic).")
 WENT_WRONG = "Something went wrong while answering that; try again in a moment."
 WCL_DOWN = "Warcraft Logs isn't answering, so I can't look at the logs; try again in a few minutes."
@@ -432,7 +432,7 @@ class WipeBot(discord.Client):
         self.test_report, self.test_server, self.try_question = test_report, test_server, try_question
         self.tree = app_commands.CommandTree(self)
         self.tree.add_command(commands.build(self))
-        # a copy many servers share: each server answers only on its own key (/wipebot key)
+        # a copy many servers share: each server answers only on its own key (/wipebot setup)
         self.own_keys = config.own_keys()
         for command in commands.build_everyone(self):
             self.tree.add_command(command)
@@ -504,7 +504,7 @@ class WipeBot(discord.Client):
         included) to each server's channel for it, in the server's language, when the model finds any of it worth a
         raider's read. A patch, or a release with nothing worth it, posts nothing: its changes wait for the next
         post. The first start posts nothing: it only notes the release it runs and keeps its post, for
-        /wipebot news to show."""
+        /wipebot setup news: to show."""
         changelog, posted = news.read(), self.store.state("news_version")
         if not changelog or not (version := news.latest(changelog)) or version in (posted,
                                                                                   self.store.state("news_checked")):

@@ -214,7 +214,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS server_options (  -- what an admin turned on or off, set up or not
                 discord_guild_id INTEGER PRIMARY KEY,
                 footer INTEGER,          -- the cost line under answers (/wipebot setup footer:); NULL: the default
-                news_channel INTEGER,    -- where what's new in each release is posted (/wipebot news); NULL: nowhere
+                news_channel INTEGER,    -- where what's new in each release is posted (setup news:); NULL: nowhere
                 language TEXT,           -- the server's language (/wipebot setup language:); NULL: none set
                 steps INTEGER            -- the steps line under answers (/wipebot setup steps:); NULL: the default
             );
@@ -222,7 +222,7 @@ class Store:
                 key TEXT PRIMARY KEY,    -- news: the latest release's post (news.Post), posted or not
                 value TEXT NOT NULL
             );
-            CREATE TABLE IF NOT EXISTS server_keys (  -- a server's own model key (/wipebot key), encrypted (keys.py)
+            CREATE TABLE IF NOT EXISTS server_keys (  -- a server's own model key (/wipebot setup), encrypted (keys.py)
                 discord_guild_id INTEGER PRIMARY KEY,
                 provider TEXT NOT NULL,  -- openrouter or anthropic
                 sealed TEXT NOT NULL,

@@ -44,15 +44,15 @@ In `.env` (copy [.env.example](../.env.example)):
 | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required; or `OPENROUTER_API_KEY` in place of the Anthropic key (below) |
 | `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/usage` ([below](#a-budget-the-guild-chips-in-to)) |
 | `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/usage`, e.g. `Vipps to Oscar, 12345678` |
-| `WIPEBOT_OWN_KEYS` | bot | `1` for a copy many servers share: each server answers only on its own key, which an admin adds with `/wipebot key`; until then its raiders are told to ask an admin. The bot then needs no key of its own |
-| `WIPEBOT_KEY_SECRET` | bot | what the AI keys admins add for their servers (`/wipebot key`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
-| `WIPEBOT_OPENROUTER_CALLBACK` | bot | where OpenRouter sends an admin after "Sign in with OpenRouter" in `/wipebot key`: a page that shows the address to paste back; default a localhost address that doesn't load, whose address bar holds it |
+| `WIPEBOT_OWN_KEYS` | bot | `1` for a copy many servers share: each server answers only on its own key, which an admin adds with `/wipebot setup`; until then its raiders are told to ask an admin. The bot then needs no key of its own |
+| `WIPEBOT_KEY_SECRET` | bot | what the AI keys admins add for their servers (`/wipebot setup`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
+| `WIPEBOT_OPENROUTER_CALLBACK` | bot | where OpenRouter sends an admin after "Sign in with OpenRouter" in `/wipebot setup`: a page that shows the address to paste back; default a localhost address that doesn't load, whose address bar holds it |
 | `WIPEBOT_WCL_CALLBACK` | bot | turns on `/login`: where Warcraft Logs sends a raider after they sign in, a page that shows its address to paste back into Discord (any page does: the address bar holds the code). Add it to your Warcraft Logs client's redirect URLs (comma-separated) |
 | `WIPEBOT_MODEL` | bot | `opus` (default), `sonnet` or `haiku`; through OpenRouter, another model's OpenRouter id (untested) |
 | `WIPEBOT_EFFORT` | bot | how hard the model thinks: `low`, `medium`, `high`, `xhigh` or `max`; unset, the model's default |
 | `WIPEBOT_CHANNEL_CONTEXT` | bot | `1`: answers also read the channel's last 15 messages and the Discord messages a question links to (needs the Message Content intent) |
 | `WIPEBOT_RECORD_ANSWERS` | bot | `1`: keep questions and answers for 90 days, for reviewing them |
-| `WIPEBOT_SOURCE_URL` | both | where users get your copy's source, shown on the sign-in page and in `/wipebot settings` (default this repository): set it if you changed the code, as the AGPL asks |
+| `WIPEBOT_SOURCE_URL` | both | where users get your copy's source, shown on the sign-in page and in `/wipebot setup` (default this repository): set it if you changed the code, as the AGPL asks |
 
 Each app says at start which of its required settings are missing. Rarely needed: `WIPEBOT_MCP_MEMORY` and
 `WIPEBOT_BOT_MEMORY`, Docker's memory limit per container (default `2g` and `4g`), and `WIPEBOT_CACHE_MAX_MB`,
@@ -108,10 +108,10 @@ they then press **Connect** on the plugin's connector and sign in with Warcraft 
    - `/wipebot setup link:<the guild's warcraftlogs.com page>`, optionally with a role needed to chat with it
      (`role:`) and the officers' role (`officers:`; default those with Manage Server; what officers can do:
      [below](#officers-and-admins));
-   - `/wipebot settings` to see the setup and the saved notes and plans.
+   - `/wipebot setup` alone to see the setup and the saved notes and plans, with buttons to add an AI key they have
+     (OpenRouter or Anthropic) for the server's answers to run on.
 
-   `footer:` on setup ends answers with what they cost; `/wipebot key` lets an admin add an AI key they have
-   (OpenRouter or Anthropic) for the server's answers to run on.
+   `footer:` on setup ends answers with what they cost, and `news:` picks a channel for what's new in each release.
 
 Raiders @mention it or reply to it in a channel, or DM it; `/help` tells them what to ask, and `/usage` what's left of
 the hour's Warcraft Logs points (and of the budget, [below](#a-budget-the-guild-chips-in-to)). With

@@ -55,7 +55,7 @@ answer_in_dm and say so in a line here. It reaches the asker only: anyone else a
 
 **Raid notes and plans** are saved only from an export an officer pastes to the bot: Viserio's whole note (with its
 EncounterID line) or raidstrats.gg's (raidstrats-addon-...); Discord's file for a long paste works too. Nothing
-typed, screenshotted or linked is saved. `/wipebot settings` lists what's saved.
+typed, screenshotted or linked is saved. `/wipebot setup` lists what's saved.
 
 ## How you reply
 

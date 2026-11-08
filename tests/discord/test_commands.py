@@ -53,6 +53,7 @@ class FakeInteraction:
 
     def __init__(self):
         self.said: list[str] = []
+        self.views: list[Any] = []
         raiders = SimpleNamespace(id=111, mention="@Raider")
         self.guild = SimpleNamespace(id=1001, get_role=lambda i: raiders if i == 111 else None)
         self.user = SimpleNamespace(display_name="Rowan")
@@ -62,9 +63,10 @@ class FakeInteraction:
     async def _nothing(self, **kwargs):
         pass
 
-    async def _say(self, text, ephemeral=False):
+    async def _say(self, text=None, ephemeral=False, view=None):
         assert ephemeral  # only the admin sees it
-        self.said.append(text)
+        self.said.append(text or "")
+        self.views.append(view)
 
 
 @pytest.fixture
@@ -86,7 +88,7 @@ def setup(bot) -> Any:
 
 async def test_setup_connects_the_server_to_its_guild(bot, setup):
     bot.store._db.execute("DELETE FROM server_settings")
-    assert "Give the guild's warcraftlogs.com link" in await setup()
+    assert "Give the guild's warcraftlogs.com link" in await setup(role=SimpleNamespace(id=111))
     assert "no guild with id 123" in await setup(link="https://www.warcraftlogs.com/guild/id/123")
     assert "Couldn't reach Warcraft Logs" in await setup(link="https://www.warcraftlogs.com/guild/id/666")
     assert bot.store.settings(1001) is None
@@ -107,17 +109,31 @@ def test_the_experimental_sources_are_connected_on_the_command_line_only(bot, mo
     assert group.get_command("raidstrats") is None and group.get_command("viserio") is None
 
 
-async def test_settings_show_the_setup_and_whats_saved_and_notes_are_saved_by_paste_only(bot, settings):
+async def test_setup_alone_shows_the_setup_and_whats_saved_and_notes_are_saved_by_paste_only(bot, setup, settings):
     group = commands.build(bot)
-    assert group.get_command("note") is None  # pasting to the bot replaces /wipebot note
-    show = cast(Any, group.get_command("settings")).callback
-    interaction = FakeInteraction()
-    await show(interaction)
-    assert "**Officers**" in interaction.said[-1] and "No raid note or plan saved yet" in interaction.said[-1]
+    assert {c.name for c in group.walk_commands()} == {"setup"}  # settings, key, news and usage post are in it
+    told = await setup()
+    assert "**To do:**" not in told and "**Officers**" in told and "No raid note or plan saved yet" in told
+    assert "**AI key:** This server's questions are answered on wipebot's own key" in told
     save_pasted(bot.store, 1001, NOTE.read_text(encoding="utf-8"), "Rowan", at=1000.0)
-    await show(interaction)
-    assert "Raid notes saved here (the newest per boss):\n- **Sszorak**, by Rowan" in interaction.said[-1]
-    assert interaction.said[-1].endswith("its source is at <https://github.com/Enf0/wipebot>.")  # the AGPL's §13
+    told = await setup()
+    assert "Raid notes saved here (the newest per boss):\n- **Sszorak**, by Rowan" in told
+    assert "**Answers end with:** the steps they went through" in told
+    assert told.endswith("its source is at <https://github.com/Enf0/wipebot>.")  # the AGPL's §13
+
+
+async def test_setup_alone_on_a_new_server_says_what_to_do_first_with_the_key_buttons(bot, setup):
+    bot.store._db.execute("DELETE FROM server_settings")
+    bot.own_keys = True
+    told = await setup()
+    assert told.startswith("**To do:**\n1. Add an AI key with the button below") and "\n2. Connect the guild: " \
+        "`/wipebot setup link:`" in told
+    def labels():
+        return [cast(Any, b).label for b in commands.keycmd.KeyButtons(bot.store, 1001, True).children]
+    assert labels() == ["Add AI key"]
+    bot.store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-guild"), added_by=7)
+    assert "Add an AI key" not in await setup()
+    assert labels() == ["Change AI key", "Remove AI key"]
 
 
 async def test_a_new_setup_stops_the_servers_posts_after_wipes(bot, setup, member):
@@ -241,7 +257,8 @@ def test_help_lists_what_the_member_may_use(settings, monkeypatch):
     assert "/help" in raider and "/usage" in raider and "/wipebot" not in raider
     admin = commands.help_text(replace(settings, required_role_id=111), admin=True)
     assert "/wipebot setup" in admin
-    assert "<@&111>" in admin and "in channels I name nobody." in admin
+    assert "<@&111>" in admin and "name nobody" not in admin  # channels name players as DMs do
+    assert "`news:`" in admin and "/wipebot key" not in admin
     assert "not set up" in commands.help_text(None, admin=True)
     assert "not set up" in commands.help_text(ServerSettings.unset(1001), admin=False)
     assert len(admin) < 2000  # one Discord message

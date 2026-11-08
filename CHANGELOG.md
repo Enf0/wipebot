@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **One command for admins: `/wipebot setup`.** On its own it shows how the bot is set up in the server, what's left to do first on a new server (add an AI key, connect the guild), and buttons to add, change or remove the server's AI key. Its options change a setting, now with `news:` for the channel where what's new is posted. `/wipebot settings`, `/wipebot key` and `/wipebot news` are gone, and `/wipebot usage post` is now a button admins see under `/usage`.
+
 ## [0.39.1] - 2026-11-08
 
 ### Fixed

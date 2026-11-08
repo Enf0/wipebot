@@ -1,4 +1,4 @@
-"""/wipebot key: a server brings its own model key for its answers, which a copy many servers share needs
+"""/wipebot setup's AI key: a server brings its own model key for its answers, which a copy many servers share needs
 (config.own_keys), and any other copy uses in place of its host's key.
 
 Two ways in, from one private reply:
@@ -113,7 +113,7 @@ async def save(store: Store, interaction: discord.Interaction, key: ServerKey, n
     assert interaction.guild_id is not None
     store.save_server_key(interaction.guild_id, key, interaction.user.id)
     return (f"Saved. This server's questions now run on its own {NAMES[key.provider]} key, with no limit from "
-            "the bot; set a spend limit on the key itself. `/wipebot key remove:True` forgets it.")
+            "the bot; set a spend limit on the key itself. **Remove AI key** in `/wipebot setup` forgets it.")
 
 
 
@@ -136,7 +136,7 @@ class PasteSignIn(discord.ui.Modal, title="Sign in with OpenRouter"):
             key = await exchange(code, self.verifier)
         except (httpx.HTTPError, KeyError) as e:
             await interaction.followup.send(f"OpenRouter didn't give a key for that code ({e}). Sign in again from "
-                                            "`/wipebot key`.", ephemeral=True)
+                                            "`/wipebot setup`.", ephemeral=True)
             return
         await interaction.followup.send(await save(self.store, interaction, ServerKey("openrouter", key), new=True),
                                         ephemeral=True)
@@ -200,7 +200,8 @@ def status(store: Store, discord_guild_id: int, bot_name: str, required: bool) -
 
 
 async def key_command(store: Store, interaction: discord.Interaction, remove: bool, required: bool) -> None:
-    """/wipebot key: the server's key status with the ways to add one, or with `remove`, the key forgotten."""
+    """/wipebot setup's key buttons: the server's key status with the ways to add one, or with `remove`, the key
+    forgotten."""
     assert interaction.guild_id is not None
     if remove:
         dropped = store.drop_server_key(interaction.guild_id)
@@ -218,3 +219,23 @@ async def key_command(store: Store, interaction: discord.Interaction, remove: bo
     await interaction.response.send_message(
         status(store, interaction.guild_id, name, required) + f"\n\n{how} It's kept encrypted and never shown again.",
         view=KeyChoices(store, sign_in=required), ephemeral=True)
+
+
+class KeyButtons(discord.ui.View):
+    """Under /wipebot setup alone: add the server's AI key, or change or remove the one it has (`required`: the bot
+    answers only on servers' own keys)."""
+
+    def __init__(self, store: Store, discord_guild_id: int, required: bool):
+        super().__init__(timeout=900)
+        self.store, self.required = store, required
+        if store.server_key_info(discord_guild_id) is None:
+            self.change.label, self.change.style = "Add AI key", discord.ButtonStyle.primary
+            self.remove_item(self.remove)
+
+    @discord.ui.button(label="Change AI key", style=discord.ButtonStyle.secondary)
+    async def change(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await key_command(self.store, interaction, remove=False, required=self.required)
+
+    @discord.ui.button(label="Remove AI key", style=discord.ButtonStyle.danger)
+    async def remove(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await key_command(self.store, interaction, remove=True, required=self.required)

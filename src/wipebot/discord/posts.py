@@ -92,7 +92,7 @@ class Posts:
         theirs = following.get(key)
         if channel is not None and theirs and theirs.user.id != user.id and not officer:
             return (f"{theirs.name} asked for the posts after wipes here ({theirs.request}): only they, or an officer "
-                    "(/wipebot settings says who), can change or stop them.")
+                    "(/wipebot setup says who), can change or stop them.")
         if args.get("stop"):
             ended = self.end(guild_id, key)
             log.info("posts after wipes %s: stopped by %s", "in a channel" if channel else "in a DM", self._shown(name))

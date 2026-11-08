@@ -1,4 +1,4 @@
-"""What's new, posted to the channel a server's admins chose (/wipebot news) when the bot starts on a release it
+"""What's new, posted to the channel a server's admins chose (/wipebot setup news:) when the bot starts on a release it
 hasn't posted yet, in the server's language (/wipebot setup language:). From CHANGELOG.md's items a raider in
 Discord notices (tagged `Agent` or `Discord`), the model says each in a short line for raiders, most important
 first, leaving out what only matters elsewhere; the post shows each item's pictures under its line and counts what it

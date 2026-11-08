@@ -1,6 +1,6 @@
 """What a server's answers cost: the calendar month they're counted in (UTC), and the small line under an answer.
 
-A copy many servers share (WIPEBOT_OWN_KEYS, a public copy) answers each server only on its own key (/wipebot key),
+A copy many servers share (WIPEBOT_OWN_KEYS, a public copy) answers each server only on its own key (/wipebot setup),
 so it pays for none of them; config.own_keys.
 """
 import datetime

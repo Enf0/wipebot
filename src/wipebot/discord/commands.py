@@ -1,7 +1,8 @@
 """Slash commands. For everyone: /help (what to ask, the commands, how the server is set up; also "help" said to
 the bot, bot.py) and /usage (what's left of the AI budget, on an OpenRouter key, and of the hour's Warcraft Logs
-points). For server admins: /wipebot setup (also the cost footer), /wipebot settings (with the raid notes and plans
-saved), /wipebot key, /wipebot news (the channel for what's new in each release). Officers save a note or plan by
+points; admins also get a button there to post the AI budget). For server admins, one command: /wipebot setup, which
+alone shows how the server is set up and what's left to do, with buttons for its AI key, and with options changes the
+guild, roles, footers, language and the channel for what's new. Officers save a note or plan by
 pasting it to the bot (bot.py). docs/features.md lists them all (a test checks). Viserio Cooldowns and raidstrats.gg,
 experimental, are connected by the host on the command line (__main__.py).
 
@@ -183,13 +184,12 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
     if logincmd.callback_url():
         commands.append("`/login`: sign in with Warcraft Logs, so your own points pay for your questions")
     if admin:
-        commands += ["`/wipebot setup`: connect the server to the guild on Warcraft Logs; who can chat; the officers",
-                     "`/wipebot settings`: the setup, and the raid notes and plans saved",
-                     "`/wipebot key`: answer on the server's own OpenRouter or Anthropic key",
-                     "`/wipebot news`: post what's new in each release of mine to a channel",
-                     "`/wipebot setup footer:`: end answers with what they cost, or not",
-                     "`/wipebot setup steps:`: end answers with the steps they went through, or not",
-                     "`/wipebot setup language:`: the language of posts after wipes and of what's new"]
+        commands += ["`/wipebot setup`: how I'm set up here and what's left to do, with buttons for the server's AI "
+                     "key",
+                     "`/wipebot setup` with options: `link:` the guild on Warcraft Logs, `role:` who can chat, "
+                     "`officers:`, `footer:` and `steps:` (the small lines under answers), `language:` of posts, "
+                     "`news:` the channel for what's new in each release",
+                     "`/usage` shows you a button to post the AI budget in the channel"]
     commands.append("Officers save a raid note or plan by pasting it to me.")
     parts.append("**Commands:**\n" + "\n".join(f"- {c}" for c in commands))
     if s is None or not s.set_up:
@@ -201,7 +201,7 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str
     else:
         who = f"<@&{s.required_role_id}>" if s.required_role_id else "anyone in the server"
         parts.append(f"**Here:** the guild **{s.wcl_guild}** ({s.wcl_server}-{s.wcl_region.upper()}); who can chat: "
-                     f"{who}. In DMs I name players; in channels I name nobody.")
+                     f"{who}.")
     return "\n\n".join(parts)
 
 
@@ -225,14 +225,14 @@ async def server_usage(bot: WipeBot, discord_guild_id: int) -> str | None:
     n, spent, _ = bot.store.spent(allowance.month_start().timestamp(), discord_guild_id=discord_guild_id)
     if info := bot.store.server_key_info(discord_guild_id):
         return (f"**This server:** {n} answers this month, ${spent:.2f}, on its own "
-                f"{keycmd.NAMES.get(info[0], info[0])} key (`/wipebot key`).")
+                f"{keycmd.NAMES.get(info[0], info[0])} key (`/wipebot setup`).")
     if bot.own_keys:
-        return "**This server** has no AI key for answers yet: an admin adds one with `/wipebot key`."
+        return "**This server** has no AI key for answers yet: an admin adds one with `/wipebot setup`."
     return None
 
 
 def budget_key(bot: WipeBot, discord_guild_id: int) -> str | None:
-    """The OpenRouter key whose budget this server sees: its own (/wipebot key), else the bot's, unless the bot
+    """The OpenRouter key whose budget this server sees: its own (/wipebot setup), else the bot's, unless the bot
     answers only on servers' own keys; None when that's no OpenRouter key."""
     if own := bot.store.server_key(discord_guild_id):
         return own.key if own.provider == "openrouter" else None
@@ -262,7 +262,10 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
             text = f"{text}\n{mine}"
         if here := await server_usage(bot, gid):
             text = f"{here}\n\n{text}"
-        await interaction.followup.send(text, ephemeral=True)
+        if key and getattr(interaction.permissions, "manage_guild", False):
+            await interaction.followup.send(text, view=PostUsage(bot), ephemeral=True)
+        else:
+            await interaction.followup.send(text, ephemeral=True)
 
     @app_commands.command(name="login", description="Sign in with Warcraft Logs, so your own points pay for your "
                                                     "questions")
@@ -279,7 +282,8 @@ def build(bot: WipeBot) -> app_commands.Group:
     group = app_commands.Group(name="wipebot", description="Set up wipebot for this server",
                                guild_only=True, default_permissions=discord.Permissions(manage_guild=True))
 
-    @group.command(name="setup", description="Connect this server to a guild on Warcraft Logs, or change a setting")
+    @group.command(name="setup", description="How wipebot is set up here, with its AI key; with options, change "
+                                             "a setting")
     @app_commands.describe(link="The guild's page on warcraftlogs.com (needed the first time)",
                            role="Role needed to chat with wipebot (default anyone)",
                            officers="Officers' role: save raid notes and plans, stop others' posts after wipes "
@@ -287,103 +291,127 @@ def build(bot: WipeBot) -> app_commands.Group:
                            footer="End answers with a small line: their cost and Warcraft Logs points",
                            steps="End answers with a small line of the steps they went through (what they looked at)",
                            language="The server's language, e.g. Norwegian: for posts and what's new (questions get "
-                                    "answers in theirs)")
+                                    "answers in theirs)",
+                           news="Post what's new in each release of wipebot to this channel",
+                           news_stop="Stop posting what's new")
     async def setup(interaction: discord.Interaction, link: str | None = None,
                     role: discord.Role | None = None, officers: discord.Role | None = None,
-                    footer: bool | None = None, language: str | None = None, steps: bool | None = None) -> None:
-        """Options left out keep what's set. The footer, steps and language are the server's even before it's connected
-        to a guild."""
+                    footer: bool | None = None, language: str | None = None, steps: bool | None = None,
+                    news: discord.TextChannel | None = None, news_stop: bool = False) -> None:
+        """Alone: the server's setup and what's left to do, with the AI key's buttons. Options left out keep what's
+        set; the footer, steps, language and news are the server's even before it's connected to a guild."""
         await interaction.response.defer(ephemeral=True, thinking=True)
-        gid = in_guild(interaction).id
-        if (told := server_options(bot.store, gid, footer, language, steps)) and (told[0] == NO_LANGUAGE
-                                                                          or not (link or role or officers)):
-            await interaction.followup.send("\n".join(told), ephemeral=True)
+        guild = in_guild(interaction)
+        gid = guild.id
+        if not (link or role or officers or news or news_stop) and footer is None and steps is None \
+                and language is None:
+            await interaction.followup.send(overview(bot, gid), view=keycmd.KeyButtons(bot.store, gid, bot.own_keys),
+                                            ephemeral=True)
             return
-        found = None
-        try:
-            if link:
-                found, asked = await find_wcl_guild(bot, link)
-                if not found:
-                    await interaction.followup.send(f"Warcraft Logs has no guild {asked}. Check the link.",
-                                                    ephemeral=True)
-                    return
-            settings = updated_settings(bot.store.settings(gid), gid, found, role.id if role else None,
-                                        officers.id if officers else None)
-        except WCLError as e:
-            await interaction.followup.send(f"Couldn't reach Warcraft Logs: {e}", ephemeral=True)
+        if language is not None and not server_language(language):
+            await interaction.followup.send(NO_LANGUAGE, ephemeral=True)
             return
-        except ValueError as e:
-            await interaction.followup.send(str(e), ephemeral=True)
-            return
-        bot.store.save_settings(settings)
-        bot.settings_changed(gid)
-        await interaction.followup.send("wipebot is set up:\n" + describe(settings),
-                                        ephemeral=True)
-
-    @group.command(name="key", description="Answer this server's questions on its own OpenRouter or Anthropic key")
-    @app_commands.describe(remove="Forget the server's key")
-    async def own_key(interaction: discord.Interaction, remove: bool = False) -> None:
-        await keycmd.key_command(bot.store, interaction, remove, required=bot.own_keys)
-
-    @group.command(name="settings", description="Show how wipebot is set up in this server")
-    async def show(interaction: discord.Interaction) -> None:
-        gid = in_guild(interaction).id
-        s = bot.store.settings(gid)
-        text = (describe(s) + "\n\n" + describe_notes(bot.store, gid) if s
-                else "wipebot isn't set up here yet: run `/wipebot setup`.")
-        channel, language = bot.store.news_channel(gid), bot.store.language(gid)
-        text += "\n\n**What's new** in each release: " + (f"posted in <#{channel}>" if channel
-                                                            else "not posted (`/wipebot news` turns it on)")
-        text += "\n**Language** of posts: " + (language or "none set (`/wipebot setup language:`), so English")
-        text += f"\n\nwipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>."
-        await interaction.response.send_message(text, ephemeral=True)
-
-    @group.command(name="news", description="Post what's new in each release of wipebot to a channel")
-    @app_commands.describe(channel="Where to post (default this channel)", stop="Stop posting what's new")
-    async def news_command(interaction: discord.Interaction, channel: discord.TextChannel | None = None,
-                           stop: bool = False) -> None:
-        await news_channel(bot, interaction, channel, stop)
-
-    usage = app_commands.Group(name="usage", description="The bot's AI budget", parent=group)
-
-    @usage.command(name="post", description="Post the AI budget to this channel, for everyone to see")
-    async def post_usage(interaction: discord.Interaction) -> None:
-        gid = in_guild(interaction).id
-        if not (key := budget_key(bot, gid)):
-            await interaction.response.send_message("This server's answers have no AI budget to post: it shows for "
-                                                    "an OpenRouter key.", ephemeral=True)
-            return
-        await interaction.response.defer(thinking=True)
-        await interaction.followup.send(await budget_text(bot.store, key, gid, with_bar=True))
+        told = []
+        if link or role or officers:
+            found = None
+            try:
+                if link:
+                    found, asked = await find_wcl_guild(bot, link)
+                    if not found:
+                        await interaction.followup.send(f"Warcraft Logs has no guild {asked}. Check the link.",
+                                                        ephemeral=True)
+                        return
+                settings = updated_settings(bot.store.settings(gid), gid, found, role.id if role else None,
+                                            officers.id if officers else None)
+            except WCLError as e:
+                await interaction.followup.send(f"Couldn't reach Warcraft Logs: {e}", ephemeral=True)
+                return
+            except ValueError as e:
+                await interaction.followup.send(str(e), ephemeral=True)
+                return
+            bot.store.save_settings(settings)
+            bot.settings_changed(gid)
+            told.append("wipebot is set up:\n" + describe(settings))
+        told += server_options(bot.store, gid, footer, language, steps)
+        preview = None
+        if news or news_stop:
+            said, preview = news_channel(bot, guild, news, news_stop)
+            told.append(said)
+        await interaction.followup.send("\n".join(told), ephemeral=True)
+        if preview:
+            await interaction.followup.send(view=preview, ephemeral=True)
 
     return group
 
 
-async def news_channel(bot: WipeBot, interaction: discord.Interaction, channel: discord.TextChannel | None,
-                       stop: bool) -> None:
-    """/wipebot news: post what's new in each release to `channel` (else this one), or `stop`; with the latest
-    release's post, as it looks, seen only by the admin."""
-    guild = in_guild(interaction)
+def news_channel(bot: WipeBot, guild: discord.Guild, channel: discord.TextChannel | None,
+                 stop: bool) -> tuple[str, discord.ui.LayoutView | None]:
+    """/wipebot setup news: post what's new in each release to `channel`, or `stop`; what was done, for the admin,
+    with the latest release's post as it looks (None when there's none to show)."""
     if stop:
         bot.store.set_news_channel(guild.id, None)
-        await interaction.response.send_message("What's new in each release is no longer posted here.",
-                                                ephemeral=True)
-        return
-    target = channel or interaction.channel
-    if not isinstance(target, discord.TextChannel | discord.Thread):
-        await interaction.response.send_message("Pick a text channel to post in.", ephemeral=True)
-        return
-    can = target.permissions_for(guild.me)
-    if not (can.view_channel and (can.send_messages_in_threads if isinstance(target, discord.Thread)
-                                  else can.send_messages)):
-        await interaction.response.send_message(f"I can't post in {target.mention}: let me see it and send "
-                                                "messages there first.", ephemeral=True)
-        return
-    bot.store.set_news_channel(guild.id, target.id)
-    await interaction.response.send_message(f"From the next release on, what's new is posted in {target.mention}"
-                                            ". The latest release's post looks like this:", ephemeral=True)
-    if saved := bot.store.state(news_key(bot.store.language(guild.id))) or bot.store.state(news_key(None)):
-        await interaction.followup.send(view=news.Post.from_json(saved).layout(bot.name), ephemeral=True)
+        return "What's new in each release is no longer posted here.", None
+    if channel is None:
+        return "Pick a text channel to post what's new in.", None
+    can = channel.permissions_for(guild.me)
+    if not (can.view_channel and can.send_messages):
+        return (f"I can't post what's new in {channel.mention}: let me see it and send messages there first.",
+                None)
+    bot.store.set_news_channel(guild.id, channel.id)
+    saved = bot.store.state(news_key(bot.store.language(guild.id))) or bot.store.state(news_key(None))
+    return (f"From the next release on, what's new is posted in {channel.mention}" + (
+        ". The latest release's post looks like this:" if saved else "."),
+        news.Post.from_json(saved).layout(bot.name) if saved else None)
+
+
+def overview(bot: WipeBot, discord_guild_id: int) -> str:
+    """/wipebot setup alone: what's left to do first, then how the server is set up."""
+    store, gid = bot.store, discord_guild_id
+    s = store.settings(gid)
+    connected = s is not None and s.set_up
+    todo = []
+    if bot.own_keys and store.server_key_info(gid) is None:
+        todo.append("Add an AI key with the button below: I answer only on a server's own key.")
+    if not connected:
+        todo.append("Connect the guild: `/wipebot setup link:` with its page on warcraftlogs.com (open the guild "
+                    "there and copy the address). Then I look at its latest raid by myself, post after wipes and "
+                    "keep raid notes.")
+    parts = ["**To do:**\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(todo, 1))] if todo else []
+    if s is not None and connected:
+        parts.append(describe(s) + "\n\n" + describe_notes(store, gid))
+    name = bot.user.name if bot.user else "the bot"
+    parts.append("**AI key:** " + keycmd.status(store, gid, name, bot.own_keys))
+    channel, language = store.news_channel(gid), store.language(gid)
+    extra = [x for on, x in ((store.footer(gid), "what they cost"), (store.steps(gid), "the steps they went "
+                                                                                       "through")) if on]
+    parts.append("**What's new** in each release: " + (f"posted in <#{channel}>" if channel else "not posted")
+                 + "\n**Language** of posts: " + (language or "none set, so English")
+                 + "\n**Answers end with:** " + (" and ".join(extra) or "nothing extra"))
+    parts.append("Change any of it with this command's options: `link:`, `role:`, `officers:`, `footer:`, "
+                 "`steps:`, `language:`, `news:`.")
+    parts.append(f"wipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>.")
+    return "\n\n".join(parts)
+
+
+class PostUsage(discord.ui.View):
+    """/usage's button, for admins: post the AI budget in the channel, for everyone to see."""
+
+    def __init__(self, bot: WipeBot):
+        super().__init__(timeout=900)
+        self.bot = bot
+
+    @discord.ui.button(label="Post in this channel", style=discord.ButtonStyle.secondary)
+    async def post(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        gid = in_guild(interaction).id
+        if not getattr(interaction.permissions, "manage_guild", False):
+            await interaction.response.send_message("Only admins post the AI budget.", ephemeral=True)
+            return
+        if not (key := budget_key(self.bot, gid)):
+            await interaction.response.send_message("This server's answers have no AI budget to post: it shows "
+                                                    "for an OpenRouter key.", ephemeral=True)
+            return
+        await interaction.response.defer(thinking=True)
+        await interaction.followup.send(await budget_text(self.bot.store, key, gid, with_bar=True))
 
 
 def news_key(language: str | None) -> str:
