@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-11-08
+
 ### Fixed
 
 - `Discord` **Signing in with OpenRouter in `/wipebot key` is retried.** The key OpenRouter made for the sign-in could be refused for the first moments, so the bot said it didn't work and saved nothing. It now checks it again for a few seconds.
