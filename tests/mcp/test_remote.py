@@ -90,6 +90,10 @@ def recording_client(monkeypatch, now, users, kept):
 
 
 def _serving(monkeypatch, now, users, record=None):
+    yield from _serving_site(monkeypatch, now, users, None, record)
+
+
+def _serving_site(monkeypatch, now, users, site, record=None):
     verifiers: dict[str, str] = {}
 
     async def login(client_id, secret, code, verifier, redirect_uri):
@@ -105,7 +109,7 @@ def _serving(monkeypatch, now, users, record=None):
         return [now[i] for i in ids if i in now]
     monkeypatch.setattr(accounts, "login", login)
     monkeypatch.setattr(accounts, "characters", characters)
-    with TestClient(remote.app(users, record=record), base_url=PUBLIC) as c:
+    with TestClient(remote.app(users, record=record, site=site), base_url=PUBLIC) as c:
         yield c
 
 
@@ -365,6 +369,67 @@ def test_a_signed_in_user_lets_wipebot_read_their_private_reports_then_stops_it(
     users._db.execute("UPDATE users SET signed_in = 0")
     users._purge(now_=True)
     assert users.wcl_token(1, private=True) is None
+
+
+def web_sign_in(c: TestClient, who: str, back: str = "/#try"):
+    """The website's "Sign in with Warcraft Logs", then Warcraft Logs sending the browser back."""
+    r = c.get(signin.WEB_PATH, params={"back": back}, follow_redirects=False)
+    assert r.status_code == 303, r.text
+    to = urllib.parse.urlparse(r.headers["location"])
+    q = urllib.parse.parse_qs(to.query)
+    assert to.netloc == "www.warcraftlogs.com" and q["scope"] == [accounts.SCOPES]
+    return c.get("/wcl/callback", params={"code": who, "state": q["state"][0]}, follow_redirects=False)
+
+
+def test_a_visitor_signs_in_to_the_website_and_out_again(open_client):
+    """The website's own sign-in: a cookie of its own, back where they were, their token kept for their questions;
+    never back to another site."""
+    r = web_sign_in(open_client, "stranger", "/#try")
+    assert r.status_code == 303 and r.headers["location"] == "/#try"
+    token = open_client.cookies.get(signin.WEB_COOKIE)
+    assert token
+    assert web_sign_in(open_client, "stranger", "//evil.example/").headers["location"] == "/"
+    assert web_sign_in(open_client, "stranger", "https://evil.example/").headers["location"] == "/"
+    r = open_client.post(signin.WEB_PATH, data={"back": "/"}, follow_redirects=False)
+    assert r.status_code == 303 and not open_client.cookies.get(signin.WEB_COOKIE)
+
+
+def test_the_website_knows_who_is_signed_in_and_reads_with_their_token(monkeypatch, now):
+    """SignIn.web_user, from the browser's cookie; a web grant is no token for the tools."""
+    users = SignIn(PUBLIC, Access([], anyone=True), CLIENT, SECRET, ":memory:")
+    seen = []
+
+    def site(sign: SignIn, _mcp_url: str):
+        from starlette.responses import PlainTextResponse
+        from starlette.routing import Route
+
+        async def me(request):
+            seen.append(sign.web_user(request))
+            return PlainTextResponse("ok")
+
+        async def ask(_request):
+            return PlainTextResponse("asked")
+        return [Route("/me", me), Route("/ask", ask, methods=["POST"])]
+    gen = _serving_site(monkeypatch, now, users, site)
+    c = next(gen)
+    c.get("/me")
+    web_sign_in(c, "raider")
+    c.get("/me")
+    assert seen == [None, (1, "Raider")]
+    assert users.wcl_token(1) == "raider's warcraft logs token"
+    assert c.post("/ask").text == "asked"  # a site's route keeps its methods
+    assert initialize(c, c.cookies.get(signin.WEB_COOKIE)).status_code == 401
+    c.post(signin.WEB_PATH)
+    c.get("/me")
+    assert seen[-1] is None
+
+
+def test_a_website_sign_in_started_in_another_browser_signs_no_one_in(open_client):
+    r = open_client.get(signin.WEB_PATH, follow_redirects=False)
+    state = urllib.parse.parse_qs(urllib.parse.urlparse(r.headers["location"]).query)["state"][0]
+    open_client.cookies.clear()
+    r = open_client.get("/wcl/callback", params={"code": "raider", "state": state}, follow_redirects=False)
+    assert r.status_code == 400 and not open_client.cookies.get(signin.WEB_COOKIE)
 
 
 def test_a_user_with_no_grant_left_is_forgotten_after_a_while(client, users):

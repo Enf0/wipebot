@@ -84,6 +84,10 @@ OFFICER_RANK = 1  # WIPEBOT_OFFICER_RANK's default: WoW's default Guild Master (
 CALLBACK_PATH = "/wcl/callback"
 CONSENT_PATH = "/wcl/consent"
 PRIVATE_PATH = "/wcl/private"  # the second sign-in: the user's private reports
+WEB_PATH = "/wcl/web"  # the website's own sign-in (GET with `back`), and signing out of it (POST)
+WEB_COOKIE = "wipebot_web"  # a browser signed in to the website: its grant's token
+WEB_CLIENT = "website"  # the client the website's grants are kept under
+WEB_TTL_S = 30 * 86400
 COOKIE = "wipebot_signin"  # the browser's sign-in nonce, which each of its sign-ins is bound to
 CLIENT_HOSTS = ("claude.ai", "chatgpt.com")  # whose client ID metadata documents we fetch
 CLIENT_DOC_TTL_S = 86400
@@ -279,6 +283,9 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
             -- the second sign-ins under way (PRIVATE_PATH): letting Wipebot read private reports, or stopping it
             CREATE TABLE IF NOT EXISTS private_logins (state TEXT PRIMARY KEY, verifier TEXT NOT NULL,
                                                        stop INTEGER NOT NULL, expires REAL NOT NULL);
+            -- the website's sign-ins under way (WEB_PATH): where on the site to go back to, and the browser's nonce
+            CREATE TABLE IF NOT EXISTS web_logins (state TEXT PRIMARY KEY, verifier TEXT NOT NULL, back TEXT NOT NULL,
+                                                   browser TEXT NOT NULL, expires REAL NOT NULL);
         """)
         self._documents: dict[str, tuple[DocumentClient | None, float]] = {}  # url -> (client, fresh until)
         self._purged = 0.0
@@ -318,7 +325,7 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         if now - self._purged < PURGE_EVERY_S and not now_:
             return
         self._purged = now
-        for table in ("logins", "codes", "tokens", "private_logins"):
+        for table in ("logins", "codes", "tokens", "private_logins", "web_logins"):
             self._db.execute(f"DELETE FROM {table} WHERE expires < ?", (now,))
         self._db.execute("DELETE FROM clients WHERE client_id NOT IN (SELECT client_id FROM tokens) AND "
                          "(created < ? OR (used IS NULL AND created < ?))",
@@ -479,6 +486,9 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                                        (state, time.time())).fetchone():
             self._db.execute("DELETE FROM private_logins WHERE state = ?", (state,))
             return await self._private_callback(request, private[0], bool(private[1]))
+        if web := self._db.execute("SELECT verifier, back, browser FROM web_logins WHERE state = ? AND expires > ?",
+                                   (state, time.time())).fetchone():
+            return await self._web_callback(request, state, *web)
         row = self._login(state)
         if not row:
             return _expired()
@@ -511,13 +521,7 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                          "rank that may use Wipebot. Claim your character on warcraftlogs.com (your character's "
                          "page, <b>Claim</b>), then sign in again. If you joined the guild recently, Warcraft Logs "
                          "can take a day or two to see it.", 403)
-        self._db.execute("INSERT INTO users (id, name, characters, signed_in, checked, wcl_token, wcl_expires) "
-                         "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name, characters "
-                         "= excluded.characters, signed_in = excluded.signed_in, checked = excluded.checked, "
-                         "wcl_token = excluded.wcl_token, wcl_expires = excluded.wcl_expires", (
-            account.id, account.name, json.dumps([c.__dict__ for c in allowed]), time.time(), time.time(),
-            self._fernet.encrypt(account.token.encode()).decode() if account.token else None,
-            account.expires or None))
+        self._keep(account, allowed)
         log.info("signed in: %s as %s", account.name, ", ".join(c.name for c in allowed))
         code = secrets.token_urlsafe(32)
         auth_code = AuthorizationCode(
@@ -528,6 +532,78 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
         self._db.execute("INSERT INTO codes VALUES (?, ?, ?)", (_hash(code), auth_code.model_dump_json(),
                                                                 auth_code.expires_at))
         return RedirectResponse(construct_redirect_uri(back, code=code, state=params.state, iss=self.public_url), 302)
+
+    def _keep(self, account: accounts.Account, allowed: list[accounts.Character]) -> None:
+        """A user just signed in, with their allowed characters and their Warcraft Logs token."""
+        self._db.execute("INSERT INTO users (id, name, characters, signed_in, checked, wcl_token, wcl_expires) "
+                         "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name, characters "
+                         "= excluded.characters, signed_in = excluded.signed_in, checked = excluded.checked, "
+                         "wcl_token = excluded.wcl_token, wcl_expires = excluded.wcl_expires", (
+            account.id, account.name, json.dumps([c.__dict__ for c in allowed]), time.time(), time.time(),
+            self._fernet.encrypt(account.token.encode()).decode() if account.token else None,
+            account.expires or None))
+
+    # ---- the website's own sign-in ----
+
+    async def web(self, request: Request) -> Response:
+        """WEB_PATH, for a website served with the server: GET goes on to Warcraft Logs to sign the browser in, then
+        back to `back` (a path on this site); POST signs it out. The browser is bound to its sign-in by the nonce
+        cookie, so a sign-in link someone else started signs no one in. A signed-in browser has WEB_COOKIE, a grant
+        like an app's (its user's Warcraft Logs token is kept while it lasts), which `web_user` reads."""
+        if request.method == "POST":
+            if token := request.cookies.get(WEB_COOKIE):
+                self._db.execute("DELETE FROM tokens WHERE hash = ? AND kind = 'web'", (_hash(token),))
+            out = RedirectResponse(_on_site(str((await request.form()).get("back") or "/")), 303)
+            out.delete_cookie(WEB_COOKIE, path="/")
+            return out
+        self._purge()
+        self._make_room("web_logins", "1", "expires", MAX_LOGINS)
+        state, nonce = secrets.token_urlsafe(32), request.cookies.get(COOKIE) or secrets.token_urlsafe(32)
+        verifier, challenge = accounts.pkce()
+        self._db.execute("INSERT INTO web_logins VALUES (?, ?, ?, ?, ?)", (
+            state, verifier, _on_site(request.query_params.get("back", "/")), _hash(nonce),
+            time.time() + LOGIN_TTL_S))
+        out = RedirectResponse(accounts.authorize_url(self.client_id, self.callback_url, state, challenge), 303)
+        out.set_cookie(COOKIE, nonce, max_age=LOGIN_TTL_S, path="/wcl", secure=self.public_url.startswith("https:"),
+                       httponly=True, samesite="lax")
+        return out
+
+    async def _web_callback(self, request: Request, state: str, verifier: str, back: str,
+                            browser: str) -> Response:
+        """Back from the website's sign-in: the browser that started it gets WEB_COOKIE, and goes back."""
+        nonce = request.cookies.get(COOKIE)
+        if nonce is None or _hash(nonce) != browser:
+            return _elsewhere()
+        self._db.execute("DELETE FROM web_logins WHERE state = ?", (state,))
+        if "code" not in request.query_params:  # the user said no
+            return RedirectResponse(back, 303)
+        try:
+            account = await accounts.login(self.client_id, self.client_secret, request.query_params["code"], verifier,
+                                           self.callback_url)
+            allowed = await self.access.check(account.characters)
+        except accounts.AccountError as e:
+            log.warning("website sign-in failed: %s", e)
+            return _page("Warcraft Logs didn't answer", "Signing in with Warcraft Logs failed. Try again in a minute.",
+                         502)
+        if allowed is None:
+            return _page("Not a member", f"None of the characters {html.escape(account.name)} claimed on Warcraft "
+                         "Logs may use this Wipebot.", 403)
+        self._keep(account, allowed)
+        token = secrets.token_urlsafe(32)
+        self._db.execute("INSERT INTO tokens VALUES (?, 'web', ?, ?, '', NULL, ?, ?, NULL)", (
+            _hash(token), WEB_CLIENT, account.id, time.time() + WEB_TTL_S, secrets.token_hex(8)))
+        log.info("signed in to the website: %s", account.name)
+        out = RedirectResponse(back, 303)
+        out.set_cookie(WEB_COOKIE, token, max_age=WEB_TTL_S, path="/", secure=self.public_url.startswith("https:"),
+                       httponly=True, samesite="lax")
+        return out
+
+    def web_user(self, request: Request) -> tuple[int, str] | None:
+        """The Warcraft Logs account a browser is signed in to the website as (WEB_PATH): its id and name."""
+        token = request.cookies.get(WEB_COOKIE)
+        row = self._load(token, "web") if token else None
+        user = self.user(row[1]) if row else None
+        return (row[1], user[0]) if row and user else None
 
     async def private_reports(self, request: Request) -> Response:
         """/wcl/private: what letting Wipebot read the user's private reports means, with a button on to Warcraft
@@ -717,6 +793,11 @@ def _page(title: str, text: str, status: int) -> HTMLResponse:
 <body><main><h1>{title}</h1><p>{text}</p>
 <footer>Wipebot is free software (AGPL-3.0): <a href="{html.escape(server.source_url())}">its source</a>.</footer>
 </main></body></html>""", status, headers=PAGE_HEADERS)
+
+
+def _on_site(path: str) -> str:
+    """A path on this site to send a browser back to, never another site's address ("//elsewhere")."""
+    return path if path.startswith("/") and not path.startswith(("//", "/\\")) and len(path) <= MAX_URL else "/"
 
 
 def _expired() -> HTMLResponse:

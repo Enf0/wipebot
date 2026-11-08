@@ -20,7 +20,8 @@ its private reports to everyone, so the server won't start with one, nor read wi
   on one pull opens it with the plan's spots at each moment it checked.
 - The connector and the skill as a Claude plugin to download, at /plugin.zip (plugin.py).
 - Its logo at /icon.png, named as the server's icon for the hosts that show one: Wipebot's, or the website's own.
-- For whoever serves it: a website (`site`'s routes) at /, and each tool call to `record`.
+- For whoever serves it: a website (`site`'s routes) at /, which may sign visitors in with Warcraft Logs too
+  (signin.WEB_PATH, SignIn.web_user), and each tool call to `record`.
 """
 import functools
 import importlib.resources
@@ -49,7 +50,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError, maps, views
 
 from . import plugin
-from .signin import CALLBACK_PATH, CONSENT_PATH, PRIVATE_PATH, Access, SignIn
+from .signin import CALLBACK_PATH, CONSENT_PATH, PRIVATE_PATH, WEB_PATH, Access, SignIn
 
 # Claude caches an app's page by its address: a changed page gets a new one. Any older address still gets today's
 # page (`_any_views_address`), so a host with an older tool list doesn't break.
@@ -57,8 +58,9 @@ VIEWS_APP = views.page_uri()
 IMG_PATH = re.compile(r"maps/\d+-map\.png|icons/[A-Za-z]+-[A-Za-z]+\.jpg|bosses/\d+-icon\.jpg|spells/\d+\.jpg")
 LATEST_RAID_S = 600  # the default report: looked up this often
 log = logging.getLogger(__name__)
-# A website's routes, given who may use the server and its MCP URL (for a deployment that embeds the server: `serve`).
-Site = Callable[[Access, str], list[Route]]
+# A website's routes, given the sign-in (who may use the server, and the visitor signed in to the website) and its MCP
+# URL (for a deployment that embeds the server: `serve`).
+Site = Callable[[SignIn, str], list[Route]]
 
 
 def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = None, site: Site | None = None,
@@ -79,7 +81,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
         wcl_token=lambda subject: signin.wcl_token(int(subject)),
         wcl_private_token=lambda subject: signin.wcl_token(int(subject), private=True),
         private_reports_url=public + PRIVATE_PATH, limits=limits))
-    site_routes = site(signin.access, signin.resource) if site else []
+    site_routes = site(signin, signin.resource) if site else []
     mcp = server.new_server(
         website_url=public, icons=[Icon(src=f"{public}/icon.png", mime_type="image/png", sizes=["256x256"])],
         auth=AuthSettings(issuer_url=public, resource_server_url=signin.resource,  # type: ignore[arg-type]
@@ -123,13 +125,14 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     mcp.custom_route(CALLBACK_PATH, ["GET"])(signin.callback)
     mcp.custom_route(CONSENT_PATH, ["GET", "POST"])(signin.consent)
     mcp.custom_route(PRIVATE_PATH, ["GET", "POST"])(signin.private_reports)
+    mcp.custom_route(WEB_PATH, ["GET", "POST"])(signin.web)
     mcp.custom_route("/img/{path:path}", ["GET"])(_img)
     mcp.custom_route("/health", ["GET"])(_health)  # compose.yml's healthcheck
     mcp.custom_route(plugin.PATH, ["GET"])(_plugin(signin))
     if not any(route.path == "/icon.png" for route in site_routes):  # the website's own logo, or Wipebot's
         mcp.custom_route("/icon.png", ["GET"])(_icon)
     for route in site_routes:
-        mcp.custom_route(route.path, ["GET"])(route.endpoint)
+        mcp.custom_route(route.path, sorted((route.methods or {"GET"}) - {"HEAD"}))(route.endpoint)
     starlette = mcp.streamable_http_app(host=host, transport_security=TransportSecuritySettings(
         allowed_hosts=["127.0.0.1:*", "localhost:*", public.split("://", 1)[1]],
         allowed_origins=["http://127.0.0.1:*", "http://localhost:*", public]))

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `MCP` **Try Wipebot on its website.** [wipebot.enfo.dev](https://wipebot.enfo.dev/#try) now has a demo: pick a question about a real Mythic night and read Wipebot's answer at once, pictures included, or sign in with Warcraft Logs to ask 3 questions of your own a month, about that night or a report of yours.
+
+  ![The demo on wipebot.enfo.dev: question chips about a Mythic Sszorak night, and the answer to "Why did we wipe on Sszorak pull 13?" with the pull drawn under its first bullet](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/website-demo.webp)
+
 ## [0.40.0] - 2026-11-08
 
 ### Changed
