@@ -11,9 +11,11 @@ Two ways in, from one private reply:
 The key is checked with one cheap call, kept encrypted (keys.py), never shown again, and used for that server's
 answers (Context.env).
 """
+import asyncio
 import base64
 import datetime
 import hashlib
+import logging
 import os
 import re
 import secrets
@@ -28,6 +30,8 @@ from .keys import ServerKey
 
 if TYPE_CHECKING:
     from .store import Store
+
+log = logging.getLogger(__name__)
 
 AUTH_URL = "https://openrouter.ai/auth"
 # OpenRouter allows a localhost callback, for apps without a page of their own
@@ -73,6 +77,10 @@ def provider_of(key: str) -> str | None:
     return None
 
 
+REFUSED = "it was refused: check it's whole and not revoked"
+NEW_KEY_TRIES = 5  # a key OpenRouter has just made for a sign-in may be refused for a few seconds
+
+
 async def check(key: ServerKey) -> str | None:
     """Why the key doesn't work, from one call that costs nothing; None when it does."""
     async with httpx.AsyncClient(timeout=20) as http:
@@ -85,14 +93,22 @@ async def check(key: ServerKey) -> str | None:
         except httpx.HTTPError as e:
             return f"couldn't reach {key.provider}: {e}"
     if r.status_code in (401, 403):
-        return "it was refused: check it's whole and not revoked"
+        log.info("%s refused a server's key: %s %s", key.provider, r.status_code, r.text[:200])
+        return REFUSED
     if r.is_error:
         return f"{key.provider} answered {r.status_code}"
     return None
 
 
-async def save(store: Store, interaction: discord.Interaction, key: ServerKey) -> str:
-    if why := await check(key):
+async def save(store: Store, interaction: discord.Interaction, key: ServerKey, new: bool = False) -> str:
+    """Check the key and keep it for the server; `new`: OpenRouter has just made it, so a refusal is tried again."""
+    why = await check(key)
+    for _ in range(NEW_KEY_TRIES - 1 if new else 0):
+        if why != REFUSED:
+            break
+        await asyncio.sleep(2)
+        why = await check(key)
+    if why:
         return f"That key doesn't work: {why}. Nothing was saved."
     assert interaction.guild_id is not None
     store.save_server_key(interaction.guild_id, key, interaction.user.id)
@@ -122,7 +138,7 @@ class PasteSignIn(discord.ui.Modal, title="Sign in with OpenRouter"):
             await interaction.followup.send(f"OpenRouter didn't give a key for that code ({e}). Sign in again from "
                                             "`/wipebot key`.", ephemeral=True)
             return
-        await interaction.followup.send(await save(self.store, interaction, ServerKey("openrouter", key)),
+        await interaction.followup.send(await save(self.store, interaction, ServerKey("openrouter", key), new=True),
                                         ephemeral=True)
 
 

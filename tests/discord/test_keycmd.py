@@ -1,7 +1,11 @@
 """/wipebot key: reading what an admin pastes, and the OpenRouter sign-in link."""
 import base64
 import hashlib
+from types import SimpleNamespace
+from typing import cast
 from urllib.parse import parse_qs, urlparse
+
+import discord
 
 from wipebot.discord import keycmd, keys
 
@@ -42,3 +46,21 @@ def test_the_status_says_whose_key_answers(store):
     assert "on Wipeboy's own key, which its host set up" in keycmd.status(store, 1001, "Wipeboy", required=False)
     store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-v1-abc"), added_by=7)
     assert "its own OpenRouter key, added by <@7>" in keycmd.status(store, 1001, "Wipeboy", required=False)
+
+
+async def test_a_key_openrouter_just_made_is_checked_again_while_refused(store, monkeypatch):
+    answers = ["it was refused: check it's whole and not revoked"] * 2 + [None]
+
+    async def check(key):
+        return answers.pop(0)
+
+    async def sleep(seconds):
+        pass
+    monkeypatch.setattr(keycmd, "check", check)
+    monkeypatch.setattr(keycmd.asyncio, "sleep", sleep)
+    interaction = cast(discord.Interaction, SimpleNamespace(guild_id=1001, user=SimpleNamespace(id=7)))
+    told = await keycmd.save(store, interaction, keys.ServerKey("openrouter", "sk-or-v1-new"), new=True)
+    assert told.startswith("Saved.") and not answers
+    answers[:] = ["it was refused: check it's whole and not revoked"] * 2
+    told = await keycmd.save(store, interaction, keys.ServerKey("openrouter", "sk-or-v1-pasted"))
+    assert told.startswith("That key doesn't work") and len(answers) == 1  # a pasted key: checked once
