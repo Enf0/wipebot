@@ -225,6 +225,21 @@ async def test_budget_reads_the_key_from_openrouter(monkeypatch):
     assert await budget.fetch("sk-or-k") == budget.KeyBudget(limit=50, remaining=12.5, month=20.25)
 
 
+async def test_a_limit_set_as_a_budget_is_read_from_the_effective_budget(monkeypatch):
+    import httpx
+
+    from wipebot.discord import budget
+
+    def reply(request: httpx.Request) -> httpx.Response:  # as OpenRouter answered for a key given a budget, Nov 2026
+        return httpx.Response(200, json={"data": {
+            "limit": 0, "limit_remaining": 0, "limit_reset": "monthly", "usage_monthly": 0.0016,
+            "effective_budget": {"limit_usd": 5, "spend_usd": 0.005, "remaining_usd": 4.995}}})
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(reply), **kw))
+    assert await budget.fetch("sk-or-k") == budget.KeyBudget(limit=5, remaining=4.995, month=0.0016)
+
+
 def registered(bot, monkeypatch) -> set[str]:
     """Every slash command the bot registers, as typed ("/wipebot setup")."""
     return {f"/{c.qualified_name}" for c in commands.build(bot).walk_commands()

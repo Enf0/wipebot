@@ -25,7 +25,12 @@ async def fetch(key: str) -> KeyBudget:
         r = await http.get(f"{OPENROUTER_URL}/v1/key", headers={"Authorization": f"Bearer {key}"})
         r.raise_for_status()
         data = r.json()["data"]
-    return KeyBudget(limit=data.get("limit"), remaining=data.get("limit_remaining"),
+    # a limit set in OpenRouter's budgets is only in effective_budget; the older limit fields then read 0
+    if (budget := data.get("effective_budget") or {}).get("limit_usd") is not None:
+        limit, remaining = budget["limit_usd"], budget.get("remaining_usd")
+    else:
+        limit, remaining = data.get("limit"), data.get("limit_remaining")
+    return KeyBudget(limit=limit, remaining=remaining,
                      month=(data.get("usage_monthly") or 0) + (data.get("byok_usage_monthly") or 0))
 
 
