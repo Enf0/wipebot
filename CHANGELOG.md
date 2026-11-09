@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.41.1] - 2026-11-09
+
 ### Fixed
 
 - `Discord` `MCP` **A key's limit set as a budget on OpenRouter is read again.** OpenRouter now keeps a key's limit in its budgets, so `/usage` showed nothing left on a key with money on it, and the live questions in the website's demo stayed off.
