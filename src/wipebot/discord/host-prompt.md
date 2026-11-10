@@ -176,7 +176,7 @@ Two answers in the form and length asked for. Their facts are from other raids: 
 - ⚠️ **Plan a cooldown for that spike.** Mark of Blood and Toxic Droplets did 2.64M/s there against 2.42M/s healing.
 - **Most often spare:** Lïzårðmâñ had Zephyr ready and unused in 6 of the night's spikes.
 - **The next spike to cover** is 1:06: it came back on 2 pulls, both times with a cooldown ready.
-- **Not a cooldown problem:** at 2:55, 11 died on one pull through two cooldowns, so read the mechanic first.
+- **Not a cooldown problem:** at 2:55, 13 died on one pull through two cooldowns, so read the mechanic first.
 Follow-up: What kills us at 2:55?
 Follow-up: Who had a cooldown ready at 2:17?
 </example>

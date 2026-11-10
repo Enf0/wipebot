@@ -8,7 +8,7 @@ played from `spec_guide`, read before judging either.
 
 What the tools showed. `pull_summary`: the best pull of the log so far. "Ended by": deaths from 4:36 until half the
 raid was dead at 6:28, no single hit killing many. "Not an enrage buff". It got past what ended most earlier pulls,
-Malignance killing many (5 of 15). Two players died at 3:48 and both were back up, as the players alive after each
+Malignance killing many (4 of 15). Two players died at 3:48 and both were back up, as the players alive after each
 death show. The deaths that stayed: a damage dealer at 4:36 and a healer, Lïzårðmâñ, at 4:59; Deathadim, a tank, at
 5:13 to Melee with 17 alive; Wutroll, the other tank, at 6:16 to Melee with 14 alive; two more to Melee at 6:20 and
 6:22. The nine deaths after 6:28 are marked as fallout.
@@ -33,13 +33,13 @@ rest of the death list, and any word on whose taunt it was.
 What the tools showed. `healing` with `all_pulls`, over the 8 pulls: the spikes that came back pull after pull. At
 2:17-2:26, Mark of Blood and Toxic Droplets on 4 pulls: 2.64M/s taken against 2.42M/s healing, 1.2 healing cooldowns
 per spike, one ready and unused in all 4, 1 death. At 1:06-1:16, Mark of Acid and Mark of Blood on 2 pulls: 2.03M/s
-against 2.01M/s, one ready and unused in both, 1 death. At 2:55, Mark of Blood and Noxious Blast on 2 pulls: 3.74M/s
-against 2.68M/s and 12 deaths, 11 of them on pull 7 with two cooldowns used. Most often ready and unused in a spike:
+against 2.01M/s, one ready and unused in both, 1 death. At 2:55, Noxious Blast and Mark of Blood on 2 pulls: 3.76M/s
+against 2.66M/s and 14 deaths, 13 of them on pull 7 with two cooldowns used. Most often ready and unused in a spike:
 Zephyr (Lïzårðmâñ) 6 times, Rewind and Stasis (Lïzårðmâñ) 3 times each, Divine Hymn (Miralupa) 3 times.
 
 How to read it. A spike that comes back at the same time with cooldowns ready and unused is a cooldown to plan: 2:17
 first, since it came back most often, then 1:06. A spike that kills through the cooldowns it got is a mechanic to
-read before anything is moved onto it: 2:55 killed 11 on one pull with two cooldowns out, so `boss_guide` with
+read before anything is moved onto it: 2:55 killed 13 on one pull with two cooldowns out, so `boss_guide` with
 Noxious Blast as `mechanic` comes first, and `pull_summary` of that pull says whether that hit ended it. The log
 shows what was ready, not who was assigned to what; a saved raid note (`raid_note`) holds that.
 
