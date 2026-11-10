@@ -1762,6 +1762,25 @@ def test_a_spell_never_cast_is_flagged_only_where_the_top_would_have_cast_it_in_
     assert short_life.pop("Ambush") == "never cast" and set(short_life.values()) == {top.NOT_DUE}
     assert set(flags(minutes=5).values()) == {"never cast"}  # over a whole pull each is a spell to have pressed
     assert set(flags().values()) == {"never cast"}  # the time alive not given: as before
+    # the flag says whose rate it is, as "not worn" and "cast before the pull" say why: read alone, "under one cast
+    # in their time alive" was also true of the player's own casts, which is what "never cast" says
+    assert top.NOT_DUE == "not due: under one cast in their time alive at the top's median"
+
+
+def test_a_damage_cooldown_never_pressed_is_never_cast_however_short_the_life():
+    """A damage cooldown is pressed from the pull, which is how its possible uses are counted (cooldown_use: 0/1 for
+    someone alive a minute). Its rate over a whole kill says nothing of a short life: three casts in a kill of 5:30
+    are 0.5 a minute, under one cast in 1:50, yet every top player had pressed it by then. Unpressed, it is "never
+    cast" in the comparison too; a spell Lorrgs doesn't tag so (Vanish) isn't due in that time."""
+    from wipebot.core.report import top
+    names = top.SpellNames([{"name": "Deathmark", "spell_id": 360194, "cooldown": 120, "tags": ["dps"]},
+                            {"name": "Vanish", "spell_id": 1856, "cooldown": 120, "tags": []},
+                            {"name": "Tricks of the Trade", "spell_id": 57934, "cooldown": 30, "tags": ["raid_cd"]}])
+    median = {"Deathmark": 0.5, "Vanish": 0.5, "Tricks of the Trade": 0.5}
+    found = [top.Reference({}, dict(median), top.Casting([], {}, 0.0)) for _ in range(3)]
+    rates = top.cast_rates(names, dict.fromkeys(median, 0.0), found, set(), minutes=110 / 60)
+    assert {r.name: r.flag for r in rates} == {"Deathmark": "never cast", "Vanish": top.NOT_DUE,
+                                               "Tricks of the Trade": top.NOT_DUE}
 
 
 def test_a_cooldown_is_noted_as_the_moment_it_came_back_unused_and_only_a_damage_cooldown():
@@ -1796,25 +1815,6 @@ def test_where_a_wipe_stands_among_kills_is_no_praise_and_no_fault_of_a_healers(
     assert views.player_notes(_facts(standing=above))["good"] == ["Kept casting: 2 s of gaps in 3:00"]
     below = above | {"mine": 150_000}
     assert views.player_notes(_facts(standing=below))["fix"] == ["Below the 25th percentile of ranked kills"]
-    # the flag says whose rate it is, as "not worn" and "cast before the pull" say why: read alone, "under one cast
-    # in their time alive" was also true of the player's own casts, which is what "never cast" says
-    assert top.NOT_DUE == "not due: under one cast in their time alive at the top's median"
-
-
-def test_a_damage_cooldown_never_pressed_is_never_cast_however_short_the_life():
-    """A damage cooldown is pressed from the pull, which is how its possible uses are counted (cooldown_use: 0/1 for
-    someone alive a minute). Its rate over a whole kill says nothing of a short life: three casts in a kill of 5:30
-    are 0.5 a minute, under one cast in 1:50, yet every top player had pressed it by then. Unpressed, it is "never
-    cast" in the comparison too; a spell Lorrgs doesn't tag so (Vanish) isn't due in that time."""
-    from wipebot.core.report import top
-    names = top.SpellNames([{"name": "Deathmark", "spell_id": 360194, "cooldown": 120, "tags": ["dps"]},
-                            {"name": "Vanish", "spell_id": 1856, "cooldown": 120, "tags": []},
-                            {"name": "Tricks of the Trade", "spell_id": 57934, "cooldown": 30, "tags": ["raid_cd"]}])
-    median = {"Deathmark": 0.5, "Vanish": 0.5, "Tricks of the Trade": 0.5}
-    found = [top.Reference({}, dict(median), top.Casting([], {}, 0.0)) for _ in range(3)]
-    rates = top.cast_rates(names, dict.fromkeys(median, 0.0), found, set(), minutes=110 / 60)
-    assert {r.name: r.flag for r in rates} == {"Deathmark": "never cast", "Vanish": top.NOT_DUE,
-                                               "Tricks of the Trade": top.NOT_DUE}
     healer = _facts(standing=below, output={"what": "healing", "rank": 3, "of": 4, "role": "healers"})
     assert views.player_notes(healer) == {"good": ["Kept casting: 2 s of gaps in 3:00"], "fix": []}
 
