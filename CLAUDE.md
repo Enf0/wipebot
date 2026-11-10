@@ -17,10 +17,11 @@ it (pyproject.toml, checked by `just check`).
 - `just view <tool> '<json>'`: the tool's view (an MCP App in Claude and ChatGPT) in a mock host window; `--shot DIR`
   takes screenshots per theme, width and mode, with the console's errors. Look at them after changing a view;
   `just browser` installs the Chromium they and the view tests need.
-- `just snapshot` rewrites the pinned tool outputs; then run `just evals --lint` (no model, a minute) for cases it
-  left stale. Recording a tool test's data: tests/README.md.
-- `just evals`: evals/README.md. `just release`: says which version CHANGELOG.md calls for, and with a version makes
-  the release (changelog, version, commit, push; the Release workflow makes the tag and the GitHub release).
+- `just snapshot` rewrites the pinned tool outputs; then run `just evals --lint` (no model, two to five minutes) for
+  cases it left stale. Recording a tool test's data: tests/README.md.
+- `just evals`: evals/README.md. `just release`: says which version CHANGELOG.md calls for and how far main is from
+  each mode's last full eval run, and with a version makes the release (changelog, version, commit, push; the Release
+  workflow makes the tag and the GitHub release). It stops past 30 answer-changing commits or 21 days since that run.
 
 ## Rules
 
@@ -64,9 +65,9 @@ it (pyproject.toml, checked by `just check`).
   - a change that can move answers (a tool's output or description, part of the skill, the bot's prompt or tools,
     cases): only the cases of the kinds it touches (`-k a,b`; `--bot` for the bot's prompt or tools), one trial,
     then `--trials 3` on only the cases that moved (or `--trials auto` at once);
-  - the full suite (`--trials auto`, in the modes the batch touched; about $22 for `--bot`, half of `--trials 3`)
-    once before a release or big deploy, covering everything since the last one: a change that would need it lands
-    without it and says "full eval: pending" in its commit body;
+  - the full suite (`--trials auto`, in the modes the batch touched; about $35 for `--bot`, four fifths of
+    `--trials 3`) once before a release or big deploy, covering everything since the last one: a change that would
+    need it lands without it and says "full eval: pending" in its commit body;
   - new baselines (`--trials 3 --save-baseline`) only when the judge or the cases changed.
 - **Never print or commit secrets** (`.env`; show variable names only), and keep tracked files fit to publish: no
   guild matters, hosts or one deployment's setup. Raiders' character names may appear.
