@@ -563,6 +563,33 @@ def test_follow_ups_come_off_the_answers_end_as_buttons():
     assert offered == ["Replay Rowan's death on pull 12?", "Klar for P2?"]  # repeated and too long left out
     assert host.follow_ups("No follow-up here: follow-ups are their own lines.")[1] == []
     assert Answer("**Done.**", follow_ups=["Klar for P2?"]).full == "**Done.**\nFollow-up: Klar for P2?"
+    assert host.follow_ups(text, {"klar for p2?"}) == (shown, ["Replay Rowan's death on pull 12?"])  # offered before
+
+
+async def test_follow_ups_are_offered_once_and_only_under_an_answer_that_read_something(session):
+    """Buttons were under nine answers in ten, a greeting's too, and the same ones again and again: raiders stopped
+    reading them."""
+    class Reading(FakeClient):
+        """...each of whose answers called a tool first, unless it is to `chat`."""
+        async def receive_response(self):
+            if "chat" not in self.queries[-1]:
+                session._returned(ToolCall("pull_summary", {}, "", False))
+            async for msg in super().receive_response():
+                yield msg
+
+    def says(text: str) -> list:
+        return [AssistantMessage([TextBlock(text)], "claude-opus-5-5"), result(0.01, 10)]
+    session._client = cast(ClaudeSDKClient, Reading(
+        says("**Wiped.**\nFollow-up: Replay the deaths?\nFollow-up: Klar for P2?"),
+        says("**Still Tempest.**\nFollow-up: klar for P2?\nFollow-up: Who soaked?"),
+        says("Haha, fair.\nFollow-up: Check the healers?")))
+    first = await session.ask("why did we wipe?", Context())
+    assert first.follow_ups == ["Replay the deaths?", "Klar for P2?"]
+    again = await session.ask("and pull 4?", Context())
+    assert (again.text, again.follow_ups) == ("**Still Tempest.**", ["Who soaked?"])  # not the one offered already
+    chat = await session.ask("lol, just chat", Context())
+    assert (chat.text, chat.follow_ups) == ("Haha, fair.", [])  # nothing read: no buttons, and it may come later
+    assert "check the healers?" not in session._offered
 
 
 async def test_a_picture_the_answer_places_goes_where_it_says(session):

@@ -15,7 +15,7 @@ import tempfile
 import time
 import warnings
 from collections import Counter
-from collections.abc import AsyncIterator, Awaitable, Callable, Generator, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Collection, Generator, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 
@@ -228,10 +228,12 @@ def placed_by_default(text: str, marks: list[tuple[int, str]], view: str | None)
     return [] if view is None else [(first, view)]
 
 
-def follow_ups(text: str) -> tuple[str, list[str]]:
-    """An answer's text without its follow-up lines, and the follow-ups (at most MAX_FOLLOW_UPS that fit a button)."""
+def follow_ups(text: str, offered: Collection[str] = ()) -> tuple[str, list[str]]:
+    """An answer's text without its follow-up lines, and the follow-ups (at most MAX_FOLLOW_UPS that fit a button),
+    none of them `offered` before (casefolded): the same button under answer after answer is one nobody reads."""
     found = [q.strip("*_\"' ") for q in FOLLOW_UP.findall(text)]
-    kept = [q for q in dict.fromkeys(found) if 0 < len(q) <= FOLLOW_UP_CHARS][:MAX_FOLLOW_UPS]
+    kept = [q for q in dict.fromkeys(found)
+            if 0 < len(q) <= FOLLOW_UP_CHARS and q.casefold() not in offered][:MAX_FOLLOW_UPS]
     if len(kept) < len(found):
         log.info("follow-ups left out (too long, too many or repeated): %s", [q for q in found if q not in kept])
     return re.sub(r"\n{3,}", "\n\n", FOLLOW_UP.sub("", text)).strip(), kept
@@ -604,6 +606,7 @@ class Session:
         self._calls: list[ToolCall] = []  # tool calls of the current question
         self._ctx: Context | None = None  # the current question's
         self._spent = 0.0  # the SDK's cost so far, which adds up over the conversation
+        self._offered: set[str] = set()  # the follow-ups the conversation's answers offered so far, casefolded
         self.context_tokens = 0  # the conversation's context after its last answer
 
     @property
@@ -795,7 +798,7 @@ class Session:
             raise ModelError(error, answer)
         await pictures_drawn(answer.calls)
         text = texts[-1].strip() if texts else NO_ANSWER  # the last text is the answer
-        text, answer.follow_ups = follow_ups(text)
+        text, answer.follow_ups = self._offers(text, read=bool(answer.calls))
         answer.text, answer.marks = placed(polish(
             picture_marks(text), [c.result for c in answer.calls if not c.failed],
             await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx)))
@@ -806,6 +809,14 @@ class Session:
         view = next((c.name for _, c in answer.pictures if c.name in server.VIEW_TOOLS), None)
         answer.marks = placed_by_default(answer.text, answer.marks, view)
         return answer
+
+    def _offers(self, text: str, read: bool) -> tuple[str, list[str]]:
+        """An answer's text without its follow-up lines, and the follow-ups to offer under it: none the conversation
+        offered before, and none at all when nothing was `read` for the answer (a greeting, a remark)."""
+        text, offers = follow_ups(text, self._offered)
+        offers = offers if read else []
+        self._offered |= {q.casefold() for q in offers}
+        return text, offers
 
     @staticmethod
     async def _roster(ctx: Context) -> dict[str, tuple[str, str]]:
