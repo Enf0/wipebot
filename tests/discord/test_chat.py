@@ -340,6 +340,21 @@ def test_split_message_keeps_lines_and_the_limit():
     assert split_message("") == []
 
 
+def test_a_code_block_cut_in_two_is_closed_and_opened_again():
+    """A cut inside a block left its first half unclosed and its second half as plain text."""
+    table = "\n".join(f"{n:>3}  {'x' * 30}" for n in range(40))
+    chunks = split_message(f"**Rytmen i P1.**\n```\n{table}\n```\nDone.", limit=500)
+    assert len(chunks) > 2 and all(len(c) <= 500 for c in chunks)
+    assert all(c.count("```") % 2 == 0 for c in chunks)  # every message's block is whole
+    rows = [line for c in chunks for line in c.splitlines() if line.endswith("x")]
+    assert "\n".join(rows) == table  # nothing lost, and each row's indentation kept
+    assert chunks[0].startswith("**Rytmen i P1.**\n```\n  0  x") and chunks[-1].endswith("```\nDone.")
+    lua = f"```lua\n{'y' * 30}\n{'z' * 30}\n```"
+    assert split_message(lua, limit=50) == [f"```lua\n{'y' * 30}\n```", f"```lua\n{'z' * 30}\n```"]
+    inline = "a ```one``` " + "b " * 300  # a block closed on its line: the cut after it is outside one
+    assert all("```" not in c for c in split_message(inline, limit=100)[1:])
+
+
 async def test_a_restart_starts_every_conversation_over_with_what_was_said_before():
     """A deploy restarts the bot: the next question opens a new session, which gets the place's messages before it
     as a new conversation does. None is kept across a restart: one on a server's own key couldn't be picked up."""

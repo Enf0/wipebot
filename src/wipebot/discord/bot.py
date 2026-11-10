@@ -29,6 +29,7 @@ from wipebot.core.wcl import WCLError
 from . import budget, commands, config, emojis, host, logincmd, news, progress, texts
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
+from .discord_text import unlinked_to_fit
 from .follower import Follower, Pull
 from .host import CAPPED, NO_ANSWER, Answer, Context, ModelError, Session
 from .messages import (  # noqa: F401 (Picture: the tests')
@@ -1329,8 +1330,11 @@ class WipeBot(discord.Client):
         lang = texts.language(answer.text)
         limit = TEXT_LIMIT if pictured else DISCORD_LIMIT
         tail = f"-# {footer}" if footer else answer.footer
-        # in a V2 message the footer is a text of its own, and counts towards the message's
-        chunks = split_message(answer.text, limit - len(tail) - 1 if pictured and tail else limit)
+        room = limit - len(tail) - 1 if tail else limit
+        # a plain answer that would fit one message but for its links' addresses drops links to fit; in a V2
+        # message the footer is a text of its own, and counts towards the message's
+        text = answer.text if pictured else unlinked_to_fit(answer.text, room)
+        chunks = split_message(text, room if pictured else limit)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
             cut = texts.CUT.to(lang)

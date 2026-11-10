@@ -14,6 +14,7 @@ kept across one, as a session on a server's own key can't be picked up again.
 """
 import asyncio
 import logging
+import re
 import time
 import weakref
 from collections.abc import Awaitable, Callable, Hashable
@@ -227,17 +228,39 @@ class Conversations:
                 log.exception("closing conversation %s failed", key)
 
 
+FENCE = re.compile(r"```(?:(\w+)\n)?")  # where a code block opens or closes, with the language it opens in
+CLOSE = "\n```"
+
+
+def _cut(text: str, room: int) -> int:
+    """Where to cut `text` to fit `room`: at its last line break, else its last space, else at `room`."""
+    cut = text.rfind("\n", 0, room)
+    if cut < room // 2:
+        cut = text.rfind(" ", 0, room)
+    return cut if cut > 0 else room
+
+
+def _open_block(text: str) -> str | None:
+    """How the code block that `text` ends inside opens ("```", "```lua"); None when it ends outside one."""
+    marks = FENCE.findall(text)
+    return f"```{marks[-1]}" if len(marks) % 2 else None
+
+
 def split_message(text: str, limit: int = DISCORD_LIMIT) -> list[str]:
-    """Split an answer into Discord-sized messages, at line breaks where possible, else at spaces."""
+    """Split an answer into Discord-sized messages, at line breaks where possible, else at spaces. A code block cut
+    in two is closed at the cut and opened again in the next message, so both halves show as code, lined up."""
     chunks = []
     while len(text) > limit:
-        cut = text.rfind("\n", 0, limit)
-        if cut < limit // 2:
-            cut = text.rfind(" ", 0, limit)
-        if cut <= 0:
-            cut = limit
-        chunks.append(text[:cut].rstrip())
-        text = text[cut:].lstrip()
+        cut = _cut(text, limit)
+        if _open_block(text[:cut]):  # leave room to close it
+            cut = _cut(text, limit - len(CLOSE))
+        part, text = text[:cut].rstrip(), text[cut:]
+        if block := _open_block(part):
+            # the next message opens the block again; the code keeps its indentation
+            part, text = part + CLOSE, f"{block}\n{text[1:] if text[:1] in (chr(10), ' ') else text}"
+        else:
+            text = text.lstrip()
+        chunks.append(part)
     if text.strip():
         chunks.append(text)
     return chunks

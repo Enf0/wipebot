@@ -22,6 +22,7 @@ from wipebot.discord.discord_text import (
     unlink_broken,
     unlink_elsewhere,
     unlink_wrong,
+    unlinked_to_fit,
     verdict_bold,
 )
 
@@ -336,3 +337,17 @@ def test_the_fix_marker_stands_before_the_bold_words_not_in_them(text, expected)
 
 def test_a_bold_verdict_of_two_sentences_keeps_one_bold_and_the_marker_outside_it():
     assert polish("**⚠️ Flytt Rewind. Resten var bra.**\n\n- a", [], []) == "⚠️ **Flytt Rewind.** Resten var bra.\n- a"
+
+
+def test_an_answer_just_over_one_message_drops_its_last_links_to_fit():
+    """Discord counts a link's address, which nobody reads: answers that read as one message went out as two."""
+    first, last = spell("Tempest", 1287083), spell("Mutilated Gash", 1285998)
+    pull = "[Sszorak pull 13](https://www.warcraftlogs.com/reports/CODE#fight=21)"
+    text = f"**{first} killed five on {pull}.**\n- " + "x" * 60 + f"\n- Then {last} and {spell('Thunderstorm', 51490)}."
+    assert unlinked_to_fit(text, len(text)) == text  # it fits: as it was
+    fitted = unlinked_to_fit(text, len(text) - 30)
+    assert fitted.endswith(f"- Then {last} and Thunderstorm.") and len(fitted) <= len(text) - 30  # the last one first
+    fitted = unlinked_to_fit(text, len(text) - 70)
+    assert fitted.startswith(f"**{first} killed five on {pull}.**") and fitted.endswith("- Then Mutilated Gash and "
+                                                                                      "Thunderstorm.")
+    assert unlinked_to_fit(text, 100) == text  # no dropping makes it fit: it's split with its links

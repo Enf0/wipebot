@@ -41,6 +41,7 @@ NAMED_SCENE = re.compile(r"(?:(?<=\*\*)|(?<=^- )|(?<=^)|(?<=[,;:.!?] ))([^\s*\[(
                          r"\((?i:scene) (\d+)\)", re.M)
 # A spot on a raid plan with its raider's class: "#9 Martin (hunter):", "#7 Zebino (Zebinomage) (mage):"
 PLAN_SPOT = re.compile(r"#\d+ ([^():#\n]+?)(?: \(([^()\n]+)\))? \(([a-z]+)\):")
+WOWHEAD_LINK = re.compile(r"\[([^\]\n]+)\]\(https://www\.wowhead\.com/[^)\s]+\)")  # an ability's or an item's
 MASKED_LINK = re.compile(r"\[([^\]\n]*)\]\((https?://[^)\s]+)\)")  # [text](url)
 LIST_LINE = r"[ \t]*(?:[-*]|\d+\.) "
 BLANK_IN_LIST = re.compile(rf"^({LIST_LINE}.*)\n[ \t]*\n(?={LIST_LINE})", re.M)  # Discord ends a nested list there
@@ -299,6 +300,18 @@ def fix_pull_links(text: str, report: Report, results: Sequence[str] = ()) -> st
             return label
         return f"[{label}]({report.url(report.by_boss[bosses[0]][pull - 1])})"
     return PULL_LINK.sub(fixed, text)
+
+
+def unlinked_to_fit(text: str, limit: int) -> str:
+    """`text` with its Wowhead links turned back into their names, the last first, until it fits `limit` characters:
+    Discord counts a link's address, which nobody reads, and an answer that reads as one message was sent as two.
+    The first mentions, near the verdict, keep their links. As it was when it fits, or when it can't be made to."""
+    found = list(WOWHEAD_LINK.finditer(text))
+    fitted = text
+    while len(fitted) > limit and found:
+        m = found.pop()  # from the end, so the earlier ones' places hold
+        fitted = fitted[:m.start()] + m.group(1) + fitted[m.end():]
+    return fitted if len(fitted) <= limit else text
 
 
 def tight_lists(text: str) -> str:

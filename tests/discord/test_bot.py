@@ -756,8 +756,12 @@ async def test_an_answer_without_pictures_is_plain_text_a_notification_shows(cha
     assert channel.sent == ["Hey! Ask me about a pull.", "**Mutilate at 2:15...**\n-# 🧪 TEST"]
     assert channel.views == [None, None]  # plain messages: a V2 one has no text for its notification
     assert await WipeBot._send(channel, Answer("x" * 2500)) == [3, 4]  # a plain message holds 2000 characters
+    linked = " ".join(f"[Tempest {n}](https://www.wowhead.com/spell={1287083 + n})" for n in range(10))
+    assert await WipeBot._send(channel, Answer("x" * 1700 + "\n" + linked)) == [5]  # one, less its last links
+    assert channel.sent[-1].endswith("spell=1287086) Tempest 4 Tempest 5 Tempest 6 Tempest 7 Tempest 8 Tempest 9")
+    assert len(channel.sent[-1]) <= 2000
     drawn = ToolCall("pull_map", {}, "a map", False, [b"WEBP"])
-    assert await WipeBot._send(channel, Answer("x" * 2500, calls=[drawn])) == [5]  # with a picture, V2: 4000
+    assert await WipeBot._send(channel, Answer("x" * 2500, calls=[drawn])) == [6]  # with a picture, V2: 4000
     assert channel.views[-1].has_components_v2()
 
 
