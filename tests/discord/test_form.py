@@ -1,5 +1,7 @@
 """An answer's form, measured by code (wipebot.discord.form): what a raider reads of it, its verdict, its bullets and
 where the change to make stands, and where it leaves the form the bot's prompt asks for."""
+import re
+
 from wipebot.discord import form, prompt
 from wipebot.discord.form import measure
 from wipebot.discord.host import Answer
@@ -130,9 +132,26 @@ def test_the_budget_holds_the_numbers_the_bots_prompt_sets():
     said = " ".join(prompt.HOST_PROMPT.split())
     assert f"one short sentence of at most {form.CHAT.verdict_words} words" in said
     assert f"a night, a player or a plan, at most {NUMBER.get(form.CHAT.bullets)}" in said
-    assert f"bullets of at most {NUMBER.get(form.CHAT.bullet_sentences)} short sentences each" in said
+    assert f"Then the bullets, each at most {form.CHAT.bullet_words} words" in said
+    # after its bold point a bullet has one sentence, and a second for what to do
+    assert "then one sentence that backs it" in said and "and a second only where it says what to do" in said
+    assert form.CHAT.bullet_sentences == 2
     assert f"at most {NUMBER.get(form.LIVE.bullets)} one-sentence bullets, the fix first" in said
     assert form.LIVE.bullet_sentences == 1
+
+
+def test_the_prompts_own_worked_answers_keep_to_the_form_it_asks_for():
+    """The two answers the prompt shows the model, one English and one Norwegian: an example that broke a rule
+    beside it would teach the model the rule is soft."""
+    shown = re.findall(r'<example question="([^"]+)">\n(.*?)</example>', prompt.HOST_PROMPT, re.S)
+    assert len(shown) == 2
+    for question, answer in shown:
+        f = measure(answer)
+        assert f.slips() == {}, question
+        assert f.verdict_words and f.fix == 1 and 1 <= f.follow_ups <= 3 and max(f.bullet_words) <= 30
+    english, norwegian = (measure(answer) for _, answer in shown)
+    assert (english.bullets, english.small) == (4, 0)  # a night: at most five
+    assert (norwegian.bullets, norwegian.small) == (2, 1)  # a one-line question: the verdict and at most two
 
 
 def test_each_kind_of_answer_is_held_to_its_own_budget():
