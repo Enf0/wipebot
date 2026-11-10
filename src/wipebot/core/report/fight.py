@@ -567,6 +567,32 @@ async def boss_tracks(wcl: WCL, code: str, fight: dict, bosses: set[int]) -> dic
     return out
 
 
+async def boss_series(wcl: WCL, code: str, fight: dict, bosses: dict[int, tuple[int, str]]) -> list[dict]:
+    """Each boss's own health % and power bar over a fight with several bosses, as {game_id, name, health, power}
+    with (ms from the pull, value) points from WCL's Resources graph. `bosses` are the fight's boss units, actor id
+    to (NPC game id, name): the game id is the same in every report, so two pulls can follow the same boss
+    (compare.same_boss), where `boss_tracks` picks one by what happened in the pull. A boss without a power bar
+    has no power points."""
+    casts = [c for c in await wcl.events(code, fight["id"], "Casts", hostilityType="Enemies", includeResources=True)
+             if c.get("sourceID") in bosses]
+    power: dict[int, int] = {}
+    for c in casts:
+        if c.get("classResources") and (kind := c["classResources"][0].get("type")) is not None:
+            power.setdefault(c["sourceID"], kind)
+
+    async def points(ability: int, **only) -> dict[int, list[tuple[float, float]]]:
+        try:
+            graph = await wcl.graph(code, fight, "Resources", hostilityType="Enemies", abilityID=ability, **only)
+        except WCLError:
+            return {}
+        return {x.get("id"): [(t - fight["startTime"], v) for t, v in x.get("data") or []]
+                for x in graph.get("series") or [] if x.get("id") in bosses}
+    health = await points(BOSS_HEALTH)
+    return [{"game_id": game_id, "name": name, "health": health.get(boss, []),
+             "power": (await points(100 + power[boss], sourceID=boss)).get(boss, []) if boss in power else []}
+            for boss, (game_id, name) in sorted(bosses.items())]
+
+
 def _taken_over(series: dict[int, list[tuple[float, float]]], boss: int,
                 cast_by: Counter) -> list[tuple[float, float]]:
     """`boss`'s points, then, after its last, the points of the boss whose health starts changing next (the one

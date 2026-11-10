@@ -807,10 +807,12 @@ async def compare_pulls(pull: Pull = None, boss: Boss = None,
     """Compare a pull with a kill or with another of our pulls: do we need more damage, was a mechanic early or
     late, what changed between two pulls, what went right on the kill.
     Against a kill of the same boss and difficulty (by default, of the 50 fastest, the one with the closest item
-    level to ours): phase changes, when the boss's power bar was reset, how far behind the kill's pace (boss
-    health at the same moment) the pull was and since when, with deaths on each side, and boss health and power
-    at the same moments. With `other`: both pulls' posts, every killing ability before and after the wipe was
-    decided, and the most damage taken."""
+    level to ours): phase changes, when the boss's power bar was reset, how far behind or ahead of the kill's
+    pace (boss health at the same moment) the pull was and since when, with deaths on each side, and boss health
+    and power at the same moments. On a fight with phases the moments are of each phase, counted from when each
+    side entered it ("P2 +0:30"); on one with several bosses both sides follow the same boss, named in the output.
+    With `other`: both pulls' posts, every killing ability before and after the wipe was decided, and the most
+    damage taken."""
     rep = await lib().report(report)
     if other is not None:
         return await compare.compare_pulls(rep, pull, other, boss)
