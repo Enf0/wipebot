@@ -24,7 +24,7 @@ wrong = ["names the fastest openers (Zebinomage, Krøpling, Scopidruid) as pulli
          "says the log shows the pull timer or the countdown"]
 
 [[case]]
-id = "real-sentinels-helical-officers"  # in a DM: who carried Helical Toxins to the end (answer #392, asked in a channel with names on)
+id = "real-sentinels-helical-officers"  # in a DM: who carried Helical Toxins to the end (answer #392)
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline", "raid_note", "wcl_query"]
 report = "cZ8rp13y72gBQKY9"
 where = "in a DM"

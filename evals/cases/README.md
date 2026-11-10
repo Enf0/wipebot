@@ -9,8 +9,6 @@ answer makes, and what would make it wrong: often the tempting misreading of the
   expect    the main point a right answer gets across (a judge checks it; it fails the answer)
   facts     supporting facts a full answer states (counted apart; a missing one doesn't fail it)
   wrong     what would make it wrong (a judge checks the answer states none)
-  wrong_in_channel  more of it in the server channel only (naming who died or had a kick ready): the bot's rule,
-            left out with the connector only, where the asker reads the answer in their own chat
   report    when it isn't
   tools     the tools its right answers call (tagged from the runs: those at least two in three passing answers
             called); `just evals --coverage` counts them, and a check fails when a core tool has no case

@@ -672,7 +672,7 @@ class WipeBot(discord.Client):
     @answering
     async def _post(self, s: ServerSettings, f: Following, pull: Pull) -> None:
         """The post someone asked for after one wipe, where they asked for it (their DMs or a channel), in their
-        conversation there. In a channel, nobody is named."""
+        conversation there."""
         if f.channel is None:
             key: Hashable = ("dm", f.user.id)
             where = "in a DM"

@@ -694,7 +694,7 @@ async def test_a_raiders_feedback_goes_to_their_dms_and_replies_to_it_are_about_
 
 
 async def test_a_post_in_a_channel_is_asked_from_there(bot, settings, asked, member, channel):
-    """A request posted in a channel, where nobody is named."""
+    """A request posted in a channel: asked as from that channel, with each raider's own card a click away."""
     channel.id, channel.name = 30, "officers"
     f = Following(member(7, "Rowan"), "Rowan", None, "LIVE1", channel, "who messed up")
     await bot._post(settings, f, Pull("LIVE1", 30, "Sszorak", 12, 0.0))
