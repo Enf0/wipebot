@@ -22,7 +22,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..knowledge import KnowledgeError
-from ..pulls import Decided
+from ..pulls import DIFFICULTIES, Decided
 from ..text import clock, name_key, plural, ranges, short
 from . import saved
 from .adds import interruptible_casts, kicked_tonight
@@ -478,6 +478,17 @@ def _head(note: Note) -> str:
     return f"The raid note for {note.boss or 'the boss'}" + (f" ({note.difficulty})" if note.difficulty else "")
 
 
+def _other_difficulty(note: Note, fights: list[dict]) -> str:
+    """' The note is for Mythic and this pull is Heroic: ...' when the note names another difficulty than the pulls
+    it's checked against have (a note is found by its boss alone), else ''."""
+    theirs = {DIFFICULTIES.get(f.get("difficulty") or 0, "") for f in fights} - {""}
+    if not note.difficulty or not theirs or note.difficulty.lower() in {d.lower() for d in theirs}:
+        return ""
+    what = "this pull is" if len(fights) == 1 else "these pulls are"
+    return (f" The note is for {note.difficulty} and {what} {' and '.join(sorted(theirs))}: its times and jobs may "
+            "not fit them.")
+
+
 def _assignments(rep: Report, note: Note) -> list[str]:
     """What the note says besides its checked lines, as written: the assignments, the interrupt order and the
     reminders to everyone."""
@@ -538,7 +549,8 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
              + f", checked against {rep.label(f)} ({clock(end)}, " + ("KILL" if f["kill"] else "wipe")
              + f", {rep.url(f)})" + (f"; the wipe was decided at {clock(c.decided.at_ms)} ({c.decided.why})"
                                     if c.decided else "")
-             + ". Note times count from the pull's start (ph:1) or from the phase's first start."]
+             + ". Note times count from the pull's start (ph:1) or from the phase's first start."
+             + _other_difficulty(c.note, [f])]
     lines += _assignments(rep, c.note)
     lines += _pull_soaks(rep, c.soaks, c.until)
     if c.planned:
@@ -1049,7 +1061,7 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
     lines = [_head(latest).replace("the boss", rep.boss_key(fights[0])) + (f", {source}" if source else "")
              + f", checked against every {rep.boss_key(fights[0])} pull ({len(fights)}), each until its wipe was "
              "decided (the boss's enrage or half the raid dead) and against the note as it was saved before it "
-             "began. \"p3 1:15\" is pull 3 at 1:15."]
+             "began. \"p3 1:15\" is pull 3 at 1:15." + _other_difficulty(latest, fights)]
     if len(used) > 1:
         lines.append("Versions of the note: " + "; ".join(
             f"{v.source()}: pulls " + ", ".join(str(rep.pull_no(f)) for f in fights if by_pull[f["id"]] is v)

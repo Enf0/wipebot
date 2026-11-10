@@ -160,6 +160,28 @@ async def test_words_under_a_heading_arent_read_as_players_names(recorded):
     assert new == ["  Tanks: Swap: at 2 stacks, Deathadim first; Note: stay in melee"]
 
 
+def test_a_note_for_another_difficulty_than_the_pull_says_so():
+    """A note is found by its boss alone, so a Mythic note was checked against a Heroic kill of the boss without a
+    word under a header naming Mythic."""
+    mythic = note.Note(3418, "Mythic", "Vashnik")
+    assert note._other_difficulty(mythic, [{"difficulty": 4}]) == (
+        " The note is for Mythic and this pull is Heroic: its times and jobs may not fit them.")
+    assert note._other_difficulty(mythic, [{"difficulty": 5}, {"difficulty": 5}]) == ""
+    assert note._other_difficulty(note.Note(3418, "", "Vashnik"), [{"difficulty": 4}]) == ""
+    assert note._other_difficulty(mythic, [{}]) == ""  # the log doesn't say
+
+
+async def test_the_recorded_mythic_pulls_checked_against_a_heroic_note_say_so_in_the_first_line(recorded):
+    night = await note.note_check(await server.lib().report("vjt3KLbN8g62J1H9"),
+                                  NOTE.read_text(encoding="utf-8").replace("Difficulty:Mythic", "Difficulty:Heroic"),
+                                  boss="Sszorak", all_pulls=True)
+    assert night.splitlines()[0].endswith(
+        " The note is for Heroic and these pulls are Mythic: its times and jobs may not fit them.")
+    [head, *_] = await _pull_42(("Difficulty:Mythic", "Difficulty:Heroic"))
+    assert head.startswith("The raid note for Sszorak (Heroic), checked against Sszorak pull 42 (")
+    assert head.endswith(" The note is for Heroic and this pull is Mythic: its times and jobs may not fit them.")
+
+
 def test_a_raid_note_saved_in_versions_is_read_per_version():
     """The bot passes every saved version, each after a [saved ...] line (test_saved.py has which pull gets which);
     a paste without marks is one version."""
