@@ -1341,6 +1341,40 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
     assert all(f"{n}: " in top and f"<- {flag}" in top for n, flag in flags.items() if flag)
 
 
+async def test_a_cooldowns_moment_on_the_card_is_the_moment_player_pull_says_it_came_back(local, monkeypatch):
+    """On the recorded healer's pull, with their casts cut to the first use of each cooldown: player_pull says when
+    each came back unused, and the card names that moment for the damage cooldown alone (Divine Toll: Avenging Wrath
+    is a raid cooldown, whose use is someone's call). The healer's standing carries both of the text's caveats."""
+    from wipebot.core.report import cooldowns
+    use = cooldowns.cooldown_use
+
+    async def used_once(*args, **kw):
+        rows, untalented = await use(*args, **kw)
+        return [(sp, times[:1], possible) for sp, times, possible in rows], untalented
+    monkeypatch.setattr(cooldowns, "cooldown_use", used_once)
+    monkeypatch.setattr(views, "cooldown_use", used_once)
+    a = CASES["player-pull-holy-power"].args
+    data = (await server.view_data("player", a["pull"], None, a["report"], a["player"])).structured_content
+    assert data is not None
+    text, failed = await server.call("player_pull", a)
+    assert not failed
+    back = {c["name"]: c["ready_ms"] for c in data["cooldowns"]}
+    assert set(back) == {"Divine Toll", "Avenging Wrath", "Aura Mastery"}
+    assert back["Divine Toll"] and back["Avenging Wrath"] and back["Aura Mastery"] is None  # 1 of 1: none missed
+    for name, ready in back.items():  # the text's moment, for every cooldown it lists
+        line = re.search(rf"^  {name} \[\d+\] \(.*\): 1/\d at [\d:]+(.*)$", text, re.MULTILINE)
+        assert line, name
+        if ready is None:
+            assert line[1] == "", name
+        else:
+            assert re.fullmatch(rf" \(ready again at {clock(ready)}\b.*, unused\)", line[1]), (name, line[1])
+    assert data["notes"]["fix"][0] == f"Divine Toll ready again at {clock(back['Divine Toll'])}, not used"
+    assert data["headline"] == {"text": data["notes"]["fix"][0] + ".", "kind": "fix"}
+    assert not [n for n in data["notes"]["fix"] if "Avenging Wrath" in n or "Aura Mastery" in n]
+    assert data["standing"]["caveat"] == f"{views.SHORT_PULL} {views.CAPPED_HEALING}"
+    assert data["standing"]["caveat"] in text
+
+
 def kit_short(v: float) -> str:
     """An amount as the tools' text writes it (text.short)."""
     from wipebot.core.text import short
@@ -1876,6 +1910,26 @@ def test_a_deaths_headline_is_what_it_comes_down_to():
     assert said(False, 64, [], False) == {"text": "Killed by Slag Wave at 2:01.", "kind": ""}  # can't tell: no more
     assert views.death_headline(views.NO_KILLING_BLOW, 53_000, False, None, [], False)["text"] == (
         "Died at 0:53, no killing blow recorded.")
+
+
+async def test_a_deaths_headline_reads_the_replays_own_lines(recorded):
+    """The headline reads a death's replay by its words (deaths.if_pressed: "would have kept them alive", "not
+    enough on its own"), so it is checked on recorded deaths: one where the only thing ready, a healthstone, wasn't
+    enough, and one where Barkskin wasn't and a healthstone was."""
+    from wipebot.core.report import deaths
+    rep = await server.lib().report(PULL_CASE.args["report"])
+    druid = rep.player("Scopidruid")
+    replayed = {rep.pull_no(r.f): r for r in await deaths.replay_deaths(rep, druid, rep.by_boss["Sszorak"])}
+
+    def said(pull: int) -> dict:
+        r = replayed[pull]
+        return views.death_headline(rep.ability(r.d["killingAbilityGameID"]), r.d["timestamp"] - r.f["startTime"],
+                                    r.outright, None, r.more, False)
+    assert [line.rsplit(": ", 1)[1] for line in replayed[29].more[1:]] == [views.NOT_ENOUGH]
+    assert said(29) == {"text": "Killed by Mutilate at 1:11: nothing ready would have been enough on its own.",
+                        "kind": ""}
+    assert [line.rsplit(": ", 1)[1] for line in replayed[32].more[1:]] == [views.NOT_ENOUGH, deaths.SAVED]
+    assert said(32) == {"text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"}
 
 
 def test_a_nights_headline_counts_what_ended_the_most_pulls_over_all_of_them():
