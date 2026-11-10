@@ -1113,7 +1113,7 @@ async def test_a_long_answer_shows_what_it_looks_at_until_it_is_posted(bot, mess
     assert line.contents[1] == ("-# ✓ Player pull\n-# <a:wipebot_spinner:5> Reading death recaps (Coiled Altar, "
                                 f"pull 7) · started <t:{since}:R>")
     assert line.contents[-1] == (f"-# ✓ Player pull · ✓ Death recap\n"
-                                 f"-# <a:wipebot_spinner:5> Thinking · started <t:{since}:R>")
+                                 f"-# <a:wipebot_spinner:5> Writing the answer · started <t:{since}:R>")
     assert not any("Torvek" in c for c in line.contents)
     assert line.kwargs == {"silent": True, "mention_author": False} and line.deleted
 
@@ -1146,7 +1146,7 @@ async def test_the_line_under_a_norwegian_question_is_norwegian(bot, message, mo
     monkeypatch.setattr(bot.conversations, "ask", answering)
     await bot.on_message(msg)
     assert lines == [f"-# ⏳ Oppsummerer pullet (Sszorak, siste wipe) · startet <t:{since}:R>",
-                     f"-# ✓ Pullet\n-# ⏳ Tenker · startet <t:{since}:R>"]
+                     f"-# ✓ Pullet\n-# ⏳ Skriver svaret · startet <t:{since}:R>"]
     assert msg.replies == ["**Dere wipet på enrage, og det var ikke nok dps.**\n-# ✓ Pullet · ✓ Tidslinja"]
 
 

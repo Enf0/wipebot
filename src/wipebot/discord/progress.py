@@ -58,10 +58,10 @@ def steps(calls: Sequence[tuple[str, bool]], lang: str = "en") -> str:
 class Progress:
     """While an answer is written: a small reply under the question, edited as the model calls tools and they
     finish (at most every PROGRESS_EDIT_S, Discord limits edits) and deleted once the answer is posted. One line
-    names the tools done, the other what it does now with a spinner, and since when (a Discord timestamp, which
-    counts up by itself). It's sent silently and the answer as a new message, so the asker is notified of the answer.
-    It names the boss, pull and spec a call is about, never a player, so no player is named in a channel, and
-    speaks `lang`: the question's language."""
+    names the tools done, the other what it does now with a spinner (thinking, a tool, or writing the answer once
+    what it read is in), and since when (a Discord timestamp, which counts up by itself). It's sent silently and the
+    answer as a new message, so the asker is notified of the answer. It names the boss, pull and spec a call is
+    about, never a player, and speaks `lang`: the question's language."""
 
     def __init__(self, message: discord.Message, spinner: str = FALLBACK_SPINNER, lang: str = "en"):
         self._message, self._spinner, self._lang = message, spinner, lang
@@ -101,8 +101,10 @@ class Progress:
         if done:
             lines.append("-# " + ("… · " if len(done) > SHOWN_DONE else "")
                          + " · ".join(f"✓ {title}" for title in done[-SHOWN_DONE:]))
+        # Nothing under way: thinking before the first read, and after one the answer is being written, the longest
+        # stretch of the wait (if it reads more instead, the line says so at its next edit)
         doing_now = [f"{self._spinner} {what}" for _, what in now[:SHOWN_NOW]] or [
-            f"{self._spinner} {texts.THINKING.to(lang)}"]
+            f"{self._spinner} {(texts.WRITING if done else texts.THINKING).to(lang)}"]
         more = f" · {texts.MORE.to(lang, n=len(now) - SHOWN_NOW)}" if len(now) > SHOWN_NOW else ""
         lines.append(f"-# {' · '.join(doing_now)}{more} · {texts.STARTED.to(lang)} <t:{self._since}:R>")
         return "\n".join(lines)

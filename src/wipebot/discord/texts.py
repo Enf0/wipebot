@@ -116,6 +116,7 @@ NIGHT_RAID = Text("**That's the raid.** The night on the last boss; the button u
 # ---------- the line under a question while its answer is written ----------
 
 THINKING = Text("Thinking", "Tenker")
+WRITING = Text("Writing the answer", "Skriver svaret")  # nothing under way and something read: the longest wait
 STARTED = Text("started", "startet")  # before a Discord timestamp, which counts up in the reader's own language
 MORE = Text("+{n} more", "+{n} til")
 # What a tool under way does, for the people waiting: a tool missing here shows its title
