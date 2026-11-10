@@ -618,7 +618,7 @@ async def test_chart_text_is_drawn_at_the_sizes_asked_and_the_mock_host_refuses_
         sizes = await view.evaluate("""() => {
             const of = (s) => [...document.querySelectorAll("svg text")].find((t) => t.textContent === s);
             const px = (t) => t && [t.getAttribute("font-size"), getComputedStyle(t).fontSize];
-            const inMark = document.querySelector('svg text[fill="var(--bg)"]');  // how many died at once
+            const inMark = document.querySelector('svg text.tb');  // how many died at once
             return { label: px(of("boss health")), value: px(of("decided 2:32")), mark: px(inMark), all: kit.SIZE };
         }""")
         assert sizes["all"] == {"label": 11, "value": 12, "mark": 9}
@@ -744,6 +744,99 @@ def test_the_views_colours_are_the_pages_own():
     for name in views.SCRIPTS:
         script = resources.files("wipebot.core").joinpath("app", name).read_text(encoding="utf-8")
         assert name == "replay.js" or not re.findall(r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|\brgba?\(", script), name
+
+
+# every text of a drawn view with what is behind it: the card or panel it stands on with any tint of its own, or for a
+# chart's text its own halo, else the marks drawn under its middle; whatever is drawn faint counts as faint
+TEXTS = """() => {
+  const c = document.createElement("canvas"); c.width = c.height = 1;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  const rgba = (color) => {
+    g.clearRect(0, 0, 1, 1); g.fillStyle = color; g.fillRect(0, 0, 1, 1);
+    const d = g.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2], d[3] / 255];
+  };
+  const over = (top, under) => under.map((v, i) => top[i] * top[3] + v * (1 - top[3]));
+  const shows = (el) => { let a = 1; for (let e = el; e; e = e.parentElement) a *= +getComputedStyle(e).opacity; return a; };
+  const ground = (el) => {
+    const layers = [];
+    for (let e = el; e; e = e.parentElement) {
+      const b = rgba(getComputedStyle(e).backgroundColor);
+      if (b[3] > 0) layers.push(b);
+      if (b[3] === 1) break;
+    }
+    return layers.reverse().reduce((under, b) => over(b, under), [255, 255, 255]);
+  };
+  const out = [], seen = new Set();
+  const walker = document.createTreeWalker(document.getElementById("app"), NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const el = n.parentElement, said = n.textContent.trim();
+    if (!said || seen.has(el) || el.closest(":disabled")) continue;
+    seen.add(el);
+    const cs = getComputedStyle(el), box = el.getBoundingClientRect();
+    if (cs.display === "none" || cs.visibility === "hidden" || !box.width || !box.height) continue;
+    let on = ground(el instanceof SVGElement ? el.ownerSVGElement.parentElement : el), ink = rgba(cs.color);
+    if (el instanceof SVGElement) {
+      const svg = el.ownerSVGElement;
+      ink = rgba(cs.fill);
+      if (cs.paintOrder.startsWith("stroke") && cs.stroke !== "none") on = over(rgba(cs.stroke), on);
+      else {
+        const at = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(svg.getScreenCTM().inverse());
+        for (const m of svg.querySelectorAll("rect, circle, path, ellipse, polygon")) {
+          if (!(m.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;  // drawn over it
+          const ms = getComputedStyle(m), fill = rgba(ms.fill);
+          if (ms.fill === "none" || !fill[3] || !m.isPointInFill(at)) continue;
+          fill[3] *= shows(m) * ms.fillOpacity;
+          on = over(fill, on);
+        }
+      }
+    }
+    ink[3] *= shows(el);
+    out.push({ said, cls: [...el.classList].join(" ") || el.tagName.toLowerCase(),
+               ink: over(ink, on).map(Math.round), on: on.map(Math.round) });
+  }
+  return out;
+}"""
+
+
+@pytest.mark.parametrize("theme", ["dark", "light"])
+@pytest.mark.parametrize("tokens", ["none", "claude"])
+async def test_every_text_a_view_draws_reads_against_what_is_behind_it(recorded, monkeypatch, theme, tokens):
+    """The colours above are measured one at a time; this measures every text where it is drawn, in the five cards
+    at their fullest: 4.5:1 against the card or the panel it stands on with any tint of its own, or the mark it is
+    written in. A text drawn faint is measured faint: a death after the wipe was decided was a row at 55%, its name
+    2.2:1 on a light panel, and a pull's chip a number at 70% or on a tint its colour did not read on."""
+    from wipebot.core import viewhost
+    night = made_up_night()  # a chip of each kind: would have lived, nothing ready, can't tell, killed outright
+    night["killers"][0]["pulls"] += [{"pull": 5, "ms": 150000, "place": 9, "saved": None},
+                                     {"pull": 6, "ms": 180000, "place": 2, "saved": False, "outright": True}]
+    key = {"report": night["report"], "boss": night["boss"], "player": "Mirelle"}
+    seen: dict[str, list[dict]] = {}
+    async with chromium() as browser:
+        async def texts(tool: str, args: dict) -> None:
+            setup = host_setup(tool, args, await viewhost.tool_result(tool, args), theme=theme, tokens=tokens,
+                               mode="fullscreen", width=viewhost.FULL_WIDTH)
+            errors: list[str] = []
+            page = await viewhost._open(browser, setup, errors)
+            await viewhost._settled(page)
+            seen[tool] = await page.frames[-1].evaluate(TEXTS)
+            assert not errors
+            await page.close()
+        for case in (PULL_CASE, DEATH_CASE, NIGHT_OF_PULLS):
+            await texts(case.tool, case.args)
+        for tool, data in (("player_pull", made_up_player(True)), ("player_night", night)):
+            made_up_view(monkeypatch, {"view": data["view"], "pull": 4} | key, data)
+            await texts(tool, {"player": "Mirelle"})
+    low = [(tool, t["said"], t["cls"], round(contrast(t["ink"], t["on"]), 2))
+           for tool, texts in seen.items() for t in texts if contrast(t["ink"], t["on"]) < 4.5]
+    # known, and still to put right: the name of a phase the fight went back to, on its gold band in the dark theme
+    # (3.5:1 on a host's card; pull.js's phaseBands says how strong the band is)
+    again = [t for t in low if t[0] == "pull_summary" and t[1].startswith("P1 (2nd time)")]
+    assert [t for t in low if t not in again] == [] and (theme == "dark" or not again)
+    # and it looked at what it says: a chip of each kind, and how many died at once written in three marks
+    assert {t["cls"] for t in seen["player_night"] if t["cls"].startswith("chip")} == {
+        "chip", "chip fix", "chip unknown", "chip outright", "chip fix sample"}
+    assert sum(t["cls"] == "tb" for t in seen["pull_summary"]) == 3
 
 
 async def test_the_pull_view_draws_in_a_host_without_errors(recorded, tmp_path):

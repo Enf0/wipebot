@@ -263,13 +263,14 @@ views.pull = (() => {
         o += kit.icon(D.img_base, d.icon, cx - s / 2, dy - s / 2, s, tip)
           + `<rect x="${cx - s / 2 - 1}" y="${dy - s / 2 - 1}" width="${s + 2}" height="${s + 2}" rx="3" fill="none" stroke="var(--dead)" stroke-width="1.8" pointer-events="none"/>`;
         if (ds.length > 1) o += `<circle cx="${cx + s / 2}" cy="${dy - s / 2}" r="6" fill="var(--dead)" pointer-events="none"/>`
-          + kit.text(cx + s / 2, dy - s / 2 + 3.5, ds.length, "", 'text-anchor="middle" font-weight="700" fill="var(--bg)" pointer-events="none"', kit.SIZE.mark);
+          + kit.text(cx + s / 2, dy - s / 2 + 3.5, ds.length, "tb", 'text-anchor="middle" font-weight="700" pointer-events="none"', kit.SIZE.mark);
         continue;
       }
       const r = ds.length > 1 ? 7 : 4.2, cx = Math.max(x(d.ms), lastEdge + r + 1);
       lastEdge = cx + r;
-      o += `<circle cx="${cx}" cy="${dy}" r="${r}" fill="${d.fallout ? "var(--muted)" : "var(--dead)"}" opacity="${d.fallout ? 0.65 : 1}"${kit.tip(tip)}/>`;
-      if (ds.length > 1) o += kit.text(cx, dy + 3.5, ds.length, "", 'text-anchor="middle" font-weight="700" fill="var(--bg)"', kit.SIZE.mark);
+      // (a mark with a number in it is drawn whole, so the number reads; a lone death after the wipe was decided is faint)
+      o += `<circle cx="${cx}" cy="${dy}" r="${r}" fill="${d.fallout ? "var(--muted)" : "var(--dead)"}" opacity="${d.fallout && ds.length === 1 ? 0.65 : 1}"${kit.tip(tip)}/>`;
+      if (ds.length > 1) o += kit.text(cx, dy + 3.5, ds.length, "tb", 'text-anchor="middle" font-weight="700"', kit.SIZE.mark);
     }
     const ay = bottom + 40;
     for (let t = 0; t <= D.duration_ms; t += tick) o += kit.text(x(t), ay, kit.clock(t), "tm", 'text-anchor="middle"');

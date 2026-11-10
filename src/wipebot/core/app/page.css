@@ -50,6 +50,7 @@ button.primary { background: var(--ink); color: var(--bg); border-color: var(--i
 svg { display: block; width: 100%; height: auto; overflow: visible; }
 svg text { font-family: var(--font); }
 .t { fill: var(--ink); } .tm { fill: var(--muted); } .tg { fill: var(--gold-ink); } .td { fill: var(--dead-ink); } .to { fill: var(--decided-ink); }
+.tb { fill: var(--fb-bg); }  /* a number in a mark: our own card's colour, as the mark is ours whatever the host's card */
 /* A class's colour (--c: the game's, made for a dark interface) is drawn two ways. As text or a thin line it is the
    class's ink (--ci): its hue, with the lightness kept where it reads on the card, so a priest's white is a mid grey
    on a light card and a death knight's red a lighter red on a dark one. As a bar it stays the true colour, its edge in
@@ -136,9 +137,9 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 .killers .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { min-width: 24px; height: 20px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px/18px inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
 .chip.on { border-color: var(--ink); color: var(--ink); }
-.chip.fix { border-color: var(--decided); color: var(--decided-ink); background: color-mix(in srgb, var(--decided) 14%, transparent); }
-.chip.unknown { border-style: dashed; opacity: .7; }
-.chip.outright { text-decoration: line-through; opacity: .75; }
+.chip.fix { border-color: var(--decided); color: var(--ink); background: color-mix(in srgb, var(--decided) 14%, transparent); }
+.chip.unknown { border-style: dashed; }
+.chip.outright { text-decoration: line-through; }
 .chip.sample { display: inline-block; text-align: center; cursor: default; margin-right: 4px; }
 [data-panel] + [data-panel] { margin-top: 10px; }
 .ranked { list-style: none; margin: 0 2px 8px; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) auto; gap: 4px 10px; align-items: center; font-size: 12.5px; }
@@ -179,7 +180,9 @@ table.pulls td.fallout { color: var(--muted); }
 .deaths li .at { font-variant-numeric: tabular-nums; color: var(--muted); }
 .deaths li .who { font-weight: 600; }
 .deaths li .by { display: block; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
-.deaths li.fallout { opacity: .55; }
+/* after the wipe was decided: grey and plain, not in their class's colour, at a contrast that still reads */
+.deaths li.fallout .who { color: var(--muted); font-weight: 400; }
+.deaths li.fallout img.ic { opacity: .55; }
 .deaths .cut { font-size: 11.5px; color: var(--decided-ink); margin: 6px 6px 4px; }
 
 /* the replay */

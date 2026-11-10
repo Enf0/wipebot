@@ -132,7 +132,7 @@ views.player_night = (() => {
       if (r.death) {
         const dy = T + plotH + 14, counted = counts(r.death), rr = Math.max(1.5, Math.min(counted ? 6 : 3.5, band / 2 - 0.6));
         o += `<circle cx="${cx}" cy="${dy}" r="${rr}" fill="${counted ? "var(--dead)" : "var(--muted)"}" opacity="${counted ? 1 : 0.6}"/>`;
-        if (counted && band >= 11) o += kit.text(cx, dy + 3.5, r.death.place, "", 'text-anchor="middle" font-weight="700" fill="var(--bg)"', kit.SIZE.mark);
+        if (counted && band >= 11) o += kit.text(cx, dy + 3.5, r.death.place, "tb", 'text-anchor="middle" font-weight="700"', kit.SIZE.mark);
       }
     });
     // the boss's health left at the end of each pull
