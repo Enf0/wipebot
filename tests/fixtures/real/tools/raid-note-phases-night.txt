@@ -41,10 +41,10 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     I1 0:24 Spirit Link Totem [98008], 1 pull: late 1 (1 s)
   Zebinolock: 34 planned uses; not cast 32, dead 2
     P2 0:23 Curse of Tongues [1714] "Curse Raid-Marked Add", 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 0:56 Curse of Tongues [1714] "Curse Raid-Marked Add", 13 pulls: not cast 12 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p27, p28), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 1:48 Curse of Tongues [1714] "Curse Raid-Marked Add", 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 2:21 Curse of Tongues [1714] "Curse Raid-Marked Add", 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 3:13 Curse of Tongues [1714] "Curse Raid-Marked Add", 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:56 Curse of Tongues [1714] "Curse Raid-Marked Add", 13 pulls: not cast 12 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p27, p28), dead 1; never cast, as above
+    P2 1:48 Curse of Tongues [1714] "Curse Raid-Marked Add", 3 pulls: not cast 3 (p25, p27, p28); never cast, as above
+    P2 2:21 Curse of Tongues [1714] "Curse Raid-Marked Add", 2 pulls: not cast 2 (p25, p28); never cast, as above
+    P2 3:13 Curse of Tongues [1714] "Curse Raid-Marked Add", 1 pull: not cast 1 (p28); never cast, as above
   Namsus: 137 planned uses; on time 38, early 46 (2 s), late 24 (4 s), not cast 29, 4 of them in the last 10 s, 8 of them on cooldown
     0:01 Soulcoiler Ritual Vessel [1291894], 28 pulls: on time 23, late 3 (1 s), not cast 2 (p7, p26)
     0:39 Apotheosis [200183], 27 pulls: on time 7, early 9 (2 s), late 10 (2 s), not cast 1 (p17), 1 of them in the last 10 s
@@ -61,10 +61,10 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     I1 0:15 Soulcoiler Ritual Vessel [1291894], 1 pull: early 1 (19 s)
   Peggerino: 34 planned uses; not cast 29, dead 5
     P2 0:23 Curse of Tongues [1714] "Curse Unmarked Add", 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 0:56 Curse of Tongues [1714] "Curse Unmarked Add", 13 pulls: not cast 9 (p4, p16, p19, p23, p24, p25, p26, p27, p28), dead 4; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 1:48 Curse of Tongues [1714] "Curse Unmarked Add", 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 2:21 Curse of Tongues [1714] "Curse Unmarked Add", 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 3:13 Curse of Tongues [1714] "Curse Unmarked Add", 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:56 Curse of Tongues [1714] "Curse Unmarked Add", 13 pulls: not cast 9 (p4, p16, p19, p23, p24, p25, p26, p27, p28), dead 4; never cast, as above
+    P2 1:48 Curse of Tongues [1714] "Curse Unmarked Add", 3 pulls: not cast 3 (p25, p27, p28); never cast, as above
+    P2 2:21 Curse of Tongues [1714] "Curse Unmarked Add", 2 pulls: not cast 2 (p25, p28); never cast, as above
+    P2 3:13 Curse of Tongues [1714] "Curse Unmarked Add", 1 pull: not cast 1 (p28); never cast, as above
   Dragepie: 63 planned uses; on time 5, early 17 (3 s), late 12 (2 s), not cast 27, 2 of them in the last 10 s, 14 of them on cooldown, dead 2
     1:25 Time Spiral [374968], 24 pulls: on time 4, early 6 (3 s), late 9 (2 s), not cast 4 (p13, p20, p21, p27), dead 1
     1:48 Zephyr [374227], 21 pulls: on time 1, early 11 (4 s), late 1 (7 s), not cast 7 (p2, p3, p11, p13, p14, p16, p26), 2 of them in the last 10 s, 1 of them on cooldown, dead 1
@@ -105,26 +105,26 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     I1 0:24 Rallying Cry [97462], 1 pull: dead 1
 Callouts for personals over the pulls, per callout and per player it names, most often pressing none first: how many of the callouts they were alive and counted for, at how many they pressed a defensive or tank cooldown from 3 s before to 5 s after it (callouts by the tag of what they pressed), the ones they pressed none at, with at how many of those they had one ready (one they cast at least once on these pulls, off cooldown by Lorrgs' base cooldown, ignoring charges and cooldown reduction; one they never cast may be a talent they don't have or a passive) and the tags of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such as Anti-Magic Shell, may be one), and those not counted against them (one was already running, pressed earlier and still up by Lorrgs' duration, which talents change; they pressed the cooldown the note plans for them then; or a tank kept a tank cooldown for just after):
   "Personals" to everyone (21 callouts over 21 pulls, at 1:47):
-    Pomaa: alive for 21; pressed at 0; none at 21: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 9 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 5 (untagged 5)
-    Wutroll: alive for 21; pressed at 0; none at 21: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 9 more, the last p28 1:47 (one ready at 20); of those, pressed only others at 17 (untagged 17)
-    Nexsozz: alive for 21; pressed at 3 (defensive 3); none at 18: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 6 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 11 (untagged 11)
-    Sonyosh: alive for 21; pressed at 3 (defensive 3, move 1); none at 18: p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p13 1:47, p14 1:47, p16 1:47, p20 1:47, p21 1:47 and 6 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 4 (move 4)
-    Cptola: alive for 16; pressed at 1 (defensive 1, dps 1); none at 15: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p23 1:47 and 3 more, the last p28 1:47 (one ready at 15); of those, pressed only others at 10 (dps 6, untagged 4); not counted at 5 (one already running 5)
-    Karadim: alive for 16; pressed at 1 (tank 1); none at 15: p1 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p13 1:47, p16 1:47, p19 1:47, p23 1:47, p24 1:47, p25 1:47 and 3 more, the last p28 1:47 (one ready at 15); of those, pressed only others at 2 (raid_cd 2); not counted at 4 (a tank, kept Ardent Defender 4)
-    Martin: alive for 19; pressed at 7 (defensive 7, untagged 2); none at 12: p2 1:47, p3 1:47, p4 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p16 1:47, p21 1:47, p24 1:47, p28 1:47 (one ready at 12); of those, pressed only others at 6 (untagged 6); not counted at 2 (one already running 2)
-    Slushmania: alive for 16; pressed at 7 (defensive 7, untagged 2, dps 1); none at 9: p2 1:47, p3 1:47, p5 1:47, p12 1:47, p16 1:47, p23 1:47, p26 1:47, p27 1:47, p28 1:47 (one ready at 9); of those, pressed only others at 5 (untagged 5); not counted at 5 (one already running 5)
-    Draiman: alive for 18; pressed at 10 (defensive 10); none at 8: p5 1:47, p11 1:47, p12 1:47, p20 1:47, p24 1:47, p25 1:47, p26 1:47, p28 1:47 (one ready at 8); not counted at 3 (one already running 3)
-    Lïzårðmâñ: alive for 16; pressed at 8 (defensive 8); none at 8: p2 1:47, p3 1:47, p10 1:47, p11 1:47, p14 1:47, p20 1:47, p24 1:47, p26 1:47 (one ready at 1); of those, pressed only others at 3 (raid_cd 2, untagged 2); not counted at 5 (one already running 5)
-    Attractîv: alive for 13; pressed at 8 (defensive 8, untagged 5); none at 5: p3 1:47, p4 1:47, p8 1:47, p14 1:47, p20 1:47 (one ready at 3); of those, pressed only others at 4 (untagged 4)
-    Dragepie: alive for 7; pressed at 2 (defensive 2, raid_cd 2, dps 1, untagged 1); none at 5: p11 1:47, p13 1:47, p14 1:47, p16 1:47, p26 1:47 (one ready at 0); of those, pressed only others at 1 (dps 1); not counted at 13 (one already running 9, pressed the note's plan for them 4)
-    Dscopi: alive for 11; pressed at 7 (defensive 7, untagged 1); none at 4: p4 1:47, p8 1:47, p11 1:47, p16 1:47 (one ready at 2); of those, pressed only others at 2 (untagged 2); not counted at 3 (one already running 3)
-    Nalaxd: alive for 14; pressed at 10 (defensive 10); none at 4: p13 1:47, p20 1:47, p21 1:47, p26 1:47 (one ready at 4); not counted at 1 (one already running 1)
-    Peggerino: alive for 21; pressed at 17 (defensive 17); none at 4: p2 1:47, p26 1:47, p27 1:47, p28 1:47 (one ready at 3)
-    Krøpling: alive for 19; pressed at 16 (defensive 16, dps 2, untagged 1); none at 3: p1 1:47, p2 1:47, p3 1:47 (one ready at 3); of those, pressed only others at 2 (dps 2, untagged 1); not counted at 1 (one already running 1)
-    Scopidruid: alive for 3; pressed at 1 (defensive 1); none at 2: p23 1:47, p28 1:47 (one ready at 0); of those, pressed only others at 1 (untagged 1); not counted at 3 (one already running 3)
-    Zebinolock: alive for 13; pressed at 11 (defensive 11); none at 2: p12 1:47, p27 1:47 (one ready at 1); not counted at 8 (one already running 8)
-    Enfo: alive for 19; pressed at 18 (defensive 18); none at 1: p23 1:47 (one ready at 1); not counted at 2 (one already running 2)
-    Fappachino: alive for 5; pressed at 4 (defensive 4, untagged 2); none at 1: p24 1:47 (one ready at 0); not counted at 1 (one already running 1)
-    Miralupa: alive for 14; pressed at 13 (defensive 13); none at 1: p8 1:47 (one ready at 1); not counted at 7 (one already running 7)
-    Namsus: alive for 3; pressed at 2 (defensive 2, raid_cd 2); none at 1: p21 1:47 (one ready at 1); not counted at 18 (pressed the note's plan for them 16, one already running 2)
-Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): "CC Mindcontrol" to Wutroll at P2 0:09, 0:45, 1:34, 2:10, 2:59 (15 pulls); "CC Mindcontrol" to Pomaa at P2 0:09, 0:45, 1:34, 2:10, 2:59 (15 pulls); "CC Mindcontrol" to Fappachino at P2 0:09, 0:45, 1:34, 2:10, 2:59 (15 pulls)
+    Pomaa: alive for 21; pressed at 0; none at 21: pulls 1-5, 8, 10-14, 16, 19-21, 23-28 (one ready at 18); of those, pressed only others at 5 (untagged 5)
+    Wutroll: alive for 21; pressed at 0; none at 21: pulls 1-5, 8, 10-14, 16, 19-21, 23-28 (one ready at 20); of those, pressed only others at 17 (untagged 17)
+    Nexsozz: alive for 21; pressed at 3 (defensive 3); none at 18: pulls 1-5, 8, 10-14, 16, 19-20, 24-26, 28 (one ready at 18); of those, pressed only others at 11 (untagged 11)
+    Sonyosh: alive for 21; pressed at 3 (defensive 3, move 1); none at 18: pulls 2-5, 8, 10-11, 13-14, 16, 20-21, 23-28 (one ready at 18); of those, pressed only others at 4 (move 4)
+    Cptola: alive for 16; pressed at 1 (defensive 1, dps 1); none at 15: pulls 1-5, 8, 10-14, 23-24, 26, 28 (one ready at 15); of those, pressed only others at 10 (dps 6, untagged 4); not counted at 5 (one already running 5)
+    Karadim: alive for 16; pressed at 1 (tank 1); none at 15: pulls 1, 4-5, 8, 10-11, 13, 16, 19, 23-28 (one ready at 15); of those, pressed only others at 2 (raid_cd 2); not counted at 4 (a tank, kept Ardent Defender 4)
+    Martin: alive for 19; pressed at 7 (defensive 7, untagged 2); none at 12: pulls 2-4, 8, 10-13, 16, 21, 24, 28 (one ready at 12); of those, pressed only others at 6 (untagged 6); not counted at 2 (one already running 2)
+    Slushmania: alive for 16; pressed at 7 (defensive 7, untagged 2, dps 1); none at 9: pulls 2-3, 5, 12, 16, 23, 26-28 (one ready at 9); of those, pressed only others at 5 (untagged 5); not counted at 5 (one already running 5)
+    Draiman: alive for 18; pressed at 10 (defensive 10); none at 8: pulls 5, 11-12, 20, 24-26, 28 (one ready at 8); not counted at 3 (one already running 3)
+    Lïzårðmâñ: alive for 16; pressed at 8 (defensive 8); none at 8: pulls 2-3, 10-11, 14, 20, 24, 26 (one ready at 1); of those, pressed only others at 3 (raid_cd 2, untagged 2); not counted at 5 (one already running 5)
+    Attractîv: alive for 13; pressed at 8 (defensive 8, untagged 5); none at 5: pulls 3-4, 8, 14, 20 (one ready at 3); of those, pressed only others at 4 (untagged 4)
+    Dragepie: alive for 7; pressed at 2 (defensive 2, raid_cd 2, dps 1, untagged 1); none at 5: pulls 11, 13-14, 16, 26 (one ready at 0); of those, pressed only others at 1 (dps 1); not counted at 13 (one already running 9, pressed the note's plan for them 4)
+    Dscopi: alive for 11; pressed at 7 (defensive 7, untagged 1); none at 4: pulls 4, 8, 11, 16 (one ready at 2); of those, pressed only others at 2 (untagged 2); not counted at 3 (one already running 3)
+    Nalaxd: alive for 14; pressed at 10 (defensive 10); none at 4: pulls 13, 20-21, 26 (one ready at 4); not counted at 1 (one already running 1)
+    Peggerino: alive for 21; pressed at 17 (defensive 17); none at 4: pulls 2, 26-28 (one ready at 3)
+    Krøpling: alive for 19; pressed at 16 (defensive 16, dps 2, untagged 1); none at 3: pulls 1-3 (one ready at 3); of those, pressed only others at 2 (dps 2, untagged 1); not counted at 1 (one already running 1)
+    Scopidruid: alive for 3; pressed at 1 (defensive 1); none at 2: pulls 23, 28 (one ready at 0); of those, pressed only others at 1 (untagged 1); not counted at 3 (one already running 3)
+    Zebinolock: alive for 13; pressed at 11 (defensive 11); none at 2: pulls 12, 27 (one ready at 1); not counted at 8 (one already running 8)
+    Enfo: alive for 19; pressed at 18 (defensive 18); none at 1: pull 23 (one ready at 1); not counted at 2 (one already running 2)
+    Fappachino: alive for 5; pressed at 4 (defensive 4, untagged 2); none at 1: pull 24 (one ready at 0); not counted at 1 (one already running 1)
+    Miralupa: alive for 14; pressed at 13 (defensive 13); none at 1: pull 8 (one ready at 1); not counted at 7 (one already running 7)
+    Namsus: alive for 3; pressed at 2 (defensive 2, raid_cd 2); none at 1: pull 21 (one ready at 1); not counted at 18 (pressed the note's plan for them 16, one already running 2)
+Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): "CC Mindcontrol" to Wutroll, Pomaa, Fappachino at P2 0:09, 0:45, 1:34, 2:10, 2:59 (15 pulls)

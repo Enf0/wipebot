@@ -1010,8 +1010,11 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
         shown = [(at, co) for at, co in these
                  if asked is None or not co.players or any(n in asked for n in co.players)]
         rest = len(these) - len(shown)
+        times: dict[tuple[str, tuple[str, ...]], list[str]] = defaultdict(list)
+        for at, co in shown:
+            times[(co.text, co.players)].append(clock(at))
         lines.append(why + ": " + "; ".join(
-            [f"{clock(at)} {' '.join(co.players) or EVERYONE} \"{co.text}\"" for at, co in shown]
+            _to_whom((text, named, "at " + ", ".join(ats)) for (text, named), ats in times.items())
             + ([f"{rest} to other players"] if rest else [])))
     if c.kicks and asked and not any(k.player in asked for k in c.kicks):
         lines.append(f"Kick assignments: the note gives {asked.name} none ({len(c.kicks)} to other players).")
@@ -1041,6 +1044,16 @@ def _unchecked(calls: list[tuple[float, Callout]]) -> list[tuple[str, list[tuple
     for at, co in calls:
         by[NO_CAST if _kick_call(co) else UNCHECKED].append((at, co))
     return [(why, these) for why, these in by.items() if these]
+
+
+def _to_whom(entries: Iterable[tuple[str, tuple[str, ...], str]]) -> list[str]:
+    """'"CC Mindcontrol" to Wutroll, Pomaa, Fappachino at 2:36, 3:12': callouts by their words, whom they name and
+    the rest said of them (their times), those with the same words and the same rest as one entry: a job given to
+    three players at the same moments is one line of the note's plan, not three."""
+    merged: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for text, named, rest in entries:
+        merged[(text, rest)].append(" ".join(named) or EVERYONE)
+    return [f"\"{text}\" to {', '.join(names)} {rest}" for (text, rest), names in merged.items()]
 
 
 def _pull_soaks(rep: Report, soaks: list[Soaks], until: float, asked: Asked | None = None) -> list[str]:
@@ -1897,6 +1910,7 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
     def missed(rows: list[tuple[PullCheck, PlannedUse]]) -> int:
         return sum(r[1].cast_at is None and r[1].state == "alive" for r in rows)
     never: dict[str, set[int]] = {}  # per player, the planned spells they cast on none of the pulls
+    told: set[tuple[str, int]] = set()  # (player, spell) whose row has said so in full: the next ones point to it
     for name in sorted(per_player, key=lambda n: (-sum(missed(r) for r in per_player[n].values()), n)):
         entries = per_player[name]
         everything = [r for rows in entries.values() for r in rows]
@@ -1910,10 +1924,14 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
             u = rows[0][1]
             line = f"    {u.said or clock(u.at)} {_planned_spell(rep, u.cooldown)}"
             cast_on = Counter(r[1].on for r in rows if r[1].on)
-            out.append(line + f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}"
-                       + ("; cast on " + ", ".join(f"{n} {k}" for n, k in _by_count(cast_on)) if cast_on else "")
-                       + ("; never cast on any of these pulls: a talent may replace it, or another spell do its job "
-                          "(breakdown of their casts)" if u.cooldown.spell in never[name] else ""))
+            line += f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}" + (
+                "; cast on " + ", ".join(f"{n} {k}" for n, k in _by_count(cast_on)) if cast_on else "")
+            if u.cooldown.spell in never[name]:
+                line += "; never cast, as above" if (name, u.cooldown.spell) in told else (
+                    "; never cast on any of these pulls: a talent may replace it, or another spell do its job "
+                    "(breakdown of their casts)")
+                told.add((name, u.cooldown.spell))
+            out.append(line)
     if asked:
         out.append(f"  {FOR_SCALE}: {plural(len(uses), 'planned use')} of {plural(len(per_player), 'player')}; "
                    f"{tally(uses)}")
@@ -1948,6 +1966,7 @@ def _night_callouts(rep: Report, checks: list[PullCheck],  # noqa: C901
     for c, k in calls:
         groups[(k.callout.text, k.callout.players)].append((c, k))
     for (text, named), rows in groups.items():
+        once = len({(k.callout.phase, k.callout.at) for _, k in rows}) == 1  # one time, which this line gives
         out.append(f"  \"{text}\" to {' '.join(named) or 'everyone'} ({plural(len(rows), 'callout')} over "
                    f"{plural(len({id(c) for c, _ in rows}), 'pull')}, at "
                    f"{_times_said((c.phases, k.callout) for c, k in rows)}):")
@@ -1984,7 +2003,9 @@ def _night_callouts(rep: Report, checks: list[PullCheck],  # noqa: C901
             if pressed[n]:
                 line += " (" + ", ".join(f"{t} {k}" for t, k in _by_count(pressed[n])) + ")"
             if none[n]:
-                line += f"; none at {len(none[n])}: {_pulls(rep, none[n])} (one ready at {ready[n]})"
+                nos = sorted(rep.pull_no(f) for f, _ in none[n])
+                line += (f"; none at {len(nos)}: " + (f"{'pulls' if len(nos) > 1 else 'pull'} {ranges(nos)}" if once
+                                                       else _pulls(rep, none[n])) + f" (one ready at {ready[n]})")
             if only := instead[n].pop(None, 0):
                 line += f"; of those, pressed only others at {only} (" + ", ".join(
                     f"{t} {k}" for t, k in _by_count(instead[n])) + ")"
@@ -2007,9 +2028,9 @@ def _night_unchecked(checks: list[PullCheck], asked: Asked | None = None) -> lis
                 times, pulls = seen.setdefault(why, {}).setdefault((co.text, co.players), ([], set()))
                 times.append((c.phases, co))
                 pulls.add(c.f["id"])
-    return [why + ": " + "; ".join(
-        f"\"{text}\" to {' '.join(named) or EVERYONE} at {_times_said(times)} ({plural(len(pulls), 'pull')})"
-        for (text, named), (times, pulls) in seen[why].items()) for why in (UNCHECKED, NO_CAST) if why in seen]
+    return [why + ": " + "; ".join(_to_whom(
+        (text, named, f"at {_times_said(times)} ({plural(len(pulls), 'pull')})")
+        for (text, named), (times, pulls) in seen[why].items())) for why in (UNCHECKED, NO_CAST) if why in seen]
 
 
 def _saved_late(rep: Report, fights: list[dict], by_pull: dict[int, Version]) -> list[str]:
