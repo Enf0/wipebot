@@ -1,5 +1,6 @@
-"""How an answer is built, measured by code: its verdict line and how long it is, its bullets with the words and
-sentences of each, where the change to make stands, how much there is to read and how many follow-ups it offers.
+"""How an answer is built, measured by code: its verdict line and how long it is, what stands between it and the
+bullets, its bullets with the words and sentences of each, where the change to make stands, how much there is to read
+and how many follow-ups it offers.
 
 The bot's prompt (host-prompt.md) sets these, and a rule nothing measures slips unseen: the two-sentence bullet of
 28 October 2026 was broken in more bullets after it than before. `measure` reads an answer as it's recorded
@@ -27,6 +28,7 @@ FIX = "⚠"  # the marker of the one change to make, with or without the selecto
 MARKER = re.compile(r"^(?:[⚠✅💀]\ufe0f?[ \t]*)+")  # the emojis a bullet may open with
 LEAD = re.compile(r"^\*\*(.+?)\*\*[:.]?[ \t]*")  # a bullet's point, its first few words in bold
 VERDICT = re.compile(r"\*\*(.+?)\*\*")  # the bold sentence an answer opens with
+TITLE = re.compile(r"\*\*[^*\n]+\*\*:?|#{1,3}[ \t].*")  # a line that is only a part's title, its list under it
 # The end of a sentence: a stop, then a capital ("f.eks. 0:07", "ca. 6:01" and "nr. 2" go on)
 SENTENCE_END = re.compile(r"(?<=[.!?])[\"”)]?\s+(?=[\"“(]?[A-ZÆØÅÄÖÜ])")
 
@@ -64,6 +66,7 @@ class Form:
     lines: int = 0  # lines with text
     verdict_words: int = 0  # the bold sentence it opens with; 0: it opens with none
     preamble: bool = False  # a line comes before the bold verdict
+    beside_verdict: int = 0  # words between the verdict and the first bullet: more on its line, a paragraph under it
     bullet_words: list[int] = field(default_factory=list)  # each top-level bullet's own words, in order
     bullet_sentences: list[int] = field(default_factory=list)  # ...and its sentences after its bold point
     nested: int = 0  # lines of the lists under bullets
@@ -84,15 +87,8 @@ class Form:
         few words for every answer, to count by) and this answer's own measure of it. Empty when it keeps to the
         form. An answer without bullets (a greeting, a line saying it can't) has no verdict to open with and is held
         only to its length."""
-        out: dict[str, str] = {}
         b = budget
-        if b.verdict_words is not None and self.bullets:
-            if self.preamble:
-                out["a line before the verdict"] = "a line comes before the bold verdict"
-            elif not self.verdict_words:
-                out["no bold verdict"] = "opens with no bold verdict"
-            if self.verdict_words > b.verdict_words:
-                out["a long verdict"] = f"the verdict is {self.verdict_words} words (at most {b.verdict_words})"
+        out = self._opening(b.verdict_words) if b.verdict_words is not None and self.bullets else {}
         if b.bullets is not None and self.bullets > b.bullets:
             out["many bullets"] = f"{self.bullets} bullets (at most {b.bullets})"
         if b.bullet_words is not None and (long := [n for n in self.bullet_words if n > b.bullet_words]):
@@ -118,6 +114,21 @@ class Form:
             out["a long post"] = f"{self.chars} characters to read (about {round(b.chars / POST_SLACK)})"
         return out
 
+    def _opening(self, verdict_words: int) -> dict[str, str]:
+        """Where an answer with bullets leaves the opening the prompt asks for: the bold verdict first, in at most
+        `verdict_words`, and nothing between it and the bullets, which hold what backs it."""
+        out: dict[str, str] = {}
+        if self.preamble:
+            out["a line before the verdict"] = "a line comes before the bold verdict"
+        elif not self.verdict_words:
+            out["no bold verdict"] = "opens with no bold verdict"
+        if self.verdict_words > verdict_words:
+            out["a long verdict"] = f"the verdict is {self.verdict_words} words (at most {verdict_words})"
+        if self.beside_verdict:
+            out["text between the verdict and the bullets"] = (
+                f"{self.beside_verdict} words between the verdict and the first bullet")
+        return out
+
 
 def visible(text: str) -> str:
     """What a raider reads of posted text: a link's words without its address, no icons and no markup."""
@@ -126,6 +137,21 @@ def visible(text: str) -> str:
 
 def _sentences(text: str) -> int:
     return len(SENTENCE_END.split(text.strip())) if text.strip() else 0
+
+
+def _beside_verdict(opening: list[str]) -> int:
+    """The words between the bold verdict and the first bullet, from the lines before that bullet: what follows the
+    verdict on its own line (the bot takes the bold off a second sentence there, discord_text.verdict_bold, so the
+    verdict's own words stay few while the opening runs on) and the lines under it."""
+    words, verdict = 0, False
+    for line in opening:
+        opens = None if verdict else VERDICT.match(line)
+        if opens:
+            verdict, line = True, line[opens.end():]
+        elif not verdict or TITLE.fullmatch(line.strip()):
+            continue  # a line before the verdict is the preamble, and a part's title has its list under it
+        words += len(LINE_MARK.sub("", visible(line)).split())
+    return words
 
 
 def measure(answer: str) -> Form:
@@ -138,6 +164,7 @@ def measure(answer: str) -> Form:
     text = LINE_MARK.sub("", visible(posted))
     written = [line for line in posted.split("\n") if line.strip()]
     bullet_words, bullet_sentences, after = [], [], []
+    opening: list[str] | None = None  # the lines before the first bullet, once there is one
     nested = small = 0
     fix, in_code = None, False
     for line in written:
@@ -146,8 +173,10 @@ def measure(answer: str) -> Form:
         elif in_code:
             continue  # a text chart: its lines are no bullets
         elif NESTED.match(line):
+            opening = after if opening is None else opening
             nested, after = nested + 1, []
         elif m := BULLET.match(line):
+            opening = after if opening is None else opening
             said = ICON.sub("", m[1]).lstrip()
             if fix is None and FIX in said[:8]:  # before the bold point, or inside it where it couldn't be moved out
                 fix = len(bullet_words) + 1
@@ -165,6 +194,7 @@ def measure(answer: str) -> Form:
         words=len(text.split()), chars=len(text), posted=len(posted), lines=len(written),
         verdict_words=len(visible(verdict[1]).split()) if verdict else 0,
         preamble=not verdict and any(VERDICT.match(line) for line in written[1:3]),
+        beside_verdict=_beside_verdict(opening or []),
         bullet_words=bullet_words, bullet_sentences=bullet_sentences, nested=nested, fix=fix,
         markers=posted.count(FIX), closing=bool(bullet_words and after), small=small, follow_ups=follow_ups,
         pictures=pictures, numbers=len(TIME.findall(text)) + len(amounts(text, every=True)))

@@ -77,6 +77,25 @@ def test_the_verdict_must_open_the_answer_and_stay_short():
     assert measure("Hey Rowan! 👋 What's up?").slips() == {}  # no bullets: a greeting has no verdict to open with
 
 
+def test_what_backs_the_verdict_goes_in_the_bullets_not_between_it_and_them():
+    """The bot takes the bold off a second sentence in the opening (discord_text.verdict_bold), so the verdict's
+    own words stay within the budget while the opening runs on: a third of the recorded answers had one."""
+    second = measure("**The enrage ended it.** The stack after the intermission never formed.\n- one\n- two")
+    assert (second.verdict_words, second.beside_verdict) == (4, 7)
+    assert second.slips() == {
+        "text between the verdict and the bullets": "7 words between the verdict and the first bullet"}
+    under = measure("**The enrage ended it.**\nHere is the story of the pull.\n-# Only Mythic pulls.\n- one")
+    assert under.beside_verdict == 7 and list(under.slips()) == ["text between the verdict and the bullets"]
+    late = measure("I went through the pull.\n**The enrage ended it.** It came at 2:32.\n- one")
+    assert late.beside_verdict == 4  # after the verdict; the line before it is the preamble
+    assert list(late.slips()) == ["a line before the verdict", "text between the verdict and the bullets"]
+    titled = measure("**Verdict.**\n**Rytmen i P1**\n- one\n**P2:**\n- two")
+    assert titled.beside_verdict == 0 and titled.slips() == {}  # a part's title has its list under it
+    plain = measure("**Yes.** Rowan died at 2:31 to Tempest.")
+    assert plain.beside_verdict == 0 and plain.slips() == {}  # no bullets: the line is the whole answer
+    assert measure("**Wiped.** The enrage.\n- one").slips(form.post(4, 500)) == {}  # a post has no verdict to keep to
+
+
 def test_the_change_to_make_is_one_marked_and_first():
     second = measure("**Verdict.**\n- **Fine:** kicks.\n- ⚠️ **Move Rewind.** To 1:05.")
     assert second.fix == 2 and second.slips() == {

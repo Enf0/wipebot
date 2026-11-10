@@ -50,10 +50,10 @@ verdict, or a failed answer with a call Warcraft Logs or a site didn't answer.
 
 Code also measures how every answer is built (`wipebot.discord.form`, no model): its words to read, the verdict's
 and each bullet's, the sentences in a bullet, where the change to make stands, its follow-ups. As the bot, an answer
-that leaves the form the bot's prompt asks for gets a `form:` line under its verdict (a bullet over 30 words, the
-change to make not first, a paragraph after the last bullet), held to what its case is: an answer in chat, one while
-the raid is going on, or a post after a wipe. It never fails an answer. In a client the form is the client's own, so
-there it's only measured.
+that leaves the form the bot's prompt asks for gets a `form:` line under its verdict (a bullet over 30 words, a
+second sentence beside the verdict, the change to make not first, a paragraph after the last bullet), held to what
+its case is: an answer in chat, one while the raid is going on, or a post after a wipe. It never fails an answer. In
+a client the form is the client's own, so there it's only measured.
 
 Warcraft Logs and the guide sites come from `cache.sqlite`, frozen: what a run asks that isn't there is fetched once
 and kept, with the clock set to when it was recorded. It holds rankings and the sites' pages, so it's never in the
@@ -112,8 +112,8 @@ just evals --api-key                # bill the run to ANTHROPIC_API_KEY, not you
 ## Files
 
 - `cases/`: the cases, and in its README their format. `run.py`: running, comparing, labelling. `checks.py`: the
-  judge, and the answers' form. `lint.py`: the numbers check. `coverage.py`: what the cases cover (`just check` fails when a core tool has
-  no case and isn't in its `NO_CASE_YET`).
+  judge, and the answers' form. `lint.py`: the numbers check. `coverage.py`: what the cases cover (`just check`
+  fails when a core tool has no case and isn't in its `NO_CASE_YET`).
 - `baseline*.json`: the runs others are compared with, one per mode.
 - `test_*.py`: tests of the eval code itself, run by `just check`.
 - Untracked: `cache.sqlite` (the frozen data), `results/` (runs), `labels.jsonl` (your marks).
