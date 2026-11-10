@@ -671,3 +671,22 @@ async def by_pull(rep: Report, data_type: str, pulls: list[int | str] | None = N
         found.append((_without_moved(rows, q.data_type)[0],
                       (total_time if q.cutoff and total_time else last - first) / 1000))  # WCL's time is cut too
     return q, found
+
+
+async def stated(rep: Report, data_type: str, pulls: list[int | str] | None = None, boss: str | None = None,
+                 ability: str | None = None, cutoff: int | None = None, whole_pull: bool = False,
+                 start: str | None = None, end: str | None = None, target: str | None = None
+                 ) -> tuple[float, dict[str, tuple[str, str]]]:
+    """What breakdown by player writes around its rows, for a meter of them (`meter`): the total its heading states
+    (over every row, the roles `least` leaves out among them; 0 for a table whose heading states none), and by
+    player their share of it as their row writes it ("13%") and, for one in only some of the pulls, in how many and
+    their rate over those (`_in_fewer`: "in 11 of 33 pulls (1.20M/s over them)", else "")."""
+    if data_type not in ("DamageDone", "Healing", "DamageTaken"):
+        return 0, {}
+    q = await _asked(rep, data_type, "player", pulls, boss, None, ability, cutoff, whole_pull, start, end, target)
+    rows = (await _summed_rows(rep, q)).rows
+    total = sum(v for _, v, _ in rows)
+    players = {p.name: p for p in rep.players.values()}
+    return total, {name: (f"{100 * value / (total or 1):.0f}%",
+                          _in_fewer(rep, q, p, value).removeprefix(", ") if (p := players.get(name)) else "")
+                   for name, value, _ in rows}
