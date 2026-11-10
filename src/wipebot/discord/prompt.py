@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING
 from wipebot.core.report import FactError, Report
 from wipebot.core.report.ending import ending_ability, pull_ending
 
+from . import form
+
 if TYPE_CHECKING:
     from .host import Context
 
@@ -196,6 +198,19 @@ NO_REPORT = ("[no Warcraft Logs report: none was linked, and there's no recent r
 
 
 LIVE = "being logged now"  # the raid is going on: the bot's prompt names these words
+
+
+def budget(post: bool = False, live: bool = False) -> form.Budget:
+    """What an answer's form is held to (form.Form.slips): a post after a wipe to the lines and characters its
+    question asks for, an answer while the raid is going on to the short form between pulls, any other to a chat
+    answer's."""
+    return form.post(POST_LINES, POST_CHARS) if post else form.LIVE if live else form.CHAT
+
+
+def recorded_budget(kind: str, prompt: str | None) -> form.Budget:
+    """The same for a recorded answer, from its record's kind ("follow": a post after a wipe) and what the model got,
+    whose first line says when the report was being logged."""
+    return budget(post=kind == "follow", live=LIVE in (prompt or ""))
 
 
 def report_line(report: Report, now: datetime | None = None, doubt: str = "",

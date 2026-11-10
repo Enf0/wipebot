@@ -3,14 +3,21 @@
 An answer passes when it gets the case's main point across (`expect`) and states nothing on its `wrong` list (a
 model judges both, one question each). How many of the case's supporting `facts` it states is counted apart and
 never fails it. Code also gives warnings that don't fail it (wipebot.discord.checks): numbers no tool gave, and a site
-credited for a fact.
+credited for a fact; and it measures how the answer is built (`built`, wipebot.discord.form), which as the bot is held
+to the bot's prompt: its slips never fail it either.
 """
 import asyncio
 import json
 import re
-from dataclasses import dataclass
+from collections import Counter
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass
+from statistics import median
 
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, query
+
+from wipebot.discord import form
+from wipebot.discord.prompt import budget
 
 VERDICT = re.compile(r"\b(PASS|FAIL|UNKNOWN)\b")
 
@@ -162,6 +169,40 @@ def expect_prompt(question: str, expect: str, answer: str) -> str:
 
 def wrong_prompt(question: str, wrong: list[str], answer: str) -> str:
     return WRONG.format(question=question, wrong="\n".join(f"- {w}" for w in wrong), answer=answer)
+
+
+# ---- how an answer is built: measured by code on every answer, no model, never a pass or fail ----
+
+def built(case: dict, answer: str, mode: str) -> tuple[dict, dict[str, str] | None]:
+    """How the answer is built (form.Form as a dict: its words, its verdict's and each bullet's, where the change to
+    make stands, its follow-ups) and, as the bot, where it leaves the form the bot's prompt asks for (Form.slips, by
+    kind), held to what its case is: a post after a wipe, an answer while the raid is going on, or one in chat. In a
+    client the form is the client's own, so there the slips are None."""
+    measured = form.measure(answer)
+    as_bot = budget(post=case.get("kind") == "posts", live=bool(case.get("live")))
+    return asdict(measured), measured.slips(as_bot) if mode == "bot" else None
+
+
+def built_summary(trials: Iterable[tuple[dict, dict[str, str] | None]]) -> list[str]:
+    """Over a run's answers (each `built`): the middle answer's words, bullets, a bullet's words and the verdict's;
+    then, as the bot, how many leave its prompt's form and each kind of slip with its count, most frequent first."""
+    trials = [(f, slips) for f, slips in trials if f]
+    if not trials:
+        return []
+    forms = [f for f, _ in trials]
+    bullets = [n for f in forms for n in f["bullet_words"]]
+    verdicts = [f["verdict_words"] for f in forms if f["verdict_words"]]
+    lines = [f"how the answers are built (the middle one of {len(forms)}): {median(f['words'] for f in forms):.0f} "
+             f"words, {median(len(f['bullet_words']) for f in forms):.0f} bullets"
+             + (f" of {median(bullets):.0f} words" if bullets else "")
+             + (f", a verdict of {median(verdicts):.0f} words" if verdicts else "")
+             + f", {median(f['follow_ups'] for f in forms):.0f} follow-ups"]
+    held = [slips for _, slips in trials if slips is not None]
+    if held:
+        kinds = Counter(kind for slips in held for kind in slips)
+        lines.append(f"{sum(bool(slips) for slips in held)} of {len(held)} leave the form the bot's prompt asks for"
+                     + (": " + ", ".join(f"{kind} {n}" for kind, n in kinds.most_common()) if kinds else ""))
+    return lines
 
 
 # ---- checks that never fail an answer: run on saved answers (`just evals --recheck`) ----

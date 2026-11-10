@@ -102,3 +102,27 @@ async def test_each_rubric_rule_is_its_own_question_and_n_a_counts_as_none(repli
     scores, cost = await checks.rubric("Why?", "The boss enraged.", "sonnet")
     assert scores == {"verdict_first": True, "concrete_fix": None, "few_changes": None}
     assert len(asked) == len(checks.RUBRIC) and cost == pytest.approx(0.03)
+
+
+def test_an_answers_form_is_held_to_what_its_case_is_and_only_as_the_bot():
+    answer = "**The enrage ended it.**\n" + "\n".join(f"- point {n}" for n in range(4))
+    measured, slips = checks.built({"kind": "wipes"}, answer, "bot")
+    assert measured["bullet_words"] == [2, 2, 2, 2] and measured["verdict_words"] == 4 and slips == {}
+    assert checks.built({"kind": "bot", "live": True}, answer, "bot")[1] == {"many bullets": "4 bullets (at most 3)"}
+    assert checks.built({"kind": "posts"}, answer, "bot")[1] == {"many lines": "5 lines (at most 4)"}
+    assert checks.built({"kind": "bot", "live": True}, answer, "plugin") == (measured, None)
+
+
+def test_a_runs_forms_are_summed_up_by_the_middle_answer_and_the_kinds_of_slip():
+    short = ({"words": 100, "bullet_words": [20, 30], "verdict_words": 10, "follow_ups": 2}, {})
+    long = ({"words": 300, "bullet_words": [40, 50, 60], "verdict_words": 24, "follow_ups": 0},
+            {"a long bullet": "3 of 3 bullets over 30 words (40, 50, 60)", "a long verdict": "x"})
+    plain = ({"words": 12, "bullet_words": [], "verdict_words": 0, "follow_ups": 0}, {})
+    assert checks.built_summary([short, long, long, plain]) == [
+        "how the answers are built (the middle one of 4): 200 words, 2 bullets of 45 words, a verdict of 24 words, "
+        "0 follow-ups",
+        "2 of 4 leave the form the bot's prompt asks for: a long bullet 2, a long verdict 2"]
+    assert checks.built_summary([(short[0], None)]) == [
+        "how the answers are built (the middle one of 1): 100 words, 2 bullets of 25 words, a verdict of 10 words, "
+        "2 follow-ups"]
+    assert checks.built_summary([({}, None)]) == [] and checks.built_summary([]) == []

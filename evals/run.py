@@ -16,6 +16,7 @@
     just evals --api-key              # bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude login)
     just evals --held-out --trials 3  # the held-out cases alone, at a milestone (never while changing the method)
     just evals --recheck evals/results/X.json  # a run's answers again: claims its tools don't back, and the rubric
+    just evals --form evals/results/X.json     # how a run's answers are built, against the bot's prompt (no model)
 
 Warcraft Logs data and the guides come from evals/cache.sqlite (untracked), frozen: what a run asks that isn't there
 is fetched once and kept, never refreshed, so every run on a machine reads the same data, as of the time it was
@@ -54,6 +55,8 @@ from evals.checks import (
     GROUNDED_MODEL,
     RUBRIC,
     WRONG,
+    built,
+    built_summary,
     expect_prompt,
     facts,
     grounded,
@@ -136,6 +139,8 @@ class Trial:
     wrong: dict = field(default_factory=dict)
     facts: dict = field(default_factory=dict)  # Facts: how many supporting facts it states (never fails it)
     warnings: list[str] = field(default_factory=list)
+    form: dict = field(default_factory=dict)  # how the answer is built (wipebot.discord.form.Form)
+    slips: dict[str, str] | None = None  # as the bot: where it leaves the form the bot's prompt asks for, by kind
     calls: list[dict] = field(default_factory=list)  # {name, args, result, failed}
     uncalled: list[str] = field(default_factory=list)  # the case's `calls` the answer didn't make: it fails
     loaded: list[str] = field(default_factory=list)  # with the plugin: the skills loaded and files read (Answer.loaded)
@@ -276,6 +281,7 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
     if stated:
         t.facts = asdict(stated)
     t.warnings = warnings(t.answer, [c["result"] for c in t.calls] + prompts)
+    t.form, t.slips = built(case, t.answer, mode)
     if why := broken(t):
         t.errored, t.passed, t.error = True, False, why
     return t
@@ -303,10 +309,11 @@ def uncalled(case: dict, calls: list[dict], mode: str = "plugin") -> list[str]:
 def answers(cases: list[dict], results: dict[str, list[Trial]]) -> dict:
     """What the answers did besides passing, per case over its trials that didn't error: the supporting facts they
     stated (`facts`: [stated, of]), their tool calls (`calls`) and how many began with one of the case's `tools`, the
-    tools its right answers call (`first_tagged`). They move when an answer gets fuller or finds its tools faster,
-    which a pass rate near the top can't show."""
+    tools its right answers call (`first_tagged`); and how they are built: their words to read (`words`) and, as the
+    bot, how many leave the form its prompt asks for (`slips`). They move when an answer gets fuller, finds its
+    tools faster or grows longer, which a pass rate near the top can't show."""
     tagged = {c["id"]: set(c.get("tools") or []) for c in cases}
-    out: dict[str, dict] = {"facts": {}, "calls": {}, "first_tagged": {}}
+    out: dict[str, dict] = {"facts": {}, "calls": {}, "first_tagged": {}, "words": {}, "slips": {}}
     for c, ts in results.items():
         ok = [t for t in ts if not t.errored]
         if counted := [t.facts for t in ok if t.facts]:
@@ -314,22 +321,32 @@ def answers(cases: list[dict], results: dict[str, list[Trial]]) -> dict:
         out["calls"][c] = sum(len(t.calls) for t in ok)
         if tagged[c]:
             out["first_tagged"][c] = sum(bool(t.calls) and t.calls[0]["name"] in tagged[c] for t in ok)
+        if any(t.form for t in ok):
+            out["words"][c] = sum(t.form.get("words", 0) for t in ok)
+        if any(t.slips is not None for t in ok):
+            out["slips"][c] = sum(bool(t.slips) for t in ok)
     return out
 
 
 def how_answered(tally: dict, cases: Iterable[str]) -> str:
-    """The answers' supporting facts stated, tool calls per answer, and how often the first call was one of the
-    case's tools, over `cases` (those of the run with facts, or the ones compared with a baseline)."""
+    """The answers' supporting facts stated, tool calls per answer, how often the first call was one of the case's
+    tools, their words and, as the bot, how many leave its prompt's form, over `cases` (those of the run, or the
+    ones compared with a baseline; one from before a count was kept leaves it out)."""
     cases = list(cases)
     answered = sum(judged(tally, c) for c in cases)
     facts = [tally.get("facts", {}).get(c) for c in cases]
     stated, of = sum(f[0] for f in facts if f), sum(f[1] for f in facts if f)
     tagged = [c for c in cases if c in tally.get("first_tagged", {})]
     first, of_first = sum(tally["first_tagged"][c] for c in tagged), sum(judged(tally, c) for c in tagged)
+    worded = [c for c in cases if c in tally.get("words", {})]
+    held = [c for c in cases if c in tally.get("slips", {})]
+    of_worded, of_held = sum(judged(tally, c) for c in worded), sum(judged(tally, c) for c in held)
     parts = [f"supporting facts stated {stated}/{of} ({stated / of:.0%})" if of else "",
              f"{sum(tally.get('calls', {}).get(c, 0) for c in cases) / answered:.1f} tool calls an answer"
              if answered and tally.get("calls") else "",
-             f"first call one of the case's tools in {first}/{of_first} ({first / of_first:.0%})" if of_first else ""]
+             f"first call one of the case's tools in {first}/{of_first} ({first / of_first:.0%})" if of_first else "",
+             f"{sum(tally['words'][c] for c in worded) / of_worded:.0f} words an answer" if of_worded else "",
+             f"{sum(tally['slips'][c] for c in held)}/{of_held} leave the bot's form" if of_held else ""]
     return "; ".join(p for p in parts if p)
 
 
@@ -362,6 +379,7 @@ def show(case_id: str, t: Trial) -> None:
     if t.facts and t.facts["missing"]:
         lines.append(f"facts {t.facts['stated']}/{t.facts['of']}, missing: " + "; ".join(t.facts["missing"])[:300])
     lines += [f"warning: {w}" for w in t.warnings]
+    lines += [f"form: {slip}" for slip in (t.slips or {}).values()]
     print("\n    ".join(lines), flush=True)
 
 
@@ -412,6 +430,7 @@ async def run(args) -> None:
     mode = f", {args.mode}"
     print("\n" + "\n".join(summary(tally)) + f"\n({shown}{mode}, judge {args.judge_model}, ${cost:.2f})")
     print(how_answered(tally, tally["passed"]))
+    print("\n".join(built_summary((t.form, t.slips) for ts in results.values() for t in ts if not t.errored)))
     if args.mode == "plugin":
         print(skill_use(results))
     if base:
@@ -637,6 +656,22 @@ def recheck_summary(out: dict[str, list[dict]]) -> list[str]:
     return lines
 
 
+def form(path: Path, only: str = "") -> list[str]:
+    """How a saved run's answers are built, measured again with today's code and no model (checks.built): each
+    answer that leaves the form the bot's prompt asks for with its slips, then the run's summary. For a run from
+    before the measure, or to compare the run before a change to the bot's prompt with the one after."""
+    run = json.loads(path.read_text(encoding="utf-8"))
+    cases = {c["id"]: c for c in load_cases()}
+    lines, every = [], []
+    for c, ts in run["cases"].items():
+        for t in ts if c in cases and picked(cases[c], only) else []:
+            if t.get("answer") and not t.get("errored"):
+                every.append(built(cases[c], t["answer"], run.get("mode", "plugin")))
+                if slips := every[-1][1]:
+                    lines.append(f"{c:34} " + "; ".join(slips.values()))
+    return lines + built_summary(every)
+
+
 def commit() -> str:
     return subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
                           cwd=HERE).stdout.strip()
@@ -791,6 +826,8 @@ def main() -> None:
                         help="what the cases cover: tools, kinds of question, places, bosses (no model)")
     parser.add_argument("--recheck", metavar="RESULTS",
                         help="check a saved run's answers again: claims their tools don't back, and the rubric")
+    parser.add_argument("--form", metavar="RESULTS",
+                        help="how a saved run's answers are built, against the bot's prompt (no model)")
     parser.add_argument("--api-key", action="store_true",
                         help="bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude Code login)")
     args = parser.parse_args()
@@ -809,6 +846,8 @@ def main() -> None:
         asyncio.run(_lint_then_drain(args.filter))
     elif args.recheck:
         asyncio.run(recheck(Path(args.recheck), args.judge_model, args.filter))
+    elif args.form:
+        print("\n".join(form(Path(args.form), args.filter)))
     elif args.endings:
         asyncio.run(_endings_then_drain())
     elif args.coverage:

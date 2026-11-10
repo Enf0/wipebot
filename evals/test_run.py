@@ -177,10 +177,48 @@ def test_a_run_counts_facts_calls_and_first_calls_apart_from_passing():
                         Trial(errored=True, calls=[call])],
                "night": [Trial(calls=[call, call, call])]}
     counts = answers(cases, results)
-    assert counts == {"facts": {"wipe": [5, 6]}, "calls": {"wipe": 3, "night": 3}, "first_tagged": {"wipe": 1}}
+    assert counts == {"facts": {"wipe": [5, 6]}, "calls": {"wipe": 3, "night": 3}, "first_tagged": {"wipe": 1},
+                      "words": {}, "slips": {}}
     t = tally({"wipe": 1, "night": 1}, trials=3, errors={"wipe": 1}) | counts  # wipe: 2 answers judged
     assert how_answered(t, ["wipe"]) == ("supporting facts stated 5/6 (83%); 1.5 tool calls an answer; first call "
                                          "one of the case's tools in 1/2 (50%)")
+
+
+def test_a_run_counts_the_answers_words_and_as_the_bot_those_that_leave_its_form():
+    from evals.run import answers, how_answered
+    results = {"wipe": [Trial(form={"words": 180}, slips={}),
+                        Trial(form={"words": 260}, slips={"a long bullet": "x"}),
+                        Trial(errored=True, form={"words": 900}, slips={"a long bullet": "x"})],
+               "night": [Trial(form={"words": 100})]}  # in a client: measured, held to no form
+    counts = answers([{"id": "wipe"}, {"id": "night"}], results)
+    assert counts["words"] == {"wipe": 440, "night": 100} and counts["slips"] == {"wipe": 1}
+    t = tally({"wipe": 1, "night": 1}, errors={"wipe": 1}) | {"trials": {"wipe": 3, "night": 1}} | counts
+    assert how_answered(t, ["wipe", "night"]) == ("0.0 tool calls an answer; 180 words an answer; 1/2 leave the "
+                                                  "bot's form")
+    before = {k: v for k, v in t.items() if k not in ("words", "slips")}  # a baseline from before they were kept
+    assert how_answered(before, ["wipe", "night"]) == "0.0 tool calls an answer"
+
+
+def test_a_saved_runs_answers_are_measured_again_without_a_model(tmp_path):
+    from evals.run import form
+    kept = "**The enrage ended it.**\n- ⚠️ **Kill the boss before 2:32.** It enrages then.\nFollow-up: Who died first?"
+    long = "**The enrage ended it.**\n" + "\n".join(f"- point {n}" for n in range(4))
+    run = {"mode": "bot", "cases": {
+        "wipe-too-few-alive": [{"answer": kept}, {"answer": long}, {"answer": long, "errored": True}],
+        "live-raid-plain-question": [{"answer": long}],  # while the raid is going on: at most three bullets
+        "post-adds": [{"answer": "Kick the add.\nSecond.\nThird.\nFourth.\nFifth."}],
+        "a-case-since-removed": [{"answer": long}]}}
+    path = tmp_path / "run.json"
+    path.write_text(json.dumps(run), encoding="utf-8")
+    assert form(path) == [
+        "live-raid-plain-question           4 bullets (at most 3)",
+        "post-adds                          5 lines (at most 4)",
+        "how the answers are built (the middle one of 4): 12 words, 2 bullets of 2 words, a verdict of 4 words, "
+        "0 follow-ups",
+        "2 of 4 leave the form the bot's prompt asks for: many bullets 1, many lines 1"]
+    assert form(path, "post-")[0].startswith("post-adds") and len(form(path, "post-")) == 3
+    path.write_text(json.dumps(run | {"mode": "plugin"}), encoding="utf-8")
+    assert len(form(path)) == 1  # in a client the form is the client's own: only measured
 
 
 def test_a_recheck_leads_with_answers_stating_something_misleading():
