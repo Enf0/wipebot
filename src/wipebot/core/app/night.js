@@ -13,6 +13,8 @@ views.player_night = (() => {
 
   const what = () => D.what === "healing" ? "Healing" : "Damage";
   const times = (n) => n === 0 ? "never" : n === 1 ? "once" : n === 2 ? "twice" : `${n} times`;
+  // what they died to, after "died 2:01 (#5)": " to Slag Wave", or what the log says where it names no killing blow
+  const to = (d) => d.no_blow ? `, ${d.by}` : ` to ${d.by}`;
 
   function stats() {
     const n = D.pulls.filter((p) => !p.reset).length, L = D.lived;
@@ -39,7 +41,7 @@ views.player_night = (() => {
       const how = x.saved === true ? "a ready defensive or a healthstone would have kept them alive"
         : x.outright ? "killed outright: no hit logged after high health, so nothing ready would have stopped it"
         : x.saved === false ? "nothing ready would have kept them alive" : "can't tell: no overkill or health logged";
-      return `<button class="chip ${cls}" data-pull-chip="${x.pull}"${kit.tip(`Pull ${x.pull}: died ${kit.clock(x.ms)} (#${x.place}) to ${k.by}; ${how}`)}>${x.pull}</button>`;
+      return `<button class="chip ${cls}" data-pull-chip="${x.pull}"${kit.tip(`Pull ${x.pull}: died ${kit.clock(x.ms)} (#${x.place})${to(k)}; ${how}`)}>${x.pull}</button>`;
     };
     const rows = shown.map((k) => `<li><span class="kn">${kit.iconImg(D.img_base, k.icon)}${kit.esc(k.by)}</span>`
       + `<span class="kc">${k.pulls.length}</span><span class="chips">${k.pulls.map((x) => chip(k, x)).join("")}</span></li>`).join("");
@@ -103,7 +105,7 @@ views.player_night = (() => {
     const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : got(r)}, ${kit.clock(r.duration_ms)}`;
     const out = r.per_s_alive != null ? `${kit.short(r.per_s_alive)}/s alive` + (r.rank ? `, rank ${r.rank} of ${r.of} ${D.role_name} by total` : "") : `no ${D.what}`;
     const died = !r.death ? "survived"
-      : `died ${kit.clock(r.death.ms)} (#${r.death.place}) to ${r.death.by}` + why(r.death);
+      : `died ${kit.clock(r.death.ms)} (#${r.death.place})${to(r.death)}` + why(r.death);
     const cds = r.cooldowns[1] ? `cooldowns ${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
     return [head, out, died, cds].filter(Boolean).join("\n");
   }

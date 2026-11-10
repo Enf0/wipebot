@@ -1160,6 +1160,19 @@ async def test_the_player_night_view_states_what_player_night_states(local):
             assert f"{c['name']} {c['used']}/{c['possible']}" in text
 
 
+async def test_the_player_night_view_never_says_they_died_to_no_killing_blow(local):
+    """Enfo's night has deaths the log names no killing blow for: the data marks them, and no tooltip of the page
+    reads "died ... to no killing blow recorded"."""
+    data = await night_data()
+    deaths = [r["death"] for r in data["pulls"] if r["death"]]
+    assert any(d["no_blow"] for d in deaths) and not all(d["no_blow"] for d in deaths)
+    assert all(d["no_blow"] == (d["by"] == views.NO_KILLING_BLOW) for d in deaths + data["killers"])
+    async with drawn("player_night", NIGHT_CASE.args) as (view, errors):
+        tips = await view.evaluate('() => [...document.querySelectorAll("[data-tip]")].map((e) => e.dataset.tip)')
+    assert not errors and any(", no killing blow recorded" in t for t in tips)
+    assert not [t for t in tips if "to no killing blow" in t]
+
+
 async def test_the_player_view_matches_its_snapshot(local):
     assert_snapshot(LOCAL / "views" / "player.txt", readable(await player_data(top=True)))
 
@@ -1402,6 +1415,27 @@ async def test_a_missed_save_is_what_to_do_differently_and_a_death_with_no_killi
     async with drawn("death_recap", CASES["death-recap-thrown"].args) as (view, errors):
         labels = await view.evaluate('() => [...document.querySelectorAll("svg text.td")].map((t) => t.textContent)')
         assert labels == ["no killing blow recorded"] and not errors
+
+
+async def test_a_night_says_a_death_with_no_killing_blow_as_the_log_does(monkeypatch):
+    """A death the log names no killing blow for, on a player's night: its pull's bar and its chip say "died 2:00
+    (#4), no killing blow recorded", never "died ... to no killing blow recorded"; a named killer is still "to" it."""
+    night = made_up_night()
+    night["pulls"][3]["death"] |= {"by": "no killing blow recorded", "no_blow": True, "icon": None}
+    night["killers"] = [{"by": "Slag Wave", "icon": "spells/1.jpg",
+                         "pulls": [{"pull": 2, "ms": 60000, "place": 1, "saved": True}]},
+                        {"by": "no killing blow recorded", "no_blow": True, "icon": None,
+                         "pulls": [{"pull": 4, "ms": 120000, "place": 4, "saved": None}]}]
+    made_up_view(monkeypatch, {"view": "player_night", "report": night["report"], "player": "Mirelle"}, night)
+    async with drawn("player_night", {}) as (view, errors):
+        tip = lambda at: view.locator(at).get_attribute("data-tip")  # noqa: E731
+        chips = [await tip(f'[data-pull-chip="{n}"]') for n in (2, 4)]
+        bars = [await tip(f'[data-pull-col="{n}"]') for n in (2, 4)]
+    assert not errors
+    assert chips[0].startswith("Pull 2: died 1:00 (#1) to Slag Wave; ")
+    assert chips[1].startswith("Pull 4: died 2:00 (#4), no killing blow recorded; can't tell")
+    assert bars[0].split("\n")[1:3] == ["280k/s alive, rank 2 of 4 healers by total", "died 1:00 (#1) to Slag Wave"]
+    assert "died 2:00 (#4), no killing blow recorded" in bars[1].split("\n")
 
 
 async def test_a_mark_shows_its_tooltip_on_hover_and_icons_draw(made_up):

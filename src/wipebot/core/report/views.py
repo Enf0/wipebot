@@ -375,8 +375,9 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         death = None
         if x.death:
             k, d, _ = x.death
+            kid = d.get("killingAbilityGameID")
             death = {"place": k + 1, "ms": round(d["timestamp"] - f["startTime"]),
-                     "by": rep.ability(d.get("killingAbilityGameID")), "icon": icon(d.get("killingAbilityGameID")),
+                     "by": rep.ability(kid), "no_blow": not kid, "icon": icon(kid),
                      "fallout": x.fallout, "mass": x.mass}
         rows.append({
             "pull": rep.pull_no(f), "kill": bool(f["kill"]), "reset": is_reset(f), "wipe_pct": wipe_pct(f),
@@ -399,7 +400,8 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         replay = replays.get((r["pull"], r["death"]["ms"]))
         more = replay.more if replay else []
         saved_by.update(savers(more))
-        k = killers.setdefault(r["death"]["by"], {"by": r["death"]["by"], "icon": r["death"]["icon"], "pulls": []})
+        k = killers.setdefault(r["death"]["by"], {"by": r["death"]["by"], "no_blow": r["death"]["no_blow"],
+                                                  "icon": r["death"]["icon"], "pulls": []})
         k["pulls"].append({"pull": r["pull"], "ms": r["death"]["ms"], "place": r["death"]["place"],
                            "saved": bool(savers(more)) if more else False if replay and replay.outright else None,
                            "outright": bool(replay and replay.outright)})
