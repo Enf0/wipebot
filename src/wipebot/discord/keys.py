@@ -8,7 +8,7 @@ again. A key is used to answer that server's questions, never shown or logged.
 import base64
 import hashlib
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -20,7 +20,7 @@ PROVIDERS = ("openrouter", "anthropic")
 @dataclass(frozen=True)
 class ServerKey:
     provider: str  # one of PROVIDERS
-    key: str
+    key: str = field(repr=False)  # never in a repr, which a log line or a traceback may print
 
     def env(self) -> dict[str, str]:
         """What Claude Code needs in its environment to answer on this key (as config.model_env for the bot's)."""

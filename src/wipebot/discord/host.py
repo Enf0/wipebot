@@ -113,7 +113,8 @@ class Context:
     notes_off: str = ""
     server_id: int = 0  # the Discord server whose settings it answers under, and who asked: what an answer cost
     user_id: int = 0  # is kept under them (store.spend); 0 for none
-    env: dict | None = None  # what the session runs on when the server brought its own key (keys.ServerKey.env)
+    # what the session runs on when the server brought its own key (keys.ServerKey.env): never in a repr
+    env: dict | None = field(default=None, repr=False)
     wcl_token: str | None = field(default=None, repr=False)  # the asker's Warcraft Logs token, signed in (/login)
     wcl_private: str | None = field(default=None, repr=False)  # ...and the one reading their private reports
     language: str | None = None  # the server's, set by an admin: for when the question's own doesn't say

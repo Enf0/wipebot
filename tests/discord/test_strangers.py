@@ -14,7 +14,7 @@ from wipebot.core import server, viewhost, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report.base import JOBS_NOT_LOGGED
 from wipebot.discord import bot as wipebot
-from wipebot.discord import commands, host, messages
+from wipebot.discord import commands, host, keys, messages
 from wipebot.discord.host import Answer, Context, Session, ToolCall
 from wipebot.discord.posts import Following
 from wipebot.discord.store import LoginGuild, ServerSettings
@@ -365,3 +365,9 @@ async def test_a_report_not_read_since_the_bot_started_is_found_private_by_readi
         assert await host._private({"report": f"https://www.warcraftlogs.com/reports/{PRIVATE}#fight=3"})
     assert read == [(PRIVATE, "rowan's private token")]
     assert await host._private({"report": PRIVATE}) and len(read) == 1  # known from then on
+
+
+def test_a_servers_key_never_shows_where_a_log_line_or_a_traceback_prints_what_holds_it():
+    key = keys.ServerKey("openrouter", "sk-or-v1-secret")
+    ctx = Context(where="in #raid", env=key.env())
+    assert "secret" not in repr(key) + repr(ctx) + f"{key} {ctx}" and "openrouter" in repr(key)
