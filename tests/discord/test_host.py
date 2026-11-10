@@ -366,6 +366,34 @@ async def test_an_answer_is_the_last_text_polished_with_its_own_cost(session):
     assert not session.worn_out
 
 
+async def test_what_an_answer_reads_besides_its_tool_calls_is_read_as_its_asker_too(session):
+    """The session's report read again for the question, and the bot's own tools: with the asker's Warcraft Logs
+    sign-in and their server's guild, as a tool call is, so a report only they may open can be the conversation's."""
+    from wipebot.core import wcl
+    read_as = []
+    read = session.library.report
+
+    def now() -> tuple:
+        return wcl._user.get(), wcl.private_token(), server._guilds.get()
+
+    async def report(code, max_age_s=0):
+        read_as.append(now())
+        return await read(code, max_age_s)
+
+    async def remember(args):
+        read_as.append(now())
+        return "Remembered."
+    session.library = cast(server.Library, SimpleNamespace(report=report))
+    session._client = cast(ClaudeSDKClient, FakeClient([AssistantMessage([TextBlock("Fine.")], "claude-opus-5-5"),
+                                                        result(0.01, 10)]))
+    asker = Context(wcl_token="rowan's token", wcl_private="rowan's private token", guild_id=14169,
+                    tools={"remember": remember})
+    await session.ask("how did it go?", asker)
+    await session._bot_tool(REMEMBER).handler({"note": "short answers"})  # called by the model, from the SDK's task
+    assert read_as and set(read_as) == {("rowan's token", "rowan's private token", frozenset({14169}))}
+    assert now() == (None, None, None)
+
+
 async def test_no_at_sign_in_a_prompt_can_name_a_file(session):
     """Beside denying Read: Claude Code reads a ＠ as text, so no @path a raider or a report's title wrote attaches."""
     client = FakeClient([AssistantMessage([TextBlock("No.")], "claude-opus-5-5"), result(0.01, 10)])

@@ -89,6 +89,14 @@ async def test_a_button_two_pictures_share_goes_once(recorded):
     assert len(ids) == len(set(ids)) and sum(i.startswith("wb|night|") for i in ids) == 1
 
 
+def remembers(character: str | None, token: str | None = None, private: str | None = None) -> Any:
+    """The bot's store, for a clicker whose character it has (or None) and who is signed in with Warcraft Logs with
+    `token`, and with `private` for their private reports (or isn't)."""
+    return SimpleNamespace(raider=lambda uid: SimpleNamespace(character=character),
+                           login=lambda uid: ("Rowan#1", token) if token else None,
+                           private_login=lambda uid: ("Rowan#1", private) if private else None)
+
+
 class Clicked:
     """A click on an action: what the bot answered, to whom."""
 
@@ -129,10 +137,10 @@ async def test_my_night_needs_the_clickers_character(recorded, monkeypatch):
     async def picture(tool, args):
         return [b"WEBP"]
     monkeypatch.setattr(messages.host, "picture", picture)
-    unknown = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character=None)))
+    unknown = Clicked(store=remembers(None))
     await Act("mynight", PULL["report"], "Sszorak").callback(cast(Any, unknown))
     assert unknown.said[0]["ephemeral"] and "which character is yours" in unknown.said[0]["content"]
-    known = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Scopidruid")))
+    known = Clicked(store=remembers("Scopidruid"))
     await Act("mynight", PULL["report"], "Sszorak").callback(cast(Any, known))
     assert [f.filename for f in known.said[-1]["files"]] == ["wipebot-1.webp"]
 
@@ -144,12 +152,12 @@ async def test_how_did_i_do_draws_the_clickers_own_card_on_the_pull(recorded, mo
         drawn.append((tool, args))
         return [b"WEBP"]
     monkeypatch.setattr(messages.host, "picture", picture)
-    known = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Scopidruid")))
+    known = Clicked(store=remembers("Scopidruid"))
     await Act("mypull", PULL["report"], "Sszorak", 13).callback(cast(Any, known))
     assert drawn == [("player_pull", {"report": PULL["report"], "boss": "Sszorak", "pull": 13, "player": "Scopidruid"})]
     assert known.said[-1]["ephemeral"] and [f.filename for f in known.said[-1]["files"]] == ["wipebot-1.webp"]
     # a character not in the pull (an alt, a night on the bench) is told so, not handed an error
-    benched = Clicked(store=SimpleNamespace(raider=lambda uid: SimpleNamespace(character="Nobodyhere")))
+    benched = Clicked(store=remembers("Nobodyhere"))
     await Act("mypull", PULL["report"], "Sszorak", 13).callback(cast(Any, benched))
     assert len(drawn) == 1 and "wasn't in Sszorak pull 13" in benched.said[0]["content"]
 

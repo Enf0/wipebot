@@ -10,12 +10,13 @@ import pytest
 
 from tests.support import NOTE, PLAN
 from tests.support.recorded import CASES, Replay, serve_from
-from wipebot.core import server
+from wipebot.core import server, viewhost, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report.base import JOBS_NOT_LOGGED
 from wipebot.discord import bot as wipebot
-from wipebot.discord import commands
-from wipebot.discord.host import Session
+from wipebot.discord import commands, host, messages
+from wipebot.discord.host import Answer, Context, Session, ToolCall
+from wipebot.discord.posts import Following
 from wipebot.discord.store import LoginGuild, ServerSettings
 
 REPORT = CASES["raid-note"].args["report"]  # the guild's night on Sszorak, pull 42 checked against its note
@@ -191,3 +192,176 @@ async def test_asked_from_the_guilds_own_server_the_tools_read_what_it_keeps(rec
     assert said["next note"].startswith("For the next raid, so here is the newest")
     assert said["plan"].startswith("(The plan was saved from pastes.)")
     assert "has no raid note saved for Nek'zali the Soulcoiler that night" in said["kicks"]
+
+
+# ---------- one asker's sign-in is never another's ----------
+
+PRIVATE = "PrivateReport001"  # a report Warcraft Logs shows only to some
+
+
+def reads_as() -> tuple:
+    """Who the core reads as right now: their Warcraft Logs token, their private-reports token, the guilds whose
+    saved things they read, and whether a report they can't read comes with how they'd let Wipebot read it."""
+    return wcl._user.get(), wcl.private_token(), server._guilds.get(), bool(server._unreadable_hint.get())
+
+
+@pytest.fixture
+def signed_in(bot, monkeypatch):
+    """Rowan (7) is signed in with Warcraft Logs, for their private reports too; Brann (8) isn't."""
+    monkeypatch.setenv("WIPEBOT_WCL_CALLBACK", "https://example.org/signed-in")
+    bot.store.save_login(7, 42, "Rowan#1", "rowan's token", 4e9)
+    bot.store.save_login(7, 42, "Rowan#1", "rowan's private token", 4e9, private=True)
+    return bot
+
+
+async def test_an_answer_is_read_as_its_asker_from_the_report_it_opens_on_to_its_pictures(signed_in, member, channel,
+                                                                                         settings, monkeypatch):
+    """A report only the asker may open: the conversation's report, the pictures' links and buttons are all read
+    with the asker's own sign-in, so the answer posts; asked by someone who isn't signed in, the same picture's
+    extras can't be read, and the answer still goes, without them."""
+    bot = signed_in
+    read: list[tuple[str, tuple]] = []
+    call = ToolCall("pull_summary", {"report": PRIVATE, "pull": 3}, "wiped", False, [b"WEBP"])
+
+    async def ask(key, code, question, ctx, earlier=None, message_id=None, timeout=None):
+        read.append(("the conversation", reads_as()))
+        return Answer("**Wiped.**", calls=[call])
+
+    async def view_key(tool, args):
+        read.append(("the picture's extras", reads_as()))
+        if wcl.private_token() != "rowan's private token":
+            raise wcl.Unreadable(PRIVATE)
+        return None
+    monkeypatch.setattr(bot.conversations, "ask", ask)
+    monkeypatch.setattr(server, "view_key", view_key)
+    for user in (member(7, "Rowan"), member(8, "Brann")):
+        ctx = bot._context(settings, user, user.name, PRIVATE, "in #raid", channel)
+
+        async def send(answer):
+            return await bot._send(channel, answer)
+        assert await bot._answer("chat", (20, user.id), PRIVATE, "why did we wipe?", ctx, user.name, send) is None
+    rowan, brann = ("rowan's token", "rowan's private token", frozenset({14169}), False), (
+        None, None, frozenset({14169}), True)
+    assert read == [("the conversation", rowan), ("the picture's extras", rowan),
+                    ("the conversation", brann), ("the picture's extras", brann)]
+    assert [said.splitlines()[0] for said in channel.sent] == ["**Wiped.**"] * 2  # both posted, with the picture
+    assert channel.files == [["wipebot-1.webp"]] * 2
+    assert reads_as() == (None, None, None, False)  # and nothing of either is left behind
+
+
+async def test_a_report_warcraft_logs_wont_show_is_said_as_that_not_as_an_outage(signed_in, member, channel,
+                                                                                monkeypatch):
+    """In a server not set up the report linked is the conversation's: a wrong, deleted or private one is no outage
+    to try again after, and whoever may open a private one is told how to let the bot read it."""
+    bot = signed_in
+
+    async def ask(key, code, question, ctx, earlier=None, message_id=None, timeout=None):
+        raise wcl.Unreadable(code)
+    monkeypatch.setattr(bot.conversations, "ask", ask)
+
+    async def answered(user) -> str | None:
+        ctx = bot._context(ServerSettings.unset(NOT_SET_UP), user, user.name, PRIVATE, "in #raid", channel)
+        return await bot._answer("chat", (20, user.id), PRIVATE, "why did we wipe?", ctx, user.name, lambda a: a)
+    told = await answered(member(8, "Brann"))
+    assert told == ("Warcraft Logs won't show me report PrivateReport001: it's private, was deleted, or the code is "
+                    "wrong, so asking again won't help. If it's a private report you can open on Warcraft Logs, "
+                    "`/login private:True` lets me read it for your questions; then ask again.")
+    assert await answered(member(7, "Rowan")) == wipebot.UNREADABLE.format(code=PRIVATE)  # already lets it: no hint
+
+    async def down(key, code, question, ctx, earlier=None, message_id=None, timeout=None):
+        raise wcl.WCLError("502")
+    monkeypatch.setattr(bot.conversations, "ask", down)
+    assert await answered(member(8, "Brann")) == wipebot.WCL_DOWN
+
+
+class Click:
+    """A click on a picture's button by a Discord user, answered to them alone."""
+
+    def __init__(self, bot, user_id: int):
+        self.user, self.client, self.locale, self.said = SimpleNamespace(id=user_id), bot, "en-US", []
+        self.response = SimpleNamespace(defer=self._say, send_message=self._say)
+        self.followup = SimpleNamespace(send=self._say)
+
+    async def _say(self, content=None, **kwargs):
+        self.said.append(content)
+
+
+async def test_a_button_and_a_nights_post_are_read_as_the_one_they_are_for(signed_in, member, channel, monkeypatch):
+    bot = signed_in
+    read: list[tuple] = []
+
+    async def picture(tool, args):
+        read.append(reads_as())
+        return []
+    monkeypatch.setattr(host, "picture", picture)
+    await messages.act(cast(Any, Click(bot, 7)), "death", PRIVATE, "Sszorak", "3", "Torvek")
+    await messages.act(cast(Any, Click(bot, 8)), "death", PRIVATE, "Sszorak", "3", "Torvek")
+    await bot._night_post(Following(member(7, "Rowan"), "Rowan", None, PRIVATE, channel, "who died first"))
+    await bot._night_post(Following(member(8, "Brann"), "Brann", None, PRIVATE, channel, "who died first"))
+    rowan, brann = ("rowan's token", "rowan's private token", frozenset(), False), (None, None, frozenset(), True)
+    assert read == [rowan, brann, rowan, brann]
+
+
+async def test_a_pictures_data_is_read_as_nobody_or_as_its_own_asker_never_as_whoever_asked_first(monkeypatch):
+    """The page a picture is drawn from asks for its data through the painter, which answers in the scope it was
+    started in: the painter every asker shares is started outside all of theirs, and the picture of a report only
+    its asker may read is drawn by a painter of their own."""
+    pytest.importorskip("playwright")
+    read: list[tuple] = []
+
+    async def view_key(tool, args):
+        return {"view": "pull", "report": args["report"], "pull": 1, "boss": "Sszorak"}
+
+    async def answer(name, args):  # the page's call for the view's data
+        read.append((*reads_as(), wcl._points.get() is not None))
+        return {"isError": True, "content": [{"type": "text", "text": "not recorded"}]}
+    async def loaded(code):  # a report anyone may read, already read by the tool call
+        return SimpleNamespace(code=code)
+    monkeypatch.setattr(server, "lib", lambda: SimpleNamespace(report=loaded))
+    monkeypatch.setattr(server, "view_key", view_key)
+    monkeypatch.setattr(viewhost, "answer", answer)
+    monkeypatch.setattr(wcl, "_private_codes", {PRIVATE})
+    monkeypatch.setattr(host, "_no_pictures", "")
+    monkeypatch.setattr(host, "_painter", None)
+    rowan = Context(wcl_token="rowan's token", wcl_private="rowan's private token", guild_id=14169,
+                    private_hint="sign in")
+    brann = Context(wcl_token="brann's token", private_hint="sign in")
+
+    async def drawn(asker: Context, report: str) -> set[tuple]:
+        read.clear()
+        with asker.reading(), wcl.counting_points():  # as a tool call draws its picture
+            await host.picture("pull_summary", {"report": report})
+        if host._no_pictures:
+            pytest.skip("needs Playwright's Chromium (just browser)")
+        return set(read)
+    try:
+        nobody = {(None, None, frozenset(), False, True)}
+        assert await drawn(rowan, "PublicReport0001") == nobody  # the first to ask after a start lends nothing
+        assert await drawn(brann, "PublicReport0001") == nobody
+        assert await drawn(rowan, PRIVATE) == {("rowan's token", "rowan's private token", frozenset({14169}), False,
+                                                True)}
+        assert await drawn(brann, PRIVATE) == {("brann's token", None, frozenset(), True, True)}
+        assert await drawn(brann, "PublicReport0001") == nobody
+    finally:
+        if host._painter is not None:
+            await host._painter.close()
+
+
+async def test_a_report_not_read_since_the_bot_started_is_found_private_by_reading_it_as_its_asker(monkeypatch):
+    """A button on an old answer about a private report, after a restart: nothing has read the report yet, so an
+    asker who lets the bot read their private reports has it read as them first; anyone else's picture reads nothing
+    more."""
+    read: list[tuple] = []
+
+    async def report(code):
+        read.append((code, wcl.private_token()))
+        wcl._private_codes.add(code)  # as the library finds a report only its asker may open
+    monkeypatch.setattr(wcl, "_private_codes", set())
+    monkeypatch.setattr(server, "lib", lambda: SimpleNamespace(report=report))
+    assert not await host._private({"report": PRIVATE}) and not await host._private({}) and not read
+    with Context(wcl_token="brann's token").reading():
+        assert not await host._private({"report": PRIVATE}) and not read
+    with Context(wcl_private="rowan's private token").reading():
+        assert await host._private({"report": f"https://www.warcraftlogs.com/reports/{PRIVATE}#fight=3"})
+    assert read == [(PRIVATE, "rowan's private token")]
+    assert await host._private({"report": PRIVATE}) and len(read) == 1  # known from then on

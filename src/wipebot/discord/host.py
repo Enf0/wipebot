@@ -243,7 +243,12 @@ def context_size(usage: dict | None) -> int:
                ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens"))
 
 
-_painter: viewhost.Painter | None = None  # draws the views' pictures; opened on the first one
+# Draws the views' pictures; opened on the first one. Playwright answers a page's calls for its data in the context
+# it was started in, whoever asks for the picture, so this one is started, and draws, as nobody: no asker's Warcraft
+# Logs token, no guild's notes, no answer's points. A report only its asker may read is drawn by a painter of the
+# asker's own instead (`_own_picture`).
+_painter: viewhost.Painter | None = None
+_own_pictures = asyncio.Lock()  # one painter of an asker's own at a time: each opens a browser
 _no_pictures = ""  # why views can't be drawn here (no Playwright or no Chromium): said once, then not tried
 
 
@@ -273,14 +278,20 @@ async def pictures_drawn(calls: Sequence[ToolCall]) -> None:
 
 async def picture(name: str, args: dict, rows: int | None = None, mark: str | None = None) -> list[bytes]:
     """The tool's view as pictures (viewhost.Painter: one, or one per panel; a meter with `rows` bars and `mark`'s
-    ringed), or none when it can't be drawn: the answer goes without."""
+    ringed), or none when it can't be drawn: the answer goes without. Called inside the asker's scope
+    (Context.reading): a report anyone may read is drawn by the painter all share, as nobody, and one only its asker
+    may read by a painter of their own."""
     global _painter, _no_pictures
     if _no_pictures:
         return []
     started = time.monotonic()
     try:
-        _painter = _painter or viewhost.Painter()
-        drawn = await _painter.pictures(name, args, rows, mark)
+        if await _private(args):
+            drawn = await _own_picture(name, args, rows, mark)
+        else:
+            _painter = _painter or viewhost.Painter()
+            with Context().reading(), wcl.counting_points():  # as nobody: see _painter
+                drawn = await _painter.pictures(name, args, rows, mark)
     except ImportError as e:
         _no_pictures = f"Playwright isn't installed ({e})"
     except Exception as e:  # noqa: BLE001 (a picture never fails an answer)
@@ -294,6 +305,33 @@ async def picture(name: str, args: dict, rows: int | None = None, mark: str | No
         return []
     log.info("drew %s's view in %.1f s", name, time.monotonic() - started)
     return drawn
+
+
+async def _private(args: dict) -> bool:
+    """Whether a picture is of a report Warcraft Logs shows only to some (wcl.mark_private). That's known once
+    anyone's tool call read it; for one not read since the bot started (a button on an old answer), an asker who lets
+    the bot read their private reports has it read here first, as them, which finds out."""
+    try:
+        if not args.get("report"):
+            return False
+        code = server.report_code(str(args["report"]))
+        if not wcl.is_private(code) and wcl.private_token():
+            await server.lib().report(code)
+        return wcl.is_private(code)
+    except (FactError, wcl.WCLError):
+        return False
+
+
+async def _own_picture(name: str, args: dict, rows: int | None, mark: str | None) -> list[bytes]:
+    """The picture of a report only its asker may read, by a painter of their own: started here, inside the asker's
+    scope (Context.reading), so the page's calls read with their tokens and no one else's, and closed after, so it
+    draws for no one else. A browser's launch slower than the shared painter's picture."""
+    async with _own_pictures:
+        painter = viewhost.Painter()
+        try:
+            return await painter.pictures(name, args, rows, mark)
+        finally:
+            await painter.close()
 
 
 SHARED_ROWS = 5  # a meter's bars in an answer with several: two top fives take the room of one top ten
@@ -577,7 +615,8 @@ class Session:
         async def handler(args: dict) -> dict:
             run = self._ctx.tools.get(spec.name) if self._ctx else None
             started = time.monotonic()
-            text = await run(args) if run else spec.elsewhere
+            with (self._ctx or Context()).reading():
+                text = await run(args) if run else spec.elsewhere
             self._returned(ToolCall(spec.name, args, text, False, started=started,
                                     duration_s=time.monotonic() - started))
             return {"content": [{"type": "text", "text": text}]}
@@ -641,7 +680,8 @@ class Session:
         return tools
 
     async def __aenter__(self) -> Session:
-        # without a report (code ""), it answers about the game, or asks for a report link
+        # without a report (code ""), it answers about the game, or asks for a report link. Read as whoever opens the
+        # session: for a report only its asker may read, inside their Context.reading
         self.report = await self.library.report(self.code) if self.code else None
         tools = await self._tools()
         options = ClaudeAgentOptions(
@@ -703,6 +743,12 @@ class Session:
             answer.loaded.append(f"read:{os.path.basename(str(args.get('file_path', '')))}")
 
     async def ask(self, question: str, ctx: Context) -> Answer:
+        """The answer to a question, everything read for it read as its asker (Context.reading): the report read
+        again, the tools run before the model, the reports its answer links and its pictures."""
+        with ctx.reading():
+            return await self._ask(question, ctx)
+
+    async def _ask(self, question: str, ctx: Context) -> Answer:
         assert self._client, "use 'async with Session(...)'"
         asked = time.monotonic()
         if self.code:
@@ -748,11 +794,9 @@ class Session:
         await pictures_drawn(answer.calls)
         text = texts[-1].strip() if texts else NO_ANSWER  # the last text is the answer
         text, answer.follow_ups = follow_ups(text)
-        with wcl.reading_as(*ctx.tokens()[:2]):  # a private report the asker read too
-            read = await self._reports_read(answer.calls)
         answer.text, answer.marks = placed(polish(
-            picture_marks(text), [c.result for c in answer.calls if not c.failed], read, ctx.icons,
-            await self._roster(ctx)))
+            picture_marks(text), [c.result for c in answer.calls if not c.failed],
+            await self._reports_read(answer.calls), ctx.icons, await self._roster(ctx)))
         answer.unpictured = any(tool == NO_PICTURE for _, tool in answer.marks)
         if answer.unpictured:
             answer.marks = []

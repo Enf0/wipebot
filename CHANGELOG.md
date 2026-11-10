@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `Discord` **What your guild saved stays in your own server.** On a bot many servers share, such as the public Wipebot, a guild's raid notes and plans are read and saved only in a server whose admin has shown the guild is theirs: one who has a character in it among those they claimed on Warcraft Logs signs in with `/login` and runs `/wipebot setup`, which says so until then. A server set up before does this once; answers about the logs and posts after wipes work meanwhile, and a host's own bot works as before.
+- `Discord` **Your Warcraft Logs sign-in is used for your own questions only.** Everything read for an answer is read as its asker, the buttons under a picture as whoever clicks them, and a picture is no longer drawn with the sign-in of whoever asked first since the bot started.
+- `Discord` **A private report works from its link to its pictures.** Signed in with `/login private:True`, you can ask about a private report by its link in a server that isn't set up, and the answers come with their pictures and buttons. A link Warcraft Logs won't show (private, deleted or mistyped) is said as that, with how to let Wipebot read a private one, instead of as Warcraft Logs not answering.
 
 ## [0.41.1] - 2026-11-09
 

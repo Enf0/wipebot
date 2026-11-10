@@ -36,6 +36,7 @@ from .messages import (  # noqa: F401 (Picture: the tests')
     Pick,
     Picture,
     answer_layout,
+    asker_of,
     language,
     pictures_for,
     without_follow_ups,
@@ -88,6 +89,11 @@ NEEDS_KEY = ("This server hasn't added an AI key for my answers yet: an admin ad
              "(OpenRouter or Anthropic).")
 WENT_WRONG = "Something went wrong while answering that; try again in a moment."
 WCL_DOWN = "Warcraft Logs isn't answering, so I can't look at the logs; try again in a few minutes."
+# A report Warcraft Logs won't show the asker (wcl.Unreadable), and how they'd let the bot read a private one
+UNREADABLE = ("Warcraft Logs won't show me report {code}: it's private, was deleted, or the code is wrong, so asking "
+              "again won't help.")
+PRIVATE_LOGIN = (" If it's a private report you can open on Warcraft Logs, `/login private:True` lets me read it for "
+                 "your questions; then ask again.")
 MENTION = re.compile(r"<@[!&]?\d+>|<#\d+>")
 # Replies need Read Message History; threads, for when someone mentions the bot inside one; maps, Attach Files.
 INVITE_PERMISSIONS = discord.Permissions(view_channel=True, send_messages=True, read_message_history=True,
@@ -675,8 +681,9 @@ class WipeBot(discord.Client):
         ctx = self._context(s, f.user, f.name, pull.report, where, f.channel, asker=f.character, pull=pull.pull_no,
                             boss=pull.boss)
         try:  # Warcraft Logs not answering is the answer's to report, not the head start's
-            ctx.prefetch = await post_prefetch(await self.library.report(pull.report), pull.boss, pull.pull_no,
-                                               f.character, f.request)
+            with ctx.reading():
+                ctx.prefetch = await post_prefetch(await self.library.report(pull.report), pull.boss, pull.pull_no,
+                                                   f.character, f.request)
         except WCLError:
             pass
 
@@ -708,11 +715,12 @@ class WipeBot(discord.Client):
             return
         tool, args = (("player_night", {"report": f.code, "player": f.character}) if f.character
                       else ("progress", {"report": f.code}))
-        images = await host.picture(tool, args)
-        if not images:
-            log.info("no night's post for %s: nothing drawn for report %s", self._shown(f.name), f.code)
-            return
-        pictures = await pictures_for([(i, tool, args) for i in images])
+        with asker_of(self.store, f.user.id).reading():  # read as the one who asked for the posts
+            images = await host.picture(tool, args)
+            if not images:
+                log.info("no night's post for %s: nothing drawn for report %s", self._shown(f.name), f.code)
+                return
+            pictures = await pictures_for([(i, tool, args) for i in images])
         files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
         text = (f"**That's the raid.** {f.character}'s night:" if f.character
                 else "**That's the raid.** The night on the last boss; the button under it shows yours, only to you.")
@@ -808,7 +816,8 @@ class WipeBot(discord.Client):
             ctx.linked = await self._linked(question, s, author)
         if message.reference and (posted := self.store.pull_for_message(message.reference.message_id)):
             try:
-                await self._about_pull(ctx, code, *posted)
+                with ctx.reading():
+                    await self._about_pull(ctx, code, *posted)
             except Exception:
                 log.exception("loading report %s failed", code)
                 await respond(message, WCL_DOWN)
@@ -929,7 +938,8 @@ class WipeBot(discord.Client):
         ctx = self._context(s, user, name, code, where, None if is_dm else channel)
         if interaction.message and (posted := self.store.pull_for_message(interaction.message.id)):
             try:
-                await self._about_pull(ctx, code, *posted)
+                with ctx.reading():
+                    await self._about_pull(ctx, code, *posted)
             except Exception:
                 log.exception("loading report %s failed", code)
         key = ("dm", user.id) if is_dm else (getattr(channel, "id", 0), user.id)
@@ -964,9 +974,10 @@ class WipeBot(discord.Client):
             return NEEDS_KEY
         earlier = (lambda after, seen: self._earlier(message, after, seen)) if message else None
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
-            answer = await self.conversations.ask(key, code, question, ctx, earlier, message.id if message else None,
-                                                  timeout)
-            sent = await send(await self._with_footer(kind, ctx, answer))
+            with ctx.reading():  # as the asker: the session's report as it opens, the answer's pictures as it's sent
+                answer = await self.conversations.ask(key, code, question, ctx, earlier,
+                                                      message.id if message else None, timeout)
+                sent = await send(await self._with_footer(kind, ctx, answer))
         except SlowStart as e:
             log.warning("%s answer to %s failed: %s", kind, shown, e)
             record(error=str(e))
@@ -983,6 +994,10 @@ class WipeBot(discord.Client):
                     ctx.env.get("ANTHROPIC_AUTH_TOKEN") if ctx.env else config.openrouter_key()):
                 return MODEL_ERRORS["billing_error"]
             return MODEL_ERRORS.get(e.kind, MODEL_ERRORS["other"])
+        except wcl.Unreadable as e:  # the report linked isn't one Warcraft Logs shows the asker
+            log.info("%s answer to %s: Warcraft Logs won't show the report", kind, shown)
+            record(error=f"wcl: {e}")
+            return UNREADABLE.format(code=e.code) + (PRIVATE_LOGIN if ctx.tokens()[2] else "")
         except WCLError as e:  # loading the report, before the model got the question
             log.error("%s answer to %s failed: Warcraft Logs didn't answer (%s)", kind, shown, e)
             record(error=f"wcl: {e}")
@@ -1127,7 +1142,8 @@ class WipeBot(discord.Client):
         if counts := commands.from_pull(message.content):
             pull, code = counts
             try:
-                since = (await self.library.report(code or await self.current_report(s)), pull)
+                with asker_of(self.store, message.author.id).reading():
+                    since = (await self.library.report(code or await self.current_report(s)), pull)
             except (FactError, WCLError) as e:
                 await respond(message, f"Didn't save it: couldn't find pull {pull}'s report ({e}).")
                 return

@@ -24,9 +24,10 @@ import discord
 from wipebot.core import server
 from wipebot.core.pulls import is_reset, wipe_pct, wipe_text
 from wipebot.core.report import FactError
+from wipebot.core.wcl import WCLError
 
-from . import host
-from .host import ToolCall
+from . import host, logincmd
+from .host import Context, ToolCall
 
 log = logging.getLogger(__name__)
 
@@ -265,8 +266,25 @@ def tool_of(what: str, report: str, boss: str, pull: str, player: str) -> tuple[
     return "pull_summary", where
 
 
+def asker_of(store: Any, user_id: int) -> Context:
+    """A Discord user as the asker of what the bot draws for them without a question (a button they clicked, the
+    night's post they asked for): it's read with their own Warcraft Logs sign-in (`store`: the bot's, None for none),
+    and reads no guild's notes."""
+    signed = store.login(user_id) if store else None
+    private = store.private_login(user_id) if store else None
+    return Context(user_id=user_id, wcl_token=signed[1] if signed else None,
+                   wcl_private=private[1] if private else None,
+                   private_hint=logincmd.PRIVATE_HINT if logincmd.callback_url() else None)
+
+
 async def act(interaction: discord.Interaction, what: str, report: str, boss: str, pull: str, player: str) -> None:
-    """An action, answered to the one who clicked alone: the picture it opens, with that picture's own actions."""
+    """An action, answered to the one who clicked alone: the picture it opens, with that picture's own actions, read
+    as the one who clicked."""
+    with asker_of(getattr(interaction.client, "store", None), interaction.user.id).reading():
+        await _act(interaction, what, report, boss, pull, player)
+
+
+async def _act(interaction: discord.Interaction, what: str, report: str, boss: str, pull: str, player: str) -> None:
     store = getattr(interaction.client, "store", None)
     mine = (store.raider(interaction.user.id).character if store else None) or ""
     if what in MINE:
@@ -301,6 +319,9 @@ async def _not_in_pull(report: str, boss: str, pull: str, player: str) -> str | 
         f = rep.fight(int(pull) if pull else None, boss or None)
     except (FactError, ValueError) as e:
         return str(e)
+    except WCLError as e:
+        log.warning("couldn't read report %s for a click: %s", report, e)
+        return "I couldn't read that report on Warcraft Logs."
     if rep.find_player(player, rep.pull_players(f).values()) is None:
         return (f"{player}, the character I have for you, wasn't in {rep.label(f)}. If you play another one, tell me "
                 "in a message (\"my character is ...\").")
@@ -322,7 +343,7 @@ async def pictures_for(drawn: Sequence[tuple[bytes, str, dict]], results: Sequen
         try:
             link, actions = await _extras(tool, args, with_actions=last, lang=lang, mine=mine)
             actions = [a for a in actions if not (a.item.custom_id or "").endswith("|none")]  # what an id couldn't hold
-        except (FactError, ValueError, KeyError) as e:  # a picture still goes, without them
+        except (FactError, ValueError, KeyError, WCLError) as e:  # a picture still goes, without them
             log.warning("no actions for %s %s: %s", tool, args, e)
         found = PULL_LINK.search(text)
         out.append(Picture(name, found[0] if found else link, tool == "pull_summary" and GUILD_BEST in text,
