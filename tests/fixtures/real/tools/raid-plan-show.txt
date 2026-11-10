@@ -1,3 +1,4 @@
 The raid plan "Wowutils - Sszorak Mythic Spread" for Sszorak (https://raidstrats.gg/planner?view=e816f3b1-47fb-492b-ac36-3e0673e85662): 1 scene, shown as drawn, with no pull. Places are as the plan draws them (above is toward the top of the picture), by the boss and the raid markers. #N is a spot's number on the plan, which an assignment note fills with a raider; a name is as typed on the plan, with the raider it matches in brackets.
   Asked: #13 Krøp (Krøpling) (rdps): left of the boss
-  Left out: 23 more lines of this scene, 19 other spots among them (`show` without `player` prints them)
+  #11 Scop (Scopidruid) (rdps): left of the boss
+  Left out: 22 more lines of this scene, other spots and what else it draws (`show` without `player` prints them)
