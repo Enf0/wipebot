@@ -1651,6 +1651,8 @@ async def compare_with_top(
     pull, or with all_pulls every pull on the boss both were in: damage (healing for a healer) per second alive,
     time alive, deaths and item level, and per spell casts per minute alive, average hit, crit share and share of
     their output, the ones far apart marked; `aspects` don't apply.
+    Not for when a top player cast one spell that is no major cooldown: pull_timeline with the top log's link as
+    `report`, their name as `player` and the spell as `ability`.
     Example: player="Draiman", aspects=["casts", "cooldowns"]; or spec="balance druid", boss="Kith'ix"; or
     player="Attractiv", against="Scopidruid", boss="Sszorak", all_pulls=true."""
     if not player:
