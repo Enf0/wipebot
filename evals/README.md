@@ -151,7 +151,7 @@ tracked: commit it. A run that judged fewer than nine in ten of its answers (the
 `just release` prints how many commits that can change an answer and how many days lie since each mode's last full
 run, writes that into the release commit, and stops past 30 such commits or 21 days unless
 `--without-evals "<reason>"`. A commit can change a mode's answers when it touches what the mode answers with (the
-core, the mode's app, the cases), or says `full eval: pending` and touches none of that (a dependency, say). A run
+core, the mode's app, the cases), or says `full eval: pending` and touches no mode's (a dependency, say). A run
 made where the file can't be committed is recorded after with `--record evals/results/X.json`, which takes only a
 full run's file: not a filtered or held-out one, one asked with another model or effort, or one with fewer than nine
 in ten of the mode's cases.
