@@ -221,6 +221,33 @@ async def test_the_cap_never_closes_a_conversation_still_answering(monkeypatch):
     assert [s.closed for s in FakeSession.opened] == [False, True, False]
 
 
+async def test_no_more_than_the_hard_cap_are_answered_at_once_and_the_rest_wait_their_turn(monkeypatch):
+    """Each session is a Claude Code process. With MAX_ANSWERING questions being answered the next one waits: it
+    isn't refused, no conversation still answering is closed for it, and there are never more sessions than that."""
+    monkeypatch.setattr(chat, "MAX_SESSIONS", 2)
+    monkeypatch.setattr(chat, "MAX_ANSWERING", 2)
+    FakeSession.opened = []
+    go_on, most = asyncio.Event(), 0
+
+    class Slow(FakeSession):
+        async def ask(self, question, ctx):
+            nonlocal most
+            most = max(most, sum(not s.closed for s in FakeSession.opened))
+            await go_on.wait()
+            return await super().ask(question, ctx)
+
+    async def open_session(code):
+        return Slow(code)
+    convs = Conversations(open_session)
+    asked = [asyncio.create_task(convs.ask(key, "R1", "q", None)) for key in "abcde"]
+    for _ in range(20):  # every one that gets a turn has its session answering
+        await asyncio.sleep(0)
+    assert len(FakeSession.opened) == 2  # the other three wait their turn
+    go_on.set()
+    assert await asyncio.wait_for(asyncio.gather(*asked), 1) == ["R1: q"] * 5
+    assert most == 2 and len(FakeSession.opened) == 5
+
+
 async def test_a_session_opening_holds_up_only_its_own_conversation():
     """Opening a session loads the report (most of a minute when Warcraft Logs hangs): another asker's question
     goes ahead, and a second question for the same conversation waits for that one session."""

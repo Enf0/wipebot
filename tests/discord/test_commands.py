@@ -388,6 +388,11 @@ async def test_usage_reads_the_servers_own_key_on_a_copy_that_needs_one(bot, mon
     text = await commands.budget_text(bot.store, "sk-or-guild", 1001, with_bar=True)
     assert "**$5.00** left: about 10 more answers at this month's $0.50 an answer" in text
     assert "`███████████████░░░░░` 75% spent" in text
+    bot.store.add_spend(1001, 9, "chat", 0.25, 0)  # asked in a DM, on this server's key
+    line = "**This server:** 2 answers this month, $0.75, on its own OpenRouter key (`/wipebot setup`)."
+    assert await commands.server_usage(bot, 1001) == line  # a raider sees what it cost, not who asked
+    assert await commands.server_usage(bot, 1001, admin=True) == (
+        line + " Most went to <@7> (1, $0.50), <@9> (1, $0.25), DMs included.")
     bot.store.save_server_key(1001, keys.ServerKey("anthropic", "sk-ant-x"), added_by=7)
     assert commands.budget_key(bot, 1001) is None  # Anthropic's keys say nothing of a budget
 

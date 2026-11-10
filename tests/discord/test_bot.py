@@ -392,6 +392,48 @@ async def test_a_key_out_of_credit_says_so(bot, message, asked, monkeypatch, rem
     assert msg.replies == [told]
 
 
+async def test_a_raider_has_a_few_questions_answered_at_once_in_channels_and_dms_together(bot, message, monkeypatch):
+    """One raider's own questions, wherever they ask: a DM spends their server's key where no admin looks."""
+    monkeypatch.setattr(bot, "get_guild", lambda guild_id: SimpleNamespace(get_member=lambda i: server_member()))
+    go_on = asyncio.Event()
+
+    async def slow(*args, **kwargs) -> Answer:
+        await go_on.wait()
+        return Answer("**Wiped.**")
+    monkeypatch.setattr(bot.conversations, "ask", slow)
+    going = [asyncio.create_task(bot.on_message(message())) for _ in range(wipebot.USER_AT_ONCE)]
+    async with asyncio.timeout(1):
+        while bot._asking[7] < wipebot.USER_AT_ONCE:
+            await asyncio.sleep(0)
+    one_more = message("and how did I do?", dm=True)
+    await asyncio.wait_for(bot.on_message(one_more), 1)
+    assert one_more.channel.sent == [wipebot.STILL_ANSWERING]
+    go_on.set()
+    await asyncio.wait_for(asyncio.gather(*going), 1)
+    again = message("and how did I do?", dm=True)
+    await bot.on_message(again)
+    assert again.channel.sent == ["**Wiped.**"] and not bot._asking[7]
+
+
+async def test_a_raider_gets_so_many_answers_an_hour_and_the_posts_they_asked_for_dont_count(bot, message, asked,
+                                                                                            settings, member, channel):
+    for _ in range(wipebot.USER_ANSWERS_AN_HOUR - 1):
+        bot.store.add_spend(1001, 7, "chat", 0.2, 0)
+    bot.store.add_spend(1001, 7, "follow", 0.2, 0)  # a post after a wipe isn't one of their questions
+    bot.store.add_spend(1001, 8, "chat", 0.2, 0)  # nor is a raidmate's answer
+    last, over = message(), message("<@99> and the pull before?")
+    await bot.on_message(last)
+    await bot.on_message(over)
+    assert last.replies == ["**Wiped.**"] and over.replies == [wipebot.ASKED_A_LOT] and len(asked) == 1
+    await bot._post(settings, Following(member(7, "Rowan"), "Rowan", None, "LIVE1", channel, "who messed up"),
+                    Pull("LIVE1", 30, "Sszorak", 12, 0.0))
+    assert channel.sent == ["**Wiped.**"]  # what they asked for after each pull still comes
+    bot.store._db.execute("UPDATE spend SET at = at - 3601 WHERE rowid = 1")  # the first of them is an hour old
+    later = message("<@99> and the pull before?")
+    await bot.on_message(later)
+    assert later.replies == ["**Wiped.**"]
+
+
 async def test_an_answer_that_hit_a_cap_is_recorded_with_what_it_cost(bot, message, asked):
     calls = [ToolCall("progress", {}, "...", False)]
     asked.answers.append(ModelError("error_max_turns", Answer("", cost_usd=1.2, calls=calls, prompt="p", turns=25)))

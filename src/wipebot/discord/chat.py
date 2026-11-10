@@ -5,7 +5,8 @@ closed after IDLE_S without a message, when the report changes (once it has answ
 context has grown too long (the session says it's `worn_out`), when an answer was given up on or failed, or when
 MAX_SESSIONS are open and it is the least recently used of those not answering (with every one answering, one more
 opens). A question queued behind one whose conversation was closed starts a new one. Each session runs a Claude
-Code process, hence the cap.
+Code process, hence the cap, and why at most MAX_ANSWERING questions are answered at once: the next waits its turn,
+so there are never more processes than that.
 Each question comes with what was said in that place since the conversation's previous question (`earlier`),
 everyone's messages, so a conversation knows what the bot told others there; a new conversation gets the
 messages before its first one.
@@ -27,6 +28,7 @@ log = logging.getLogger(__name__)
 DISCORD_LIMIT = 2000  # characters per Discord message
 IDLE_S = 15 * 60
 MAX_SESSIONS = 6
+MAX_ANSWERING = 8  # questions being answered at once, each in a session of its own at most; no fewer than MAX_SESSIONS
 OPEN_TIMEOUT_S = 60  # opening a session (loading the report, starting Claude Code) gives up after this long
 
 
@@ -77,6 +79,7 @@ class Conversations:
         the conversation is closed (its session may be mid-answer or broken), but after one of `survives`. `saved`
         keeps the open conversations across a restart."""
         self._open, self._survives, self._saved = open_session, survives, saved
+        self._turns = asyncio.Semaphore(MAX_ANSWERING)  # held by each question from its session's opening to its answer
         self._convs: dict[Hashable, _Conversation] = {}
         # Held only for the bookkeeping of _convs: sessions open and close outside it (loading a report can take
         # most of a minute), so one asker's new conversation never holds up another's question.
@@ -97,7 +100,13 @@ class Conversations:
         """`earlier(after, seen)` gives the messages before this question (`message_id`) that the conversation
         hasn't seen: since its previous question `after` (None for a new conversation: from further back), leaving
         out the `seen` ones. `timeout` counts from when the question's turn in its conversation comes, not while it
-        waits behind another or its session opens."""
+        waits behind another or its session opens, nor while MAX_ANSWERING others are being answered."""
+        async with self._turns:
+            return await self._in_turn(key, code, question, ctx, earlier, message_id, timeout)
+
+    async def _in_turn(self, key: Hashable, code: str, question: str, ctx,
+                       earlier: Callable[[int | None, set[int]], Awaitable[str]] | None, message_id: int | None,
+                       timeout: float | None):
         conv = await self._conversation(key, code, getattr(ctx, "env", None))
         try:
             return await self._ask(key, conv, code, question, ctx, earlier, message_id, timeout)
@@ -159,7 +168,7 @@ class Conversations:
         async with conv.lock:  # one question at a time per conversation
             if conv.closed or conv.session.worn_out:  # by the answer this one queued behind: start over
                 await self._close(key, conv)
-                return await self.ask(key, code, question, ctx, earlier, message_id, timeout)
+                return await self._in_turn(key, code, question, ctx, earlier, message_id, timeout)  # its turn still
             try:
                 async with asyncio.timeout(timeout):
                     # Read here, after the previous answer was posted: what was said since, by anyone.

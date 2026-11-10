@@ -188,6 +188,19 @@ def test_spend_is_kept_per_server_and_asker_recorded_or_not(store):
     assert store.spent(0, user_id=8) == (1, 0.125, 4.0)
     assert store.spent(time.time() + 60) == (0, 0.0, 0.0)
     assert store.answer_costs(0) == (3, 0.875)
+    assert store.spent(0, discord_guild_id=1001, kind="chat") == (1, 0.25, 90.0)  # a raider's own questions
+
+
+def test_a_servers_answers_say_who_they_went_to_most(store):
+    """By what they cost, questions in DMs included (they spend the server's key too); a channel's posts after wipes
+    are nobody's."""
+    import time
+    for user, kind, cost in ((7, "chat", 0.25), (8, "chat", 0.5), (8, "chat", 0.5), (9, "chat", 0.125),
+                             (10, "chat", 0.0625), (None, "follow", 4.0)):
+        store.add_spend(1001, user, kind, cost, 0)
+    store.add_spend(2002, 7, "chat", 9.0, 0)  # another server's
+    assert store.asked_most(0, 1001) == [(8, 2, 1.0), (7, 1, 0.25), (9, 1, 0.125)]
+    assert store.asked_most(time.time() + 60, 1001) == []
 
 
 def test_a_server_the_bot_left_is_forgotten_but_its_spend_stays(store):

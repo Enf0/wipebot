@@ -481,18 +481,27 @@ class Store:
                          (time.time(), discord_guild_id, user_id, kind, cost_usd, wcl_points))
         self._db.commit()
 
-    def spent(self, since: float, discord_guild_id: int | None = None, user_id: int | None = None
-              ) -> tuple[int, float, float]:
+    def spent(self, since: float, discord_guild_id: int | None = None, user_id: int | None = None,
+              kind: str | None = None) -> tuple[int, float, float]:
         """How many answers since `since` (a timestamp), what they cost and their Warcraft Logs points, in all or
-        in one server or for one user."""
+        in one server, for one user or of one `kind` (chat: their own questions, not the posts they asked for)."""
         where, args = "at >= ?", [since]
         if discord_guild_id is not None:
             where, args = where + " AND discord_guild_id = ?", [*args, discord_guild_id]
         if user_id is not None:
             where, args = where + " AND user_id = ?", [*args, user_id]
+        if kind is not None:
+            where, args = where + " AND kind = ?", [*args, kind]
         n, cost, points = self._db.execute(f"SELECT COUNT(*), TOTAL(cost_usd), TOTAL(wcl_points) FROM spend "
                                            f"WHERE {where}", args).fetchone()
         return n, cost, points
+
+    def asked_most(self, since: float, discord_guild_id: int, limit: int = 3) -> list[tuple[int, int, float]]:
+        """Who the server's answers since `since` went to most, by what they cost: (Discord user, answers, cost),
+        questions in DMs included."""
+        return self._db.execute("SELECT user_id, COUNT(*), TOTAL(cost_usd) FROM spend WHERE at >= ? AND "
+                                "discord_guild_id = ? AND user_id IS NOT NULL GROUP BY user_id ORDER BY 3 DESC, 2 "
+                                "DESC LIMIT ?", (since, discord_guild_id, limit)).fetchall()
 
     def save_server_key(self, discord_guild_id: int, key: keys.ServerKey, added_by: int) -> None:
         """Keep a server's own model key, encrypted, in place of any before."""

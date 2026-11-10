@@ -265,13 +265,19 @@ def usage_text(rate: dict | None) -> str:
     return text
 
 
-async def server_usage(bot: WipeBot, discord_guild_id: int) -> str | None:
-    """/usage's line about this server: what it spent this month on its own key, or on a bot that answers only on
-    servers' own keys, that it has none yet; None on a server that answers on the bot's key."""
-    n, spent, _ = bot.store.spent(allowance.month_start().timestamp(), discord_guild_id=discord_guild_id)
+async def server_usage(bot: WipeBot, discord_guild_id: int, admin: bool = False) -> str | None:
+    """/usage's line about this server: what it spent this month on its own key, for an `admin` with who it went to
+    most (questions in DMs spend the key too, where nobody else sees them), or on a bot that answers only on servers'
+    own keys, that it has none yet; None on a server that answers on the bot's key."""
+    since = allowance.month_start().timestamp()
+    n, spent, _ = bot.store.spent(since, discord_guild_id=discord_guild_id)
     if info := bot.store.server_key_info(discord_guild_id):
+        most = bot.store.asked_most(since, discord_guild_id) if admin else []
         return (f"**This server:** {n} answers this month, ${spent:.2f}, on its own "
-                f"{keycmd.NAMES.get(info[0], info[0])} key (`/wipebot setup`).")
+                f"{keycmd.NAMES.get(info[0], info[0])} key (`/wipebot setup`)." + (
+                    " Most went to " + ", ".join(f"<@{user}> ({answers}, ${cost:.2f})"
+                                                 for user, answers, cost in most) + ", DMs included."
+                    if most else ""))
     if bot.own_keys:
         return "**This server** has no AI key for answers yet: an admin adds one with `/wipebot setup`."
     return None
@@ -306,9 +312,10 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
         text = f"{await budget_text(bot.store, key, gid)}\n\n{points}" if (key := budget_key(bot, gid)) else points
         if mine := await logincmd.points_line(bot.store, bot.library.wcl, interaction.user.id):
             text = f"{text}\n{mine}"
-        if here := await server_usage(bot, gid):
+        admin = bool(getattr(interaction.permissions, "manage_guild", False))
+        if here := await server_usage(bot, gid, admin):
             text = f"{here}\n\n{text}"
-        if key and getattr(interaction.permissions, "manage_guild", False):
+        if key and admin:
             await interaction.followup.send(text, view=PostUsage(bot), ephemeral=True)
         else:
             await interaction.followup.send(text, ephemeral=True)

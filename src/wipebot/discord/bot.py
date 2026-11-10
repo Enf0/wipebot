@@ -11,6 +11,7 @@ import logging
 import re
 import signal
 import time
+from collections import Counter
 from collections.abc import Awaitable, Callable, Hashable, Sequence
 from dataclasses import replace
 from typing import cast
@@ -94,6 +95,13 @@ UNREADABLE = ("Warcraft Logs won't show me report {code}: it's private, was dele
               "again won't help.")
 PRIVATE_LOGIN = (" If it's a private report you can open on Warcraft Logs, `/login private:True` lets me read it for "
                  "your questions; then ask again.")
+# One raider's own questions, in channels and DMs alike (a DM spends their server's key where no admin sees it): this
+# many answered at once, and this many answers in an hour. The posts after wipes they asked for don't count.
+USER_AT_ONCE = 3
+USER_ANSWERS_AN_HOUR = 30
+STILL_ANSWERING = f"I'm still answering {USER_AT_ONCE} of your questions: ask again when one is done."
+ASKED_A_LOT = (f"That's {USER_ANSWERS_AN_HOUR} answers for you this hour, which is all one person gets: ask again in "
+               "a while.")
 MENTION = re.compile(r"<@[!&]?\d+>|<#\d+>")
 # Replies need Read Message History; threads, for when someone mentions the bot inside one; maps, Attach Files.
 INVITE_PERMISSIONS = discord.Permissions(view_channel=True, send_messages=True, read_message_history=True,
@@ -452,6 +460,7 @@ class WipeBot(discord.Client):
         self.icons: dict[str, str] = {}  # the bot's own, by name, once logged in (emojis.sync)
         self._started = False
         self.stopping = False  # after SIGTERM: no new questions or posts, finish the answers in progress
+        self._asking: Counter[int] = Counter()  # each raider's own questions being answered now (USER_AT_ONCE)
         self._answering = 0
         self._idle = asyncio.Event()
         self._idle.set()
@@ -956,12 +965,37 @@ class WipeBot(discord.Client):
         if failed:
             await channel.send(failed)
 
+    def _too_many(self, user_id: int) -> str | None:
+        """Why a raider's next question isn't answered now, if it isn't: USER_AT_ONCE of theirs are being answered,
+        or they got USER_ANSWERS_AN_HOUR answers this hour (counted from what each answer cost, which the store keeps:
+        a restart doesn't start the hour over)."""
+        if self._asking[user_id] >= USER_AT_ONCE:
+            return STILL_ANSWERING
+        if self.store.spent(time.time() - 3600, user_id=user_id, kind="chat")[0] >= USER_ANSWERS_AN_HOUR:
+            return ASKED_A_LOT
+        return None
+
     async def _answer(self, kind: str, key: Hashable, code: str, question: str, ctx: Context, who: str,
                       send: Callable[[Answer], Awaitable[list[int]]], message: discord.Message | None = None,
                       fight: int | None = None, channel_id: int | None = None) -> str | None:
         """Ask in the conversation at `key`, post the answer with `send`, and record it. When there's no answer
         (it took too long, Claude's API refused, something failed), that's recorded and logged instead, and the
-        return value is what to tell the asker. `message` is the question's, None for a post after a wipe."""
+        return value is what to tell the asker. `message` is the question's, None for a post after a wipe. A raider
+        with too many questions of their own going (`_too_many`) is told so instead."""
+        asker = ctx.user_id if kind == "chat" else 0
+        if asker and (held := self._too_many(asker)):
+            log.info("chat answer to %s held back: too many of their questions at once or this hour",
+                     self._shown(who))
+            return held
+        self._asking[asker] += 1
+        try:
+            return await self._answered(kind, key, code, question, ctx, who, send, message, fight, channel_id)
+        finally:
+            self._asking[asker] -= 1
+
+    async def _answered(self, kind: str, key: Hashable, code: str, question: str, ctx: Context, who: str,
+                        send: Callable[[Answer], Awaitable[list[int]]], message: discord.Message | None,
+                        fight: int | None, channel_id: int | None) -> str | None:
         started = time.monotonic()
         timeout = CHAT_TIMEOUT_S if kind == "chat" else POST_TIMEOUT_S
 
