@@ -757,7 +757,11 @@ TEXTS = """() => {
     return [d[0], d[1], d[2], d[3] / 255];
   };
   const over = (top, under) => under.map((v, i) => top[i] * top[3] + v * (1 - top[3]));
-  const shows = (el) => { let a = 1; for (let e = el; e; e = e.parentElement) a *= +getComputedStyle(e).opacity; return a; };
+  const shows = (el) => {
+    let a = 1;
+    for (let e = el; e; e = e.parentElement) a *= +getComputedStyle(e).opacity;
+    return a;
+  };
   const ground = (el) => {
     const layers = [];
     for (let e = el; e; e = e.parentElement) {
@@ -781,7 +785,8 @@ TEXTS = """() => {
       ink = rgba(cs.fill);
       if (cs.paintOrder.startsWith("stroke") && cs.stroke !== "none") on = over(rgba(cs.stroke), on);
       else {
-        const at = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(svg.getScreenCTM().inverse());
+        const middle = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2);
+        const at = middle.matrixTransform(svg.getScreenCTM().inverse());
         for (const m of svg.querySelectorAll("rect, circle, path, ellipse, polygon")) {
           if (!(m.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;  // drawn over it
           const ms = getComputedStyle(m), fill = rgba(ms.fill);
