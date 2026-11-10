@@ -178,7 +178,7 @@ def recorded(monkeypatch, shared):
 
 async def answers(ctx) -> dict[str, str]:
     """What the model is told by each tool that reads what a guild keeps, asked in a conversation with `ctx` about
-    the guild's report: the nights to come, the note, the plan, and whose kick it was."""
+    the guild's report: the nights to come, the note, the plan, the plan drawn on the map, and whose kick it was."""
     session = Session(server.lib(), REPORT)
     session._ctx = ctx
     tools = {t.name: t for t in await session._tools()}
@@ -187,7 +187,8 @@ async def answers(ctx) -> dict[str, str]:
         return (await tools[tool].handler(args))["content"][0]["text"]
     return {"upcoming": await told("roster", upcoming=True), "note": await told("raid_note", boss="Sszorak", pull=42),
             "next note": await told("raid_note", boss="Sszorak", upcoming=True),
-            "plan": await told("raid_plan", pull=42), "kicks": await told("enemies", **KICKS)}
+            "plan": await told("raid_plan", pull=42), "plan map": await told("pull_map", pull=42, plan=True),
+            "kicks": await told("enemies", **KICKS)}
 
 
 @pytest.mark.parametrize("server_id", [CLAIMS, OTHER, NOT_SET_UP])
@@ -204,6 +205,7 @@ async def test_asked_about_a_guilds_report_from_another_server_the_tools_give_no
     after = await answers(context(shared, server_id, member, channel))
     assert before == after
     assert after["upcoming"].endswith("raid nights are for its members only")
+    assert "saved are for its members only: ask the user to paste the raid plan." in after["plan map"]
     assert JOBS_NOT_LOGGED in after["kicks"] and "raid note saved" not in after["kicks"]
     note, plan = NOTE.read_text(encoding="utf-8"), PLAN.read_text(encoding="utf-8")
     assert not any(KEY in said or note[:40] in said or plan[:40] in said or "Rowan" in said
@@ -226,6 +228,7 @@ async def test_asked_from_the_guilds_own_server_the_tools_read_what_it_keeps(rec
     assert said["note"].startswith("(The note was saved by Rowan")
     assert said["next note"].startswith("For the next raid, so here is the newest")
     assert said["plan"].startswith("(The plan was saved from pastes.)")
+    assert said["plan map"].startswith('The raid plan "') and "saved by Rowan" in said["plan map"]
     assert "has no raid note saved for Nek'zali the Soulcoiler that night" in said["kicks"]
 
 

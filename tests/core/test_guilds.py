@@ -52,13 +52,15 @@ async def test_a_stranger_reads_nothing_a_guild_keeps_and_cant_tell_what_it_keep
                              await asked("raid_note", report=report, boss="Sszorak", pull=42),
                              await asked("raid_note", report=report, boss="Sszorak", upcoming=True),
                              await asked("raid_plan", report=report, pull=42),
+                             await asked("pull_map", report=report, pull=42, plan=True),  # the plan, drawn
                              await asked("enemies", **kicks)))
-    upcoming, note, next_note, plan, jobs = said[0]
+    upcoming, note, next_note, plan, plan_map, jobs = said[0]
     assert all(s == said[0] for s in said)  # with or without anything saved: nothing gives it away
     assert upcoming.endswith("raid nights are for its members only")
     assert "the ones" in note and note == next_note and "saved are for its members only: ask the user to paste the " \
         "raid note." in note
     assert "saved are for its members only: ask the user to paste the raid plan." in plan
+    assert "saved are for its members only: ask the user to paste the raid plan." in plan_map
     assert JOBS_NOT_LOGGED in jobs and "raid note saved" not in jobs
 
 
@@ -77,6 +79,7 @@ async def test_the_guilds_own_place_and_a_single_users_copy_read_what_it_keeps(r
             assert "has none saved for Sszorak that night" in await asked("raid_note", report=report, boss="Sszorak",
                                                                           pull=42)
             assert "has none saved for Sszorak" in await asked("raid_plan", report=report, pull=42)
+            assert "has none saved for Sszorak" in await asked("pull_map", report=report, pull=42, plan=True)
             assert "has no raid note saved for Nek'zali the Soulcoiler that night" in await asked("enemies", **kicks)
     assert server._guilds.get() is None  # outside it, as before
 
