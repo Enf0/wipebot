@@ -16,6 +16,7 @@ from ..pulls import (
     attempt,
     by_phase,
     is_reset,
+    mass_hits,
     pct_text,
     phase_health,
     phase_label,
@@ -396,28 +397,41 @@ async def progress(rep: Report, boss: str | None = None) -> str:
 KILLER_NAMES = 4  # players named for the night's killer: whom it killed most, and who it hit most
 
 
+CLOSE_BEHIND = 2  # a killer within this many deaths of the night's is named beside it: the order could be chance
+
+
 async def _nights_killer(rep: Report, fights: list[dict]) -> str | None:
     """The ability that killed most players over the pulls (a kill's every death, a wipe's until it was decided):
-    its deaths, the pulls where it was the first death, whom it killed, and who took most of its hits (a tank
-    taking a mechanic every pull shows here)."""
+    its deaths and how many of them came in hits killing many (the raid's to stop, no one player's), the pulls where
+    it was the first death, whom it killed outside those hits, and who took most of its hits (a tank taking a
+    mechanic every pull shows here). Then the ability that killed most outside hits killing many, when it is
+    another: the deaths players can do something about."""
     pulls = [f for f in fights if attempt(f)]
     cut = await rep.decided_cuts(pulls)
     killed: Counter = Counter()  # by name: an ability logs under several ids
     first: Counter = Counter()
-    victims: dict[str, Counter] = defaultdict(Counter)
+    alone: Counter = Counter()  # its deaths outside hits killing many
+    alone_pulls: dict[str, set[int]] = defaultdict(set)
+    victims: dict[str, Counter] = defaultdict(Counter)  # of those deaths
     ids: dict[str, set[int]] = defaultdict(set)
     for f in pulls:
-        deaths = [d for d in await rep.deaths(f) if d["timestamp"] <= cut.get(f["id"], math.inf)]
-        for k, d in enumerate(deaths):
+        every = await rep.deaths(f)
+        until = cut.get(f["id"], math.inf)
+        together = {id(d) for h in mass_hits(every, await rep.raid_size(f), rep.ability) if h.first <= until
+                    for d in h.deaths}
+        for k, d in enumerate(d for d in every if d["timestamp"] <= until):
             if gid := d.get("killingAbilityGameID"):
                 name = rep.ability(gid)
                 ids[name].add(gid)
                 killed[name] += 1
                 first[name] += k == 0
-                victims[name][rep.names[d["targetID"]]] += 1
+                if id(d) not in together:
+                    alone[name] += 1
+                    alone_pulls[name].add(f["id"])
+                    victims[name][rep.names[d["targetID"]]] += 1
     if not killed:
         return None
-    name, n = killed.most_common(1)[0]
+    (name, n), *rest = killed.most_common(2)
     hits: Counter = Counter()
     for gid in sorted(ids[name]):
         for e in await rep.events([f["id"] for f in pulls], "DamageTaken", hostilityType="Friendlies",
@@ -428,10 +442,22 @@ async def _nights_killer(rep: Report, fights: list[dict]) -> str | None:
 
     def named(c: Counter) -> str:
         return ", ".join(f"{who}{rep.tank_tag(who)} {k}" for who, k in c.most_common(KILLER_NAMES))
+    many = n - alone[name]
     line = (f"The night's killer (deaths until each wipe was decided): {rep.ability_refs(name, ids[name])}, "
-            f"{plural(n, 'death')} over {plural(len(pulls), 'pull')}, the first death on {first[name]} of them; "
-            f"killed most: {named(victims[name])}")
-    return line + (f"; hit most (until each wipe was decided): {named(hits)}." if hits else ".")
+            f"{plural(n, 'death')} over {plural(len(pulls), 'pull')}"
+            + (f", {many} of them in hits killing many (the raid's to stop, no one player's)" if many else "")
+            + f", the first death on {plural(first[name], 'pull')}")
+    if victims[name]:
+        line += f"; killed most{' outside those hits' if many else ''}: {named(victims[name])}"
+    line += f"; hit most (until each wipe was decided): {named(hits)}." if hits else "."
+    if rest and n - rest[0][1] <= CLOSE_BEHIND:
+        line += f" Close behind: {rep.ability_refs(rest[0][0], ids[rest[0][0]])}, {plural(rest[0][1], 'death')}."
+    other, k = alone.most_common(1)[0] if alone else (name, 0)
+    if other != name:
+        line += (f" Outside hits killing many, the most deaths were to {rep.ability_refs(other, ids[other])}: "
+                 f"{plural(k, 'death')} on {plural(len(alone_pulls[other]), 'pull')}, against {alone[name]} to "
+                 f"{name}; killed most: {named(victims[other])}.")
+    return line
 
 
 ENDINGS_SHOWN = 3  # per night, the most common ways its pulls on the boss ended

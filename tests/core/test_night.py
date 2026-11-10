@@ -93,3 +93,17 @@ def test_progress_says_whether_the_night_beat_the_guild_best():
         " Tonight's best wipe, 65.0% on pull 2, didn't get as far: the guild's best stands.")
     marks, best = night._marks(pulls, GuildBest(68.0, "abc", 21, 13, 1_760_000_000_000))
     assert marks[2] == " best of the night until then, new guild best"
+
+
+async def test_the_nights_killer_splits_off_the_deaths_in_hits_killing_many(rep):
+    # Virulence killed most on the tests' night, 57, but 40 of those came in hits that killed many at once: the
+    # raid's to stop. The players it killed are named only for the rest, a killer one death behind is named with it,
+    # and so is the ability that killed most outside such hits.
+    line = str(await night._nights_killer(rep, rep.by_boss["Sszorak"]))
+    assert line.startswith(
+        "The night's killer (deaths until each wipe was decided): Virulence [1300089, 1312189], 57 deaths over 32 "
+        "pulls, 40 of them in hits killing many (the raid's to stop, no one player's), the first death on 8 pulls; "
+        "killed most outside those hits: ")
+    assert " Close behind: Mutilate [1285999], 55 deaths." in line
+    assert (" Outside hits killing many, the most deaths were to Tempest [1287083]: 48 deaths on 22 pulls, against "
+            "17 to Virulence; killed most: ") in line
