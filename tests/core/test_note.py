@@ -383,7 +383,7 @@ def test_a_planned_spell_never_cast_on_any_pull_says_another_may_do_its_job():
     def check(i: int) -> Any:
         uses = [note.PlannedUse(190_000, tongues, None, "alive", []),
                 note.PlannedUse(41_000, wind, None, "alive", [90_000] if i == 1 else [])]
-        return SimpleNamespace(f={"id": i}, planned=note.Planned(uses, [], 0))
+        return SimpleNamespace(f={"id": i}, until=300_000, planned=note.Planned(uses, [], 0))
     lines = note._night_cooldowns(cast(Any, rep), [check(i) for i in (1, 2, 3)])
     assert ("    3:10 Spell [1714], 3 pulls: not cast 3 (p1, p2, p3); never cast on any of these pulls: a talent may "
             "replace it, or another spell do its job (breakdown of their casts)") in lines

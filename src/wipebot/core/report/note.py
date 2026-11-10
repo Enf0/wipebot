@@ -13,10 +13,11 @@ A tag is a player's name (NSRT also takes a nickname, a role, a group, melee or 
 without the realm. What isn't one of these lines is kept as not understood (`Note.unread`) and said.
 """
 import itertools
+import math
 import re
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Callable, Collection, Mapping
+from collections.abc import Awaitable, Callable, Collection, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -27,6 +28,7 @@ from ..text import clock, name_key, plural, ranges, short
 from . import saved
 from .adds import interruptible_casts, kicked_tonight
 from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since, unavailable
+from .cooldowns import spell_at
 
 MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it this close to its time
 NEVER_CAST_MIN = 3  # pulls a planned spell was missed on, never cast at all, before the night says so
@@ -45,6 +47,9 @@ NO_GROUP = {OUTSIDE: f"outside the note's soak times (no group called within {SO
             UNCLEAR: "where the log can't tell whose soak it was (a player or two of a group hit, or as many of two)"}
 SOAKS_ARE = f"given to the group called to soak within {SOAK_CALL_MS // 1000} s of it with most of its players hit"
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
+# A planned cooldown not cast this close before the wipe was decided is said to be: the raid was already falling
+# apart under it. It still counts: a cooldown not pressed then may be why the pull was lost.
+NEAR_END_MS = 10_000
 PLANNED_NEAR_MS = 10_000  # a cooldown the note plans for a player this close to a callout is their answer to it
 HELD_MS = 15_000  # a tank's cooldown pressed this soon after a callout's window was kept for what came next
 EVERYONE = "everyone"
@@ -54,6 +59,9 @@ EVERYONE = "everyone"
 PERSONALS = re.compile(r"\b(?:personals?|defensives?|defs?)\b", re.I)
 PERSONAL_TAGS = frozenset({"defensive", "tank"})
 PERSONALS_ARE = "a defensive or tank cooldown"
+RUNNING = "already running"  # how a callout is answered by a defensive pressed before its window and still up
+READY_ARE = ("off cooldown by Lorrgs' base cooldown, ignoring charges and cooldown reduction; one they never cast "
+             "may be a talent they don't have or a passive")
 UNCHECKED = ("Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match "
              "to them; only callouts for personals are)")
 # A callout to one player whose words say kick ("Kick #1 left") this close to an add beginning a cast someone kicked
@@ -278,6 +286,9 @@ class PlannedUse:
     cast_at: float | None  # the cast matched to it
     state: str  # the player's, when it was planned
     casts: list[float]  # all their casts of it in the pull
+    # not cast, and it couldn't be: (their earlier cast it was on cooldown from, the cooldown in s that says so,
+    # Lorrgs' base cooldown in s); the two differ when their own casts on the night show a shorter one
+    cooling: tuple[float, float, float] | None = None
 
 
 @dataclass
@@ -294,12 +305,13 @@ class CalloutCheck:
     callout: Callout
     in_pull: bool  # a callout to players: whether any of them was in the pull
     pressed: list[tuple[str, list[tuple[float, dict]]]]  # (player who answered it, [(ms, spell)])
-    idle: list[tuple[str, list[dict]]]  # (player who didn't, the spells they had ready)
+    idle: list[tuple[str, list[dict]]]  # (player who didn't, the spells that answer it they had ready)
     dead: list[str]
     others: dict[str, list[tuple[float, dict]]] = field(default_factory=dict)  # of the idle, what they pressed instead
-    # who pressed none but isn't counted as missing it: (player, why) for a cooldown the note plans for them then, or
-    # a tank's cooldown kept for just after
+    # who pressed none but isn't counted as missing it: (player, why) for one already running (RUNNING), a cooldown
+    # the note plans for them then, or a tank's cooldown kept for just after
     excused: list[tuple[str, str]] = field(default_factory=list)
+    fell: dict[str, float] = field(default_factory=dict)  # of the idle, who died before its window closed: when
 
 
 def answers(sp: dict) -> bool:
@@ -383,7 +395,10 @@ def _phase_starts(f: dict) -> dict[int, float]:
     return starts
 
 
-async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
+async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) -> PullCheck:
+    """One pull against the note. `night`: the casts of the night's pulls on the boss, shared by a night's checks
+    (read for this pull alone otherwise, and only when a callout or a planned cooldown needs them)."""
+    night = night or _Night(rep, rep.by_boss[rep.boss_key(f)])
     t0, end = f["startTime"], f["endTime"] - f["startTime"]
     starts = _phase_starts(f)
     in_pull = {p.name for p in rep.pull_players(f).values()}
@@ -422,11 +437,11 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
     kicks = await _kicks(rep, f, note, players, state, when, until)
     calls, unchecked = _callouts_to_check(note, when, until, {id(k.callout) for k in kicks})
     try:
-        callouts, why = await _callouts(rep, f, note, players, died, when, calls), ""
+        callouts, why = await _callouts(rep, f, note, players, died, when, calls, night), ""
     except KnowledgeError as e:
         callouts, why = [], unavailable("Callouts (Lorrgs' spells for each spec)", e)
     return PullCheck(f, full, decided, until, await _soaks(rep, f, note, players, state, when, until),
-                     await _cooldowns(rep, f, note, players, state, when, until, full), callouts, kicks,
+                     await _cooldowns(rep, f, note, players, state, when, until, full, night), callouts, kicks,
                      sorted(n for n in _people(note, players) - stray.keys()
                             if n not in players or players[n].name not in in_pull), why, unchecked, stray)
 
@@ -568,6 +583,15 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                 line += f": not cast within {MATCH_S} s ({u.state}"
                 if u.casts:
                     line += "; cast at " + ", ".join(clock(x) for x in u.casts)
+                if u.cooling:
+                    since, cooldown, base = u.cooling
+                    line += f"; on cooldown from the {clock(since)} cast, " + (
+                        f"{base:g} s by Lorrgs' base cooldown" if cooldown == base else
+                        f"{cooldown:.0f} s by their closest two casts of it on the night (Lorrgs' base cooldown: "
+                        f"{base:g} s)")
+                if u.state == "alive" and c.until - u.at <= NEAR_END_MS:
+                    line += f"; {(c.until - u.at) / 1000:.0f} s before " + (
+                        "the wipe was decided" if c.until < end else "the pull ended")
                 line += ")"
             lines.append(line)
         if c.planned.later:  # still the note's plan: listed, so a review of the note sees all of it
@@ -583,8 +607,10 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
     if c.callouts:
         lines.append(f"Callouts for personals, with what each player it names pressed from {CALL_BEFORE_MS // 1000} "
                      f"s before to {CALL_AFTER_MS // 1000} s after it (the spells Lorrgs tracks for their spec, with "
-                     f"its tags; only {PERSONALS_ARE} answers it), and for those who pressed none that answers it, "
-                     "which were ready (cooldowns from Lorrgs, ignoring charges and cooldown reduction):")
+                     f"its tags; only {PERSONALS_ARE} answers it), who isn't counted as missing it (one was {RUNNING}, "
+                     "pressed earlier and still up by Lorrgs' duration, which talents change; or as the line says), "
+                     "and for those who pressed none, which of the ones that answer it they had ready, of those they "
+                     f"cast at least once on the night's pulls ({READY_ARE}):")
     for k in c.callouts:
         line = f"  {clock(k.at)} {' '.join(k.callout.players) or 'everyone'}: \"{k.callout.text}\""
         if not k.in_pull:
@@ -593,21 +619,21 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
         if not k.pressed and not k.idle and not k.excused:
             lines.append(line + ": dead by then (" + ", ".join(k.dead) + ")")
             continue
-        by_tag = Counter(tag for _, mine in k.pressed for tag in {t for _, sp in mine for t in _tags(sp)})
-        tags = ", ".join(f"{tag} {n}" for tag, n in _by_count(by_tag))
-        asked = f" ({PERSONALS_ARE})"
-        lines.append(line + f": {len(k.pressed) + len(k.idle) + len(k.excused)} alive; pressed one{asked} "
-                     f"{len(k.pressed)}, "
-                     f"players who pressed a spell tagged {tags or 'nothing'}; pressed none{asked} {len(k.idle)}"
-                     + (f", of them {len(k.others)} only others" if k.others else ""))
+        running = sum(why.startswith(RUNNING) for _, why in k.excused)
+        lines.append(line + f": of {len(k.pressed) + len(k.idle) + len(k.excused)} alive, {len(k.pressed)} pressed "
+                     f"{PERSONALS_ARE}, {len(k.idle)} pressed none"
+                     + (f" ({len(k.others)} of them only other spells)" if k.others else "")
+                     + (f", {len(k.excused)} not counted" + (f" ({running} with one {RUNNING})" if running else "")
+                        if k.excused else ""))
         if k.pressed:
             lines.append("    pressed: " + "; ".join(
                 f"{n} " + ", ".join(f"{_spell(sp)} {clock(t)}" for t, sp in mine) for n, mine in k.pressed))
         if k.idle:
-            lines.append(f"    pressed none{asked}: " + "; ".join(
-                f"{n} (" + (f"pressed only {', '.join(f'{_spell(sp)} {clock(t)}' for t, sp in k.others[n])}; "
-                            if n in k.others else "")
-                + f"ready: {', '.join(_spell(sp) for sp in ready) or 'none of them'})" for n, ready in k.idle))
+            lines.append("    pressed none: " + "; ".join(
+                f"{n} (" + (f"died at {clock(k.fell[n])}; " if n in k.fell else "")
+                + (f"pressed only {', '.join(f'{_spell(sp)} {clock(t)}' for t, sp in k.others[n])}; "
+                   if n in k.others else "")
+                + f"ready: {', '.join(_spell(sp) for sp in ready) or 'none'})" for n, ready in k.idle))
         if k.excused:
             lines.append("    pressed none, not counted against them: " + "; ".join(f"{n} ({why})"
                                                                               for n, why in k.excused))
@@ -782,8 +808,9 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
     return out
 
 
-async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,
-                     until: float, whole: Note | None = None) -> Planned | None:
+async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,  # noqa: PLR0913
+                     until: float, whole: Note | None = None,
+                     night: Callable[[], Awaitable[Tonight]] | None = None) -> Planned | None:
     """Each planned cooldown against the player's casts of it on the pull: the nearest within MATCH_S, each cast
     used for one line only. A channel's casts in a row (Divine Hymn logs each tick) are one use. The casts are
     asked for by the `whole` note's spells (the note before the lines to no player were left out), as the night's
@@ -825,8 +852,32 @@ async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player
             used.add(key)
     uses = [PlannedUse(when(c), c, matched.get(i), state(c.player, when(c)), casts[(c.player, c.spell)])
             for i, c in enumerate(planned) if when(c) <= until]
+    await _cooling(rep, f, here, uses, night)
     return Planned(uses, [(when(c), c) for c in planned if when(c) > until],
                    len(note.cooldowns) - len(planned) - len(twice), twice)
+
+
+async def _cooling(rep: Report, f: dict, here: dict[str, Player], uses: list[PlannedUse],
+                   night: Callable[[], Awaitable[Tonight]] | None) -> None:
+    """Marks the planned uses a living player didn't cast while the spell was on cooldown from their own earlier
+    cast of it in the pull (`spell_at`): the note plans it again too soon, or they pressed it off the plan. The
+    cooldown is Lorrgs' base one, or the time between their closest two casts of it on a pull of the night when
+    that is shorter (`Tonight.gap`: a talent that shortens it, or a second charge, shows there). None is marked when
+    Lorrgs can't be read: the uses are then as they were."""
+    try:
+        for u in uses:
+            if u.cast_at is not None or u.state != "alive" or not any(t < u.at for t in u.casts):
+                continue
+            q = rep.in_pull(f, here[u.cooldown.player])
+            sp = next((sp for sp in await rep.spells(q) if rep.is_spell({"abilityGameID": u.cooldown.spell}, sp)), None)
+            if sp is None or not sp.get("cooldown"):
+                continue
+            own = (await night()).gap.get((q.id, sp["name"])) if night else None
+            cooldown = min(sp["cooldown"], own) if own else sp["cooldown"]
+            if (since := spell_at(sp, u.casts, u.at, cooldown).cooling) is not None:
+                u.cooling = (since, cooldown, sp["cooldown"])
+    except KnowledgeError:
+        return
 
 
 def _planned_filter(rep: Report, note: Note) -> str:
@@ -852,25 +903,85 @@ def _callouts_to_check(note: Note, when, until: float,
     return [x for x in calls if PERSONALS.search(x[1].text)], [x for x in calls if not PERSONALS.search(x[1].text)]
 
 
+@dataclass
+class Tonight:
+    """What the players of a boss's pulls pressed of the spells Lorrgs tracks for their specs, read once for the
+    night (`_tonight`): per pull for its callouts, and over the pulls for which spells a player has at all."""
+    kits: dict[int, dict[int, list[dict]]] = field(default_factory=dict)  # pull -> player -> their spec's spells
+    # pull -> player -> their casts of those: (ms from the pull's start, spell), a channel's ticks once
+    pressed: dict[int, dict[int, list[tuple[float, dict]]]] = field(default_factory=dict)
+    ever: dict[int, set[str]] = field(default_factory=lambda: defaultdict(set))  # player -> the spells they cast
+    # (player, spell) -> the seconds between their closest two casts of it on one pull: a cooldown shorter than
+    # Lorrgs' base one (a talent, a second charge) shows here
+    gap: dict[tuple[int, str], float] = field(default_factory=dict)
+
+
+class _Night:
+    """The night's `Tonight`, read when first asked for and once: a pull's callouts and its planned cooldowns both
+    read it, and the pulls of a night share it. Lorrgs failing is kept too, so every pull says so without asking
+    again."""
+
+    def __init__(self, rep: Report, fights: list[dict]):
+        self.rep, self.fights = rep, fights
+        self.got: Tonight | None = None
+        self.failed: KnowledgeError | None = None
+
+    async def __call__(self) -> Tonight:
+        if self.failed:
+            raise self.failed
+        if self.got is None:
+            try:
+                self.got = await _tonight(self.rep, self.fights)
+            except KnowledgeError as e:
+                self.failed = e
+                raise
+        return self.got
+
+
+async def _tonight(rep: Report, fights: list[dict]) -> Tonight:
+    """`Tonight` over these pulls, their casts fetched in one query (Report.tracked_casts keeps each pull's)."""
+    out = Tonight()
+    casts = await rep.tracked_casts(fights)
+    which: dict[tuple[int, int], dict | None] = {}  # (a spec's spells, an ability) -> the spell it is a cast of
+    for f in fights:
+        here = rep.pull_players(f)
+        kits = out.kits[f["id"]] = {q.id: await rep.spells(q) for q in here.values()}
+        pressed = out.pressed[f["id"]] = defaultdict(list)
+        for c in casts[f["id"]]:
+            if (q := here.get(c.get("sourceID"))) is None:
+                continue
+            key = (id(kits[q.id]), c["abilityGameID"])
+            if key not in which:
+                which[key] = next((sp for sp in kits[q.id] if rep.is_spell(c, sp)), None)
+            if (sp := which[key]) is None:
+                continue
+            out.ever[q.id].add(sp["name"])
+            seen, at = pressed[q.id], c["timestamp"] - f["startTime"]
+            if not any(used is sp and at - t <= REPEAT_CAST_MS for t, used in seen[-3:]):  # a channel's ticks: once
+                if (before := next((t for t, used in reversed(seen) if used is sp), None)) is not None:
+                    key = (q.id, sp["name"])
+                    out.gap[key] = min(out.gap.get(key, math.inf), (at - before) / 1000)
+                seen.append((at, sp))
+    return out
+
+
 async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player], died: Callable, when,
-                    calls: list[tuple[float, Callout]]) -> list[CalloutCheck]:
+                    calls: list[tuple[float, Callout]],
+                    night: Callable[[], Awaitable[Tonight]] | None = None) -> list[CalloutCheck]:
     """Each callout for personals (a call to everyone such as "Big Personals", or to some players), with what the
     players it names pressed around it: their casts of the spells Lorrgs tracks for their spec, with the spell's
-    tags, whether one answers it (`answers`), and for those who pressed none, which were off cooldown and what they
-    pressed instead."""
+    tags, and whether one answers it (`answers`). A cast after they died inside its window isn't one (a shaman's
+    Reincarnation). One who pressed none but had one running from before the window (`spell_at`) isn't counted as
+    missing it. For the others: which of the spells that answer it were ready, of those they cast at least once on
+    the night's pulls on the boss (`night`), and what they pressed instead."""
     if not calls:
         return []
     here = rep.pull_players(f)
-    kits = {q.id: await rep.spells(q) for q in here.values()}
-    t0 = f["startTime"]
-    pressed_at: dict[int, list[tuple[float, dict]]] = defaultdict(list)  # player -> (ms from the start, spell)
-    for c in (await rep.tracked_casts([f]))[f["id"]]:
-        if (q := here.get(c.get("sourceID"))) and (sp := next((sp for sp in kits[q.id] if rep.is_spell(c, sp)),
-                                                                None)):
-            seen = pressed_at[q.id]
-            at = c["timestamp"] - t0
-            if not any(used is sp and at - t <= REPEAT_CAST_MS for t, used in seen[-3:]):  # a channel's ticks: once
-                seen.append((at, sp))
+    tonight = await (night or _Night(rep, rep.by_boss[rep.boss_key(f)]))()
+    kits, pressed_at = tonight.kits[f["id"]], tonight.pressed[f["id"]]
+    fell: dict[int, list[float]] = defaultdict(list)  # player -> when they died, ms from the pull's start
+    for d in await rep.deaths(f):
+        fell[d["targetID"]].append(d["timestamp"] - f["startTime"])
     out = []
     for at, c in calls:
         named_here = [players[n] for n in c.players if n in players and players[n].id in here]
@@ -880,17 +991,27 @@ async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player]
             if died(q.name, at) is not None:
                 check.dead.append(q.name)
                 continue
-            mine = [(t, sp) for t, sp in pressed_at[q.id] if at - CALL_BEFORE_MS <= t <= at + CALL_AFTER_MS]
+            fell_at = next((t for t in fell[q.id] if at < t <= at + CALL_AFTER_MS), None)
+            mine = [(t, sp) for t, sp in pressed_at[q.id] if at - CALL_BEFORE_MS <= t <= at + CALL_AFTER_MS
+                    and (fell_at is None or t < fell_at)]
             if any(answers(sp) for _, sp in mine):
                 check.pressed.append((q.name, mine))
+                continue
+            stood = [(sp, spell_at(sp, [t for t, used in pressed_at[q.id] if used is sp], at))
+                     for sp in kits[q.id] if answers(sp)]
+            if up := [(sp, x.running) for sp, x in stood if x.running is not None]:
+                check.excused.append((q.name, f"{RUNNING}: " + ", ".join(
+                    f"{_spell(sp)} pressed at {clock(t)}, lasting {sp['duration']:g} s" for sp, t in up)))
                 continue
             if why := _excused(rep, note, players, q, at, when, pressed_at[q.id]):
                 check.excused.append((q.name, why))
                 continue
             if mine:
                 check.others[q.name] = mine
-            check.idle.append((q.name, [sp for sp in kits[q.id] if sp.get("cooldown") and not any(
-                sp is used and at - sp["cooldown"] * 1000 < t <= at for t, used in pressed_at[q.id])]))
+            if fell_at is not None:
+                check.fell[q.name] = fell_at
+            check.idle.append((q.name, [sp for sp, x in stood if sp.get("cooldown") and x.ready
+                                        and sp["name"] in tonight.ever[q.id]]))
         out.append(check)
     return out
 
@@ -1043,7 +1164,8 @@ async def _check_night(rep: Report, found: list[Version], fights: list[dict]) ->
     by_pull = {f["id"]: _version(usable, (rep.start_ms + f["startTime"]) / 1000) for f in fights}
     notes = {f["id"]: n for f in fights if (n := for_boss(by_pull[f["id"]].notes, encounter))}  # every pull's
     await _prefetch(rep, fights, notes)
-    checks = [await _check(rep, f, notes[f["id"]]) for f in fights]
+    night = _Night(rep, fights)
+    checks = [await _check(rep, f, notes[f["id"]], night) for f in fights]
     used = list(dict.fromkeys(id(by_pull[f["id"]]) for f in fights))
     tanks = {p.name for f in fights for p in rep.pull_players(f).values() if p.role == "tank"}
     change = _order_change(checks, tanks) if len(used) == 1 else None
@@ -1103,10 +1225,6 @@ async def _prefetch(rep: Report, fights: list[dict], notes: dict[int, Note]) -> 
         await kicked_tonight(rep, fights[0])
         await rep.events_for(kicking, "Casts", hostilityType="Enemies")
         await rep.events_for(kicking, "Interrupts")
-    try:
-        await rep.tracked_casts([f for f in fights if notes[f["id"]].callouts])
-    except KnowledgeError:
-        pass  # each pull's check says so
 
 
 LISTED = 12  # moments listed per player; the rest are counted
@@ -1233,7 +1351,11 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
         return []
     out = ["Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the "
            f"pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not "
-           f"cast within {MATCH_S} s while alive (with the pulls), dead by then:"]
+           f"cast within {MATCH_S} s while alive (with the pulls; of them, how many were planned in the last "
+           f"{NEAR_END_MS // 1000} s before the wipe was decided or the pull ended, and at how many the spell was on "
+           "cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on "
+           "these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), "
+           "dead by then:"]
     per_player: dict[str, dict[tuple[float, int, int | None], list[tuple[PullCheck, PlannedUse]]]] = defaultdict(
         lambda: defaultdict(list))
     for c, u in uses:
@@ -1244,7 +1366,8 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
         on = [r for r in rows if r[1].cast_at is not None and abs(r[1].cast_at - r[1].at) < 1000]
         off = [(u.cast_at - u.at) / 1000 for _, u in rows if u.cast_at is not None]
         early, late = [-d for d in off if d <= -1], [d for d in off if d >= 1]
-        not_cast = [(r[0].f, r[1].at) for r in rows if r[1].cast_at is None and r[1].state == "alive"]
+        left = [r for r in rows if r[1].cast_at is None and r[1].state == "alive"]
+        not_cast = [(c.f, u.at) for c, u in left]
         dead = sum(r[1].cast_at is None and r[1].state.startswith("dead") for r in rows)
         parts = [f"on time {len(on)}"] if on else []
         if early:
@@ -1252,9 +1375,13 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
         if late:
             parts.append(f"late {len(late)} ({statistics.median(late):.0f} s)")
         if not_cast:
+            near = sum(c.until - u.at <= NEAR_END_MS for c, u in left)
+            cooling = sum(bool(u.cooling) for _, u in left)
             parts.append(f"not cast {len(not_cast)}" + (
                 " (" + ", ".join(f"p{rep.pull_no(f)}" for f, _ in not_cast[:LISTED])
-                + (f" and {len(not_cast) - LISTED} more" if len(not_cast) > LISTED else "") + ")" if which else ""))
+                + (f" and {len(not_cast) - LISTED} more" if len(not_cast) > LISTED else "") + ")" if which else "")
+                + (f", {near} of them in the pull's last {NEAR_END_MS // 1000} s" if near else "")
+                + (f", {cooling} of them on cooldown" if cooling else ""))
         if dead:
             parts.append(f"dead {dead}")
         return ", ".join(parts)
@@ -1295,10 +1422,12 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
     out = [f"Callouts for personals over the pulls, per callout and per player it names, most often pressing none "
            f"first: how many of the callouts they were alive and counted for, at how many they pressed "
            f"{PERSONALS_ARE} from {CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it "
-           "(callouts by the tag of what they pressed), the ones they pressed none at, with the tags of what was ready "
-           "then (callouts with a spell of that tag ready) and of what they pressed instead (untagged: a defensive "
-           "Lorrgs doesn't tag, such as Anti-Magic Shell, may be one), and those not counted against them (they "
-           "pressed the cooldown the note plans for them then, or a tank kept a tank cooldown for just after):"]
+           "(callouts by the tag of what they pressed), the ones they pressed none at, with at how many of those "
+           f"they had one ready (one they cast at least once on these pulls, {READY_ARE}) and the tags of what they "
+           "pressed instead (untagged: a defensive Lorrgs doesn't tag, such as Anti-Magic Shell, may be one), and "
+           f"those not counted against them (one was {RUNNING}, pressed earlier and still up by Lorrgs' duration, "
+           "which talents change; they pressed the cooldown the note plans for them then; or a tank kept a tank "
+           "cooldown for just after):"]
     groups: dict[tuple[str, tuple[str, ...]], list[tuple[PullCheck, CalloutCheck]]] = defaultdict(list)
     for c, k in calls:
         groups[(k.callout.text, k.callout.players)].append((c, k))
@@ -1310,7 +1439,7 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
         pressed: dict[str, Counter] = defaultdict(Counter)
         pressed_n: Counter = Counter()
         none: dict[str, list[tuple[dict, float]]] = defaultdict(list)
-        ready: dict[str, Counter] = defaultdict(Counter)
+        ready: Counter = Counter()  # per player, the callouts they pressed none at with one ready
         instead: dict[str, Counter] = defaultdict(Counter)
         excused: dict[str, list[str]] = defaultdict(list)  # pressed none, not counted against them: why
         for c, k in rows:
@@ -1321,22 +1450,20 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
             for n, spells in k.idle:
                 alive[n] += 1
                 none[n].append((c.f, k.at))
-                ready[n].update({t for sp in spells for t in _tags(sp)})
+                ready[n] += bool(spells)
                 if n in k.others:
                     instead[n][None] += 1
                     instead[n].update({t for _, sp in k.others[n] for t in _tags(sp)})
             for n, why in k.excused:
                 alive[n] += 0  # listed, not counted
-                excused[n].append(why.split(" for ")[0] if why.startswith("a tank")
-                                  else "pressed the note's plan for them")
+                excused[n].append(why.split(" for ")[0] if why.startswith("a tank") else f"one {RUNNING}"
+                                  if why.startswith(RUNNING) else "pressed the note's plan for them")
         for n in sorted(alive, key=lambda n: (-len(none[n]), n)):
             line = f"    {n}: alive for {alive[n]}; pressed at {pressed_n[n]}"
             if pressed[n]:
                 line += " (" + ", ".join(f"{t} {k}" for t, k in _by_count(pressed[n])) + ")"
             if none[n]:
-                line += f"; none at {len(none[n])}: {_pulls(rep, none[n])}"
-                if ready[n]:
-                    line += " (ready: " + ", ".join(f"{t} {k}" for t, k in _by_count(ready[n])) + ")"
+                line += f"; none at {len(none[n])}: {_pulls(rep, none[n])} (one ready at {ready[n]})"
             if only := instead[n].pop(None, 0):
                 line += f"; of those, pressed only others at {only} (" + ", ".join(
                     f"{t} {k}" for t, k in _by_count(instead[n])) + ")"

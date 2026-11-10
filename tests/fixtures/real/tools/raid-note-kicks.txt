@@ -9,7 +9,7 @@ Planned cooldowns (time in the note: what happened):
   0:38 Namsus Apotheosis [200183]: cast at 0:40, 3 s late
   0:43 Nexsozz Anti-Magic Zone [51052]: cast at 0:40, 3 s early
   0:43 Cptola Avenging Wrath [31884]: cast at 0:38, 5 s early
-  0:43 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30 s (alive; cast at 0:00)
+  0:43 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30 s (alive; cast at 0:00; on cooldown from the 0:00 cast, 90 s by Lorrgs' base cooldown)
   Planned after the wipe was decided at 0:56, so not checked against this pull:
   0:57 Dragepie Time Spiral [374968]
   0:58 Attractîv Stampeding Roar [106898]

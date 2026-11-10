@@ -1,6 +1,7 @@
 """A player's major cooldowns on a pull: their uses against possible uses, and buffs up at the pull."""
 from collections import Counter
-from collections.abc import Collection
+from collections.abc import Collection, Iterable
+from typing import NamedTuple
 
 from .. import knowledge
 from ..knowledge import KnowledgeError
@@ -18,6 +19,34 @@ ON_COOLDOWN = {"dps", "raid_cd"}
 DAMAGE_COOLDOWN = "dps"
 PREPULL_WINDOW_MS = 60_000  # a buff cast before the pull runs out within this (a potion lasts 30 s)
 OVER_BASE = "more than its base cooldown allows: a talent or effect shortens it"
+
+
+class SpellAt(NamedTuple):
+    """Where a spell stood for a player at a moment (`spell_at`): the cast of theirs it was still running from, and
+    the one it was on cooldown from, each None when it wasn't."""
+    running: float | None
+    cooling: float | None
+
+    @property
+    def ready(self) -> bool:
+        return self.cooling is None
+
+
+def spell_at(sp: dict, times: Iterable[float], at: float, cooldown: float | None = None) -> SpellAt:
+    """Whether a spell was running at `at`, and whether it could be pressed then, from the player's own casts of it
+    (`times`, on the clock of `at`, in ms) and the numbers Lorrgs gives the spell. Running: their last cast before
+    `at` hadn't run out by Lorrgs' duration (talents change durations; never running when Lorrgs gives none). On
+    cooldown: that cast was less than Lorrgs' base cooldown ago, ignoring charges and cooldown reduction (or less
+    than `cooldown`, in s, where the caller knows the player's own); otherwise it was ready. Whether the player has
+    the spell at all, one pull's casts can't say: one they never cast over a night may be a talent they don't have
+    or a passive."""
+    last = max((t for t in times if t <= at), default=None)
+    if last is None:
+        return SpellAt(None, None)
+    ago = (at - last) / 1000
+    duration = sp.get("duration") or 0
+    cooldown = (sp.get("cooldown") or 0) if cooldown is None else cooldown
+    return SpellAt(last if duration and ago <= duration else None, last if ago < cooldown else None)
 
 
 async def cooldown_lines(rep: Report, f: dict, p: Player, casts: list[dict]) -> list[str]:
