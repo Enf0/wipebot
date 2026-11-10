@@ -43,8 +43,9 @@ MENTION = re.compile(r"<@[!&]?\d+>")
 BY_LINK = (" A plan is also saved by its link: in Viserio's assignment note, right-click the raidstrats.gg badge at "
            "the bottom right of a section's raid plan, Copy Link, and paste the link to me; the night's raiders "
            "come with it.")
-# ...with the pull it opens: "?fight=4&type=healing" as the address bar has it, "#fight=21" as the tools link a pull
-PULL_LINK = re.compile(r"warcraftlogs\.com/reports/([A-Za-z0-9]+)[^\s<>()\[\]]*?[?#&]fight=(\d+|last)\b")
+# ...with the pull it opens: "?fight=4&type=healing" as the address bar has it, "#fight=21" as the tools link a pull.
+# Not several at once ("fight=4,5", in an address "fight=4%2C5"): that is no one pull.
+PULL_LINK = re.compile(r"warcraftlogs\.com/reports/([A-Za-z0-9]+)[^\s<>()\[\]]*?[?#&]fight=(\d+|last)(?![\w,]|%2[Cc])")
 
 
 def linked_pull(text: str) -> tuple[str, int | None] | None:

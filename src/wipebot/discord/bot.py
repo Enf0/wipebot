@@ -830,8 +830,6 @@ class WipeBot(discord.Client):
                 log.exception("loading report %s failed", code)
                 await respond(message, texts.WCL_DOWN.to(lang))
                 return
-        with ctx.reading():
-            await self._about_link(ctx, code, question)
         key = ("dm", author.id) if is_dm else (message.channel.id, author.id)
         if self.record_answers:
             log.info("question from %s %s (report %s): %s", name, where, code, question)
@@ -1013,7 +1011,10 @@ class WipeBot(discord.Client):
             return commands.needs_key(lang)
         earlier = (lambda after, seen: self._earlier(message, after, seen)) if message else None
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
-            with ctx.reading():  # as the asker: the session's report as it opens, the answer's pictures as it's sent
+            with ctx.reading():  # as the asker: the pull the question links, the session's report as it opens, the
+                # answer's pictures as it's sent
+                if kind == "chat":
+                    await self._about_link(ctx, code, question)
                 answer = await self.conversations.ask(key, code, question, ctx, earlier,
                                                       message.id if message else None, timeout)
                 sent = await send(await self._with_footer(kind, ctx, answer))
@@ -1151,7 +1152,9 @@ class WipeBot(discord.Client):
         """A question that links one pull on Warcraft Logs is about that pull: of the conversation's report, as a
         reply to its post is; of another report, the asker's line names the report, boss and pull, so the model
         needn't turn the link's fight into a pull with a query of its own. A link that can't be read now, or to a
-        fight that is no boss pull, changes nothing: the tools say what is wrong with it."""
+        fight that is no boss pull, changes nothing: the tools say what is wrong with it, and the question is
+        answered whatever went wrong here. The report is read once the question is let through (`_too_many`), so a
+        raider held back reads none."""
         if not (found := commands.linked_pull(question)):
             return
         linked, fight_id = found
@@ -1159,6 +1162,9 @@ class WipeBot(discord.Client):
             report = await self.library.report(linked)
         except (FactError, WCLError) as e:
             log.info("the pull a question links wasn't read: %s", e)
+            return
+        except Exception:
+            log.exception("reading the pull a question links failed")
             return
         fights = report.fights[-1:] if fight_id is None else [f for f in report.fights if f["id"] == fight_id]
         if not fights:

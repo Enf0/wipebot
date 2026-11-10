@@ -281,6 +281,8 @@ async def test_a_reply_to_a_post_after_a_wipe_is_about_that_pull(bot, message, a
     pytest.param("reports/AbC123xyz?fight=last", (None, None), "Sszorak pull 2 of report AbC123xyz",
                  id="another report's latest"),
     pytest.param("reports/LIVE1", (None, None), "", id="a report, no pull"),
+    pytest.param("reports/LIVE1?fight=30,31", (None, None), "", id="several pulls at once: no one pull"),
+    pytest.param("reports/AbC123xyz?fight=30%2C31&type=healing", (None, None), "", id="several, as an address has it"),
 ])
 async def test_a_pull_linked_in_a_question_is_the_pull_it_is_about(bot, message, asked, link, about, linked):
     """A fight's id in a link isn't the pull's number (pulls count per boss), so the bot says which pull it is: the
@@ -300,6 +302,35 @@ async def test_a_linked_pull_that_cant_be_read_is_left_to_the_tools(bot, message
     monkeypatch.setattr(bot.library, "report", report)
     await bot.on_message(message("<@99> and this one? https://www.warcraftlogs.com/reports/AbC123xyz?fight=3"))
     assert [a[1] for a in asked] == ["LIVE1"] and asked[0][3].link == ""
+
+
+async def test_a_linked_pull_never_costs_the_question_its_answer(bot, message, asked, monkeypatch):
+    """Reading the link is a head start for the model, so nothing that goes wrong in it is the asker's problem."""
+    read = bot.library.report
+
+    async def report(code, max_age_s=None):
+        if code == "AbC123xyz":
+            raise KeyError("fights")  # not an error Warcraft Logs' client raises: a report it couldn't make sense of
+        return await read(code, max_age_s)
+    monkeypatch.setattr(bot.library, "report", report)
+    msg = message("<@99> and this one? https://www.warcraftlogs.com/reports/AbC123xyz?fight=3")
+    await bot.on_message(msg)
+    assert msg.replies == ["**Wiped.**"] and asked[0][3].link == ""
+
+
+async def test_a_raider_held_back_has_no_linked_report_read(bot, message, asked, monkeypatch):
+    """A raider past their answers for the hour could otherwise have a report read with every message they send."""
+    for _ in range(wipebot.USER_ANSWERS_AN_HOUR):
+        bot.store.add_spend(1001, 7, "chat", 0.2, 0)
+    read: list[str] = []
+
+    async def report(code, max_age_s=None):
+        read.append(code)
+        raise AssertionError("read a report for a question that isn't answered")
+    monkeypatch.setattr(bot.library, "report", report)
+    msg = message("<@99> and this one? https://www.warcraftlogs.com/reports/AbC123xyz?fight=3")
+    await bot.on_message(msg)
+    assert msg.replies[0].startswith("That's 30 answers for you this hour") and read == [] and not asked
 
 
 async def test_a_dm_is_answered_in_the_dm(bot, message, asked, monkeypatch):
