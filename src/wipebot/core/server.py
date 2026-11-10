@@ -454,7 +454,8 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     Reading it: "Ended by" is computed from the log alone (one ability killing many within 2 s or in pulses within
     6 s, a buff the boss gained and kept, half the raid dead, or deaths spread out, from the first that stayed dead),
     with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
-    says.
+    says. A pull that ended with the raid alive names the boss's cast that landed on the living as it ended, when
+    the log has one; otherwise the log doesn't say why it ended.
     Deaths after the wipe was decided are marked as fallout of it. "P1 (2nd time)" is a phase the fight went back
     to after an intermission. The post compares the wipe with this log's earlier pulls and with the guild's best
     in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded" means the log names no
@@ -1321,8 +1322,9 @@ async def progress(boss: Annotated[str | None, Field(description=(
     and the night's killer. With `first_hits`: who hit the boss first on each pull, with what and how far ahead of
     the next player, and a tally ("who pulled?").
     Reading it: deaths after a buff the boss kept to the end are left out of the killers. The night's killer is
-    the ability with the most deaths (every death on a kill, a wipe's until it was decided), with the players it
-    killed and the players it hit most; a tank tops a "hit most" list by standing at the boss. With `weeks`: each
+    the ability with the most deaths (every death on a kill, a wipe's until it was decided), with how many of them
+    came in hits killing many (the raid's to stop), the players it killed outside those and the players it hit
+    most; a tank tops a "hit most" list by standing at the boss. With `weeks`: each
     night's pulls on the boss, the kill, the best wipe before it and how the pulls ended, then the best wipe night
     by night."""
     rep = await lib().report(report)
@@ -1481,7 +1483,7 @@ async def player_night(player: Player, boss: Boss = None, report: Report_ = None
     night, by source; and the trend ("am I getting better?"): deaths and output per second alive over the first,
     middle and last third of the pulls.
     Reading it: a death after a wipe was decided is marked as fallout, and one in a hit killing many as the raid's
-    to stop; both are left out of the counts. Cooldown uses /
+    to stop; both are left out of the counts, as is a reset, whose row is marked. Cooldown uses /
     possible assume pressing on cooldown from the pull until the player died or the wipe was decided."""
     text = await coaching.player_night(await lib().report(report), player, boss)
     return await _shown("player_night", {"player": player, "boss": boss, "report": report}, text, ctx)
