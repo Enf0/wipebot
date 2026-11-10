@@ -1,7 +1,9 @@
 """The language check (checks.in_language) on answers that quote the other language: a check that fails right
-answers is worse than none. No model, no Warcraft Logs."""
+answers is worse than none. And a run that has the check, scored by a baseline from before it. No model, no
+Warcraft Logs."""
 import pytest
 
+from evals import run
 from evals.checks import CLEAR, answer_language, in_language
 from wipebot.discord import texts
 
@@ -71,3 +73,14 @@ def test_the_lead_an_answers_language_needs():
     assert [answer_language(words(no, 5)) for no in (9, 10)] == ["", "no"]  # twice the other's
     assert [answer_language(words(5, en)) for en in (9, 10)] == ["", "en"]
     assert answer_language("https://www.warcraftlogs.com/reports/R?fight=last&the=and&you=did") == ""  # no language
+
+
+def test_a_run_with_the_language_check_is_scored_by_an_older_baselines_three_checks():
+    # three answers to a case: one passed, one failed only the language check, one failed and names no check
+    now = {"passed": {"a": 1}, "trials": 3, "parts": list(run.PARTS), "failed": {"a": [["language"], []]}}
+    assert run.scored(now, run.PARTS) is now
+    before = run.scored(now, run.FIRST_PARTS)
+    assert before["passed"] == {"a": 2}  # the language failure passes there; the one that names no check stays failed
+    # a case whose every answer errored was never judged: nothing passes, by either list
+    errored = {"passed": {"a": 0}, "trials": 3, "errors": {"a": 3}, "parts": list(run.PARTS), "failed": {}}
+    assert run.scored(errored, run.FIRST_PARTS)["passed"] == {"a": 0}
