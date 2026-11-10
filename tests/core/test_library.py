@@ -187,3 +187,17 @@ async def test_the_latest_raid_asked_for_at_once_is_looked_up_once(monkeypatch):
         guild_reports=guild_reports))), 60)
     assert await asyncio.gather(raids.of([1]), raids.of([1]), raids.of([1])) == ["RAID"] * 3
     assert asked == [1]
+
+
+async def test_a_live_report_warcraft_logs_stops_showing_isnt_served_as_loaded(live_wcl, monkeypatch):
+    """A report that can't be read again for a while is served as loaded; one made private or deleted is not."""
+    from wipebot.core import wcl
+    lib = library.Library(wcl=live_wcl.client())
+    await lib.report(CODE)
+
+    async def hidden(code, cache_for=None):
+        raise wcl.Unreadable(code)
+    monkeypatch.setattr(live_wcl, "report_fights", hidden)
+    with pytest.raises(wcl.Unreadable):
+        await lib.report(CODE, max_age_s=0)
+    assert CODE not in lib._reports

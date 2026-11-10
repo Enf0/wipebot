@@ -11,7 +11,9 @@ asked to stop with the last of them (a warcraft_cli command, a process worth kil
 are dropped once a day, and the oldest when the file outgrows MAX_MB (WIPEBOT_CACHE_MAX_MB).
 
 A key naming a report that isn't public (`never_keep`, wcl.mark_private) is never kept, nor its fetch shared by callers
-asking at once: only the users Warcraft Logs lets read that report may see its data.
+asking at once: only the users Warcraft Logs lets read that report may see its data. A source answering that what
+was asked for is gone (`Gone`: a report made private or deleted since) is not an outage: no older copy is served in
+its place, and every entry naming it is dropped.
 
 The evals freeze theirs (WIPEBOT_CACHE_FROZEN=1): nothing is refreshed or dropped, so every run reads the same
 Warcraft Logs data and guides; what's missing is fetched once and kept. Its `recorded_at` is "now" for them
@@ -39,9 +41,24 @@ MAX_MB = 2000  # past this, the oldest entries are dropped at the daily purge
 _unkept: set[str] = set()  # words a kept key may not hold: the codes of reports that aren't public
 
 
+class Gone(Exception):
+    """A source's answer that what was asked for is gone, or no longer shown to whoever asks (a report made private
+    or deleted). `word` is what every key about it holds (the report's code): `Cache.fetch` drops those entries and
+    serves no older copy."""
+
+    def __init__(self, word: str):
+        super().__init__(word)
+        self.word = word
+
+
 def never_keep(word: str) -> None:
     """From now on, keep nothing whose key holds `word` (a private report's code), in this process."""
     _unkept.add(word)
+
+
+def keep_again(word: str) -> None:
+    """`never_keep` taken back: the report is public again."""
+    _unkept.discard(word)
 
 
 def keeps(key: str) -> bool:
@@ -107,12 +124,19 @@ class Cache:
         self._db.execute("INSERT OR REPLACE INTO cache (key, stored_at, value) VALUES (?, ?, ?)",
                          (key, time.time(), zlib.compress(json.dumps(value).encode(), 1)))
 
+    def forget(self, word: str) -> None:
+        """Drop every entry whose key holds `word` (the code of a report Warcraft Logs no longer shows); a frozen
+        cache drops nothing."""
+        if not self.frozen:
+            self._db.execute("DELETE FROM cache WHERE instr(key, ?) > 0", (word,))
+
     async def fetch(self, key: str, max_age_s: float, get: Callable[[], Awaitable[Any]], *,
                     cancel: bool = False) -> Any:
         """The value under `key`: fresh from the cache, else from `get()`. One older than `max_age_s` but at most
         STALE_SERVED times that is served at once while `get()` replaces it in the background; an older one is
-        served only when `get()` fails. With `cancel`, `get()` is cancelled when the last caller waiting for it is
-        (a background refresh goes on)."""
+        served only when `get()` fails, and not when it raises `Gone`, which also drops every entry naming what's
+        gone. With `cancel`, `get()` is cancelled when the last caller waiting for it is (a background refresh
+        goes on)."""
         if not keeps(key):
             return await get()
         found = self.get(key)
@@ -132,6 +156,8 @@ class Cache:
             if cancel and self._waiting[task] == 1 and task not in self._background:
                 task.cancel()
             raise
+        except Gone:  # the source's answer, not an outage: no older copy stands in for it
+            raise
         except Exception as e:
             if found is None:
                 raise
@@ -145,7 +171,11 @@ class Cache:
     def _start(self, key: str, get: Callable[[], Awaitable[Any]]) -> asyncio.Future:
         """Fetch `key` and keep its value, shared by everyone asking for it meanwhile."""
         async def run() -> Any:
-            value = await get()
+            try:
+                value = await get()
+            except Gone as e:
+                self.forget(e.word)
+                raise
             self.put(key, value)
             return value
 
@@ -183,6 +213,9 @@ class NoCache(Cache):
         return None
 
     def put(self, key: str, value: Any) -> None:
+        pass
+
+    def forget(self, word: str) -> None:
         pass
 
     async def fetch(self, key: str, max_age_s: float, get: Callable[[], Awaitable[Any]], *,

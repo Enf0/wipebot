@@ -24,7 +24,7 @@ from typing import Any
 from warcraft_core.auth import load_provider_auth_state
 from warcraftlogs_cli.client import GRAPHQL_WARNINGS_KEY, WarcraftLogsClient, WarcraftLogsClientError
 
-from .cache import DAY, FOREVER, HOUR, cache, cache_key, never_keep
+from .cache import DAY, FOREVER, HOUR, Gone, cache, cache_key, keep_again, never_keep
 
 log = logging.getLogger(__name__)
 
@@ -275,12 +275,13 @@ class WCLError(RuntimeError):
     pass
 
 
-class Unreadable(WCLError):
-    """Warcraft Logs won't show a report to whoever asked (UNREADABLE)."""
+class Unreadable(WCLError, Gone):
+    """Warcraft Logs won't show a report to whoever asked (UNREADABLE). Its answer, not an outage: what was kept of
+    the report while it was shown is dropped, not served in its place (cache.Gone)."""
 
     def __init__(self, code: str):
-        super().__init__(UNREADABLE.format(code=code))
-        self.code = code
+        WCLError.__init__(self, UNREADABLE.format(code=code))
+        self.code = self.word = code
 
 
 VISIBILITY = "query($code: String!) { reportData { report(code: $code) { visibility } } }"
@@ -388,6 +389,13 @@ def mark_private(code: str) -> None:
     token (`reading_as`), and nothing naming it is cached."""
     never_keep(code)
     _private_codes.add(code)
+
+
+def public_again(code: str) -> None:
+    """`mark_private` taken back: Warcraft Logs says report `code` is public again, so it's read and kept as any
+    other from now on."""
+    _private_codes.discard(code)
+    keep_again(code)
 
 
 def is_private(code: str) -> bool:
@@ -598,7 +606,7 @@ class Points:
         self._lock = threading.Lock()
         self.spent: Counter = Counter()
         self.queries = 0
-        self.private = False  # whether a query read a report that isn't public (`mark_private`)
+        self.private = False  # whether the call read a report that isn't public (`mark_private`, `read_private`)
 
     def add(self, cost: dict) -> None:
         with self._lock:
@@ -608,8 +616,8 @@ class Points:
                     self.spent[kind] += points
 
     def record(self) -> dict:
-        """{"total": ..., "database": ..., "queries": n} for a record, rounded, with "private": true when a query read a
-        report that isn't public; {} when nothing was asked."""
+        """{"total": ..., "database": ..., "queries": n} for a record, rounded, with "private": true when the call
+        read a report that isn't public; {} when nothing was asked."""
         with self._lock:
             if not self.queries and not self.private:
                 return {}
@@ -630,6 +638,14 @@ def counting_points() -> Generator[Points]:
         yield points
     finally:
         _points.reset(reset)
+
+
+def read_private() -> None:
+    """The call being run read a report that isn't public: said where the report is handed to it (Library.report),
+    since what it reads of one may come from memory or from another call's query, and its record leaves the output
+    out all the same (Points.private)."""
+    if (points := _points.get()) is not None:
+        points.private = True
 
 
 def _with_cost(query: str) -> str:
@@ -770,6 +786,16 @@ class WCL:
         except WCLError:
             return False
         return ((data.get("reportData") or {}).get("report") or {}).get("visibility") not in (None, "public")
+
+    async def visibility(self, code: str) -> str | None:
+        """Whether Warcraft Logs shows report `code` to whoever asks, asked now and of nothing else: its visibility
+        ("public", "private", "unlisted"; None when it doesn't say), or Unreadable when it won't show it (made
+        private since it was read, or deleted)."""
+        data = await asyncio.to_thread(self._run, VISIBILITY, {"code": code})
+        report = (data.get("reportData") or {}).get("report")
+        if report is None:
+            raise Unreadable(code)
+        return report.get("visibility")
 
     async def points(self) -> dict | None:
         """This hour's points (limitPerHour, pointsSpentThisHour, pointsResetIn), read at most every RATE_S; None

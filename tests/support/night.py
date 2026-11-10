@@ -78,6 +78,12 @@ class FakeWCL:
     async def guild_members(self, guild_id):
         return set(self.night.players.values())  # everyone in the captured night is in the guild
 
+    async def visibility(self, code):
+        return "public"
+
+    async def private_report(self, code):
+        return False  # nobody's private-reports token reads it: it's public, or nobody's
+
     async def report_fights(self, code, cache_for=None):
         self.queries.append("report_fights")
         fights = [dict(f) for f in self._fights()]

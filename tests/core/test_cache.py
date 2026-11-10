@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from wipebot.core.cache import Cache
+from wipebot.core.cache import Cache, Gone
 
 
 @pytest.fixture
@@ -150,3 +150,29 @@ async def test_drain_lets_refreshes_finish_then_cancels_the_rest(cache):
     assert cache._tasks
     await cache.drain(timeout_s=0.1)
     assert not cache._tasks
+
+
+async def test_what_a_source_says_is_gone_is_not_served_from_an_old_copy_and_is_dropped(cache):
+    """A report made private or deleted: the source's refusal is its answer, not an outage to bridge."""
+    aged(cache, '["report", "GONE000000000000", "deaths"]', "its deaths", 1000)
+    aged(cache, '["wcl", "query", {"code": "GONE000000000000"}]', "its pulls", 1000)
+    aged(cache, '["report", "STAYS00000000000", "deaths"]', "another report's", 1000)
+
+    async def get():
+        raise Gone("GONE000000000000")
+    with pytest.raises(Gone):
+        await cache.fetch('["report", "GONE000000000000", "deaths"]', 60, get)
+    assert cache.get('["report", "GONE000000000000", "deaths"]') is None
+    assert cache.get('["wcl", "query", {"code": "GONE000000000000"}]') is None  # everything naming it
+    assert cache.get('["report", "STAYS00000000000", "deaths"]')[0] == "another report's"
+
+
+async def test_a_refresh_in_the_background_that_finds_it_gone_drops_the_old_copy_too(cache):
+    aged(cache, '["report", "GONE000000000000", "deaths"]', "its deaths", 100)
+
+    async def get():
+        raise Gone("GONE000000000000")
+    assert await cache.fetch('["report", "GONE000000000000", "deaths"]', 60, get) == "its deaths"  # not known yet
+    await asyncio.sleep(0)
+    with pytest.raises(Gone):
+        await cache.fetch('["report", "GONE000000000000", "deaths"]', 60, get)

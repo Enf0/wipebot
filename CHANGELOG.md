@@ -107,6 +107,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **The comparison with top players says what its marks are.** A key over the rows names the player's dot, the top players' median and their range, and which dots are outside the range, flagged, or no fault at all. A spell the log writes under two ids, such as a rogue's Mutilate, has the same rate there as in the card's own list of casts, where it stood at twice that.
 
   ![Draiman's casts against top Assassination Rogues: a key over the rows for his dot, the top players' median, their range, a dot outside their range, one never cast, and one that is no fault, and Mutilate at 27.1 against 23.9](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/player-casts-key.webp)
+- `Agent` **Nothing a private report showed is recorded, and a report hidden after it was read is no longer answered.** The record of a question about a private report left its answer out only when that call itself asked Warcraft Logs, so a repeated question, or two asked at once, was kept in full. Every call given such a report now leaves its answer out. A report made private or deleted after Wipebot had read it kept answering from what was kept, for up to 30 days on disk: Wipebot now asks Warcraft Logs once a day whether it still shows a loaded report, and drops everything it kept of one it doesn't. A private report its owner publishes is read like any other again.
 
 ## [0.41.1] - 2026-11-09
 

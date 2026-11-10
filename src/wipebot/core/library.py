@@ -8,6 +8,7 @@ import time
 from collections.abc import Awaitable, Callable, Iterable
 
 from . import clock, wcl
+from .cache import cache
 from .pulls import DIFFICULTIES
 from .report import FactError, Report
 from .report.night import RAID_PULLS
@@ -16,6 +17,8 @@ from .wcl import WCL
 LIVE_RELOAD_S = 30  # a report still being logged is read again when its last read is older than this
 KEPT_REPORTS = 20  # reports kept loaded (a night's events take tens of MB); the least recently asked go first
 IDLE_S = 86400  # a report not asked for this long may be let go, even one that was still being logged then
+VISIBLE_FOR_S = 86400  # a loaded report is asked of Warcraft Logs again, for whether it still shows it, this often
+VISIBLE_RETRY_S = 300  # ...and when Warcraft Logs didn't answer that, this much later
 _log = logging.getLogger(__name__)
 
 
@@ -29,7 +32,12 @@ class Library:
     would otherwise stay for good).
     A report the client credentials can't read, that the asker's private-reports token (wcl.reading_as) reads, is
     kept under that token too: another user asking for it reads it with their own, so Warcraft Logs decides who sees
-    it, and nothing of it is cached on disk (wcl.mark_private)."""
+    it, and nothing of it is cached on disk (wcl.mark_private). A call given one is marked as having read a report
+    that isn't public (wcl.read_private), however it reads it.
+    Warcraft Logs decides who sees a report later too: with each load, and for a loaded report every VISIBLE_FOR_S,
+    it's asked whether it still shows the report to the asker. One made private or deleted since is let go, with
+    everything kept of it on disk (`_forget`), and is told as any report Warcraft Logs won't show; a private one
+    made public is read and kept as any other again."""
 
     def __init__(self, default_report: str | None = None, wcl: WCL | None = None,
                  latest: Callable[[], Awaitable[str | None]] | None = None):
@@ -43,46 +51,111 @@ class Library:
         self._loading: dict[str | tuple[str, str], asyncio.Future] = {}  # being loaded now: callers share one load
         self._latest: str | None = None
         self._failed_at: dict[str, float] = {}  # when refreshing a report last failed
+        # when Warcraft Logs last showed each report to its asker (`_still_shown`), and the asking going on now
+        self._shown_at: dict[str | tuple[str, str], float] = {}
+        self._asking: dict[str | tuple[str, str], asyncio.Future] = {}
 
     async def report(self, report: str | None = None, max_age_s: float = LIVE_RELOAD_S,
                      settled: bool = False) -> Report:
         """A report, loaded once per process. `settled`: a past night that won't change (raid_nights older than a
         day), whose loading is kept on disk for good. When reading a live report again fails, the copy already
-        loaded is served, and it's tried again `max_age_s` later."""
+        loaded is served, and it's tried again `max_age_s` later. wcl.Unreadable for one Warcraft Logs won't show
+        the asker, one it showed before too."""
         code = report_code(report) if report else self.default_report
         if not code and self.latest:
             code = self._latest = await self.latest()
         if not code:
             raise FactError("no report given: pass a Warcraft Logs report code or URL (find_reports lists recent ones)")
         try:
-            return await self._report(_key(code), code, max_age_s, settled)
+            found = await self._report(_key(code), code, max_age_s, settled)
         except wcl.Unreadable:
             if wcl.is_private(code) or not await self.wcl.private_report(code):
                 raise
-        wcl.mark_private(code)  # read from now on with each asker's own token, and kept per token
-        self._reports.pop(code, None)
-        return await self._report(_key(code), code, max_age_s, settled)
+            wcl.mark_private(code)  # read from now on with each asker's own token, and kept per token
+            self._reports.pop(code, None)
+            found = await self._report(_key(code), code, max_age_s, settled)
+        if wcl.is_private(code):  # however this call reads it (from memory, by another call's query): not kept
+            wcl.read_private()
+        return found
 
     async def _report(self, key: str | tuple[str, str], code: str, max_age_s: float, settled: bool) -> Report:
         cached = self._reports.get(key)
         if cached is None:
-            cached = await self._load(key, code, settled)
-        elif not cached.settled and time.time() - max(cached.loaded_at, self._failed_at.get(code, 0)) >= max_age_s:
-            try:
-                await cached.refresh(max_age_s)
-            except Exception as e:
-                _log.warning("reading report %s again failed, serving the copy read %.0f s ago: %s", code,
-                             time.time() - cached.loaded_at, e)
-                self._failed_at[code] = time.time()
+            # what's kept on disk may answer the load without asking Warcraft Logs: it's asked alongside
+            loaded, shown = await asyncio.gather(self._load(key, code, settled), self._still_shown(key, code),
+                                                 return_exceptions=True)
+            if isinstance(shown, BaseException):
+                raise shown
+            if isinstance(loaded, BaseException):
+                raise loaded
+            cached = loaded
+        else:
+            await self._still_shown(key, code)
+            if key not in self._reports:  # a private report made public: kept under its code from now on
+                return await self._report(_key(code), code, max_age_s, settled)
+            if not cached.settled and time.time() - max(cached.loaded_at, self._failed_at.get(code, 0)) >= max_age_s:
+                await self._read_again(cached, key, code, max_age_s)
         self._reports.pop(key, None)
         self._reports[key] = cached  # the most recently asked for last
         now = self._asked_at[key] = time.time()
         while len(self._reports) > KEPT_REPORTS and (old := next(
                 (c for c, r in self._reports.items() if c not in (key, self.default_report, self._latest)
                  and (r.final or now - self._asked_at.get(c, 0) > IDLE_S)), None)):
-            del self._reports[old]
-            self._asked_at.pop(old, None)
+            self._let_go(old)
         return cached
+
+    async def _read_again(self, cached: Report, key: str | tuple[str, str], code: str, max_age_s: float) -> None:
+        """Read a report that may still be logged again. When that fails, the copy loaded is served, unless Warcraft
+        Logs answered that it won't show the report any more."""
+        try:
+            await cached.refresh(max_age_s)
+        except wcl.Unreadable:
+            self._forget(key, code)
+            raise
+        except Exception as e:
+            _log.warning("reading report %s again failed, serving the copy read %.0f s ago: %s", code,
+                         time.time() - cached.loaded_at, e)
+            self._failed_at[code] = time.time()
+
+    async def _still_shown(self, key: str | tuple[str, str], code: str) -> None:
+        """Ask Warcraft Logs whether it still shows the report to the asker, unless it did in the last
+        VISIBLE_FOR_S (callers asking at once share one question; a frozen cache, the evals', asks nothing).
+        wcl.Unreadable when it doesn't: the report is then forgotten."""
+        if cache().frozen or time.time() - self._shown_at.get(key, 0) < VISIBLE_FOR_S:
+            return
+        task = self._asking.get(key)
+        if task is None:
+            task = self._asking[key] = asyncio.ensure_future(self._ask_shown(key, code))
+            task.add_done_callback(lambda _: self._asking.pop(key, None))
+        await asyncio.shield(task)
+
+    async def _ask_shown(self, key: str | tuple[str, str], code: str) -> None:
+        try:
+            visibility = await self.wcl.visibility(code)
+        except wcl.Unreadable:
+            self._forget(key, code)
+            raise
+        except wcl.WCLError as e:  # an outage says nothing about the report: served as loaded, asked again soon
+            _log.warning("asking whether Warcraft Logs still shows report %s failed: %s", code, e)
+            self._shown_at[key] = time.time() - VISIBLE_FOR_S + VISIBLE_RETRY_S
+            return
+        self._shown_at[key] = time.time()
+        if visibility == "public" and wcl.is_private(code):  # its owner published it: read and kept as any other
+            wcl.public_again(code)
+            for kept in [k for k in self._reports if isinstance(k, tuple) and k[1] == code]:
+                self._let_go(kept)
+
+    def _let_go(self, key: str | tuple[str, str]) -> None:
+        for kept in (self._reports, self._asked_at, self._shown_at):
+            kept.pop(key, None)
+
+    def _forget(self, key: str | tuple[str, str], code: str) -> None:
+        """Warcraft Logs no longer shows report `code` to the asker (made private since it was read, or deleted):
+        the copy loaded for them is let go, and of one read as a public report everything kept on disk that names
+        it, so nobody is answered from what was read before."""
+        self._let_go(key)
+        if key == code:
+            cache().forget(code)
 
     async def night(self, night_: dict, max_age_s: float = LIVE_RELOAD_S) -> list[Report]:
         """The reports of one of the guild's raid nights (night.raid_nights), loaded side by side."""
