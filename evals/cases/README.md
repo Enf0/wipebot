@@ -92,3 +92,7 @@ another question. `set_up` and `language` alone leave a case in every mode, wher
 - Questions are in English or Norwegian, as raiders ask: Norwegian bokmål with the game's words in English (pull,
   wipe, soak, kick). They are written for the case, never copied from a raider. `expect`, `facts` and `wrong` stay
   in English: the judge reads the answer in either language.
+- An answer in another language than its question fails, by code, whatever the judge made of it (the `language`
+  check, `evals/checks.py`): the bot's own way of telling Norwegian from English, on the last question, then on the
+  ones before it, then, as the bot, on the server's `language`. A post and an answer whose language doesn't show are
+  held to nothing.

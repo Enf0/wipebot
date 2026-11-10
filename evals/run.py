@@ -90,6 +90,7 @@ from evals.checks import (
     expect_prompt,
     facts,
     grounded,
+    in_language,
     judge_majority,
     rubric,
     wrong_prompt,
@@ -151,13 +152,16 @@ NO_DATA = ("won't show report", "auth_failed")
 # A service that didn't answer (warcraft_cli's network failure: Warcraft Logs down, a 503), for a call the frozen
 # cache doesn't hold: it breaks a failed trial, while an answer that got by without the call still passes.
 DOWN = "upstream_error"
-# The named checks an answer passes by, each kept with its trial (Trial.checks): the judge's two and the case's
-# required calls. A baseline keeps the list it was scored by (`parts`) and a later run is scored by that list when the
-# two are compared (scored), so a check added since moves no comparison until the next baseline. A file from before
-# 10 November names none: it is read as these three.
-PARTS = ("expect", "wrong", "calls", "numbers", "form")  # the last two by code, for the cases that ask (checks.coded)
+# The named checks an answer passes by, each kept with its trial (Trial.checks): the judge's two, the case's
+# required calls, and by code the case's numbers and form (checks.coded, for the cases that ask) and that the answer
+# is in the language of its question (checks.in_language). A baseline keeps the list it was scored by (`parts`) and a
+# later run is scored by that list when the two are compared (scored), so a check added since moves no comparison
+# until the next baseline. A file from before 10 November names none: it is read as the first three (FIRST_PARTS).
+PARTS = ("expect", "wrong", "calls", "numbers", "form", "language")
 FIRST_PARTS = PARTS[:3]  # what a tally from before the checks were named was scored by
-BY_CODE = PARTS[3:]  # made anew whenever a trial is settled: one kept with a saved trial doesn't outlive its key
+# The two a case's key asks for: made anew whenever a trial is settled, so one kept with a saved trial doesn't
+# outlive its key.
+BY_CODE = ("numbers", "form")
 
 
 def settle(t: Trial, case: dict, mode: str) -> Trial:
@@ -167,7 +171,8 @@ def settle(t: Trial, case: dict, mode: str) -> Trial:
       Warcraft Logs points left out, which is the eval's own: only where that was timed);
     - an error, in neither passes nor trials (`error`): the session failed another way (a usage limit), this machine
       couldn't read the data, a service was down for a call a failed answer needed, or the judge gave no verdict;
-    - else passed when it passed every named check (PARTS): the judge's two, and no required call missing."""
+    - else passed when it passed every named check (PARTS): the judge's two, no required call missing, and an
+      answer in its question's language."""
     # the session raised, so nothing was judged: its error, or in a trial settled before (a saved run's), the cap
     session = "" if t.expect else t.error or t.broke
     if t.expect:  # judged; a check a later step added to the trial stays, code's own are made anew
@@ -425,6 +430,8 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
         facts(asked(case, client), case["facts"], t.answer, judge_model) if case.get("facts")
         else asyncio.sleep(0))
     t.uncalled = uncalled(case, calls, mode)
+    if (same := in_language(case, t.answer, mode)) is not None:  # None: the language of one of them doesn't show
+        t.checks["language"] = same
     t.expect, t.wrong = asdict(expect), asdict(wrong)
     t.cost_usd += expect.cost_usd + wrong.cost_usd + (stated.cost_usd if stated else 0.0)
     if stated:
@@ -526,6 +533,8 @@ def show(case_id: str, t: Trial) -> None:
     if t.uncalled:
         lines.append("didn't call " + ", ".join(t.uncalled))
     lines += [f"{part}: {why}" for part, why in t.coded.items() if why]
+    if t.checks.get("language") is False:
+        lines.append("language: the answer isn't in the language of its question")
     if t.facts and t.facts["missing"]:
         lines.append(f"facts {t.facts['stated']}/{t.facts['of']}, missing: " + "; ".join(t.facts["missing"])[:300])
     lines += [f"warning: {w}" for w in t.warnings]
@@ -872,7 +881,7 @@ def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dic
     asked = {c: len(ts) for c, ts in results.items()}
     return {**about, "trials": next(iter(asked.values())) if len(set(asked.values())) == 1 else asked,
             "case_hashes": {c["id"]: case_hash(c) for c in cases},
-            "parts": [p for p in PARTS if p in FIRST_PARTS or any(p in c for c in cases)],  # a case's key asks
+            "parts": [p for p in PARTS if p not in BY_CODE or any(p in c for c in cases)],  # those a case's key asks
             "passed": {c: sum(t.passed for t in ts) for c, ts in results.items()},
             "failed": {c: f for c, ts in results.items()
                        if (f := [failed_parts(t) for t in ts if not t.passed and not t.errored])},
@@ -890,11 +899,13 @@ def failed_parts(t: Trial) -> list[str]:
 
 def scored(tally: dict, parts: Iterable[str]) -> dict:
     """The tally with its passes counted by another list of checks, a baseline's: an answer that failed only a check
-    the baseline never made passes. A tally from before the checks were named is kept as it is."""
+    the baseline never made passes (one that names no check it failed stays failed). A tally from before the checks
+    were named is kept as it is."""
     parts = set(parts)
     if "failed" not in tally or parts == set(tally.get("parts", FIRST_PARTS)):
         return tally
-    passed = {c: judged(tally, c) - sum(bool((parts | {"broke"}) & set(f)) for f in tally["failed"].get(c, []))
+    passed = {c: judged(tally, c) - sum(not f or bool((parts | {"broke"}) & set(f))
+                                        for f in tally["failed"].get(c, []))
               for c in tally["passed"]}
     return {**tally, "passed": passed, "parts": sorted(parts)}
 

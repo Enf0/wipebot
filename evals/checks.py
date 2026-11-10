@@ -16,7 +16,7 @@ from statistics import median
 
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, query
 
-from wipebot.discord import form
+from wipebot.discord import form, texts
 from wipebot.discord.prompt import budget
 
 VERDICT = re.compile(r"\b(PASS|FAIL|UNKNOWN)\b")
@@ -178,6 +178,30 @@ def wrong_prompt(question: str, wrong: list[str], answer: str) -> str:
 
 
 # ---- how an answer is built: measured by code on every answer, no model, never a pass or fail ----
+
+def languages(case: dict, answer: str, mode: str = "plugin") -> tuple[str, str] | None:
+    """(the language the case asks in, the language the answer is in), each 'no' or 'en', told the way the bot tells
+    a question's (texts.language: which language's common words a text has more of, with the game's English words
+    in neither count). The question's own first; where that doesn't show (a short one, a bare link), the questions
+    before it in the conversation, then, as the bot, the server's language the case sets (`language`), as the bot's
+    prompt says. None where the check says nothing: a post, whose question is the bot's own English text, a case
+    whose language shows nowhere, or an answer with as many of one language's words as of the other's."""
+    if case.get("kind") == "posts":
+        return None
+    *before, last = case["question"] if isinstance(case["question"], list) else [case["question"]]
+    asked = (texts.language(last, "") or texts.language(" ".join(before), "")
+             or (texts.named(case["language"]) if mode == "bot" and case.get("language") else ""))
+    answered = texts.language(answer, "")
+    return (asked, answered) if asked and answered else None
+
+
+def in_language(case: dict, answer: str, mode: str = "plugin") -> bool | None:
+    """Whether the answer is in the language its case asks in (`languages`); None where that can't be told. An
+    answer in another language than its question fails (the "language" part of run.PARTS), whatever the judge made
+    of it: the raider asked in theirs."""
+    found = languages(case, answer, mode)
+    return None if found is None else found[0] == found[1]
+
 
 def built(case: dict, answer: str, mode: str) -> tuple[dict, dict[str, str] | None]:
     """How the answer is built (form.Form as a dict: its words, its verdict's and each bullet's, where the change to

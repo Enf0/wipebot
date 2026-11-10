@@ -141,9 +141,9 @@ def test_a_run_is_scored_by_the_checks_its_baseline_made():
     assert [t.passed for t in results["a"]] == [True, True, False, False]  # tone isn't one of today's checks
     assert wrong.checks == {"expect": True, "wrong": False, "calls": False}
     now = run.tally_of([{**case, "id": "a"}], results)
-    assert now["parts"] == ["expect", "wrong", "calls"] and now["passed"] == {"a": 2}
+    assert now["parts"] == ["expect", "wrong", "calls", "language"] and now["passed"] == {"a": 2}
     assert now["failed"] == {"a": [["broke"], ["wrong", "calls"]]}
-    with_form = {**now, "parts": [*now["parts"], "form"], "passed": {"a": 1},
+    with_form = {**now, "parts": ["expect", "wrong", "calls", "form"], "passed": {"a": 1},
                  "failed": {"a": [["form"], ["broke"], ["wrong", "calls"]]}}
     assert run.scored(with_form, ["expect", "wrong", "calls"])["passed"] == {"a": 2}
     assert run.scored(with_form, ["expect"])["passed"] == {"a": 3}  # only the crash still fails
@@ -464,7 +464,7 @@ async def test_auto_asks_the_steady_cases_twice_and_reads_like_three_trials():
     _, three, _ = await asked(3, answers_like_the_baseline())
     assert compared(base, three).verdict == "no change shown" and three["trials"] == 3
     # the totals agree: a steady case's two answers weigh as the baseline's three
-    assert "total 247 of 279" in compared(base, run).lines[3] and "total 247 of 279" in compared(base, three).lines[3]
+    assert "total 247 of 279" in compared(base, run).lines[4] and "total 247 of 279" in compared(base, three).lines[4]
 
 
 async def test_auto_that_looks_low_becomes_a_three_trial_run():

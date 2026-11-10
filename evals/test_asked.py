@@ -1,5 +1,5 @@
-"""What a case sets of a Discord message (evals.asked), with a made-up report, session and judge: no model, no
-Warcraft Logs."""
+"""What a case sets of a Discord message (evals.asked) and the language check, with a made-up report, session and
+judge: no model, no Warcraft Logs."""
 import asyncio
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from evals import asked, run
-from evals.checks import Verdict
+from evals.checks import Verdict, in_language, languages
 from wipebot.core import clock, notebook
 from wipebot.discord import prompt
 from wipebot.discord.host import Answer, Context
@@ -176,6 +176,26 @@ def test_the_judge_reads_what_was_said_before_the_question():
     assert run.asked(CASE) == "Asked by Krøpling, in a DM: Hvem bommet mest på soakene?"
 
 
+NORSK = ("Peggerino bommet på 57 av soakene, men notatet har ham i feil gruppe, så det er ikke hans feil. Av de som "
+         "var satt opp riktig er det Krøpling som har flest: 6 av 30.")
+ENGLISH = ("Peggerino missed 57 of the soaks, but the note lists him in the wrong group, so that is not on him. Of "
+           "those set up right, Krøpling has the most: 6 of 30.")
+
+
+def test_an_answer_is_in_the_language_of_its_question():
+    assert languages(CASE, NORSK) == ("no", "no") and in_language(CASE, NORSK) is True
+    assert languages(CASE, ENGLISH) == ("no", "en") and in_language(CASE, ENGLISH) is False
+    english = CASE | {"question": "Who missed their soak the most?"}
+    assert in_language(english, ENGLISH) is True and in_language(english, NORSK) is False
+    # a follow-up too short to tell: the conversation's language; a link alone: the server's, as the bot
+    assert in_language(CASE | {"question": ["Hvem bommet mest på soakene?", "Peggerino?"]}, ENGLISH) is False
+    bare = CASE | {"question": "https://www.warcraftlogs.com/reports/R?fight=last", "language": "Norwegian"}
+    assert in_language(bare, ENGLISH, "bot") is False and in_language(bare, ENGLISH, "plugin") is None
+    # nothing to hold it to: a post's question is the bot's own, and an answer of names and numbers has no language
+    assert in_language(CASE | {"kind": "posts"}, ENGLISH) is None
+    assert in_language(CASE, "Peggerino: 57. Krøpling: 6.") is None
+
+
 @pytest.fixture
 def asking(monkeypatch, per_case):
     """`trial()` with a session that answers `answers` in turn and keeps each question's Context, and a judge that
@@ -202,9 +222,24 @@ def asking(monkeypatch, per_case):
     return answers, got, ask
 
 
+async def test_an_answer_in_another_language_than_its_question_fails_whatever_the_judge_said(asking, capsys):
+    answers, _, ask = asking
+    answers += [ENGLISH, NORSK, "Peggerino: 57."]
+    t = await ask(CASE)
+    assert not t.passed and not t.errored and t.expect["ok"] is True
+    assert t.checks == {"expect": True, "wrong": True, "calls": True, "language": False}
+    assert run.failed_parts(t) == ["language"]
+    run.show("a", t)
+    assert "language: the answer isn't in the language of its question" in capsys.readouterr().out
+    t = await ask(CASE)
+    assert t.passed and t.checks["language"] is True
+    t = await ask(CASE)
+    assert t.passed and "language" not in t.checks  # an answer whose language doesn't show is held to nothing
+
+
 async def test_every_question_of_a_conversation_gets_its_own_context_from_the_bot(asking):
     answers, got, ask = asking
-    answers += ["Peggerino.", "Det er notatet sin feil."]
+    answers += [NORSK, NORSK]
     case = CASE | {"question": ["Hvem bommet mest på soakene?", "Og hvem er det sin feil?"],
                    "earlier": [["Zebinomage", "notatet er oppdatert"]]}
     t = await ask(case)
@@ -212,3 +247,9 @@ async def test_every_question_of_a_conversation_gets_its_own_context_from_the_bo
     first, second = got
     assert "Zebinomage (" in first.earlier and not first.follow_up
     assert second.follow_up and second.earlier == "" and first is not second
+
+
+def test_a_file_from_before_the_checks_were_named_is_read_as_the_first_three():
+    assert run.PARTS == ("expect", "wrong", "calls", "language") and run.FIRST_PARTS == ("expect", "wrong", "calls")
+    old = {"passed": {"a": 1}, "trials": 2, "failed": {"a": [["language"]]}}  # names no parts
+    assert run.scored(old, run.FIRST_PARTS) is old
