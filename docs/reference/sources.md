@@ -104,6 +104,21 @@ API: `wcl-api.md`.
 - It keeps its own HTTP cache under `~/.cache/warcraft`.
 - Lorrgs `spec-spells <class-spec>` gives cooldowns with spell ids and tags (`defensive`, `raid_cd`, `dps`,
   `tank`, `move`); filter `spell_type` to the class and spec to drop trinkets and racials.
+- Lorrgs' `cooldown` is the spell's base cooldown and `duration` its base duration, and either may be 0 (Reincarnation
+  has both 0; Ice Block and Earth Elemental have no duration). A raider's own cooldown is often shorter: on the
+  recorded nights (October 2026) a Holy priest cast Divine Hymn 124 s apart against a base of 180 s, an evoker Obsidian
+  Scales 22 s apart (two charges, base 150 s), and the guild's notes plan Stampeding Roar 61 to 102 s apart against a
+  base of 120 s. So "on cooldown" by the base number says too much: the raid note check takes the time between the
+  player's closest two casts of the spell on the night where that is shorter, and "ready" keeps to the base number
+  and to spells the player cast at least once that night (of the defensive and tank spells off cooldown at a callout
+  on the recorded Sszorak night, a fifth had never been cast by that player on any pull: talents not taken and
+  passives).
+- An NSRT note's lines, as the addon reads them (its Reminders.lua and InterruptDisplay.lua, November 2026): a field is
+  found anywhere in a line (`time:` in seconds, decimals allowed; `ph:` a number, decimals allowed; `tag:`; `text:`;
+  `spellid:`), and a timed line needs a time, a tag and a text or a spell. A tag is `everyone`, a character's name or
+  nickname, a role (`tank`, `healer`, `damager`, `melee`, `ranged`), a spec or class id, or `groupN`. The lines
+  between `intstart` and `intend` are the interrupt order, names in the order they kick; which add a line is for is
+  the addon's rule per boss, not in the note.
 - `wowhead guide-full <boss guide url>` (the url from `wowhead guides raids "<boss>"`; the row's title says
   "Raid Boss Guide" or "Raid Guide ... Boss Cheat Sheet") has the boss's abilities in `linked_entities` (73 spells
   for the Coiled Altar) and the strategy in `body.section_chunks[*]` (9k chars of text for Sszorak: the cheat
