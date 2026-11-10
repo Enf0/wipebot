@@ -33,8 +33,9 @@ error is only what says nothing about the answer: a usage limit, a judge with no
 data this machine may not read. Errors are in no count; a summary and a comparison start with how many there were,
 and a run with one exits non-zero (settle).
 
-A full run (no -k) is kept as its mode's last in evals/full-runs.json, tracked: its commit, day, trials, passes,
-errors and verdict line. scripts/release.py prints how many answer-changing commits and days a release is from it.
+A full run (no -k, the mode's own model and effort) is kept as its mode's last in evals/full-runs.json, tracked: its
+commit, day, trials, passes, errors and verdict line. scripts/release.py prints how many answer-changing commits and
+days a release is from it.
 
 A run, and a baseline, keep what was tested (tested: the models' full names, the SDK and Claude Code versions, the
 effort, the commit, when the frozen data was last added to), and a comparison warns when the two differ. The date in
@@ -548,7 +549,7 @@ async def run(args) -> int:
     lines, found = report(tally, results, base, args.mode,
                           f"({shown}, {args.mode}, judge {args.judge_model}, ${cost:.2f})")
     print("\n" + "\n".join(lines))
-    if not args.filter and not args.held_out:
+    if not (args.filter or args.held_out or args.model or args.effort):  # every case, as the mode ships
         record_full_run(tally, args.mode, found.lines[-1] if found else "no baseline to compare with",
                         f"{datetime.now(UTC):%Y-%m-%d}")
     stamp = f"{datetime.now():%Y%m%d-%H%M%S}"

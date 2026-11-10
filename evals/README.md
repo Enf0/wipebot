@@ -139,10 +139,11 @@ or doesn't cover every case as it is today, or is a spread or more below it, unl
 the reason is kept in the file with what was replaced and the like-for-like total on the unchanged cases.
 `--save-baseline evals/results/X.json` makes a saved three-trial run the baseline without asking a model.
 
-A full run (no `-k`) is kept as its mode's last in `full-runs.json`, which is tracked: commit it. `just release`
-prints how many commits that can change an answer and how many days lie since each mode's last full run, writes that
-into the release commit, and stops past 30 such commits or 21 days unless `--without-evals "<reason>"`. A run made
-where the file can't be committed is recorded after with `--record evals/results/X.json`.
+A full run (no `-k`, the mode's own model and effort) is kept as its mode's last in `full-runs.json`, which is
+tracked: commit it. `just release` prints how many commits that can change an answer and how many days lie since
+each mode's last full run, writes that into the release commit, and stops past 30 such commits or 21 days unless
+`--without-evals "<reason>"`. A run made where the file can't be committed is recorded after with
+`--record evals/results/X.json`.
 
 The judge sees the question and the answer, not what the tools returned, so it can't catch a claim no case foresaw.
 `just evals --recheck evals/results/X.json` checks a saved run's answers again, without asking again (about $0.20 an
