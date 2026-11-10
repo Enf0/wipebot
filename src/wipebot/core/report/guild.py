@@ -54,12 +54,9 @@ async def guild_reports(wcl: WCL, days: int, since_ms: float, guild: str | None 
             names = rep["players"]
             if (wanted and not any(name_key(n) == wanted for n in names)) or rep["startTime"] > clock.now() * 1000:
                 continue
-            pulls = ", ".join(f"{DIFFICULTIES.get(d, d)} {n}" for d, n in rep["pulls_by_difficulty"].items()
-                              if d in DIFFICULTIES)
-            bosses = ", ".join(f"{b} {n}" + (f" ({'killed' if k == 1 else f'{k} kills'})" if k else "")
-                               for b, (n, k) in (rep.get("bosses") or {}).items())
+            pulls = any(d in DIFFICULTIES for d in rep["pulls_by_difficulty"])
             line = (f"- {rep['code']}: {rep['title']} ({guild_name}), {date(rep['startTime'], with_time=True)}: "
-                    + (f"boss pulls {pulls}: {bosses}" if pulls else "no boss pulls"))
+                    + _pulls(rep))
             if doubt := _pug(rep, members):
                 line += f"; {doubt}"
             elif pulls and max((d for d in rep["pulls_by_difficulty"] if d in DIFFICULTIES), default=0) < raids:
@@ -67,6 +64,24 @@ async def guild_reports(wcl: WCL, days: int, since_ms: float, guild: str | None 
                          "night")
             lines.append(line)
     return "\n".join(lines) if len(lines) > 1 else lines[0] + " none"
+
+
+def _pulls(rep: dict) -> str:
+    """'boss pulls Heroic 2: The Coiled Altar 2 (killed); Mythic 31: The Coiled Altar 31': a report's boss pulls,
+    each raid difficulty with its own bosses, so a boss killed on Heroic and wiped on all night on Mythic reads as
+    that; then what it holds that is no raid difficulty (a dungeon), named as other content, as a character's
+    reports name it."""
+    by_difficulty: dict[int, list[str]] = {}
+    other: list[str] = []
+    for (d, boss), (n, kills) in (rep.get("bosses_by_difficulty") or {}).items():
+        if d in DIFFICULTIES:
+            killed = f" ({'killed' if kills == 1 else f'{kills} kills'})" if kills else ""
+            by_difficulty.setdefault(d, []).append(f"{boss} {n}{killed}")
+        elif boss not in other:
+            other.append(boss)
+    pulls = "boss pulls " + "; ".join(f"{DIFFICULTIES[d]} {rep['pulls_by_difficulty'][d]}: {', '.join(bosses)}"
+                                      for d, bosses in by_difficulty.items()) if by_difficulty else "no boss pulls"
+    return pulls + (f"; other content: {', '.join(other)}" if other else "")
 
 
 def _pug(rep: dict, members: set[str]) -> str:

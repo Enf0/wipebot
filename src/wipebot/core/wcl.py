@@ -820,9 +820,10 @@ class WCL:
                             players: bool = False, cache_for: float | None = None) -> list[dict]:
         """Every report (code, title, start and end) of a guild since a time, by WCL guild id, newest first. A
         guild uploads several a week (raids, Mythic+, personal logs), so this follows the pages. With `pulls`,
-        each also has `pulls`, how many boss pulls it has, `pulls_by_difficulty` ({difficulty: pulls}) and `bosses`
-        ({boss name: (pulls, kills)}, in the order pulled); with `players` too, `players`, the names of the
-        players in its boss pulls (a log also has everyone who passed by).
+        each also has `pulls`, how many boss pulls it has, `pulls_by_difficulty` ({difficulty: pulls}), `bosses`
+        ({boss name: (pulls, kills)}, in the order pulled, whatever the difficulty) and `bosses_by_difficulty`
+        ({(difficulty, boss name): (pulls, kills)}: a Heroic kill isn't a Mythic one); with `players` too,
+        `players`, the names of the players in its boss pulls (a log also has everyone who passed by).
         With `cache_for`, the list is kept that long and asked from the hour before `since_ms`, so the next
         question asks the same; the follower, which looks for a log just started, asks fresh."""
         query = GUILD_REPORTS_WITH_PLAYERS if players else GUILD_REPORTS_WITH_PULLS if pulls else GUILD_REPORTS
@@ -843,11 +844,15 @@ class WCL:
                     r["pulls"] = len(fights)
                     r["pulls_by_difficulty"] = dict(Counter(f.get("difficulty") for f in fights))
                     bosses: dict[str, list[int]] = {}
+                    split: dict[tuple[int | None, str], list[int]] = {}
                     for f in fights:
-                        b = bosses.setdefault(f.get("name") or "?", [0, 0])
-                        b[0] += 1
-                        b[1] += 1 if f.get("kill") else 0
+                        name = f.get("name") or "?"
+                        for b in (bosses.setdefault(name, [0, 0]),
+                                  split.setdefault((f.get("difficulty"), name), [0, 0])):
+                            b[0] += 1
+                            b[1] += 1 if f.get("kill") else 0
                     r["bosses"] = {name: (pulls, kills) for name, (pulls, kills) in bosses.items()}
+                    r["bosses_by_difficulty"] = {key: (pulls, kills) for key, (pulls, kills) in split.items()}
                 out.append(r)
             if not reports.get("has_more_pages"):
                 break

@@ -381,8 +381,8 @@ async def find_reports(guild: Annotated[str | None, Field(description=(
                            "in, whoever logged it"))] = None,
                        report: Report_ = None) -> str:
     """Find Warcraft Logs reports: a guild's raid nights, a player's pugs and alts, last week's log. Each report's
-    code, title, date, pulls by difficulty, and each boss with its pulls and kills, over the last `days` days,
-    newest first; pass a code as `report` to the other tools.
+    code, title, date, and each difficulty's pulls with its bosses, their pulls and kills, over the last `days`
+    days, newest first; pass a code as `report` to the other tools.
     For a guild: a report most of whose players aren't in the guild is marked (a raider's pug or another group
     logged to the guild's page). With `player` alone: every report the character is in, whoever logged it (the
     guild's nights, pugs, other guilds' runs), with the guild it was logged to."""

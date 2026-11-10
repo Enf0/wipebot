@@ -224,17 +224,18 @@ async def test_find_reports_marks_an_easier_run_after_the_guilds_raid_night(monk
     monkeypatch.setattr(server.DEFAULT, "library", library)
 
     async def reports(*_, **__):
-        night = {"title": "Night", "players": ["Torvek"], "bosses": {"Sszorak": (9, 0)}}
-        return [{**night, "code": "HEROIC", "startTime": rep.start_ms, "pulls_by_difficulty": {4: 13}},
-                {**night, "code": "MYTHIC", "startTime": rep.start_ms - 1, "pulls_by_difficulty": {5: 34}},
-                {**night, "code": "PUG", "startTime": rep.start_ms - 2, "players": ["Someone"],
-                 "pulls_by_difficulty": {5: 9}}]
+        def night(code: str, difficulty: int, pulls: int, at: float, **more) -> dict:
+            return {"title": "Night", "players": ["Torvek"], "code": code, "startTime": at,
+                    "bosses": {"Sszorak": (pulls, 0)}, "pulls_by_difficulty": {difficulty: pulls},
+                    "bosses_by_difficulty": {(difficulty, "Sszorak"): (pulls, 0)}, **more}
+        return [night("HEROIC", 4, 13, rep.start_ms), night("MYTHIC", 5, 34, rep.start_ms - 1),
+                night("PUG", 5, 9, rep.start_ms - 2, players=["Someone"])]
     patch_wcl(rep, guild_members={"Torvek"}, guild_reports=reports)
     text, failed = await server.call("find_reports", {"guild": "the copper lanterns", "days": 7})
     lines = text.splitlines()
     assert not failed and lines[1].endswith("an easier run than the guild's Mythic raids in these days, not its raid "
                                             "night")
-    assert lines[2].endswith("Sszorak 9") and lines[3].endswith("a pug, not a guild raid night")
+    assert lines[2].endswith("boss pulls Mythic 34: Sszorak 34") and lines[3].endswith("a pug, not a guild raid night")
 
 
 async def test_each_call_is_kept_with_its_result_or_error(monkeypatch):
