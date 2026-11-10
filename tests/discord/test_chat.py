@@ -248,6 +248,41 @@ async def test_no_more_than_the_hard_cap_are_answered_at_once_and_the_rest_wait_
     assert most == 2 and len(FakeSession.opened) == 5
 
 
+async def test_conversations_gone_quiet_make_room_so_the_sessions_open_never_pass_the_hard_cap(monkeypatch):
+    """Every open session is a Claude Code process, answering or not, and one still opening is one already. After a
+    wipe every follower's post is asked at once, beside the conversations gone quiet since: those are closed as the
+    new ones open, the least recently used first, so there are never more sessions than MAX_ANSWERING."""
+    monkeypatch.setattr(chat, "MAX_SESSIONS", 3)
+    monkeypatch.setattr(chat, "MAX_ANSWERING", 4)
+    FakeSession.opened = []
+    go_on, most = asyncio.Event(), 0
+
+    def open_now() -> int:
+        return sum(not s.closed for s in FakeSession.opened)
+
+    class Slow(FakeSession):
+        async def ask(self, question, ctx):
+            nonlocal most
+            most = max(most, open_now())
+            if question == "post":
+                await go_on.wait()
+            return await super().ask(question, ctx)
+
+    async def open_session(code):
+        await asyncio.sleep(0)  # opening takes a while (the report is loaded, Claude Code starts): others ask meanwhile
+        return Slow(code)
+    convs = Conversations(open_session)
+    for key in "ab":  # two conversations, answered and quiet since
+        await convs.ask(key, "R1", "q", None)
+    asked = [asyncio.create_task(convs.ask(key, "R1", "post", None)) for key in "cdefgh"]
+    for _ in range(30):  # every one that gets a turn has its session answering
+        await asyncio.sleep(0)
+    assert open_now() == 4 and [s.closed for s in FakeSession.opened[:2]] == [True, True]  # the quiet ones made room
+    go_on.set()
+    assert await asyncio.wait_for(asyncio.gather(*asked), 1) == ["R1: post"] * 6
+    assert most == 4 and open_now() <= 4
+
+
 async def test_a_session_opening_holds_up_only_its_own_conversation():
     """Opening a session loads the report (most of a minute when Warcraft Logs hangs): another asker's question
     goes ahead, and a second question for the same conversation waits for that one session."""

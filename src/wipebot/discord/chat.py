@@ -3,10 +3,10 @@
 A conversation is keyed by place and person (a channel they mentioned the bot in, or their DMs). It is
 closed after IDLE_S without a message, when the report changes (once it has answered what it was asked), when its
 context has grown too long (the session says it's `worn_out`), when an answer was given up on or failed, or when
-MAX_SESSIONS are open and it is the least recently used of those not answering (with every one answering, one more
-opens). A question queued behind one whose conversation was closed starts a new one. Each session runs a Claude
-Code process, hence the cap, and why at most MAX_ANSWERING questions are answered at once: the next waits its turn,
-so there are never more processes than that.
+a new one opens and, with the questions being answered, more than MAX_SESSIONS would be open: then the least recently
+used of those not answering go (with every one answering, one more opens). A question queued behind one whose
+conversation was closed starts a new one. Each session runs a Claude Code process, hence the cap, and why at most
+MAX_ANSWERING questions are answered at once: the next waits its turn, so there are never more processes than that.
 Each question comes with what was said in that place since the conversation's previous question (`earlier`),
 everyone's messages, so a conversation knows what the bot told others there; a new conversation gets the
 messages before its first one.
@@ -80,6 +80,7 @@ class Conversations:
         keeps the open conversations across a restart."""
         self._open, self._survives, self._saved = open_session, survives, saved
         self._turns = asyncio.Semaphore(MAX_ANSWERING)  # held by each question from its session's opening to its answer
+        self._answering = 0  # the questions holding a turn: each session not idle (opening ones too) has one or more
         self._convs: dict[Hashable, _Conversation] = {}
         # Held only for the bookkeeping of _convs: sessions open and close outside it (loading a report can take
         # most of a minute), so one asker's new conversation never holds up another's question.
@@ -102,7 +103,11 @@ class Conversations:
         out the `seen` ones. `timeout` counts from when the question's turn in its conversation comes, not while it
         waits behind another or its session opens, nor while MAX_ANSWERING others are being answered."""
         async with self._turns:
-            return await self._in_turn(key, code, question, ctx, earlier, message_id, timeout)
+            self._answering += 1
+            try:
+                return await self._in_turn(key, code, question, ctx, earlier, message_id, timeout)
+            finally:
+                self._answering -= 1
 
     async def _in_turn(self, key: Hashable, code: str, question: str, ctx,
                        earlier: Callable[[int | None, set[int]], Awaitable[str]] | None, message_id: int | None,
@@ -133,10 +138,15 @@ class Conversations:
                     else:
                         closing.append((key, conv))
                     conv = None
-                if conv is None and len(self._convs) >= MAX_SESSIONS and (
-                        idle := [k for k, c in self._convs.items() if not c.busy]):
-                    oldest = min(idle, key=lambda k: self._convs[k].last_used)
-                    closing.append((oldest, self._convs.pop(oldest)))
+                if conv is None:
+                    # A new session: the idle ones go, the least recently used first, until they and the questions
+                    # being answered (this one too) are MAX_SESSIONS at most. Counted by question, not by what's in
+                    # _convs, since a session still opening and one retired are processes too: however many ask at
+                    # once, the sessions open, idle ones included, never pass MAX_ANSWERING.
+                    idle = sorted((k for k, c in self._convs.items() if not c.busy),
+                                  key=lambda k: self._convs[k].last_used)
+                    for oldest in idle[:max(0, len(idle) + self._answering - MAX_SESSIONS)]:
+                        closing.append((oldest, self._convs.pop(oldest)))
                 if conv:
                     conv.last_used = time.time()
                     conv.busy += 1
