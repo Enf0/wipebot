@@ -1629,6 +1629,23 @@ async def test_a_night_says_a_death_with_no_killing_blow_as_the_log_does(monkeyp
     assert "died 2:00 (#4), no killing blow recorded" in bars[1].split("\n")
 
 
+async def test_a_result_for_the_mock_host_leaves_the_in_process_tools_as_they_were(monkeypatch):
+    """The mock host runs a tool as a server for many users does. It set that for the rest of the process, so every
+    in-process call after it ran that way too: kept as a remote call, with a remote server's time for one."""
+    from mcp.types import CallToolResult
+
+    from wipebot.core import viewhost
+    monkeypatch.setattr(server.DEFAULT, "remote", None)
+    serving_many = []
+
+    async def call_tool(tool, args):
+        serving_many.append(server.DEFAULT.remote is not None)
+        return CallToolResult(content=[], structured_content={"view": "pull"})
+    monkeypatch.setattr(server.mcp, "call_tool", call_tool)
+    assert (await viewhost.tool_result("pull_summary", {}))["structuredContent"] == {"view": "pull"}
+    assert serving_many == [True] and server.DEFAULT.remote is None
+
+
 async def test_a_mark_shows_its_tooltip_on_hover_and_icons_draw(made_up):
     pytest.importorskip("playwright")
     from playwright.async_api import Error, async_playwright
