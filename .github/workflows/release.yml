@@ -4,8 +4,10 @@
 # version it missed. It runs once Checks has finished on a push to main, and releases only a version commit whose
 # Checks passed: a red one gets no release until Checks passes on it (a re-run) or a new version comes. Then, where
 # the repository secret WIPEBOT_DEV_DISPATCH_TOKEN is set (a token that may start the maintainers' private repo's
-# workflows), it starts their Deploy workflow for the public copy at this release; a fork or a copy has no such
-# secret, and that step is skipped. Actions pinned by commit, their version beside it.
+# workflows), it starts their Deploy workflow at this release, once for the public copy and once for its Discord bot
+# (which finishes the answers it is writing before it stops): a release that left the bot on the version before had
+# its fixes announced and not running. A fork or a copy has no such secret, and that step is skipped. Actions pinned
+# by commit, their version beside it.
 name: Release
 
 on:
@@ -81,9 +83,14 @@ jobs:
             sleep "$wait"
           done
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - name: Deploy the public copy
+      - name: Deploy the public copy and its Discord bot
         env:
           GH_TOKEN: ${{ secrets.WIPEBOT_DEV_DISPATCH_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
         if: ${{ env.GH_TOKEN != '' && env.TAG != '' }}
-        run: gh api -X POST repos/Enf0/wipebot-dev/actions/workflows/deploy.yml/dispatches -f ref=main -f 'inputs[target]=public' -f "inputs[wipebot]=$TAG"
+        run: |
+          set -eu
+          for target in public public-bot; do
+            gh api -X POST repos/Enf0/wipebot-dev/actions/workflows/deploy.yml/dispatches -f ref=main \
+              -f "inputs[target]=$target" -f "inputs[wipebot]=$TAG"
+          done
