@@ -4,14 +4,27 @@
   // A host that hands back a stored result without its structuredContent (Claude Desktop on reopening a chat) still
   // has the tool's name and arguments: these views can be drawn again from them.
   const BY_TOOL = { pull_summary: "pull", player_pull: "player", player_night: "player_night", death_recap: "death", progress: "night" };
+  // While a view loads, a placeholder in its shape (page.css: the replay's stage, a night with its lists, else a
+  // card). The view is known from the result's key, and while the tool still runs from the tool the host names.
   const SKELETON = document.getElementById("status").outerHTML;
+  const waiting = (view) => {
+    const status = root.querySelector("#status");
+    if (status && view) status.dataset.shape = view;
+  };
   let args = null, started = "", stack = [], current = null;
 
-  function fail(text, where = root) {
-    let status = where.querySelector("#status");
-    if (!status) { where.insertAdjacentHTML("beforeend", SKELETON); status = where.querySelector("#status"); }
-    status.classList.add("failed");
-    status.querySelector("#status-msg").textContent = text;
+  // What went wrong, in one line where the view would be, with nothing of the placeholder left around it; with
+  // `retry`, "Try again" does it (the usual cause, Warcraft Logs not answering in time, passes)
+  function fail(text, retry) {
+    let status = root.querySelector("#status");
+    if (!status) { root.insertAdjacentHTML("beforeend", SKELETON); status = root.querySelector("#status"); }
+    status.className = "failed";
+    status.replaceChildren(kit.el('<span class="msg" id="status-msg"></span>'));
+    status.firstChild.textContent = text;
+    if (!retry) return;
+    const again = kit.el("<button>Try again</button>");
+    again.onclick = retry;
+    status.append(again);
   }
 
   async function go(view, key) {
@@ -27,6 +40,7 @@
       root.append(bar);
     }
     root.insertAdjacentHTML("beforeend", SKELETON);
+    waiting(view);
     const body = document.createElement("div");
     root.append(body);
     if (!views[view]) { fail(`Nothing to show for ${view}.`); return; }
@@ -36,7 +50,8 @@
       root.querySelector("#status")?.remove();
       stack[stack.length - 1].title = body.querySelector("h1")?.textContent || view;
     } catch (e) {
-      fail(`Couldn't load this view: ${e.message}`);
+      body.remove();
+      fail(`Couldn't load this view: ${e.message}`, () => go(view, key));
       app.log(`${view}: ${e.message}`);
     }
   }
@@ -46,7 +61,7 @@
   function start(result) {
     const sc = result && result.structuredContent;
     let key = sc && sc.report ? sc : null;
-    if (!key) {
+    if (!key && !(result && result.isError)) {  // a tool that failed has nothing to draw, from its arguments either
       const tool = app.context().toolInfo?.tool?.name;
       if (args && BY_TOOL[tool]) key = { view: BY_TOOL[tool], report: args.report, pull: args.pull, boss: args.boss,
                                          player: args.player, death: args.death, weeks: args.weeks };
@@ -65,5 +80,7 @@
   app.on("cancelled", () => { if (!current) fail("The tool call was cancelled."); });
   app.on("context", () => { if (current && current.relayout) current.relayout(); });
   app.on("teardown", () => { if (current && current.stop) current.stop(); });
-  app.connect({ name: "Wipebot", version: "2" });
+  app.connect({ name: "Wipebot", version: "2" }).then(() => {
+    if (!started) waiting({ ...BY_TOOL, pull_map: "replay" }[app.context().toolInfo?.tool?.name]);
+  });
 })();

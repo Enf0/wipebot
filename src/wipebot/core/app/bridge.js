@@ -50,6 +50,8 @@ const app = (() => {
       document.documentElement.style.colorScheme = part.theme;
     }
     if (part.displayMode) document.documentElement.dataset.mode = part.displayMode;
+    // what the host's own controls or a phone's edges cover (page.css pads every view by it)
+    for (const [side, px] of Object.entries(part.safeAreaInsets || {})) document.documentElement.style.setProperty(`--safe-${side}`, `${+px || 0}px`);
     emit("context", context);
   }
 

@@ -34,7 +34,9 @@
 <div id="log"></div>
 <script>
 "use strict";
-// {tool, args, result, theme, width, mode, tokens, bare, picture, fonts, fontFamily, fullWidth, fullHeight}
+// {tool, args, result, theme, width, mode, tokens, bare, picture, fonts, fontFamily, fullWidth, fullHeight, running}
+// running: the tool hasn't answered yet (the page has its input and no result, as while the model waits for it)
+// safeArea: {top, right, bottom, left} in px, what a host's own controls cover (hostContext.safeAreaInsets)
 const S = window.__setup;
 const VIEW_URL = "https://wipebot.local/view.html";
 // Claude-like style variables, light and dark (an approximation, for seeing the host's tokens take over)
@@ -67,7 +69,7 @@ function context() {
     : vars ? { variables: vars } : undefined;
   return { theme, displayMode: mode, availableDisplayModes: ["inline", "fullscreen"], platform: "web", locale: "en-GB",
            containerDimensions: mode === "fullscreen" ? { width: S.fullWidth, height: S.fullHeight } : { width: +$("width").value, maxHeight: 6000 },
-           toolInfo: { tool: { name: S.tool } }, ...(styles ? { styles } : {}) };
+           toolInfo: { tool: { name: S.tool } }, ...(S.safeArea ? { safeAreaInsets: S.safeArea } : {}), ...(styles ? { styles } : {}) };
 }
 
 function size() {
@@ -100,7 +102,7 @@ window.addEventListener("message", async (event) => {
     case "ui/notifications/initialized":
       initialized = true;
       send({ jsonrpc: "2.0", method: "ui/notifications/tool-input", params: { arguments: S.args } });
-      send({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: S.result });
+      if (!S.running) send({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: S.result });
       return;
     case "ui/notifications/size-changed":
       if ($("mode").value !== "fullscreen" && m.params.height) frame.style.height = Math.ceil(m.params.height) + "px";

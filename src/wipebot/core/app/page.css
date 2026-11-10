@@ -35,9 +35,12 @@
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--font); }
 /* Inline, the host sizes the frame to the page (Claude by measuring it, a few px short): it never scrolls itself */
 :root:not([data-mode="fullscreen"]), :root:not([data-mode="fullscreen"]) body { overflow: hidden; }
-#app { padding: 10px 0 4px; }
+/* --safe-*: what the host says its own controls or a phone's edges cover (bridge.js), kept clear in every view */
+#app { padding: calc(10px + var(--safe-top, 0px)) var(--safe-right, 0px) calc(4px + var(--safe-bottom, 0px)) var(--safe-left, 0px); }
 /* fullscreen and a picture have no host's margin around them (inline, the chat's column gives it) */
-:root[data-mode="fullscreen"] #app { padding: 18px max(20px, 3vw) 20px; max-width: 1400px; margin: 0 auto; }
+:root[data-mode="fullscreen"] #app { padding: calc(18px + var(--safe-top, 0px)) max(20px, 3vw, var(--safe-right, 0px))
+                                              calc(20px + var(--safe-bottom, 0px)) max(20px, 3vw, var(--safe-left, 0px));
+                                     max-width: 1400px; margin: 0 auto; }
 :root[data-picture] #app { padding: 16px 18px 12px; }
 button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
          height: 32px; min-width: 36px; padding: 0 12px; cursor: pointer; }
@@ -71,23 +74,44 @@ tr[tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: -2p
 svg [data-armed] { fill: color-mix(in srgb, var(--ink) 16%, transparent); }  /* tapped once: the next tap opens it */
 svg text.to, svg text.tg { paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }  /* over lines */
 
-/* loading: a view's shape, so nothing jumps when the data arrives */
+/* Loading: a placeholder in the shape of the view that is coming (main.js names it in data-shape), so little moves
+   when the data arrives. A card is a few numbers over one chart and two buttons; a night has its lists under the
+   chart; the replay is its stage over its controls. No spinner in a chat's column: the shimmer says it is working. */
 #status .sk-head { display: flex; gap: 10px; padding: 0 2px 8px; }
 #status .sk-line { height: 14px; border-radius: 7px; background: var(--sk); }
-#status .sk-stage { position: relative; aspect-ratio: 3 / 2; border-radius: 10px; overflow: hidden; background: var(--sk);
+#status .sk-stats { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 0 2px 10px; }
+#status .sk-stats i { width: 104px; height: 34px; border-radius: 7px; background: var(--sk); }
+#status .sk-stage { position: relative; height: 236px; border-radius: 10px; overflow: hidden; background: var(--sk);
                     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+#status .sk-rows { display: none; height: 322px; margin: 14px 2px 0;
+                   background: repeating-linear-gradient(var(--sk) 0 14px, transparent 14px 22px); }
+#status[data-shape="pull"] .sk-stage { height: 276px; }
+#status[data-shape="player"] .sk-stage { height: 280px; }
+#status:is([data-shape="night"], [data-shape="player_night"]) .sk-stage { height: 190px; }
+#status:is([data-shape="night"], [data-shape="player_night"]) .sk-rows { display: block; }
+#status[data-shape="replay"] .sk-stage { height: auto; aspect-ratio: 3 / 2; }
+#status[data-shape="replay"] .sk-stats { display: none; }
+#status[data-shape="replay"] .sk-head { padding-bottom: 24px; }
+#status:not([data-shape="replay"]) .sk-bar .sk-line { display: none; }
+#status:not([data-shape="replay"]) .sk-btn { width: 96px; }
+#status:is([data-shape="night"], [data-shape="player_night"]) .sk-btn:last-child { display: none; }
+@media (max-width: 480px) {  /* a narrow card wraps its numbers and its notes onto more lines */
+  #status[data-shape="player"] .sk-stage { height: 440px; }
+  #status[data-shape="player_night"] .sk-rows { height: 430px; }
+  #status[data-shape="replay"] .sk-head { padding-bottom: 48px; }
+}
 #status .sk-stage::before { content: ""; position: absolute; inset: 0;
   background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--ink) 6%, transparent) 50%, transparent 70%);
   transform: translateX(-100%); animation: shimmer 1.6s ease-in-out infinite; }
-#status .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--gold) 25%, transparent);
-                   border-top-color: var(--gold); animation: spin .9s linear infinite; }
 #status .msg { position: relative; color: var(--muted); font-size: 13.5px; text-align: center; padding: 0 24px; max-width: 32rem; }
 #status .sk-bar { display: flex; gap: 8px; align-items: center; padding: 10px 2px 0; }
 #status .sk-btn { width: 36px; height: 32px; border-radius: 8px; background: var(--sk); }
-#status.failed .spinner, #status.failed .sk-stage::before { display: none; }
+/* what went wrong: one line where the view would be, nothing around it that looks like a control, and "Try again"
+   where reading the data again can help */
+#status.failed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 44px; padding: 0 2px; }
+#status.failed .msg { flex: 1 1 16rem; padding: 0; max-width: none; text-align: left; }
 @keyframes shimmer { to { transform: translateX(100%); } }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { #status .sk-stage::before, #status .spinner { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #status .sk-stage::before { animation: none; } }
 
 /* a view's card: header, a few numbers, the chart, at most two actions */
 .head { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 6px; flex-wrap: wrap; }
@@ -169,6 +193,9 @@ table.pulls td.fallout { color: var(--muted); }
 #rp-tip b { font-weight: 650; }
 .controls { display: flex; align-items: center; gap: 8px; padding: 10px 2px 0; }
 .controls button { padding: 0 10px; }
+.controls button svg { width: 14px; height: 14px; }
+/* fullscreen: the stage as wide as the frame's height allows after the rest of the page (replay.js measures it) */
+:root[data-mode="fullscreen"] #rp-stage { width: min(100%, max(240px, (100vh - var(--rp-rest, 150px)) * 1.5)); margin: 0 auto; }
 #rp-timeline { position: relative; flex: 1; height: 32px; cursor: pointer; touch-action: none; }
 #rp-track { position: absolute; left: 0; right: 0; top: calc(50% - 2px); height: 4px; border-radius: 2px; background: var(--line); }
 #rp-done { position: absolute; left: 0; top: calc(50% - 2px); height: 4px; border-radius: 2px; background: var(--muted); }

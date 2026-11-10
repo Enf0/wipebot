@@ -13,6 +13,7 @@ views.replay = (() => {
       <button id="rp-play" aria-label="Play">▶</button>
       <div id="rp-timeline" role="slider" tabindex="0" aria-label="Time in the pull"><div id="rp-track"></div><div id="rp-done"></div><div id="rp-thumb"></div></div>
       <button id="rp-speed" aria-label="Playback speed">1×</button>
+      <button id="rp-full" aria-label="Open the replay in fullscreen" title="Fullscreen" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
     </div>
     <div id="rp-moments" hidden></div>`;
 
@@ -63,7 +64,20 @@ views.replay = (() => {
     });
     image(R.map.image); R.bosses.forEach((b) => image(b.icon)); R.players.forEach((p) => image(p.icon));
     seek(R.at_ms, true);
+    fit();
     app.log(`opened at ${clock(t)} (asked ${clock(R.at_ms)}, ${R.title}, ${$("rp-map").clientWidth}x${$("rp-map").clientHeight})`);
+  }
+
+  // Inline, a button opens the replay in fullscreen where the host has it (opened from a pull's card it already is).
+  // There the stage takes the height the frame leaves after everything else, at its 3:2 (page.css reads --rp-rest),
+  // so play and the timeline stay in sight under it.
+  function fit() {
+    const stage = $("rp-stage"), full = app.context().displayMode === "fullscreen";
+    if (!stage) return;
+    $("rp-full").hidden = full || !app.canGoFullscreen();
+    const waiting = document.getElementById("status");  // the placeholder, still there while this view opens
+    const rest = document.getElementById("app").offsetHeight - stage.offsetHeight - (waiting ? waiting.offsetHeight : 0);
+    stage.style.setProperty("--rp-rest", `${rest}px`);
   }
 
   function addMark(ms, cls, label) {
@@ -319,6 +333,7 @@ views.replay = (() => {
     $("rp-map").addEventListener("pointerleave", () => { $("rp-tip").style.display = "none"; hover = -1; draw(); });
     $("rp-play").onclick = () => setPlaying(!playing);
     $("rp-speed").onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 4 : 1; $("rp-speed").textContent = speed + "×"; };
+    $("rp-full").onclick = () => app.requestDisplayMode("fullscreen").then(fit);
     const tl = $("rp-timeline");
     function fromPointer(e) {
       const rect = tl.getBoundingClientRect(); let ms = (e.clientX - rect.left) / rect.width * R.duration_ms;
@@ -338,5 +353,5 @@ views.replay = (() => {
     });
   }
 
-  return { show, relayout: () => draw(), stop: () => setPlaying(false) };
+  return { show, relayout: () => { fit(); draw(); }, stop: () => setPlaying(false) };
 })();

@@ -1,6 +1,7 @@
 """The views (report/views.py, the page in app/): each view's data on a real pull, against its tool's text and its
 snapshot; the page drawn in the mock host (viewhost.py, Chromium); the replay's JavaScript against the tracks
 maps.replay packs (Node)."""
+import asyncio
 import contextlib
 import io
 import itertools
@@ -20,7 +21,7 @@ from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Repl
 from wipebot.core import server
 from wipebot.core.classes import CLASS_COLORS, WHITE
 from wipebot.core.notebook import Notebook
-from wipebot.core.report import maps, views
+from wipebot.core.report import FactError, maps, views
 from wipebot.core.report import note as notes
 from wipebot.core.report.ending import Ending, MassDeath, mass_death_of
 from wipebot.core.text import clock, plural, short
@@ -465,22 +466,34 @@ async def shots(tmp_path, tool: str, args: dict, **kw):
 
 
 @contextlib.asynccontextmanager
-async def drawn(tool: str, args: dict, touch: bool = False, **setup):
-    """The tool's view drawn in the mock host, to ask the page about: its frame, and the errors so far. `touch`:
-    as on a phone, where a finger is the pointer."""
+async def chromium():
+    """Playwright's Chromium, for the mock host; a test without it is skipped."""
     pytest.importorskip("playwright")
     from playwright.async_api import Error, async_playwright
-
-    from wipebot.core import viewhost
-    result = await viewhost.tool_result(tool, args)
-    setup = {"tool": tool, "args": args, "result": result, "theme": "dark", "width": 760, "mode": "inline",
-             "tokens": "none", "bare": True, "fullWidth": viewhost.FULL_WIDTH,
-             "fullHeight": viewhost.FULL_HEIGHT} | setup
     async with async_playwright() as pw:
         try:
             browser = await pw.chromium.launch()
         except Error as e:
             pytest.skip(f"needs Playwright's Chromium: {e}")
+        yield browser
+        await browser.close()
+
+
+def host_setup(tool: str, args: dict, result: dict | None, **setup) -> dict:
+    """What the mock host is told (host.html's window.__setup): dark, 760 wide and inline unless `setup` says."""
+    from wipebot.core import viewhost
+    return {"tool": tool, "args": args, "result": result, "theme": "dark", "width": 760, "mode": "inline",
+            "tokens": "none", "bare": True, "fullWidth": viewhost.FULL_WIDTH,
+            "fullHeight": viewhost.FULL_HEIGHT} | setup
+
+
+@contextlib.asynccontextmanager
+async def drawn(tool: str, args: dict, touch: bool = False, **setup):
+    """The tool's view drawn in the mock host, to ask the page about: its frame, and the errors so far. `touch`:
+    as on a phone, where a finger is the pointer."""
+    from wipebot.core import viewhost
+    setup = host_setup(tool, args, await viewhost.tool_result(tool, args), **setup)
+    async with chromium() as browser:
         errors: list[str] = []
         if touch:
             context = await browser.new_context(has_touch=True, is_mobile=True,
@@ -491,7 +504,6 @@ async def drawn(tool: str, args: dict, touch: bool = False, **setup):
             page = await viewhost._open(browser, setup, errors)
         await viewhost._settled(page)
         yield page.frames[-1], errors
-        await browser.close()
 
 
 def test_a_charts_text_size_is_texts_own_parameter():
@@ -698,6 +710,85 @@ async def test_the_pull_chart_names_both_axes_and_draws_the_cooldowns_its_tool_p
         assert f"decided {clock(data['decided']['ms'])}" in said and (data["decided"]["why"] in said) == why
 
 
+TALL = "Math.ceil(document.body.getBoundingClientRect().height)"
+
+
+@pytest.mark.parametrize("width", [380, 760])
+async def test_the_placeholder_has_the_shape_of_the_view_that_is_loading(recorded, monkeypatch, width):
+    """While a view's data is read its placeholder is about as tall as the view that replaces it, so the answer
+    around it doesn't jump (every view once had the replay's 3:2 stage: 214 px too tall for a pull's card at 760),
+    and has no spinner. A night's is as tall as a night with a dozen endings; its true height depends on the night."""
+    from wipebot.core import viewhost
+    answer, read = viewhost.answer, asyncio.Event()
+
+    async def held(name: str, args: dict) -> dict:
+        if name != "viewer_log":
+            await read.wait()
+        return await answer(name, args)
+    monkeypatch.setattr(viewhost, "answer", held)
+    async with chromium() as browser:
+        for case, shape, within in (("pull-summary", "pull", 40), ("death-recap", "death", 40),
+                                    ("pull-map", "replay", 40), ("progress", "night", 160)):
+            read.clear()
+            errors: list[str] = []
+            tool, args = CASES[case].tool, CASES[case].args
+            setup = host_setup(tool, args, await viewhost.tool_result(tool, args), width=width)
+            page = await viewhost._open(browser, setup, errors)
+            view = page.frames[-1]
+            await view.locator(f'#status[data-shape="{shape}"]').wait_for()
+            assert await view.locator("#status .spinner").count() == 0
+            assert await view.locator("#status").inner_text() == "Loading…"
+            waiting = await view.evaluate(TALL)
+            read.set()
+            await viewhost._settled(page)
+            assert abs(await view.evaluate(TALL) - waiting) <= within, (case, waiting)
+            assert not errors
+            await page.close()
+
+
+async def test_the_placeholder_is_the_running_tools_before_there_is_a_result(recorded):
+    """While the tool still runs the host has named it: the placeholder is already that tool's view's."""
+    from wipebot.core import viewhost
+    case = CASES["pull-map"]
+    async with chromium() as browser:
+        errors: list[str] = []
+        page = await viewhost._open(browser, host_setup(case.tool, case.args, None, running=True), errors)
+        await page.frames[-1].locator('#status[data-shape="replay"]').wait_for()
+        assert not errors
+
+
+async def test_a_view_that_cannot_be_read_says_so_in_one_line_and_reads_again_when_asked(recorded, monkeypatch):
+    """Warcraft Logs not answering in time is the usual cause, and it passes: the card says what went wrong in one
+    line, with none of the placeholder's blocks left around it (they looked like dead controls), and "Try again"
+    reads the view's data again."""
+    view_data, calls = server.view_data, []
+
+    async def at_the_second_try(*args, **kw):
+        calls.append(args)
+        if len(calls) == 1:
+            raise FactError("Warcraft Logs didn't answer in time.")
+        return await view_data(*args, **kw)
+    monkeypatch.setattr(server, "view_data", at_the_second_try)
+    async with drawn("pull_summary", PULL_CASE.args) as (view, errors):
+        failed = view.locator("#status.failed")
+        assert await failed.inner_text() == "Couldn't load this view: Warcraft Logs didn't answer in time.\nTry again"
+        assert await failed.locator("[class^=sk-]").count() == 0 and await view.evaluate(TALL) <= 64
+        assert await view.locator("button").count() == 1
+        await view.get_by_role("button", name="Try again").click()
+        await view.locator("h1", has_text="Sszorak pull 13").wait_for()
+        assert len(calls) == 2 and await view.locator("#status").count() == 0
+
+
+async def test_a_tool_that_failed_has_nothing_to_read_again(recorded):
+    from wipebot.core import viewhost
+    result = {"isError": True, "content": [{"type": "text", "text": "No such pull."}]}
+    async with chromium() as browser:
+        page = await viewhost._open(browser, host_setup("pull_summary", {}, result), [])
+        failed = page.frames[-1].locator("#status.failed")
+        assert await failed.inner_text() == "The tool failed: nothing to show."
+        assert await page.frames[-1].locator("button").count() == 0
+
+
 AT = """() => {  // where the keyboard is, and what the tooltip says
   const a = document.activeElement, tip = document.getElementById("tooltip");
   return { tag: a.tagName.toLowerCase(), role: a.getAttribute("role"), label: a.getAttribute("aria-label"),
@@ -784,6 +875,40 @@ async def test_the_replays_timeline_tells_a_screen_reader_where_it_is(recorded):
         await view.locator("#rp-timeline").press("ArrowRight")
         assert int(await view.locator("#rp-timeline").get_attribute("aria-valuenow")) == int(at[3]) + 1
         assert not errors
+
+
+async def test_the_replay_opens_in_fullscreen_from_its_own_button_and_keeps_its_controls_in_sight(recorded):
+    """pull_map's replay had no way to fullscreen; and there its 3:2 stage at the frame's full width put play and
+    the timeline under the fold (a page of 808 px in a frame of 760). The stage now takes the height that is left."""
+    from wipebot.core import viewhost
+    case = CASES["pull-map"]
+    async with drawn(case.tool, case.args) as (view, errors):
+        full = view.get_by_role("button", name="Open the replay in fullscreen")
+        assert await full.is_visible()
+        await full.click()
+        await view.locator(":root[data-mode=fullscreen]").wait_for()
+        await full.wait_for(state="hidden")
+        wide, high = await view.locator("#rp-stage").evaluate(
+            "(e) => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }")
+        assert abs(wide / high - 1.5) < 0.01 and high > 500
+        assert await view.locator(".controls").evaluate("(e) => e.getBoundingClientRect().bottom") <= 760
+        assert await view.evaluate(TALL) <= viewhost.FULL_HEIGHT == 760 and not errors
+
+
+async def test_what_the_host_says_its_own_controls_cover_is_kept_clear(recorded):
+    """A host's safe-area insets (a phone's edges, a composer over the foot of the page) are padding around every
+    view, and the replay's controls in fullscreen end above the bottom one."""
+    from wipebot.core import viewhost
+    case, cover = CASES["pull-map"], {"top": 12, "right": 0, "bottom": 60, "left": 0}
+    async with drawn(case.tool, case.args, mode="fullscreen", width=viewhost.FULL_WIDTH, safeArea=cover) as (view, _):
+        pad = await view.locator("#app").evaluate("(e) => [getComputedStyle(e).paddingTop, "
+                                                  "getComputedStyle(e).paddingBottom]")
+        assert pad == ["30px", "80px"]
+        foot = await view.locator(".controls").evaluate("(e) => e.getBoundingClientRect().bottom")
+        assert foot <= viewhost.FULL_HEIGHT - cover["bottom"]
+    async with drawn("pull_summary", PULL_CASE.args, safeArea=cover) as (view, _):
+        pad = await view.locator("#app").evaluate("(e) => getComputedStyle(e).padding")
+        assert pad == "22px 0px 64px"
 
 
 async def test_the_page_speaks_the_protocol_in_order(recorded, tmp_path):

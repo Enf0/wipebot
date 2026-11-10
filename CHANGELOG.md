@@ -51,6 +51,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `MCP` **A chart can be read with the keyboard, and with a finger.** Only the buttons under a card could be reached without a mouse. Tab now stops on each chart, the arrow keys step through its marks with what each one says, and Enter opens the pull a click opens; the table of pulls works the same way, and a screen reader hears each mark's fact and where the replay's timeline stands. On a phone a tap on one of a night's thin bars says which pull it is and stays to be read, a second tap opens it, and buttons and a pull's chip are a finger's size.
 
   ![Sszorak's night at a phone's width with pull 13's bar tapped: its tooltip with how far the pull got, what ended it and the first death, ending "Tap again for this pull"](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-tap-phone.webp)
+- `MCP` **A card that is loading has the shape of the card that is coming.** Every card waited as a tall box with a spinner, the replay's shape, then jumped by a couple of hundred pixels in the middle of the answer when its data arrived. A pull, a death, a player, a night and the replay now each wait in their own shape, already while the tool is still running. A card that can't be read says why in one line, with "Try again" where reading it again can help, instead of leaving the empty box and its grey buttons.
+
+  ![A pull's card while it loads: grey blocks where its title, its four numbers, its chart and its two buttons will be, and "Loading…" in the middle](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/loading-placeholder.webp)
+- `MCP` **The replay opens in fullscreen from its own button, and its controls stay in sight there.** A replay shown for a map had no way to fullscreen, and in fullscreen play and the timeline sat under the bottom of the window. The room now takes the height the window has left above them, and every view keeps clear of what Claude or ChatGPT say their own controls cover.
+
+  ![The replay of Sszorak pull 13 in fullscreen: the room with everyone's position, and under it, in the same window, play, the timeline with its deaths and the speed](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/replay-fullscreen-fit.webp)
 
 ## [0.41.1] - 2026-11-09
 
