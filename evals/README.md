@@ -217,3 +217,30 @@ just evals --api-key                # bill the run to ANTHROPIC_API_KEY, not you
   which `just release` measures a release's distance from.
 - `test_*.py`: tests of the eval code itself, run by `just check`.
 - Untracked: `cache.sqlite` (the frozen data), `results/` (runs), `labels.jsonl` (your marks).
+
+## Asked as raiders ask
+
+Most questions reach the bot in Norwegian, late in a conversation, in a DM, and one answer in six reads a note the
+server saved. A case sets what such a message carries with the keys in `cases/README.md` ("What a Discord message
+carries"): `set_up`, `earlier`, `note`, `notes`, `language`, `today`. With `--bot`, a `set_up` case's Context is made
+by the bot's own code (`asked.py` calls `WipeBot._context` on a server set up with the report's guild), so the
+question's first lines, the saved note and the `remember` tool are production's (`answer_in_dm` too, though no DM
+is written). A case with none of the keys is asked exactly as before, and its hash is what it was.
+
+- **The `language` check** is a fourth named part of a pass, beside `expect`, `wrong` and `calls`: an answer in
+  another language than its question fails, by code (`checks.in_language`, the bot's own way of telling Norwegian
+  from English), in every mode. Tried on seven saved runs (1,119 answers), it failed none. A baseline from before
+  it is compared on the first three parts, and the comparison says so, until a baseline is saved that has the fourth.
+- **What is not carried yet**: linked messages, pictures, raid plans, a report being logged, and `follow_pulls`,
+  which stays a stand-in. The lint replays calls on the recorded data's day and with no note saved, so it checks a
+  `today` or `note` case's numbers only where the call turns on neither.
+- **`--coverage`** ends with how the cases are asked beside how raiders ask: the questions' language, where the
+  judged question stands in its conversation, the place, the cases with a saved note and the bosses named. It is a
+  table to read, not a gate.
+- **The cases of `norsk.toml`, `conversations.toml`, `notes.toml`, `server.toml` and the new `heldout.toml` have
+  never been answered.** Their facts are from the tools' output, but no run has shown that a right answer passes
+  them, and they have no `tools` yet. Read their first run case by case before believing a number from it, and tag
+  `tools` from it; that run also asks Warcraft Logs for what the frozen data doesn't hold of their nights yet.
+  One trial of the 23 regular ones is 28 answers with `--bot` (one case asks two questions, one five) and 17
+  answers in a client, which leaves out the 11 that need earlier messages or a saved note; the six held-out cases
+  are six answers in each mode.

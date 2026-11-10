@@ -74,7 +74,8 @@ stand there). A case with none of them is asked as it always was (`evals/asked.p
   earlier   what was said in the place before the first question: `[who, text]` pairs, oldest first, handed over as
             the bot hands over a place's earlier messages. "Wipebot" is the bot, answering whoever wrote before it.
             A conversation asked for real, question by question, is a list in `question`, as before
-  note      a raid note an officer pasted before the night's first pull: a file under `tests/fixtures/real/notes/`.
+  note      a raid note an officer pasted before the night's first pull: a file under `tests/fixtures/real/notes/`
+            (the guild's own), or under `evals/cases/notes/` when a case needs a note no night had.
             `raid_note` finds it as in a real server, and the other tools say that one is saved
   notes     what the bot remembers of the asker: a list of lines, as the `remember` tool keeps them
   language  the server's language, as its admin set it ("Norwegian")
@@ -96,3 +97,10 @@ another question. `set_up` and `language` alone leave a case in every mode, wher
   check, `evals/checks.py`): the bot's own way of telling Norwegian from English, on the last question, then on the
   ones before it, then, as the bot, on the server's `language`. A post and an answer whose language doesn't show are
   held to nothing.
+
+The files these keys came with: `norsk.toml` (questions in Norwegian, of every kind), `conversations.toml` (late in a
+conversation, a raider pushing back who is right, an instruction in someone's earlier message), `notes.toml` (a note
+saved in the server; one holds a line addressed to the bot) and `server.toml` (another night than the one at hand,
+names asked for in the raid's channel, a game rule with no log). A case that tells the bot what to do from inside a
+note or an earlier message has the obeying in `wrong`: what a raider or a note says is talk, the log is the answer.
+The held-out cases are on two pulls no other case reads; what they expect stands in `heldout.toml` and nowhere else.
