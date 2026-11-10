@@ -73,6 +73,7 @@ def _with_settings(db, settings, officer_channel_id: int | None = None) -> None:
                 "wcl_guild TEXT NOT NULL, wcl_server TEXT NOT NULL, wcl_region TEXT NOT NULL, "
                 "required_role_id INTEGER, officer_channel_id INTEGER)")
     con.execute("CREATE TABLE naming_channels (discord_guild_id INTEGER, channel_id INTEGER)")
+    con.execute("CREATE TABLE conversations (key TEXT PRIMARY KEY, code TEXT NOT NULL, session_id TEXT NOT NULL)")
     con.execute("INSERT INTO server_settings VALUES (?, ?, ?, ?, ?, ?, ?)", (
         settings.discord_guild_id, settings.wcl_guild_id, settings.wcl_guild, settings.wcl_server,
         settings.wcl_region, None, officer_channel_id))
@@ -176,6 +177,7 @@ def test_an_older_versions_officer_channel_and_names_on_are_dropped(tmp_path, se
     assert store.settings(1001) == settings
     tables = {r[0] for r in store._db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert "naming_channels" not in tables and Store(db).settings(1001) == settings
+    assert "conversations" not in tables  # kept across restarts, until no restart picked one up again
 
 
 def test_spend_is_kept_per_server_and_asker_recorded_or_not(store):

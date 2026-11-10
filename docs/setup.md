@@ -204,7 +204,8 @@ The connector keeps who signed in (Warcraft Logs id, name, guild characters); th
 and the preferences they ask it to remember, and for a raider who used `/login`, their Warcraft Logs id, name and
 token (encrypted) until they sign out. It also keeps what each answer cost, with the server and the asker, for 90
 days (`/usage` reads it), each server's settings and the AI key its admin added (encrypted) until it's
-removed, and the conversations Claude Code keeps on disk so follow-ups and restarts go on from them. With
+removed, and the transcript Claude Code writes of each conversation (nothing reads it back: after a restart a
+conversation starts over from the messages before it). With
 `WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its prompt (with the channel's messages it read),
 answer and tool calls for 90 days, for reviewing answers. All of it stays in `./data`; only what an answer needs goes
 to the model. Tell your guild.

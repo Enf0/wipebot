@@ -666,31 +666,6 @@ def test_a_long_answer_gets_its_picture_after_the_first_bullet_not_the_headline(
     assert host.placed_by_default("**Solid night.** - one - two - three - four", [], "progress") == []
 
 
-@pytest.mark.parametrize("found", [True, False])
-async def test_a_saved_conversation_resumes_when_its_transcript_is_there(monkeypatch, found):
-    """After a restart, a session goes on from its transcript; without one (Claude Code cleaned it up), it starts
-    over."""
-    seen = []
-
-    class Client:
-        def __init__(self, options):
-            seen.append(options)
-
-        async def connect(self):
-            pass
-
-    async def no_tools(*args):
-        return []
-
-    async def report(code, max_age_s=0):
-        return SimpleNamespace(code=code)
-    monkeypatch.setattr(host, "ClaudeSDKClient", Client)
-    monkeypatch.setattr(host, "sdk_tools", no_tools)
-    monkeypatch.setattr(host, "get_session_info", lambda sid, directory: object() if found else None)
-    session = await Session(cast(server.Library, SimpleNamespace(report=report)), "R1", resume="s1").__aenter__()
-    assert (seen[0].resume, session.resumed, session.session_id) == (("s1", True, "s1") if found else (None, False, ""))
-
-
 def test_a_call_that_read_a_private_report_keeps_no_result_in_the_record():
     call = ToolCall("pull_summary", {"report": "R"}, "the raid's private secrets", False, [], 0.0, 1.0,
                     {"queries": 2, "private": True})

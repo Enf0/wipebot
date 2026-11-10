@@ -9,9 +9,8 @@ conversation was closed starts a new one. Each session runs a Claude Code proces
 MAX_ANSWERING questions are answered at once: the next waits its turn, so there are never more processes than that.
 Each question comes with what was said in that place since the conversation's previous question (`earlier`),
 everyone's messages, so a conversation knows what the bot told others there; a new conversation gets the
-messages before its first one.
-With a store, every open conversation is saved after each answer, so after a restart (a deploy) its next question
-resumes it from its session's transcript instead of starting over, as long as it wouldn't have been closed by then.
+messages before its first one. That is also what a conversation goes on from after a restart (a deploy): none is
+kept across one, as a session on a server's own key can't be picked up again.
 """
 import asyncio
 import logging
@@ -20,8 +19,6 @@ import weakref
 from collections.abc import Awaitable, Callable, Hashable
 from dataclasses import dataclass, field, replace
 from typing import Protocol
-
-from .store import SavedConversation
 
 log = logging.getLogger(__name__)
 
@@ -40,21 +37,8 @@ class Asker(Protocol):
     @property
     def worn_out(self) -> bool: ...  # the conversation has grown too long: close it after this answer
 
-    @property
-    def session_id(self) -> str: ...  # its transcript's, once it has answered: what a resume continues
-
-    @property
-    def resumed(self) -> bool: ...  # opened with `resume` and its transcript was found
-
     async def ask(self, question: str, ctx) -> object: ...
     async def __aexit__(self, *exc) -> None: ...
-
-
-class Saved(Protocol):
-    """Where conversations are kept across restarts (Store)."""
-    def conversation(self, key: Hashable, max_age_s: float) -> SavedConversation | None: ...
-    def save_conversation(self, key: Hashable, conv: SavedConversation) -> None: ...
-    def drop_conversation(self, key: Hashable, session_id: str) -> None: ...
 
 
 @dataclass
@@ -73,12 +57,11 @@ class _Conversation:
 
 class Conversations:
     def __init__(self, open_session: Callable[..., Awaitable[Asker]],
-                 survives: tuple[type[Exception], ...] = (), saved: Saved | None = None):
+                 survives: tuple[type[Exception], ...] = ()):
         """`open_session(report_code)` returns a started session for that report, and `open_session(report_code,
-        resume=session_id)` one that goes on from a saved conversation's transcript. After an error from a question
-        the conversation is closed (its session may be mid-answer or broken), but after one of `survives`. `saved`
-        keeps the open conversations across a restart."""
-        self._open, self._survives, self._saved = open_session, survives, saved
+        env=env)` one that runs on a server's own key. After an error from a question the conversation is closed
+        (its session may be mid-answer or broken), but after one of `survives`."""
+        self._open, self._survives = open_session, survives
         self._turns = asyncio.Semaphore(MAX_ANSWERING)  # held by each question from its session's opening to its answer
         self._answering = 0  # the questions holding a turn: each session not idle (opening ones too) has one or more
         self._convs: dict[Hashable, _Conversation] = {}
@@ -89,11 +72,9 @@ class Conversations:
         self._opening: weakref.WeakValueDictionary[Hashable, asyncio.Lock] = weakref.WeakValueDictionary()
 
     def code(self, key: Hashable) -> str | None:
-        """The report the conversation at `key` is about, open or saved before a restart; None without one."""
-        if conv := self._convs.get(key):
-            return conv.code
-        saved = self._saved.conversation(key, IDLE_S) if self._saved else None
-        return saved.code if saved else None
+        """The report the open conversation at `key` is about; None without one."""
+        conv = self._convs.get(key)
+        return conv.code if conv else None
 
     async def ask(self, key: Hashable, code: str, question: str, ctx,
                   earlier: Callable[[int | None, set[int]], Awaitable[str]] | None = None,
@@ -152,22 +133,14 @@ class Conversations:
                     conv.busy += 1
             await self._shut(closing)
             if conv is None:
-                # One saved before a restart, about this report and not idle too long: its session goes on
-                saved = self._saved.conversation(key, IDLE_S) if self._saved else None
-                if saved and (saved.code != code or env is not None):  # on a server's own key: a new session
-                    saved = None
                 more = {"env": env} if env is not None else {}
                 try:
                     async with asyncio.timeout(OPEN_TIMEOUT_S):
-                        session = await (self._open(code, resume=saved.session_id) if saved
-                                         else self._open(code, **more))
+                        session = await self._open(code, **more)
                 except TimeoutError:
                     raise SlowStart(f"opening a conversation took over {OPEN_TIMEOUT_S} s") from None
                 async with self._lock:
                     conv = self._convs[key] = _Conversation(session, code, env)
-                    if saved and session.resumed:
-                        log.info("conversation %s resumed after a restart", key)
-                        conv.last_question, conv.seen = saved.last_question, set(saved.seen)
                     conv.busy += 1
         return conv
 
@@ -197,14 +170,7 @@ class Conversations:
             if conv.session.worn_out:  # the next question starts over, with the place's recent messages
                 log.info("conversation %s has grown long; closing it", key)
                 await self._close(key, conv)
-            else:
-                self._save(key, conv)
         return answer
-
-    def _save(self, key: Hashable, conv: _Conversation) -> None:
-        if self._saved and not conv.closed and conv.session.session_id:
-            self._saved.save_conversation(key, SavedConversation(
-                conv.code, conv.session.session_id, conv.last_question, sorted(conv.seen), conv.last_used))
 
     async def _close(self, key: Hashable, conv: _Conversation) -> None:
         """Take a conversation out of _convs, if it's still there, and close it."""
@@ -217,7 +183,6 @@ class Conversations:
         """The messages an answer was posted as, which the conversation's session already has."""
         if conv := self._convs.get(key):
             conv.seen.update(message_ids)
-            self._save(key, conv)
 
     async def drop(self, key: Hashable) -> None:
         """End a conversation, even mid-answer."""
@@ -239,11 +204,11 @@ class Conversations:
         await self._shut(closing)
 
     async def close_all(self) -> None:
-        """Close every conversation, keeping the saved ones: the bot is stopping, and they go on after it starts."""
+        """Close every conversation: the bot is stopping."""
         async with self._lock:
             closing = list(self._convs.items())
             self._convs.clear()
-        await self._shut(closing, forget=False)
+        await self._shut(closing)
 
     def _take_idle(self) -> list[tuple[Hashable, _Conversation]]:
         """The conversations idle for IDLE_S, taken out of _convs (under _lock) to be closed."""
@@ -251,13 +216,11 @@ class Conversations:
         return [(k, self._convs.pop(k)) for k, c in list(self._convs.items())
                 if now - c.last_used > IDLE_S and not c.busy]
 
-    async def _shut(self, closing: list[tuple[Hashable, _Conversation]], forget: bool = True) -> None:
+    async def _shut(self, closing: list[tuple[Hashable, _Conversation]]) -> None:
         for key, conv in closing:
             if conv.closed:
                 continue
             conv.closed = True
-            if forget and self._saved and conv.session.session_id:
-                self._saved.drop_conversation(key, conv.session.session_id)
             try:
                 await conv.session.__aexit__(None, None, None)
             except Exception:
