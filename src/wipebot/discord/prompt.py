@@ -209,8 +209,9 @@ def budget(post: bool = False, live: bool = False) -> form.Budget:
 
 def recorded_budget(kind: str, prompt: str | None) -> form.Budget:
     """The same for a recorded answer, from its record's kind ("follow": a post after a wipe) and what the model got,
-    whose first line says when the report was being logged."""
-    return budget(post=kind == "follow", live=LIVE in (prompt or ""))
+    whose report line says when the report was logged ("(being logged now)", as report_line writes it; the words
+    alone in a question or an earlier message are a raider's)."""
+    return budget(post=kind == "follow", live=f"({LIVE});" in (prompt or ""))
 
 
 def report_line(report: Report, now: datetime | None = None, doubt: str = "",

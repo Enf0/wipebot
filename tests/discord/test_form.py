@@ -1,7 +1,10 @@
 """An answer's form, measured by code (wipebot.discord.form): what a raider reads of it, its verdict, its bullets and
 where the change to make stands, and where it leaves the form the bot's prompt asks for."""
 import re
+from types import SimpleNamespace
+from typing import cast
 
+from wipebot.core.report import Report
 from wipebot.discord import form, prompt
 from wipebot.discord.form import measure
 from wipebot.discord.host import Answer
@@ -180,5 +183,8 @@ def test_each_kind_of_answer_is_held_to_its_own_budget():
     assert prompt.budget(post=True, live=True) == a_post  # a post keeps the lines its request sets
     assert a_post.lines == prompt.POST_LINES and a_post.verdict_words is None
     assert prompt.recorded_budget("follow", None) == a_post
-    assert prompt.recorded_budget("chat", f'[guild X; report "Y" (8TcX), logged today ({prompt.LIVE})]') is form.LIVE
+    report = cast(Report, SimpleNamespace(start_ms=0, final=False, by_boss={}, guild_name="X", title="Y", code="8TcX"))
+    live = prompt.report_line(report) + "\n[asked by Rowan]\nwhy did we wipe?"
+    assert prompt.recorded_budget("chat", live) is form.LIVE  # the report's own line says the raid is going on
+    assert prompt.recorded_budget("chat", "[...]\nis the raid being logged now?") is form.CHAT  # a raider's words
     assert prompt.recorded_budget("chat", None) is form.CHAT
