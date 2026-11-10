@@ -8,7 +8,6 @@ import pytest
 from evals.run import (
     HERE,
     Trial,
-    agrees,
     beyond_noise,
     billed_to,
     case_hash,
@@ -112,7 +111,7 @@ def test_a_run_is_scored_by_the_checks_its_baseline_made():
     old = tally({"a": 4}, trials=4, hashes={"a": case_hash({**case, "id": "a"})})  # no parts: expect, wrong, calls
     text = "\n".join(compare(old, with_form | {"model": "opus", "commit": "abc", "judge": judged_by("sonnet")}))
     assert "scored by the baseline's checks (expect, wrong, calls): this run's form is left out" in text
-    assert "total 2/4" in text
+    assert "total 2 of 4" in text
 
 
 def test_only_unchanged_cases_are_compared():
@@ -121,14 +120,18 @@ def test_only_unchanged_cases_are_compared():
     text = "\n".join(lines)
     assert "WARNING" not in text and "note:" not in text
     assert "compared 2 of 4 cases; skipped 1 changed since the baseline (b); 1 not in it (d)" in text
-    assert "total 6/6, the baseline's 3 at these trials: +3, beyond the ±1.2" in text
-    assert "moved beyond noise" in text and "\n    c 3/3 (baseline 0/3)" in text and "b 0/3" not in text
+    assert "total 6 of 6, each case weighed as in the baseline, whose total was 3: +3, 2.4 times the ±1.2" in text
+    assert "moved beyond noise" in text and "\n    c 3/3 (baseline 0/3), by chance 1 in 20" in text
+    assert "b 0/3" not in text
+    assert lines[-1] == ("VERDICT: cannot tell: 2 of this run's 4 cases not compared; too few answers (6 on 2 "
+                         "cases): a drop of the total under 41 points could not show.")
 
 
 def test_a_move_of_one_is_noise_on_one_line():
     lines = compare(tally({"a": 3, "b": 2, "c": 1}), tally({"a": 2, "b": 3, "c": 1}))
-    assert lines[-2].endswith("2 of 3): none")
-    assert lines[-1] == "  within noise: a 2/3 (baseline 3/3), b 3/3 (baseline 2/3)"
+    assert lines[-3].endswith("2 of 3): none")
+    assert lines[-2] == "  within noise: a 2/3 (baseline 3/3), b 3/3 (baseline 2/3)"
+    assert lines[-1].startswith("VERDICT: cannot tell: too few answers (9 on 3 cases)")
 
 
 def test_a_changed_judge_is_called_out_first():
@@ -151,10 +154,11 @@ def test_an_old_baseline_without_hashes_compares_everything_with_a_note():
 def test_errored_trials_are_left_out_of_the_rates():
     lines = compare(tally({"a": 3}), tally({"a": 1, "b": 0}, errors={"a": 2, "b": 3}))
     text = "\n".join(lines)
-    assert "1 not in it (b)" in text and "total 1/1" in text and "none" in text  # 1 of 1 passed: no move
+    assert "1 not in it (b)" in text and "total 3 of 3" in text and "none" in text  # 1 of 1 passed: no move
+    assert lines[1] == "  ERRORS: 5 answers errored and are in no count below: a (2), b (3)"
 
 
-def test_auto_trials_ask_once_only_what_the_baseline_was_sure_of():
+def test_auto_trials_ask_twice_only_what_the_baseline_was_sure_of():
     cases = [{**CASE, "id": c} for c in "abcdef"]
     h = case_hash(CASE)
     base = tally({"a": 3, "b": 0, "c": 2, "d": 3, "e": 1, "f": 3}, errors={"e": 2},
@@ -163,15 +167,19 @@ def test_auto_trials_ask_once_only_what_the_baseline_was_sure_of():
     assert settled(base, cases, "sonnet") == {"a": True, "b": False}
     assert settled({**base, "judge": judged_by("opus")}, cases, "sonnet") == {}  # another judge: no verdict holds
     assert settled(None, cases, "sonnet") == {}
-    assert agrees(Trial(passed=True), True) and agrees(Trial(), False)
-    assert not agrees(Trial(), True) and not agrees(Trial(passed=False, errored=True), False)  # an error: ask again
+    from evals.run import planned
+    assert planned(base, cases, "sonnet", "auto") == {"a": 2, "b": 2, "c": 3, "d": 3, "e": 3, "f": 3}
+    assert planned(base, cases, "sonnet", 1) == dict.fromkeys("abcdef", 1)
 
 
 def test_a_run_with_trials_per_case_compares_case_by_case():
     now = tally({"a": 1, "b": 1, "c": 2}) | {"trials": {"a": 1, "b": 3, "c": 3}}
     text = "\n".join(compare(tally({"a": 3, "b": 3, "c": 2}), now))
-    assert "total 4/7, the baseline's 6 at these trials: -2" in text
-    assert "\n    b 1/3 (baseline 3/3)" in text and "a 1/1" not in text  # a single answer like the baseline's
+    # each case weighs as in the baseline, whatever it was asked now: a's one answer counts for three
+    assert "total 6 of 9, each case weighed as in the baseline, whose total was 8: -2" in text
+    assert "    the 2 the baseline judged the same on every trial: 4 of 6, the baseline's 6: -2 (±1.2)" in text
+    assert "    the others: 2 of 3, the baseline's 2: +0 (±1.2)" in text
+    assert "\n    b 1/3 (baseline 3/3), by chance 1 in 5" in text and "a 1/1" not in text  # one answer, as before
     assert summary(now)[1].split() == ["a", "1/1"] and summary(now)[2].split() == ["b", "1/3", "flaky"]
     assert "(opus, abc, 1-3 trials)" in "\n".join(compare(now, now))
 
@@ -301,3 +309,150 @@ def test_a_report_sent_before_the_user_agreed_fails():
     assert uncalled(case, [{"name": "pull_summary", "turn": 0}], "connector") == ["report_answer"]
     assert uncalled(case, [{"name": "report_answer", "turn": 1}, {"name": "report_answer", "turn": 2}]) == [
         "report_answer only after the last question (called it before the user agreed)"]
+
+
+# ---- the verdict, on a made-up suite shaped like the baselines: 72 cases right on every trial, 21 sometimes ----
+
+def suite(now: dict | None = None, trials: dict | None = None) -> tuple[dict, dict]:
+    """(the baseline, a run): every case passes as in the baseline but for `now`, and has 3 trials but for `trials`."""
+    passed = {f"s{i}": 3 for i in range(72)} | {f"f{i}": 1 + i % 2 for i in range(21)}
+    run = tally(passed | (now or {}))
+    return tally(passed), run | {"trials": {c: 3 for c in passed} | trials} if trials else run
+
+
+def verdict_of(now: dict | None = None, trials: dict | None = None, **changed) -> tuple[str, str]:
+    from evals.run import compared
+    base, run = suite(now, trials)
+    found = compared(base, run | changed)
+    return found.verdict, found.lines[-1]
+
+
+def test_a_comparison_ends_in_one_verdict_with_the_drop_it_could_have_shown():
+    assert verdict_of() == ("no change shown", "VERDICT: no change shown: a drop of 10.6 answers (3.8 points) or "
+                                               "more would have shown.")
+    name, line = verdict_of({f"s{i}": 2 for i in range(8)})  # eight answers fewer: one spread, no case beyond noise
+    assert name == "no change shown" and line.startswith(
+        "VERDICT: no change shown, but look: the total is 1.4 spreads below the baseline's (a drop is shown at 2)")
+    name, line = verdict_of({f"s{i}": 2 for i in range(14)})
+    assert (name, line) == ("a drop shown", "VERDICT: a drop shown: the total is 2.2 spreads below the baseline's.")
+    name, line = verdict_of({f"f{i}": 3 for i in range(21)})
+    assert name == "a rise shown" and "spreads above the baseline's" in line
+
+
+def test_a_case_shows_a_drop_only_when_it_stayed_down_on_six_answers():
+    from evals.run import by_chance, compared
+    assert round(1 / by_chance(0, 6, 3, 3)) == 84 and round(1 / by_chance(1, 6, 3, 3)) == 21
+    assert round(1 / by_chance(0, 3, 3, 3)) == 20 and round(1 / by_chance(3, 3, 0, 3)) == 20
+    assert by_chance(2, 3, 2, 3) > 0.5
+    base, run = suite({"s0": 0})  # none of three: beyond noise, but three answers do that by chance, so ask again
+    found = compared(base, run)
+    assert found.verdict == "no change shown" and found.again == ["s0"]
+    assert "\n    s0 0/3 (baseline 3/3), by chance 1 in 20" in "\n".join(found.lines)
+    base, run = suite({"s0": 0}, {"s0": 6})
+    found = compared(base, run)
+    assert found.verdict == "a drop shown" and not found.again
+    assert found.lines[-1] == "VERDICT: a drop shown: stayed down on 6 answers: s0."
+    assert "\n    s0 0/6 (baseline 3/3), by chance 1 in 84: stayed down" in "\n".join(found.lines)
+    assert verdict_of({"s0": 1}, {"s0": 6})[0] == "no change shown"  # one of six: listed with its chance, no drop
+
+
+def test_a_comparison_cannot_tell_when_the_judge_changed_or_cases_were_skipped():
+    name, line = verdict_of({f"s{i}": 0 for i in range(30)}, judge={"prompts": "new", "model": "sonnet"})
+    assert name == "cannot tell" and line.startswith("VERDICT: cannot tell: the judge changed since the baseline")
+    hashes = {c: "h" for c in suite()[0]["passed"]} | {f"s{i}": "new" for i in range(12)}
+    name, line = verdict_of(case_hashes=hashes)
+    assert (name, line) == ("cannot tell", "VERDICT: cannot tell: 12 of this run's 93 cases not compared.")
+    name, line = verdict_of({f"s{i}": 2 for i in range(20, 34)}, case_hashes=hashes)  # a drop on the rest is one
+    assert name == "a drop shown" and line.endswith("(but 12 of this run's 93 cases not compared).")
+    # errors that as failed answers would have made it a drop
+    name, line = verdict_of({f"s{i}": 2 for i in range(8)}, errors={f"s{i}": 1 for i in range(20, 26)},
+                            trials={f"s{i}": 4 for i in range(20, 26)})
+    assert name == "cannot tell" and "the 6 errored answers could have made it a drop" in line
+    assert line.endswith("Look: the total is 1.4 spreads below the baseline's.")
+
+
+# ---- asking: --trials auto and the cases asked again, with made-up answers in place of the model ----
+
+async def asked(trials, source: dict[str, list[bool]], base: dict | None = None, **how):
+    """The tally after `ask_all`, each case answering from its `source` in turn (True: a pass), and what it
+    printed."""
+    import contextlib
+    import io
+
+    from evals.run import ask_all, tally_of
+    cases = [{**CASE, "id": c} for c in source]
+    base = (base or suite()[0]) | {"case_hashes": {c["id"]: case_hash(c) for c in cases}}
+    results: dict[str, list[Trial]] = {c: [] for c in source}
+
+    async def one(case: dict) -> None:
+        got = results[case["id"]]
+        got.append(Trial(passed=source[case["id"]][len(got)]))
+
+    def so_far() -> dict:
+        return tally_of(cases, results, model="opus", commit="abc", judge=judged_by("sonnet"))
+    with contextlib.redirect_stdout(io.StringIO()) as said:
+        await ask_all(cases, base, trials, "sonnet", one, so_far, **how)
+    return base, so_far(), said.getvalue()
+
+
+def answers_like_the_baseline(**other: list[bool]) -> dict[str, list[bool]]:
+    """Six answers a case: the steady ones always right, the others as often as in the baseline, but for `other`."""
+    flaky = {f"f{i}": [True, False, False] * 2 if i % 2 == 0 else [False, True, True] * 2 for i in range(21)}
+    return {f"s{i}": [True] * 6 for i in range(72)} | flaky | other
+
+
+async def test_auto_asks_the_steady_cases_twice_and_reads_like_three_trials():
+    from evals.run import compared
+    base, run, said = await asked("auto", answers_like_the_baseline())
+    assert said.startswith("72 of 93 cases asked 2 times, the baseline's verdict on every trial; the others 3 times.")
+    assert sum(run["trials"].values()) == 72 * 2 + 21 * 3 and compared(base, run).verdict == "no change shown"
+    _, three, _ = await asked(3, answers_like_the_baseline())
+    assert compared(base, three).verdict == "no change shown" and three["trials"] == 3
+    # the totals agree: a steady case's two answers weigh as the baseline's three
+    assert "total 247 of 279" in compared(base, run).lines[3] and "total 247 of 279" in compared(base, three).lines[3]
+
+
+async def test_auto_that_looks_low_becomes_a_three_trial_run():
+    """Ten steady cases wrong on their first answer only: at two answers each the total is well below the
+    baseline's, so every case gets its third, and the run is the three-trial run, verdict and all."""
+    from evals.run import compared
+    source = answers_like_the_baseline(**{f"s{i}": [False, True, True, True, True, True] for i in range(10)})
+    base, run, said = await asked("auto", source)
+    _, three, _ = await asked(3, source)
+    assert "asking the 72 steady cases a third time" in said
+    assert run["trials"] == three["trials"] == 3 and run["passed"] == three["passed"]
+    assert compared(base, run).lines[-1] == compared(base, three).lines[-1]
+    assert compared(base, run).lines[-1].startswith("VERDICT: no change shown, but look")
+
+
+async def test_a_case_that_moved_is_asked_to_six_answers_before_it_is_printed():
+    from evals.run import compared
+    source = answers_like_the_baseline(s0=[False] * 6, s1=[False, False, False, True, True, True])
+    for trials in ("auto", 3):  # the same verdict either way
+        base, run, said = await asked(trials, source)
+        assert "Asking again, up to 6 answers each, the cases that moved beyond noise: s0, s1" in said
+        assert run["trials"]["s0"] == run["trials"]["s1"] == 6 and run["trials"]["s2"] == 3  # auto: its third too
+        found = compared(base, run)
+        assert found.lines[-1] == "VERDICT: a drop shown: stayed down on 6 answers: s0."
+        assert "  within noise: s1 3/6 (baseline 3/3)" in found.lines  # three answers more, and it was noise
+    base, run, said = await asked(3, source, confirm=False)
+    assert "Asking again" not in said and run["trials"] == 3 and compared(base, run).again == ["s0", "s1"]
+
+
+async def test_an_errored_answer_is_asked_again_once_when_a_case_is_confirmed():
+    from evals.run import ask_all, tally_of
+    cases = [{**CASE, "id": c} for c in suite()[0]["passed"]]
+    base = suite()[0] | {"case_hashes": {c["id"]: case_hash(c) for c in cases}}
+    results: dict[str, list[Trial]] = {str(c): [] for c in base["passed"]}
+
+    async def one(case: dict) -> None:
+        got = results[case["id"]]
+        steady = case["id"].startswith("s") or len(got) % 3 < (1 if int(case["id"][1:]) % 2 == 0 else 2)
+        got.append(Trial(errored=True) if case["id"] == "s0" and len(got) == 3
+                   else Trial(passed=steady and case["id"] != "s0"))
+
+    def so_far() -> dict:
+        return tally_of(cases, results, model="opus", commit="abc", judge=judged_by("sonnet"))
+    await ask_all(cases, base, 3, "sonnet", one, so_far)
+    run = so_far()
+    assert run["trials"]["s0"] == 7 and run["errors"] == {"s0": 1} and run["passed"]["s0"] == 0  # six judged

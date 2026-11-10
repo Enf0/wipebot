@@ -2,7 +2,7 @@
 
     just evals                        # every case once, as Claude with the plugin: the connector and the skill
     just evals -k wipe --trials 3     # some cases, three times each
-    just evals --bot --trials auto    # once where the baseline was sure, three times elsewhere (the full suite)
+    just evals --bot --trials auto    # twice where the baseline was sure, three times elsewhere (the full suite)
     just evals --model opus           # another model; the cases that differ from the baseline are listed
     just evals --save-baseline        # keep this run as its mode's baseline, to compare later runs with
     just evals --connector-only       # as a client with only the connector: no skill, no instructions (own baseline)
@@ -33,8 +33,12 @@ and a run with one exits non-zero (settle).
 A run, and a baseline, keep a hash of the judge (its prompts and model) and of each case. A run is compared with the
 baseline only on the cases unchanged since, with a warning when the judge changed; a case is listed as moved only
 when its pass rate moved beyond noise (beyond_noise), and the total with its expected spread from run to run.
-With `--trials auto` a case the baseline judged the same on every trial is asked once, and twice more when that
-answer differs from the baseline's verdict or errors; every other case is asked three times (planned_trials).
+With `--trials auto` a case the baseline judged the same on every trial is asked twice and every other case three
+times; once the total is half a spread below the baseline's, every case gets its third answer (ask_all). In any run a
+case that moved beyond noise is asked again, up to six answers, before it is printed. A comparison ends in one verdict
+line (compared): no change shown, a drop shown, a rise shown or cannot tell, with the smallest drop it could have
+shown. A run exits non-zero when an answer errored or a drop is shown: the total two spreads below the baseline's, or
+a case that stayed down on six answers. One spread below says "look" and exits zero.
 """
 import argparse
 import asyncio
@@ -49,7 +53,7 @@ import sys
 import tempfile
 import time
 import tomllib
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -489,7 +493,8 @@ async def keys_work(library: server.Library) -> None:
 
 
 async def run(args) -> int:
-    """Ask the cases, print and save what came of it; 1 when an answer errored, else 0."""
+    """Ask the cases, print and save what came of it; 1 when an answer errored or the comparison with the baseline
+    shows a drop, else 0."""
     print(f"Answers and judging on {args.billed_to}.", flush=True)
     frozen()
     model = args.model  # empty: the bot's own, for chat and for live answers
@@ -514,20 +519,11 @@ async def run(args) -> int:
         results[case["id"]].append(t)
         show(case["id"], t)
 
-    sure = settled(base, cases, args.judge_model) if args.trials == "auto" else {}
-    if args.trials == "auto":
-        print(f"{len(sure)} of {len(cases)} cases asked once, the baseline's verdict on every trial (twice more "
-              f"where an answer differs or errors); the others {UNSETTLED_TRIALS} times.\n", flush=True)
+    def so_far() -> dict:
+        return tally_of(cases, results, model=shown, commit=commit(), judge=judged_by(args.judge_model))
 
-    async def asked_enough(case: dict) -> None:
-        n = 1 if case["id"] in sure else UNSETTLED_TRIALS if args.trials == "auto" else args.trials
-        await asyncio.gather(*(one(case) for _ in range(n)))
-        if (verdict := sure.get(case["id"])) is not None and not agrees(results[case["id"]][0], verdict):
-            await asyncio.gather(*(one(case) for _ in range(UNSETTLED_TRIALS - 1)))
-
-    await asyncio.gather(*(asked_enough(c) for c in cases))
-
-    tally = tally_of(cases, results, model=shown, commit=commit(), judge=judged_by(args.judge_model))
+    await ask_all(cases, base, args.trials, args.judge_model, one, so_far, confirm=not args.no_confirm)
+    tally = so_far()
     asked_trials = tally["trials"]
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
     mode = f", {args.mode}"
@@ -536,9 +532,9 @@ async def run(args) -> int:
     print("\n".join(built_summary((t.form, t.slips) for ts in results.values() for t in ts if not t.errored)))
     if args.mode == "plugin":
         print(skill_use(results))
-    if base:
-        print("\n" + "\n".join(compare(base, tally)))
-
+    found = compared(base, tally) if base else None
+    if found:
+        print("\n" + "\n".join(found.lines))
 
     stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
     out = HERE / "results" / f"{stamp}.json"
@@ -553,7 +549,7 @@ async def run(args) -> int:
     if args.save_baseline:
         baseline(args.mode).write_text(json.dumps(tally, indent=1) + "\n", encoding="utf-8")
         print(f"saved {baseline(args.mode).relative_to(HERE.parent)}")
-    return 1 if tally["errors"] else 0
+    return 1 if tally["errors"] or (found and found.verdict == "a drop shown") else 0
 
 
 def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dict:
@@ -597,13 +593,21 @@ def asked_live(t: Trial) -> bool:
 # A run's tally (tally_of) and a baseline have the same keys: model, commit, trials (each case's, or {case: trials}
 # when they differ: --trials auto), judge ({prompts: hash, model}), case_hashes ({case: hash}), passed and errors
 # ({case: trials}). An errored trial counts in neither passes nor trials.
-UNSETTLED_TRIALS = 3  # with --trials auto: a case the baseline wasn't sure of, or one whose single answer surprised
+# With --trials auto, the answers a case gets at first: a case the baseline judged the same on every trial, and every
+# other case. Every answer counts; the total weighs each case as the baseline did, however many answers it got.
+STEADY_TRIALS, UNSETTLED_TRIALS = 2, 3
+ESCALATE = 0.5  # spreads the auto total is below the baseline's when the steady cases get their third answer too
+CONFIRM_TRIALS = 6  # a case that moved beyond noise is asked up to this many answers before it is printed
+LOOK, SHOWN = 1.0, 2.0  # spreads the total is from the baseline's: worth a look, and shown (the exit code)
+STAYED = 0.02  # a moved case has stayed there when chance splits its answers this unevenly no more often than this
+COVERED = 0.9  # of a run's cases, the share a comparison needs to speak for the run
+TOO_WIDE = 10  # points of the pass rate: a comparison that couldn't have shown a smaller drop is on too few answers
 
 
 def settled(base: dict | None, cases: list[dict], judge_model: str) -> dict[str, bool]:
-    """The cases --trials auto asks once, with the verdict the baseline gave on every one of its trials (two or
-    more): unchanged since it, judged by the same judge. A case that passed or failed only sometimes, a new or
-    changed one, or any case after the judge changed is asked UNSETTLED_TRIALS times."""
+    """The cases --trials auto asks STEADY_TRIALS times, with the verdict the baseline gave on every one of its
+    trials (two or more): unchanged since it, judged by the same judge. A case that passed or failed only sometimes,
+    a new or changed one, or any case after the judge changed is asked UNSETTLED_TRIALS times."""
     if not base or base.get("judge") != judged_by(judge_model):
         return {}
     sure = {}
@@ -614,9 +618,43 @@ def settled(base: dict | None, cases: list[dict], judge_model: str) -> dict[str,
     return sure
 
 
-def agrees(t: Trial, verdict: bool) -> bool:
-    """Whether a case's single answer bears out the baseline's verdict: one that errored says nothing."""
-    return not t.errored and t.passed == verdict
+def planned(base: dict | None, cases: list[dict], judge_model: str, trials: int | str) -> dict[str, int]:
+    """The answers each case gets at first: `trials`, or with auto, by what the baseline made of it (settled)."""
+    if trials != "auto":
+        return {c["id"]: int(trials) for c in cases}
+    sure = settled(base, cases, judge_model)
+    return {c["id"]: STEADY_TRIALS if c["id"] in sure else UNSETTLED_TRIALS for c in cases}
+
+
+async def ask_all(cases: list[dict], base: dict | None, trials: int | str, judge_model: str,
+                  one: Callable[[dict], Awaitable[None]], so_far: Callable[[], dict], confirm: bool = True) -> None:
+    """Ask every case its planned answers (`one` asks a case once and keeps the answer; `so_far` is the run's tally
+    until now), then what the comparison with the baseline calls for:
+    - with auto, the third answer for the steady cases too once the total is ESCALATE spreads below the baseline's,
+      so a run that looks low is a three-trial run, and reads as one;
+    - in any run (`confirm`), more answers, up to CONFIRM_TRIALS, for each case that moved beyond noise, so that no
+      case is printed as moved on the luck of three answers. A second round covers answers that errored."""
+    plan = planned(base, cases, judge_model, trials)
+    if trials == "auto":
+        steady = sum(n == STEADY_TRIALS for n in plan.values())
+        print(f"{steady} of {len(cases)} cases asked {STEADY_TRIALS} times, the baseline's verdict on every trial; "
+              f"the others {UNSETTLED_TRIALS} times.\n", flush=True)
+    await asyncio.gather(*(one(c) for c in cases for _ in range(plan[c["id"]])))
+    if not base or judge_warning(base, so_far()):
+        return
+    short = [c for c in cases if plan[c["id"]] < UNSETTLED_TRIALS]
+    if short and (low := compared(base, so_far()).low) >= ESCALATE:
+        print(f"\nThe total is {low:.1f} spreads below the baseline's: asking the {len(short)} steady cases a third "
+              "time, as a three-trial run would.\n", flush=True)
+        await asyncio.gather(*(one(c) for c in short for _ in range(UNSETTLED_TRIALS - plan[c["id"]])))
+    for _ in range(2 if confirm else 0):
+        now = so_far()
+        more = {c["id"]: c for c in cases if c["id"] in compared(base, now).again}
+        if not more:
+            break
+        print(f"\nAsking again, up to {CONFIRM_TRIALS} answers each, the cases that moved beyond noise: "
+              f"{', '.join(more)}\n", flush=True)
+        await asyncio.gather(*(one(c) for c in more.values() for _ in range(CONFIRM_TRIALS - judged(now, c["id"]))))
 
 
 def trials_of(tally: dict) -> str:
@@ -652,6 +690,16 @@ def beyond_noise(passed: int, of: int, base_passed: int, base_of: int) -> bool:
     """Whether a case moved further than chance takes it: its pass rate changed by at least 1/√n, n the fewer
     trials of the two (2 of 3, 3 of 5, 4 of 10; about 1.4 standard deviations of the difference at a 50% rate)."""
     return abs(passed / of - base_passed / base_of) >= 1 / math.sqrt(min(of, base_of)) - 1e-9
+
+
+def by_chance(passed: int, of: int, base_passed: int, base_of: int) -> float:
+    """How often chance alone splits a case's answers between the run and the baseline at least this unevenly, were
+    its pass rate the same in both (Fisher's exact test, one side): 0 of 6 after 3 of 3 is 1 in 84, 1 of 6 is 1 in
+    21, 0 of 3 is 1 in 20."""
+    passes = passed + base_passed
+    fewer = range(max(0, passes - base_of), passed + 1) if passed * base_of < base_passed * of \
+        else range(passed, min(of, passes) + 1)
+    return sum(math.comb(of, k) * math.comb(base_of, passes - k) for k in fewer) / math.comb(of + base_of, passes)
 
 
 def spread(rates: dict[str, float], trials: dict[str, int], base_trials: dict[str, int] | None = None) -> float:
@@ -714,21 +762,21 @@ def judge_warning(base: dict, now: dict) -> str:
     return f"WARNING: the judge changed since the baseline: differences may be the judge's ({', '.join(what)})"
 
 
+@dataclass
+class Comparison:
+    lines: list[str]  # as printed: the last one is the verdict
+    verdict: str  # "no change shown", "a drop shown", "a rise shown" or "cannot tell"
+    low: float = 0.0  # spreads the total is below the baseline's (negative: above)
+    again: list[str] = field(default_factory=list)  # moved beyond noise on fewer than CONFIRM_TRIALS answers
+
+
 def compare(base: dict, now: dict) -> list[str]:
-    """The run against the baseline on the cases unchanged since it: the totals and their spread, the cases that
-    moved beyond noise one per line, the others on one line."""
-    lines = [judge_warning(base, now)] if judge_warning(base, now) else []
-    lines.append(f"Against the baseline ({base['model']}, {base.get('commit', '?')}, {trials_of(base)}):")
-    lines.append("  " + errors_line(now))
-    parts = base.get("parts", PARTS)
-    if added := [part for part in now.get("parts", PARTS) if part not in parts]:
-        lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {', '.join(added)} "
-                     "is left out here, until a baseline has it")
-    now = scored(now, parts)
+    return compared(base, now).lines
+
+
+def unchanged(base: dict, now: dict) -> tuple[list[str], dict[str, list[str]]]:
+    """The run's cases a comparison with the baseline covers, and the ones it skips, by why."""
     hashes = base.get("case_hashes")
-    if hashes is None:
-        lines.append("  note: the baseline is older than case and judge hashes: every case is compared, though a "
-                     "case or the judge may have changed since")
     skipped = {"changed since the baseline": [], "not in it": [], "every trial errored": []}
     same = []
     for c in now["passed"]:
@@ -740,33 +788,126 @@ def compare(base: dict, now: dict) -> list[str]:
             skipped["every trial errored"].append(c)
         else:
             same.append(c)
-    why = [f"{len(cs)} {reason} ({', '.join(cs)})" for reason, cs in skipped.items() if cs]
+    return same, {reason: cs for reason, cs in skipped.items() if cs}
+
+
+def total(base: dict, now: dict, cases: list[str]) -> tuple[int, int, float, float]:
+    """Over `cases`: their weight (the baseline's trials), the baseline's passes, the run's at that weight (each
+    case's pass rate now times the baseline's trials), and the spread of the difference from run to run."""
+    of, base_of = {c: judged(now, c) for c in cases}, {c: judged(base, c) for c in cases}
+    rates = {c: (now["passed"][c] + base["passed"][c]) / (of[c] + base_of[c]) for c in cases}
+    return (sum(base_of.values()), sum(base["passed"][c] for c in cases),
+            sum(base_of[c] * now["passed"][c] / of[c] for c in cases), spread(rates, base_of, of))
+
+
+def moves(base: dict, now: dict, same: list[str]) -> tuple[list[str], list[str], list[str], list[str]]:
+    """The cases whose pass rate differs from the baseline's: those beyond noise as printed, with how often chance
+    does that and whether they stayed there on CONFIRM_TRIALS answers; those within noise; the ones beyond noise
+    on fewer answers than that (to ask again); and the ones that stayed down."""
+    moved, noise, again, down = [], [], [], []
+    for c in same:
+        n, of, b, base_of = now["passed"][c], judged(now, c), base["passed"][c], judged(base, c)
+        if n * base_of == b * of:
+            continue
+        if not beyond_noise(n, of, b, base_of):
+            noise.append(f"{c} {n}/{of} (baseline {b}/{base_of})")
+            continue
+        chance = by_chance(n, of, b, base_of)
+        stayed = of >= CONFIRM_TRIALS and chance <= STAYED
+        if stayed and n * base_of < b * of:
+            down.append(c)
+        if of < CONFIRM_TRIALS:
+            again.append(c)
+        moved.append(f"{c} {n}/{of} (baseline {b}/{base_of}), by chance 1 in {1 / chance:.0f}"
+                     + (f": stayed {'down' if c in down else 'up'}" if stayed else ""))
+    return moved, noise, again, down
+
+
+def verdict(above: float, width: float, weight: int, down: list[str], cannot: list[str],
+            void: bool) -> tuple[str, str]:
+    """A comparison's verdict and its line. `above`: the total against the baseline's in spreads of `width` answers,
+    over `weight` answers; `down`: the cases that stayed down; `cannot`: why the total can't tell; `void`: the judge
+    changed, so nothing shows a drop."""
+    smallest = SHOWN * width  # the drop of the total this run would have shown, in answers
+    points = 100 * smallest / weight
+    few = not width or points > TOO_WIDE
+    reach = f"a drop of {smallest:.1f} answers ({points:.1f} points) or more would have shown"
+    low = f"the total is {-above:.1f} spreads below the baseline's"
+    if (above <= -SHOWN and not few or down) and not void:
+        said = "; ".join(x for x in (low if above <= -SHOWN and not few else "",
+                                     f"stayed down on {CONFIRM_TRIALS} answers: {', '.join(down)}" if down else "")
+                         if x) + (f" (but {'; '.join(cannot)})" if cannot else "")
+        return "a drop shown", f"VERDICT: a drop shown: {said}."
+    if cannot:
+        return "cannot tell", (f"VERDICT: cannot tell: {'; '.join(cannot)}."
+                               + (f" Look: {low}." if above <= -LOOK else ""))
+    if above >= SHOWN:
+        return "a rise shown", f"VERDICT: a rise shown: the total is {above:.1f} spreads above the baseline's."
+    if above <= -LOOK:
+        return "no change shown", (f"VERDICT: no change shown, but look: {low} (a drop is shown at {SHOWN:.0f}); "
+                                   f"{reach}.")
+    return "no change shown", f"VERDICT: no change shown: {reach}."
+
+
+def compared(base: dict, now: dict) -> Comparison:
+    """The run against the baseline on the cases unchanged since it, ending in one verdict line.
+
+    The total weighs each case as the baseline did (total), so it doesn't turn on which cases got more answers this
+    time; the cases the baseline judged the same on every trial and the others are also totalled apart. The cases
+    that moved beyond noise come one per line with how often chance does that, the others on one line. The verdict
+    is a drop shown when the total is SHOWN spreads below the baseline's or a case stayed down on CONFIRM_TRIALS
+    answers, a look at LOOK spreads, and cannot tell when the judge changed, cases were skipped or the answers are
+    too few to have shown a drop."""
+    warning = judge_warning(base, now)
+    lines = [warning] if warning else []
+    lines.append(f"Against the baseline ({base['model']}, {base.get('commit', '?')}, {trials_of(base)}):")
+    lines.append("  " + errors_line(now))
+    parts = base.get("parts", PARTS)
+    if added := [part for part in now.get("parts", PARTS) if part not in parts]:
+        lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {', '.join(added)} "
+                     "is left out here, until a baseline has it")
+    now = scored(now, parts)
+    if base.get("case_hashes") is None:
+        lines.append("  note: the baseline is older than case and judge hashes: every case is compared, though a "
+                     "case or the judge may have changed since")
+    same, skipped = unchanged(base, now)
+    why = [f"{len(cs)} {reason} ({', '.join(cs)})" for reason, cs in skipped.items()]
     lines.append(f"  compared {len(same)} of {len(now['passed'])} cases"
                  + (f"; skipped {'; '.join(why)}" if why else ""))
     if not same:
-        return lines
-    trials, base_trials = {c: judged(now, c) for c in same}, {c: judged(base, c) for c in same}
-    total = sum(now["passed"][c] for c in same)
-    expected = sum(base["passed"][c] / base_trials[c] * trials[c] for c in same)
-    rates = {c: (now["passed"][c] + base["passed"][c]) / (trials[c] + base_trials[c]) for c in same}
-    width = spread(rates, trials, base_trials)
-    lines.append(f"  total {total}/{sum(trials.values())}, the baseline's {expected:.4g} at these trials: "
-                 f"{total - expected:+.3g}, {'within' if abs(total - expected) <= width else 'beyond'} the "
-                 f"±{width:.1f} expected from run to run")
+        lines.append("VERDICT: cannot tell: no case of this run is in the baseline unchanged.")
+        return Comparison(lines, "cannot tell")
+    weight, was, at, width = total(base, now, same)
+    above = (at - was) / width if width else 0.0  # in spreads
+    lines.append(f"  total {at:.4g} of {weight}, each case weighed as in the baseline, whose total was {was}: "
+                 f"{at - was:+.3g}, {abs(above):.1f} times the ±{width:.1f} expected from run to run")
+    steady = [c for c in same if judged(base, c) >= 2 and base["passed"][c] in (0, judged(base, c))]
+    if steady and len(steady) < len(same):
+        for name, cases in ((f"the {len(steady)} the baseline judged the same on every trial", steady),
+                            ("the others", [c for c in same if c not in steady])):
+            w, b, n, sd = total(base, now, cases)
+            lines.append(f"    {name}: {n:.4g} of {w}, the baseline's {b}: {n - b:+.3g} (±{sd:.1f})")
     if "facts" in base and "facts" in now:  # baselines from before 22 October have none
         lines.append(f"  answers: {how_answered(now, same)}\n  the baseline's: {how_answered(base, same)}")
-    moved, noise = [], []
-    for c in same:
-        n, of, b, b_of = now["passed"][c], trials[c], base["passed"][c], base_trials[c]
-        if n * b_of != b * of:
-            (moved if beyond_noise(n, of, b, b_of) else noise).append(f"{c} {n}/{of} (baseline {b}/{b_of})")
-    fewest = min(min(trials.values()), min(base_trials.values()))
+    moved, noise, again, down = moves(base, now, same)
+    fewest = min(min(judged(now, c), judged(base, c)) for c in same)
     lines.append(f"  moved beyond noise (pass rate by 1/√n or more, n the fewer trials: "
                  f"{math.ceil(math.sqrt(fewest) - 1e-9)} of {fewest}):" + "".join(f"\n    {m}" for m in moved)
                  + (" none" if not moved else ""))
     if noise:
         lines.append(f"  within noise: {', '.join(noise)}")
-    return lines
+    answers, errored = sum(judged(now, c) for c in same), sum(now.get("errors", {}).get(c, 0) for c in same)
+    cannot = ["the judge changed since the baseline"] if warning else []
+    if len(same) < COVERED * len(now["passed"]):
+        cannot.append(f"{len(now['passed']) - len(same)} of this run's {len(now['passed'])} cases not compared")
+    if errored and width and above > -SHOWN >= (at - errored - was) / width:
+        cannot.append(f"the {errored} errored answers could have made it a drop")
+    if not width or 100 * SHOWN * width / weight > TOO_WIDE:
+        cannot.append(f"too few answers ({answers} on {len(same)} cases)" + (
+            f": a drop of the total under {100 * SHOWN * width / weight:.0f} points could not show" if width else ""))
+    name, line = verdict(above, width, weight, down, cannot, bool(warning))
+    lines.append(line)
+    return Comparison(lines, name, -above, again)
 
 
 async def recheck(path: Path, judge_model: str, only: str = "") -> None:
@@ -964,8 +1105,11 @@ def main() -> None:
     parser.add_argument("-k", dest="filter", default="",
                         help="only cases whose id contains this (several, comma-separated: any of them)")
     parser.add_argument("--trials", type=lambda v: v if v == "auto" else int(v), default=1,
-                        help="answers per case (default 1), or auto: once where the baseline judged a case the same "
-                             f"on every trial (two more if that answer differs), {UNSETTLED_TRIALS} elsewhere")
+                        help=f"answers per case (default 1), or auto: {STEADY_TRIALS} where the baseline judged a "
+                             f"case the same on every trial, {UNSETTLED_TRIALS} elsewhere, and {UNSETTLED_TRIALS} "
+                             "everywhere once the total looks low")
+    parser.add_argument("--no-confirm", action="store_true",
+                        help=f"don't ask the cases that moved beyond noise again (up to {CONFIRM_TRIALS} answers each)")
     parser.add_argument("--model", default="", help="model for the answers (default: the bot's)")
     parser.add_argument("--effort", default="", choices=["", "low", "medium", "high", "xhigh", "max"],
                         help="the answers' effort (default: the bot's, WIPEBOT_EFFORT); the judge's stays")
