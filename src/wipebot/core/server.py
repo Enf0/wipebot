@@ -905,6 +905,8 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
                                                        ge=1, le=12)] = None,
                     ) -> CallToolResult:
     """What a view draws, for the pull (and player) its tool was asked about."""
+    if view in ("meter", "trend"):
+        args = _as_called(tool, args)
     rep = await lib().report(report)
     try:
         nights = await boss_nights(rep, boss, weeks) if view == "night" and weeks else None
@@ -924,6 +926,21 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
         raise FactError(str(e)) from e
     return CallToolResult(content=[TextContent(type="text", text=f"the {view} view of {data['title']}")],
                           structured_content=data)
+
+
+def _as_called(tool: str | None, args: dict | None) -> dict:
+    """A meter's or a trend's `args` held to its tool's own arguments: typed as the tool takes them, without any it
+    doesn't have, and refused in words where the tool would refuse them. The page sends back what its result's key
+    held, but the page's tools are anyone's to call who is signed in, and these arguments go on to the tables'
+    queries as the tool's own do."""
+    found = mcp._tool_manager.get_tool(tool) if tool in views.METER_TOOLS else None
+    if not tool or found is None or not args:  # no ranking's tool: the view says so
+        return args or {}
+    try:
+        return found.fn_metadata.arg_model.model_validate(args).model_dump(exclude_unset=True)
+    except ValidationError as e:
+        wrong = "; ".join(f"{'.'.join(str(part) for part in x['loc'])}: {x['msg']}" for x in e.errors())
+        raise FactError(f"not {tool}'{'' if tool.endswith('s') else 's'} arguments: {wrong}") from e
 
 
 async def replay_data(report: str, pull: int, boss: str, at_ms: int = 0, players: list[str] | None = None) -> dict:

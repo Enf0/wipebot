@@ -491,6 +491,34 @@ async def test_breakdown_gives_a_views_key_only_for_a_ranking_or_a_trend(recorde
     assert await key_of("damage-by-pull") is None
 
 
+async def test_a_rankings_arguments_from_the_page_are_held_to_its_tools_own(recorded, monkeypatch):
+    """A meter's and a trend's data are asked for with the arguments their tool was called with, which the page
+    sends back from its result's key. The page's tools are anyone's to call who is signed in, and those arguments go
+    on to the tables' queries: one the tool itself would refuse (a list for a number, text for a list of pulls) is
+    refused here in words, before any report is read. Text for the pulls once ranked pulls 1 and 3 for "13", and a
+    list for the cutoff got as far as the query's wording."""
+    async def no_report(code):
+        raise AssertionError("read a report for arguments its tool would refuse")
+    ask = {k: v for k, v in CASES["damage-taken-ability"].args.items() if k != "report"}  # Tempest on pull 13
+    with monkeypatch.context() as stranger:
+        stranger.setattr(server.lib(), "report", no_report)
+        for bad in ({"cutoff": ["1]) }"]}, {"pulls": "13"}, {"start": 90}, {"data_type": ["DamageTaken"]},
+                    {"target": {"name": "x"}}):
+            for view in ("meter", "trend"):
+                with pytest.raises(FactError, match="not breakdown's arguments: " + next(iter(bad))):
+                    await server.view_data(view, report=REPORT, tool="breakdown", args=ask | bad)
+        with pytest.raises(FactError, match="not mechanic_hits' arguments: ability"):
+            await server.view_data("trend", report=REPORT, tool="mechanic_hits", args={"ability": ["Tempest"]})
+    # what the tool takes goes through as it would there: typed, and without what it doesn't have
+    assert server._as_called("breakdown", ask | {"cutoff": "3", "nope": 1}) == ask | {"cutoff": 3}
+    result = await server.view_data("meter", report=REPORT, tool="breakdown", args=ask | {"nope": 1})
+    assert result.structured_content and result.structured_content["args"] == ask
+    # the keys the server hands out are such arguments
+    for case in ("mechanic-hits", "damage-by-pull", "damage-least", "interrupts"):
+        key = await server.view_key(CASES[case].tool, CASES[case].args)
+        assert key and server._as_called(key["tool"], key["args"]) == key["args"], case
+
+
 def test_only_the_first_ranking_of_an_answer_comes_open():
     """A host draws a card for every call of a tool with a view, and an answer ranks several things: the first
     ranking or trend handed to a user comes open, the ones within a minute of the last folded (one line that opens),
