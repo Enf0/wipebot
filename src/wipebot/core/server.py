@@ -872,8 +872,10 @@ _last_ranking: dict[str | None, float] = {}  # a signed-in user (the token's sub
 def _fold(key: dict, now: float | None = None) -> dict:
     """A ranking's or a trend's key, marked `folded` when the same user was handed one less than FOLD_S ago. A host
     draws a card for every call of a tool with a view and gives the cards nothing to share, so an answer that ranks
-    three things would stack three: the first comes open, the later ones as one line that opens on a click
-    (app/main.js). Calls a minute apart are another question's."""
+    three things would stack three: the first handed comes open (of calls made together the first answered, which
+    need not be the first asked), the later ones as one line that opens on a click (app/main.js). Calls a minute
+    apart are another question's; a host says nothing of which answer a call is for, so a question asked within
+    the minute gets its ranking as a line too."""
     if key.get("view") not in FOLDED:
         return key
     from mcp.server.auth.middleware.auth_context import get_access_token

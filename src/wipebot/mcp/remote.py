@@ -94,9 +94,10 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull, and
     # compare_with_top no player: the player view asks for its comparison itself), and the two that rank players:
     # breakdown and mechanic_hits, whose calls without a ranking or a trend draw nothing (the page's frame stays
-    # empty, app/main.js). An answer calls those several times, so only its first card comes open (server._fold).
-    ranks = ("In Claude and ChatGPT, {what}. Every such call draws a card: the first of an answer open, the later "
-             "ones as a line the user opens.")
+    # empty, app/main.js). An answer calls those several times, so only one of its cards comes open (server._fold:
+    # the first answered, which of calls made together need not be the first asked).
+    ranks = ("In Claude and ChatGPT, {what}. Every such call draws a card: one comes open, and each that follows "
+             "within a minute of the last as a line the user opens.")
     server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
                                        "player_night": shown, "death_recap": shown, "progress": shown,
                                        "breakdown": shown, "mechanic_hits": shown},
