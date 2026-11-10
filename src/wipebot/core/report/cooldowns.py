@@ -39,7 +39,9 @@ async def cooldown_lines(rep: Report, f: dict, p: Player, casts: list[dict]) -> 
         cut = f["startTime"] + decided.at_ms if decided else f["endTime"]
         lines.append("Major cooldowns (list from Lorrgs; uses / possible if pressed on cooldown from the pull until "
                      "they died or the wipe was decided, ignoring charges, cooldown reduction and holding for a burst "
-                     "window; one already up at the pull counts as used at 0:00"
+                     "window or for a moment of the fight the raid assigns it to: one pull can't tell which they "
+                     "hold, player_night can, from when they first use each pull after pull; one already up at the "
+                     "pull counts as used at 0:00"
                      + ("" if untalented is not None else "; talents not in the log, so 0 uses can mean not "
                         "talented") + "):")
         for sp, times, possible in judged:

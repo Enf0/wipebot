@@ -1488,7 +1488,9 @@ async def player_night(player: Player, boss: Boss = None, report: Report_ = None
     middle and last third of the pulls.
     Reading it: a death after a wipe was decided is marked as fallout, and one in a hit killing many as the raid's
     to stop; both are left out of the counts, as is a reset, whose row is marked. Cooldown uses /
-    possible assume pressing on cooldown from the pull until the player died or the wipe was decided."""
+    possible assume pressing on cooldown from the pull until the player died or the wipe was decided. A cooldown
+    first used late and at the same time pull after pull is held for that moment of the fight: it has no possible
+    uses, only the pulls that got to the moment and how many of them had it used."""
     text = await coaching.player_night(await lib().report(report), player, boss)
     return await _shown("player_night", {"player": player, "boss": boss, "report": report}, text, ctx)
 

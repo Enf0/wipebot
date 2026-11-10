@@ -191,3 +191,40 @@ def test_a_buff_refreshed_by_a_removal_and_a_gain_at_once_runs_on():
              {"type": "applybuff", "abilityGameID": fury, "timestamp": 60000}]
     assert coaching._aura_end(auras, 0, 99000) == 41000
     assert coaching._aura_end(auras, 5, 99000) == 99000
+
+
+def _night_pull(no: int, until_s: float, uses: dict[str, list[float]], reset: bool = False) -> coaching.NightPull:
+    """A made-up pull of a night for its cooldowns: how long the player had (alive, the wipe not decided) and when
+    they used each, in seconds."""
+    spells = {"Spirit Link Totem": 180, "Ascendance": 180, "Heroism": 300}
+    rows = [({"name": n, "spell_id": k, "cooldown": cd, "tags": ["raid_cd"]}, [t * 1000 for t in uses.get(n, [])],
+             int(until_s // cd) + 1) for k, (n, cd) in enumerate(spells.items(), 1)]
+    return cast(coaching.NightPull, SimpleNamespace(f={"id": no}, reset=reset, until_s=until_s, cooldowns=rows))
+
+
+def test_a_cooldown_held_for_a_moment_is_counted_on_the_pulls_that_got_to_it():
+    # Spirit Link Totem is first used at about 1:11 on every pull that gets there: held for a boss cast, not pressed
+    # at the pull. "3/7 possible" over the night read as four uses wasted; the pulls that ended before 1:11 had none.
+    pulls = [_night_pull(1, 40, {"Heroism": [2]}), _night_pull(2, 150, {"Spirit Link Totem": [71], "Heroism": [3]}),
+             _night_pull(3, 45, {"Heroism": [2]}), _night_pull(4, 160, {"Spirit Link Totem": [69], "Heroism": [2]}),
+             _night_pull(5, 30, {"Heroism": [1]}), _night_pull(6, 155, {"Spirit Link Totem": [77], "Heroism": [4]}),
+             _night_pull(7, 90, {"Heroism": [2]}), _night_pull(8, 20, {"Spirit Link Totem": [5]}, reset=True)]
+    cds = coaching.night_cooldowns(pulls, set(), "")
+    assert cds.held == {"Spirit Link Totem": coaching.Held(71_000, 3, 4)}  # pull 7 got to 1:11 without a use
+    assert (cds.used["Spirit Link Totem"], cds.possible["Spirit Link Totem"]) == (3, 7)  # as pressed from the pull
+    rep = cast(coaching.Report, SimpleNamespace(pull_no=lambda f: f["id"]))
+    assert coaching._cooldown_text(rep, cds, "Spirit Link Totem") == (
+        "Spirit Link Totem used on 3 of the 4 pulls that got to 1:11 (held for then: its median first use, latest "
+        "pull 6 at 1:17)")
+    # One pressed at the pull stays uses against possible uses, and so does one used too rarely to tell.
+    assert coaching._cooldown_text(rep, cds, "Heroism") == (
+        "Heroism 7/7 (first use on 7 pulls: median 0:02, latest pull 6 at 0:04)")
+    assert coaching.held_at([70_000, 72_000]) is None
+    # Steady is most first uses near their median: a few at the pull (the buff already up) don't hide it,
+    assert coaching.held_at([0, 66_000, 67_000, 67_000, 68_000, 70_000, 71_000, 72_000]) == 67_500
+    # ... but first uses all over the pull are no moment.
+    assert coaching.held_at([35_000, 60_000, 95_000, 130_000, 170_000]) is None
+    # A pull's row leaves a held cooldown out when the pull ended before its moment, and says so when it got there.
+    assert coaching._row_cooldowns(pulls[0], cds) == ["Heroism 1/1 at 0:02"]
+    assert coaching._row_cooldowns(pulls[1], cds) == ["Spirit Link Totem at 1:11", "Heroism 1/1 at 0:03"]
+    assert coaching._row_cooldowns(pulls[6], cds) == ["Spirit Link Totem unused", "Heroism 1/1 at 0:02"]

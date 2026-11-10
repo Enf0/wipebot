@@ -373,6 +373,7 @@ class NightPull:
     alive_s: float
     dead_s: float  # dead before the wipe was decided
     counted_s: float  # the pull until the wipe was decided
+    until_s: float  # ... or until they died for good, if sooner: the time their cooldown uses are counted in
     death: tuple[int, dict, str] | None  # (place among the pull's deaths, their first death, its note)
     fallout: bool  # that death came after the wipe was decided
     mass: bool  # that death was one of a hit killing many (mass_death): not counted as theirs either
@@ -402,11 +403,38 @@ def best_pulls(pulls: list[NightPull], role: str) -> list[NightPull]:
     return [x for x in ranked if x.counted_s >= BEST_MIN_S] or ranked
 
 
+HELD_PULLS = 3  # a cooldown's first uses say how it is played once it was used on this many pulls
+HELD_AFTER_MS = 30_000  # held for a moment: first used this late into the pull, not at it,
+HELD_WITHIN_MS = 15_000  # ... and this close to the median first use
+HELD_SHARE = 0.75  # ... on this share of the pulls it was used on
+
+
+def held_at(first_uses: list[float]) -> float | None:
+    """The moment of the fight a cooldown is held for, from when it was first used on each pull (ms into it): their
+    median, when the first use comes late and at the same time pull after pull (a raid cooldown assigned to a boss
+    cast). None for one pressed at the pull or whenever, or used on too few pulls to tell. The player's own timing
+    decides, not a tag: a healer's own throughput cooldown is a raid cooldown to Lorrgs too."""
+    if len(first_uses) < HELD_PULLS:
+        return None
+    at = statistics.median(first_uses)
+    near = sum(abs(t - at) <= HELD_WITHIN_MS for t in first_uses)
+    return at if at >= HELD_AFTER_MS and near >= HELD_SHARE * len(first_uses) else None
+
+
+@dataclass(frozen=True)
+class Held:
+    """A cooldown held for a moment of the fight (`held_at`), counted on the pulls that got there."""
+    at_ms: float  # the moment: the median first use
+    used: int  # the pulls that got to it on which the cooldown was used
+    reached: int  # the pulls that got to it: the player alive, the wipe not decided
+
+
 @dataclass
 class NightCooldowns:
     """A player's major cooldowns summed over a night's pulls."""
     used: Counter = field(default_factory=Counter)
     possible: Counter = field(default_factory=Counter)
+    held: dict[str, Held] = field(default_factory=dict)  # those held for a moment: no uses against possible uses
     unknown: set[str] = field(default_factory=set)  # throughput cooldowns Lorrgs gives no cooldown for: uses only
     moments: Counter = field(default_factory=Counter)  # defensives and movement spells: uses only
     first_use: dict[str, list[tuple[dict, float]]] = field(default_factory=lambda: defaultdict(list))
@@ -510,13 +538,15 @@ async def night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[
         ordered = sorted(casts[f["id"]], key=lambda c: c["timestamp"])
         decided = await rep.decided_at(f)
         end = _decided_ts(f, decided)
+        lived_s, lived_until = alive(rep, f, p, own, ordered)
         k = next((k for k, d in enumerate(deaths) if d["targetID"] == p.id), None)
         death = (k, deaths[k], await _death_note(rep, f, deaths[k])) if k is not None else None
         out.append(NightPull(
             f, q, next((e for e in entries if e.get("id") == p.id), None),
             [e for e in entries if (o := here.get(e.get("id"))) and o.role == q.role],
-            alive(rep, f, p, own, ordered)[0], _dead_s(f, own, ordered, end), (end - f["startTime"]) / 1000,
-            death, bool(death and decided and death[1]["timestamp"] - f["startTime"] > decided.at_ms),
+            lived_s, _dead_s(f, own, ordered, end), (end - f["startTime"]) / 1000,
+            (min(lived_until, end) - f["startTime"]) / 1000, death,
+            bool(death and decided and death[1]["timestamp"] - f["startTime"] > decided.at_ms),
             bool(death and await mass_death(rep, f, death[1])), rows,
             await parse(rep, f, q) if f["kill"] else None))
     skipped = {n for _, s in uses for n in s or []}
@@ -525,18 +555,24 @@ async def night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[
 
 def night_cooldowns(pulls: list[NightPull], skipped: set[str], why: str) -> NightCooldowns:
     cds = NightCooldowns(unavailable=why)
+    listed: dict[str, list[tuple[NightPull, bool]]] = defaultdict(list)  # per cooldown: each pull, and if used
     for pull in pulls:
         for sp, times, possible in () if pull.reset else pull.cooldowns:
             if NOT_ON_COOLDOWN & set(sp.get("tags") or []):
                 cds.moments[sp["name"]] += len(times)
                 continue
             cds.used[sp["name"]] += len(times)
+            listed[sp["name"]].append((pull, bool(times)))
             if times:
                 cds.first_use[sp["name"]].append((pull.f, min(times)))
             if possible is None:
                 cds.unknown.add(sp["name"])
             else:
                 cds.possible[sp["name"]] += possible
+    for name, found in cds.first_use.items():
+        if (at := held_at([t for _, t in found])) is not None:
+            there = [used for pull, used in listed[name] if pull.until_s * 1000 >= at]
+            cds.held[name] = Held(at, sum(there), len(there))
     cds.untalented = skipped - {sp["name"] for pull in pulls for sp, _, _ in pull.cooldowns}
     return cds
 
@@ -614,10 +650,13 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
         lines.append(trend)
     never = cds.never
     if cds.used:
-        lines.append("Major cooldowns over the night (uses / possible; list from Lorrgs, uses from the log; each "
-                     "pull below has the times, 0:00 for one up at the pull): "
-                     + ", ".join(cds.text(n, cds.used[n], cds.possible[n], True) + _first_use(rep, cds.first_use[n])
-                                 for n in cds.used if n not in never))
+        lines.append("Major cooldowns over the night (list from Lorrgs, uses from the log; uses / possible if "
+                     "pressed on cooldown from the pull until they died or the wipe was decided"
+                     + ("; one first used late and at the same time pull after pull is held for that moment of "
+                        "the fight: it is counted on the pulls that got there with them alive and the wipe not "
+                        "decided" if cds.held else "")
+                     + "; each pull below has the times, 0:00 for one up at the pull): "
+                     + ", ".join(_cooldown_text(rep, cds, n) for n in cds.used if n not in never))
     if cds.unavailable:
         lines.append(cds.unavailable)
     if cds.untalented:
@@ -642,6 +681,37 @@ def _first_use(rep: Report, found: list[tuple[dict, float]]) -> str:
             f"{clock(last[1])})")
 
 
+def _cooldown_text(rep: Report, cds: NightCooldowns, name: str) -> str:
+    """A cooldown over the night: uses against possible uses with when it was first used, or, for one held for a
+    moment of the fight, the pulls that got to that moment and how many of them had it used."""
+    held = cds.held.get(name)
+    if not held:
+        return cds.text(name, cds.used[name], cds.possible[name], True) + _first_use(rep, cds.first_use[name])
+    last = max(cds.first_use[name], key=lambda x: x[1])
+    return (f"{name} used on {held.used} of the {plural(held.reached, 'pull')} that got to {clock(held.at_ms)} "
+            f"(held for then: its median first use, latest pull {rep.pull_no(last[0])} at {clock(last[1])}"
+            + (f"; {plural(cds.used[name], 'use')} over the night" if cds.used[name] != held.used else "") + ")")
+
+
+def _row_cooldowns(pull: NightPull, cds: NightCooldowns) -> list[str]:
+    """A pull's cooldowns for its row. One held for a moment (`Held`) has no uses against possible uses: its use
+    times, 'unused' on a pull that got to the moment, and nothing on a pull that ended before it."""
+    never = cds.never
+    out = []
+    for sp, times, possible in pull.cooldowns:
+        name = sp["name"]
+        at = " at " + ", ".join(clock(t) for t in sorted(times)) if times else ""
+        if name not in cds.used or name in never:
+            continue
+        if not (held := cds.held.get(name)):
+            out.append(cds.text(name, len(times), possible) + at)
+        elif times:
+            out.append(name + at)
+        elif pull.until_s * 1000 >= held.at_ms:
+            out.append(f"{name} unused")
+    return out
+
+
 def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns) -> str:
     f, q, mine = pull.f, pull.played, pull.mine
     own_what = "healing" if q.role == "healer" else "damage"
@@ -657,10 +727,7 @@ def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns) -> 
         k, d, note = pull.death
         death = (f"died #{k + 1} at {clock(d['timestamp'] - f['startTime'])} to "
                  f"{rep.ability_ref(d.get('killingAbilityGameID'))}{note}")
-    never = cds.never
-    cd_text = [cds.text(sp["name"], len(times), possible)
-               + (" at " + ", ".join(clock(t) for t in sorted(times)) if times else "")
-               for sp, times, possible in pull.cooldowns if sp["name"] in cds.used and sp["name"] not in never]
+    cd_text = _row_cooldowns(pull, cds)
     pct = "kill" if f["kill"] else wipe_text(f)
     if pull.reset:
         perf = f"a reset, not counted; {perf}"
