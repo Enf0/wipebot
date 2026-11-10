@@ -174,11 +174,21 @@ def lost_buffs(fight: dict, buff_events: list[dict]) -> set[int]:
             if e["type"] == "removebuff" and e["timestamp"] < fight["endTime"] - END_SLACK_MS}
 
 
+def carried_buffs(fight: dict, buff_events: list[dict]) -> set[int]:
+    """Buffs a boss gained and still had END_BUFF_WINDOW_MS later, with the pull going on: a stage's aura or part of
+    the fight (the Coiled Altar's Dreadful Presence through Stage Two), since an enrage ends a pull within seconds."""
+    gone = [(e["abilityGameID"], e["timestamp"]) for e in buff_events if e["type"] == "removebuff"]
+    return {e["abilityGameID"] for e in buff_events
+            if e["type"] == "applybuff" and fight["endTime"] - e["timestamp"] > END_BUFF_WINDOW_MS
+            and not any(a == e["abilityGameID"] and 0 <= at - e["timestamp"] <= END_BUFF_WINDOW_MS for a, at in gone)}
+
+
 def end_buffs(fight: dict, buff_events: list[dict], routine: Collection[int] = ()) -> list[tuple[int, float]]:
     """(ability id, ms from pull start) of each buff a boss gained shortly before the end of a pull (within
     END_BUFF_WINDOW_MS) and still had at the end, such as an enrage. `buff_events` are the bosses'
-    applybuff/removebuff events of this fight; `routine` are buffs the boss was seen to lose during earlier pulls,
-    which are left out (a pull that ends during a routine buff says nothing), as are buffs gained as a phase began
+    applybuff/removebuff events of this fight; `routine` are buffs the boss was seen to lose during earlier pulls or
+    to carry through another wipe (`carried_buffs`), which are left out (a pull that ends during a routine buff says
+    nothing), as are buffs gained as a phase began
     (the Coiled Altar's Soulbound in Stage Three), what the phase is, not what ended it."""
     routine = set(routine) | lost_buffs(fight, buff_events)
     t0 = fight["startTime"]
@@ -340,7 +350,13 @@ def format_summary(s: PullSummary) -> str:
         parts += best_marks(s.boss_pct, s.best_pct, s.guild_best, wcl)
     lines = [" · ".join(parts)]
     if s.boss_buffs:
-        lines.append("Boss buffs at the end: " + " · ".join(f"**{name}** (from {clock(at)})"
+        def note(name: str, at: float) -> str:
+            # with a decided moment that another thing decided, the buff is no enrage: gained after it (fallout),
+            # or before it as a council's other boss died (Report.enrages leaves that one out)
+            if s.decided and s.decided.enrage != name:
+                return ", after the wipe was decided" if at > s.decided.at_ms else ", not what decided the wipe"
+            return ""
+        lines.append("Boss buffs at the end: " + " · ".join(f"**{name}** (from {clock(at)}{note(name, at)})"
                                                             for name, at in s.boss_buffs))
 
     if s.deaths:

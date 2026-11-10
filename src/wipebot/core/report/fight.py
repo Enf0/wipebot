@@ -74,7 +74,8 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
         p = rep.players.get(rep.names[d["targetID"]].lower())
         at = d["timestamp"] - f["startTime"]
         notes = [f"{alive} alive"]
-        notes += [f"after the boss gained {name}" for name, gained in buffs if at >= gained]
+        if decided and decided.enrage and at > decided.at_ms:  # only the buff that decided the wipe: another
+            notes.append(f"after the boss gained {decided.enrage}")  # the boss kept has its own line below
         if half is not None and at > half:
             notes.append("after half the raid was dead")
         who = p.label if p else rep.names[d["targetID"]]

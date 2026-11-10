@@ -7,7 +7,7 @@ import pytest
 
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import knowledge, server
-from wipebot.core.pulls import Decided, is_reset, wipe_pct
+from wipebot.core.pulls import Decided, carried_buffs, is_reset, wipe_pct
 from wipebot.core.report import FactError, Report, casting, cooldowns, deaths, fight, ranks
 from wipebot.core.report.base import alive_after, alive_at, half_dead
 from wipebot.core.wcl import WCL, WCLError
@@ -110,6 +110,34 @@ async def test_a_hit_killing_many_under_way_when_half_the_raid_died_counts_whole
     # Pull 19: half the raid dead at 1:43, in the middle of the ten one Viscous Cyst kills within 2 s.
     text = await fight.pull_summary(rep, 19)
     assert "Half the raid was dead at 1:43, in one moment's deaths that ran to 1:45;" in text
+
+
+async def test_a_buff_the_boss_carried_through_an_earlier_wipe_is_the_fights_not_an_enrage(rep, monkeypatch):
+    # A stage's aura, gained 7 s into the stage (past the grace a phase's own buffs get): on the pull that carried
+    # it for a minute it is no end buff; on the next, which wiped 20 s after it, it would look like an enrage.
+    aura = 990_001
+    rep.abilities[aura] = "Dread Aura"
+    first, second = rep.fight(3), rep.fight(4)
+
+    def gained(f: dict, before_end: int) -> list[dict]:
+        return [{"type": "applybuff", "abilityGameID": aura, "timestamp": f["endTime"] - before_end,
+                 "targetID": next(iter(rep.bosses))}]
+
+    carried = [first]
+
+    async def events(fights):
+        return {f["id"]: gained(f, 60_000) if f in carried else gained(f, 20_000) if f is second else []
+                for f in fights}
+    monkeypatch.setattr(rep, "boss_buff_events", events)
+    assert await rep.end_buffs(first) == []
+    assert aura in await rep.routine_buffs(second) and await rep.end_buffs(second) == []
+    # with no earlier pull that carried it, the same 20 s are an end buff: the first pull to reach the stage
+    carried.clear()
+    assert [name for name, _ in await rep.end_buffs(second)] == ["Dread Aura"]
+    assert carried_buffs(first, gained(first, 60_000)) == {aura}
+    lost = [*gained(first, 60_000),
+            {"type": "removebuff", "abilityGameID": aura, "timestamp": first["endTime"] - 45_000}]
+    assert carried_buffs(first, lost) == set()  # gone within the window: a buff that comes and goes
 
 
 async def test_a_councils_boss_deaths_are_read_for_every_pull_in_one_query(rep, monkeypatch):

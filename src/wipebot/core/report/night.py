@@ -23,10 +23,10 @@ from ..pulls import (
     wipe_pcts,
     wipe_text,
 )
-from ..text import clock, clusters, date, ordinal, plural
+from ..text import clock, clusters, date, ordinal, plural, ranges
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
-from .ending import Ending, kind_of_end, pull_endings
+from .ending import Ending, KeptBuff, kind_of_end, pull_endings
 
 
 def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
@@ -268,6 +268,21 @@ def _end_buffs(buffs: list[tuple[str, float]], enrages: list[tuple[str, float]],
     return "; boss " + ", ".join(f"{n} from {clock(at)}{why(n, at)}" for n, at in buffs) if buffs else ""
 
 
+# What a buff the boss kept to the end was to its pull, as progress splits the pulls it was kept on: the count of
+# the first is the one "How the pulls ended" gives the buff.
+KEPT_AS = {"ended": "it is what ended", "behind": "something else ended the pull first on",
+           "late": "it came after the wipe was decided, as fallout, on"}
+KEPT_PULLS_SHOWN = 5  # a group of at most this many pulls is listed by number
+
+
+def _kept_as(ending: Ending | None, decided: Decided | None, name: str, at: float) -> str:
+    """A key of KEPT_AS for a buff the boss gained at `at` and kept to the end of a pull."""
+    if decided and at > decided.at_ms:
+        return "late"
+    first = ending.moments[0] if ending and ending.kind == "moments" and not ending.led_in else None
+    return "ended" if isinstance(first, KeptBuff) and first.name == name else "behind"
+
+
 def _ended(ending: Ending | None, decided: Decided | None) -> str:
     """What ended a wipe and when it was decided, for its line in `progress`; nothing for a kill or a reset."""
     if not ending or ending.kind in ("reset", "live"):
@@ -327,6 +342,7 @@ async def progress(rep: Report, boss: str | None = None) -> str:
     first_killers: Counter = Counter()
     ends: Counter = Counter()  # what ended each pull, by kind_of_end
     kept: dict[str, list[float]] = defaultdict(list)  # end buff -> when it was gained, per pull
+    kept_how: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))  # and what it was to the pull
     endings = dict(zip([f["id"] for f in fights], await pull_endings(rep, fights), strict=True))
     for i, f in enumerate(fights, 1):
         deaths = await rep.deaths(f)
@@ -344,6 +360,8 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         result = wipe_text(f) if phased and not f["kill"] else f"{pct_text(pct)} {phase_label(f) or ''}"
         decided = await rep.decided_at(f)
         ending = None if f.get("inProgress") else endings[f["id"]]
+        for name, at in enrages:
+            kept_how[name][_kept_as(ending, decided, name, at)].append(i)
         if not f.get("inProgress"):
             ends[kind_of_end(ending)] += 1
         end = _end_buffs(buffs, enrages, decided)
@@ -354,8 +372,12 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         lines.append(f"Average {wcl}wipe % (resets left out): " + "first third {:.1f}, middle {:.1f}, last third {:.1f}"
                      .format(*thirds))
     for name, times in kept.items():
+        how = kept_how[name]
+        split = [f"{text} {len(how[key])}" + (f" (pull{'s' if len(how[key]) > 1 else ''} {ranges(how[key])})"
+                                              if key != "ended" and len(how[key]) <= KEPT_PULLS_SHOWN else "")
+                 for key, text in KEPT_AS.items() if how[key]]
         lines.append(f"The boss gained {name} and kept it to the end on {len(times)} of {plural(len(fights), 'pull')}, "
-                     f"gained at {clusters(times)}.")
+                     f"gained at {clusters(times)}. Of those pulls: {'; '.join(split)}.")
     reached = Counter((phase_label(f) or "").split(" (")[0] for f in fights
                       if not f.get("inProgress") and not is_reset(f))  # the phase each pull ended in
     if phased and reached:

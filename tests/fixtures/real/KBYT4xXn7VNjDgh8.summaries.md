@@ -27,25 +27,25 @@ Killed by, until the wipe was decided at 1:07 (half the raid was dead): Mutilate
 Last 4: 86.1 → 84.6 → 79.3 → 80.9
 
 **Sszorak** (Mythic) · pull 5 · wipe at **80.1%** · P1 · 1:21 · best of this log 79.3%
-Boss buffs at the end: **Unbound Ferocity** (from 1:17)
+Boss buffs at the end: **Unbound Ferocity** (from 1:17, after the wipe was decided)
 First deaths: Scopidruid (Tempest, 0:22) · Krøpling (Tempest, 0:22) · Algmor (Tempest, 0:23)
 Killed by, until the wipe was decided at 1:14 (half the raid was dead): Mutilate ×5 · Tempest ×4 · Raging Crosswinds ×1 (9 later deaths: fallout)
 Last 5: 86.1 → 84.6 → 79.3 → 80.9 → 80.1
 
 **Sszorak** (Mythic) · pull 6 · wipe at **81.3%** · P1 · 1:22 · best of this log 79.3%
-Boss buffs at the end: **Unbound Ferocity** (from 1:18)
+Boss buffs at the end: **Unbound Ferocity** (from 1:18, after the wipe was decided)
 First deaths: Scopidruid (Tempest, 0:27) · Peggerino (Virulence, 0:27) · Pomaa (Mutilated Gash, 0:28)
 Killed by, until the wipe was decided at 1:07 (half the raid was dead): Mutilate ×4 · Tempest ×3 · Virulence ×2 · Mutilated Gash ×1 · no killing blow recorded ×1 (8 later deaths: fallout)
 Last 5: 84.6 → 79.3 → 80.9 → 80.1 → 81.3
 
 **Sszorak** (Mythic) · pull 7 · wipe at **66.8%** · P1 (2nd time) · 2:38 · best of this log so far
-Boss buffs at the end: **Unbound Ferocity** (from 2:32)
+Boss buffs at the end: **Unbound Ferocity** (from 2:32, after the wipe was decided)
 First deaths: Dragepie (Virulence, 0:31) · Fappachino (Caustic Claws, 0:33) · Zebinomage (Venomous Surge, 1:31)
 Killed by, until the wipe was decided at 2:19 (half the raid was dead): no killing blow recorded ×4 · Mutilate ×3 · Virulence ×1 · Caustic Claws ×1 · Venomous Surge ×1 · 1 other ability ×1 (8 later deaths: fallout)
 Last 5: 79.3 → 80.9 → 80.1 → 81.3 → 66.8
 
 **Sszorak** (Mythic) · pull 8 · wipe at **68.1%** · P1 (2nd time) · 2:36 · best of this log 66.8%
-Boss buffs at the end: **Unbound Ferocity** (from 2:33)
+Boss buffs at the end: **Unbound Ferocity** (from 2:33, after the wipe was decided)
 First deaths: Cptola (Mutilated Gash, 1:19) · Fappachino (Tempest, 1:20) · Nexsozz (Mutilated Gash, 1:21)
 Killed by, until the wipe was decided at 2:18 (half the raid was dead): Mutilated Gash ×4 · Tempest ×1 · Virulence ×1 · Venomous Surge ×1 · Ula'tek's Presence ×1 · 2 other abilities ×2 (9 later deaths: fallout)
 Last 5: 80.9 → 80.1 → 81.3 → 66.8 → 68.1
@@ -77,7 +77,7 @@ Killed by, until the wipe was decided at 2:32 (the boss gained Unbound Ferocity)
 Last 5: 68.1 → 79.5 → 70.8 → 70.4 → 62.6
 
 **Sszorak** (Mythic) · pull 14 · wipe at **78.9%** · P1 · 1:25 · best of this log 62.6%
-Boss buffs at the end: **Unbound Ferocity** (from 1:19)
+Boss buffs at the end: **Unbound Ferocity** (from 1:19, after the wipe was decided)
 First deaths: Fappachino (Tempest, 0:46) · Sonyosh (Tempest, 0:49) · Krøpling (Tempest, 0:50)
 Killed by, until the wipe was decided at 1:11 (half the raid was dead): Mutilate ×5 · Tempest ×3 · no killing blow recorded ×1 · Ravage ×1 (8 later deaths: fallout)
 Last 5: 79.5 → 70.8 → 70.4 → 62.6 → 78.9
@@ -99,7 +99,7 @@ Killed by, until the wipe was decided at 1:17 (the boss gained Unbound Ferocity)
 Last 5: 62.6 → 78.9 → 68.5 → 87.9 → 77.8
 
 **Sszorak** (Mythic) · pull 18 · wipe at **79.6%** · P1 · 1:23 · best of this log 62.6%
-Boss buffs at the end: **Unbound Ferocity** (from 1:17)
+Boss buffs at the end: **Unbound Ferocity** (from 1:17, after the wipe was decided)
 First deaths: Cptola (Virulence, 0:31) · Lïzårðmâñ (Tempest, 0:42) · Dragepie (Venomous Surge, 0:44)
 Killed by, until the wipe was decided at 1:02 (half the raid was dead): Mutilate ×5 · Tempest ×2 · Virulence ×1 · Venomous Surge ×1 · Ula'tek's Presence ×1 (9 later deaths: fallout)
 Last 5: 78.9 → 68.5 → 87.9 → 77.8 → 79.6
@@ -147,7 +147,7 @@ Killed by, until the wipe was decided at 0:27 (half the raid was dead): Virulenc
 Last 5: 66.9 → 77.1 → 76.9 → 73.9 → 88.9
 
 **Sszorak** (Mythic) · pull 27 · wipe at **90.7%** · P1 · 0:43 · best of this log 62.6%
-Boss buffs at the end: **Unbound Ferocity** (from 0:40)
+Boss buffs at the end: **Unbound Ferocity** (from 0:40, after the wipe was decided)
 First deaths: Draiman (Mutilate, 0:08) · Nexsozz (Mutilate, 0:08) · Pomaa (Mutilate, 0:08)
 Killed by, until the wipe was decided at 0:33 (half the raid was dead): Mutilate ×5 · Tempest ×2 · Mutilated Gash ×1 · no killing blow recorded ×1 · Melee ×1 (8 later deaths: fallout)
 Last 5: 77.1 → 76.9 → 73.9 → 88.9 → 90.7
@@ -176,7 +176,7 @@ Killed by, until the wipe was decided at 2:32 (the boss gained Unbound Ferocity)
 Last 5: 90.7 → 75.7 → 80.5 → 65.6 → 63.9
 
 **Sszorak** (Mythic) · pull 32 · wipe at **81.4%** · P1 · 1:23 · best of this log 62.6%
-Boss buffs at the end: **Unbound Ferocity** (from 1:17)
+Boss buffs at the end: **Unbound Ferocity** (from 1:17, after the wipe was decided)
 First deaths: Pomaa (Ravage, 0:08) · Enfo (no killing blow recorded, 0:52) · Attractîv (no killing blow recorded, 0:53)
 Killed by, until the wipe was decided at 1:03 (half the raid was dead): no killing blow recorded ×5 · Tempest ×2 · Ravage ×1 · Mutilate ×1 · Mutilated Gash ×1 (8 later deaths: fallout)
 Last 5: 75.7 → 80.5 → 65.6 → 63.9 → 81.4

@@ -187,9 +187,13 @@ def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float
     until = t0 + decided.at_ms if decided else f["endTime"]
     before = [d for d in deaths if d["timestamp"] <= until]
     half = half_dead(deaths, backs, raid) if decided and not decided.enrage else None
-    moments: list[Moment] = [m for m in _mass_deaths(rep, deaths, t0, raid) if t0 + m.at_ms <= until]
-    moments += [KeptBuff(gained, name, alive_at(deaths, backs, raid, t0 + gained)) for name, gained in buffs
-                if t0 + gained <= until]  # gained once the wipe was decided: fallout too
+    kept = [KeptBuff(gained, name, alive_at(deaths, backs, raid, t0 + gained)) for name, gained in buffs
+            if t0 + gained <= until]  # gained once the wipe was decided: fallout too
+    # A hit killing many that began before the wipe was decided, or within seconds of a buff the boss gained then:
+    # the buff may be the stage's, not an enrage, and the hit what ended the pull, so both are named.
+    moments: list[Moment] = [m for m in _mass_deaths(rep, deaths, t0, raid) if t0 + m.at_ms <= until or any(
+        0 <= m.at_ms - b.at_ms <= WAVE_MS for b in kept)]
+    moments += kept
     if not moments and half is not None:  # half the raid dead, with no hit killing many and no enrage: a cascade
         stayed = [d for d in before if not _brought_back(d, backs)] or before  # a battle res undid a death
         return Ending("cascade", raid, length, first_death_ms=stayed[0]["timestamp"] - t0, half_dead_ms=half - t0)

@@ -90,6 +90,28 @@ def test_one_ability_killing_in_pulses_over_a_few_seconds_is_one_moment(rep, dea
     assert "in pulses" not in str(ended_by(rep, PULL, unnamed, {}, 20, [], Decided(47_000)))
 
 
+def test_a_hit_killing_many_seconds_after_the_boss_gained_a_buff_is_named_with_it(rep, deaths):
+    # The buff may be the stage's aura and the hit what ended the pull (a Coiled Altar pull that was the night's
+    # first to reach Stage Two): both moments are named, earliest first. A hit well after the buff is its fallout.
+    died = deaths((20.0, SWIPE), (53.0, VENOM), (53.1, VENOM), (53.2, VENOM), (53.4, VENOM),
+                  *[(70.0 + n / 10, CRASH) for n in range(5)])
+    text = ended_by(rep, PULL, died, {}, 20, [("Frenzy", 50_000)], Decided(50_000, "Frenzy"))
+    assert text == ("Ended by (from the log, earliest first): the boss gained Frenzy at 0:50 and kept it to the end, "
+                    "19 of 20 alive (look it up: an enrage makes every later death fallout); then Venom Burst [901] "
+                    "killed 4 within 1 s at 0:53 (one ability killing many at once: find which mechanic failed).")
+
+
+async def test_death_rows_name_only_the_buff_that_decided_the_wipe(rep):
+    # Pull 13: the boss's enrage at 2:32 decided the wipe, and the deaths after it say so. Pull 5: the same buff came
+    # at 1:17, after half the raid was dead at 1:14: it has its own line, and no death is told by it.
+    text = await fight.pull_summary(rep, 13)
+    assert "alive, after the boss gained Unbound Ferocity)" in text
+    late = await fight.pull_summary(rep, 5)
+    assert "The boss gained Unbound Ferocity at 1:17 and kept it to the end" in late
+    assert "alive, after the boss gained" not in late and "alive, after half the raid was dead)" in late
+    assert "Boss buffs at the end: **Unbound Ferocity** (from 1:17, after the wipe was decided)" in late
+
+
 def test_a_hit_killing_many_counts_whole_whatever_else_kills_meanwhile(rep, deaths):
     # Two abilities kill four each in the same two seconds: both are found, each with all its deaths, also the ones
     # logged after half the raid was dead (the moment the caller cut at falls inside both).

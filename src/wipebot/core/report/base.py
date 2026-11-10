@@ -23,6 +23,7 @@ from ..pulls import (
     NO_KILLING_BLOW,
     Decided,
     GuildBest,
+    carried_buffs,
     end_buffs,
     first_by_name,
     format_summary,
@@ -623,10 +624,12 @@ class Report(Fetched):
         return (await self.boss_buff_events([fight]))[fight["id"]]
 
     async def routine_buffs(self, fight: dict) -> set[int]:
-        """Buffs the boss lost during the pulls before this one: routine, not an enrage."""
+        """Buffs that are part of the fight, not an enrage, as the pulls before this one show: the ones the boss
+        lost during them, and the ones it carried through a wipe (pulls.carried_buffs: a stage's aura)."""
         earlier = [g for g in self.by_boss[self.boss_key(fight)] if g["startTime"] < fight["startTime"]]
         buffs = await self.boss_buff_events(earlier)
-        return {a for g in earlier for a in lost_buffs(g, buffs[g["id"]])}
+        return ({a for g in earlier for a in lost_buffs(g, buffs[g["id"]])}
+                | {a for g in earlier if not g["kill"] for a in carried_buffs(g, buffs[g["id"]])})
 
     async def end_buffs(self, fight: dict) -> list[tuple[str, float]]:
         """(name, ms from pull start) of the buffs the boss gained and kept to the end of a wipe, e.g. an enrage. A
