@@ -105,7 +105,9 @@ views.replay = (() => {
     const pct = 100 * t / R.duration_ms;
     $("rp-thumb").style.left = pct + "%"; $("rp-done").style.width = pct + "%";
     $("rp-clock").textContent = `${clock(t)} / ${clock(R.duration_ms)}`;
-    $("rp-timeline").setAttribute("aria-valuetext", clock(t));
+    const tl = $("rp-timeline");  // a slider in whole seconds, as the clock counts them, read out as a time
+    tl.setAttribute("aria-valuemin", "0"); tl.setAttribute("aria-valuemax", Math.floor(R.duration_ms / 1000));
+    tl.setAttribute("aria-valuenow", Math.floor(t / 1000)); tl.setAttribute("aria-valuetext", `${clock(t)} of ${clock(R.duration_ms)}`);
     const recent = R.deaths.filter((d) => d.ms <= t && t - d.ms < 4000).pop(), m = moment();
     $("rp-event").textContent = recent ? `${recent.name} died (${recent.by})`
       : (R.decided && t >= R.decided.ms && t - R.decided.ms < 4000 ? `Wipe decided: ${R.decided.why}`

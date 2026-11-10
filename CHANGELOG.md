@@ -48,6 +48,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **The pull's chart names both of its scales, and its labels keep apart.** The boss's health now runs from 100% to 0 on every pull, so the lines of two pulls compare, with the scale on the right written in the line's gold. On a phone the moment the wipe was decided and a damage peak's height no longer print across each other or across the health line: each takes the free place nearest to it, and why the wipe was decided stays in "Ended by" over the chart. The card also has the cooldowns its tool said it had: one row over the chart, a dot for a raid cooldown and a plus for a healer's.
 
   ![Vashnik pull 16 at a phone's width: a row of dots and pluses for the cooldowns over the chart, "decided 6:28" above the health line beside its dashed line, and 100% and 9.43% in gold on the right](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/pull-chart-phone.webp)
+- `MCP` **A chart can be read with the keyboard, and with a finger.** Only the buttons under a card could be reached without a mouse. Tab now stops on each chart, the arrow keys step through its marks with what each one says, and Enter opens the pull a click opens; the table of pulls works the same way, and a screen reader hears each mark's fact and where the replay's timeline stands. On a phone a tap on one of a night's thin bars says which pull it is and stays to be read, a second tap opens it, and buttons and a pull's chip are a finger's size.
+
+  ![Sszorak's night at a phone's width with pull 13's bar tapped: its tooltip with how far the pull got, what ended it and the first death, ending "Tap again for this pull"](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-tap-phone.webp)
 
 ## [0.41.1] - 2026-11-09
 

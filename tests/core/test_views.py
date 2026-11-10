@@ -465,8 +465,9 @@ async def shots(tmp_path, tool: str, args: dict, **kw):
 
 
 @contextlib.asynccontextmanager
-async def drawn(tool: str, args: dict, **setup):
-    """The tool's view drawn in the mock host, to ask the page about: its frame, and the errors so far."""
+async def drawn(tool: str, args: dict, touch: bool = False, **setup):
+    """The tool's view drawn in the mock host, to ask the page about: its frame, and the errors so far. `touch`:
+    as on a phone, where a finger is the pointer."""
     pytest.importorskip("playwright")
     from playwright.async_api import Error, async_playwright
 
@@ -481,7 +482,13 @@ async def drawn(tool: str, args: dict, **setup):
         except Error as e:
             pytest.skip(f"needs Playwright's Chromium: {e}")
         errors: list[str] = []
-        page = await viewhost._open(browser, setup, errors)
+        if touch:
+            context = await browser.new_context(has_touch=True, is_mobile=True,
+                                                viewport={"width": viewhost.FULL_WIDTH + 40, "height": 1000})
+            page = await context.new_page()
+            await viewhost._wire(page, setup, errors)
+        else:
+            page = await viewhost._open(browser, setup, errors)
         await viewhost._settled(page)
         yield page.frames[-1], errors
         await browser.close()
@@ -689,6 +696,94 @@ async def test_the_pull_chart_names_both_axes_and_draws_the_cooldowns_its_tool_p
         assert (chart["raid"], chart["healers"]) == (raid + 1, healers + 1)  # each mark, and its key in the legend
         assert "raid cooldown" in said and "healer cooldown" in said
         assert f"decided {clock(data['decided']['ms'])}" in said and (data["decided"]["why"] in said) == why
+
+
+AT = """() => {  // where the keyboard is, and what the tooltip says
+  const a = document.activeElement, tip = document.getElementById("tooltip");
+  return { tag: a.tagName.toLowerCase(), role: a.getAttribute("role"), label: a.getAttribute("aria-label"),
+           pull: a.dataset.pullCol || a.dataset.pull || null,
+           tip: getComputedStyle(tip).display === "none" ? null : tip.textContent };
+}"""
+
+
+async def test_the_keyboard_steps_through_a_charts_marks_and_opens_what_a_click_opens(recorded):
+    """A chart is one stop of the Tab key: the arrow keys step through its marks, each named by what its tooltip
+    says and shown with it, and Enter opens the pull a click opens (its marks were once the mouse's alone)."""
+    async with drawn("progress", NIGHT_OF_PULLS.args) as (view, errors):
+        keys = view.page.keyboard
+        assert await view.locator("svg [data-tip]").count() == 33
+        assert await view.locator('svg [tabindex="0"]').count() == 1
+        assert await view.locator('svg [data-tip]:not([aria-label], [role="button"])').count() == 0
+        await keys.press("Tab")
+        at = await view.evaluate(AT)
+        assert (at["tag"], at["role"], at["pull"]) == ("rect", "button", "1")
+        assert at["label"].startswith("Pull 1: ") and at["tip"] == at["label"] + "\nEnter for this pull"
+        for key, pull in (("ArrowRight", "2"), ("End", "33"), ("ArrowRight", "33"), ("ArrowLeft", "32"), ("Home", "1")):
+            await keys.press(key)
+            at = await view.evaluate(AT)
+            assert at["pull"] == pull and at["tip"].startswith(f"Pull {pull}: "), key
+        assert await view.locator('svg [tabindex="0"]').count() == 1  # still one stop: the next Tab leaves the chart
+        for _ in range(12):
+            await keys.press("ArrowRight")
+        await keys.press("Enter")
+        await view.locator("h1", has_text="Sszorak pull 13").wait_for()
+        assert not errors
+
+
+async def test_the_keyboard_reaches_a_tables_rows_and_a_marks_tooltip_where_nothing_opens(recorded):
+    """The table of pulls is one stop too, its rows stepped through with the arrows and opened with Enter; a mark
+    that opens nothing (a boss's cast in the pull's chart) is reached the same way and read out as a picture."""
+    from wipebot.core import viewhost
+    async with drawn("progress", NIGHT_OF_PULLS.args, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        keys = view.page.keyboard
+        assert await view.locator('tbody tr[tabindex="0"]').count() == 1
+        for _ in range(12):  # past the bosses' chips and the chart
+            await keys.press("Tab")
+            if (await view.evaluate(AT))["tag"] == "tr":
+                break
+        assert (await view.evaluate(AT))["pull"] == "1"
+        for _ in range(12):
+            await keys.press("ArrowDown")
+        assert (await view.evaluate(AT))["pull"] == "13"
+        await keys.press("Enter")
+        await view.locator("h1", has_text="Sszorak pull 13").wait_for()
+        assert not errors
+    async with drawn("pull_summary", PULL_CASE.args) as (view, errors):
+        await view.page.keyboard.press("Tab")
+        at = await view.evaluate(AT)
+        assert at["role"] == "img" and at["label"] and at["tip"] == at["label"]  # no "Enter for": it opens nothing
+        assert await view.locator('svg [tabindex="0"]').count() == 1 and not errors
+
+
+async def test_on_a_touch_screen_a_bar_opens_on_its_second_tap_and_a_button_is_a_fingers_size(recorded):
+    """A night's bars are thinner than a finger: the first tap says which pull was hit and how to open it, and the
+    tooltip stays once the finger is lifted (it once went with it); the second tap opens the pull. Buttons are
+    44 px high there."""
+    async with drawn("progress", NIGHT_OF_PULLS.args, touch=True, width=360) as (view, errors):
+        bar, tip = view.locator('[data-pull-col="13"]'), view.locator("#tooltip")
+        assert (await bar.bounding_box())["width"] < 24
+        await bar.tap()
+        said = await tip.inner_text()
+        assert await tip.is_visible() and said.startswith("Pull 13: ") and said.endswith("\nTap again for this pull")
+        assert await view.locator("h1").inner_text() == "Sszorak" and await view.locator("[data-armed]").count() == 1
+        high = await view.locator("button").evaluate_all("els => els.map((b) => b.getBoundingClientRect().height)")
+        assert high and min(high) >= 44
+        await bar.tap()
+        await view.locator("h1", has_text="Sszorak pull 13").wait_for()
+        assert not errors
+
+
+async def test_the_replays_timeline_tells_a_screen_reader_where_it_is(recorded):
+    case = CASES["pull-map"]
+    async with drawn(case.tool, case.args) as (view, errors):
+        at = await view.locator("#rp-timeline").evaluate(
+            "(e) => ['role', 'aria-valuemin', 'aria-valuemax', 'aria-valuenow', 'aria-valuetext']"
+            ".map((a) => e.getAttribute(a))")
+        assert at[:2] == ["slider", "0"] and 0 <= int(at[3]) <= int(at[2]) and int(at[2]) > 60
+        assert at[4] == f"{clock(int(at[3]) * 1000)} of {clock(int(at[2]) * 1000)}"
+        await view.locator("#rp-timeline").press("ArrowRight")
+        assert int(await view.locator("#rp-timeline").get_attribute("aria-valuenow")) == int(at[3]) + 1
+        assert not errors
 
 
 async def test_the_page_speaks_the_protocol_in_order(recorded, tmp_path):
@@ -1002,6 +1097,25 @@ def made_up_view(monkeypatch, key: dict, data: dict) -> None:
         return CallToolResult(content=[], structured_content=data)
     monkeypatch.setattr(viewhost, "tool_result", tool_result)
     monkeypatch.setattr(server, "view_data", view_data)
+
+
+async def test_a_pulls_chip_is_a_fingers_target_on_a_touch_screen_and_a_small_one_with_a_mouse(monkeypatch):
+    """A chip is 20 px high where a mouse points at it; under a finger it grows and reaches into the gaps around
+    it, 44 px each way, without reaching over the chip beside it."""
+    night = made_up_night()
+    made_up_view(monkeypatch, {"view": "player_night", "report": "AbCdEfGh12345678", "player": "Mirelle"}, night)
+    reach = """els => els.map((b) => { const r = b.getBoundingClientRect(), a = getComputedStyle(b, "::after");
+      const past = a.content === "none" ? 0 : -parseFloat(a.top);
+      return { high: r.height + 2 * past, wide: r.width + 2 * past, past, left: r.left, right: r.right,
+               top: r.top }; })"""
+    async with drawn("player_night", {}, touch=True, width=360) as (view, errors):
+        chips = await view.locator("button.chip").evaluate_all(reach)
+        assert not errors and len(chips) >= 2 and all(c["high"] >= 44 and c["wide"] >= 44 for c in chips)
+        for a, b in itertools.pairwise(chips):
+            if a["top"] == b["top"]:  # side by side: each one's reach ends before the other begins
+                assert a["right"] + a["past"] <= b["left"] - b["past"] + 0.01
+    async with drawn("player_night", {}, width=360) as (view, errors):
+        assert {c["high"] for c in await view.locator("button.chip").evaluate_all(reach)} == {20}
 
 
 async def test_a_night_of_one_pull_counts_one_pull(monkeypatch):

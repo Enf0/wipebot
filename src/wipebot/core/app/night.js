@@ -105,7 +105,7 @@ views.player_night = (() => {
     const died = !r.death ? "survived"
       : `died ${kit.clock(r.death.ms)} (#${r.death.place}) to ${r.death.by}` + why(r.death);
     const cds = r.cooldowns[1] ? `cooldowns ${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
-    return [head, out, died, cds, "Click for this pull"].filter(Boolean).join("\n");
+    return [head, out, died, cds].filter(Boolean).join("\n");
   }
 
   // Pull by pull: their output per second alive (a bar), the boss's health left at the end (the gold line), their
@@ -149,7 +149,7 @@ views.player_night = (() => {
       if (lanes) o += kit.text(a + 4, y - 5, label, "t");
     });
     // a column per pull: its tooltip, and a click opens that pull
-    D.pulls.forEach((r, i) => { o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 24}" fill="transparent" data-pull-col="${r.pull}" style="cursor:pointer"${kit.tip(tipOf(r))}/>`; });
+    D.pulls.forEach((r, i) => { o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 24}" fill="transparent" data-pull-col="${r.pull}"${kit.opens("this pull")}${kit.tip(tipOf(r))}/>`; });
     // pull numbers, as many as fit
     const every = Math.max(1, Math.ceil(26 / band));
     D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 36, r.pull, "tm", 'text-anchor="middle"'); });
@@ -171,7 +171,7 @@ views.player_night = (() => {
       const rank = r.rank ? `${r.rank}/${r.of}` : "";
       const died = !r.death ? "" : `${kit.iconImg(D.img_base, r.death.icon)}${kit.clock(r.death.ms)} #${r.death.place}`;
       const cds = r.cooldowns[1] ? `${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
-      return `<tr data-pull="${r.pull}" class="${counts(r.death) ? "counted" : ""}"${kit.tip(r.death ? `${r.death.by}${why(r.death)}` : "")}>`
+      return `<tr data-pull="${r.pull}"${kit.opens()} class="${counts(r.death) ? "counted" : ""}"${kit.tip(r.death ? `${r.death.by}${why(r.death)}` : "")}>`
         + `<td>${r.pull}</td><td>${result}</td><td>${kit.clock(r.duration_ms)}</td><td>${out}</td><td>${rank}</td>`
         + `<td class="${r.death && !counts(r.death) ? "fallout" : ""}">${died}</td><td>${cds}</td></tr>`;
     }).join("");

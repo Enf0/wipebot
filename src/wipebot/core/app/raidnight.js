@@ -67,12 +67,12 @@ views.night = (() => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
       const left = r.health != null ? `${r.phase} at ${pct(r.health)} (WCL ${pct(v)})` : `${pct(v)} left${r.phase ? ` (${r.phase})` : ""}`;
       const tip = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : r.live ? "still going" : left}, ${kit.clock(r.duration_ms)}`
-        + `\nEnded by: ${r.ended}` + (r.first ? `\nFirst death: ${r.first.name} (${r.first.by}, ${kit.clock(r.first.ms)})` : "") + "\nClick for this pull";
+        + `\nEnded by: ${r.ended}` + (r.first ? `\nFirst death: ${r.first.name} (${r.first.by}, ${kit.clock(r.first.ms)})` : "");
       if (r.kill) o += `<path d="M${cx} ${y(0) - 12} l4 8 l-8 0z" fill="var(--gold)"/>`;
       else o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="2" ${color.svg(r.ended)}${r.reset ? ' opacity=".6"' : ""}/>`;
       if (!r.reset && !r.live && r.pct != null) best = best == null ? v : Math.min(best, v);
       if (best != null) line.push([cx, y(best)]);
-      o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 22}" fill="transparent" data-pull-col="${r.pull}" style="cursor:pointer"${kit.tip(tip)}/>`;
+      o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 22}" fill="transparent" data-pull-col="${r.pull}"${kit.opens("this pull")}${kit.tip(tip)}/>`;
     });
     if (line.length > 1) o += `<path d="${line.map(([px, py], i) => `${i ? "L" : "M"}${px} ${py}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.6" pointer-events="none"/>`;
     // the night's best wipe, named: a bar near 0% is too short to see
@@ -131,11 +131,11 @@ views.night = (() => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
       const tip = `${r.day}: ${kit.plural(r.pulls, "pull")}, ${r.kill ? `killed on pull ${r.kill}` : r.pct == null ? "no wipe past a reset"
         : `best wipe ${r.health != null ? `${r.phase} at ${pct(r.health)} (WCL ${pct(r.pct)})` : `${pct(r.pct)}${r.phase ? ` (${r.phase})` : ""}`} on pull ${r.pull}`}`
-        + (r.ended ? `\nEnded most pulls: ${r.ended[0]} (${r.ended[1]})` : "") + "\nClick for that night";
+        + (r.ended ? `\nEnded most pulls: ${r.ended[0]} (${r.ended[1]})` : "");
       if (r.kill) o += `<path d="M${cx} ${y(0) - 14} l5 10 l-10 0z" fill="var(--gold)"/>`;
       else if (r.pct != null) o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="3" fill="${phaseColor(r.phase, top)}"/>`;
       o += kit.text(cx, (r.kill ? y(0) - 14 : y(v)) - 5, best(r), r.kill ? "tg" : "t", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
-      o += `<rect x="${x(i)}" y="0" width="${band}" height="${plotH + T + 34}" fill="transparent" data-night="${kit.esc(r.report)}" style="cursor:pointer"${kit.tip(tip)}/>`;
+      o += `<rect x="${x(i)}" y="0" width="${band}" height="${plotH + T + 34}" fill="transparent" data-night="${kit.esc(r.report)}"${r.report !== D.report ? kit.opens("that night") : ""}${kit.tip(tip)}/>`;
     });
     const every = Math.max(1, Math.ceil(70 / band));
     W.forEach((r, i) => {
@@ -175,7 +175,7 @@ views.night = (() => {
 
   function table() {
     const color = colorOf();
-    const rows = D.pulls.map((r) => `<tr data-pull="${r.pull}"><td>${r.pull}</td><td>${r.kill ? "kill" : r.reset ? "reset" : r.pct != null ? pct(r.pct) : "–"}${r.best ? " ★" : ""}</td>`
+    const rows = D.pulls.map((r) => `<tr data-pull="${r.pull}"${kit.opens()}><td>${r.pull}</td><td>${r.kill ? "kill" : r.reset ? "reset" : r.pct != null ? pct(r.pct) : "–"}${r.best ? " ★" : ""}</td>`
       + `<td>${r.phase || ""}</td><td>${kit.clock(r.duration_ms)}</td><td><span class="dot" style="${color.css(r.ended)}"></span>${kit.esc(r.ended)}</td>`
       + `<td>${r.first ? `${kit.esc(r.first.name)} (${kit.esc(r.first.by)}, ${kit.clock(r.first.ms)})` : ""}</td></tr>`).join("");
     return `<div class="section-title">Pull by pull (click one for its view; ★ best of the night until then)</div><div class="scroll-x"><table class="pulls"><thead><tr>`

@@ -64,6 +64,11 @@ svg text { font-family: var(--font); }
            border: 1px solid var(--line); box-shadow: 0 4px 14px rgb(0 0 0 / .25); white-space: pre-line; }
 img.ic { width: 16px; height: 16px; border-radius: 3px; vertical-align: -3px; margin-right: 6px; }
 [data-tip] { cursor: default; }
+[data-act] { cursor: pointer; }
+/* where the keyboard is in a chart or a table (kit.js steps through their marks and rows) */
+svg [tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+tr[tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+svg [data-armed] { fill: color-mix(in srgb, var(--ink) 16%, transparent); }  /* tapped once: the next tap opens it */
 svg text.to, svg text.tg { paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }  /* over lines */
 
 /* loading: a view's shape, so nothing jumps when the data arrives */
@@ -135,7 +140,6 @@ table.pulls { width: 100%; border-collapse: collapse; font-size: 12.5px; font-va
 table.pulls th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
                  color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.pulls td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-table.pulls tbody tr { cursor: pointer; }
 table.pulls tbody tr:hover { background: var(--panel); }
 table.pulls tr.counted td:nth-child(6) { color: var(--dead-ink); font-weight: 600; }
 table.pulls td.fallout { color: var(--muted); }
@@ -166,17 +170,28 @@ table.pulls td.fallout { color: var(--muted); }
 .controls { display: flex; align-items: center; gap: 8px; padding: 10px 2px 0; }
 .controls button { padding: 0 10px; }
 #rp-timeline { position: relative; flex: 1; height: 32px; cursor: pointer; touch-action: none; }
-#rp-track { position: absolute; left: 0; right: 0; top: 14px; height: 4px; border-radius: 2px; background: var(--line); }
-#rp-done { position: absolute; left: 0; top: 14px; height: 4px; border-radius: 2px; background: var(--muted); }
-#rp-thumb { position: absolute; top: 8px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--ink);
+#rp-track { position: absolute; left: 0; right: 0; top: calc(50% - 2px); height: 4px; border-radius: 2px; background: var(--line); }
+#rp-done { position: absolute; left: 0; top: calc(50% - 2px); height: 4px; border-radius: 2px; background: var(--muted); }
+#rp-thumb { position: absolute; top: calc(50% - 8px); width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--ink);
             box-shadow: 0 0 0 3px var(--bg); }
-.mark { position: absolute; top: 9px; width: 3px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--dead); }
-.mark.decided { background: var(--decided); width: 3px; top: 6px; height: 20px; }
-.mark.plan { background: var(--gold); top: 11px; height: 10px; }
+.mark { position: absolute; top: calc(50% - 7px); width: 3px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--dead); }
+.mark.decided { background: var(--decided); width: 3px; top: calc(50% - 10px); height: 20px; }
+.mark.plan { background: var(--gold); top: calc(50% - 5px); height: 10px; }
 #rp-moments { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 2px 0; }
 #rp-moments button { height: 28px; font-size: 12.5px; padding: 0 8px; font-variant-numeric: tabular-nums; }
 #rp-moments button.on { border-color: var(--gold); color: var(--gold-ink); }
 @media (max-width: 480px) { #rp-event { margin-left: 0; width: 100%; } }
+
+/* On a touch screen a finger's target is 44 px. Buttons and the replay's timeline grow to it; the small chips grow
+   and reach past their edges into the gaps between them (a chart's thin bars: kit.js, a second tap opens). */
+@media (pointer: coarse) {
+  button, .head .back, #rp-moments button { height: 44px; min-width: 44px; }
+  .deaths li button { height: auto; min-height: 44px; }
+  button.chip, .chips.bosses button.chip { position: relative; height: 36px; min-width: 36px; font-size: 12px; }
+  button.chip::after { content: ""; position: absolute; inset: -4px; }
+  .killers .chips, .chips.bosses { gap: 8px; }
+  #rp-timeline { height: 44px; }
+}
 
 /* the meter: a bar per player in their class colour, scaled to the top one, as in-game damage meters draw it */
 .meter-rows { position: relative; margin: 2px 2px 6px; }

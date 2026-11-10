@@ -80,8 +80,12 @@ const kit = (() => {
   const MARK = { good: "+", fix: "−", mind: "!" };
   const notes = (items) => !items.length ? "" : `<ul class="notes">${items.map(([kind, s]) =>
     `<li class="${kind}"><span class="mk">${MARK[kind]}</span>${esc(s)}</li>`).join("")}</ul>`;
-  // A mark's tooltip: data-tip on it, shown by the one tooltip below (hover, or a tap on a touch screen)
+  // A mark's tooltip: data-tip on it, shown by the one tooltip below (hover, a tap on a touch screen, or the
+  // keyboard reaching the mark)
   const tip = (s) => s ? ` data-tip="${esc(s)}"` : "";
+  // What a click on a mark or a row opens ("this pull"): the keyboard and a screen reader get it as a button, and
+  // its tooltip ends with how to open it from where the reader is (a click, a second tap, Enter)
+  const opens = (what = "") => ` data-act="${esc(what)}"`;
   // An invisible area that shows a tooltip, wider than the thin mark it's for
   const hit = (x, y, w, h, s) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="transparent"${tip(s)}/>`;
   // A spell's icon (views.icon's path, from the view's img_base), a square at (x, y); nothing without one
@@ -91,31 +95,94 @@ const kit = (() => {
   const iconImg = (base, path, s = "") => !base || !path ? ""
     : `<img class="ic" src="${esc(base + path)}" alt=""${s ? ` title="${esc(s)}"` : ""}>`;
 
-  // The tooltip: one box, placed by the pointer and kept inside the page
+  // The tooltip: one box, placed by the pointer (or over the mark the keyboard is on) and kept inside the page
   const box = document.createElement("div");
   box.id = "tooltip"; box.setAttribute("role", "tooltip");
   document.body.appendChild(box);
-  function show(target, e) {
-    box.textContent = target.getAttribute("data-tip");
+  function show(target, x, y, how) {
+    const what = target.getAttribute("data-act");
+    box.textContent = target.getAttribute("data-tip") + (what ? `\n${how} for ${what}` : "");
     box.style.display = "block";
     const w = box.offsetWidth, h = box.offsetHeight;
-    box.style.left = Math.max(4, Math.min(e.clientX + 12, window.innerWidth - w - 4)) + "px";
-    box.style.top = (e.clientY - h - 10 < 4 ? e.clientY + 16 : e.clientY - h - 10) + "px";
+    box.style.left = Math.max(4, Math.min(x + 12, window.innerWidth - w - 4)) + "px";
+    box.style.top = (y - h - 10 < 4 ? y + 16 : y - h - 10) + "px";
   }
   const hide = () => { box.style.display = "none"; };
+  const tipped = (e) => e.target.closest && e.target.closest("[data-tip]");
+  let touch = false, armed = null, keyed = false;
   document.addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse") return;
-    const t = e.target.closest && e.target.closest("[data-tip]");
-    t ? show(t, e) : hide();
+    const t = tipped(e);
+    t ? show(t, e.clientX, e.clientY, "Click") : hide();
   });
-  document.addEventListener("pointerdown", (e) => {  // a touch screen: a tap shows it, a tap elsewhere hides it
-    if (e.pointerType === "mouse") return;
-    const t = e.target.closest && e.target.closest("[data-tip]");
-    t ? show(t, e) : hide();
+  // A touch screen: a tap shows the tooltip, a tap elsewhere hides it. A night's bars are thinner than a finger, so
+  // a tap on a mark that opens something shows which one was hit first (data-armed: page.css marks it), and a
+  // second tap on it opens it.
+  const arm = (mark) => {
+    if (armed) armed.removeAttribute("data-armed");
+    armed = mark;
+    if (armed) armed.setAttribute("data-armed", "");
+  };
+  document.addEventListener("pointerdown", (e) => {
+    touch = e.pointerType !== "mouse";
+    if (!touch) return;
+    const t = tipped(e);
+    t ? show(t, e.clientX, e.clientY, "Tap again") : hide();
   });
-  document.addEventListener("pointerleave", hide);
+  document.addEventListener("click", (e) => {
+    const t = touch && !keyed && e.target.closest && e.target.closest("svg [data-act][data-tip]");
+    if (t && t !== armed) { arm(t); e.stopPropagation(); e.preventDefault(); } else arm(null);
+  }, true);
+  // a finger lifted leaves the page too: what its tap showed stays until the next tap
+  document.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
   window.addEventListener("scroll", hide, true);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend };
+  // The keyboard's way in. A chart's marks (whatever has a tooltip) and a table's rows that open something are one
+  // stop of the Tab key each: the arrow keys step through them as they lie, left to right and top to bottom, the
+  // tooltip follows, and Enter or space does what a click does. A chart's mark is named to a screen reader by what
+  // its tooltip says, and is a button where it opens something.
+  const STEP = "[data-tip], [data-act]";
+  const placed = (group) => [...group.querySelectorAll(STEP)]
+    .map((m) => { const r = m.getBoundingClientRect(); return [m, Math.round((r.left + r.right) / 2), r.top]; })
+    .sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([m]) => m);
+  function reach() {
+    for (const group of document.querySelectorAll("#app svg, #app tbody")) {
+      if (group.querySelector('[tabindex="0"]')) continue;
+      const marks = placed(group), chart = group instanceof SVGElement;
+      if (!marks.length) continue;
+      if (chart) group.setAttribute("role", "group");
+      marks.forEach((m, i) => {
+        m.setAttribute("tabindex", i ? "-1" : "0");
+        if (!chart) return;
+        m.setAttribute("role", m.hasAttribute("data-act") ? "button" : "img");
+        m.setAttribute("aria-label", m.getAttribute("data-tip"));
+      });
+    }
+  }
+  new MutationObserver(reach).observe(document.getElementById("app"), { childList: true, subtree: true });
+  document.addEventListener("keydown", (e) => {
+    const at = e.target.closest && e.target.closest(STEP), group = at && at.closest("svg, tbody");
+    if (!group) return;
+    const marks = placed(group), i = marks.indexOf(at);
+    const to = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: marks.length - 1 }[e.key];
+    if (to !== undefined) {
+      const next = marks[Math.max(0, Math.min(marks.length - 1, to))];
+      e.preventDefault();
+      at.setAttribute("tabindex", "-1"); next.setAttribute("tabindex", "0"); next.focus();
+    } else if ((e.key === "Enter" || e.key === " ") && at.hasAttribute("data-act")) {
+      e.preventDefault();
+      keyed = true;
+      try { at.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); } finally { keyed = false; }
+    } else if (e.key === "Escape") hide();
+  });
+  document.addEventListener("focusin", (e) => {
+    const t = tipped(e);
+    if (!t || !t.matches(":focus-visible")) return;  // the keyboard's focus, not a click's
+    const r = t.getBoundingClientRect();
+    show(t, r.left + r.width / 2 - 12, r.top, "Enter");
+  });
+  document.addEventListener("focusout", hide);
+
+  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open), drawn into root
