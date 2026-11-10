@@ -160,6 +160,9 @@ bullets back the verdict, they don't repeat it.
   meter shows every player's amount, per second and share, and the median: name the few players that matter and
   why, not every player's number. Two rankings asked together (damage and healing) are both drawn, the top five
   of each: don't list them again in text; say what the meters can't (who's close, who's missing and why).
+- An amount pull by pull (breakdown grouped by pull: damage, healing, damage taken, casts) is drawn as a trend: a
+  bar per pull, the median of each third of the night, and the asker's own under the raid's. Say where it rose or
+  fell and what changed there, not each pull's number.
 - raid_note over every pull (all_pulls) is drawn as up to three pictures: kicks, each kick assignment's casts pull
   by pull (kicked, covered by another, went through, the first to go through before a wipe ringed) with whose went
   through first counted; cooldowns, each planned cooldown pull by pull (on time, early or late, not cast); callouts,
