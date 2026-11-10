@@ -65,33 +65,42 @@ class Fetched:
         out: dict[K, T] = {}
         missing: list[K] = []
         shared: dict[K, asyncio.Future] = {}  # being fetched now: by another tool, or by this call for an equal key
-        for item, (key, fid) in wanted.items():
-            if key in self._kept:
-                out[item] = cast(T, self._kept[key])
-            elif (persist_s is not None and self._finished([fid])
-                  and (found := await cache().read(cache_key("report", self.code, *key)))):
-                # an old entry serves too, as `keep` does (it's FOREVER); a night's entries one at a time, the event
-                # loop free between them
-                out[item] = self._kept[key] = found[0]
-            elif key in self._fetching:
-                shared[item] = self._fetching[key]
-            else:
-                missing.append(item)
-                self._fetching[key] = asyncio.get_running_loop().create_future()
-        if missing:
-            finished = {item for item in missing if self._finished([wanted[item][1]])}  # before, as in `keep`
-            try:
+        got: dict[K, T] = {}
+        settled = 0  # how many of `missing` were handed to whoever waits for them
+        try:
+            for item, (key, fid) in wanted.items():
+                if key in self._kept:
+                    out[item] = cast(T, self._kept[key])
+                elif (persist_s is not None and self._finished([fid])
+                      and (found := await cache().read(cache_key("report", self.code, *key)))):
+                    # an old entry serves too, as `keep` does (it's FOREVER); a night's entries one at a time, the
+                    # event loop free between them
+                    out[item] = self._kept[key] = found[0]
+                elif key in self._fetching:
+                    shared[item] = self._fetching[key]
+                else:
+                    missing.append(item)
+                    self._fetching[key] = asyncio.get_running_loop().create_future()
+            if missing:
+                finished = {item for item in missing if self._finished([wanted[item][1]])}  # before, as in `keep`
                 got = await fetch_many(missing)
-            except BaseException as e:
                 for item in missing:
+                    key, fid = wanted[item]
+                    out[item] = got[item]
+                    if item in finished:
+                        await self._remember(key, got[item], persist_s)
+                    self._settle(key, got[item])
+                    settled += 1
+        except BaseException as e:
+            # Cut off or failed anywhere on the way (reading a large value from disk and keeping one there wait for
+            # a thread): what this call set out to fetch is settled all the same, with its value when it came. A
+            # key left unsettled had every later call for it wait until its own time was up.
+            for item in missing[settled:]:
+                if item in got:
+                    self._settle(wanted[item][0], got[item])
+                else:
                     self._settle(wanted[item][0], error=e)
-                raise
-            for item in missing:
-                key, fid = wanted[item]
-                out[item] = got[item]
-                if item in finished:
-                    await self._remember(key, got[item], persist_s)
-                self._settle(key, got[item])
+            raise
         for item, task in shared.items():
             with waiting_for(SOURCE):
                 out[item] = cast(T, await asyncio.shield(task))
