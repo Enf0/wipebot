@@ -286,6 +286,34 @@ async def test_a_debuff_the_raid_carries_through_the_fight_is_not_what_ended_a_p
         "Ended by: the boss's Dread [802] landed on 18 of the 18 alive at 1:58, 2 s before the pull ended")
 
 
+async def test_a_debuff_of_the_fight_landing_late_does_not_hide_the_cast_that_ended_the_pull(rep, alive_pull):
+    # Sting lands on the raid at 1:52 for the first time in this pull, as it did on the pull before, which went on:
+    # part of the fight. Dread lands at 1:58, as on no earlier pull: the ending names it. A debuff from a player's
+    # pet (a hunter's pet's Bloodlust) is nobody's cast to look up.
+    rep.abilities |= {SWIPE: "Tail Swipe", CRASH: "Shadow Crash", 802: "Dread", 803: "Sting", 804: "Fatigued"}
+    f, players, _ = alive_pull([], [])
+    living = players[2:]
+    f, *_ = alive_pull(_landing(803, 112, living) + _landing(802, 118, living), [], earlier=_landing(803, 20, living))
+    assert str(ending_text(await pull_ending(rep, f))).startswith(
+        "Ended by: the boss's Dread [802] landed on 18 of the 18 alive at 1:58, 2 s before the pull ended")
+    rep.actors[9100] = {"id": 9100, "name": "Wolf", "type": "Pet", "petOwner": living[0]}
+    f, *_ = alive_pull(_landing(804, 118, living, source=9100), [])
+    assert kind_of_end(await pull_ending(rep, f)) == "no death, the raid alive"
+
+
+async def test_what_lands_on_the_raid_as_a_pull_begins_did_not_end_a_pull_seconds_long(rep, alive_pull):
+    # The raid stops 8 s into the night's first pull on the boss. The boss's opening debuff landed on everyone at
+    # 0:02: a pull this short has no earlier moment, and no earlier pull, to tell it from what ended the pull.
+    rep.abilities |= {SWIPE: "Tail Swipe", CRASH: "Shadow Crash", 802: "Dread"}
+    f, players, _ = alive_pull([], [])
+    f, *_ = alive_pull(_landing(802, 2, players), [])
+    short = {**f, "endTime": f["startTime"] + 8_000}
+    e = await pull_ending(rep, short)
+    assert (kind_of_end(e), lead(e)) == ("no death, the raid alive", "alive")
+    assert ending_text(e) == ("Ended by: no death. The pull ended at 0:08 with 20 of 20 alive and nothing in the log "
+                              "decided it: called off or reset, the log doesn't say which.")
+
+
 def test_a_cascade_starts_at_the_first_death_that_stayed(rep, deaths):
     died = died_as((10.0, SWIPE, 901), (50.0, SWIPE, 902), (55.0, CRASH, 903), (60.0, SWIPE, 904))
     e = ending(rep, PULL, died, {901: [T0 + 15_000.0]}, 6, [], Decided(60_000))

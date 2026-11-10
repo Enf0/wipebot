@@ -58,9 +58,9 @@ class HalfDead:
 @dataclass(frozen=True)
 class EndCast:
     """What the boss did as a pull ended with most of the raid alive: a debuff of its landed on at least half of
-    the living in the pull's last seconds (END_CAST_MS), as it had at no earlier moment of the pull and on no
-    earlier pull that went on. The log shows that it landed and that the pull ended; what the cast is, the guide
-    says."""
+    the living in the pull's last seconds (END_CAST_MS, and not in its first), as it had at no earlier moment of the
+    pull and on no earlier pull that went on. The log shows that it landed and that the pull ended; what the cast is,
+    the guide says."""
     at_ms: float  # when it landed
     debuff: str
     ids: tuple[int, ...]
@@ -142,16 +142,18 @@ def _landed_on(events: list[dict], many: int) -> list[dict] | None:
 async def _end_cast(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float]], raid: int
                     ) -> EndCast | None:
     """The cast of the boss's that ended a pull no death decided (`EndCast`), if the log shows one. The pull's
-    debuffs from enemies and the enemies' casts are read (as pull_timeline reads them), and, only for a debuff that
-    qualifies, its applications on the boss's earlier pulls in one query."""
+    debuffs from enemies and the enemies' casts are read (as pull_timeline reads them), and, only for the debuffs
+    that qualify, their applications on the boss's earlier pulls in one query."""
     t0, end = f["startTime"], f["endTime"]
     landed: dict[str, list[dict]] = defaultdict(list)
     for e in sorted(await rep.events(f["id"], "Debuffs", hostilityType="Friendlies"), key=lambda e: e["timestamp"]):
-        if e["type"] == "applydebuff" and e.get("targetID") in rep.names and e.get("sourceID") not in rep.names:
+        if (e["type"] == "applydebuff" and e.get("targetID") in rep.names
+                and rep.owner(e.get("sourceID", -1)) not in rep.names):  # an enemy's: no player's, no player's pet's
             landed[rep.ability(e["abilityGameID"])].append(e)
     found = []
     for name, events in landed.items():
-        late = [e for e in events if e["timestamp"] >= end - END_CAST_MS]
+        # What lands in a pull's first seconds has no earlier moment to be told from: it ended no pull.
+        late = [e for e in events if e["timestamp"] >= max(end - END_CAST_MS, t0 + END_CAST_MS)]
         alive = alive_at(deaths, backs, raid, late[0]["timestamp"]) if late else 0
         many = max(1, -(-alive // 2))  # at least half of the living
         if (run := _landed_on(late, many)) and not _landed_on([e for e in events if e["timestamp"] < run[0][
@@ -160,21 +162,23 @@ async def _end_cast(rep: Report, f: dict, deaths: list[dict], backs: dict[int, l
             found.append((run[0]["timestamp"], name, ids, len({e["targetID"] for e in run}), alive, many))
     if not found:
         return None
-    at, name, ids, hit, alive, many = min(found)
     earlier = [g for g in rep.by_boss[rep.boss_key(f)] if g["startTime"] < t0 and not is_reset(g)]
-    if earlier:  # a debuff that landed on as many on a pull that went on is part of the fight, not its end
-        only = {"filterExpression": f'type = "applydebuff" and ability.id in ({", ".join(map(str, ids))})'}
-        for g, events in zip(earlier, await rep.events_for([(g["id"], only) for g in earlier], "Debuffs",
-                                                           hostilityType="Friendlies"), strict=True):
-            if _landed_on(sorted((e for e in events if e.get("targetID") in rep.names
+    before: list[list[dict]] = []  # per earlier pull, where these debuffs landed
+    if earlier:
+        only = {"filterExpression": 'type = "applydebuff" and ability.id in ('
+                                    + ", ".join(str(i) for i in sorted({i for c in found for i in c[2]})) + ")"}
+        before = await rep.events_for([(g["id"], only) for g in earlier], "Debuffs", hostilityType="Friendlies")
+    for at, name, ids, hit, alive, many in sorted(found):  # the first to land that is no part of the fight
+        if any(_landed_on(sorted((e for e in events if e["abilityGameID"] in ids and e.get("targetID") in rep.names
                                   and e["timestamp"] < g["endTime"] - END_CAST_MS), key=lambda e: e["timestamp"]),
-                          many):
-                return None
-    casts = [c for c in await rep.events(f["id"], "Casts", hostilityType="Enemies")
-             if c["type"] == "cast" and c.get("sourceID") in rep.bosses and at - CAST_LEAD_MS <= c["timestamp"] <= at]
-    cast = max(casts, key=lambda c: c["timestamp"], default=None)
-    return EndCast(at - t0, name, ids, hit, alive, rep.ability(cast["abilityGameID"]) if cast else "",
-                   cast["timestamp"] - t0 if cast else 0)
+                          many) for g, events in zip(earlier, before, strict=True)):
+            continue  # it landed on as many on a pull that went on: part of the fight, not its end
+        casts = [c for c in await rep.events(f["id"], "Casts", hostilityType="Enemies") if c["type"] == "cast"
+                 and c.get("sourceID") in rep.bosses and at - CAST_LEAD_MS <= c["timestamp"] <= at]
+        cast = max(casts, key=lambda c: c["timestamp"], default=None)
+        return EndCast(at - t0, name, ids, hit, alive, rep.ability(cast["abilityGameID"]) if cast else "",
+                       cast["timestamp"] - t0 if cast else 0)
+    return None
 
 
 def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float]], raid: int,
