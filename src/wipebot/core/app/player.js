@@ -119,8 +119,7 @@ views.player = (() => {
   // the boss's main casts below.
   function ribbon({ W, lanes }) {
     const L = lanes ? 112 : 10, R = 14, x = (ms) => L + ms / D.duration_ms * (W - L - R);
-    let y = 6, o = '<defs><pattern id="pl-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
-      + '<rect width="2" height="5" fill="var(--dead)" opacity=".55"/></pattern></defs>';
+    let y = 6, o = kit.hatch("pl-hatch");
     const label = (s, yy) => lanes ? kit.text(6, yy, s) : "";
     const diamond = (cx, top, tip = "") => `<path d="M${cx} ${top} l6 6 l-6 6 l-6 -6z" fill="var(--gold)"${kit.tip(tip)}/>`;
     // cooldowns: an icon at each use, nudged up a row where it would cover another's; their names in the legend
@@ -173,7 +172,7 @@ views.player = (() => {
       if (lanes) o += kit.labels(D.tracked.map((c) => [c.ms, c.name]), x, y + 8, "tg", D.tracked.map((c) => x(c.ms)), W);
       y += 12;
     }
-    const tick = [5, 10, 15, 30, 60, 120].map((s) => s * 1000).find((s) => D.duration_ms / s <= (lanes ? 12 : 7)) || 300000;
+    const tick = kit.step(D.duration_ms, lanes ? 12 : 7);
     for (let t = 0; t <= D.duration_ms; t += tick) {
       o += kit.text(x(t), y + 12, kit.clock(t), "tm", `text-anchor="${t || lanes ? "middle" : "start"}"`);
     }

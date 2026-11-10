@@ -40,8 +40,7 @@ views.mana = (() => {
     const x = (ms) => LEFT + ms / Math.max(D.until_ms, 1) * (W - LEFT - RIGHT), y = (v) => 10 + (100 - v) / 100 * CH;
     const lanes = D.innervates.length, h = 10 + CH + 24 + lanes * LANE + 4;
     const ends = [];  // [the y a line ends at, its healer]: who lived to the end, named in the margin
-    let body = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
-      + `<rect width="2" height="5" fill="var(--dead)" opacity="0.55"/></pattern></defs>`;
+    let body = kit.hatch("hatch");
     for (const v of [0, 50, 100]) {
       body += kit.line(LEFT, y(v), W - RIGHT, y(v), "var(--line)") + kit.text(LEFT - 6, y(v) + 3.5, `${v}%`, "tm", 'text-anchor="end"');
     }

@@ -138,6 +138,11 @@ const kit = (() => {
       render();
     }).observe(into);
   }
+  // A time axis's step: the shortest that leaves at most `most` marks over `ms`
+  const step = (ms, most) => [5, 10, 15, 30, 60, 120, 300].map((s) => s * 1000).find((s) => ms / s <= most) || 600000;
+  // The hatch of a stretch dead or lost, the same in every chart: its <defs>, for a mark's fill="url(#id)"
+  const hatch = (id) => `<defs><pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
+    + '<rect width="2" height="5" fill="var(--dead)" opacity=".55"/></pattern></defs>';
   // A mark's tooltip: data-tip on it, shown by the one tooltip below (hover, a tap on a touch screen, or the
   // keyboard reaching the mark)
   const tip = (s) => s ? ` data-tip="${esc(s)}"` : "";
@@ -242,6 +247,6 @@ const kit = (() => {
   document.addEventListener("focusout", hide);
 
   return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered,
-           CARD, card, press, frame, watch, looking };
+           CARD, card, press, frame, watch, looking, step, hatch };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open, asked), drawn into root

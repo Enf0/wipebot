@@ -153,7 +153,7 @@ views.pull = (() => {
       if (cooldowns.length) y += 13;
     }
     const top = y, bottom = y + plotH;
-    const tick = [5, 10, 15, 30, 60, 120, 300].map((s) => s * 1000).find((s) => D.duration_ms / s <= (lanes ? 12 : 8)) || 600000;
+    const tick = kit.step(D.duration_ms, lanes ? 12 : 8);
     for (let t = 0; t <= D.duration_ms; t += tick) o += kit.line(x(t), top, x(t), bottom, "var(--line)");
     o += kit.line(L, bottom, W - R, bottom, "var(--line)");
     // What is written inside the plot keeps clear of what was written before it: [x0, x1, y0, y1] each
