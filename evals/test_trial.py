@@ -167,3 +167,33 @@ def test_a_run_records_what_it_tested_and_a_comparison_says_when_that_differs(tm
     assert run.tested_alike({"tested": older}, now) == (
         "  WARNING: not tested alike: the answers' model claude-opus-w -> claude-opus-x; Claude Code 2.0.0 -> "
         f"{t['cli']}; frozen data last added to 2026-10-13 15:16 -> 2026-10-14 16:16")
+
+
+async def test_a_report_that_cannot_be_read_is_an_error_not_a_crash_of_the_run(asking, monkeypatch):
+    """What fails before the session starts (the report's read, a post's prefetch) is caught like the rest."""
+    _, _, ask = asking
+
+    async def unread(code):
+        raise wcl.WCLError("upstream_error: Warcraft Logs returned HTTP 503")
+
+    async def trial_of(report):
+        return await run.trial(CASE, stand_in(report=report), "opus", "sonnet", asyncio.Semaphore(1), "bot")
+    t = await trial_of(unread)
+    assert t.errored and "HTTP 503" in t.error and not t.passed and t.calls == [] and not t.broke
+
+
+def test_a_saved_trial_reads_the_same_a_second_time():
+    """--summary, --record and --save-baseline RESULTS settle a saved run again: a capped answer stays a failed
+    answer, and nothing else changes sides either."""
+    from dataclasses import asdict
+    ok, case = {"ok": True, "reason": ""}, {"id": "a", "question": "why?", "kind": "wipe"}
+    crash = {"name": "progress", "failed": True, "result": "progress failed with an unexpected error: TypeError"}
+    refused = {"name": "progress", "failed": True, "result": "auth_failed: HTTP 401"}
+    for trial in (run.Trial(expect=ok, wrong=ok), run.Trial(expect=ok, wrong={"ok": False, "reason": "x"}),
+                  run.Trial(error="ModelError: error_max_turns"), run.Trial(error="ModelError: error_max_budget_usd"),
+                  run.Trial(error="ModelError: rate_limit"), run.Trial(expect=ok, wrong=ok, calls=[crash]),
+                  run.Trial(expect=ok, wrong=ok, seconds=4000, waited_s=0.0),
+                  run.Trial(expect=ok, wrong=ok, calls=[refused]),
+                  run.Trial(expect=ok, wrong={"ok": None, "reason": "no verdict: "})):
+        first = asdict(run.settle(trial, case, "bot"))
+        assert asdict(run.settle(run.Trial(**first), case, "bot")) == first

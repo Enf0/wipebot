@@ -159,7 +159,8 @@ def settle(t: Trial, case: dict, mode: str) -> Trial:
     - an error, in neither passes nor trials (`error`): the session failed another way (a usage limit), this machine
       couldn't read the data, a service was down for a call a failed answer needed, or the judge gave no verdict;
     - else passed when it passed every named check (PARTS): the judge's two, and no required call missing."""
-    session = t.error if t.error and not t.expect else ""  # the session raised: nothing was judged
+    # the session raised, so nothing was judged: its error, or in a trial settled before (a saved run's), the cap
+    session = "" if t.expect else t.error or t.broke
     if t.expect:  # judged; a check a later step added to the trial stays
         t.checks = {**t.checks, "expect": t.expect.get("ok") is True, "wrong": t.wrong.get("ok") is True,
                     "calls": not t.uncalled}
@@ -340,6 +341,7 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
     """One answer, judged."""
     model = model or config.model()  # what the bot would use
     t = Trial()
+    calls, prompts, ran = [], [], []  # here, so that what fails before the session starts is an error like the rest
     async with jobs:
         started = time.time()  # not counting the wait for a free slot
         try:
@@ -355,7 +357,6 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
                                                    case.get("asker"), case.get("request", ""))
             # None: the bot's own, with the skill
             prompt = {"plugin": PLUGIN, "connector": CONNECTOR_ONLY, "bot": None}[mode]
-            calls, prompts, ran = [], [], []
 
             def keep(answer, turn: int) -> None:
                 """What an answer cost and called; images as a count, a follow-up's calls marked with the question
