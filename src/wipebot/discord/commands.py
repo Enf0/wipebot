@@ -27,7 +27,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
-from . import allowance, budget, config, keycmd, logincmd, news
+from . import allowance, budget, config, keycmd, logincmd, news, texts
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -241,10 +241,19 @@ def asks_for_help(question: str) -> bool:
     return question.strip().strip("?!. ").lower() in HELP_WORDS
 
 
-def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False) -> str:
+def needs_key(lang: str = "en") -> str:
+    """What a server without an AI key is told, on a bot that answers only on servers' own: that an admin adds one,
+    and, when the host runs the connector too, that it answers the same questions without one."""
+    url = config.connector_url()
+    return texts.NEEDS_KEY.to(lang) + (texts.WITHOUT_KEY.to(lang, url=url) if url else "")
+
+
+def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False, keyless: bool = False) -> str:
     """/help's text: what to ask, the commands this member can use, and how the server is set up (`s`, None or
-    unset when it isn't; `admin`: the member may use /wipebot)."""
-    parts = ["**What to ask:** " + ("DM me" if in_dm else "@mention me, reply to my answers, or DM me")
+    unset when it isn't; `admin`: the member may use /wipebot). `keyless`: the server has no AI key on a bot that
+    answers only on servers' own, which comes first, as no question below it gets an answer until it has one."""
+    parts = ["**I can't answer here yet.** " + needs_key()] if keyless else []
+    parts += ["**What to ask:** " + ("DM me" if in_dm else "@mention me, reply to my answers, or DM me")
              + ". For example:\n" + "\n".join(f"- {q}" for q in EXAMPLES)
              + "\nTell me your character once (\"I'm Jekå\") and \"I\" means them from then on. A warcraftlogs.com "
                "report link asks about that report instead of the guild's latest."]
@@ -322,7 +331,7 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
         gid = in_guild(interaction).id
         admin = bool(getattr(interaction.permissions, "manage_guild", False))
         await interaction.response.send_message(
-            help_text(bot.store.settings(gid), admin), ephemeral=True)
+            help_text(bot.store.settings(gid), admin, keyless=bot.keyless(gid)), ephemeral=True)
 
     @app_commands.command(name="usage", description="What's left of the AI budget and the Warcraft Logs points "
                                                     "wipebot's answers share")

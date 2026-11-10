@@ -37,14 +37,14 @@ In `.env` (copy [.env.example](../.env.example)):
 | Setting | Used by | |
 |---|---|---|
 | `WCL_CLIENT_ID`, `WCL_CLIENT_SECRET` | both | required |
-| `WIPEBOT_PUBLIC_URL` | connector | required: the address members reach, e.g. `https://wipebot.example.com` |
+| `WIPEBOT_PUBLIC_URL` | connector | required: the address members reach, e.g. `https://wipebot.example.com`. The bot reads it too: with `WIPEBOT_OWN_KEYS`, a server without a key is told its raiders can ask in Claude or ChatGPT meanwhile, at this address |
 | `WIPEBOT_ALLOWED_GUILDS` | connector | required: whose members may sign in (below), or `*` for anyone |
 | `WIPEBOT_OFFICER_RANK` | connector | the highest guild rank of officers, who save raid notes and plans (default 1, [below](#officers-and-admins)) |
 | `WIPEBOT_TRUSTED_PROXIES` | connector | the reverse proxy's address, if you want real client IPs in the log |
 | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY` | bot | required; or `OPENROUTER_API_KEY` in place of the Anthropic key (below) |
 | `OPENROUTER_API_KEY` | bot | answer through [OpenRouter](https://openrouter.ai) with this key: its credit limit is the budget anyone in the server sees with `/usage` ([below](#a-budget-the-guild-chips-in-to)) |
 | `WIPEBOT_BUDGET_NOTE` | bot | how raiders chip in, shown by `/usage`, e.g. `Vipps to Oscar, 12345678` |
-| `WIPEBOT_OWN_KEYS` | bot | `1` for a copy many servers share: each server answers only on its own key, which an admin adds with `/wipebot setup`; until then its raiders are told to ask an admin. The bot then needs no key of its own. On such a copy a server keeps its guild's raid notes and plans only once an admin with a character in the guild has signed in with `/login` and run `/wipebot setup`, so set `WIPEBOT_WCL_CALLBACK` too |
+| `WIPEBOT_OWN_KEYS` | bot | `1` for a copy many servers share: each server answers only on its own key, which an admin adds with `/wipebot setup`; until then its raiders are told to ask an admin, by `/help` too, and where the connector is (`WIPEBOT_PUBLIC_URL`). The bot then needs no key of its own. On such a copy a server keeps its guild's raid notes and plans only once an admin with a character in the guild has signed in with `/login` and run `/wipebot setup`, so set `WIPEBOT_WCL_CALLBACK` too |
 | `WIPEBOT_KEY_SECRET` | bot | what the AI keys admins add for their servers (`/wipebot setup`) are encrypted with; default the Warcraft Logs client secret. Changing it makes saved keys unreadable, and servers add theirs again |
 | `WIPEBOT_OPENROUTER_CALLBACK` | bot | where OpenRouter sends an admin after "Sign in with OpenRouter" in `/wipebot setup`: a page that shows the address to paste back; default a localhost address that doesn't load, whose address bar holds it |
 | `WIPEBOT_WCL_CALLBACK` | bot | turns on `/login`: where Warcraft Logs sends a raider after they sign in, a page that shows its address to paste back into Discord (any page does: the address bar holds the code). Add it to your Warcraft Logs client's redirect URLs (comma-separated) |

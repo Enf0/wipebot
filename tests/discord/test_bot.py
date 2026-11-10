@@ -390,6 +390,23 @@ async def test_a_server_without_a_key_is_told_so_in_the_questions_language(bot, 
                            "en med `/wipebot setup` (OpenRouter eller Anthropic)."] and not asked
 
 
+async def test_help_on_a_server_without_a_key_leads_with_that(bot, message, asked, monkeypatch):
+    monkeypatch.setenv("WIPEBOT_PUBLIC_URL", "https://wipebot.example.com")
+    bot.own_keys = True
+    msg = message("<@99> help")
+    await bot.on_message(msg)
+    assert msg.replies[0].startswith("**I can't answer here yet.** This server hasn't added an AI key")
+    assert "`https://wipebot.example.com/mcp`" in msg.replies[0] and "**What to ask:**" in msg.replies[0]
+    asking = message("<@99> why did we wipe?")
+    await bot.on_message(asking)  # and a question is told the same, with where to ask meanwhile
+    assert asking.replies[0].startswith("This server hasn't added an AI key") and not asked
+    assert "Claude or ChatGPT" in asking.replies[0]
+    bot.store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-v1-abc"), added_by=7)
+    with_key = message("<@99> help")
+    await bot.on_message(with_key)
+    assert with_key.replies[0].startswith("**What to ask:**")
+
+
 async def test_a_server_with_its_own_key_is_answered_on_a_copy_that_needs_one(bot, message, asked):
     bot.own_keys = True
     bot.store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-v1-abc"), added_by=7)

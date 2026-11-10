@@ -43,6 +43,14 @@ def own_keys() -> bool:
     return os.environ.get("WIPEBOT_OWN_KEYS", "").lower() in ("1", "true", "yes")
 
 
+def connector_url() -> str | None:
+    """The address members add as a connector in Claude or ChatGPT: the connector's WIPEBOT_PUBLIC_URL with /mcp,
+    for the raiders of a server the bot can't answer in yet. None when the host runs no connector, or didn't give
+    the bot its address."""
+    url = os.environ.get("WIPEBOT_PUBLIC_URL", "").strip().rstrip("/")
+    return f"{url}/mcp" if url else None
+
+
 def budget_note() -> str | None:
     """How raiders chip in to the bot's budget (WIPEBOT_BUDGET_NOTE, e.g. "Vipps to Oscar, 12345678"), shown by
     /usage."""

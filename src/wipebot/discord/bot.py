@@ -752,7 +752,8 @@ class WipeBot(discord.Client):
         lang = asked_in(question, self.store.language(settings.discord_guild_id))
         if commands.asks_for_help(question):  # /help's text, without the model
             admin = not is_dm and getattr(getattr(message.author, "guild_permissions", None), "manage_guild", False)
-            await respond(message, commands.help_text(settings, admin, is_dm))
+            await respond(message, commands.help_text(settings, admin, is_dm,
+                                                      self.keyless(settings.discord_guild_id)))
             return
         if len(question) > QUESTION_CHARS:
             await respond(message, texts.TOO_LONG.to(lang, chars=QUESTION_CHARS))
@@ -791,9 +792,13 @@ class WipeBot(discord.Client):
             return texts.NEEDS_ROLE.to(lang, role=s.required_role_id)
         if self.stopping:
             return texts.RESTARTING.to(lang)
-        if self.own_keys and self.store.server_key(s.discord_guild_id) is None:
-            return texts.NEEDS_KEY.to(lang)
+        if self.keyless(s.discord_guild_id):
+            return commands.needs_key(lang)
         return None
+
+    def keyless(self, discord_guild_id: int) -> bool:
+        """Whether the server has no AI key where it needs its own: no question in it gets an answer yet."""
+        return self.own_keys and self.store.server_key(discord_guild_id) is None
 
     async def _chat(self, message: discord.Message, s: ServerSettings, code: str, question: str, where: str,
                     is_dm: bool) -> None:
@@ -998,7 +1003,7 @@ class WipeBot(discord.Client):
         if self.own_keys and ctx.env is None:  # the key was removed since, or a post after a wipe
             log.info("%s answer to %s refused: the server has no key of its own", kind, shown)
             record(error="no key")
-            return texts.NEEDS_KEY.to(lang)
+            return commands.needs_key(lang)
         earlier = (lambda after, seen: self._earlier(message, after, seen)) if message else None
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
             with ctx.reading():  # as the asker: the session's report as it opens, the answer's pictures as it's sent

@@ -352,6 +352,22 @@ def test_help_lists_what_the_member_may_use(settings, monkeypatch):
     assert len(admin) < 2000  # one Discord message
 
 
+def test_help_on_a_server_without_a_key_says_so_first_and_where_to_ask_meanwhile(settings, monkeypatch):
+    """On a bot that answers only on servers' own keys, /help listed what to ask and every question was refused."""
+    monkeypatch.delenv("WIPEBOT_PUBLIC_URL", raising=False)
+    assert "AI key" not in commands.help_text(settings, admin=False)
+    raider = commands.help_text(settings, admin=False, keyless=True)
+    assert raider.startswith("**I can't answer here yet.** This server hasn't added an AI key for my answers yet: an "
+                             "admin adds one with `/wipebot setup` (OpenRouter or Anthropic).\n\n**What to ask:**")
+    assert "Claude" not in raider  # the host runs no connector, or the bot wasn't told where
+    monkeypatch.setenv("WIPEBOT_PUBLIC_URL", "https://wipebot.example.com/")
+    raider = commands.help_text(settings, admin=False, keyless=True)
+    assert ("(OpenRouter or Anthropic). Until then you can ask me the same in Claude or ChatGPT, which needs no key "
+            "here: add `https://wipebot.example.com/mcp` there as a connector") in raider
+    assert "som ikke trenger nøkkel her: legg til `https://wipebot.example.com/mcp` der" in commands.needs_key("no")
+    assert len(commands.help_text(replace(settings, required_role_id=111), admin=True, keyless=True)) < 2000
+
+
 def test_usage_says_whats_left_of_the_hours_points():
     rate = {"limitPerHour": 18000, "pointsSpentThisHour": 4500.5, "pointsResetIn": 1500,
             "databaseLimitPerHour": 600, "databasePointsSpentThisHour": 700}

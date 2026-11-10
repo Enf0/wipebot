@@ -81,6 +81,11 @@ NEEDS_KEY = Text("This server hasn't added an AI key for my answers yet: an admi
                  "(OpenRouter or Anthropic).",
                  "Denne serveren har ikke lagt inn en AI-nøkkel for svarene mine ennå: en admin legger inn en med "
                  "`/wipebot setup` (OpenRouter eller Anthropic).")
+# ...and where its raiders can ask meanwhile, when the host runs the connector too (config.connector_url)
+WITHOUT_KEY = Text(" Until then you can ask me the same in Claude or ChatGPT, which needs no key here: add `{url}` "
+                   "there as a connector and sign in with Warcraft Logs.",
+                   " Til da kan du spørre meg om det samme i Claude eller ChatGPT, som ikke trenger nøkkel her: legg "
+                   "til `{url}` der som connector og logg inn med Warcraft Logs.")
 STILL_ANSWERING = Text("I'm still answering {n} of your questions: ask again when one is done.",
                        "Jeg svarer fortsatt på {n} av spørsmålene dine. Spør igjen når ett er ferdig.")
 ASKED_A_LOT = Text("That's {n} answers for you this hour, which is all one person gets: ask again in a while.",
