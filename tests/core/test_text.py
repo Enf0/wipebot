@@ -34,3 +34,9 @@ def test_a_nights_length_over_an_hour_is_written_with_its_hours():
     # "174:43 long" for a night of 2 h 55 min read as a time in a pull; under an hour it is a pull's clock.
     assert text.span(10_483_000) == "2:54:43" and text.span(3_600_000) == "1:00:00"
     assert text.span(3_599_999) == "59:59" and text.span(626_000) == "10:26"
+
+
+def test_one_events_moment_is_written_to_the_millisecond():
+    # Two hits in one second, or a cast and the death it dealt, are told apart and ordered only by the thousandths.
+    assert text.exact(15_250) == "0:15.250" and text.exact(162_854.6) == "2:42.854" and text.exact(-3) == "0:00.000"
+    assert text.exact(3_723_004) == "1:02:03.004"

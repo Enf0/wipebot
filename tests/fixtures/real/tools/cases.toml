@@ -178,6 +178,8 @@ boss-tooltips = { tool = "boss_guide", boss = "Sszorak", topic = "tooltips" }
 boss-guide-mechanic = { tool = "boss_guide", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", mechanic = "Virulence" }
 # any Warcraft Logs query the model writes, and the schema to write it from
 wcl-query = { tool = "wcl_query", report = "KBYT4xXn7VNjDgh8", query = "{ reportData { report(code: $code) { fights(fightIDs: [21, 41]) { id name kill bossPercentage startTime endTime } } } }" }
+# a pull stands in the query by its number: the same question as above, asked without knowing a fight id
+wcl-query-pulls = { tool = "wcl_query", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", query = "{ reportData { report(code: $code) { fights(fightIDs: [$fight(13), $fight(33)]) { id name kill bossPercentage startTime endTime } } } }" }
 wcl-query-schema = { tool = "wcl_query", schema_type = "ReportFight" }
 # any page of the guide and news sites, in parts, and a search across them
 web-lookup-read = { tool = "web_lookup", url = "https://www.wowhead.com/news/nymrissa-wavecaller-nerfs-mythic-twin-fangs-changed-raid-tuning-on-weekly-reset-382704" }

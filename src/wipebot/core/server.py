@@ -1863,34 +1863,43 @@ async def breakdown(
 
 @_tool
 async def wcl_query(query: Annotated[str | None, Field(description=(
-                        "a read-only GraphQL query of Warcraft Logs' API; $code stands for the report's code"))] = None,
+                        "a read-only GraphQL query of Warcraft Logs' API. In it $code stands for the report's code, "
+                        "$fight(13) for the fight id of pull 13 on the boss, $start(13) and $end(13) for its start "
+                        "and end and $at(13, 2:15) for 2:15 into it (what startTime and endTime take), $fights for "
+                        "the fight ids of every pull on the boss; a pull is a number or kill, best wipe, last wipe, "
+                        "first or last, and without one ($fight, $at(2:15)) the latest"))] = None,
                     schema_type: Annotated[str | None, Field(description=(
                         "instead of a query, a type of the API to describe, e.g. Query, Report, ReportFight, "
                         "Encounter"))] = None,
                     part: Annotated[int, Field(description="for a long answer, which part, from 1", ge=1)] = 1,
+                    boss: Boss = None,
                     report: Report_ = None) -> str:
     """Ask Warcraft Logs anything its API answers that no other tool shows: a ranking by item level bracket or past
     its first page, the players in one fight of another log, events of one kind through a filter expression, a
     character's or guild's data. The other tools are faster and know how to read a wipe; this is for the rest, and
     spends the hour's Warcraft Logs points that every tool shares.
-    With `query`: the answer as compact JSON, in parts when long, with what it cost and the hour's points left;
-    kept for 10 minutes, so its parts and a repeat cost nothing. One over 3 parts is refused, with which fields
-    made it long. With `schema_type`: that type's fields, their arguments and types, to write a query from. The
-    roots: reportData { report(code) { fights, playerDetails, events, table, rankings, masterData } }, worldData {
-    encounter(id) { fightRankings, characterRankings }, zone(id) }, characterData { character(name, serverSlug,
-    serverRegion) }, guildData { guild(...) }.
-    Reading it: times in a report are milliseconds from its start; events come a page at a time (nextPageTimestamp
-    is where the next starts); table and rankings are JSON inside the answer. Rankings are kept per partition (a
-    patch's), and a new one is empty for a while: an empty ranking may need zone(id) { partitions } and an older
-    `partition`; item level brackets are zone(id) { brackets }, counted from its min in steps of its bucket."""
+    With `query`: the answer with what it cost and the hour's points left, in parts when long; kept for 10 minutes,
+    so its parts and a repeat cost nothing. With `schema_type`: that type's fields, their arguments and types, to
+    write a query from. The roots: reportData { report(code) { fights, playerDetails, events, table, rankings,
+    masterData } }, worldData { encounter(id) { fightRankings, characterRankings }, zone(id) }, characterData {
+    character(name, serverSlug, serverRegion) }, guildData { guild(...) }.
+    Reading it: the answer is JSON, in the tools' terms where it is about a report. Each list of events is rows
+    instead, under the JSON: the time m:ss.mmm into its pull, the kind, source → ability → target by name, then
+    what else the event holds; a long list is counted by kind, ability, source and target. A report's other times
+    (a table's bands, a death's row) are m:ss.mmm into their pull too, and "Fights" names each fight the answer is
+    about as boss and pull number, a few with their length and how they ended; a `fights` field keeps its own
+    start and end in the report's ms. An answer over 3 parts is cut to one: each list then ends with how many
+    items were left out, and the counts are of all its events. Events come a page at a time (nextPageTimestamp,
+    in the report's ms, is where the next starts); table and rankings are JSON inside the answer. Rankings are
+    kept per partition (a patch's), and a new one is empty for a while: an empty ranking may need zone(id) {
+    partitions } and an older `partition`; item level brackets are zone(id) { brackets }, counted from its min in
+    steps of its bucket."""
     if schema_type:
         return await queries.schema_text(lib().wcl, schema_type)
     if not query:
         raise FactError("give a query, or a schema_type to describe")
-    code = None
-    if "$code" in query:
-        code = (await lib().report(report)).code
-    return await queries.query_text(lib().wcl, query, code, part)
+    rep = await lib().report(report) if queries.uses_report(query) else None
+    return await queries.query_text(lib().wcl, query, rep, part, boss, lib().report)
 
 
 # ---------- game knowledge ----------

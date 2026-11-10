@@ -11,6 +11,14 @@ def clock(ms: float) -> str:
     return f"{s // 60}:{s % 60:02d}"
 
 
+def exact(ms: float) -> str:
+    """Milliseconds -> 'm:ss.mmm': one logged event's own moment, where the second alone can't order events or tell
+    one hit from two. The clock with its thousandths; over an hour (a time in a report, outside any pull) as
+    `span` has it."""
+    ms = int(max(ms, 0))
+    return f"{span(ms)}.{ms % 1000:03d}"
+
+
 def span(ms: float) -> str:
     """How long a night or a boss's pulls took together: 'm:ss' as a pull's clock under an hour, 'h:mm:ss' from an
     hour ('2:54:43', not '174:43', which reads as a time in a pull)."""
