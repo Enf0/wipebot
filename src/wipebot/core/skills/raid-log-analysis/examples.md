@@ -9,17 +9,19 @@ played from `spec_guide`, read before judging either.
 What the tools showed. `pull_summary`: the best pull of the log so far. "Ended by": deaths from 4:36 until half the
 raid was dead at 6:28, no single hit killing many. "Not an enrage buff". It got past what ended most earlier pulls,
 Malignance killing many (5 of 15). Two players died at 3:48 and both were back up, as the players alive after each
-death show. Of the deaths that stayed: Deathadim, a tank, at 5:13 to Melee with 17 alive; Wutroll, the other tank,
-at 6:16 to Melee with 14 alive; two more to Melee at 6:20 and 6:22. The nine deaths after 6:28 are marked as fallout.
+death show. The deaths that stayed: a damage dealer at 4:36 and a healer, Lïzårðmâñ, at 4:59; Deathadim, a tank, at
+5:13 to Melee with 17 alive; Wutroll, the other tank, at 6:16 to Melee with 14 alive; two more to Melee at 6:20 and
+6:22. The nine deaths after 6:28 are marked as fallout.
 `tank_swaps`: the tanks traded the boss back and forth until 4:24; Wutroll held it alone from 5:15 and stood at
 Dripping Fangs 3 at 6:15, where their stints otherwise end at 1; whose turn it was to taunt isn't in the log.
 
 How to read it. No hit killed many and the boss gained nothing, so follow the chain from its first link. The deaths
-at 3:48 were bought back, so they aren't it. The link the rest hangs on is the first tank's death at 5:13: after it
-the other tank had nobody to trade with, the debuff the tanks swap on climbed to 3, Wutroll died at 6:16 and the
-boss's melee went through the raid. The 3 stacks follow from the first tank's death; they aren't a missed taunt.
-Why a tank died to Melee while holding the boss at 1 stack is the open question: `death_recap` on that death shows
-the hits and the healing before it and which defensives were ready, and until it's read the answer doesn't guess.
+at 3:48 were bought back, so they aren't it. Of those that stayed, the link the rest hangs on is the first tank's
+death at 5:13: after it the other tank had nobody to trade with, the debuff the tanks swap on climbed to 3, Wutroll
+died at 6:16 and the boss's melee went through the raid. The 3 stacks follow from the first tank's death; they
+aren't a missed taunt. Why a tank died to Melee while holding the boss at 1 stack is the open question, with a healer
+dead since 4:59 as one thing to check: `death_recap` on that death shows the hits and the healing before it and
+which defensives were ready, and until it's read the answer doesn't guess.
 
 What the answer holds. It leads with what the pull was: the best so far, past the Malignance that ended most pulls
 before it, lost when the first tank died at 5:13. Then the chain in two or three links with their times, and one
@@ -51,16 +53,18 @@ were covered.
 What the tools showed. `compare_with_top` with `against`, over the 39 pulls both were in, Krøpling against
 Zebinomage, both Frost Mages: damage per second alive 331.90k against 363.58k (-9%); alive 5373 s against 5472 s;
 deaths 39 against 40; item level 332 against 334. Per spell, the one row marked as far apart is Frostfire Bolt: 12.3
-casts a minute against 17.8, at the same average hit (9.72k against 9.53k). Shatter hits for 90.80k against 97.26k,
-with a crit share of 47% against 55%. Glacial Spike, Flurry and Ice Lance are cast about as often by both.
+casts a minute against 17.8, at about the same average hit (9.72k against 9.53k). Shatter hits for 90.80k against
+97.26k, with a crit share of 47% against 55%. Glacial Spike, Flurry and Ice Lance are cast about as often by both.
 
 How to read it. The same spec on the same pulls, per second alive, is the right comparison, and the gap is 9%. Time
-alive and deaths are level, so it isn't dying. The item levels and the crit shares explain part of each hit being
-smaller, and that is gear, not play. What's left to win back is the one row the tool marks: fewer Frostfire Bolts a
-minute at the same hit, so fewer casts begun, not weaker ones. Whether that is movement, casts cut short or another
-spell in their place isn't in this table: `player_pull` on one pull shows the casting gaps, and `spec_guide` says
-what a Frost Mage fills with, read before any advice on what to cast.
+alive and deaths are level, so it isn't dying. Shatter's smaller hit goes with the lower crit share and item level;
+the tool's last line says an average hit also moves with the buffs lined up with it and the targets it hit, so this
+table doesn't show that part to be a mistake in play. What's left to win back is the one row the tool marks: fewer
+Frostfire Bolts a minute at about the same hit, so fewer casts begun, not weaker ones. Whether that is movement,
+casts cut short or another spell in their place isn't in this table: `player_pull` on one pull shows the casting
+gaps, and `spec_guide` says what a Frost Mage fills with, read before any advice on what to cast.
 
 What the answer holds. It leads with the size of the gap and the one difference in play that stands out, with both
-numbers. It gives the gear's part in a line and says that deaths aren't it. A change in how to play comes only with
-the guide's rule as its reason. It leaves out the other spells' rows and doesn't rank the two players.
+numbers. It says in a line that the smaller hits go with crit and item level, and that deaths aren't it. A change
+in how to play comes only with the guide's rule as its reason. It leaves out the other spells' rows and doesn't rank
+the two players.

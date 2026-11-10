@@ -6,6 +6,7 @@ from typing import cast
 
 import pytest
 
+from tests.support.recorded import TOOLS
 from wipebot.core import server
 from wipebot.core.report import FactError, Report
 from wipebot.discord.host import Context
@@ -174,8 +175,43 @@ def test_the_host_prompt_says_what_every_picture_draws():
     each shows, so an answer names what matters instead of redrawing it in text. Discord's pictures are the bot's
     own (the remote server says what Claude and ChatGPT show in its tools' descriptions), so the text stays here:
     this keeps a newly drawn tool from landing without its line."""
-    drawn = HOST_PROMPT[HOST_PROMPT.index("- A pull you read with pull_summary"):]
+    drawn = HOST_PROMPT[HOST_PROMPT.index("- A pull you read with pull_summary"):].partition("<example")[0]
     assert [tool for tool in server.VIEW_TOOLS if tool not in drawn] == []
+
+
+def test_only_the_bots_prompt_says_how_an_answer_looks():
+    """How an answer looks (bold, bullets, emojis, headings) is the app's, which knows where it's shown: this prompt
+    sets it for Discord, and what every host reads (the method with its examples, the server's instructions) says
+    only what an answer holds. The method's examples once ended each on a bold quoted verdict "then the bullets",
+    which taught Discord's look to every client."""
+    everywhere = server.skill() + server.INSTRUCTIONS
+    assert "**" not in everywhere
+    assert re.findall(r"\b(?:bullets?|bold|emojis?|headings?|markdown)\b", everywhere, re.I) == []
+    assert "**" in HOST_PROMPT and "bullets" in HOST_PROMPT
+
+
+# Each worked example the model reads (the method's three in examples.md, the prompt's two answers) and the cases of
+# tests/fixtures/real/tools/cases.toml whose pinned output its numbers were copied from
+EXAMPLES = {"A pull": ("vashnik-summary", "vashnik-tank-swaps"), "A night": ("healing-night",),
+            "A player": ("compare-raid-mates",),
+            "Where do we need healing cooldowns on Entombed Sentinels?": ("healing-night",),
+            "Bommet vi på noen kicks på Nek'zali-killet?": ("nekzali-enemies",)}
+NUMBER = re.compile(r"\d+ of \d+|\d+:\d\d|\d+(?:\.\d+)?(?:[kM](?:/s)?|%)?")  # "5 of 15", a time, an amount, a count
+
+
+def test_every_number_in_a_worked_example_is_one_its_tools_printed():
+    """Numbers come from code: the examples were written from recorded tool output, and a tool that prints a pull
+    differently since (a count that moved, another rounding) would leave them teaching numbers no tool gives. Each
+    example is read against the pinned outputs it came from. When this fails, read the whole example against them
+    again, not only the number named: a count can move where the same digits elsewhere hide it."""
+    examples = (server.SKILL / "examples.md").read_text(encoding="utf-8")
+    worked = dict(re.findall(r"^## (A \w+):[^\n]*\n(.*?)(?=^## |\Z)", examples, re.M | re.S))
+    worked |= dict(re.findall(r'<example question="([^"]+)">\n(.*?)</example>', HOST_PROMPT, re.S))
+    assert set(worked) == set(EXAMPLES)
+    for name, cases in EXAMPLES.items():
+        printed = "\n".join((TOOLS / f"{case}.txt").read_text(encoding="utf-8") for case in cases)
+        missing = set(NUMBER.findall(worked[name])) - set(NUMBER.findall(printed))
+        assert missing == set(), name
 
 
 async def test_the_host_prompt_names_only_tools_the_bot_has():
