@@ -157,6 +157,39 @@ async def test_missing_report_is_a_readable_tool_error(monkeypatch):
         await server.mcp.call_tool("progress", {})
 
 
+async def test_an_argument_a_tool_does_not_take_is_refused_by_name():
+    """It was dropped without a word, and the call answered another question than the one asked."""
+    with pytest.raises(ToolError) as e:
+        await server.mcp.call_tool("pull_summary", {"report": CODE, "pull": 13, "player": "Enfo", "bogus": 1})
+    told = str(e.value)
+    assert told.startswith("pull_summary takes no `player` or `bogus`. Its arguments: pull, boss, report. Tools that "
+                           "take `player`: ")
+    takes = told.split("Tools that take `player`: ")[1].rstrip(".").split(", ")
+    assert {"player_pull", "player_night", "death_recap"} <= set(takes) and "pull_summary" not in takes
+    assert "bogus`:" not in told  # no tool takes it: nothing to point to
+    # An argument left empty is no argument: clients fill in a null for what they don't use.
+    with pytest.raises(ToolError, match="no report given"):
+        await server.mcp.call_tool("progress", {"player": None})
+
+
+async def test_an_argument_of_the_wrong_kind_is_told_in_a_sentence():
+    """Not as pydantic words it: its model's name, its error codes and a link to its documentation."""
+    with pytest.raises(ToolError) as e:
+        await server.mcp.call_tool("progress", {"report": CODE, "weeks": "many", "each_pull": "sometimes"})
+    assert str(e.value) == (
+        "progress can't take 'sometimes' as `each_pull`: it should be a valid boolean, unable to interpret input. "
+        "`each_pull` is: also each pull's post (first deaths, every killer, the trend). "
+        "progress can't take 'many' as `weeks`: it should be a valid integer, unable to parse string as an integer. "
+        "`weeks` is: also the boss on each of the guild's raid nights over this many weeks back (1-12), for \"are "
+        "we doing better than last week?\": reads every night, slow.")
+    with pytest.raises(ToolError) as e:
+        await server.mcp.call_tool("player_pull", {"report": CODE, "pull": [1, 2]})
+    assert str(e.value) == (
+        "player_pull can't take [1, 2] as `pull`: it should be a valid integer or a valid string. `pull` is: pull "
+        "number on the boss, or kill, best wipe, last wipe, first or last; omit for the latest. "
+        "player_pull needs `player`: character name as in the log (accents optional).")
+
+
 async def test_a_boss_name_read_one_of_several_ways_is_said_in_the_results_first_line(night):
     class Mixed(FakeWCL):  # Vashnik pulled once on Heroic before the Mythic pulls
         async def report_fights(self, code, cache_for=None):

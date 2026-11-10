@@ -43,7 +43,7 @@ from typing import Annotated, Any, Literal
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import CallToolResult, ImageContent, TextContent, ToolAnnotations
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from . import clock, knowledge, notebook, raidstrats, viserio, wcl
 from .cache import cut_off, waiting_for
@@ -2062,10 +2062,69 @@ def register(server: MCPServer, setup: Setup = DEFAULT, meta: dict[str, dict] | 
         server.prompt()(prompt)
 
 
+GIVEN_SHOWN = 80  # characters of a refused argument's value repeated in the error
+
+
+class Server(MCPServer):
+    """An MCP server that tells the model what was wrong with a call's arguments, in sentences it can act on. The
+    SDK checks them before the tool runs: it drops an argument the tool doesn't take without a word, so the call
+    answers another question than the one asked, and words one of the wrong kind as pydantic does (its model's
+    name, error codes and a link to its documentation)."""
+
+    async def call_tool(self, name: str, arguments: dict[str, Any], context: Context | None = None) -> Any:
+        tool = self._tool_manager.get_tool(name)
+        takes = list((tool.parameters.get("properties") or {}) if tool else ())
+        # an argument left null is no argument: clients fill one in for what they don't use
+        if tool and (unknown := [a for a, value in arguments.items() if value is not None and a not in takes]):
+            raise ToolError(self._not_taken(name, takes, unknown))
+        try:
+            return await super().call_tool(name, arguments, context)
+        except ToolError as e:
+            if tool and isinstance(e.__cause__, ValidationError):
+                raise ToolError(_ill_fitting(name, tool.parameters, arguments, e.__cause__)) from e.__cause__
+            raise
+
+    def _not_taken(self, name: str, takes: list[str], unknown: list[str]) -> str:
+        """The arguments `unknown` that the tool `name` doesn't take, with those it takes and, for each another
+        tool takes, which tools."""
+        told = [f"{name} takes no {' or '.join(f'`{a}`' for a in unknown)}.",
+                f"Its arguments: {', '.join(takes)}." if takes else "It takes no arguments."]
+        tools = {t.name: t.parameters.get("properties") or {} for t in self._tool_manager.list_tools()}
+        for a in unknown:
+            if having := [tool for tool, args in tools.items() if a in args]:
+                told.append(f"Tools that take `{a}`: {', '.join(having)}.")
+        return " ".join(told)
+
+
+def _ill_fitting(tool: str, schema: dict, given: dict, error: ValidationError) -> str:
+    """The arguments that don't fit the tool's schema, a sentence each: what was given, what was expected (in
+    pydantic's words for it, without its codes) and what the schema says the argument is."""
+    expected: dict[str, list[str]] = {}
+    missing = []
+    for err in error.errors(include_url=False):
+        name = str(err["loc"][0]) if err["loc"] else "the arguments"
+        if err["type"] == "missing":
+            missing.append(name)
+        else:
+            said = err["msg"].removeprefix("Input should be ")
+            expected.setdefault(name, []).extend([] if said in expected.get(name, ()) else [said])
+
+    def is_(name: str) -> str:
+        return (schema.get("properties") or {}).get(name, {}).get("description") or ""
+    told = []
+    for name, kinds in expected.items():
+        was = repr(given.get(name))
+        was = was if len(was) <= GIVEN_SHOWN else was[:GIVEN_SHOWN] + "..."
+        told.append(f"{tool} can't take {was} as `{name}`: it should be {' or '.join(kinds)}."
+                    + (f" `{name}` is: {is_(name)}." if is_(name) else ""))
+    told += [f"{tool} needs `{name}`" + (f": {is_(name)}." if is_(name) else ".") for name in missing]
+    return " ".join(told)
+
+
 def new_server(**kwargs) -> MCPServer:
     """An MCP server with Wipebot's name and instructions (`kwargs` for MCPServer: auth, extensions, website_url)."""
-    return MCPServer("wipebot", title="Wipebot", instructions=INSTRUCTIONS, log_level="WARNING",
-                     **kwargs)  # INFO logs every request
+    return Server("wipebot", title="Wipebot", instructions=INSTRUCTIONS, log_level="WARNING",
+                  **kwargs)  # INFO logs every request
 
 
 mcp = new_server()  # in-process (the Discord bot, `wipebot call`) and over stdio (`wipebot mcp`)
