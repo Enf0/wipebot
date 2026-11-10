@@ -66,9 +66,9 @@ where = "in a DM"
 question = ["who used the least defensives last night? where it mattered", "but would it have saved them?"]
 asker = "Enfo"
 expect = """Sometimes, not always: replaying each death before a wipe was decided with what was ready, a defensive or a
-healthstone would have saved Agonco at 15 of 22, others less often; the deaths in a hit killing many aren't theirs
-to save, and some deaths can't be judged."""
+healthstone would have saved Agonco at 15 of his 22 deaths, others less often."""
 facts = ["Algmor 13 of 21", "Nexsozz 6 of 10", "Martin 5 of 8", "Pomaa 5 of 12", "Peggerino 5 of 12",
+         "the deaths in a hit killing many aren't theirs to save, and some deaths can't be judged",
          "5 of Agonco's deaths can't be told (no health or overkill logged)",
          "6 of Agonco's deaths were in a hit killing many, set apart",
          "the saves are mostly Tempest and Virulence deaths"]
@@ -84,17 +84,21 @@ where = "in a DM"
 question = """What would you say is my biggest room for improvement from yesterday's raid? What did I do well, and what
 badly?"""
 asker = "Miralupa"
-expect = """A good night: often the top healer and seldom dead; what to improve comes from the comparison
-with the top Holy Priests (cooldown timing, casts a minute, stats), not from deaths or mistakes."""
-drifts = ["50th"]
-facts = ["top healer on 15 of 42 pulls",
-         "died before a wipe was decided on 4 of 42 pulls, never first",
+expect = """A good night: dead before a wipe was decided on only 2 of 40 pulls, never first, and healing well. What to
+improve comes from the comparison with the top Holy Priests, and the answer gives at least one of the two gaps with
+its numbers: Apotheosis first pressed at a median 1:03 where they press it at 0:18-0:26, or 36 casts a minute against
+their 47."""
+drifts = ["50th", "47", "0-2%", "31%"]
+derived = ["14 of the 40"]  # player_night's pull lines: rank 1 of 4 healers on 15, one of them a reset
+facts = ["top healer on 14 of the 40 pulls that count",
          "pull 42: 395.56k/s, above the 50th percentile of ranked kills",
-         "Apotheosis first used at a median 1:04, where the top parses press it at 0:24-0:26; Divine Hymn at a median 0:18, where they use it at 1:11-1:18",
-         "36 casts a minute against 43 for the top Oracle parses, 7% of the time in casting gaps against their 0-2%",
-         "no augment rune; Mastery 13% of secondaries against the top's 38%"]
+         "Apotheosis used 33 times of 52 possible",
+         "Divine Hymn at a median 0:18, where the top parses use it at 1:11-1:18",
+         "7% of the time in casting gaps against their 0-2%",
+         "no augment rune; Mastery 13% of secondaries against the top's 31%"]
 wrong = ["faults their overhealing as a main problem", "says they died often or early",
          "says they used Divine Hymn too often (the per-pull counts are its channel ticks)"]
+numbers = ["1:03 or 36"]
 
 [[case]]
 id = "real-bm-hunter-vs-top"  # a Beast Mastery Hunter against the top (answers #339-#340)
@@ -134,8 +138,8 @@ facts = ["energy at its cap 31% of their time alive on pull 42",
          "Shadowstep 0.3 a minute against 0.9",
          "64 casts a minute against 65",
          "212.42k/s alive, below the 25th percentile of ranked kills"]
-wrong = ["says the energy cap is nothing to fix because of the mechanics, without comparing with top parses",
-         "holds that the time at the cap is theirs to win back, without comparing with top parses",
+wrong = ["takes the pushback on faith: says the energy cap is the mechanics' and nothing to fix",
+         "drops the pushback on faith: says all the time at the cap is theirs to win back",
          "compares them with a named raidmate"]
 
 [[case]]

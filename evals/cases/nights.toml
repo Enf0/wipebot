@@ -36,16 +36,17 @@ tools = ["boss_guide", "compare_pulls", "progress"]
 report = "kTMfFRQ324Hvx6G7"
 question = "Do we need more DPS for Vashnik?"
 expect = """No: Vashnik has no damage enrage and no wipe ended on one; the wipes were mechanics (early Plague Wave
-deaths, then Catalytic Bile as pulls fell apart), not a damage check; the raid killed it on pull 19."""
+deaths, then Catalytic Bile as pulls fell apart), not a damage check; the raid killed it on pull 19. Saying more
+damage would mean fewer Imbibes, so fewer totem rounds, is fair."""
 facts = ["Plague Wave was the most common of each pull's first three deaths (29), many around 1:00",
          "Malignance (totems not cleared) next with 12",
          "Catalytic Bile killed the most until each wipe was decided: 63 deaths over 19 pulls, never the first",
          "the best wipe, pull 16, reached 9.4% at 6:41, deaths spread out from 3:48",
          "the kill on pull 19 took 7:00",
          "the guide says there's no DPS enrage (a 5th healer is worth it)"]
-# compare_pulls puts pull 16 behind the closest-item-level fast kill (5:21) from 0:30 on: saying more damage would
-# mean fewer Imbibes, so fewer totem rounds, is fair; calling it a damage check isn't. The Malignant Burst deaths on
-# pulls 10 and 16 came as or after half the raid was dead (5:09, 6:40).
+# compare_pulls puts pull 16 behind the closest-item-level fast kill (5:21) from 0:30 on, which is why the expect
+# allows the fewer Imbibes. The Malignant Burst deaths on pulls 10 and 16 came as or after half the raid was dead
+# (5:09, 6:40).
 wrong = ["the raid needs more damage to beat an enrage or damage check on Vashnik",
          "calls Flame Infusion or Shadow Infusion an enrage (the boss gains them at every Imbibe)",
          "says the Malignant Burst deaths on pulls 10 and 16 were a damage check failed"]
@@ -55,11 +56,13 @@ tools = ["progress"]
 report = "dTQMvNbBcPh6mDrA"
 question = "Did we actually get better on the Twin Fangs tonight?"
 asker = "Enfo"
-expect = """Yes: the wipes got much better over the night, and the boss died."""
+expect = """Yes, with the night's numbers: the wipes went from 27.6% on pull 1 to 2.3% on pull 6 (or, as the average
+wipe, from 52.8% in the first third of the night to 8.9% in the last), and the boss died on pull 7."""
 facts = ["the average wipe went from 52.8% in the first third to 17.3% in the middle and 8.9% in the last",
          "each pull from 3 to 6 was the best of the night so far: 18.3%, 16.4%, 15.5%, 2.3%",
-         "the boss died on pull 7"]
+         "the first death came later: at 5:55 on pull 6 and at 6:46 on the kill"]
 wrong = ["the night was flat or got worse"]
+numbers = ["2.3% or 8.9%"]
 [[case]]
 id = "night-who-dies-first"  # accountability, fairly
 tools = ["progress"]
@@ -164,7 +167,7 @@ derived = ["10%"]  # the timeline prints the boss's health without a % sign ("7:
 wrong = ["the kill used a different cooldown plan or strategy",
          "credits the kill to more damage per player rather than to who stayed alive",
          "says the kill had few or no deaths in all (it had 12, most from 7:39 on; none until 6:46 is right)",
-         "says the best wipe fell apart from deaths alone, with no word of the enrage at 8:07"]
+         "says deaths alone ended the best wipe, not the enrage at 8:07"]
 [[case]]
 id = "night-summary-for-raid"  # short, for the raid: the night's one lesson
 tools = ["boss_guide", "progress", "pull_summary"]
@@ -210,18 +213,20 @@ where = "in a DM"
 question = "Can you go through the damage done on the three adds that spawn on the Twin Fangs tonight, and how fast or slow they die?"
 asker = "Enfo"
 boss = "The Twin Fangs"
-expect = """Only the Spawn of Vexhul have deaths in the log, and each wave dies steadily: the first by about
-0:42-0:47 on every pull that reached it, the second by about 1:45-1:48; most of their Corrosive Spits still went
-through (99 of 175). The Barbed Bulwarks and the Broodlings of Ithraz have no death recorded, so the log can't show how
-fast they were killed; the Broodlings took no damage at all, their Visceral Burst kicked most of the time."""
+expect = """Only the Spawn of Vexhul have deaths in the log: the first wave dies by about 0:42-0:47 on every pull
+that reached it, the second by about 1:45-1:48. The Barbed Bulwarks and the Broodlings of Ithraz have no death
+recorded, so the log can't show how fast they were killed. Whether the Spawns die fast enough is the answer's to
+judge, either way."""
 facts = ["Spawn of Vexhul: 105 came over 24 pulls, 95 died",
+         "most of their Corrosive Spits went through: 99 of 175",
+         "the Broodlings took no damage at all",
          "the first wave on 24 pulls, the second on 9",
          "Pomaa did the most damage on the Spawns (137.51M), then Dscopi and Nalaxd (about 100M each)",
          "512 Barbed Bulwarks came and took only 1.51M in all",
          "Visceral Burst: 392 begun, 309 kicked, 66 went through"]
 # Method's guide has one Spawn burst before its first Corrosive Spit and the other two killed before their second; the
-# first spits land 1-2 s after a wave comes (pull 26: 0:38, 0:39), before any Spawn dies. Whether that's too slow is
-# a judgement no item rests on: a kill at the raid's item level (compare_pulls) kills its waves about as fast.
+# first spits land 1-2 s after a wave comes (pull 26: 0:38, 0:39), before any Spawn dies. A kill at the raid's item
+# level (compare_pulls) kills its waves about as fast, so the expect leaves the pace to the answer.
 wrong = ["states, as something the log shows, when the Barbed Bulwarks or the Broodlings of Ithraz died or how fast they were killed"]
 
 # ---- The raid leader's harder questions, written from the tools' output before any answer was read: ranking
@@ -276,15 +281,15 @@ question = "Make us a healing cooldown plan for Sszorak from tonight's pulls."
 asker = "Enfo"
 boss = "Sszorak"
 expect = """A plan of healing cooldowns by time over the fight, which cooldown when, built from the night's kill and its
-spikes: it covers the Virulence and Mutilated Gash wave around 0:23-0:28 (a healing cooldown ready and unused on each
-of the 6 pulls it came), treats the Viscous Cyst bursts at 1:41-1:43 as a mechanic to handle rather than only a
-cooldown to add, and says the log can't show who was assigned."""
+spikes, with a cooldown on the Virulence and Mutilated Gash wave around 0:23-0:28; it says the log can't show who
+was assigned."""
 facts = ["the 0:23-0:28 spike: 3.55M/s taken, 0.8 healing cooldowns per spike, 17 deaths",
+         "on each of the 6 pulls that spike came, a healing cooldown was ready and unused",
+         "the Viscous Cyst bursts at 1:41-1:43 are a mechanic to handle, not only a cooldown to add",
          "Spirit Link Totem (Enfo) the cooldown most often ready and unused, 10 times",
          "the 1:41-1:43 Viscous Cyst spikes: 4.74M/s taken, healing 2.29M/s"]
 # 22 October: every answer built its plan from the kill's own timeline (pull 14) and fixed its one late set, a raid
 # leader's way to plan farm; the case asked first for the spike that came back most, which none led with.
-wrong = ["names a healer as having failed an assigned cooldown (there is no raid note)",
-         "plans no cooldown for the 0:23-0:28 spike"]
+wrong = ["names a healer as having failed an assigned cooldown (there is no raid note)"]
 
 

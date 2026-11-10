@@ -33,8 +33,8 @@ time:75;ph:1;tag:Pomaa;spellid:97462;
 time:75;ph:1;tag:everyone;text:Big Personals;"""
 expect = """Says the Sszorak note (Mythic) is saved for the guild, with 17 timed cooldowns and 1 callout, and that pulls
 are checked against it from now on without a paste."""
+calls = ["save_note_or_plan"]  # with the plugin: saying it is saved without saving it is the slip no text shows
 wrong = ["says it can't save a note here, or that only the Discord bot saves one",
-         "checks a pull against the note without saving it",
          "asks the user to paste the note again or in another form"]
 
 [[case]]
@@ -246,11 +246,12 @@ Kick #5 right: Zebinomage
 invitelist:Karadim-Kazzak,Wutroll-Kazzak,Cptola-Frostmane,Enfo-Kazzak,Lïzårðmâñ-Kazzak,Namsus-TarrenMill,Draiman-Kazzak,Nalaxd-TarrenMill,Nexsozz-Stormscale,Pomaa-TarrenMill,Slushmania-Kazzak,Dragepie-TarrenMill,Krøpling-Kazzak,Peggerino-Kazzak,Sonyosh-Kazzak,Zebinomage-TarrenMill,Dscopi-Kazzak,Algmor-Kazzak,Agonco-Kazzak,Attractîv-Turalyon;"""
 expect = """Says the note's kick order only fits pulls 12-39: pulls 1-11 had another (Dragepie on Kick #2 left,
 Slushmania on Kick #5 left, Attractîv not in the raid yet), so the kicks are counted from pull 12; then names whose
-casts went through most from there: Algmor (Kick #3 left) and Attractîv (Kick #2 left), 5 each, then Dscopi and Enfo,
+casts went through most from there: Attractîv (Kick #2 left), 6, and Algmor (Kick #3 left), 5, then Dscopi and Enfo,
 4 each; a cast another player kicked was handled."""
 facts = ["Zebinomage (Kick #5 right) had 1 cast go through, and 22 covered by others, 15 of them by Karadim",
-         "Sonyosh (Kick #1 left) kicked 57 of 58 and Karadim (Kick #1 right) 56 of 57",
-         "13 of the 28 pulls from pull 12 were lost within 10 s of casts on assignments going through"]
+         "Sonyosh (Kick #1 left) kicked 57 of 59 and Karadim (Kick #1 right) 56 of 57",
+         "on 2 of Algmor's 5 and 2 of Dscopi's 4 they kicked another cast of the wave",
+         "11 of the 28 pulls from pull 12 were lost within 10 s of casts on assignments going through"]
 wrong = ["blames Dragepie or anyone else for kicks in pulls 1-11 as if the note's order applied there",
          "says Attractîv missed kicks before pull 12",
          "counts a cast another player kicked as a missed kick, such as Zebinomage's covered by Karadim"]

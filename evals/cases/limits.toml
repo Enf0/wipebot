@@ -30,8 +30,10 @@ tools = ["compare_with_top"]
 question = """can you pull logs from the ones who've killed Kith'ix on hc and give a summary of talents for Balance druid? we
 haven't killed him yet"""
 asker = "Scopidruid"
-expect = """Summarises what the top ranked Heroic Kith'ix Balance Druid parses play, from their logs."""
-facts = ["nearly all play Elune's Chosen",
+expect = """What the top ranked Heroic Kith'ix Balance Druid parses play, from their logs: nearly all of them take
+the hero tree Elune's Chosen, and the answer names talents or trinkets most of them take."""
+drifts = ["49 of 50"]
+facts = ["Elune's Chosen on 49 of 50",
          "Lunation",
          "Radiant Moonlight",
          "Vile Vial of Volatile Venom",
@@ -39,7 +41,7 @@ facts = ["nearly all play Elune's Chosen",
          "talents where they differ",
          "an import string or links to top logs"]
 wrong = ["says the top logs can't be fetched or that it needs a pull of the asker's own first",
-         "gives only a guide's build without anything from the top parses"]
+         "presents a guide's build as what the top parses play"]
 
 [[case]]
 id = "ask-unknown-asker"
