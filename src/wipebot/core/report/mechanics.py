@@ -523,3 +523,24 @@ async def mechanic_outliers(rep: Report, pull: PullRef = None, boss: str | None 
     lines.append("Damage per minute alive evens out early deaths, not assignments: a soaker or the player a "
                  "mechanic targets takes more by design.")
     return "\n".join(lines)
+
+
+async def ranking(rep: Report, ability: str, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False,
+                  whole_pull: bool = False, start: str | None = None, end: str | None = None
+                  ) -> tuple[Hits, list[tuple[int, float, int | None]], int, int]:
+    """What mechanic_hits ranks one ability's players by, for a meter of them (`meter`), from the same hits: the
+    hits; the players (their ids) in the order its text lists them, each with what that order is by (their hits, or
+    the debuff's applications where those count who it caught; over every pull, per minute of the pulls they were
+    in) and, over every pull, how many pulls they were in (else None); then the deaths with it as the killing blow
+    and the deaths of any cause within HIT_THEN_DEATH_MS of a hit, as its "Total" line counts them."""
+    fights, _, cut, window, h = await _asked(rep, ability, pull, boss, all_pulls, whole_pull, start, end)
+    counted = h.debuffs if h.by_debuff else h.hits
+    there = _minutes(rep, fights, cut, window) if all_pulls else None
+
+    def rate(w: int) -> float:
+        return counted[w] / max(there[0].get(rep.names[w], 0), 1e-9) if there else counted[w]
+    ranked = sorted(set(h.hits) | set(h.ticks) | set(h.debuffs),
+                    key=lambda w: (-rate(w), -h.debuffs[w], -h.hits[w], -h.ticks[w]) if h.by_debuff
+                    else (-rate(w), -h.hits[w], -h.ticks[w], -h.debuffs[w]))
+    return (h, [(w, rate(w), there[1][rep.names[w]] if there else None) for w in ranked],
+            sum(h.killed_by.values()), sum(h.died_after.values()))
