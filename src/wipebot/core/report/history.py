@@ -10,7 +10,7 @@ from .. import knowledge
 from ..cache import DAY, HOUR
 from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES, attempt
-from ..text import clock, date, fight_url, plural, short
+from ..text import clock, date, fight_url, ordinal, plural, short
 from ..wcl import WCLError
 from .base import ROLE_NAMES, FactError, Report, unavailable
 from .ending import mass_death
@@ -76,10 +76,10 @@ async def deaths_by_night(nights: list[tuple[float, list[Report]]], player: str,
     lines = [f"{label}'s deaths before each wipe was decided (a kill's every death; later deaths are fallout), on the "
              f"guild's {DIFFICULTIES.get(difficulty, '')} raid nights{f' on {boss}' if boss else ''}, oldest "
              "first:", *rows]
-    lines.append(f"Over the {plural(len(rows), 'night')}: " + ", ".join(
-        f"{a} {n} (on {nights_with[a]} night{'s' if nights_with[a] > 1 else ''})"
-        for a, n in total.most_common(TREND_KILLERS)) if total
-        else f"Over the {plural(len(rows), 'night')}: no early deaths.")
+    if len(rows) > 1:  # one night's row says it all
+        lines.append(f"Over the {plural(len(rows), 'night')}: " + ", ".join(
+            f"{a} {n} (on {plural(nights_with[a], 'night')})" for a, n in total.most_common(TREND_KILLERS)) if total
+            else f"Over the {plural(len(rows), 'night')}: no early deaths.")
     return "\n".join(lines)
 
 
@@ -103,16 +103,35 @@ async def _zone_rankings(rep: Report, character_ids: list[int], difficulty: int,
     return {int(i): z for i, z in found.items()}  # kept on disk as JSON, whose keys are text
 
 
+PARTITIONS = "A partition is one patch's rankings on Warcraft Logs: they start afresh with the next patch."
+
+
+def _partitions_note(lines: list[str]) -> list[str]:
+    """The line that says what a partition is, once, when a summary among `lines` names one."""
+    return [PARTITIONS] if any("; partition " in line for line in lines) else []
+
+
 def _zone_summary(z: dict) -> str:
-    """'average of the best kill per boss 86.8 over 5 bosses, of the median kill 70.1; All Stars 502 points (top
-    3%)' from a character's zoneRankings, or '' when they have no ranked kill."""
+    """'average of each boss's best kill 86.8 over 5 bosses, of each boss's median kill 70.1; All Stars 502 points
+    as Elemental (97th percentile of the spec)' from a character's zoneRankings, or '' when they have no ranked
+    kill. All Stars come one entry per partition (a patch's rankings): with several, each names its own, newest
+    first, as the same spec twice says nothing of which is current. A standing is a percentile, as every other
+    one here: "top 82%" read as praise for the bottom fifth."""
     ranked = [r for r in z.get("rankings") or [] if r.get("rankPercent") is not None]
     if not ranked or z.get("bestPerformanceAverage") is None:
         return ""
-    stars = ", ".join(f"{a.get('points') or 0:.0f} points as {spaced(a.get('spec') or '?')}"
-                      + (f" (top {100 - a['rankPercent']:.0f}% of the spec)" if a.get("rankPercent") is not None
-                         else "")
-                      for a in z.get("allStars") or [])
+    entries = sorted(z.get("allStars") or [], key=lambda a: -(a.get("partition") or 0))
+    partitions = {a.get("partition") for a in entries if a.get("partition") is not None}
+    newest = max(partitions, default=None)
+
+    def standing(a: dict) -> str:
+        notes = [f"{ordinal(round(a['rankPercent']))} percentile of the spec"] if a.get("rankPercent") is not None \
+            else []
+        if len(partitions) > 1 and a.get("partition") is not None:
+            notes.append(f"partition {a['partition']}" + (", the newest" if a["partition"] == newest else ""))
+        return f" ({'; '.join(notes)})" if notes else ""
+    stars = ", ".join(f"{a.get('points') or 0:.0f} points as {spaced(a.get('spec') or '?')}{standing(a)}"
+                      for a in entries)
     return (f"average of each boss's best kill {z['bestPerformanceAverage']:.1f} over {len(ranked)} "
             f"boss{'es' * (len(ranked) > 1)}, of each boss's median kill {z.get('medianPerformanceAverage') or 0:.1f}"
             + (f"; All Stars {stars}" if stars else ""))
@@ -177,11 +196,15 @@ async def ranked_kills(rep: Report, player: str, boss: str | None = None) -> str
     lines = [f"{p.label}, {server.get('name') or p.server}-{p.region.upper()}: every ranked kill in {raid} this "
              f"season, from any report (pugs too), newest first, per boss, difficulty and spec played. Each: "
              f"percentile against the same spec and difficulty (dps, or hps for a healer spec; over the whole "
-             f"kill, so a death lowers it), item level, kill time. Wipes are never ranked. Character page: {page}"]
+             f"kill, so a death lowers it), item level, kill time. "
+             + ("" if boss else "A boss's kills are listed on the hardest difficulty it was killed on; the easier "
+                "ones are counted (ask for the boss for each of them). ")
+             + f"Wipes are never ranked. Character page: {page}"]
     for (d, spec), z in zip(played, summaries, strict=True):
         if (line := _zone_summary(z.get(char["id"]) or {})):
             lines.append(f"Warcraft Logs' summary, {DIFFICULTIES[d]} as {spaced(spec)} "
                          f"({'hps' if spec in healer else 'dps'}; as on the character page): {line}")
+    lines += _partitions_note(lines)
     if no_summary:
         lines.append(no_summary)
     unranked = []
@@ -193,6 +216,8 @@ async def ranked_kills(rep: Report, player: str, boss: str | None = None) -> str
                 for k in (ranked.get((e["id"], d)) or {}).get("ranks") or []:
                     if metric_of(k) == m:
                         by_spec[k.get("spec") or "?"].append(k)
+            # Over the whole raid, a boss's kills are listed on the hardest difficulty killed and counted below it
+            listed = bool(boss) or not found
             for spec, kills in sorted(by_spec.items(), key=lambda x: (x[0] != p.spec, -len(x[1]))):
                 found = True
                 kills.sort(key=lambda k: -(k.get("startTime") or 0))
@@ -200,9 +225,9 @@ async def ranked_kills(rep: Report, player: str, boss: str | None = None) -> str
                 lines.append(f"{e['name']}, {DIFFICULTIES[d]}, as {spaced(spec)} ({metric_of(kills[0])}): "
                              f"{len(kills)} kill{'s' * (len(kills) > 1)}, best {pcts[-1]:.0f}%, median "
                              f"{statistics.median(pcts):.0f}%"
-                             + (f" (the newest {shown} below; ask for the boss for more)" if len(kills) > shown
-                                else ""))
-                for k in kills[:shown]:
+                             + (f" (the newest {shown} below; ask for the boss for more)"
+                                if listed and len(kills) > shown else ""))
+                for k in kills[:shown] if listed else []:
                     guild = (k.get("guild") or {}).get("name")
                     extra = "" if guild == (rep.guild_name or None) else \
                         f", with {guild}" if guild else ", in a pug or personal log"
@@ -253,6 +278,7 @@ async def guild_rankings(rep: Report, difficulty: str = "Mythic", role: str = "d
              f"spec ({metric} percentile against the same spec, from any report, pugs too), and the average of those "
              f"over the bosses they killed. Only this report's raiders; the page also lists alts and past members."]
     lines += [f"{n}. {row}" for n, (_, row) in enumerate(sorted(rows, key=lambda r: -r[0]), 1)]
+    lines += _partitions_note(lines)
     if none:
         lines.append(f"No ranked {DIFFICULTIES[d]} kill as a {ROLE_NAMES[role][:-1]}: " + ", ".join(none))
     return "\n".join(lines)

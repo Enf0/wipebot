@@ -80,13 +80,35 @@ async def test_player_history_lists_every_ranked_kill_newest_first(rep, patch_wc
     # Warcraft Logs' own summary, per difficulty and spec played, each by its spec's metric
     assert sorted(asked["summaries"]) == [(4, "Elemental", "dps"), (5, "Elemental", "dps"), (5, "Restoration", "hps")]
     assert ("Warcraft Logs' summary, Mythic as Elemental (dps; as on the character page): average of each boss's "
-            "best kill 86.8 over 1 boss, of each boss's median kill 70.1; All Stars 502 points as Elemental (top 13% "
-            "of the spec)") in lines
-    assert any("88%" in line and "pug" in line for line in lines)
+            "best kill 86.8 over 1 boss, of each boss's median kill 70.1; All Stars 502 points as Elemental (87th "
+            "percentile of the spec)") in lines
+    # Over the whole raid a boss's kills are listed on the hardest difficulty it was killed on, and the easier ones
+    # counted: Normal and Heroic farm kills listed like the Mythic ones made 60 rows of a page.
+    heroic = lines.index("Vashnik the Malignant, Heroic, as Elemental (dps): 1 kill, best 88%, median 88%")
+    assert not lines[heroic + 1].startswith("  ") and not any("in a pug" in line for line in lines)
+    assert "the easier ones are counted" in lines[0]
     assert lines[-1] == "No ranked kill (not killed, or not logged): Sszorak"
     assert "argent-dawn" in lines[0]
 
-    await history.ranked_kills(rep, p.name, boss="vashnik")
+    lines = (await history.ranked_kills(rep, p.name, boss="vashnik")).splitlines()
     assert asked["rankings"][1] == [3455]
+    assert any("88%" in line and "in a pug" in line for line in lines) and "the easier ones" not in lines[0]
     with pytest.raises(FactError, match="no boss matching"):
         await history.ranked_kills(rep, p.name, boss="Ragnaros")
+
+
+def test_all_stars_name_their_partition_and_a_low_standing_is_a_percentile():
+    # Two All Stars entries "as Restoration" stood side by side, one per patch's rankings, with nothing to tell
+    # which is current; and "top 82% of the spec" is the bottom fifth, phrased as praise.
+    z = {"bestPerformanceAverage": 87.2, "medianPerformanceAverage": 79.4,
+         "rankings": [{"rankPercent": 90.0}, {"rankPercent": 80.0}],
+         "allStars": [{"partition": 1, "spec": "Restoration", "points": 926.4, "rankPercent": 98.4},
+                      {"partition": 2, "spec": "Restoration", "points": 60.2, "rankPercent": 17.6}]}
+    summary = history._zone_summary(z)
+    assert summary == (
+        "average of each boss's best kill 87.2 over 2 bosses, of each boss's median kill 79.4; All Stars 60 points "
+        "as Restoration (18th percentile of the spec; partition 2, the newest), 926 points as Restoration (98th "
+        "percentile of the spec; partition 1)")
+    # What a partition is, is said once for a list of summaries, and only where one is named
+    assert history._partitions_note([summary, summary]) == [history.PARTITIONS]
+    assert history._partitions_note([history._zone_summary({**z, "allStars": z["allStars"][:1]})]) == []

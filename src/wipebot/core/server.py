@@ -1521,7 +1521,8 @@ async def player_history(
     With `player`, `show` picks:
     - kills (the default): every ranked kill of their character this season in this report's raid, from any
       report (other nights, pugs, other groups), per boss and difficulty: percentile, date, item level, kill time
-      and log link. For earlier kills, progress over the tier, or how they do when they survive;
+      and log link, listed on each boss's hardest difficulty killed and counted on the easier ones (every kill of
+      one boss with `boss`). For earlier kills, progress over the tier, or how they do when they survive;
     - deaths: their deaths before each wipe was decided on each of the guild's raid nights in this raid over the
       last `weeks` (its hardest difficulty): pulls, how often they died early and first, to what, and the
       abilities that come back night after night ("what do I keep dying to?", "what should I work on?");
