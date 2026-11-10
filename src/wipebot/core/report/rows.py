@@ -197,9 +197,10 @@ def listed(rep: Report, events: list[dict], rest: Callable[[Report, dict], str] 
                          False))
         body += [(row(rep, e, f["startTime"] if f else 0, rest, with_id), True) for e in es]
     counts, ids = counted(rep, events), ability_ids(rep, events)
-    kept, size = body, sum(len(line) + 1 for line, _ in body)
-    if (room is not None and size > room) or (most is not None and len(events) > most):
-        left = math.inf if room is None else room - len(counts) - len(ids) - 300  # less the line on what was left out
+    # What the rows have of `room`: less the counts, the ids, the caller's first line and the line on what was left out
+    left = math.inf if room is None else room - len(counts) - len(ids) - 300
+    kept = body
+    if sum(len(line) + 1 for line, _ in body) > left or (most is not None and len(events) > most):
         kept = []
         for line, is_row in body:
             shown = sum(r for _, r in kept)

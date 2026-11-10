@@ -68,6 +68,10 @@ def test_events_are_counted_by_code_and_a_list_cut_to_its_first_rows_says_what_w
     many = [{**events[1], "timestamp": T0 + n} for n in range(40)]
     by_room = rows.listed(rep, many, room=1_000)
     assert 3 <= 40 - by_room.left_out < 10 and sum(len(line) + 1 for line in by_room.lines) <= 1_000
+    # rows that fit the room alone, but not with the counts and the ids under them, are cut too
+    size = sum(len(line) + 1 for line in rows.listed(rep, many).lines)
+    tight = rows.listed(rep, many, room=size - 50)
+    assert tight.left_out and sum(len(line) + 1 for line in tight.lines) <= size - 50
     assert rows.listed(rep, many).lines[0] == ("Counted: 40 damage; by ability: Tempest 40; from: Boss 40; on: "
                                                "Nalaxd 40.")
 
