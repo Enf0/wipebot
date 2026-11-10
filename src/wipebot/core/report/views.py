@@ -57,6 +57,9 @@ APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
 SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "meter.js",
            "replay.js", "note.js", "versus.js", "mana.js", "main.js"]
+# The drawings only the Discord bot posts, as pictures (viewhost's Painter): in Claude and ChatGPT no tool's result
+# names them and no view opens them, so the page those load leaves their script out (a quarter of it)
+PICTURES_ONLY = frozenset({"meter.js", "note.js", "versus.js", "mana.js"})
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
 # what view_data draws (the replay: maps.replay)
 VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "note", "versus", "mana")
@@ -64,16 +67,19 @@ METER_TOOLS = ("breakdown", "mechanic_hits", "enemies")  # the tools whose rows 
 
 
 @functools.cache
-def page() -> str:
-    """The views' page: one HTML file with its style and scripts inline, as MCP Apps hosts want it."""
+def page(pictures: bool = False) -> str:
+    """The views' page: one HTML file with its style and scripts inline, as MCP Apps hosts want it. It holds the
+    views Claude and ChatGPT show; with `pictures`, the drawings only the Discord bot posts too (the Painter's)."""
     shell = APP.joinpath("page.html").read_text(encoding="utf-8")
     style = APP.joinpath("page.css").read_text(encoding="utf-8")
-    script = "\n".join(APP.joinpath(name).read_text(encoding="utf-8") for name in SCRIPTS)
+    script = "\n".join(APP.joinpath(name).read_text(encoding="utf-8") for name in SCRIPTS
+                       if pictures or name not in PICTURES_ONLY)
     return shell.replace("/*STYLE*/", style).replace("/*SCRIPT*/", script)
 
 
 def page_uri() -> str:
-    """The page's address: hosts keep a page by its address, so a changed page gets a new one."""
+    """The address of the page Claude and ChatGPT load: hosts keep a page by its address, so a changed page gets a
+    new one."""
     return f"ui://wipebot/views-{hashlib.sha256(page().encode()).hexdigest()[:10]}.html"
 
 

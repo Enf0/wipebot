@@ -3,6 +3,7 @@ snapshot; the page drawn in the mock host (viewhost.py, Chromium); the replay's 
 maps.replay packs (Node)."""
 import asyncio
 import contextlib
+import hashlib
 import io
 import itertools
 import json
@@ -547,13 +548,30 @@ async def test_a_view_that_does_not_exist_is_a_readable_error(recorded):
 
 
 def test_the_page_is_one_file_with_a_hashed_address():
-    page = views.page()
+    page = views.page(pictures=True)
     assert page.startswith("<!doctype html>") and "/*STYLE*/" not in page and "/*SCRIPT*/" not in page
     for name in views.SCRIPTS:  # every script inline: the page loads nothing
         first = resources.files("wipebot.core").joinpath("app", name).read_text(encoding="utf-8").splitlines()[0]
         assert first in page
     assert "<script src" not in page and "<link" not in page
     assert re.fullmatch(r"ui://wipebot/views-[0-9a-f]{10}\.html", views.page_uri())
+
+
+def test_the_page_claude_and_chatgpt_load_holds_only_the_views_they_show():
+    """A meter, a note's board, two raid mates and the healers' mana are drawn only as the Discord bot's pictures: in
+    Claude and ChatGPT no tool's result names them and no view opens them. Their script, a quarter of the page's, was
+    sent there all the same; it is now in the Painter's page alone, and the address is the page those hosts load."""
+    from wipebot.core import viewhost
+    hosted, painted = views.page(), views.page(pictures=True)
+
+    def defined(page: str) -> set[str]:
+        return set(re.findall(r"^views\.(\w+) = ", page, re.MULTILINE))
+    shown = {server.VIEW_TOOLS[tool] for tool in viewhost.SHOWN} | {"replay"}  # pull_map's result is its replay
+    assert defined(hosted) == shown and set(re.findall(r'\bopen\("(\w+)"', hosted)) <= shown
+    assert defined(painted) - defined(hosted) == {"meter", "note", "versus", "mana"}
+    assert all(name in views.SCRIPTS for name in views.PICTURES_ONLY)
+    assert len(hosted) < 0.8 * len(painted)
+    assert views.page_uri().endswith(f"-{hashlib.sha256(hosted.encode()).hexdigest()[:10]}.html")
 
 
 # ---- the page in the mock host (Chromium) ----

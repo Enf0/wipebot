@@ -106,15 +106,16 @@ async def answer(name: str, args: dict) -> dict:
 
 
 async def _serve(route) -> None:
-    """The host page, the views' page (as fresh as app/ is) and the replay's images; nothing else."""
+    """The host page, the views' page (as fresh as app/ is: the one Claude and ChatGPT load, or for a picture the
+    one with the drawings only the Discord bot posts) and the replay's images; nothing else."""
     url: str = route.request.url
     path = url.removeprefix(ORIGIN).split("?")[0]
     if path == "/host.html":
         body = resources.files("wipebot.core").joinpath("app/host.html").read_text(encoding="utf-8")
         await route.fulfill(status=200, content_type="text/html", body=body)
-    elif path == "/view.html":
+    elif path in ("/view.html", "/picture.html"):
         views.page.cache_clear()
-        await route.fulfill(status=200, content_type="text/html", body=views.page(),
+        await route.fulfill(status=200, content_type="text/html", body=views.page(pictures=path == "/picture.html"),
                             headers={"Content-Security-Policy": CSP})
     elif path in ("/fonts/Inter-Medium.ttf", "/fonts/Inter-Bold.ttf"):
         body = resources.files("wipebot.core").joinpath(path.removeprefix("/")).read_bytes()

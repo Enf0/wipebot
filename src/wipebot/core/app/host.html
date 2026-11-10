@@ -40,7 +40,8 @@
 // safeArea: {top, right, bottom, left} in px, what a host's own controls cover (hostContext.safeAreaInsets)
 // capabilities: the hostCapabilities to answer with, for a host that takes less than this one (all a view asks)
 const S = window.__setup;
-const VIEW_URL = "https://wipebot.local/view.html";
+// the page Claude and ChatGPT load; a picture's also has the drawings only the Discord bot posts (views.page)
+const VIEW_URL = "https://wipebot.local/" + (S.picture ? "picture.html" : "view.html");
 // Claude-like style variables, light and dark (an approximation, for seeing the host's tokens take over)
 const TOKENS = {
   claude: {
