@@ -1392,7 +1392,8 @@ async def test_a_night_of_one_pull_counts_one_pull(monkeypatch):
 
 async def test_counts_and_ranks_are_written_as_the_tools_write_them(monkeypatch):
     """A parse is "81st percentile", never "81th"; a count of one has no plural: the page's ordinal and plural
-    against the tools' own (core/text.py)."""
+    against the tools' own (core/text.py). A rank under output per second alive says it is by the total, as
+    player_night's text does: the two stand on different bases."""
     from wipebot.core.text import ordinal
     parse = made_up_player(False) | {"kill": True, "standing": {"kind": "parse", "percentile": 81}}
     made_up_view(monkeypatch, {"view": "player", "report": parse["report"], "pull": 4, "boss": parse["boss"],
@@ -1402,6 +1403,7 @@ async def test_counts_and_ranks_are_written_as_the_tools_write_them(monkeypatch)
         text = await view.locator("body").inner_text()
         said = await view.evaluate("(ns) => ns.map((n) => [kit.ordinal(n), kit.plural(n, 'pull')])", numbers)
     assert not errors and "81st percentile" in text and "81th" not in text
+    assert "rank 2 of 4 healers by total" in text
     assert said == [[ordinal(n), plural(n, "pull")] for n in numbers]
 
 
