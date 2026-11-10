@@ -2286,6 +2286,56 @@ async def test_a_ranking_and_a_trend_are_the_card_too(recorded, width):
         assert await view.locator("button.back").inner_text() == "← Damage done by pull" and not errors
 
 
+def made_up_trend() -> dict:
+    """A trend's data, made up (no recorded night's trend holds a kill): seven pulls, the second a reset and the
+    last the kill, with the row of the one asking, who sat out pull 3."""
+    rates = [1_200_000, 200_000, 1_310_000, 1_280_000, 1_400_000, 1_520_000, 1_610_000]
+    own = [210_000, 30_000, None, 228_000, 240_000, 251_000, 262_000]
+    pulls = [{"pull": n, "kill": n == 7, "reset": n == 2, "pct": 0.0 if n == 7 else 90.0 - 10 * n,
+              "seconds": 60.0 * n, "amount": rate * 60.0 * n, "rate": rate, "mine": mine,
+              "top": [["Mirelle", rate * 20.0 * n], ["Torvald", rate * 15.0 * n]]}
+             for n, (rate, mine) in enumerate(zip(rates, own, strict=True), 1)]
+    return {"view": "trend", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "tool": "breakdown",
+            "args": {"data_type": "Healing", "group_by": "pull"}, "title": "Healing by pull",
+            "scope": "all 7 Torvek's Forge pulls", "subject": "healing", "per": "second", "count": False,
+            "who": None, "icon": None, "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678",
+            "headline": {"text": "The raid's healing per second: 1.20M in the first third of the 6 pulls, 1.28M in "
+                                 "the middle and 1.52M in the last (each third's median pull).", "kind": ""},
+            "pulls": pulls, "median": 1_400_000,
+            "thirds": [{"pulls": [1, 3], "rate": 1_310_000}, {"pulls": [4, 5], "rate": 1_400_000},
+                       {"pulls": [6, 7], "rate": 1_610_000}],
+            "mine": {"name": "Mirelle", "color": "#33937f", "spec": "Mistweaver", "thirds": None}}
+
+
+async def test_a_trend_tells_a_kill_and_a_reset_from_a_wipe_and_draws_the_askers_row(monkeypatch):
+    """A kill's bar is capped in gold and a reset's is hollow, each with its key under the chart and its word in
+    the pull's tooltip and row; the one asking has their own row, which says where they weren't in a pull."""
+    from wipebot.core import viewhost
+    trend = made_up_trend()
+    key = {k: trend[k] for k in ("view", "report", "boss", "tool", "args")} | {"mark": "Mirelle"}
+    made_up_view(monkeypatch, key, trend)
+    tip = "(n) => document.querySelector(`[data-pull-col=\"${n}\"]`).dataset.tip"
+    async with drawn("breakdown", trend["args"]) as (view, errors):
+        chart = view.locator(".trend-chart")
+        assert await chart.locator('rect[fill="var(--gold)"]').count() == 2  # on the kill's bar, and in the key
+        assert await chart.locator('rect[stroke-dasharray="2 2"]').count() == 2  # the reset's bar, and its key
+        said = await chart.inner_text()
+        assert "kill" in said and "reset, not counted" in said and "Mirelle, up to 262.00k/s" in said
+        assert (await view.evaluate(tip, 7)).startswith("Pull 7: kill\n1.61M/s: 676M over 7:00\n")
+        assert "Mirelle: 262.00k/s" in await view.evaluate(tip, 7)
+        assert (await view.evaluate(tip, 2)).startswith("Pull 2: a reset, not counted\n")
+        assert (await view.evaluate(tip, 4)).startswith("Pull 4: wipe at 50%\n")
+        assert "Mirelle: not in it" in await view.evaluate(tip, 3)
+        card = (await view.locator("body").inner_text()).lower()
+        assert "of 6 pulls, 1 reset left out" in card and "pull 7" in card and "1.61m/s, the kill" in card
+        assert not errors
+    async with drawn("breakdown", trend["args"], mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        rows = await view.locator("table.pulls tbody tr").evaluate_all(
+            "trs => trs.map((tr) => [...tr.children].map((td) => td.textContent))")
+        assert [r[1] for r in rows] == ["80%", "reset", "60%", "50%", "40%", "30%", "kill"]
+        assert rows[2][5] == "–" and rows[6][5] == "262.00k" and not errors
+
+
 async def test_a_call_without_a_view_takes_no_room(recorded):
     """A host draws the page on every call of a tool with a view, and most calls of breakdown and mechanic_hits rank
     nobody: for those the page stays empty at no height, while the tool runs too. It once would have shown the
