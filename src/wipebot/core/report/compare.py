@@ -100,11 +100,14 @@ async def _pace(rep: Report, f: dict, k: dict, code: str, fight_id: int, ours: d
     since = next((t for t in moments if all(behind[u] >= PACE_POINTS for u in moments if u >= t)), None)
     if since is None and all(b < PACE_POINTS for b in behind.values()):
         text += f"kept it (within {PACE_POINTS} points or ahead)"
-    else:
-        since = since or next(t for t in moments if behind[t] >= PACE_POINTS)
-        text += f"behind from {clock(since)} ({behind[since]:.0f} points), {behind[last]:.0f} points behind at"
-    text += (f" {clock(last)} (ours {_value(ours.get('health'), last):.0f}%, the kill's "
-             f"{_value(theirs.get('health'), last):.0f}%)")
+    elif since is not None:
+        text += f"behind from {clock(since)} ({behind[since]:.0f} points)"
+    else:  # behind for a while, not to the end
+        since = next(t for t in moments if behind[t] >= PACE_POINTS)
+        back = next(t for t in moments if t > since and behind[t] < PACE_POINTS)
+        text += f"behind from {clock(since)} ({behind[since]:.0f} points), no longer by {clock(back)}"
+    text += (f", {_standing(behind[last])} at {clock(last)} (ours {_value(ours.get('health'), last):.0f}%, the "
+             f"kill's {_value(theirs.get('health'), last):.0f}%)")
     for name, gained in await rep.end_buffs(f):
         kill_then = _value(theirs.get("health"), gained)
         text += (f"; the boss gained {name} at {clock(gained)} with ours at "
@@ -117,6 +120,14 @@ async def _pace(rep: Report, f: dict, k: dict, code: str, fight_id: int, ours: d
               f"{_deaths_by(kill_deaths, k['startTime'] + at)}" for at in dict.fromkeys(
                   t for t in (since, last) if t is not None)]
     return text + ". Deaths " + "; ".join(counts) + "."
+
+
+def _standing(points: float) -> str:
+    """Where a pull stood against the kill, from our boss health minus the kill's at one moment: '12 points
+    behind', '5 points ahead', or 'level with it' within a point."""
+    if not (n := round(abs(points))):
+        return "level with it"
+    return f"{plural(n, 'point')} {'behind' if points > 0 else 'ahead'}"
 
 
 def _deaths_by(deaths: list[dict], at: float) -> int:
