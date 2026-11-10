@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **Save a raid plan by its link.** Where the host has a raidstrats.gg key, an officer pastes the plan's link instead of its export: in Viserio's assignment note, right-click the raidstrats.gg badge on a section's raid plan and Copy Link. Wipebot fetches the plan, Viserio's default plans included, and puts the night's raiders from the link on their spots, with their full names.
+
 ### Fixed
 
 - `Discord` **What your guild saved stays in your own server.** On a bot many servers share, such as the public Wipebot, a guild's raid notes and plans are read and saved only in a server whose admin has shown the guild is theirs: one who has a character in it among those they claimed on Warcraft Logs signs in with `/login` and runs `/wipebot setup`, which says so until then. A server set up before does this once; answers about the logs and posts after wipes work meanwhile, and a host's own bot works as before.

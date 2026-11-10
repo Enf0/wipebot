@@ -20,6 +20,7 @@ import json
 import math
 import re
 import statistics
+import urllib.parse
 import zlib
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -29,6 +30,7 @@ from . import saved
 from .base import FactError
 
 EXPORT = re.compile(r"raidstrats-addon-([A-Za-z0-9+/=]+)")
+LINK = re.compile(r"https?://(?:www\.)?raidstrats\.gg/planner[^\s<>\"')\]]*")
 NOTE_CHARS = 40  # a text this long, or of several lines, is a note; a shorter one labels a place in the room
 AT, BY = 4, 9  # % of the plan's height: a point this near a marker is at it, or by it
 NEAR = 5  # an arrow's end this near something starts or ends at it
@@ -108,6 +110,78 @@ def decode(blob: str, saved_at: float | None = None, saved_by: str = "") -> Plan
     return Plan(data.get("planId") or data.get("planName") or "", data.get("planName") or "", data.get("boss") or "",
                 data.get("raid") or "", data.get("planLink") or "", [_scene(s) for s in scenes],
                 "raidstrats-addon-" + blob, saved_at, saved_by)
+
+
+@dataclass
+class PlanLink:
+    """A plan's link on raidstrats.gg, as Viserio's assignment note embeds it: the plan and the night's raiders by
+    the number of their spot (`players=`), on every scene or on one (scenes count from 1)."""
+    plan_id: str
+    names: dict[int, str] = field(default_factory=dict)
+    scene_names: dict[tuple[int, int], str] = field(default_factory=dict)  # (scene, number): name
+
+    @property
+    def named(self) -> bool:
+        return bool(self.names or self.scene_names)
+
+
+def links(text: str) -> list[PlanLink]:
+    """Every raidstrats.gg plan link in a text, in order: `planner?view=<id>` (or `id=`, or `planner/<custom
+    link>`), with `players=Name|class,...` or `names=Name,...` read as raidstrats.gg's embed does (embed-doc): an
+    entry with no number is the next spot from 1, `10:Name` is spot 10, `7,18:Name` spots 7 and 18, and `5/7:Name`
+    spot 7 on scene 5 only."""
+    found = []
+    for m in LINK.finditer(text):
+        url = urllib.parse.urlparse(m[0].rstrip(".,;"))
+        query = urllib.parse.parse_qs(url.query)
+        plan_id = (query.get("view") or query.get("id") or [url.path.removeprefix("/planner").strip("/")])[0]
+        plan_id = re.sub(r"/\d+$", "", plan_id.strip())  # a view link may end in the scene it opens on
+        if not plan_id:
+            continue
+        link, position, pending = PlanLink(plan_id), 0, []
+        for entry in (query.get("players") or query.get("names") or [""])[0].split(","):
+            entry = entry.strip()
+            if re.fullmatch(r"(\d+/)?\d+", entry):  # "7,18:Name": a number on its own goes with the next name
+                pending.append(entry)
+                continue
+            where, colon, who = entry.rpartition(":")
+            if colon and re.fullmatch(r"(\d+/)?\d+", where.strip()):
+                spots = [*pending, where.strip()]
+            else:
+                position += 1
+                spots, who = [str(position)], entry
+            pending = []
+            name = who.split("|")[0].strip()
+            if not name:
+                continue
+            for spot in spots:
+                scene, _, number = spot.rpartition("/")
+                if scene:
+                    link.scene_names[int(scene), int(number)] = name
+                else:
+                    link.names[int(number)] = name
+        found.append(link)
+    return found
+
+
+def with_names(export: str, link: PlanLink) -> str:
+    """A plan's export with the link's raiders written on their numbered spots, as raidstrats.gg shows the link: a
+    scene's own names before those for every scene; a spot the link doesn't name keeps what the plan says."""
+    if not link.named or not (m := EXPORT.search(export)):
+        return export
+    try:
+        raw = base64.b64decode(m[1] + "=" * (-len(m[1]) % 4))
+        data = json.loads(zlib.decompress(raw[1:], -15))
+    except (binascii.Error, zlib.error, ValueError) as e:
+        raise FactError("raidstrats.gg's export of the plan doesn't decode") from e
+    for n, scene in enumerate(data.get("scenes") or [], 1):
+        for i in scene.get("items") or []:
+            if _player(i) and isinstance(slot := i.get("slotIndex"), int):
+                if name := link.scene_names.get((n, slot)) or link.names.get(slot):
+                    i["label"] = name
+    packer = zlib.compressobj(9, zlib.DEFLATED, -15)
+    packed = packer.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()) + packer.flush()
+    return "raidstrats-addon-" + base64.b64encode(raw[:1] + packed).decode()
 
 
 def _fill_slots(scenes: list[dict]) -> None:

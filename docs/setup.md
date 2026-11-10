@@ -170,6 +170,14 @@ services:
       RAIDSTRATS_CLIENT_SECRET: ${RAIDSTRATS_CLIENT_SECRET}
 ```
 
+**Saving a plan by its link**, optional: with a key to raidstrats.gg's plan REST API (asked for on raidstrats.gg's
+Discord) in `RSGG_REST_API_KEY`, an officer saves a plan by pasting its link instead of its export. The link Viserio's
+assignment note embeds (in a section's raid plan, right-click the raidstrats.gg badge at the bottom right and Copy
+Link) names the plan and the night's raiders by their numbers, so Wipebot fetches the plan and writes the raiders on
+their spots, Viserio's default plans included. The key reads no guild's own plans: those take the login above or
+their export. The bot reads the key from `.env`; for the connector, pass `RSGG_REST_API_KEY` to it the same way as
+the two settings above.
+
 The fetch reads the plans the officer's account can open: their own and the guild's. A plan Viserio's assignment
 note links by default belongs to its author: duplicate it on raidstrats.gg and save the copy once (raidstrats.gg makes
 its export on save), or paste it. Pasting Viserio's export of a section (its RSGG Addon button) also brings the

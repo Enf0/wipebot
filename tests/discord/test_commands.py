@@ -249,6 +249,10 @@ def test_text_that_isnt_a_note_or_plan_is_refused(store, settings):
     from wipebot.core.report import FactError
     store.save_settings(settings)
     assert not commands.looks_like_note("just some text")
+    link = "https://raidstrats.gg/planner?view=abc"
+    assert not commands.looks_like_note(f"where do I stand in {link}?")  # a question about a plan
+    assert commands.looks_like_note(f"<@42> {link} from pull 3")  # the link alone is one to save
+    assert commands.looks_like_note(f"P1 orbs: {link}&players=Rowan%7Cwr%2C10%3AEsme%7Csh")  # with the raiders too
     with pytest.raises(FactError):
         save_pasted(store, 1001, "just some text", "Rowan")
     assert "No raid note or plan saved yet" in commands.describe_notes(store, 1001)

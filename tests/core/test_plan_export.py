@@ -122,3 +122,31 @@ def test_a_scenes_link_is_the_plans_view_link_opened_on_it():
     assert plan_export.scene_link(p, 3) == "https://raidstrats.gg/planner?view=p/3"
     p.link = ""
     assert plan_export.scene_link(p, 1) == ""
+
+
+def test_a_plan_link_names_the_plan_and_the_raiders_by_their_spots_number():
+    text = ("tonight's <https://raidstrats.gg/planner?view=abc-123/2&players=Br%C3%B8n%7Cdr%2CHalvard%7Cmg%2C"
+            "10%3ARowan%7Cwl%2C7%2C18%3AEsme%7Csh%2C5%2F7%3AMira%7Cpr%2C%2CTove> and "
+            "https://raidstrats.gg/planner?embed=true&id=def&names=Ask,,Liv then https://raidstrats.gg/planner/slug.")
+    first, second, third = plan_export.links(text)
+    assert first.plan_id == "abc-123"  # without the scene the link opens on
+    assert first.names == {1: "Brøn", 2: "Halvard", 10: "Rowan", 7: "Esme", 18: "Esme", 4: "Tove"}  # 3 left open
+    assert first.scene_names == {(5, 7): "Mira"} and first.named
+    assert (second.plan_id, second.names) == ("def", {1: "Ask", 3: "Liv"})
+    assert third.plan_id == "slug" and not third.named
+    assert plan_export.links("see raidstrats.gg/embed-doc and https://raidstrats.gg/planner") == []
+
+
+def test_a_links_raiders_are_written_on_the_plans_numbered_spots_a_scenes_own_first():
+    spots = [{**ICON, "icon": "roles/tank.svg", "label": "1", "slotIndex": 1, "x": 10, "y": 10},
+             {**ICON, "icon": "classes/mage", "label": "Old", "slotIndex": 2, "x": 20, "y": 10},
+             {**ICON, "icon": "roles/healer.svg", "label": "", "slotIndex": 3, "x": 30, "y": 10},
+             {**ICON, "icon": "abilities/x/1_gloom", "spellId": 1, "label": "Gloom", "slotIndex": 1, "x": 40, "y": 10}]
+    made = export({"planName": "Made up", "boss": "Sszorak", "scenes": [
+        {"name": "1", "items": spots}, {"name": "2", "items": [dict(s) for s in spots]}]})
+    link = plan_export.links("https://raidstrats.gg/planner?view=p&players=Brøn|dr,Halvard|mg,2/2:Rowan|wl")[0]
+    plan = plan_export.parse(plan_export.with_names(made, link))[0]
+    assert [[(s.slot, s.label) for s in sc.spots] for sc in plan.scenes] == [
+        [(1, "Brøn"), (2, "Halvard"), (3, "")], [(1, "Brøn"), (2, "Rowan"), (3, "")]]
+    assert plan.scenes[0].items[3]["label"] == "Gloom"  # an ability with a number isn't a spot
+    assert plan_export.with_names(made, plan_export.PlanLink("p")) == made  # no raiders: the plan as it is

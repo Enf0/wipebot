@@ -1892,7 +1892,8 @@ MAX_PASTE = 100_000  # characters of a note or plan to save (a real raid's note 
 
 async def save_note_or_plan(pasted: Annotated[str, Field(max_length=MAX_PASTE, description=(
         "the raid note or plan as the user pasted it: the NSRT note from Viserio (EncounterID lines included) or "
-        "raidstrats.gg's export (the text starting raidstrats-addon-)"))],
+        "raidstrats.gg's export (the text starting raidstrats-addon-), or a raidstrats.gg plan link (planner?view=..., "
+        "whole, with its players= part)"))],
         from_pull: Annotated[int | None, Field(description=(
             "the pull on its boss in the report it counts from, when pasted after the pulls it was for (\"we used "
             "it all night\": 1); omit for from now on"))] = None,
@@ -1903,13 +1904,14 @@ async def save_note_or_plan(pasted: Annotated[str, Field(max_length=MAX_PASTE, d
     then check pulls against it with no paste, each pull against the version saved last before it began (earlier
     versions are kept), so one pasted after the pulls it was for takes from_pull. Returns what was saved: each
     boss's note with its timed cooldowns, callouts and assignment groups, or each plan with its spots, and the pull
-    it counts from; or why nothing was (not an officer, not a note or plan export, no such pull)."""
+    it counts from; or why nothing was (not an officer, not a note or plan, no such pull). A plan link is fetched
+    from raidstrats.gg with the raiders it names on their spots, where this server has a key for that."""
     officer = setup().officer
     if officer is None:
         raise FactError("nothing is saved here: raid_note and raid_plan check a pasted note or plan as pasted")
     by, guild = officer()
     since = (await lib().report(report), from_pull) if from_pull else None
-    return save_pasted(notebook.Notebook(), guild, pasted, by, from_pull=since)
+    return save_pasted(notebook.Notebook(), guild, await raidstrats.from_links(pasted), by, from_pull=since)
 
 
 def allow_saving(server: MCPServer, setup: Setup, officer: Callable[[], tuple[str, int]]) -> None:

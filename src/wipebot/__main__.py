@@ -127,6 +127,7 @@ def run(test_report: str | None = None, test_server: int | None = None, try_ques
 def save_note(path: str, at: str | None, by: str, discord_server: int | None, store: Store | None = None) -> None:
     """A raid note or plan saved from the command line: one from before the bot kept them, for the pulls it was
     for."""
+    from wipebot.core import raidstrats
     from wipebot.core.report import FactError
     from wipebot.discord.commands import save_pasted
     from wipebot.discord.store import Store
@@ -138,6 +139,7 @@ def save_note(path: str, at: str | None, by: str, discord_server: int | None, st
     text = sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8")
     when = datetime.strptime(at, "%Y-%m-%d %H:%M").replace(tzinfo=UTC).timestamp() if at else None
     try:
+        text = asyncio.run(raidstrats.from_links(text))
         print(save_pasted(store, discord_server or servers[0], text, by, when))
     except FactError as e:
         raise SystemExit(f"not a raid note or plan: {e}") from None

@@ -70,6 +70,17 @@ API: `wcl-api.md`.
   saved since the export shipped 404 `addon_export_missing`; a wrong or missing key 401. Calls take about 100 ms,
   limit 400 a minute (`ratelimit-*` headers). A default plan's spots are numbered with no names: Viserio's
   assignment fills them (26 October 2026). Python's client gets through Cloudflare; `curl` gets the bot check.
+- The link Viserio's assignment note embeds (Copy Link on the raidstrats.gg badge of a section's raid plan) is
+  `raidstrats.gg/planner?view=<plan id>&players=...`, URL-encoded. raidstrats.gg/embed-doc (10 November 2026) gives
+  `players` as `Name|Class` entries by embed index, the spot's number (`slotIndex` in the export): an entry with no
+  number is the next index from 1, `10:Name|cls` index 10, `7,18:Name|cls` both on every scene, `5/7:Name|cls` index
+  7 on scene 5 only (scenes from 1), a scene's entry before a global one; `names` is the same without classes, and
+  `id` names the plan in an embed (`view` in a planner link, which may end `/<scene>`). Viserio writes classes as two
+  letters (`mg`, `dk`, `ev`, `wl`, `pr`, `dr`, `sh`, `hu`) and full names, where its RSGG Addon export cuts names to
+  four letters. Not checked live: whether an entry with no number after a numbered one counts on from that number
+  (Wipebot counts only the entries with no number). The plan REST API, 10 November 2026: works again with the key
+  and the User-Agent `Wipebot`, from a cloud host too. A Wowutils default plan fetched by its Viserio link (one
+  batch call, 0.6 s) got the link's 12 raiders on the right spots in the room and the side panel.
 - raidstrats.gg's API (`/api/oauth/v1`, its developers page) reads only as a person who logged in and approved the
   app: the authorization code flow, no `client_credentials` (`unsupported_grant_type`, 19 October 2026). Access
   tokens last an hour; the refresh token 30 days, replaced on each refresh. `/plans` lists `plans` (theirs) and

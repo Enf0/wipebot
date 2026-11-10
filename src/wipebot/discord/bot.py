@@ -1185,6 +1185,7 @@ class WipeBot(discord.Client):
                 await respond(message, f"Didn't save it: couldn't find pull {pull}'s report ({e}).")
                 return
         try:
+            text = await raidstrats.from_links(text)  # a plan's link: the plan fetched, its raiders on their spots
             reply = commands.save_pasted(self.store, s.discord_guild_id, text, member.display_name, from_pull=since)
         except FactError as e:
             reply = f"Couldn't save that as a raid note or plan: {e}."

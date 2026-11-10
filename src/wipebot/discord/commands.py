@@ -20,7 +20,7 @@ import discord
 import httpx
 from discord import app_commands
 
-from wipebot.core import accounts, server
+from wipebot.core import accounts, raidstrats, server
 from wipebot.core.accounts import parse_guild_link
 from wipebot.core.report import FactError
 from wipebot.core.report import note as notes
@@ -38,11 +38,24 @@ MAX_NOTE_BYTES = 200_000  # a whole raid's note is some tens of kB; a plan's exp
 # A paste the officer says counts from a pull ("from pull 7", Norwegian "fra pull 7"), and the report it's in.
 FROM_PULL = re.compile(r"\b(?:from|fra)\s+pull\s*#?(\d+)\b", re.I)
 REPORT_LINK = re.compile(r"warcraftlogs\.com/reports/([A-Za-z0-9]+)")
+REPORT_LINK_WHOLE = re.compile(r"\S*warcraftlogs\.com/reports/\S*")
+MENTION = re.compile(r"<@[!&]?\d+>")
+# Where a plan is saved by its link (the host has raidstrats.gg's key): the gesture has no button in Viserio.
+BY_LINK = (" A plan is also saved by its link: in Viserio's assignment note, right-click the raidstrats.gg badge at "
+           "the bottom right of a section's raid plan, Copy Link, and paste the link to me; the night's raiders "
+           "come with it.")
 
 
 def looks_like_note(text: str) -> bool:
-    """A raid note (NSRT, from Viserio) or a raid plan (raidstrats.gg's export)."""
-    return bool(notes.HEADER.search(text) or plans.EXPORT.search(text))
+    """A raid note (NSRT, from Viserio) or a raid plan: raidstrats.gg's export, or a plan's link there with the
+    night's raiders (as Viserio's assignment note embeds it), or sent with nothing else but a mention and the pull
+    it counts from. Another message with a plan link is a question."""
+    if notes.HEADER.search(text) or plans.EXPORT.search(text):
+        return True
+    if not (links := plans.links(text)):
+        return False
+    rest = FROM_PULL.sub("", MENTION.sub("", plans.LINK.sub("", REPORT_LINK_WHOLE.sub("", text))))
+    return any(link.named for link in links) or not rest.strip()
 
 
 def _guild(store: Store, discord_guild_id: int) -> int:
@@ -124,7 +137,7 @@ def describe_notes(store: Store, discord_guild_id: int) -> str:
     if not parts:
         return ("No raid note or plan saved yet: an officer exports the boss's note from Viserio, or the plan from "
                 "raidstrats.gg (the planner's Export button), and pastes it in a message to me (Discord turns a long "
-                "paste into a file).")
+                "paste into a file)." + BY_LINK * bool(raidstrats.key()))
     return "\n".join(parts)
 
 

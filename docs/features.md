@@ -162,6 +162,9 @@ What can be saved:
   raid markers, the boss and adds, shapes, arrows, labels and the side panel with its groups and instructions. From
   raidstrats.gg's planner (Export) it's the plan as drawn, its spots numbered. From Viserio's assignment note (the
   RSGG Addon button) it's the same plan with the night's raiders on their numbers.
+  Where the host has a raidstrats.gg key ([setup.md](setup.md#raid-notes-and-plans)), an officer saves a plan by its
+  link instead: in Viserio's assignment note, right-click the raidstrats.gg badge at the bottom right of a section's
+  raid plan, Copy Link, and paste it to Wipebot. The link names the plan and the night's raiders on their numbers.
 
 Raid plans can also be fetched from raidstrats.gg instead of pasted, where the host set it up
 ([setup.md](setup.md#raid-notes-and-plans)): every plan the officer who connected can open, fetched again when

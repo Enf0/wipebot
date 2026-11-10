@@ -10,7 +10,12 @@ refresh token 30 days, replaced on each refresh, so a login nobody uses is refre
 one request (`POST /plans/addon-export`, up to 50), saves a version of each plan whose text changed since it was
 last fetched, and drops a plan no longer listed (deleted there). A version counts from when it was fetched:
 raidstrats.gg gives no time a plan was last saved. Viserio's default plans can't be opened with a login (an officer
-pastes one). Facts verified live are in docs/reference/sources.md.
+pastes one).
+
+Without a login, raidstrats.gg's plan REST API reads any plan that isn't a guild's own, Viserio's defaults
+included, with a key raidstrats.gg gives out (RSGG_REST_API_KEY). `from_links` uses it for a plan an officer saves
+by its link: the link Viserio's assignment note embeds names the plan and the night's raiders on its spots, so the
+plan is fetched and those names written on it. Facts verified live are in docs/reference/sources.md.
 """
 import asyncio
 import logging
@@ -60,6 +65,56 @@ def login_url() -> tuple[str, str]:
     state = secrets.token_urlsafe(16)
     return BASE + "/oauth/authorize?" + urllib.parse.urlencode(dict(
         response_type="code", client_id=found[0], redirect_uri=REDIRECT_URL, scope=SCOPES, state=state)), state
+
+
+def key() -> str | None:
+    """The plan REST API's key, or None where it isn't set up."""
+    return os.environ.get("RSGG_REST_API_KEY") or None
+
+
+REFUSED = {  # why the plan REST API didn't give a plan, by its code
+    "guild_plan": "it's a guild's own plan, which only a login reads: paste its export instead (the planner's "
+                  "Export button)",
+    "not_found": "raidstrats.gg has no such plan: copy the link again",
+    "addon_export_missing": "it has no export yet: open it on raidstrats.gg and save it once",
+}
+
+
+async def from_links(text: str) -> str:
+    """A paste of raidstrats.gg plan links as the plans' exports, the raiders each link names written on its
+    spots, for saving as a pasted plan; any other text as it is. A link with no raiders gives the plan as saved
+    there. Raises FactError, for the officer, where there's no key or a plan can't be read."""
+    if plans.EXPORT.search(text) or not (links := plans.links(text)):
+        return text
+    api_key = key()
+    if not api_key:
+        raise FactError("this Wipebot can't fetch a plan by its link (whoever runs it sets RSGG_REST_API_KEY): "
+                        "paste the plan's export instead, the section's RSGG Addon button in Viserio")
+    ids = list(dict.fromkeys(link.plan_id for link in links))[:50]
+    try:
+        async with httpx.AsyncClient(base_url=BASE, timeout=TIMEOUT_S,
+                                     headers={**UA, "Authorization": f"Bearer {api_key}"}) as http:
+            r = await http.post("/api/plans/addon-export", json={"planIds": ids})
+        refused = r.status_code in (401, 403)
+        if not refused:
+            r.raise_for_status()
+            results = {str(x.get("planId")): x for x in r.json().get("results") or []}
+    except (httpx.HTTPError, ValueError, AttributeError, TypeError) as e:
+        log.warning("fetching plans by link from raidstrats.gg failed: %r", e)
+        raise FactError(f"raidstrats.gg didn't answer ({type(e).__name__}): try again, or paste the plan's "
+                        "export") from e
+    if refused:
+        log.warning("raidstrats.gg refused the plan REST API key: %s", r.status_code)
+        raise FactError("raidstrats.gg refused this Wipebot's key, so the plan wasn't fetched: paste its export "
+                        "instead, the section's RSGG Addon button in Viserio")
+    exports = []
+    for link in links:
+        result = results.get(link.plan_id) or {}
+        if not (result.get("ok") and result.get("addonExport")):
+            why = REFUSED.get(str(result.get("code")), "raidstrats.gg didn't give it")
+            raise FactError(f"the plan at {BASE}/planner?view={link.plan_id} wasn't fetched: {why}")
+        exports.append(plans.with_names(result["addonExport"], link))
+    return "\n".join(exports)
 
 
 async def connect(pasted: str, state: str) -> tuple[str, dict]:
@@ -180,7 +235,8 @@ def source(login: RaidstratsLogin) -> str:
         text += f" (the last fetch failed: {login.problem})"
     return text + ("; a version is saved each time a plan's text changes. Viserio's default plans (the Wowutils ones "
                    "an assignment embeds unless an officer changed it) can't be opened with it: one is here only if "
-                   "an officer pasted it (its section's RSGG Addon button in Viserio, with the raiders on its spots)")
+                   "an officer saved it by its link or its export (in Viserio, the section's raid plan: Copy Link on "
+                   "the raidstrats.gg badge, or the RSGG Addon button), with the raiders on its spots)")
 
 
 async def keep_alive(book: Notebook) -> None:
