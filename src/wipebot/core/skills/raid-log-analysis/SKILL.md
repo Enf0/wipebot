@@ -222,6 +222,6 @@ notes its raid leaders posted where the question was asked.
 - Where the guides disagree with each other, or with the guild's notes, on something that matters, say so in a line
   and which one the answer follows.
 
-Worked examples of reading a pull, a night and a cooldown plan: [examples.md](examples.md).
+Worked examples of reading a pull, a night and a player: [examples.md](examples.md).
 
 Anything else (a boss, a spec, loot, parses and rankings, raid prep): the tools' descriptions say which one answers it.

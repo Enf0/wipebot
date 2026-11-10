@@ -1,49 +1,66 @@
 # Worked examples
 
-Three questions on one Mythic night of The Twin Fangs (26 pulls, no kill), each as what was asked, what the tools
-showed, how to read it, and what the answer says. The numbers are the tools'; how a mechanic works comes from
-`boss_guide`, read before judging it.
+Three questions on three bosses, each as what was asked, what the tools showed, how to read it, and what the answer
+holds and leaves out. The numbers are the tools'; how a mechanic works comes from `boss_guide` and how a spec is
+played from `spec_guide`, read before judging either.
 
-## A pull: "Why did we wipe on pull 26?"
+## A pull: "Why did we wipe on Vashnik pull 16?"
 
-What the tools showed (`pull_summary`): the best wipe of the night, 59.1% at 3:15. "Ended by": Caustic Globule killed 4
-in pulses from 2:58, then half the raid was dead at 3:10; before it, 5 deaths one after another from 1:20 (Agonco to
-Caustic Globule, Martin to Eternal Venom, Dscopi to Coiling Ichor, Enfo to Vile Flood, Slushmania to Eternal Venom).
-"Not an enrage buff". It got past what ended most earlier pulls, Visceral Burst (16 of 25).
+What the tools showed. `pull_summary`: the best pull of the log so far. "Ended by": deaths from 4:36 until half the
+raid was dead at 6:28, no single hit killing many. "Not an enrage buff". It got past what ended most earlier pulls,
+Malignance killing many (5 of 15). Two players died at 3:48 and both were back up, as the players alive after each
+death show. Of the deaths that stayed: Deathadim, a tank, at 5:13 to Melee with 17 alive; Wutroll, the other tank,
+at 6:16 to Melee with 14 alive; two more to Melee at 6:20 and 6:22. The nine deaths after 6:28 are marked as fallout.
+`tank_swaps`: the tanks traded the boss back and forth until 4:24; Wutroll held it alone from 5:15 and stood at
+Dripping Fangs 3 at 6:15, where their stints otherwise end at 1; whose turn it was to taunt isn't in the log.
 
-How to read it: the moment that lost it is Caustic Globule at 2:58, but the raid came to it five short, so the first
-domino is at 1:20. `boss_guide` with Caustic Globule as `mechanic` says how it works; `death_recap` on the first deaths
-says whether each was a one-shot or a bleed nobody healed. The nine deaths after 3:10 are fallout. Getting past
-Visceral Burst is the night's real progress and belongs in the first line.
+How to read it. No hit killed many and the boss gained nothing, so follow the chain from its first link. The deaths
+at 3:48 were bought back, so they aren't it. The link the rest hangs on is the first tank's death at 5:13: after it
+the other tank had nobody to trade with, the debuff the tanks swap on climbed to 3, Wutroll died at 6:16 and the
+boss's melee went through the raid. The 3 stacks follow from the first tank's death; they aren't a missed taunt.
+Why a tank died to Melee while holding the boss at 1 stack is the open question: `death_recap` on that death shows
+the hits and the healing before it and which defensives were ready, and until it's read the answer doesn't guess.
 
-The answer: **"Best pull of the night: past the Broodling bursts for the first time, lost to Caustic Globule at 2:58
-with five already dead from 1:20."** Then the bullets: the first deaths and what each was, the Globule pulses at
-2:58-3:03, and one change, how the raid meets Caustic Globule from its first cast, since it opened and closed the wipe.
+What the answer holds. It leads with what the pull was: the best so far, past the Malignance that ended most pulls
+before it, lost when the first tank died at 5:13. Then the chain in two or three links with their times, and one
+change only if the recap gives one. It leaves out the nine deaths after 6:28, the two that were bought back, the
+rest of the death list, and any word on whose taunt it was.
 
-## A night: "What keeps wiping us on the Twin Fangs?"
+## A night: "Where do our healing cooldowns need to go on Entombed Sentinels?"
 
-What the tools showed (`progress`): "How the pulls ended": Visceral Burst killing many 16 of 26, Caustic Globule 5.
-The night's killer: Visceral Burst, 130 deaths, but the first death on only 3 pulls. `enemies` with `all_pulls`: the
-Broodlings of Ithraz began Visceral Burst 392 times; 309 were kicked and 66 went through.
+What the tools showed. `healing` with `all_pulls`, over the 8 pulls: the spikes that came back pull after pull. At
+2:17-2:26, Mark of Blood and Toxic Droplets on 4 pulls: 2.64M/s taken against 2.42M/s healing, 1.2 healing cooldowns
+per spike, one ready and unused in all 4, 1 death. At 1:06-1:16, Mark of Acid and Mark of Blood on 2 pulls: 2.03M/s
+against 2.01M/s, one ready and unused in both, 1 death. At 2:55, Mark of Blood and Noxious Blast on 2 pulls: 3.74M/s
+against 2.68M/s and 12 deaths, 11 of them on pull 7 with two cooldowns used. Most often ready and unused in a spike:
+Zephyr (Lïzårðmâñ) 6 times, Rewind and Stasis (Lïzårðmâñ) 3 times each, Divine Hymn (Miralupa) 3 times.
 
-How to read it: the count of what ended the pulls names the one thing to fix, and it's a cast with a cast bar, so the
-question is the kicks, not the healing (`healing` shows the Visceral Burst spikes got 2.1 healing cooldowns each and
-still cost 101 deaths). Who had a kick ready for each cast that went through is in `enemies` on one pull; whose kick
-it was, only a raid note says. The best wipe, pull 26, is the first that got past it.
+How to read it. A spike that comes back at the same time with cooldowns ready and unused is a cooldown to plan: 2:17
+first, since it came back most often, then 1:06. A spike that kills through the cooldowns it got is a mechanic to
+read before anything is moved onto it: 2:55 killed 11 on one pull with two cooldowns out, so `boss_guide` with
+Noxious Blast as `mechanic` comes first, and `pull_summary` of that pull says whether that hit ended it. The log
+shows what was ready, not who was assigned to what; a saved raid note (`raid_note`) holds that.
 
-The answer: **"Unkicked Visceral Bursts ended 16 of the 26 pulls; the one pull that got past them was the night's
-best."** Then up to three changes, the kicks first: every Broodling's cast covered, with a backup.
+What the answer holds. It leads with the spike to cover and what was free for it, then the next one: at most three
+changes, each a cooldown with its player and a time. It says once that the log doesn't show the assignments. It
+leaves out the list of spikes pull by pull, each healer's healing per second and overheal, and the spikes that
+were covered.
 
-## A plan: "Are our healing cooldowns in the right place on the Twin Fangs?"
+## A player: "Why does Zebinomage do more damage than me on the Twin Fangs?" (asked by Krøpling)
 
-What the tools showed (`healing` with `all_pulls`): the spikes that came back pull after pull. At 0:45-0:47, Stir the
-Depths and Toxic Fumes on 11 pulls: 0.3 healing cooldowns per spike, one ready and unused in all 11, 8 deaths. At
-0:35-0:44 and 1:41-1:48, Visceral Burst: 2.1 and 1.3 cooldowns per spike, 101 and 69 deaths. Most often ready and
-unused: Spirit Link Totem (Enfo) 33 times, Divine Hymn (Namsus) 30, Zephyr (Lïzårðmâñ) 25.
+What the tools showed. `compare_with_top` with `against`, over the 39 pulls both were in, Krøpling against
+Zebinomage, both Frost Mages: damage per second alive 331.90k against 363.58k (-9%); alive 5373 s against 5472 s;
+deaths 39 against 40; item level 332 against 334. Per spell, the one row marked as far apart is Frostfire Bolt: 12.3
+casts a minute against 17.8, at the same average hit (9.72k against 9.53k). Shatter hits for 90.80k against 97.26k,
+with a crit share of 47% against 55%. Glacial Spike, Flurry and Ice Lance are cast about as often by both.
 
-How to read it: a spike that comes back on time with cooldowns ready and unused is a cooldown to plan; one that kills
-through cooldowns is a mechanic to fix. The log shows what was ready, not who was assigned (that's the raid note).
+How to read it. The same spec on the same pulls, per second alive, is the right comparison, and the gap is 9%. Time
+alive and deaths are level, so it isn't dying. The item levels and the crit shares explain part of each hit being
+smaller, and that is gear, not play. What's left to win back is the one row the tool marks: fewer Frostfire Bolts a
+minute at the same hit, so fewer casts begun, not weaker ones. Whether that is movement, casts cut short or another
+spell in their place isn't in this table: `player_pull` on one pull shows the casting gaps, and `spec_guide` says
+what a Frost Mage fills with, read before any advice on what to cast.
 
-The answer: **"The 0:45 Stir the Depths spike gets almost nothing; the Visceral Burst spikes get the cooldowns and
-still kill, because the fix there is kicks."** Then the plan: a raid cooldown on the 0:45 spike (Spirit Link Totem or
-Divine Hymn were ready on every one of those pulls), and the Visceral Burst cooldowns kept for when the kicks fail.
+What the answer holds. It leads with the size of the gap and the one difference in play that stands out, with both
+numbers. It gives the gear's part in a line and says that deaths aren't it. A change in how to play comes only with
+the guide's rule as its reason. It leaves out the other spells' rows and doesn't rank the two players.
