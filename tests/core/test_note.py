@@ -187,7 +187,7 @@ async def test_a_cooldown_planned_at_the_moment_the_wipe_was_decided_doesnt_say_
     decided"."""
     spiral = "time:237;ph:1;tag:Dragepie;spellid:374968;"
     new = await _pull_42((spiral, spiral.replace("237", "248")))
-    assert new == ["  4:08 Dragepie Time Spiral [374968]: not cast within 30s (alive; cast at 1:46; as the wipe was "
+    assert new == ["  4:08 Dragepie Time Spiral [374968]: not cast within 30 s (alive; cast at 1:46; as the wipe was "
                    "decided)"]
 
 
@@ -414,7 +414,7 @@ async def test_a_check_asked_for_one_player_prints_their_rows_and_counts_the_rai
     assert "  0:24 Right: 7 of 9 hit, 370.75k each" in lines  # another group's soak: its count alone
     assert ("Planned cooldowns (time in the note: what happened), Enfo's 6 of the raid's 38 (on time 4, early 10, "
             "late 10, not cast 11, dead 3):") in lines
-    assert "  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, 1s late" in lines
+    assert "  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, 1 s late" in lines
     assert "    Enfo: pressed none (died at 3:21; ready: none)" in lines
     assert lines[-1].endswith("isn't a spell the log can match to them; only callouts for personals are): 6 to other "
                               "players")

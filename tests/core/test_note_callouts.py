@@ -184,7 +184,7 @@ async def test_the_recorded_night_says_who_had_one_running_who_died_and_what_was
     assert ("    2:23 Divine Hymn [64843], 8 pulls: late 3 (9 s), not cast 5 (p4, p7, p23, p27, p32), 5 of them in the "
             "last 10 s, 2 of them on cooldown") in night
     assert "not counted at 10 (one already running 10)" in night
-    assert ("  2:23 Miralupa Divine Hymn [64843]: not cast within 30s (alive; cast at 0:35; on cooldown from the 0:35 "
+    assert ("  2:23 Miralupa Divine Hymn [64843]: not cast within 30 s (alive; cast at 0:35; on cooldown from the 0:35 "
             "cast, 124 s by their closest two casts of it on the night (Lorrgs' base cooldown: 180 s); 9 s before the "
             "wipe was decided)") in await note.note_check(rep, plan, 4, "Sszorak")
     text = await note.note_check(rep, plan, 42, "Sszorak")
