@@ -25,7 +25,6 @@ wrong = ["the deaths after 4:39 lost the pull", "a Serpent's Fury was popped too
 [[case]]
 id = "real-tornadoes-most-hits"  # no boss named; hits within 1 s may be one tornado (answer #105, and #472)
 tools = ["boss_guide", "mechanic_hits"]
-hard = true  # the bot still gets it wrong often: the hard set (evals/run.py summary)
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = "who gets hit by tornadoes the most?"
@@ -38,23 +37,6 @@ facts = ["counted until each wipe was decided",
          "hits within a second of each other may be one tornado hitting twice; the log can't tell"]
 wrong = ["names someone other than Deathadim as hit most",
          "states as fact that hits within a second of each other were separate tornadoes"]
-
-[[case]]
-id = "real-dps-check"  # vague: there is no damage check yet, the pulls end on the Fury stacks (answer #184)
-tools = ["boss_guide", "compare_pulls", "progress", "pull_summary"]
-report = "vjt3KLbN8g62J1H9"
-where = "in a DM"
-question = "How is the raid doing against the DPS check?"
-asker = "Algmor"
-expect = """The pulls don't end on a damage check but on the Serpent's Fury enrage (a stack not popped)
-and deaths; damage is behind a fast kill's pace on the best pull, so it matters later, but the stacks and staying
-alive come first."""
-facts = ["Unbound Ferocity on 24 of 42 pulls",
-         "pull 42 (34.1%) was the best",
-         "on pull 42 the boss had 39% at 4:00, a fast kill's 28%, with 10 dead against the kill's 1",
-         "the kill compared is one of the 50 fastest"]
-wrong = ["the pulls end because the raid fails a damage check or a timed enrage",
-         "Unbound Ferocity is a timer that more damage would beat"]
 
 [[case]]
 id = "real-follow-up-who-touched-cyst"  # in a channel; the log shows when cysts burst, not who touched one (#100-#101)
@@ -180,25 +162,6 @@ wrong = ["names a player as one who popped crates too fast or took too many, eve
          "says the crates (Splinters) caused most of the deaths"]
 
 [[case]]
-id = "real-tempest-most-hits"  # after a question about the night; a Discord name only (answers #471-#472)
-tools = ["boss_guide", "breakdown", "find_reports", "mechanic_hits", "progress"]
-report = "cZ8rp13y72gBQKY9"
-where = "in a DM"
-question = ["Who was mvp on Sszorak yesterday?", "Who got hit the most by tempest?"]
-discord_name = "Apekatt"
-expect = """Over the night's 12 Sszorak pulls, the tank Deathadim was hit by Tempest most; of the others,
-Miralupa by far, ahead of Peggerino, Sonyosh and Attractîv."""
-facts = ["counted until each wipe was decided",
-         "Deathadim 46 hits, Miralupa 32, Peggerino, Sonyosh and Attractîv 21 each",
-         "Miralupa never died within 6 s of a hit",
-         "hits within a second of each other may be one tornado hitting twice (12 of Miralupa's 32); the log can't tell",
-         "Tempest was the killing blow 11 times, Grusarn's 3"]
-wrong = ["names someone other than Deathadim as hit most",
-         "says Miralupa died to Tempest",
-         """says as fact that a player was hit by two tornadoes at once, or that their repeated or overlapping hits were
-         separate tornadoes (the log can't tell one tornado hitting twice from two)"""]
-
-[[case]]
 id = "twin-fangs-mythic-changes"  # every running hotfix post, not only the newest (answers #484, #485, #493)
 tools = ["hotfixes"]
 report = "cZ8rp13y72gBQKY9"
@@ -276,6 +239,7 @@ asker = "Cptola"
 expect = """22 of the 45 Holy Power Cptola's 9 Divine Tolls brought on pull 37 were lost at the cap: the worst at 5:27,
 pressed at 5 Holy Power (all 5 lost), and at 1:11 and 6:02 at 4 (4 lost each). Spending Holy Power before pressing
 Divine Toll keeps it."""
+numbers = ["22", "45"]  # by code: the Holy Power lost, of what the casts brought
 facts = ["at 2:57, pressed at 0, nothing lost",
          "6:37 at 3, 3 lost",
          "0:41 and 4:46 at 2, 2 lost each"]

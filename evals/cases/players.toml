@@ -69,6 +69,7 @@ question = "Why was my parse so bad on the Vashnik kill?"
 asker = "Algmor"
 expect = """The low parse is mostly Algmor's death to Plague Wave at 5:13, which left them dead for the end of the
 kill; alive, their damage was close to the other Beast Mastery hunter's."""
+numbers = ["5:13"]  # by code: the death that made the parse
 drifts = ["5th"]
 facts = ["5th percentile",
          "died at 5:13 to two Plague Wave hits (567.93k, then 105.57k)",
@@ -107,6 +108,7 @@ pull = 23
 expect = """Peggerino's first death, the first of the pull at 1:37, was to Water Jet, a tank mechanic: the boss cast it
 on a tank at 1:35 and one 431.48k hit took them from 48% to dead, so they were standing in its line. The fix is
 staying out of the line between the boss and the tank it is aimed at."""
+numbers = ["1:37"]  # by code: the death asked about
 drifts = ["25th"]
 facts = ["at the death they stood 27 yd from the boss, 16° off its facing, just behind the tank the jet was on (24 yd, 21°)",
          "Unending Resolve and a healthstone were ready and either would have kept them alive",
@@ -307,6 +309,7 @@ pull = 42
 boss = "Sszorak"
 expect = """Two Tempest hits (the tornadoes) at 3:20 took them from about 68% to 3%; the Mutilated Gash tick at 3:21
 that shows as the killing blow only finished them. The fix is getting out of the tornadoes while the bleed ticks."""
+numbers = ["3:20"]  # by code: the two hits that killed, not the killing blow's second
 facts = ["Mutilated Gash on them from 3:06, ticking about 117k",
          "the two Tempest hits were 334k each",
          "healing kept up with the bleed until then (1.35M in the 10 s)",

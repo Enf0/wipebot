@@ -274,7 +274,7 @@ def load_cases(folder: Path = CASES) -> list[dict]:
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "derived",
-                                       "drifts", "hard", "report", "tools", "calls", "asks_first", "cause", "request",
+                                       "drifts", "report", "tools", "calls", "asks_first", "cause", "request",
                                        "numbers", "form", *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
             if wrong := coded_keys(case):

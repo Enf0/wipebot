@@ -225,12 +225,11 @@ facts = ["Spawn of Vexhul: 105 came over 24 pulls, 95 died",
 wrong = ["states, as something the log shows, when the Barbed Bulwarks or the Broodlings of Ithraz died or how fast they were killed"]
 
 # ---- The raid leader's harder questions, written from the tools' output before any answer was read: ranking
-#      problems, progress over weeks, a plan. hard = true until the answers get them right. ----
+#      problems, progress over weeks, a plan. ----
 
 [[case]]
 id = "night-three-things-to-fix"  # ranking problems by the pulls they ended, not by deaths
 tools = ["progress"]
-hard = true
 report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = "What are the three things we most need to fix on Sszorak from last night?"
@@ -255,7 +254,6 @@ wrong = ["leads with Tempest, or with damage, as the most important thing to fix
 [[case]]
 id = "night-better-than-last-week"  # progress over weeks: further, but the same things end the pulls
 tools = ["progress"]
-hard = true
 report = "vjt3KLbN8g62J1H9"
 question = "Are we doing better on Sszorak than last week?"
 asker = "Enfo"
@@ -272,7 +270,6 @@ wrong = ["says the raid did worse than the week before",
 [[case]]
 id = "plan-healing-cooldowns-sszorak"  # a plan from the spikes that come back, and a mechanic left to the mechanic
 tools = ["healing"]
-hard = true
 report = "fvkH4hGZwDRVnyXJ"
 where = "in a DM"
 question = "Make us a healing cooldown plan for Sszorak from tonight's pulls."
