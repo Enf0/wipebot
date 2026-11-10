@@ -262,7 +262,7 @@ async def test_raid_plan_gets_every_version_the_server_saved_for_the_pulls_boss(
     assert (await session._saved_plan({"show": True}))[0] == every
 
 
-async def test_raid_note_for_a_boss_not_pulled_yet_gets_the_newest_one_saved():
+async def test_raid_note_for_a_boss_not_pulled_yet_gets_the_newest_one_saved(monkeypatch):
     def boss(name):
         if name != "Sszorak":
             raise FactError(f"no boss matching {name!r}")
@@ -282,6 +282,11 @@ async def test_raid_note_for_a_boss_not_pulled_yet_gets_the_newest_one_saved():
     assert isinstance(told, str) and "has no raid note saved for Coiled Altar" in told
     told = await session._saved_note({"boss": "Vashnik", "upcoming": True})
     assert isinstance(told, str) and told.startswith("For the next raid, so here is the newest")
+    # for one raider it is cut to their part, as on the remote server: the whole note came back in Discord
+    monkeypatch.setattr(server.notes, "own_part", lambda rep, shown, player: f"{player}'s part of: {shown[:17]}")
+    assert await session._saved_note({"boss": "Vashnik", "upcoming": True, "player": "Torvek"}) == (
+        "Torvek's part of: For the next raid")
+    assert await session._saved_note({"boss": "Vashnik", "player": "Torvek"}) == "Torvek's part of: Vashnik has no pu"
 
 
 async def test_the_bots_own_tools_run_the_questions_handler():

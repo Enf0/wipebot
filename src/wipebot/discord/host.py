@@ -636,8 +636,9 @@ class Session:
         book, guild = self._ctx.notebook, self._ctx.guild_id
         boss, upcoming = args.get("boss"), bool(args.get("upcoming"))
         if upcoming or (boss and not server.pulled(report, boss)):  # the next raid's, or not pulled: as it is
-            return await server.unpulled_note(book, guild, report, boss or report.boss_key(report.fight(None, None)),
-                                              upcoming)
+            shown = await server.unpulled_note(book, guild, report,
+                                               boss or report.boss_key(report.fight(None, None)), upcoming)
+            return server.notes.own_part(report, shown, player) if (player := args.get("player")) else shown
         f = report.fight(args.get("pull"), boss)
         if found := await server.saved_note(book, guild, report, f, bool(args.get("all_pulls"))):
             return found
