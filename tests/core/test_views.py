@@ -1287,6 +1287,8 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
     assert f"dead (no output at all) {lost['dead_s']:.0f} s" in text and f"casting gaps (no cast begun) " \
                                                                        f"{lost['gaps_s']:.0f} s" in text
     assert f"Died: {clock(data['died'][0]['ms'])} to {data['died'][0]['by']}" in text
+    assert data["standing"]["caveat"] in text  # why a wipe's standing among kills proves little, in the text's words
+    assert not [n for n in data["notes"]["good"] + data["notes"]["fix"] if "percentile" in n or "used" in n]
     for cd in data["cooldowns"]:  # as player_pull lists them: uses / possible at their times
         uses = f"{len(cd['uses'])}/{cd['possible']}" + (" at " + ", ".join(clock(t) for t in cd["uses"])
                                                          if cd["uses"] else "")
@@ -1630,15 +1632,18 @@ def _facts(**over) -> dict:
     return facts | over
 
 
-def test_a_players_notes_put_the_weightiest_first_and_leave_raid_cooldowns_out_of_the_fixes():
-    assert views.player_notes(_facts()) == {"good": ["Kept casting: 2 s of gaps in 3:00",
-                                                      "Used every major cooldown each time it was ready"], "fix": []}
+def test_a_players_notes_put_the_weightiest_first_and_judge_no_cooldown_by_its_count():
+    """Every cooldown used as often as it could be is no praise, and one used less no fault: a count can't tell a
+    cooldown held for a burst window from one forgotten (the card once said "Vanish: used 0 of the 1 times it was
+    ready" of a rogue who began the pull in Stealth)."""
+    assert views.player_notes(_facts()) == {"good": ["Kept casting: 2 s of gaps in 3:00"], "fix": []}
     worse = _facts(died=[{"ms": 95000, "by": "Toxic Fumes", "fallout": False}],
                    lost={"until_ms": 180000, "dead_s": 85, "gaps_s": 20, "capped_s": 40, "resource": "Energy"},
                    cooldowns=[{"name": "Darkness", "uses": [], "possible": 3, "raid": True},
-                              {"name": "Deathmark", "uses": [], "possible": 2, "raid": False}])
+                              {"name": "Deathmark", "uses": [], "possible": 2, "raid": False, "dps": True,
+                               "ready_ms": None}])
     assert views.player_notes(worse) == {"good": [], "fix": ["Died at 1:35 to Toxic Fumes, before the wipe was decided",
-                                                             "Deathmark: used 0 of the 2 times it was ready"]}
+                                                             "Energy capped for 40 s (22%)"]}
     after = _facts(died=[{"ms": 185000, "by": "Toxic Fumes", "fallout": True}],  # fallout isn't theirs to fix
                    output={"what": "healing", "rank": 1, "of": 4, "role": "healers"},
                    standing={"kind": "parse", "percentile": 81})
@@ -1709,3 +1714,39 @@ def test_a_spell_never_cast_is_flagged_only_where_the_top_would_have_cast_it_in_
     assert short_life.pop("Ambush") == "never cast" and set(short_life.values()) == {top.NOT_DUE}
     assert set(flags(minutes=5).values()) == {"never cast"}  # over a whole pull each is a spell to have pressed
     assert set(flags().values()) == {"never cast"}  # the time alive not given: as before
+
+
+def test_a_cooldown_is_noted_as_the_moment_it_came_back_unused_and_only_a_damage_cooldown():
+    """What the tool's text says of a cooldown used less than it could be is when it came back ("ready again at
+    2:07, unused"): the card says that moment, for a cooldown Lorrgs tags a damage cooldown, and nothing of one never
+    used, an untagged spell or a raid cooldown."""
+    back = {"name": "Deathmark", "uses": [7000], "possible": 2, "raid": False, "dps": True, "ready_ms": 127000}
+    assert views.player_notes(_facts(cooldowns=[back]))["fix"] == ["Deathmark ready again at 2:07, not used"]
+    for quiet in (back | {"uses": [], "ready_ms": None}, back | {"dps": False}, back | {"raid": True}):
+        assert views.player_notes(_facts(cooldowns=[quiet]))["fix"] == []
+
+
+def test_a_cooldown_came_back_unused_only_while_alive_and_before_the_wipe_was_decided():
+    from wipebot.core.report import cooldowns
+    f = {"startTime": 1_000_000, "endTime": 1_180_000}
+    deathmark, end = {"name": "Deathmark", "cooldown": 120.0}, 1_180_000
+    assert cooldowns.came_back(f, deathmark, [7000.0], 2, end, end) == (127000.0, True)
+    assert cooldowns.came_back(f, deathmark, [7000.0], 2, 1_053_000, end) == (127000.0, False)  # died before it
+    assert cooldowns.came_back(f, deathmark, [7000.0], 2, end, 1_120_000) is None  # after the wipe was decided
+    assert cooldowns.came_back(f, deathmark, [], 1, end, end) is None  # never used: nothing came back
+    assert cooldowns.came_back(f, deathmark, [7000.0, 130000.0], 2, end, end) is None  # as often as it could be
+
+
+def test_where_a_wipe_stands_among_kills_is_no_praise_and_no_fault_of_a_healers():
+    """A rogue dead for 100 of 152 s was told "Above the 90th percentile of ranked kills", and a healer on the same
+    wipe "Below the 25th": the text says under both that a short pull runs high, and of the healer that healing on a
+    wipe is capped by the damage taken. The card now praises no wipe by it and faults no healer; a damage dealer
+    below the lowest of the kills still is."""
+    points = [["90th percentile", 234_760], ["75th percentile", 232_040], ["50th percentile", 214_900],
+              ["25th percentile", 199_770]]
+    above = {"kind": "kills", "n": 42, "exact": True, "mine": 247_820, "points": points}
+    assert views.player_notes(_facts(standing=above))["good"] == ["Kept casting: 2 s of gaps in 3:00"]
+    below = above | {"mine": 150_000}
+    assert views.player_notes(_facts(standing=below))["fix"] == ["Below the 25th percentile of ranked kills"]
+    healer = _facts(standing=below, output={"what": "healing", "rank": 3, "of": 4, "role": "healers"})
+    assert views.player_notes(healer) == {"good": ["Kept casting: 2 s of gaps in 3:00"], "fix": []}

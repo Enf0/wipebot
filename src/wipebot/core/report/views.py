@@ -34,7 +34,7 @@ from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, cast_counts, casting, raid_pauses, without
 from .coaching import best_pulls, dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
-from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
+from .cooldowns import NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
 from .ending import card_text, kind_of_end, mass_death_of, pull_ending, pull_endings
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
@@ -201,12 +201,24 @@ CAPPED_SHARE = 0.10  # their resource capped over this share of it more than top
 NOTES = 2  # things that went well, and things to fix, on a player's card
 
 
+# Why where a wipe's output stands among the spec's kills proves little by itself, as player_pull says under it
+# (ranks.benchmark_line): the card draws that standing only with these
+SHORT_PULL = "A short pull runs higher than a full kill: Bloodlust and every cooldown come at the start."
+CAPPED_HEALING = "Healing on a wipe is capped by damage taken: weak evidence on its own."
+
+
 def player_notes(out: dict) -> dict[str, list[str]]:
     """What went well and what to fix on a player's pull, at most NOTES of each, the weightiest first, from the
     player view's facts: a death before the wipe was decided (not one in a hit killing many: that hit wiped the
-    raid, whoever's job it was to stop it), casting gaps, a capped resource, a personal cooldown left unused, where
-    they stand among ranked kills or their parse, their rank in their role. A raid cooldown left
-    unused isn't one to fix: the log doesn't show whose job it was."""
+    raid, whoever's job it was to stop it), casting gaps, a capped resource, a damage cooldown that came back and
+    wasn't used, their parse on a kill, their rank in their role.
+
+    What the tool's text doesn't judge, the card doesn't either. A cooldown is never judged by its uses against
+    possible uses (one held for a burst window is right even when it costs a use), only named by the moment it came
+    back unused, and only one Lorrgs tags a damage cooldown: a raid cooldown's use is someone's call the log doesn't
+    show, and an untagged spell isn't pressed on cooldown. Where a wipe stands among ranked kills is no praise (a
+    short pull runs high), and for a healer no fault (healing on a wipe is capped by the damage taken); for a damage
+    dealer, below the lowest of them is."""
     good: list[tuple[float, str]] = []
     fix: list[tuple[float, str]] = []
     lost, o, s = out["lost"], out["output"], out["standing"]
@@ -227,24 +239,17 @@ def player_notes(out: dict) -> dict[str, list[str]]:
     elif lost["gaps_s"] < STEADY_SHARE * until_s and not died:
         good.append((30, "Never stopped casting" if lost["gaps_s"] < 1
                      else f"Kept casting: {round(lost['gaps_s'])} s of gaps in {clock(lost['until_ms'])}"))
-    judged = [c for c in out["cooldowns"] if c["possible"]]
-    missed = [c for c in judged if len(c["uses"]) < c["possible"]]
-    for c in missed:
-        if not c["raid"]:
-            fix.append((25 * (c["possible"] - len(c["uses"])) / c["possible"],
-                        f"{c['name']}: used {len(c['uses'])} of the {c['possible']} times it was ready"))
-    if judged and not missed:
-        good.append((25, "Used every major cooldown each time it was ready"))
+    for c in out["cooldowns"]:  # the longer it sat ready, the weightier
+        if c.get("dps") and not c["raid"] and (ready := c.get("ready_ms")) is not None:
+            fix.append((25 * max(lost["until_ms"] - ready, 0) / (1000 * until_s),
+                        f"{c['name']} ready again at {clock(ready)}, not used"))
     if s and s["kind"] == "parse":
         if s["percentile"] >= 75:
             good.append((40, f"{ordinal(s['percentile'])} percentile parse"))
         elif s["percentile"] < 25:
             fix.append((30, f"{ordinal(s['percentile'])} percentile parse"))
-    elif s and s["kind"] == "kills" and s["exact"]:
-        above = next((label for label, v in s["points"] if s["mine"] >= v), None)
-        if above and above.startswith(("90th", "75th")):
-            good.append((40, f"Above the {above} of ranked kills"))
-        elif above is None and s["points"][-1][0].startswith("25th"):
+    elif s and s["kind"] == "kills" and s["exact"] and o and o["what"] != "healing":
+        if all(s["mine"] < v for _, v in s["points"]) and s["points"][-1][0].startswith("25th"):
             fix.append((30, f"Below the {s['points'][-1][0]} of ranked kills"))
     if o and o["rank"] == 1 and o["of"] > 1:
         good.append((35, f"Most {o['what']} of the {o['of']} {o['role']}"))
@@ -254,9 +259,10 @@ def player_notes(out: dict) -> dict[str, list[str]]:
 
 async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> dict:  # noqa: PLR0915
     """One player on one pull, as player_pull states it: their output and rank in their role, where it stands
-    among the spec's ranked kills (a wipe) or their parse (a kill), the time they lost, when they cast, sat at
-    their resource's cap or were dead, their major cooldowns against possible uses, their casts; with `top`, their
-    casts per minute against top players of their spec (compare_with_top's casts)."""
+    among the spec's ranked kills (a wipe, with why that proves little by itself) or their parse (a kill), the time
+    they lost, when they cast, sat at their resource's cap or were dead, their major cooldowns against possible uses
+    and when one came back unused, their casts; with `top`, their casts per minute against top players of their
+    spec (compare_with_top's casts)."""
     p = rep.player(player)
     rep.require_in(f, p)
     p = rep.in_pull(f, p)
@@ -297,11 +303,18 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
         spread = await kills_spread(rep, f, p)
         if isinstance(spread, Spread) and spread.points:
             standing = {"kind": "kills", "n": spread.n, "exact": spread.exact,
-                        "points": [[label, round(v)] for label, v in spread.points], "mine": output["per_s_alive"]}
+                        "points": [[label, round(v)] for label, v in spread.points], "mine": output["per_s_alive"],
+                        "caveat": SHORT_PULL + (f" {CAPPED_HEALING}" if p.role == "healer" else "")}
     try:
         rows, _ = await cooldown_use(rep, p, f, casts, early[f["id"]])
     except KnowledgeError:
         rows = []
+    cut = t0 + decided.at_ms if decided else f["endTime"]
+
+    def unused_from(sp: dict, times: list[float], possible: int | None) -> int | None:
+        """When the cooldown came back, alive and before the wipe was decided, and wasn't used again (came_back)."""
+        back = came_back(f, sp, times, possible, alive_until, cut)
+        return round(back[0]) if back and back[1] else None
     counts = Counter({r["name"]: r["total"] for r in await cast_counts(rep, f, p)})  # as player_pull counts them
     ids = {rep.ability(c["abilityGameID"]): c["abilityGameID"] for c in casts}  # a spell's id, by its name
     span = lambda spans: [[round(a - t0), round(b - t0)] for a, b in spans]  # noqa: E731
@@ -321,7 +334,8 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
                   "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms),
                   "with": m.killed if (m := mass_death_of(ended, d["timestamp"] - t0, by)) else 0} for d in own],
         "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible,
-                       "raid": "raid_cd" in (sp.get("tags") or []), "icon": icon(sp.get("spell_id"))}
+                       "raid": "raid_cd" in (sp.get("tags") or []), "dps": "dps" in (sp.get("tags") or []),
+                       "ready_ms": unused_from(sp, times, possible), "icon": icon(sp.get("spell_id"))}
                       for sp, times, possible in rows if not NOT_ON_COOLDOWN & set(sp.get("tags") or [])],
         "casts": [{"name": n, "n": k, "per_min": round(60 * k / max(alive_s, 1), 1), "icon": icon(ids.get(n))}
                   for n, k in counts.most_common(CASTS_SHOWN)],

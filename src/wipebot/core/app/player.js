@@ -26,7 +26,7 @@ views.player = (() => {
     const judged = D.cooldowns.filter((c) => c.possible);
     if (judged.length) {
       const used = judged.reduce((n, c) => n + Math.min(c.uses.length, c.possible), 0), possible = judged.reduce((n, c) => n + c.possible, 0);
-      items.push(["Cooldowns", `${used} of ${possible}`, used < possible ? "decided" : "", "pressed on cooldown"]);
+      items.push(["Cooldowns", `${used} of ${possible}`, "", "if pressed on cooldown"]);  // a count, no verdict: one held is right
     }
     const d = D.died[0];
     items.push(["Died", d ? kit.clock(d.ms) : "no", d && !d.fallout ? "dead" : "", d ? (d.fallout ? "after the wipe was decided" : d.by) : ""]);
@@ -245,8 +245,10 @@ views.player = (() => {
   function side() {
     const cds = D.cooldowns.map((c) => {
       const count = c.possible && c.uses.length <= c.possible ? `${c.uses.length}/${c.possible}` : `${c.uses.length}`;  // more: a talent shortens it
-      return `<li><span>${kit.iconImg(D.img_base, c.icon)}${kit.esc(c.name)}</span><span class="count ${c.possible && c.uses.length < c.possible ? "short" : ""}">${count}</span>`
-        + `<span class="times">${c.uses.length ? c.uses.map(kit.clock).join(", ") : "not used"}</span></li>`;
+      // the count is no verdict (one held for a burst window is right): the moment it came back unused is what's said
+      const back = c.ready_ms != null ? `; ready again at ${kit.clock(c.ready_ms)}, not used` : "";
+      return `<li><span>${kit.iconImg(D.img_base, c.icon)}${kit.esc(c.name)}</span><span class="count">${count}</span>`
+        + `<span class="times">${c.uses.length ? c.uses.map(kit.clock).join(", ") : "not used"}${back}</span></li>`;
     }).join("");
     const top = (D.output?.top || []).map((a) => `<li><span>${kit.iconImg(D.img_base, a.icon)}${kit.esc(a.name)}</span><span class="count">${kit.short(a.total)}</span></li>`).join("");
     return `<div><div class="panel"><div class="section-title" style="margin-top:2px">Major cooldowns</div><ul class="cds">${cds || "<li>none listed</li>"}</ul>`

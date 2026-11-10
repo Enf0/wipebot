@@ -99,17 +99,29 @@ def _phase_at(rep: Report, f: dict, at_ms: float) -> str:
     return label
 
 
-def _ready_again(rep: Report, f: dict, sp: dict, times: list[float], possible: int | None, alive_until: float,
-                 cut: float) -> str:
-    """' (ready again at 2:07 in P1 (2nd time), unused)' for a cooldown used less than it could be: when it came
-    back after its last use, and in which phase, so a use that fell in an intermission can be read as such. Nothing
-    when it came back once the wipe was decided (`cut`, report ms) or the pull was over: no use was missed."""
+def came_back(f: dict, sp: dict, times: list[float], possible: int | None, alive_until: float,
+              cut: float) -> tuple[float, bool] | None:
+    """When a cooldown used less than it could be came back after its last use (ms from the pull's start), and
+    whether the player was still alive then. None when no use was missed: it was never used (nothing came back),
+    was used as often as it could be, or came back once the wipe was decided (`cut`, report ms) or the pull was
+    over."""
     if not times or possible is None or len(times) >= possible:
-        return ""
+        return None
     ready = times[-1] + (sp.get("cooldown") or 0) * 1000
     if ready >= cut - f["startTime"]:
+        return None
+    return ready, ready <= alive_until - f["startTime"]
+
+
+def _ready_again(rep: Report, f: dict, sp: dict, times: list[float], possible: int | None, alive_until: float,
+                 cut: float) -> str:
+    """' (ready again at 2:07 in P1 (2nd time), unused)' for a cooldown used less than it could be (came_back): when
+    it came back after its last use, and in which phase, so a use that fell in an intermission can be read as
+    such."""
+    if (back := came_back(f, sp, times, possible, alive_until, cut)) is None:
         return ""
-    if ready > alive_until - f["startTime"]:
+    ready, alive_then = back
+    if not alive_then:
         return " (died before it was ready again)"
     phase = _phase_at(rep, f, ready)
     return f" (ready again at {clock(ready)}" + (f" in {phase}" if phase else "") + ", unused)"

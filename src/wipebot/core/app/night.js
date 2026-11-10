@@ -183,7 +183,7 @@ views.player_night = (() => {
 
   function side() {
     const cds = D.cooldowns.map((c) => `<li><span>${kit.iconImg(D.img_base, c.icon)}${kit.esc(c.name)}</span>`
-      + `<span class="count ${c.possible && c.used < c.possible ? "short" : ""}">${c.possible != null ? `${c.used}/${c.possible}` : c.used}</span></li>`).join("");
+      + `<span class="count">${c.possible != null ? `${c.used}/${c.possible}` : c.used}</span></li>`).join("");  // a count, no verdict
     const thirds = D.thirds.map((t, k) => `<li><span>${["First", "Middle", "Last"][k]} third (${kit.plural(t.pulls.length, "pull")})</span>`
       + `<span class="count">${t.rate != null ? kit.short(t.rate) + "/s" : "–"}</span><span class="times">died before the wipe was decided on ${t.died} of ${t.pulls.length}</span></li>`).join("");
     return `<div><div class="panel"><div class="section-title" style="margin-top:2px">Major cooldowns, all pulls</div><ul class="cds">${cds || "<li>none listed</li>"}</ul>`
