@@ -84,6 +84,8 @@ from evals.checks import (
     WRONG,
     built,
     built_summary,
+    coded,
+    coded_keys,
     expect_prompt,
     facts,
     grounded,
@@ -152,7 +154,8 @@ DOWN = "upstream_error"
 # required calls. A baseline keeps the list it was scored by (`parts`) and a later run is scored by that list when the
 # two are compared (scored), so a check added since moves no comparison until the next baseline. A file from before
 # 10 November names none: it is read as these three.
-PARTS = ("expect", "wrong", "calls")
+PARTS = ("expect", "wrong", "calls", "numbers", "form")  # the last two by code, for the cases that ask (checks.coded)
+FIRST_PARTS = PARTS[:3]  # what a tally from before the checks were named was scored by
 
 
 def settle(t: Trial, case: dict, mode: str) -> Trial:
@@ -166,8 +169,9 @@ def settle(t: Trial, case: dict, mode: str) -> Trial:
     # the session raised, so nothing was judged: its error, or in a trial settled before (a saved run's), the cap
     session = "" if t.expect else t.error or t.broke
     if t.expect:  # judged; a check a later step added to the trial stays
+        t.coded = coded(case, t.answer, mode)
         t.checks = {**t.checks, "expect": t.expect.get("ok") is True, "wrong": t.wrong.get("ok") is True,
-                    "calls": not t.uncalled}
+                    "calls": not t.uncalled, **{part: not why for part, why in t.coded.items()}}
     judged_ok = bool(t.checks) and all(t.checks.get(part, True) for part in PARTS)
     failed = [c for c in t.calls if c.get("failed")]
 
@@ -243,6 +247,7 @@ class Trial:
     errored: bool = False  # says nothing about the answer (settle): in neither passes nor trials
     broke: str = ""  # why it's a failed answer whatever the judge said (settle)
     checks: dict = field(default_factory=dict)  # the named checks it passed or failed (PARTS), once judged
+    coded: dict = field(default_factory=dict)  # the checks by code its case asks for: why it fails each, "" if not
     expect: dict = field(default_factory=dict)  # Verdict
     wrong: dict = field(default_factory=dict)
     facts: dict = field(default_factory=dict)  # Facts: how many supporting facts it states (never fails it)
@@ -270,8 +275,10 @@ def load_cases(folder: Path = CASES) -> list[dict]:
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "derived",
                                        "drifts", "hard", "report", "tools", "calls", "asks_first", "cause", "request",
-                                       *CONTEXT}:
+                                       "numbers", "form", *CONTEXT}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
+            if wrong := coded_keys(case):
+                raise SystemExit(f"case {case.get('id')} ({path.name}): {wrong}")
             only = {"bot": {"bot_only": True}, "posts": {"bot_only": True},
                     "connector": {"client_only": True}}.get(path.stem, {})
             if path.stem == "posts":
@@ -501,6 +508,7 @@ def show(case_id: str, t: Trial) -> None:
             lines.append(f"{name}: {v['reason'][:300]}")
     if t.uncalled:
         lines.append("didn't call " + ", ".join(t.uncalled))
+    lines += [f"{part}: {why}" for part, why in t.coded.items() if why]
     if t.facts and t.facts["missing"]:
         lines.append(f"facts {t.facts['stated']}/{t.facts['of']}, missing: " + "; ".join(t.facts["missing"])[:300])
     lines += [f"warning: {w}" for w in t.warnings]
@@ -737,7 +745,7 @@ def merge_baseline(old: dict, tally: dict, mode: str, accept: str = "", filtered
     if doubts and not accept:
         raise SystemExit(f"not merged into the baseline: {'; '.join(doubts)}. To keep it all the same, say why: "
                          '--accept "<reason>" (kept in the file).')
-    new = scored(tally, old.get("parts", PARTS))  # a baseline counts every case by one list of checks: its own
+    new = scored(tally, old.get("parts", FIRST_PARTS))  # a baseline counts every case by one list of checks: its own
     def times(t: dict, c: str) -> int:
         return t["trials"] if isinstance(t["trials"], int) else t["trials"].get(c, 0)
     asked = {c: times(old, c) for c in old["passed"] if c not in new["passed"]} | {
@@ -844,7 +852,7 @@ def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dic
     asked = {c: len(ts) for c, ts in results.items()}
     return {**about, "trials": next(iter(asked.values())) if len(set(asked.values())) == 1 else asked,
             "case_hashes": {c["id"]: case_hash(c) for c in cases},
-            "parts": list(PARTS),
+            "parts": [p for p in PARTS if p in FIRST_PARTS or any(p in c for c in cases)],  # a case's key asks
             "passed": {c: sum(t.passed for t in ts) for c, ts in results.items()},
             "failed": {c: f for c, ts in results.items()
                        if (f := [failed_parts(t) for t in ts if not t.passed and not t.errored])},
@@ -864,7 +872,7 @@ def scored(tally: dict, parts: Iterable[str]) -> dict:
     """The tally with its passes counted by another list of checks, a baseline's: an answer that failed only a check
     the baseline never made passes. A tally from before the checks were named is kept as it is."""
     parts = set(parts)
-    if "failed" not in tally or parts == set(tally.get("parts", PARTS)):
+    if "failed" not in tally or parts == set(tally.get("parts", FIRST_PARTS)):
         return tally
     passed = {c: judged(tally, c) - sum(bool((parts | {"broke"}) & set(f)) for f in tally["failed"].get(c, []))
               for c in tally["passed"]}
@@ -1187,7 +1195,7 @@ def compared(base: dict, now: dict) -> Comparison:
     lines = [warning] if warning else []
     lines.append(f"Against the baseline ({base['model']}, {base.get('commit', '?')}, {trials_of(base)}):")
     lines.append("  " + errors_line(now))
-    parts, mine = base.get("parts", PARTS), now.get("parts", PARTS)
+    parts, mine = base.get("parts", FIRST_PARTS), now.get("parts", FIRST_PARTS)
     if added := [part for part in mine if part not in parts]:
         lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {', '.join(added)} "
                      "is left out here, until a baseline has it")

@@ -211,6 +211,61 @@ def built_summary(trials: Iterable[tuple[dict, dict[str, str] | None]]) -> list[
     return lines
 
 
+# ---- checks by code that fail an answer: what a case's `numbers` and `form` ask for, no model ----
+
+FORM_KEYS = ("verdict_words", "bullets", "bullet_words", "bullet_sentences", "lines", "chars")  # form.Budget's
+LEADING_ZERO = re.compile(r"(?<![\d:])0(?=\d:\d\d)")  # 02:32 is 2:32
+
+
+def states(wanted: str, answer: str) -> bool:
+    """Whether the answer states every number of `wanted` the way the lint reads a number: a time exactly (02:32 for
+    2:32 too), an amount or a percentage as rounded, a count as a number of its own (16, not the 16 of 2:16 or of
+    16.4k). Read in what a raider reads: no link's address, no follow-up line."""
+    from evals.lint import AMOUNT, PERCENT, TIME, in_output, numbers
+    read = "\n".join(line for line in answer.split("\n") if not form.FOLLOW_UP.match(line))
+    text = LEADING_ZERO.sub("", form.visible(read))
+    return all(in_output(n, text) if TIME.fullmatch(n) or AMOUNT.fullmatch(n) or PERCENT.fullmatch(n)
+               else re.search(rf"(?<![\d.:]){re.escape(n)}(?!\d|[.:]\d)", text) is not None
+               for n in numbers(LEADING_ZERO.sub("", wanted)))
+
+
+def coded(case: dict, answer: str, mode: str) -> dict[str, str]:
+    """The checks code makes of an answer, for the cases that ask for one: each named part with why the answer fails
+    it, "" when it passes. A part the case doesn't ask for is left out.
+    - `numbers`: every entry is stated (states); "7:58 or 7:59" takes either. For the numbers a case's `expect`
+      names as its point, which a judge told that rounded numbers and missing detail are fine lets through.
+    - `form`: as the bot, the answer keeps to the bullets, sentences, words, lines and characters the case asks for
+      (form.Budget's keys, measured by wipebot.discord.form; `chars` is "about" so many, as a post's). In a client
+      the form is the client's own: not checked there."""
+    found = {}
+    if wanted := case.get("numbers"):
+        missing = [w for w in wanted if not any(states(alt, answer) for alt in w.split(" or "))]
+        found["numbers"] = f"doesn't state {', '.join(missing)}" if missing else ""
+    if (asked := case.get("form")) and mode == "bot":
+        limits = {key: asked.get(key) for key in FORM_KEYS} | (
+            {"chars": round(asked["chars"] * form.POST_SLACK)} if "chars" in asked else {})
+        found["form"] = "; ".join(form.measure(answer).slips(form.Budget(**limits)).values())
+    return found
+
+
+def coded_keys(case: dict) -> str:
+    """What is wrong with a case's `numbers` and `form` keys, or "": a number its `expect` doesn't state (the check
+    is for the point the case already makes, not a second one), or a limit nothing measures."""
+    from evals.lint import numbers
+    for wanted in case.get("numbers", []):
+        ways = wanted.split(" or ")  # the same moment as tools print it: a cast at 7:58, its deaths at 7:59
+        if not all(numbers(way) for way in ways):
+            return f"numbers: \"{wanted}\" holds no number"
+        if not any(states(way, " ".join(case["expect"].split())) for way in ways):
+            return f"numbers: its expect doesn't state {wanted}"
+    asked = case.get("form", {})
+    if unknown := set(asked) - set(FORM_KEYS):
+        return f"form: unknown limits {', '.join(sorted(unknown))} (it takes {', '.join(FORM_KEYS)})"
+    if "form" in case and (not asked or not all(isinstance(v, int) and v > 0 for v in asked.values())):
+        return "form: each limit is a whole number above 0, and there is at least one"
+    return ""
+
+
 # ---- checks that never fail an answer: run on saved answers (`just evals --recheck`) ----
 
 GROUNDED = """You check an answer from a World of Warcraft raid-analysis bot against what its tools returned. The tools

@@ -132,13 +132,13 @@ def test_a_run_is_scored_by_the_checks_its_baseline_made():
     from evals import run
     ok = {"ok": True, "reason": ""}
     fine = Trial(expect=ok, wrong=ok)
-    shapeless = Trial(expect=ok, wrong=ok, checks={"form": False})
+    shapeless = Trial(expect=ok, wrong=ok, checks={"tone": False})  # a check no rule of today makes
     crashed = Trial(expect=ok, wrong=ok, calls=[{"name": "progress", "failed": True,
                                                  "result": "progress failed with an unexpected error"}])
     wrong = Trial(expect=ok, wrong={"ok": False, "reason": ""}, uncalled=["spec_guide"])
     case = {**CASE, "kind": "wipe"}
     results = {"a": [run.settle(t, case, "plugin") for t in (fine, shapeless, crashed, wrong)]}
-    assert [t.passed for t in results["a"]] == [True, True, False, False]  # today's checks: form isn't one
+    assert [t.passed for t in results["a"]] == [True, True, False, False]  # tone isn't one of today's checks
     assert wrong.checks == {"expect": True, "wrong": False, "calls": False}
     now = run.tally_of([{**case, "id": "a"}], results)
     assert now["parts"] == ["expect", "wrong", "calls"] and now["passed"] == {"a": 2}
@@ -307,17 +307,17 @@ def test_a_saved_runs_answers_are_measured_again_without_a_model(tmp_path):
     run = {"mode": "bot", "cases": {
         "wipe-too-few-alive": [{"answer": kept}, {"answer": long}, {"answer": long, "errored": True}],
         "live-raid-plain-question": [{"answer": long}],  # while the raid is going on: at most three bullets
-        "post-adds": [{"answer": "Kick the add.\nSecond.\nThird.\nFourth.\nFifth."}],
+        "post-tank-death": [{"answer": "Kick the add.\nSecond.\nThird.\nFourth.\nFifth."}],
         "a-case-since-removed": [{"answer": long}]}}
     path = tmp_path / "run.json"
     path.write_text(json.dumps(run), encoding="utf-8")
     assert form(path) == [
         "live-raid-plain-question           4 bullets (at most 3)",
-        "post-adds                          5 lines (at most 4)",
+        "post-tank-death                    5 lines (at most 4)",
         "how the answers are built (the middle one of 4): 12 words, 2 bullets of 2 words, a verdict of 4 words, "
         "0 follow-ups",
         "2 of 4 leave the form the bot's prompt asks for: many bullets 1, many lines 1"]
-    assert form(path, "post-")[0].startswith("post-adds") and len(form(path, "post-")) == 3
+    assert form(path, "post-")[0].startswith("post-tank-death") and len(form(path, "post-")) == 3
     path.write_text(json.dumps(run | {"mode": "plugin"}), encoding="utf-8")
     assert len(form(path)) == 1  # in a client the form is the client's own: only measured
 
