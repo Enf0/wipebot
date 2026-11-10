@@ -9,6 +9,8 @@ A note holds, per boss under an `EncounterID:3420;Difficulty:Mythic;Name:Sszorak
 - the assignments as text: a heading naming the mechanic ("Mutilate Soaks"), then `Label: players` lines;
 - the interrupt order, the lines of names between `intstart` and `intend`;
 - an `invitelist:`.
+`ph` is the phase a line's time counts from, a number as the addon counts the boss's phases: 1 from the pull's start,
+2, 3, and 2.5 for an intermission after the second (`Phases` lays them over the log's).
 A tag is a player's name (NSRT also takes a nickname, a role, a group, melee or ranged, a class or spec id), with or
 without the realm. What isn't one of these lines is kept as not understood (`Note.unread`) and said.
 """
@@ -17,7 +19,7 @@ import math
 import re
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Awaitable, Callable, Collection, Iterable, Mapping
+from collections.abc import Awaitable, Callable, Collection, Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -95,7 +97,7 @@ KICKS_ARE = ("Kick assignments (a callout to one player when an add begins a cas
 @dataclass
 class Cooldown:
     at: float  # seconds from the start of phase `phase`
-    phase: int
+    phase: float  # the note's number for it: 1, 2, or 2.5 for an intermission (whole numbers stay whole)
     player: str
     spell: int
     boss_spell: int | None = None  # the boss ability it's for
@@ -104,7 +106,7 @@ class Cooldown:
 @dataclass
 class Callout:
     at: float
-    phase: int
+    phase: float
     players: tuple[str, ...]  # () for everyone
     text: str
 
@@ -113,7 +115,7 @@ class Callout:
 class Reminder:
     """A timed spell line to everyone: the boss's cast or a move shown with an icon, nothing a player presses."""
     at: float
-    phase: int
+    phase: float
     spell: int
     text: str = ""
 
@@ -207,12 +209,21 @@ def _parse_one(text: str) -> Note:
     return note
 
 
+def _phase(text: str) -> float:
+    """A line's `ph` as NSRT reads it, a number: 2, or 2.5 for the intermission after the second phase. A whole one
+    stays whole (2, not 2.0), as it is written."""
+    ph = float(text)
+    if not math.isfinite(ph):
+        raise ValueError(text)
+    return int(ph) if ph.is_integer() else ph
+
+
 def _timed(note: Note, f: dict[str, str]) -> bool:
     """A timed line's fields read into the note, as NSRT takes them: a time in seconds, a tag, and a spell or a
-    text. False for a line it can't read: its time is no number of seconds (1:03 isn't), its phase no whole number,
-    or it has no tag or neither a spell nor a text."""
+    text. False for a line it can't read: its time is no number of seconds (1:03 isn't), its phase no number, or it
+    has no tag or neither a spell nor a text."""
     try:
-        at, phase = float(f["time"]), int(f.get("ph") or 1)
+        at, phase = float(f["time"]), _phase(f.get("ph") or "1")
     except (KeyError, ValueError):
         return False
     tags = [_bare(t) for t in f.get("tag", "").split()]
@@ -255,6 +266,50 @@ def _version(found: list[Version], start_s: float) -> Version:
     return saved.pick(found, start_s, lambda v: v.saved_at)
 
 
+NEVER, ENDED, UNKNOWN = "never reached", "its phase had ended", "can't tell which phase of the log that is"
+
+
+@dataclass
+class Phases:
+    """Where a note's phases lie in one pull, by Warcraft Logs' own list of the boss's phases under the labels every
+    tool prints (Report.phase_labels): ph:1 is the pull's start, ph:N the phase labelled P<N>, ph:N.5 the one
+    intermission between P<N> and P<N+1> (the Coiled Altar's ph:2.5 is I1 and its ph:3 is P3, Warcraft Logs' phase
+    4). Nothing here knows a boss: the addon counts each boss's phases its own way, so a phase is laid only where
+    the list leaves no doubt, and the rest is `unknown`, each with why: a number the list has no place for (ph:1.75;
+    ph:2 on a boss with one stage), and every phase but the first on a boss whose pulls don't go through the list in
+    order (the log comes back to a phase on Sszorak, the Entombed Sentinels and the Lost Explorers). Their lines are
+    counted and not checked; nothing is timed by a guess. A phase in neither `starts` nor `unknown` is one the pull
+    never reached.
+
+    A phase's lines stop when the note's next phase begins (`ends`), as the addon drops them then: a line planned
+    for later than that never showed. Only a phase the note itself has lines for ends the one before it: Sszorak's
+    log changes phase while the addon stays in its first, so a note with only ph:1 lines runs to the pull's end.
+    Where a later phase of the note is `unknown` and the log changed phase, that one may have begun then: the lines
+    planned for after the change are in doubt too (an end with no label)."""
+    starts: dict[float, float] = field(default_factory=lambda: {1: 0.0})  # note phase -> ms from the pull's start
+    labels: dict[float, str] = field(default_factory=dict)  # note phase -> the log's label for it ("I1"), not ph:1's
+    ends: dict[float, tuple[float, str]] = field(default_factory=dict)  # -> (ms, the label of what began, or "")
+    unknown: dict[float, str] = field(default_factory=dict)  # note phase -> why it can't be laid over the log
+
+    def fate(self, c: Cooldown | Callout) -> str:
+        """Why a timed line isn't checked on this pull (NEVER, ENDED, UNKNOWN), or "" for one that is."""
+        if c.phase in self.unknown:
+            return UNKNOWN
+        if c.phase not in self.starts:
+            return NEVER
+        end, label = self.ends.get(c.phase, (math.inf, ""))
+        return "" if self.starts[c.phase] + c.at * 1000 < end else ENDED if label else UNKNOWN
+
+    def when(self, c: Cooldown | Callout) -> float | None:
+        """A timed line's moment in the pull, in ms from its start; None for one that isn't checked (`fate`)."""
+        return None if self.fate(c) else self.starts[c.phase] + c.at * 1000
+
+    def said(self, c: Cooldown | Callout) -> str:
+        """A line's time as the note has it, for a count over pulls whose phases began at different times: "1:47"
+        in ph:1, "P3 0:36" in a later phase (36 s into P3 on each pull)."""
+        return (f"{self.labels[c.phase]} " if c.phase in self.labels else "") + clock(c.at * 1000)
+
+
 @dataclass
 class SoakHit:
     at: float  # ms from the pull's start
@@ -289,6 +344,7 @@ class PlannedUse:
     # not cast, and it couldn't be: (their earlier cast it was on cooldown from, the cooldown in s that says so,
     # Lorrgs' base cooldown in s); the two differ when their own casts on the night show a shorter one
     cooling: tuple[float, float, float] | None = None
+    said: str = ""  # its time as the note has it, where that isn't `at`: "P3 0:36" in a later phase (`Phases.said`)
 
 
 @dataclass
@@ -351,6 +407,9 @@ class PullCheck:
     unavailable: str = ""  # why the callouts couldn't be checked
     unchecked: list[tuple[float, Callout]] = field(default_factory=list)  # callouts the log can't check (PERSONALS)
     stray: dict[str, tuple[int, int]] = field(default_factory=dict)  # tags that are no player (`_stray`)
+    phases: Phases = field(default_factory=Phases)  # where the note's phases lie in the pull
+    # the lines to players not checked for their phase: (note phase, why (`Phases.fate`), Cooldown or Callout) -> count
+    off: Counter = field(default_factory=Counter)
 
 
 async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | None = None,  # noqa: PLR0913
@@ -423,9 +482,9 @@ def own_part(rep: Report, shown: str, player: str) -> str:
         raise FactError(f"no single player matching {player!r} in this report, and the note names no one so")
 
     def at(c: Cooldown | Callout | Reminder) -> str:
-        return (f"ph{c.phase} " if c.phase != 1 else "") + clock(c.at * 1000)
+        return (f"ph{c.phase:g} " if c.phase != 1 else "") + clock(c.at * 1000)
 
-    def order(c: Cooldown | Callout | Reminder) -> tuple[int, float]:
+    def order(c: Cooldown | Callout | Reminder) -> tuple[float, float]:
         return c.phase, c.at
     unread = _own_unread(note, body, asked)
     lines = [] if unread or any(n in asked for n in _named(note)) else [
@@ -468,10 +527,7 @@ async def assigns_kicks(rep: Report, f: dict, text: str) -> bool:
     note = for_boss(_version(found, (rep.start_ms + f["startTime"]) / 1000).notes, f["encounterID"])
     if note is None:
         return False
-    starts = _phase_starts(f)
-    players = _players(rep, note)
-    return bool(await _kicks(rep, f, note, players, lambda *_: "",
-                             lambda c: None if c.phase not in starts else starts[c.phase] + c.at * 1000,
+    return bool(await _kicks(rep, f, note, _players(rep, note), lambda *_: "", _phases(rep, f, note).when,
                              f["endTime"] - f["startTime"]))
 
 
@@ -483,12 +539,60 @@ def kick_order(rep: Report, f: dict, text: str) -> int:
     return len(note.interrupts) if note else 0
 
 
-def _phase_starts(f: dict) -> dict[int, float]:
-    """Each phase's first start, in ms from the pull's start."""
-    starts: dict[int, float] = {1: 0.0}
-    for ph in f.get("phaseTransitions") or []:
-        starts.setdefault(ph["id"], ph["startTime"] - f["startTime"])
-    return starts
+def _phase_of(ph: float, labels: Mapping[int, str]) -> int | None:
+    """Warcraft Logs' id of the phase a note's number means, by the boss's labels ({id: "P2"}): ph:N is the phase
+    labelled P<N>, ph:N.5 the one intermission between P<N> and P<N+1>. None for a number the list has no place
+    for."""
+    ids = {label: i for i, label in labels.items()}
+    if ph == int(ph):
+        return ids.get(f"P{int(ph)}")
+    before, after = ids.get(f"P{int(ph)}"), ids.get(f"P{int(ph) + 1}")
+    if ph - int(ph) != 0.5 or before is None or after is None:  # noqa: PLR2004
+        return None
+    between = [i for i, label in labels.items() if label.startswith("I") and before < i < after]
+    return between[0] if len(between) == 1 else None
+
+
+def lay_phases(numbers: Iterable[float], labels: Mapping[int, str], transitions: Sequence[tuple[int, float]],
+               in_order: bool = True) -> Phases:
+    """`Phases` for a note with lines in these phases (its numbers), on a boss with these phases ({Warcraft Logs' id:
+    label}) and a pull with these `transitions` ((id, ms from the pull's start), in order). `in_order`: whether the
+    boss's pulls in the report go through the list in order, as far as each got."""
+    out, first = Phases(), {}
+    for i, at in transitions:
+        first.setdefault(i, at)
+    listed = ", ".join(labels[i] for i in sorted(labels))
+    for ph in sorted(set(numbers) - {1}):
+        if (i := _phase_of(ph, labels)) is None:
+            out.unknown[ph] = f"the log's phases of this boss are {listed}" if listed else (
+                "the log has no phases for this boss")
+        elif not in_order:
+            out.unknown[ph] = "this boss's pulls go back to a phase or skip one, so the log doesn't count as the note"
+        else:
+            out.labels[ph] = labels[i]
+            if i in first:
+                out.starts[ph] = first[i]
+    for ph, start in out.starts.items():
+        nexts = [(at, out.labels[q]) for q, at in out.starts.items() if q > ph and at > start]
+        if any(q > ph for q in out.unknown):  # that one may have begun at the log's next change of phase
+            nexts += [(at, "") for _, at in transitions if at > start][:1]
+        if nexts:
+            out.ends[ph] = min(nexts, key=lambda n: (n[0], not n[1]))  # a phase that did begin then says so
+    return out
+
+
+def _phases(rep: Report, f: dict, note: Note) -> Phases:
+    """Where the note's phases lie in pull `f` (`Phases`): by the report's labels for the boss's phases, the pull's
+    own transitions, and whether every pull on the boss in the report goes through the list in order."""
+    labels = {i: label for (encounter, i), label in rep.phase_labels.items() if encounter == f["encounterID"]}
+    listed = sorted(labels)
+
+    def in_order(g: dict) -> bool:
+        ids = [t["id"] for t in g.get("phaseTransitions") or []]
+        return ids == listed[:len(ids)]
+    return lay_phases({c.phase for c in (*note.cooldowns, *note.callouts, *note.reminders)}, labels,
+                      [(t["id"], t["startTime"] - f["startTime"]) for t in f.get("phaseTransitions") or []],
+                      all(in_order(g) for g in rep.by_boss[rep.boss_key(f)]))
 
 
 async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) -> PullCheck:
@@ -496,7 +600,8 @@ async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) 
     (read for this pull alone otherwise, and only when a callout or a planned cooldown needs them)."""
     night = night or _night_of(rep, f)
     t0, end = f["startTime"], f["endTime"] - f["startTime"]
-    starts = _phase_starts(f)
+    phases = _phases(rep, f, note)
+    when = phases.when  # ms from the pull's start; None for a line that isn't checked on this pull
     in_pull = {p.name for p in rep.pull_players(f).values()}
     players = _players(rep, note)
     stray = _stray(note, players)
@@ -517,10 +622,6 @@ async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) 
     decided = await rep.decided_at(f)
     await rep.name_spells({c.spell for c in full.cooldowns} | {c.boss_spell for c in full.cooldowns if c.boss_spell})
 
-    def when(c: Cooldown | Callout) -> float | None:
-        """Ms from the pull's start; None in a phase the pull never reached."""
-        return None if c.phase not in starts else starts[c.phase] + c.at * 1000
-
     def state(name: str, at: float) -> str:
         p = players.get(name)
         if p is None or p.name not in in_pull:
@@ -536,10 +637,16 @@ async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) 
         callouts, why = await _callouts(rep, f, note, players, died, when, calls, night), ""
     except KnowledgeError as e:
         callouts, why = [], unavailable("Callouts (Lorrgs' spells for each spec)", e)
-    return PullCheck(f, full, decided, until, await _soaks(rep, f, note, players, state, when, until),
-                     await _cooldowns(rep, f, note, players, state, when, until, full, night), callouts, kicks,
-                     sorted(n for n in _people(note, players) - stray.keys()
-                            if n not in players or players[n].name not in in_pull), why, unchecked, stray)
+    planned = await _cooldowns(rep, f, note, players, state, when, until, full, night)
+    if planned:
+        planned.skipped = sum(phases.fate(c) == NEVER for c in note.cooldowns)
+        for u in planned.uses:
+            u.said = phases.said(u.cooldown)
+    return PullCheck(f, full, decided, until, await _soaks(rep, f, note, players, state, when, until), planned,
+                     callouts, kicks, sorted(n for n in _people(note, players) - stray.keys()
+                                             if n not in players or players[n].name not in in_pull),
+                     why, unchecked, stray, phases, Counter((c.phase, phases.fate(c), type(c)) for c in
+                                                            (*note.cooldowns, *note.callouts) if phases.fate(c)))
 
 
 def _named(note: Note) -> set[str]:
@@ -660,10 +767,89 @@ def _not_checked(note: Note, stray: Mapping[str, tuple[int, int]]) -> list[str]:
                          f"{tag} (" + ", ".join(plural(n, what) for n, what in ((cds, "cooldown"), (calls, "callout"))
                                                  if n) + ")" for tag, (cds, calls) in sorted(stray.items())))
     if unread := not_understood(note):
-        lines.append(f"Lines of the note {unread} (a timed line has a time in seconds, a phase that is a whole "
-                     "number, a tag, and a spell or a text; an assignment is a heading with \"Label: players\" lines "
-                     "under it)")
+        lines.append(f"Lines of the note {unread} (a timed line has a time in seconds, a phase that is a number, a "
+                     "tag, and a spell or a text; an assignment is a heading with \"Label: players\" lines under it)")
     return lines
+
+
+def _counted(kinds: Mapping[type, int]) -> str:
+    """'9 planned cooldowns and 1 callout', of a count of timed lines by kind."""
+    return " and ".join(plural(n, what) for n, what in ((kinds.get(Cooldown), "planned cooldown"),
+                                                        (kinds.get(Callout), "callout")) if n)
+
+
+def _off(checks: Iterable[PullCheck], fate: str) -> dict[float, tuple[Counter, list[PullCheck]]]:
+    """The lines not checked for their phase with this `fate`, over these pulls: per note phase, how many of each
+    kind and the pulls that had some."""
+    out: dict[float, tuple[Counter, list[PullCheck]]] = {}
+    for c in checks:
+        for (ph, why, kind), n in sorted(c.off.items(), key=lambda kv: kv[0][0]):
+            if why == fate:
+                kinds, pulls = out.setdefault(ph, (Counter(), []))
+                kinds[kind] += n
+                if c not in pulls:
+                    pulls.append(c)
+    return out
+
+
+DROPPED = ("A phase's lines stop when the note's next phase begins, as the addon drops them, so those timed later "
+           "aren't checked: ")
+MAY_HAVE_BEGUN = "a phase of the note that can't be placed may have begun then"
+
+
+def _phases_said(c: PullCheck) -> str:
+    """What a pull's first line says of the note's phases: where each lies in the pull by the log's label for it,
+    and the lines not checked for their phase, each kind once: timed after the note's next phase began, or in a
+    phase that can't be laid over the log. A note with only ph:1 lines keeps the plain sentence."""
+    ph = c.phases
+    if not ph.labels and not ph.unknown:
+        return "Note times count from the pull's start (ph:1) or from the phase's first start."
+    said = "Note times count from the pull's start (ph:1)" + (" or from the start of their phase: " + "; ".join(
+        f"ph:{q:g} is {label}, " + (f"from {clock(ph.starts[q])}" if q in ph.starts else "not reached")
+        for q, label in sorted(ph.labels.items())) if ph.labels else "") + "."
+    if ended := _off([c], ENDED):
+        said += " " + DROPPED + ", ".join(f"{_counted(kinds)} of ph:{q:g} ({ph.ends[q][1]} began at "
+                                          f"{clock(ph.ends[q][0])})" for q, (kinds, _) in ended.items()) + "."
+    for q, (kinds, _) in sorted(_off([c], UNKNOWN).items(), key=lambda kv: (kv[0] not in ph.unknown, kv[0])):
+        said += (f" {_counted(kinds)} in ph:{q:g} not checked: {UNKNOWN} ({ph.unknown[q]})." if q in ph.unknown else
+                 f" {_counted(kinds)} of ph:{q:g} timed after the log's phase changed at {clock(ph.ends[q][0])} not "
+                 f"checked: {MAY_HAVE_BEGUN}.")
+    return said
+
+
+def _night_phases(checks: list[PullCheck]) -> str:
+    """What a night's first line says of the note's phases, as `_phases_said` says it of one pull: the log's label
+    for each, and the lines not checked for their phase, counted over the pulls. '' for a note with only ph:1."""
+    labels = {q: label for c in checks for q, label in c.phases.labels.items()}
+    unknown = {q: why for c in checks for q, why in c.phases.unknown.items()}
+    if not labels and not unknown:
+        return ""
+    said = ""
+    if labels:
+        (first, label), *rest = sorted(labels.items())
+        said = (f" The note's ph:{first:g} is the log's {label}" + "".join(f", ph:{q:g} its {lab}" for q, lab in rest)
+                + f": a time in one counts from its start on each pull (\"{label} 0:30\" is 30 s into {label}).")
+    if ended := _off(checks, ENDED):
+        said += " " + DROPPED + ", ".join(f"{_counted(kinds)} of ph:{q:g} over {plural(len(pulls), 'pull')}"
+                                          for q, (kinds, pulls) in ended.items()) + "."
+    for q, (kinds, pulls) in sorted(_off(checks, UNKNOWN).items(), key=lambda kv: (kv[0] not in unknown, kv[0])):
+        over = f"over {plural(len(pulls), 'pull')}"
+        said += (f" {_counted(kinds)} in ph:{q:g} {over} not checked: {UNKNOWN} ({unknown[q]})." if q in unknown else
+                 f" {_counted(kinds)} of ph:{q:g} timed after the log's phase changed, {over}, not checked: "
+                 f"{MAY_HAVE_BEGUN}.")
+    return said
+
+
+def _times_said(times: Iterable[tuple[Phases, Callout]]) -> str:
+    """'1:47, P3 0:36, 2:12': the times of callouts as the note has them (`Phases.said`), in the note's order, each
+    once and a phase's label once."""
+    said = dict(sorted({(c.phase, c.at): ph.said(c) for ph, c in times}.items()))
+    out, last = [], ""
+    for text in dict.fromkeys(said.values()):
+        label, _, at = text.rpartition(" ")
+        out.append(at if label == last else text)
+        last = label
+    return ", ".join(out)
 
 
 def _planned_line(rep: Report, at: float, cd: Cooldown) -> str:
@@ -710,8 +896,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
              + f", checked against {rep.label(f)} ({clock(end)}, " + ("KILL" if f["kill"] else "wipe")
              + f", {rep.url(f)})" + (f"; the wipe was decided at {clock(c.decided.at_ms)} ({c.decided.why})"
                                     if c.decided else "")
-             + ". Note times count from the pull's start (ph:1) or from the phase's first start."
-             + _other_difficulty(c.note, [f])]
+             + ". " + _phases_said(c) + _other_difficulty(c.note, [f])]
     if asked:
         lines.append(asked.said())
     lines += _assignments(rep, c.note, asked)
@@ -1385,7 +1570,7 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
     lines = [_head(latest).replace("the boss", rep.boss_key(fights[0])) + (f", {source}" if source else "")
              + f", checked against every {rep.boss_key(fights[0])} pull ({len(fights)}), each until its wipe was "
              "decided (the boss's enrage or half the raid dead) and against the note as it was saved before it "
-             "began. \"p3 1:15\" is pull 3 at 1:15." + _other_difficulty(latest, fights)]
+             "began. \"p3 1:15\" is pull 3 at 1:15." + _night_phases(checks) + _other_difficulty(latest, fights)]
     if len(used) > 1:
         lines.append("Versions of the note: " + "; ".join(
             f"{v.source()}: pulls " + ", ".join(str(rep.pull_no(f)) for f in fights if by_pull[f["id"]] is v)
@@ -1616,17 +1801,18 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
                        >= NEVER_CAST_MIN and not any(r[1].casts for r in everything if r[1].cooldown.spell == sp)}
         if asked and name not in asked:
             continue
-        out.append(f"  {name}: {len(everything)} planned uses; {tally(everything)}")
-        for rows in sorted(entries.values(), key=lambda rows: rows[0][1].at):
+        out.append(f"  {name}: {plural(len(everything), 'planned use')}; {tally(everything)}")
+        for rows in sorted(entries.values(), key=lambda rows: (rows[0][1].cooldown.phase, rows[0][1].cooldown.at)):
             u = rows[0][1]
-            line = f"    {clock(u.at)} {rep.ability_ref(u.cooldown.spell)}"
+            line = f"    {u.said or clock(u.at)} {rep.ability_ref(u.cooldown.spell)}"
             if u.cooldown.boss_spell:
                 line += f" for {rep.ability_ref(u.cooldown.boss_spell)}"
             out.append(line + f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}"
                        + ("; never cast on any of these pulls: a talent may replace it, or another spell do its job "
                           "(breakdown of their casts)" if u.cooldown.spell in never[name] else ""))
     if asked:
-        out.append(f"  {FOR_SCALE}: {len(uses)} planned uses of {plural(len(per_player), 'player')}; {tally(uses)}")
+        out.append(f"  {FOR_SCALE}: {plural(len(uses), 'planned use')} of {plural(len(per_player), 'player')}; "
+                   f"{tally(uses)}")
     twice = {(cd.player, cd.spell, first, again): (first, again, cd)
              for c in checks if c.planned for first, again, cd in c.planned.twice
              if asked is None or cd.player in asked}
@@ -1658,9 +1844,9 @@ def _night_callouts(rep: Report, checks: list[PullCheck],  # noqa: C901
     for c, k in calls:
         groups[(k.callout.text, k.callout.players)].append((c, k))
     for (text, named), rows in groups.items():
-        times = sorted({clock(k.at) for _, k in rows})
         out.append(f"  \"{text}\" to {' '.join(named) or 'everyone'} ({plural(len(rows), 'callout')} over "
-                   f"{plural(len({id(c) for c, _ in rows}), 'pull')}, at {', '.join(times)}):")
+                   f"{plural(len({id(c) for c, _ in rows}), 'pull')}, at "
+                   f"{_times_said((c.phases, k.callout) for c, k in rows)}):")
         alive: Counter = Counter()
         pressed: dict[str, Counter] = defaultdict(Counter)
         pressed_n: Counter = Counter()
@@ -1708,18 +1894,18 @@ def _night_callouts(rep: Report, checks: list[PullCheck],  # noqa: C901
 def _night_unchecked(checks: list[PullCheck], asked: Asked | None = None) -> list[str]:
     """The callouts the log can't check, each once with its times and how many pulls reached it; for one player,
     those to them or to everyone."""
-    seen: dict[tuple[str, tuple[str, ...]], tuple[set[str], set[int]]] = {}
+    seen: dict[tuple[str, tuple[str, ...]], tuple[list[tuple[Phases, Callout]], set[int]]] = {}
     for c in checks:
-        for at, co in c.unchecked:
+        for _, co in c.unchecked:
             if asked and co.players and not any(n in asked for n in co.players):
                 continue
-            times, pulls = seen.setdefault((co.text, co.players), (set(), set()))
-            times.add(clock(at))
+            times, pulls = seen.setdefault((co.text, co.players), ([], set()))
+            times.append((c.phases, co))
             pulls.add(c.f["id"])
     if not seen:
         return []
     return [UNCHECKED + ": " + "; ".join(
-        f"\"{text}\" to {' '.join(named) or EVERYONE} at {', '.join(sorted(times))} ({plural(len(pulls), 'pull')})"
+        f"\"{text}\" to {' '.join(named) or EVERYONE} at {_times_said(times)} ({plural(len(pulls), 'pull')})"
         for (text, named), (times, pulls) in seen.items())]
 
 

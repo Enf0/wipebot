@@ -85,19 +85,19 @@ def test_the_interrupt_order_between_intstart_and_intend_is_read_and_shown_as_wr
 
 
 def test_what_the_note_says_that_isnt_understood_is_kept_and_said():
-    """A line the reading can't take was dropped without a word: a time as 1:03, a phase that's no whole number, a
-    line with no tag, words under no heading's label. NSRT reads a line's fields wherever they stand, so a line
-    whose time isn't first is a timed line (it was taken for a heading, and the line after it lost)."""
+    """A line the reading can't take was dropped without a word: a time as 1:03, a phase that's no number, a line
+    with no tag, words under no heading's label. NSRT reads a line's fields wherever they stand, so a line whose
+    time isn't first is a timed line (it was taken for a heading, and the line after it lost)."""
     [plan] = note.parse("EncounterID:3418;Name:Vashnik\n"
                         "ph:1;time:16;tag:Torvek;spellid:98008;\n"
                         "time:1:03;ph:1;tag:Torvek;spellid:98008;\n"
-                        "time:7;ph:2.5;tag:Torvek;spellid:98008;\n"
+                        "time:7;ph:two;tag:Torvek;spellid:98008;\n"
                         "time:20;ph:1;spellid:98008;\n"
                         "time:25;ph:1;tag:Torvek;\n\n"
                         "Use a healthstone early\n\n"
                         "Orbs\nred orb: Rowan\n")
     assert plan.cooldowns == [note.Cooldown(16, 1, "Torvek", 98008)]
-    assert plan.unread == ["time:1:03;ph:1;tag:Torvek;spellid:98008;", "time:7;ph:2.5;tag:Torvek;spellid:98008;",
+    assert plan.unread == ["time:1:03;ph:1;tag:Torvek;spellid:98008;", "time:7;ph:two;tag:Torvek;spellid:98008;",
                            "time:20;ph:1;spellid:98008;", "time:25;ph:1;tag:Torvek;", "Use a healthstone early"]
     assert note.not_understood(plan) == 'not understood: 5 lines, the first "time:1:03;ph:1;tag:Torvek;spellid:98008;"'
     assert note._not_checked(plan, {})[0].startswith("Lines of the note not understood: 5 lines, the first ")
@@ -514,14 +514,14 @@ def test_a_note_for_the_next_raid_cut_to_one_player_keeps_what_everyone_is_told_
              "EncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
              "time:48;ph:3;tag:Torvek;text:Grab the orb;\n"
              "time:132;ph:1;tag:Torvek;text:Soak;\n"
-             "time:24;ph:2.5;tag:Torvek;spellid:98008 (Spirit Link Totem [98008]);\n"
-             "time:6;ph:2.5;tag:Mirelle;spellid:64843 (Divine Hymn [64843]);\n"
+             "time:0:24;ph:2;tag:Torvek;spellid:98008 (Spirit Link Totem [98008]);\n"
+             "time:0:06;ph:2;tag:Mirelle;spellid:64843 (Divine Hymn [64843]);\n"
              "time:7;ph:2;tag:everyone;spellid:1285643 (Dreadmarch [1285643]);text:Go to diamond;\n")
     assert note.own_part(rep, shown, "torvek").splitlines()[1:] == [
         'Callouts to them: 2:12 "Soak", ph3 0:48 "Grab the orb"',
         'Reminders to everyone (the boss\'s cast or a move, shown with an icon): ph2 0:07 "Go to diamond"',
         "Lines of the note not understood, so in none of the lists above: 2 lines; those tagged Torvek, as written: "
-        '"time:24;ph:2.5;tag:Torvek;spellid:98008 (Spirit Link Totem [98008]);"']
+        '"time:0:24;ph:2;tag:Torvek;spellid:98008 (Spirit Link Totem [98008]);"']
     halvard = SimpleNamespace(id=2, name="Halvard")  # one of the report's players the note has no line for
     rep.find_player = lambda name: halvard if name.lower() == "halvard" else None
     assert note.own_part(rep, shown, "Halvard").splitlines()[1:] == [

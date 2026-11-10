@@ -1,4 +1,4 @@
-The raid note for Coiled Altar (Mythic), checked against The Coiled Altar pull 28 (7:11, wipe, https://www.warcraftlogs.com/reports/fk2z6bCw4xRLNvht#fight=28); the wipe was decided at 7:03 (half the raid was dead). Note times count from the pull's start (ph:1) or from the phase's first start.
+The raid note for Coiled Altar (Mythic), checked against The Coiled Altar pull 28 (7:11, wipe, https://www.warcraftlogs.com/reports/fk2z6bCw4xRLNvht#fight=28); the wipe was decided at 7:03 (half the raid was dead). Note times count from the pull's start (ph:1) or from the start of their phase: ph:2 is P2, from 2:27; ph:2.5 is I1, from 6:08; ph:3 is P3, from 6:46. A phase's lines stop when the note's next phase begins, as the addon drops them, so those timed later aren't checked: 9 planned cooldowns of ph:1 (P2 began at 2:27), 2 planned cooldowns of ph:2 (I1 began at 6:08).
 Assignments in the note's text:
   Orb Carriers: {cross} purple orb: Krøpling; {square} purple orb: Karadim; {triangle} purple orb: Dragepie; {diamond} purple orb: Cptola; {star} green orb: Zebinolock; {skull} green orb: Lïzårðmâñ; side green orb: Peggerino; side green orb (2): Scopidruid; Orb Helpers: Sonyosh Namsus Martin Enfo
   Orb Carriers (2): {cross} purple orb: Cptola; {square} purple orb: Karadim; {triangle} purple orb: Dragepie; {diamond} purple orb: Krøpling; {star} green orb: Zebinolock; {skull} green orb: Lïzårðmâñ; side green orb: Peggerino; side green orb (2): Scopidruid; Orb Helpers: Sonyosh Namsus Martin Enfo
@@ -40,18 +40,9 @@ Planned cooldowns (time in the note: what happened):
   2:29 Enfo Spirit Link Totem [98008] for Dreadful Presence [1288635]: cast at 2:29, on time
   2:29 Lïzårðmâñ Rewind [363534] for Dreadful Presence [1288635]: cast at 2:37, 8 s late
   2:29 Lïzårðmâñ Light's Potential [1236616] for Dreadful Presence [1288635]: cast at 2:38, 9 s late
-  2:30 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 2:01, 29 s early
-  2:38 Miralupa Light's Potential [1236616]: not cast within 30 s (alive; cast at 0:03, 5:08)
   2:39 Sonyosh Wind Rush Totem [192077]: not cast within 30 s (alive)
   2:40 Scopidruid Stampeding Roar [106898]: cast at 2:48, 7 s late
-  2:41 Namsus Light's Potential [1236616]: not cast within 30 s (alive)
   2:41 Lïzårðmâñ Time Spiral [374968]: cast at 2:50, 8 s late
-  2:42 Namsus Apotheosis [200183]: cast at 2:41, on time
-  2:47 Nexsozz Anti-Magic Zone [51052] for Dreadful Presence [1288624]: cast at 2:28, 19 s early
-  2:47 Miralupa Divine Hymn [64843] for Dreadful Presence [1288624]: not cast within 30 s (alive; cast at 0:44, 4:45)
-  2:47 Fappachino Darkness [196718] for Dreadful Presence [1288624]: cast at 2:29, 18 s early
-  2:47 Pomaa Rallying Cry [97462] for Dreadful Presence [1288624]: cast at 2:28, 19 s early
-  2:47 Cptola Aura Mastery [31821] for Dreadful Presence [1288624]: cast at 2:31, 15 s early
   2:50 Peggerino Curse of Tongues [1714]: not cast within 30 s (alive)
   2:50 Zebinolock Curse of Tongues [1714]: not cast within 30 s (alive)
   2:58 Dragepie Time Spiral [374968]: not cast within 30 s (alive; cast at 1:29; on cooldown from the 1:29 cast, 120 s by Lorrgs' base cooldown)
@@ -81,30 +72,18 @@ Planned cooldowns (time in the note: what happened):
   5:40 Peggerino Curse of Tongues [1714]: not cast within 30 s (alive)
   5:40 Zebinolock Curse of Tongues [1714]: not cast within 30 s (alive)
   5:52 Sonyosh Wind Rush Totem [192077]: not cast within 30 s (alive)
-  6:13 Peggerino Curse of Tongues [1714]: not cast within 30 s (alive)
-  6:13 Zebinolock Curse of Tongues [1714]: not cast within 30 s (alive)
-  6:24 Cptola Avenging Wrath [31884]: not cast within 30 s (dead since 5:13; cast at 0:59, 3:01)
-  6:30 Namsus Apotheosis [200183]: not cast within 30 s (alive; cast at 0:40, 2:41, 4:42; on cooldown from the 4:42 cast, 120 s by their closest two casts of it on the night (Lorrgs' base cooldown: 120 s))
-  6:40 Scopidruid Stampeding Roar [106898]: not cast within 30 s (dead since 6:14; cast at 2:48, 5:39)
-  6:43 Miralupa Divine Hymn [64843]: not cast within 30 s (dead since 6:16; cast at 0:44, 4:45)
-  6:43 Enfo Ascendance [114052]: not cast within 30 s (alive; cast at 0:58, 4:32; on cooldown from the 4:32 cast, 180 s by Lorrgs' base cooldown)
-  6:43 Fappachino Darkness [196718]: not cast within 30 s (alive; cast at 2:29)
-  6:43 Cptola Aura Mastery [31821]: not cast within 30 s (dead since 5:13; cast at 2:31)
-  6:46 Enfo Wind Rush Totem [192077]: not cast within 30 s (alive; cast at 0:40, 3:22, 5:09; on cooldown from the 5:09 cast, 106 s by their closest two casts of it on the night (Lorrgs' base cooldown: 120 s))
-  6:47 Lïzårðmâñ Rewind [363534]: cast at 6:39, 8 s early
-  6:48 Nexsozz Anti-Magic Zone [51052]: cast at 6:38, 10 s early
-  6:50 Lïzårðmâñ Time Spiral [374968]: not cast within 30 s (alive; cast at 0:38, 2:50, 4:51; on cooldown from the 4:51 cast, 120 s by Lorrgs' base cooldown)
-  7:00 Dragepie Time Spiral [374968]: not cast within 30 s (alive; cast at 1:29; 2 s before the wipe was decided)
-  Planned after the wipe was decided at 7:03, so not checked against this pull: 22 lines, the next 7:12 Lïzårðmâñ Time Dilation [357170], 7:13 Cptola Blessing of Sacrifice [6940], 7:29 Enfo Light's Potential [1236616]
+  6:14 Miralupa Apotheosis [200183]: not cast within 30 s (alive; cast at 0:02, 2:07, 4:25; on cooldown from the 4:25 cast, 120 s by Lorrgs' base cooldown)
+  6:19 Namsus Divine Hymn [64843]: not cast within 30 s (alive; cast at 1:45, 3:46, 5:48; on cooldown from the 5:48 cast, 121 s by their closest two casts of it on the night (Lorrgs' base cooldown: 180 s))
+  6:23 Dragepie Zephyr [374227]: not cast within 30 s (alive; cast at 1:46, 5:01; on cooldown from the 5:01 cast, 120 s by Lorrgs' base cooldown)
+  6:23 Lïzårðmâñ Zephyr [374227]: not cast within 30 s (alive; cast at 0:46)
+  6:23 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 6:04, 19 s early
+  6:32 Enfo Spirit Link Totem [98008]: cast at 6:33, 1 s late
+  6:32 Pomaa Rallying Cry [97462]: not cast within 30 s (dead since 6:14; cast at 2:28)
+  7:02 Cptola Avenging Wrath [31884]: not cast within 30 s (dead since 5:13; cast at 0:59, 3:01)
+  Planned after the wipe was decided at 7:03, so not checked against this pull: 33 lines, the next 7:08 Namsus Apotheosis [200183], 7:18 Scopidruid Stampeding Roar [106898], 7:21 Miralupa Divine Hymn [64843]
 Callouts for personals, with what each player it names pressed from 3 s before to 5 s after it (the spells Lorrgs tracks for their spec, with its tags; only a defensive or tank cooldown answers it), who isn't counted as missing it (one was already running, pressed earlier and still up by Lorrgs' duration, which talents change; or as the line says), and for those who pressed none, which of the ones that answer it they had ready, of those they cast at least once on the night's pulls (off cooldown by Lorrgs' base cooldown, ignoring charges and cooldown reduction; one they never cast may be a talent they don't have or a passive):
   1:47 everyone: "Personals": of 20 alive, 5 pressed a defensive or tank cooldown, 11 pressed none (5 of them only other spells), 4 not counted (2 with one already running)
     pressed: Enfo Earth Elemental [defensive] 1:44, Astral Shift [defensive] 1:46; Fappachino Blur [defensive] 1:46, Vengeful Retreat [untagged] 1:50, Eye Beam [untagged] 1:50; Krøpling Ice Cold [defensive] 1:46; Lïzårðmâñ Obsidian Scales [defensive] 1:46; Miralupa Fade [defensive] 1:48, Desperate Prayer [defensive] 1:49
     pressed none: Cptola (ready: Divine Shield [defensive], Divine Protection [defensive]); Draiman (ready: Cloak of Shadows [defensive], Crimson Vial [defensive], Feint [defensive]); Karadim (ready: Divine Shield [defensive], Guardian of Ancient Kings [tank]); Martin (pressed only Bestial Wrath [untagged] 1:48; ready: Aspect of the Turtle [defensive]); Nexsozz (pressed only Anti-Magic Shell [untagged] 1:48; ready: Icebound Fortitude [defensive]); Peggerino (ready: Unending Resolve [defensive], Dark Pact [defensive]); Pomaa (ready: Spell Reflection [defensive]); Scopidruid (pressed only Fury of Elune [untagged] 1:50; ready: none); Slushmania (pressed only Shadow Dance [untagged] 1:49; ready: Evasion [defensive], Crimson Vial [defensive], Feint [defensive]); Sonyosh (ready: Astral Shift [defensive]); Wutroll (pressed only Celestial Infusion [untagged] 1:46; ready: Fortifying Brew [defensive])
     pressed none, not counted against them: Dragepie (pressed Zephyr at 1:46, the note's plan for them then); Nalaxd (already running: Divine Protection [defensive] pressed at 1:43, lasting 8 s); Namsus (pressed Divine Hymn at 1:45, the note's plan for them then); Zebinolock (already running: Unending Resolve [defensive] pressed at 1:43, lasting 8 s)
-  6:44 everyone: "Personals": of 15 alive, 1 pressed a defensive or tank cooldown, 10 pressed none (2 of them only other spells), 4 not counted (2 with one already running)
-    pressed: Peggerino Unending Resolve [defensive] 6:41
-    pressed none: Dragepie (ready: none); Draiman (ready: Cloak of Shadows [defensive], Feint [defensive]); Enfo (ready: Astral Shift [defensive]); Fappachino (ready: none); Karadim (ready: Divine Shield [defensive], Guardian of Ancient Kings [tank], Ardent Defender [tank]); Krøpling (ready: Ice Cold [defensive], Mirror Image [defensive], Alter Time [defensive], Prismatic Barrier [defensive]); Martin (pressed only Bestial Wrath [untagged] 6:44; ready: Exhilaration [defensive], Aspect of the Turtle [defensive]); Namsus (ready: Fade [defensive]); Slushmania (pressed only Goremaw's Bite [untagged] 6:44, Secret Technique [untagged] 6:45; ready: Cloak of Shadows [defensive], Evasion [defensive], Crimson Vial [defensive], Feint [defensive]); Wutroll (ready: Fortifying Brew [defensive])
-    pressed none, not counted against them: Lïzårðmâñ (pressed Rewind at 6:39, the note's plan for them then); Nalaxd (already running: Divine Protection [defensive] pressed at 6:41, lasting 8 s); Nexsozz (pressed Anti-Magic Zone at 6:38, the note's plan for them then); Sonyosh (already running: Astral Shift [defensive] pressed at 6:39, lasting 12 s)
-    dead: Cptola, Miralupa, Pomaa, Scopidruid, Zebinolock
 Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): 2:36 Wutroll "CC Mindcontrol"; 2:36 Pomaa "CC Mindcontrol"; 2:36 Fappachino "CC Mindcontrol"; 3:12 Wutroll "CC Mindcontrol"; 3:12 Pomaa "CC Mindcontrol"; 3:12 Fappachino "CC Mindcontrol"; 4:01 Wutroll "CC Mindcontrol"; 4:01 Pomaa "CC Mindcontrol"; 4:01 Fappachino "CC Mindcontrol"; 4:37 Wutroll "CC Mindcontrol"; 4:37 Pomaa "CC Mindcontrol"; 4:37 Fappachino "CC Mindcontrol"; 5:26 Wutroll "CC Mindcontrol"; 5:26 Pomaa "CC Mindcontrol"; 5:26 Fappachino "CC Mindcontrol"
-Lines of the note not understood: 10 lines, the first "time:6;ph:2.5;tag:Miralupa;spellid:200183;" (a timed line has a time in seconds, a phase that is a whole number, a tag, and a spell or a text; an assignment is a heading with "Label: players" lines under it)

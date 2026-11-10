@@ -1,4 +1,4 @@
-The raid note for Coiled Altar (Mythic), checked against every The Coiled Altar pull (28), each until its wipe was decided (the boss's enrage or half the raid dead) and against the note as it was saved before it began. "p3 1:15" is pull 3 at 1:15.
+The raid note for Coiled Altar (Mythic), checked against every The Coiled Altar pull (28), each until its wipe was decided (the boss's enrage or half the raid dead) and against the note as it was saved before it began. "p3 1:15" is pull 3 at 1:15. The note's ph:2 is the log's P2, ph:2.5 its I1, ph:3 its P3: a time in one counts from its start on each pull ("P2 0:30" is 30 s into P2). A phase's lines stop when the note's next phase begins, as the addon drops them, so those timed later aren't checked: 119 planned cooldowns of ph:1 over 15 pulls, 2 planned cooldowns of ph:2 over 1 pull.
 Assignments in the note's text:
   Orb Carriers: {cross} purple orb: Krøpling; {square} purple orb: Karadim; {triangle} purple orb: Dragepie; {diamond} purple orb: Cptola; {star} green orb: Zebinolock; {skull} green orb: Lïzårðmâñ; side green orb: Peggerino; side green orb (2): Scopidruid; Orb Helpers: Sonyosh Namsus Martin Enfo
   Orb Carriers (2): {cross} purple orb: Cptola; {square} purple orb: Karadim; {triangle} purple orb: Dragepie; {diamond} purple orb: Krøpling; {star} green orb: Zebinolock; {skull} green orb: Lïzårðmâñ; side green orb: Peggerino; side green orb (2): Scopidruid; Orb Helpers: Sonyosh Namsus Martin Enfo
@@ -24,121 +24,107 @@ Guillotine Soaks: 49 hits of Guillotine [1283594] over 26 pulls, each given to t
   Counted for no one: 4 hits outside the note's soak times (no group called within 20 s of them): p20 2:44, p20 3:27, p25 4:16, p28 2:46
   Hit, in no group: Dscopi 16, Attractîv 3
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls; of them, how many were planned in the last 10 s before the wipe was decided or the pull ended, and at how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), dead by then:
-  Cptola: 105 planned uses; on time 3, early 15 (4 s), late 18 (10 s), not cast 52, 6 of them in the last 10 s, 15 of them on cooldown, dead 17
+  Cptola: 89 planned uses; on time 3, early 9 (4 s), late 17 (11 s), not cast 48, 6 of them in the last 10 s, 14 of them on cooldown, dead 12
     0:04 Avenging Wrath [31884], 28 pulls: on time 2, early 6 (2 s), late 8 (21 s), not cast 12 (p1, p2, p5, p6, p7, p9, p10, p17, p18, p19, p23, p28)
     2:05 Avenging Wrath [31884], 19 pulls: on time 1, early 2 (25 s), late 4 (19 s), not cast 12 (p3, p4, p8, p12, p13, p14, p16, p21, p24, p26, p27, p28), 2 of them in the last 10 s, 6 of them on cooldown
-    2:37 Light's Potential [1236616], 15 pulls: late 1 (10 s), not cast 11 (p4, p10, p13, p19, p20, p21, p24, p25, p26, p27, p28), dead 3
-    2:47 Aura Mastery [31821] for Dreadful Presence [1288624], 15 pulls: early 6 (5 s), late 1 (1 s), not cast 4 (p10, p14, p20, p24), 1 of them on cooldown, dead 4
-    3:43 Blessing of Sacrifice [6940], 13 pulls: late 4 (8 s), not cast 5 (p4, p5, p20, p21, p26), 2 of them in the last 10 s, dead 4
-    3:46 Avenging Wrath [31884], 13 pulls: early 1 (29 s), not cast 8 (p4, p5, p10, p20, p21, p25, p26, p28), 2 of them in the last 10 s, 8 of them on cooldown, dead 4
-    6:24 Avenging Wrath [31884], 1 pull: dead 1
-    6:43 Aura Mastery [31821], 1 pull: dead 1
-  Namsus: 168 planned uses; on time 41, early 56 (3 s), late 28 (5 s), not cast 43, 4 of them in the last 10 s, 8 of them on cooldown
+    P2 0:01 Light's Potential [1236616], 15 pulls: late 1 (10 s), not cast 11 (p4, p10, p13, p19, p20, p21, p24, p25, p26, p27, p28), dead 3
+    P2 1:07 Blessing of Sacrifice [6940], 13 pulls: late 4 (8 s), not cast 5 (p4, p5, p20, p21, p26), 2 of them in the last 10 s, dead 4
+    P2 1:10 Avenging Wrath [31884], 13 pulls: early 1 (29 s), not cast 8 (p4, p5, p10, p20, p21, p25, p26, p28), 2 of them in the last 10 s, 8 of them on cooldown, dead 4
+    P3 0:16 Avenging Wrath [31884], 1 pull: dead 1
+  Enfo: 97 planned uses; on time 39, early 7 (1 s), late 16 (3 s), not cast 32, 5 of them in the last 10 s, 12 of them on cooldown, dead 3
+    0:41 Wind Rush Totem [192077], 27 pulls: on time 14, early 6 (2 s), late 2 (2 s), not cast 3 (p9, p23, p26), 1 of them in the last 10 s, dead 2
+    1:00 Ascendance [114052], 24 pulls: on time 15, early 1 (1 s), late 3 (2 s), not cast 5 (p21, p22, p23, p24, p25)
+    P2 0:02 Wind Rush Totem [192077] for Dreadful Presence [1288635], 15 pulls: late 2 (13 s), not cast 13 (p4, p5, p10, p13, p14, p16, p19, p20, p21, p23, p24, p25 and 1 more), 1 of them on cooldown
+    P2 0:02 Spirit Link Totem [98008] for Dreadful Presence [1288635], 15 pulls: on time 10, late 5 (3 s)
+    P2 1:07 Ascendance [114052], 13 pulls: late 2 (22 s), not cast 11 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p28), 4 of them in the last 10 s, 11 of them on cooldown
+    P2 2:35 Wind Rush Totem [192077], 2 pulls: late 1 (6 s), dead 1
+    I1 0:24 Spirit Link Totem [98008], 1 pull: late 1 (1 s)
+  Zebinolock: 34 planned uses; not cast 32, dead 2
+    P2 0:23 Curse of Tongues [1714], 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:56 Curse of Tongues [1714], 13 pulls: not cast 12 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p27, p28), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 1:48 Curse of Tongues [1714], 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 2:21 Curse of Tongues [1714], 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 3:13 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+  Namsus: 137 planned uses; on time 38, early 46 (2 s), late 24 (4 s), not cast 29, 4 of them in the last 10 s, 8 of them on cooldown
     0:01 Soulcoiler Ritual Vessel [1291894], 28 pulls: on time 23, late 3 (1 s), not cast 2 (p7, p26)
     0:39 Apotheosis [200183], 27 pulls: on time 7, early 9 (2 s), late 10 (2 s), not cast 1 (p17), 1 of them in the last 10 s
     0:58 Guardian Spirit [47788], 25 pulls: on time 3, early 15 (2 s), not cast 7 (p3, p5, p6, p8, p18, p22, p24), 1 of them in the last 10 s
     1:48 Divine Hymn [64843], 21 pulls: on time 4, early 16 (2 s), not cast 1 (p21), 1 of them on cooldown
-    2:30 Soulcoiler Ritual Vessel [1291894], 15 pulls: early 6 (27 s), late 4 (13 s), not cast 5 (p5, p16, p21, p26, p27)
-    2:41 Light's Potential [1236616], 15 pulls: early 2 (5 s), not cast 13 (p4, p10, p13, p14, p16, p19, p20, p23, p24, p25, p26, p27 and 1 more)
-    2:42 Apotheosis [200183], 15 pulls: on time 4, early 8 (4 s), late 2 (3 s), not cast 1 (p14)
-    3:42 Divine Hymn [64843], 13 pulls: late 6 (11 s), not cast 7 (p4, p5, p19, p20, p21, p23, p27), 2 of them in the last 10 s, 5 of them on cooldown
-    4:18 Soulcoiler Ritual Vessel [1291894], 3 pulls: not cast 3 (p25, p27, p28)
-    4:22 Apotheosis [200183], 3 pulls: late 2 (20 s), not cast 1 (p27), 1 of them on cooldown
-    5:05 Guardian Spirit [47788], 2 pulls: late 1 (6 s), not cast 1 (p25)
-    6:30 Apotheosis [200183], 1 pull: not cast 1 (p28), 1 of them on cooldown
-  Miralupa: 157 planned uses; on time 30, early 34 (2 s), late 51 (3 s), not cast 41, 7 of them in the last 10 s, 12 of them on cooldown, dead 1
+    2:30 Soulcoiler Ritual Vessel [1291894], 11 pulls: early 4 (23 s), late 2 (14 s), not cast 5 (p5, p16, p21, p26, p27)
+    2:41 Light's Potential [1236616], 1 pull: early 1 (1 s)
+    2:42 Apotheosis [200183], 1 pull: on time 1
+    P2 1:06 Divine Hymn [64843], 13 pulls: late 6 (11 s), not cast 7 (p4, p5, p19, p20, p21, p23, p27), 2 of them in the last 10 s, 5 of them on cooldown
+    P2 1:46 Soulcoiler Ritual Vessel [1291894], 3 pulls: not cast 3 (p25, p27, p28)
+    P2 1:50 Apotheosis [200183], 3 pulls: late 2 (20 s), not cast 1 (p27), 1 of them on cooldown
+    P2 2:33 Guardian Spirit [47788], 2 pulls: late 1 (6 s), not cast 1 (p25)
+    I1 0:11 Divine Hymn [64843], 1 pull: not cast 1 (p28), 1 of them on cooldown
+    I1 0:15 Soulcoiler Ritual Vessel [1291894], 1 pull: early 1 (19 s)
+  Peggerino: 34 planned uses; not cast 29, dead 5
+    P2 0:23 Curse of Tongues [1714], 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:56 Curse of Tongues [1714], 13 pulls: not cast 9 (p4, p16, p19, p23, p24, p25, p26, p27, p28), dead 4; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 1:48 Curse of Tongues [1714], 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 2:21 Curse of Tongues [1714], 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 3:13 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+  Dragepie: 63 planned uses; on time 5, early 17 (3 s), late 12 (2 s), not cast 27, 2 of them in the last 10 s, 14 of them on cooldown, dead 2
+    1:25 Time Spiral [374968], 24 pulls: on time 4, early 6 (3 s), late 9 (2 s), not cast 4 (p13, p20, p21, p27), dead 1
+    1:48 Zephyr [374227], 21 pulls: on time 1, early 11 (4 s), late 1 (7 s), not cast 7 (p2, p3, p11, p13, p14, p16, p26), 2 of them in the last 10 s, 1 of them on cooldown, dead 1
+    P2 0:31 Time Spiral [374968], 15 pulls: late 2 (6 s), not cast 13 (p4, p5, p10, p13, p14, p16, p19, p23, p24, p25, p26, p27 and 1 more), 11 of them on cooldown
+    P2 2:37 Time Spiral [374968], 2 pulls: not cast 2 (p25, p28), 1 of them on cooldown
+    I1 0:15 Zephyr [374227], 1 pull: not cast 1 (p28), 1 of them on cooldown
+  Miralupa: 130 planned uses; on time 28, early 33 (3 s), late 45 (3 s), not cast 24, 7 of them in the last 10 s, 11 of them on cooldown
     0:03 Apotheosis [200183], 28 pulls: on time 13, late 14 (2 s), not cast 1 (p7)
     0:22 Guardian Spirit [47788], 27 pulls: on time 2, early 23 (3 s), not cast 2 (p4, p9)
     0:44 Divine Hymn [64843], 26 pulls: on time 9, early 5 (2 s), late 11 (2 s), not cast 1 (p14)
     2:08 Apotheosis [200183], 19 pulls: on time 4, early 4 (2 s), late 11 (3 s)
-    2:38 Light's Potential [1236616], 15 pulls: not cast 15 (p4, p5, p10, p13, p14, p16, p19, p20, p21, p23, p24, p25 and 3 more)
-    2:47 Divine Hymn [64843] for Dreadful Presence [1288624], 15 pulls: on time 2, early 1 (2 s), late 6 (12 s), not cast 6 (p10, p14, p20, p25, p27, p28), 2 of them on cooldown
-    3:43 Guardian Spirit [47788], 13 pulls: late 7 (6 s), not cast 6 (p4, p5, p19, p20, p21, p23), 4 of them in the last 10 s
-    3:55 Apotheosis [200183], 11 pulls: late 2 (19 s), not cast 9 (p5, p10, p16, p19, p20, p21, p25, p26, p28), 3 of them in the last 10 s, 9 of them on cooldown
-    5:01 Divine Hymn [64843], 2 pulls: early 1 (11 s), not cast 1 (p25), 1 of them on cooldown
-    6:43 Divine Hymn [64843], 1 pull: dead 1
-  Enfo: 98 planned uses; on time 39, early 7 (1 s), late 15 (3 s), not cast 34, 5 of them in the last 10 s, 14 of them on cooldown, dead 3
-    0:41 Wind Rush Totem [192077], 27 pulls: on time 14, early 6 (2 s), late 2 (2 s), not cast 3 (p9, p23, p26), 1 of them in the last 10 s, dead 2
-    1:00 Ascendance [114052], 24 pulls: on time 15, early 1 (1 s), late 3 (2 s), not cast 5 (p21, p22, p23, p24, p25)
-    2:38 Wind Rush Totem [192077] for Dreadful Presence [1288635], 15 pulls: late 2 (13 s), not cast 13 (p4, p5, p10, p13, p14, p16, p19, p20, p21, p23, p24, p25 and 1 more), 1 of them on cooldown
-    2:38 Spirit Link Totem [98008] for Dreadful Presence [1288635], 15 pulls: on time 10, late 5 (3 s)
-    3:43 Ascendance [114052], 13 pulls: late 2 (22 s), not cast 11 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p28), 4 of them in the last 10 s, 11 of them on cooldown
-    5:07 Wind Rush Totem [192077], 2 pulls: late 1 (6 s), dead 1
-    6:43 Ascendance [114052], 1 pull: not cast 1 (p28), 1 of them on cooldown
-    6:46 Wind Rush Totem [192077], 1 pull: not cast 1 (p28), 1 of them on cooldown
-  Zebinolock: 35 planned uses; not cast 33, dead 2
-    2:59 Curse of Tongues [1714], 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    3:32 Curse of Tongues [1714], 13 pulls: not cast 12 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p27, p28), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    4:20 Curse of Tongues [1714], 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    4:53 Curse of Tongues [1714], 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    5:40 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    6:13 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-  Peggerino: 35 planned uses; not cast 30, dead 5
-    2:59 Curse of Tongues [1714], 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    3:32 Curse of Tongues [1714], 13 pulls: not cast 9 (p4, p16, p19, p23, p24, p25, p26, p27, p28), dead 4; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    4:20 Curse of Tongues [1714], 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    4:53 Curse of Tongues [1714], 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    5:40 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    6:13 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-  Dragepie: 63 planned uses; on time 5, early 17 (3 s), late 12 (2 s), not cast 27, 3 of them in the last 10 s, 13 of them on cooldown, dead 2
-    1:25 Time Spiral [374968], 24 pulls: on time 4, early 6 (3 s), late 9 (2 s), not cast 4 (p13, p20, p21, p27), dead 1
-    1:48 Zephyr [374227], 21 pulls: on time 1, early 11 (4 s), late 1 (7 s), not cast 7 (p2, p3, p11, p13, p14, p16, p26), 2 of them in the last 10 s, 1 of them on cooldown, dead 1
-    3:07 Time Spiral [374968], 15 pulls: late 2 (6 s), not cast 13 (p4, p5, p10, p13, p14, p16, p19, p23, p24, p25, p26, p27 and 1 more), 11 of them on cooldown
-    5:09 Time Spiral [374968], 2 pulls: not cast 2 (p25, p28), 1 of them on cooldown
-    7:00 Time Spiral [374968], 1 pull: not cast 1 (p28), 1 of them in the last 10 s
-  Lïzårðmâñ: 132 planned uses; on time 31, early 10 (2 s), late 65 (8 s), not cast 23, 4 of them in the last 10 s, 10 of them on cooldown, dead 3
+    2:38 Light's Potential [1236616], 3 pulls: not cast 3 (p5, p26, p27)
+    P2 1:07 Guardian Spirit [47788], 13 pulls: late 7 (6 s), not cast 6 (p4, p5, p19, p20, p21, p23), 4 of them in the last 10 s
+    P2 1:13 Apotheosis [200183], 11 pulls: late 2 (19 s), not cast 9 (p5, p10, p16, p19, p20, p21, p25, p26, p28), 3 of them in the last 10 s, 9 of them on cooldown
+    P2 2:29 Divine Hymn [64843], 2 pulls: early 1 (11 s), not cast 1 (p25), 1 of them on cooldown
+    I1 0:06 Apotheosis [200183], 1 pull: not cast 1 (p28), 1 of them on cooldown
+  Lïzårðmâñ: 131 planned uses; on time 31, early 9 (1 s), late 65 (8 s), not cast 23, 4 of them in the last 10 s, 9 of them on cooldown, dead 3
     0:37 Time Spiral [374968], 27 pulls: on time 16, early 1 (2 s), late 9 (2 s), dead 1
     0:47 Zephyr [374227], 26 pulls: on time 15, early 6 (1 s), late 2 (1 s), not cast 3 (p2, p5, p9), 1 of them in the last 10 s
-    2:38 Zephyr [374227] for Dreadful Presence [1288635], 15 pulls: late 10 (12 s), not cast 5 (p10, p14, p19, p20, p28), 5 of them on cooldown
-    2:38 Rewind [363534] for Dreadful Presence [1288635], 15 pulls: late 11 (7 s), not cast 4 (p4, p5, p10, p14), 4 of them on cooldown
-    2:38 Light's Potential [1236616] for Dreadful Presence [1288635], 15 pulls: early 2 (10 s), late 12 (10 s), not cast 1 (p14)
-    2:50 Time Spiral [374968], 15 pulls: late 12 (9 s), not cast 2 (p13, p23), dead 1
-    3:44 Time Dilation [357170], 13 pulls: late 6 (6 s), not cast 6 (p5, p19, p20, p21, p23, p28), 3 of them in the last 10 s, dead 1
-    4:46 Time Spiral [374968], 2 pulls: late 2 (10 s)
-    5:05 Time Dilation [357170], 2 pulls: late 1 (4 s), not cast 1 (p25)
-    6:47 Rewind [363534], 1 pull: early 1 (8 s)
-    6:50 Time Spiral [374968], 1 pull: not cast 1 (p28), 1 of them on cooldown
-  Scopidruid: 65 planned uses; late 2 (8 s), not cast 18, 2 of them on cooldown, dead 3
+    P2 0:02 Zephyr [374227] for Dreadful Presence [1288635], 15 pulls: late 10 (12 s), not cast 5 (p10, p14, p19, p20, p28), 5 of them on cooldown
+    P2 0:02 Rewind [363534] for Dreadful Presence [1288635], 15 pulls: late 11 (7 s), not cast 4 (p4, p5, p10, p14), 4 of them on cooldown
+    P2 0:02 Light's Potential [1236616] for Dreadful Presence [1288635], 15 pulls: early 2 (10 s), late 12 (10 s), not cast 1 (p14)
+    P2 0:14 Time Spiral [374968], 15 pulls: late 12 (9 s), not cast 2 (p13, p23), dead 1
+    P2 1:08 Time Dilation [357170], 13 pulls: late 6 (6 s), not cast 6 (p5, p19, p20, p21, p23, p28), 3 of them in the last 10 s, dead 1
+    P2 2:14 Time Spiral [374968], 2 pulls: late 2 (10 s)
+    P2 2:33 Time Dilation [357170], 2 pulls: late 1 (4 s), not cast 1 (p25)
+    I1 0:15 Zephyr [374227], 1 pull: not cast 1 (p28)
+  Scopidruid: 64 planned uses; late 2 (8 s), not cast 18, 2 of them on cooldown, dead 2
     0:45 Stampeding Roar [106898], 26 pulls: not cast 6 (p23, p24, p25, p26, p27, p28)
     2:10 Stampeding Roar [106898], 19 pulls: not cast 6 (p23, p24, p25, p26, p27, p28)
-    2:49 Stampeding Roar [106898], 15 pulls: late 1 (7 s), not cast 4 (p24, p25, p26, p27), dead 1
-    4:10 Stampeding Roar [106898], 3 pulls: not cast 2 (p25, p28), 2 of them on cooldown, dead 1
-    5:30 Stampeding Roar [106898], 1 pull: late 1 (9 s)
-    6:40 Stampeding Roar [106898], 1 pull: dead 1
+    P2 0:13 Stampeding Roar [106898], 15 pulls: late 1 (7 s), not cast 4 (p24, p25, p26, p27), dead 1
+    P2 1:38 Stampeding Roar [106898], 3 pulls: not cast 2 (p25, p28), 2 of them on cooldown, dead 1
+    P2 3:03 Stampeding Roar [106898], 1 pull: late 1 (9 s)
   Sonyosh: 16 planned uses; late 9 (7 s), not cast 6, dead 1
-    2:48 Wind Rush Totem [192077], 15 pulls: late 9 (7 s), not cast 5 (p4, p5, p10, p27, p28), dead 1
-    5:52 Wind Rush Totem [192077], 1 pull: not cast 1 (p28)
-  Fappachino: 16 planned uses; on time 1, early 5 (7 s), not cast 1
-    2:47 Darkness [196718] for Dreadful Presence [1288624], 15 pulls: on time 1, early 5 (7 s)
-    6:43 Darkness [196718], 1 pull: not cast 1 (p28)
-  Nexsozz: 16 planned uses; early 16 (14 s)
-    2:47 Anti-Magic Zone [51052] for Dreadful Presence [1288624], 15 pulls: early 15 (14 s)
-    6:48 Anti-Magic Zone [51052], 1 pull: early 1 (10 s)
-  Pomaa: 15 planned uses; early 15 (13 s)
-    2:47 Rallying Cry [97462] for Dreadful Presence [1288624], 15 pulls: early 15 (13 s)
+    P2 0:12 Wind Rush Totem [192077], 15 pulls: late 9 (7 s), not cast 5 (p4, p5, p10, p27, p28), dead 1
+    P2 3:25 Wind Rush Totem [192077], 1 pull: not cast 1 (p28)
+  Pomaa: 1 planned use; dead 1
+    I1 0:24 Rallying Cry [97462], 1 pull: dead 1
 Callouts for personals over the pulls, per callout and per player it names, most often pressing none first: how many of the callouts they were alive and counted for, at how many they pressed a defensive or tank cooldown from 3 s before to 5 s after it (callouts by the tag of what they pressed), the ones they pressed none at, with at how many of those they had one ready (one they cast at least once on these pulls, off cooldown by Lorrgs' base cooldown, ignoring charges and cooldown reduction; one they never cast may be a talent they don't have or a passive) and the tags of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such as Anti-Magic Shell, may be one), and those not counted against them (one was already running, pressed earlier and still up by Lorrgs' duration, which talents change; they pressed the cooldown the note plans for them then; or a tank kept a tank cooldown for just after):
-  "Personals" to everyone (22 callouts over 21 pulls, at 1:47, 6:44):
-    Wutroll: alive for 22; pressed at 0; none at 22: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 10 more, the last p28 6:44 (one ready at 21); of those, pressed only others at 17 (untagged 17)
+  "Personals" to everyone (21 callouts over 21 pulls, at 1:47):
     Pomaa: alive for 21; pressed at 0; none at 21: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 9 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 5 (untagged 5)
-    Nexsozz: alive for 21; pressed at 3 (defensive 3); none at 18: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 6 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 11 (untagged 11); not counted at 1 (pressed the note's plan for them 1)
-    Sonyosh: alive for 21; pressed at 3 (defensive 3, move 1); none at 18: p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p13 1:47, p14 1:47, p16 1:47, p20 1:47, p21 1:47 and 6 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 4 (move 4); not counted at 1 (one already running 1)
-    Karadim: alive for 17; pressed at 1 (tank 1); none at 16: p1 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p13 1:47, p16 1:47, p19 1:47, p23 1:47, p24 1:47, p25 1:47 and 4 more, the last p28 6:44 (one ready at 16); of those, pressed only others at 2 (raid_cd 2); not counted at 4 (a tank, kept Ardent Defender 4)
+    Wutroll: alive for 21; pressed at 0; none at 21: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 9 more, the last p28 1:47 (one ready at 20); of those, pressed only others at 17 (untagged 17)
+    Nexsozz: alive for 21; pressed at 3 (defensive 3); none at 18: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p16 1:47 and 6 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 11 (untagged 11)
+    Sonyosh: alive for 21; pressed at 3 (defensive 3, move 1); none at 18: p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p13 1:47, p14 1:47, p16 1:47, p20 1:47, p21 1:47 and 6 more, the last p28 1:47 (one ready at 18); of those, pressed only others at 4 (move 4)
     Cptola: alive for 16; pressed at 1 (defensive 1, dps 1); none at 15: p1 1:47, p2 1:47, p3 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p14 1:47, p23 1:47 and 3 more, the last p28 1:47 (one ready at 15); of those, pressed only others at 10 (dps 6, untagged 4); not counted at 5 (one already running 5)
-    Martin: alive for 20; pressed at 7 (defensive 7, untagged 2); none at 13: p2 1:47, p3 1:47, p4 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p16 1:47, p21 1:47, p24 1:47, p28 1:47 and 1 more, the last p28 6:44 (one ready at 13); of those, pressed only others at 7 (untagged 7); not counted at 2 (one already running 2)
-    Slushmania: alive for 17; pressed at 7 (defensive 7, untagged 2, dps 1); none at 10: p2 1:47, p3 1:47, p5 1:47, p12 1:47, p16 1:47, p23 1:47, p26 1:47, p27 1:47, p28 1:47, p28 6:44 (one ready at 10); of those, pressed only others at 6 (untagged 6); not counted at 5 (one already running 5)
-    Draiman: alive for 19; pressed at 10 (defensive 10); none at 9: p5 1:47, p11 1:47, p12 1:47, p20 1:47, p24 1:47, p25 1:47, p26 1:47, p28 1:47, p28 6:44 (one ready at 9); not counted at 3 (one already running 3)
-    Lïzårðmâñ: alive for 16; pressed at 8 (defensive 8); none at 8: p2 1:47, p3 1:47, p10 1:47, p11 1:47, p14 1:47, p20 1:47, p24 1:47, p26 1:47 (one ready at 1); of those, pressed only others at 3 (raid_cd 2, untagged 2); not counted at 6 (one already running 5, pressed the note's plan for them 1)
-    Dragepie: alive for 8; pressed at 2 (defensive 2, raid_cd 2, dps 1, untagged 1); none at 6: p11 1:47, p13 1:47, p14 1:47, p16 1:47, p26 1:47, p28 6:44 (one ready at 0); of those, pressed only others at 1 (dps 1); not counted at 13 (one already running 9, pressed the note's plan for them 4)
+    Karadim: alive for 16; pressed at 1 (tank 1); none at 15: p1 1:47, p4 1:47, p5 1:47, p8 1:47, p10 1:47, p11 1:47, p13 1:47, p16 1:47, p19 1:47, p23 1:47, p24 1:47, p25 1:47 and 3 more, the last p28 1:47 (one ready at 15); of those, pressed only others at 2 (raid_cd 2); not counted at 4 (a tank, kept Ardent Defender 4)
+    Martin: alive for 19; pressed at 7 (defensive 7, untagged 2); none at 12: p2 1:47, p3 1:47, p4 1:47, p8 1:47, p10 1:47, p11 1:47, p12 1:47, p13 1:47, p16 1:47, p21 1:47, p24 1:47, p28 1:47 (one ready at 12); of those, pressed only others at 6 (untagged 6); not counted at 2 (one already running 2)
+    Slushmania: alive for 16; pressed at 7 (defensive 7, untagged 2, dps 1); none at 9: p2 1:47, p3 1:47, p5 1:47, p12 1:47, p16 1:47, p23 1:47, p26 1:47, p27 1:47, p28 1:47 (one ready at 9); of those, pressed only others at 5 (untagged 5); not counted at 5 (one already running 5)
+    Draiman: alive for 18; pressed at 10 (defensive 10); none at 8: p5 1:47, p11 1:47, p12 1:47, p20 1:47, p24 1:47, p25 1:47, p26 1:47, p28 1:47 (one ready at 8); not counted at 3 (one already running 3)
+    Lïzårðmâñ: alive for 16; pressed at 8 (defensive 8); none at 8: p2 1:47, p3 1:47, p10 1:47, p11 1:47, p14 1:47, p20 1:47, p24 1:47, p26 1:47 (one ready at 1); of those, pressed only others at 3 (raid_cd 2, untagged 2); not counted at 5 (one already running 5)
     Attractîv: alive for 13; pressed at 8 (defensive 8, untagged 5); none at 5: p3 1:47, p4 1:47, p8 1:47, p14 1:47, p20 1:47 (one ready at 3); of those, pressed only others at 4 (untagged 4)
+    Dragepie: alive for 7; pressed at 2 (defensive 2, raid_cd 2, dps 1, untagged 1); none at 5: p11 1:47, p13 1:47, p14 1:47, p16 1:47, p26 1:47 (one ready at 0); of those, pressed only others at 1 (dps 1); not counted at 13 (one already running 9, pressed the note's plan for them 4)
     Dscopi: alive for 11; pressed at 7 (defensive 7, untagged 1); none at 4: p4 1:47, p8 1:47, p11 1:47, p16 1:47 (one ready at 2); of those, pressed only others at 2 (untagged 2); not counted at 3 (one already running 3)
-    Krøpling: alive for 20; pressed at 16 (defensive 16, dps 2, untagged 1); none at 4: p1 1:47, p2 1:47, p3 1:47, p28 6:44 (one ready at 4); of those, pressed only others at 2 (dps 2, untagged 1); not counted at 1 (one already running 1)
-    Nalaxd: alive for 14; pressed at 10 (defensive 10); none at 4: p13 1:47, p20 1:47, p21 1:47, p26 1:47 (one ready at 4); not counted at 2 (one already running 2)
-    Peggerino: alive for 22; pressed at 18 (defensive 18); none at 4: p2 1:47, p26 1:47, p27 1:47, p28 1:47 (one ready at 3)
-    Enfo: alive for 20; pressed at 18 (defensive 18); none at 2: p23 1:47, p28 6:44 (one ready at 2); not counted at 2 (one already running 2)
-    Fappachino: alive for 6; pressed at 4 (defensive 4, untagged 2); none at 2: p24 1:47, p28 6:44 (one ready at 0); not counted at 1 (one already running 1)
-    Namsus: alive for 4; pressed at 2 (defensive 2, raid_cd 2); none at 2: p21 1:47, p28 6:44 (one ready at 2); not counted at 18 (pressed the note's plan for them 16, one already running 2)
+    Nalaxd: alive for 14; pressed at 10 (defensive 10); none at 4: p13 1:47, p20 1:47, p21 1:47, p26 1:47 (one ready at 4); not counted at 1 (one already running 1)
+    Peggerino: alive for 21; pressed at 17 (defensive 17); none at 4: p2 1:47, p26 1:47, p27 1:47, p28 1:47 (one ready at 3)
+    Krøpling: alive for 19; pressed at 16 (defensive 16, dps 2, untagged 1); none at 3: p1 1:47, p2 1:47, p3 1:47 (one ready at 3); of those, pressed only others at 2 (dps 2, untagged 1); not counted at 1 (one already running 1)
     Scopidruid: alive for 3; pressed at 1 (defensive 1); none at 2: p23 1:47, p28 1:47 (one ready at 0); of those, pressed only others at 1 (untagged 1); not counted at 3 (one already running 3)
     Zebinolock: alive for 13; pressed at 11 (defensive 11); none at 2: p12 1:47, p27 1:47 (one ready at 1); not counted at 8 (one already running 8)
+    Enfo: alive for 19; pressed at 18 (defensive 18); none at 1: p23 1:47 (one ready at 1); not counted at 2 (one already running 2)
+    Fappachino: alive for 5; pressed at 4 (defensive 4, untagged 2); none at 1: p24 1:47 (one ready at 0); not counted at 1 (one already running 1)
     Miralupa: alive for 14; pressed at 13 (defensive 13); none at 1: p8 1:47 (one ready at 1); not counted at 7 (one already running 7)
-Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): "CC Mindcontrol" to Wutroll at 2:34, 2:36, 2:37, 2:39, 2:41, 2:42, 2:43, 2:45, 2:48, 2:51, 3:10, 3:12, 3:13, 3:15, 3:17, 3:18, 3:19, 3:21, 3:24, 3:27, 4:01, 4:04, 4:06, 4:13, 4:37, 4:42, 5:26, 5:31 (15 pulls); "CC Mindcontrol" to Pomaa at 2:34, 2:36, 2:37, 2:39, 2:41, 2:42, 2:43, 2:45, 2:48, 2:51, 3:10, 3:12, 3:13, 3:15, 3:17, 3:18, 3:19, 3:21, 3:24, 3:27, 4:01, 4:04, 4:06, 4:13, 4:37, 4:42, 5:26, 5:31 (15 pulls); "CC Mindcontrol" to Fappachino at 2:34, 2:36, 2:37, 2:39, 2:41, 2:42, 2:43, 2:45, 2:48, 2:51, 3:10, 3:12, 3:13, 3:15, 3:17, 3:18, 3:19, 3:21, 3:24, 3:27, 4:01, 4:04, 4:06, 4:13, 4:37, 4:42, 5:26, 5:31 (15 pulls)
-Lines of the note not understood: 10 lines, the first "time:6;ph:2.5;tag:Miralupa;spellid:200183;" (a timed line has a time in seconds, a phase that is a whole number, a tag, and a spell or a text; an assignment is a heading with "Label: players" lines under it)
+    Namsus: alive for 3; pressed at 2 (defensive 2, raid_cd 2); none at 1: p21 1:47 (one ready at 1); not counted at 18 (pressed the note's plan for them 16, one already running 2)
+Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): "CC Mindcontrol" to Wutroll at P2 0:09, 0:45, 1:34, 2:10, 2:59 (15 pulls); "CC Mindcontrol" to Pomaa at P2 0:09, 0:45, 1:34, 2:10, 2:59 (15 pulls); "CC Mindcontrol" to Fappachino at P2 0:09, 0:45, 1:34, 2:10, 2:59 (15 pulls)

@@ -127,6 +127,24 @@ API: `wcl-api.md`.
   nickname, a role (`tank`, `healer`, `damager`, `melee`, `ranged`), a spec or class id, or `groupN`. The lines
   between `intstart` and `intend` are the interrupt order, names in the order they kick; which add a line is for is
   the addon's rule per boss, not in the note.
+- A note's `ph` is the addon's own count of a boss's phases, not Warcraft Logs' ids. The guild's Coiled Altar note
+  (November 2026) has lines in ph 1, 2, 2.5 and 3, where Warcraft Logs lists Stage One, Stage Two, the intermission
+  and Stage Three as ids 1 to 4; Nek'zali's ids go Stage One, the intermission, Stage Two. The raid note check lays
+  `ph:N` on the phase every tool labels P<N> and `ph:N.5` on the intermission between P<N> and the next
+  (`pulls.phase_labels`), with no table per boss. On the recorded pull into Stage Three (fk2z6bCw4xRLNvht pull 28:
+  Stage Two at 2:27, the intermission at 6:08, Stage Three at 6:46) read by ids, the 82 lines of ph:3 lay 38 s
+  early, in the intermission, and the 10 of ph:2.5 were not read.
+- The addon starts a phase's reminders when the boss changes phase and cancels the ones still pending from the
+  phase before (Reminders.lua, November 2026), so a line in ph:1 timed after the push never shows. The same note
+  plans the push to Stage Two at 2:47; over the recorded night's 28 pulls it came sooner on 15, with 119 planned
+  cooldowns of ph:1 timed after it (on pull 28 nine, of which five read 15 to 29 s early and three not cast). The
+  check stops a phase's lines where the note's next phase begins, and only there: Sszorak's log goes P1, P2, P1
+  while the guild's note has only ph:1 lines, which run to the pull's end.
+- Where a boss's pulls go back to a phase or skip one in the log (Sszorak 1, 2, 1; the Entombed Sentinels 1, 2, 1,
+  2; the Lost Explorers 1, 4, 1, 2, 1, 3 on the recorded reports, October 2026), the addon counts the fight its own
+  way and Warcraft Logs' list can't say which phase a note's `ph:2` is. Neither can it for a number the list has
+  no phase for (the addon counts Nek'zali 1, 1.5, 1.75, 2; the log has Stage One, the intermission and Stage Two).
+  The check counts such lines as not checked and times none of them.
 - `wowhead guide-full <boss guide url>` (the url from `wowhead guides raids "<boss>"`; the row's title says
   "Raid Boss Guide" or "Raid Guide ... Boss Cheat Sheet") has the boss's abilities in `linked_entities` (73 spells
   for the Coiled Altar) and the strategy in `body.section_chunks[*]` (9k chars of text for Sszorak: the cheat
