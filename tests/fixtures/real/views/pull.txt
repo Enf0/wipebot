@@ -14,7 +14,7 @@
 "phase": null,
 "wcl_pct": 62.59,
 "ranking": null,
-"ended": {"text": "the boss gaining Unbound Ferocity", "ms": 152966},
+"headline": {"text": "The boss gained Unbound Ferocity at 2:32 and kept it to the end, with 16 of 20 alive.", "kind": ""},
 "decided": {"ms": 152966, "why": "the boss gained Unbound Ferocity"},
 "phases": [
   {"ms": 0, "id": 1, "label": "P1", "name": "Sszorak"},

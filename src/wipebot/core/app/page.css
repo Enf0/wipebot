@@ -76,30 +76,30 @@ svg [data-armed] { fill: color-mix(in srgb, var(--ink) 16%, transparent); }  /* 
 svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }  /* over lines */
 
 /* Loading: a placeholder in the shape of the view that is coming (main.js names it in data-shape), so little moves
-   when the data arrives. A card is a few numbers over one chart and two buttons; a night has its lists under the
-   chart; the replay is its stage over its controls. No spinner in a chat's column: the shimmer says it is working. */
+   when the data arrives. Every view's card has one shape (kit.card): its head, a headline, four numbers, one chart
+   and two buttons; the replay is its stage over its controls. No spinner in a chat's column: the shimmer says it is
+   working. */
 #status .sk-head { display: flex; gap: 10px; padding: 0 2px 8px; }
 #status .sk-line { height: 14px; border-radius: 7px; background: var(--sk); }
-#status .sk-stats { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 0 2px 10px; }
-#status .sk-stats i { width: 104px; height: 34px; border-radius: 7px; background: var(--sk); }
-#status .sk-stage { position: relative; height: 236px; border-radius: 10px; overflow: hidden; background: var(--sk);
+#status .sk-lead { width: min(100%, 420px); height: 16px; margin: 0 2px 10px; }
+#status .sk-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 18px; padding: 0 2px 10px; }
+#status .sk-stats i { height: 50px; border-radius: 7px; background: var(--sk); }
+#status .sk-stage { position: relative; height: 220px; border-radius: 10px; overflow: hidden; background: var(--sk);
                     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-#status .sk-rows { display: none; height: 322px; margin: 14px 2px 0;
-                   background: repeating-linear-gradient(var(--sk) 0 14px, transparent 14px 22px); }
-#status[data-shape="pull"] .sk-stage { height: 276px; }
-#status[data-shape="player"] .sk-stage { height: 280px; }
-#status:is([data-shape="night"], [data-shape="player_night"]) .sk-stage { height: 190px; }
-#status:is([data-shape="night"], [data-shape="player_night"]) .sk-rows { display: block; }
+/* about as tall as each view's own chart: a pull's has its phases, cooldowns and deaths over and under the plot, a
+   night's two or three numbers over a row of bars, a player's is a timeline, their night's a list */
+#status[data-shape="pull"] .sk-stage { height: 250px; }
+#status[data-shape="night"] .sk-stage { height: 195px; }
+#status[data-shape="night"] .sk-stats i:nth-child(n + 3) { display: none; }
+#status[data-shape="player"] .sk-stage { height: 165px; }
+#status[data-shape="player_night"] .sk-stage { height: 230px; }
 #status[data-shape="replay"] .sk-stage { height: auto; aspect-ratio: 3 / 2; }
-#status[data-shape="replay"] .sk-stats { display: none; }
+#status[data-shape="replay"] :is(.sk-stats, .sk-lead) { display: none; }
 #status[data-shape="replay"] .sk-head { padding-bottom: 24px; }
 #status:not([data-shape="replay"]) .sk-bar .sk-line { display: none; }
 #status:not([data-shape="replay"]) .sk-btn { width: 96px; }
-#status:is([data-shape="night"], [data-shape="player_night"]) .sk-btn:last-child { display: none; }
-@media (max-width: 480px) {  /* a narrow card wraps its numbers and its notes onto more lines */
-  #status[data-shape="player"] .sk-stage { height: 440px; }
-  #status[data-shape="player_night"] .sk-rows { height: 430px; }
-  #status[data-shape="night"] .sk-rows { height: 420px; }  /* an ending's name takes two lines there */
+@media (max-width: 480px) {  /* a narrow card's headline takes two lines */
+  #status .sk-lead { height: 36px; }
   #status[data-shape="replay"] .sk-head { padding-bottom: 48px; }
 }
 #status .sk-stage::before { content: ""; position: absolute; inset: 0;
@@ -121,12 +121,16 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 .head .sub { color: var(--muted); font-size: 12.5px; }
 .head .back { margin-left: auto; height: 28px; font-size: 12.5px; }
 .stats { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 0 2px 8px; }
+.stats.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 18px; }
 .stat .k { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .stat .v { font-weight: 600; font-variant-numeric: tabular-nums; }
 .stat .v.dead { color: var(--dead-ink); } .stat .v.decided { color: var(--decided-ink); } .stat .v.good { color: var(--good-ink); }
+.stat .v.best { color: var(--gold-ink); }
 .stat .n { font-size: 11.5px; color: var(--muted); }
-.standing { font-size: 12px; color: var(--muted); margin: -4px 2px 8px; }
-.standing .best { color: var(--gold-ink); }
+/* the card's headline: one sentence, with a note's mark where it says what went well or what to do differently */
+.lead { margin: 0 2px 8px; font-size: 14px; font-weight: 600; line-height: 1.35; display: flex; gap: 6px; }
+.lead .mk { font-weight: 800; width: 12px; flex: none; }
+.lead.good .mk { color: var(--good-ink); } .lead:is(.fix, .mind) .mk { color: var(--decided-ink); }
 .notes { list-style: none; margin: 0 2px 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2px 18px; font-size: 12.5px; }
 .notes li { display: flex; gap: 6px; }
 .notes .mk { font-weight: 800; font-size: 14px; line-height: 17px; width: 12px; flex: none; }
@@ -161,6 +165,8 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 .cds .count { font-variant-numeric: tabular-nums; font-weight: 600; }
 .cds .short { color: var(--decided-ink); }
 .note { font-size: 12px; color: var(--muted); margin: 6px 2px 0; }
+.note.under { margin: 0 2px 10px; }
+.lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 28px; align-items: start; }
 table.pulls { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 table.pulls th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
                  color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }

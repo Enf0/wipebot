@@ -1,76 +1,59 @@
 // ---- the pull: how it ended, boss health against raid damage taken, phases, the boss's casts, cooldowns, deaths ----
-// Inline: the card (four numbers, the chart with the cooldowns in one row, two actions). Fullscreen: the same with a
-// lane each for the boss's casts, the raid's cooldowns and the healers', and the deaths to click.
+// Inline: the card (kit.card: how it ended in one sentence, four numbers, the chart with the cooldowns in one row,
+// two buttons). Fullscreen: the same with a lane each for the boss's casts, the raid's cooldowns and the healers',
+// and the deaths to click.
 views.pull = (() => {
-  let D = null, root = null, open = null, drawnWidth = 0;
+  let D = null, root = null, open = null;
 
   async function show(into, key, opener) {
     root = into; open = opener;
     D = await app.callTool("view_data", { view: "pull", report: key.report, pull: key.pull, boss: key.boss });
     render();
-    // The chart is drawn at the width it has, so its text stays readable: drawn again when that changes.
-    new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
+    kit.watch(into, () => root === into, render);
   }
 
   function counted() { return D.deaths.filter((d) => !d.fallout); }
 
+  // The card's numbers; how the pull ended is its headline (views.pull_headline). A kill: how fast and how clean,
+  // against other kills of the boss. A wipe: how far it got, and where that stands against the log's earlier wipes
+  // on the boss and the guild's earlier logs, as the post says; on a boss counted by phase those are Warcraft Logs'
+  // whole-fight %, so the wipe's own leads, all named WCL.
   function stats() {
-    const out = [];
-    if (D.kill) out.push(["Result", "Kill", ""]);
-    if (D.kill && D.ranking) {  // a kill's story: how fast and how clean, against other kills of the boss
-      out.push(["Speed", `${kit.ordinal(D.ranking.speed)} percentile`, ""]);
-      out.push(["Execution", `${kit.ordinal(D.ranking.execution)} percentile`, ""]);
+    const out = [], b = D.best, wcl = D.phase ? "WCL " : "";
+    if (D.kill && D.ranking) {
+      out.push(["Speed", `${kit.ordinal(D.ranking.speed)} percentile`, "", "against other kills of the boss"]);
+      out.push(["Execution", `${kit.ordinal(D.ranking.execution)} percentile`, "", "deaths and damage taken"]);
     }
-    else if (D.ended) out.push(["Ended by", D.ended.text + (D.ended.ms != null ? ` ${kit.clock(D.ended.ms)}` : ""), "decided"]);
-    if (!D.kill && D.boss_pct != null) out.push(["Boss", `${D.phase ? `${D.phase} ` : ""}${D.boss_pct}%`, ""]);
-    out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), ""]);
+    if (!D.kill && D.boss_pct != null) {
+      const where = D.phase && D.wcl_pct != null ? [`WCL ${D.wcl_pct.toFixed(1)}%`] : [];
+      if (b && b.new_guild) where.push("new guild best");
+      else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log ${wcl}${b.tonight.toFixed(1)}%`);
+      out.push(["Boss", `${D.phase ? `${D.phase} ` : ""}${D.boss_pct}%`, b && b.new_guild ? "best" : "", where.join(" · ")]);
+    }
+    out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), "",
+              D.decided && D.deaths.length > counted().length ? `${D.deaths.length - counted().length} after it: fallout` : ""]);
     const first = D.deaths[0];
-    if (first) out.push(["First death", `${first.name} ${kit.clock(first.ms)}`, "dead"]);
-    return `<div class="stats">${out.map(([k, v, cls]) =>
-      `<div class="stat"><div class="k">${kit.esc(k)}</div><div class="v ${cls}">${kit.esc(v)}</div></div>`).join("")}</div>`
-      + standing();
-  }
-
-  // Where the wipe stands: against the log's earlier wipes on the boss and the guild's earlier logs, as the post says.
-  // On a boss counted by phase, those are Warcraft Logs' whole-fight %, so the wipe's own leads, all named WCL.
-  function standing() {
-    const b = D.best;
-    if (!b) return "";
-    const wcl = D.phase ? "WCL " : "";
-    const parts = D.phase && D.wcl_pct != null ? [`WCL ${D.wcl_pct.toFixed(1)}%`] : [];
-    if (b.tonight != null) parts.push(b.new_tonight ? "best of this log so far" : `best of this log ${wcl}${b.tonight.toFixed(1)}%`);
-    if (b.new_guild) parts.push(`<b class="best">new guild best!</b> (before: ${wcl}${b.guild.pct.toFixed(1)}%, ${kit.esc(b.guild.day)})`);
-    else if (b.guild) parts.push(`guild best before ${wcl}${b.guild.pct.toFixed(1)}% (${kit.esc(b.guild.day)})`);
-    return parts.length ? `<div class="standing">${parts.join(" · ")}</div>` : "";
+    if (first) out.push(["First death", `${first.name} ${kit.clock(first.ms)}`, "dead", first.by]);
+    if (b && b.guild) out.push(["Guild best before", `${wcl}${b.guild.pct.toFixed(1)}%`, "", b.guild.day]);
+    return out;
   }
 
   function render() {
     if (!D || !root) return;
-    const full = app.context().displayMode === "fullscreen";
+    const { full, picture, width } = kit.frame(root);
     const sub = [D.difficulty, kit.clock(D.duration_ms), D.kill ? "kill" : D.live ? "still going" : null].filter(Boolean).join(" · ");
-    const head = `<div class="head"><h1>${kit.esc(D.title)}</h1><span class="sub">${kit.esc(sub)}</span></div>`;
     const startAt = D.deaths.length ? Math.max(0, D.deaths[0].ms - 3000) : 0;
-    drawnWidth = root.clientWidth;
-    const width = Math.max(300, drawnWidth || 640);
-    if (app.picture()) {  // a still picture: the card without its buttons
-      root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 54, plotH: 130 })}</div>`;
-      return;
-    }
-    if (!full) {
-      root.innerHTML = head + stats() + `<div id="pv-chart">${chart({ W: width, L: 40, R: 54, plotH: width < 500 ? 100 : 120 })}</div>`
-        + `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="pv-open">Open pull</button>' : ""}`
-        + `<button id="pv-replay">Replay</button></div>`;
-      const o = root.querySelector("#pv-open");
-      if (o) o.onclick = () => app.requestDisplayMode("fullscreen").then(render);
+    const card = (drawn, buttons) => kit.card({ title: D.title, sub, headline: D.headline, stats: stats(), chart: drawn, open: "Open pull", buttons });
+    if (picture || !full) {  // the card; a still picture is the same without its buttons
+      const plotH = picture ? 130 : width < 500 ? 100 : 120;
+      root.innerHTML = card(`<div id="pv-chart">${chart({ W: width, L: 40, R: 54, plotH })}</div>`, [["pv-replay", "Replay"]]);
     } else {
-      root.innerHTML = head + stats() + `<div class="full"><div class="scroll-x" id="pv-chart">${chart({ W: Math.max(560, width > 720 ? width - 264 : width), L: 112, R: 50, plotH: 240, lanes: true })}</div>`
-        + deathsList() + `</div><div class="actions"><button id="pv-replay">Replay from the first death</button>`
-        + (D.deaths.length ? `<button id="pv-ask">Ask what killed ${kit.esc(D.deaths[0].name)}</button>` : "") + `</div>`;
+      root.innerHTML = card(`<div class="full"><div class="scroll-x" id="pv-chart">${chart({ W: Math.max(560, width > 720 ? width - 264 : width), L: 112, R: 50, plotH: 240, lanes: true })}</div>`
+        + deathsList() + `</div>`, [["pv-replay", "Replay from the first death"], D.deaths.length && ["pv-ask", `Ask what killed ${D.deaths[0].name}`]]);
       root.querySelectorAll(".deaths button").forEach((b) => b.onclick = () => replayAt(+b.dataset.ms - 3000));
-      const ask = root.querySelector("#pv-ask");
-      if (ask) ask.onclick = () => app.sendMessage(`What killed ${D.deaths[0].name} at ${kit.clock(D.deaths[0].ms)} on ${D.title}?`);
+      kit.press(root, "pv-ask", () => app.sendMessage(`What killed ${D.deaths[0].name} at ${kit.clock(D.deaths[0].ms)} on ${D.title}?`));
     }
-    root.querySelector("#pv-replay").onclick = () => replayAt(startAt);
+    kit.press(root, "pv-replay", () => replayAt(startAt));
   }
 
   function replayAt(ms) {
@@ -218,7 +201,7 @@ views.pull = (() => {
       return ys.length ? [Math.min(...ys), Math.max(...ys)] : null;
     };
     // when the wipe was decided: the dashed line, and on its side with more room the time and, on a card wide enough
-    // for it, why (the "Ended by" over the chart says it too); over the health line where there's room, else under it
+    // for it, why (the headline over the chart says it too); over the health line where there's room, else under it
     if (D.decided) {
       const right = dx > (W - R) * 0.6, rows = [[`decided ${kit.clock(D.decided.ms)}`, kit.SIZE.value, 'font-weight="600"']];
       if (W >= 500) rows.push([D.decided.why, kit.SIZE.label, ""]);

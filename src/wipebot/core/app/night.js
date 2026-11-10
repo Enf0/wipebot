@@ -1,14 +1,15 @@
-// ---- the player's night on a boss: what killed them, ranked, and whether a ready defensive or a healthstone would
-// have kept them alive; their output and death pull by pull, the trend in thirds, their cooldowns summed. Two panels
-// (data-panel), each its own picture in Discord; a pull's chip or column opens that pull's player view ----
+// ---- the player's night on a boss: the night in one sentence (views.player_night_headline), then what killed them,
+// ranked, and whether a ready defensive or a healthstone would have kept them alive: the card (kit.card). Fullscreen
+// adds their output and death pull by pull, the trend in thirds and their cooldowns summed. In Discord two panels
+// (data-panel), each its own picture; a pull's chip or column opens that pull's player view ----
 views.player_night = (() => {
-  let D = null, root = null, open = null, drawnWidth = 0;
+  let D = null, root = null, open = null;
 
   async function show(into, key, opener) {
     root = into; open = opener;
     D = await app.callTool("view_data", { view: "player_night", report: key.report, boss: key.boss, player: key.player });
     render();
-    new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
+    kit.watch(into, () => root === into, render);
   }
 
   const what = () => D.what === "healing" ? "Healing" : "Damage";
@@ -18,7 +19,7 @@ views.player_night = (() => {
 
   function stats() {
     const n = D.pulls.filter((p) => !p.reset).length, L = D.lived;
-    return kit.stats([
+    return [
       ["Died before the wipe was decided", `${D.died} of ${n}`, D.died ? "dead" : "",
        `${D.first ? `first to die ${times(D.first)}` : "never first to die"}, ${times(D.early)} among the first ${D.early_n}`],
       L.of ? ["Could have lived", `${L.saved} of ${L.of}`, L.saved ? "decided" : "",
@@ -26,7 +27,7 @@ views.player_night = (() => {
                L.outright ? `${L.outright} killed outright` : "", L.unknown ? `can't tell for ${L.unknown}` : ""].filter(Boolean).join("; ")] : null,
       ["Time dead", `${D.dead_s} s`, "", `${D.dead_pct}% of the time before each wipe was decided`],
       D.best ? ["Best pull", `${D.best.pull}: ${kit.short(D.best.per_s_alive)}`, "", `${what().toLowerCase()} per s alive`] : null,
-    ]);
+    ];
   }
 
   const KILLERS_SHOWN = 5;
@@ -57,32 +58,25 @@ views.player_night = (() => {
     return possible ? `<div class="note">Major cooldowns: ${used} of ${possible} uses if pressed each time they were ready, all pulls (until they died or the wipe was decided).</div>` : "";
   }
 
-  // The two panels: who they are and what killed them; the night pull by pull
-  function panels(W, lanes) {
-    return `<div data-panel="killers">${head()}${stats()}${killers()}</div>`
-      + `<div data-panel="pulls"><div class="section-title">Pull by pull</div>${chart(W, lanes)}${cooldownsNote()}</div>`;
-  }
-
-  function head() {
+  // Who they are, their night in one sentence and what killed them: the card, and the first of Discord's panels
+  function card() {
     const p = D.player;
     const sub = [`${p.spec} ${p.class}`, D.boss,
                  D.pulls.length === D.total_pulls ? kit.plural(D.pulls.length, "pull") : `${D.pulls.length} of ${D.total_pulls} pulls`].join(" · ");
-    return kit.head(p.name, sub, p.color);
+    return `<div data-panel="killers">${kit.card({ title: p.name, sub, color: p.color, headline: D.headline, stats: stats(), chart: killers(),
+                                                    open: "Open night" })}</div>`;
   }
+
+  // The night pull by pull: fullscreen, and the second of Discord's panels
+  const pulls = (W, lanes) => `<div data-panel="pulls"><div class="section-title">Pull by pull</div>${chart(W, lanes)}${cooldownsNote()}</div>`;
 
   function render() {
     if (!D || !root) return;
-    const full = app.context().displayMode === "fullscreen", picture = app.picture();
-    drawnWidth = root.clientWidth;
-    const width = Math.max(300, drawnWidth || 640);
-    if (picture) { root.innerHTML = panels(width, false); return; }
-    if (!full) {
-      root.innerHTML = panels(width, false)
-        + `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="ng-open">Open night</button>' : ""}</div>`;
-      const o = root.querySelector("#ng-open");
-      if (o) o.onclick = () => app.requestDisplayMode("fullscreen").then(render);
-    } else {
-      root.innerHTML = panels(width, true) + `<div class="full"><div>${table()}</div>${side()}</div>`;
+    const { full, picture, width } = kit.frame(root);
+    if (picture) root.innerHTML = card() + pulls(width, false);
+    else if (!full) root.innerHTML = card();
+    else {
+      root.innerHTML = card() + pulls(width, true) + `<div class="full"><div>${table()}</div>${side()}</div>`;
       root.querySelectorAll("tr[data-pull]").forEach((tr) => tr.onclick = () => openPull(+tr.dataset.pull));
     }
     root.querySelectorAll("[data-pull-col]").forEach((el) => el.addEventListener("click", () => openPull(+el.dataset.pullCol)));

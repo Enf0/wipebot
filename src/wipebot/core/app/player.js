@@ -1,7 +1,9 @@
-// ---- the player: their output and where it stands, the time they lost, when they cast, capped or died, their
-// cooldowns; fullscreen their casts, and against top players of their spec on asking (compare_with_top's casts) ----
+// ---- the player: their pull in one sentence (views.player_headline), their output, the time they lost, and when
+// they cast, sat at their resource's cap or were dead, with their cooldowns (kit.card). Fullscreen adds the rest of
+// what went well and what to fix, where their output stands (with why that proves little on a wipe), their casts,
+// and against top players of their spec on asking (compare_with_top's casts) ----
 views.player = (() => {
-  let D = null, root = null, drawnWidth = 0, loadingTop = false, topFailed = "";
+  let D = null, root = null, loadingTop = false, topFailed = "";
   const TOP_ROWS = 5;  // a picture's or card's casts against the top: the biggest differences
 
   async function show(into, key) {
@@ -9,13 +11,13 @@ views.player = (() => {
     D = await app.callTool("view_data", { view: "player", report: key.report, pull: key.pull, boss: key.boss,
                                           player: key.player, top: !!key.top });
     render();
-    new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
+    kit.watch(into, () => root === into, render);
   }
 
   const who = () => `${D.player.spec} ${D.player.class}`;
 
   function stats() {
-    const o = D.output, items = [];
+    const o = D.output, s = D.standing, items = [];
     if (o) items.push([`${o.what === "healing" ? "Healing" : "Damage"} per s alive`, kit.short(o.per_s_alive), "",
                        o.rank ? `rank ${o.rank} of ${o.of} ${o.role} by total` : ""]);  // views.player_view ranks by the total
     const costs = [[D.lost.dead_s, "dead"], [D.lost.gaps_s, "casting gaps"], [D.lost.capped_s, `${D.lost.resource} capped`]]
@@ -24,46 +26,41 @@ views.player = (() => {
                 costs.length ? `${Math.round(costs[0][0])} s ${costs[0][1]}` : "none", costs[0] && costs[0][1] === "dead" ? "dead" : "",
                 costs.slice(1).map(([s, w]) => `${Math.round(s)} s ${w}`).join(", ")]);
     const judged = D.cooldowns.filter((c) => c.possible);
-    if (judged.length) {
+    // a kill's parse is a percentile that means what it says; where a wipe stands among kills proves little by
+    // itself (views.SHORT_PULL) and is drawn in fullscreen only, with why
+    if (s && s.kind === "parse") items.push(["Parse", `${kit.ordinal(s.percentile)} percentile`, "", `against ${who()} kills`]);
+    else if (judged.length) {
       const used = judged.reduce((n, c) => n + Math.min(c.uses.length, c.possible), 0), possible = judged.reduce((n, c) => n + c.possible, 0);
       items.push(["Cooldowns", `${used} of ${possible}`, "", "if pressed on cooldown"]);  // a count, no verdict: one held is right
     }
     const d = D.died[0];
     items.push(["Died", d ? kit.clock(d.ms) : "no", d && !d.fallout ? "dead" : "", d ? (d.fallout ? "after the wipe was decided" : d.by) : ""]);
-    return kit.stats(items) + notes();
+    return items;
   }
 
-  // What went well and what to fix, picked by the server (views.player_notes)
+  // What went well and what to fix, picked by the server (views.player_notes): the weightiest is the headline, the
+  // rest are listed in fullscreen
   function notes() {
-    const n = D.notes;
-    if (!n || !(n.good.length || n.fix.length)) return "";
-    return kit.notes([...n.good.map((s) => ["good", s]), ...n.fix.map((s) => ["fix", s])]);
+    const n = D.notes, said = D.headline ? D.headline.text : "";
+    if (!n) return "";
+    return kit.notes([...n.good.map((s) => ["good", s]), ...n.fix.map((s) => ["fix", s])].filter(([, s]) => `${s}.` !== said));
   }
 
   function render() {
     if (!D || !root) return;
-    const full = app.context().displayMode === "fullscreen", picture = app.picture();
-    drawnWidth = root.clientWidth;
-    const width = Math.max(300, drawnWidth || 640);
-    const p = D.player;
+    const { full, picture, width } = kit.frame(root), p = D.player;
     const sub = [who(), p.hero, p.ilvl ? `item level ${p.ilvl}` : null, D.title].filter(Boolean).join(" · ");
-    let html = kit.head(p.name, sub, p.color) + stats() + standing(width) + ribbon({ W: full ? Math.max(560, width) : width, lanes: full });
-    if (picture) {
-      root.innerHTML = html + (D.top && typeof D.top === "object" ? topSection(width, TOP_ROWS) : "");
-      return;
-    }
-    if (!full) {
-      html += (D.top && typeof D.top === "object" ? topSection(width, TOP_ROWS) : "")
-        + `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="pl-open">Open player</button>' : ""}`
-        + (D.top ? "" : `<button id="pl-top">Against top players</button>`) + `</div>`;
-      root.innerHTML = html;
-      const o = root.querySelector("#pl-open");
-      if (o) o.onclick = () => app.requestDisplayMode("fullscreen").then(render);
+    const against = D.top && typeof D.top === "object";
+    const card = (drawn, buttons = []) => kit.card({ title: p.name, sub, color: p.color, headline: D.headline, stats: stats(), chart: drawn,
+                                                     open: "Open player", buttons });
+    if (picture || !full) {
+      root.innerHTML = card(ribbon({ W: width, lanes: false }) + (against ? topSection(width, TOP_ROWS) : ""),
+                            [!D.top && ["pl-top", "Against top players"]]);
     } else {
-      root.innerHTML = html + `<div class="full"><div>${topOrCasts(Math.max(400, width > 720 ? width - 264 : width))}</div>${side()}</div>`;
+      root.innerHTML = card(notes() + standing(width) + ribbon({ W: Math.max(560, width), lanes: true }))
+        + `<div class="full"><div>${topOrCasts(Math.max(400, width > 720 ? width - 264 : width))}</div>${side()}</div>`;
     }
-    const t = root.querySelector("#pl-top");
-    if (t) t.onclick = () => (app.canGoFullscreen() && !full ? app.requestDisplayMode("fullscreen") : Promise.resolve()).then(loadTop);
+    kit.press(root, "pl-top", () => (app.canGoFullscreen() && !full ? app.requestDisplayMode("fullscreen") : Promise.resolve()).then(loadTop));
   }
 
   async function loadTop() {
@@ -78,7 +75,8 @@ views.player = (() => {
     loadingTop = false; render();
   }
 
-  // Where their output stands: among the spec's ranked kills of the boss (a wipe), or their parse (a kill).
+  // Where their output stands, in fullscreen: their parse (a kill), or among the spec's ranked kills of the boss (a
+  // wipe), with why that proves little by itself, in the tool's words (views.SHORT_PULL)
   function standing(W) {
     const s = D.standing;
     if (!s) return "";
@@ -113,7 +111,8 @@ views.player = (() => {
     const mine = `${D.player.name} ${kit.short(s.mine)}`, right = x(s.mine) + kit.width(mine, kit.SIZE.value) + 12 > W;
     o += kit.text(right ? x(s.mine) - 10 : x(s.mine) + 10, y - 6, mine, "t", `${right ? 'text-anchor="end"' : ""} font-weight="600"`, kit.SIZE.value);
     const h = y + (ends[1] !== undefined ? 62 : 40);
-    return kit.svg(W, h, o, `${D.player.name}'s ${what.toLowerCase()} per second alive against the spec's ranked kills`);
+    return kit.svg(W, h, o, `${D.player.name}'s ${what.toLowerCase()} per second alive against the spec's ranked kills`)
+      + (s.caveat ? `<div class="note under">${kit.esc(s.caveat)}</div>` : "");
   }
 
   // The pull as they played it: casting, casting gaps, their resource at its cap and dead, their cooldowns above,

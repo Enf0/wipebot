@@ -2,6 +2,7 @@
 "report": "KBYT4xXn7VNjDgh8",
 "boss": "Sszorak",
 "title": "Sszorak, Mon 5 Oct",
+"headline": {"text": "The boss gaining Unbound Ferocity and keeping it to the end ended 10 of the 33 pulls.", "kind": ""},
 "difficulty": "Mythic",
 "url": "https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8",
 "combat_ms": 3297346,

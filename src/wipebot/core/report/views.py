@@ -27,16 +27,26 @@ from ..pulls import (
     wipe_pct,
     wipe_pcts,
 )
-from ..text import clock, day, ordinal
+from ..text import clock, day, ordinal, plural, short
 from . import adds, mana, mechanics, tables, versus
 from . import note as notes
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
 from .casting import alive, cast_counts, casting, raid_pauses, without
-from .coaching import best_pulls, dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
+from .coaching import (
+    BEST_MIN_S,
+    OPENER_SHARE,
+    best_pulls,
+    dead_spans,
+    night_cooldowns,
+    night_pulls,
+    night_trend,
+    resource_use,
+    time_lost,
+)
 from .cooldowns import NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
-from .ending import card_text, kind_of_end, mass_death_of, pull_ending, pull_endings
+from .ending import ALIVE, Ending, HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending, pull_endings
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
 from .meter import Meter
 from .night import BossNight, kill_rankings, wipe_thirds
@@ -106,12 +116,14 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
 
 
 async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, field by field)
-    """One pull at a glance: how it ended, the boss's health and the raid's damage taken over time, phases, the boss's
-    casts, raid and healing cooldowns, Bloodlust and every death, as pull_summary and pull_timeline state them."""
+    """One pull at a glance: how it ended (in one sentence, the card's headline), the boss's health and the raid's
+    damage taken over time, phases, the boss's casts, raid and healing cooldowns, Bloodlust and every death, as
+    pull_summary and pull_timeline state them."""
     t0, length = f["startTime"], f["endTime"] - f["startTime"]
     deaths, raid, decided = await rep.deaths(f), await rep.raid_size(f), await rep.decided_at(f)
     backs = (await rep.resurrects([f]))[f["id"]]
     casts, found = await boss_casts(rep, f)
+    ended = await pull_ending(rep, f)
     health, kept = [], None
     for t, v in (await tracks(rep, f)).get("health") or []:
         if kept is None or abs(v - kept) >= HEALTH_STEP:
@@ -142,7 +154,7 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         # (what ranks wipes, as "best" compares them) Warcraft Logs' measure of the whole fight
         "phase": phase_label(f) if phase_health(f) is not None else None, "wcl_pct": wipe_pct(f),
         "ranking": (await kill_rankings(rep)).get(f["id"]) if f["kill"] else None,
-        "ended": _ended(await pull_ending(rep, f)),
+        "headline": pull_headline(f, ended, len(deaths)),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
         "phases": [{"ms": round(t["startTime"] - t0), "id": t["id"], "label": rep.phase(f, t["id"]),
                     "name": rep.phase_names.get((f["encounterID"], t["id"]), "")}
@@ -299,8 +311,8 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
     if f["kill"]:
         if (pct := (await kill_parses(rep, f, metric_of(p))).get(p.name)) is not None:
             standing = {"kind": "parse", "percentile": pct}
-    elif p.role != "tank" and output:
-        spread = await kills_spread(rep, f, p)
+    elif p.role != "tank" and output and alive_s >= max(BEST_MIN_S, (f["endTime"] - t0) / 1000 / OPENER_SHARE):
+        spread = await kills_spread(rep, f, p)  # an opener is placed among no kills, as player_pull leaves it out
         if isinstance(spread, Spread) and spread.points:
             standing = {"kind": "kills", "n": spread.n, "exact": spread.exact,
                         "points": [[label, round(v)] for label, v in spread.points], "mine": output["per_s_alive"],
@@ -347,6 +359,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
     if top:
         out["top"] = await _against_top(rep, f, p, ids)
     out["notes"] = player_notes(out)
+    out["headline"] = player_headline(out)
     return out
 
 
@@ -424,8 +437,11 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
                          sum(x.counted_s for x in pulls if not x.reset))
     eligible = {rep.pull_no(x.f) for x in best_pulls(pulls, role)}  # as the text picks it
     best = max((r for r in rows if r["pull"] in eligible), key=lambda r: r["per_s_alive"], default=None)
+    lived = sum(v is True for v in judged)
     return {
         "view": "player_night", "report": rep.code, "boss": boss, "title": f"{p.name} on {boss}",
+        "url": rep.url(fights[0]).split("#")[0],
+        "headline": player_night_headline(len(counted), sum(not r["reset"] for r in rows), lived),
         "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
                    "color": class_hex(p.class_name), "role": role},
         "what": "healing" if role == "healer" else "damage", "role_name": ROLE_NAMES[role],
@@ -437,7 +453,7 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
                             sum(r["cooldowns"][1] for r in rows if not r["reset"])],
         "best": {"pull": best["pull"], "per_s_alive": best["per_s_alive"]} if best else None,
         "killers": sorted(killers.values(), key=lambda k: (k["by"] == NO_KILLING_BLOW, -len(k["pulls"]))),
-        "lived": {"saved": sum(v is True for v in judged), "of": len(judged),
+        "lived": {"saved": lived, "of": len(judged),
                   "unknown": sum(v is None for v in judged), "by": saved_by.most_common(),
                   "outright": sum(x["outright"] for k in killers.values() for x in k["pulls"])},
         "cooldowns": [{"name": n, "used": cds.used[n], "possible": cds.possible[n] if n not in cds.unknown else None,
@@ -482,6 +498,7 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
     thirds = wipe_thirds(wipe_pcts(fights))
     return {
         "view": "night", "report": rep.code, "boss": boss, "title": f"{boss}, {day(rep.start_ms)}",
+        "headline": night_headline(rows, ends.most_common()),
         "difficulty": DIFFICULTIES.get(fights[0].get("difficulty"), ""), "url": rep.url(fights[0]).split("#")[0],
         "combat_ms": round(sum(f["endTime"] - f["startTime"] for f in fights)), "pulls": rows,
         "guild_best": {"pct": before.pct, "day": day(before.start_ms), "pull": before.pull_no,
@@ -541,21 +558,25 @@ async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
                     if h.get("resourceActor") == 2 and h.get("maxHitPoints") else None)
     kid = d.get("killingAbilityGameID")
     killer = lambda x: rep.ability(k) if (k := x.get("killingAbilityGameID")) else NO_KILLING_BLOW  # noqa: E731
+    outright = bool(kid and killed_outright(rep, f, d, hits))
+    replayed = await if_pressed(rep, f, p, d, hits)
+    fallout = bool(decided and at - t0 > decided.at_ms)
+    last_hp = next((v for h in reversed(hits) if (v := hp(h)) is not None), None)
     return {
         "view": "death", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "title": rep.label(f),
+        "headline": death_headline(killer(d), at - t0, outright, last_hp, replayed, fallout),
         "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""), "url": rep.url(f),
         "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
                    "color": class_hex(p.class_name), "role": p.role},
         "death": death, "deaths": len(own), "at_ms": round(at - t0), "window_ms": RECAP_WINDOW_MS,
         "by": killer(d), "no_blow": not kid, "icon": icon(kid),
-        "fallout": bool(decided and at - t0 > decided.at_ms),
-        "outright": bool(kid and killed_outright(rep, f, d, hits)),
+        "fallout": fallout, "outright": outright,
         "hits": [{"ms": round(h["timestamp"] - t0), "by": rep.ability(h["abilityGameID"]),
                   "icon": icon(h["abilityGameID"]), "amount": h.get("amount", 0), "absorbed": h.get("absorbed", 0),
                   "overkill": h.get("overkill", 0), "hp": hp(h)} for h in hits],
         "healing": [[ms, round(v)] for ms, v in sorted(per_s.items())],
         "defensives": defs, "stones": stones,
-        "saved_by": savers(await if_pressed(rep, f, p, d, hits)),
+        "saved_by": savers(replayed),
         "with": [{"name": rep.names.get(x["targetID"], "?"), "ms": round(x["timestamp"] - t0),
                   "by": killer(x)}
                  for x in deaths if x is not d and abs(x["timestamp"] - at) <= BURST_MS],
@@ -881,6 +902,121 @@ def icons(data: object) -> set[str]:
     return found
 
 
-def _ended(e) -> dict | None:
-    """How the pull ended, in a few words for the card, and when; None for a kill."""
-    return {"text": found[0], "ms": found[1]} if (found := card_text(e)) else None
+def _headline(text: str, kind: str = "") -> dict:
+    """A card's headline: one sentence of what the view's tool states, written here so that no card and no model
+    words it. `kind` is the mark it is drawn with, as a card's notes are (kit.notes): "good" what went well, "fix"
+    what to do differently, "mind" what changes how the rest reads; "" a plain fact."""
+    return {"text": text, "kind": kind}
+
+
+def pull_headline(f: dict, e: Ending | None, deaths: int) -> dict:
+    """How the pull ended, in one sentence: pull_summary's "Ended by" (ending.ending_text) led by what that leads
+    with, without the ability's ids and what to look up; a kill by its length and its deaths."""
+    if e is None:
+        return _headline(f"Killed in {clock(f['endTime'] - f['startTime'])} "
+                         + (f"with {plural(deaths, 'death')}." if deaths else "without a death."))
+    match e.kind:
+        case "live":
+            return _headline(f"Still going: {clock(e.end_ms)} logged so far.")
+        case "reset":
+            return _headline("A reset: the boss untouched.")
+        case "cascade":
+            return _headline(f"Deaths one after another from {clock(e.first_death_ms or 0)} until half the raid was "
+                             f"dead at {clock(e.half_dead_ms or 0)}, no single hit killing many.")
+        case "alive":
+            return _headline(f"Ended at {clock(e.end_ms)} with {e.alive_at_end} of {e.raid} alive: no death "
+                             "decided it.")
+        case "cast":
+            c = e.cast
+            assert c is not None
+            what = (f"The boss cast {c.cast} at {clock(c.cast_ms)} and {c.debuff}" if c.cast and c.cast != c.debuff
+                    else f"The boss cast {c.cast} at {clock(c.cast_ms)} and it" if c.cast else f"The boss's {c.debuff}")
+            return _headline(f"{what} landed on {c.hit} of the {c.alive} alive at {clock(c.at_ms)}, as the pull "
+                             f"ended with {e.alive_at_end} of {e.raid} alive.")
+    match e.moments[0]:
+        case MassDeath(at_ms=at, ability=name, killed=n, span_s=span, waves=True) if name:
+            text = f"{name} killed {n} in pulses within {span} s from {clock(at)}"
+        case MassDeath(at_ms=at, ability="", killed=n, span_s=span):
+            text = f"{n} died at once within {span} s at {clock(at)}, no killing blow logged"
+        case MassDeath(at_ms=at, ability=name, killed=n, span_s=span):
+            text = f"{name} killed {n} within {span} s at {clock(at)}"
+        case KeptBuff(at_ms=at, name=name, alive=alive):
+            text = f"The boss gained {name} at {clock(at)} and kept it to the end, with {alive} of {e.raid} alive"
+        case HalfDead(at_ms=at):
+            text = f"Half the raid was dead at {clock(at)}"
+    if e.lead_in and e.led_in:  # as many as a hit killing many takes: the deaths lead, as in "Ended by"
+        then = text if isinstance(e.moments[0], MassDeath) and e.moments[0].ability else text[0].lower() + text[1:]
+        text = f"{e.lead_in.deaths} deaths one after another from {clock(e.lead_in.first_ms)}, then {then}"
+    elif e.lead_in:
+        text += f", after {e.lead_in.deaths} deaths one after another from {clock(e.lead_in.first_ms)}"
+    return _headline(text + ".")
+
+
+NOT_ENOUGH = "not enough on its own"  # if_pressed's verdict for a spell that wouldn't have kept them alive
+
+
+def death_headline(by: str, at_ms: float, outright: bool, last_hp: int | None, replayed: list[str],
+                   fallout: bool) -> dict:
+    """What a death comes down to, in one sentence of death_recap's facts: that it killed outright (no defensive's
+    to stop); that it came after the wipe was decided (fallout, nothing of theirs to fix); what was ready and would
+    have kept them alive (if_pressed's lines, `replayed`); that nothing ready would have been enough (every one of
+    those lines says so); else the killing blow and when."""
+    if outright:
+        return _headline(f"{by} killed them outright from {last_hp}% health: it wasn't damage that outpaced their "
+                         "healing.", "mind")
+    how = f"Died at {clock(at_ms)}, {by}" if by == NO_KILLING_BLOW else f"Killed by {by} at {clock(at_ms)}"
+    if fallout:
+        return _headline(f"{how}, after the wipe was decided.")
+    if saved := savers(replayed):
+        ready = " or ".join(saved)
+        return _headline(f"{ready[0].upper()}{ready[1:]}, used in time, would have kept them alive.", "fix")
+    if len(replayed) > 1 and all(line.endswith(f": {NOT_ENOUGH}") for line in replayed[1:]):
+        how += ": nothing ready would have been enough on its own"
+    return _headline(how + ".")
+
+
+QUIET_ENDS = ("a reset", "a kill", "still going", ALIVE)  # the endings no mechanic made (ending.kind_of_end)
+
+
+def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
+    """The raid's night on a boss in one sentence of progress's facts: the kill and on which pull, else what ended
+    the most pulls (its "Ended by" counted over the pulls that ended, resets among them: the one count the card
+    states), else how far the best wipe got."""
+    ended = [r for r in rows if not r["live"]]
+    kill = next((r for r in rows if r["kill"]), None)
+    if kill:
+        return _headline("Killed on the first pull." if len(rows) == 1
+                         else f"Killed on pull {kill['pull']} of {len(rows)}.")
+    top = next(((what, k) for what, k in ends if what not in QUIET_ENDS), None)
+    if top:
+        what = top[0][0].upper() + top[0][1:]
+        return _headline(f"{what} ended {top[1]} of the {plural(len(ended), 'pull')}.")
+    return _headline(f"{plural(len(rows), 'pull')}, none past a reset.")
+
+
+def player_headline(out: dict) -> dict:
+    """A player's pull in one sentence: the weightiest of what to fix (player_notes), else of what went well, else
+    their output and rank as player_pull states them."""
+    notes = out["notes"]
+    if notes["fix"]:
+        return _headline(notes["fix"][0] + ".", "fix")
+    if notes["good"]:
+        return _headline(notes["good"][0] + ".", "good")
+    o = out["output"]
+    if not o:
+        return _headline(f"No output logged in {clock(out['duration_ms'])}.")
+    rank = f", rank {o['rank']} of {o['of']} {o['role']} by total" if o["rank"] else ""
+    return _headline(f"{short(o['per_s_alive'])} {o['what']} per second over the {out['alive_s']} s alive{rank}.")
+
+
+def player_night_headline(died: int, pulls: int, lived: int) -> dict:
+    """A player's night on a boss in one sentence of player_night's facts: on how many pulls they died before the
+    wipe was decided, and at how many of those deaths a ready defensive or a healthstone would have kept them
+    alive (the defensives tool's replay)."""
+    if not died:
+        return _headline(f"Never died before a wipe was decided in {plural(pulls, 'pull')}.", "good")
+    head = f"Died before the wipe was decided on {died} of {plural(pulls, 'pull')}"
+    if not lived:
+        return _headline(head + ".")
+    at = f" at {lived} of those {died} deaths" if died > 1 else ""
+    return _headline(f"{head}; a ready defensive or a healthstone would have kept them alive{at}.", "fix")

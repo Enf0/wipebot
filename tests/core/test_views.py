@@ -25,7 +25,7 @@ from wipebot.core.classes import CLASS_COLORS, WHITE
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, maps, views
 from wipebot.core.report import note as notes
-from wipebot.core.report.ending import Ending, MassDeath, mass_death_of
+from wipebot.core.report.ending import EndCast, Ending, HalfDead, KeptBuff, LeadIn, MassDeath, mass_death_of
 from wipebot.core.text import clock, plural, short
 
 PULL_CASE = CASES["pull-summary"]  # the pull the views are tested on: its summary and timeline are recorded
@@ -88,6 +88,10 @@ async def test_the_pull_view_states_what_pull_summary_states(recorded):
     assert [d["fallout"] for d in data["deaths"]] == [d["ms"] > decided["ms"] for d in data["deaths"]]
     assert f"{data['boss_pct']}% health" in text
     assert f"**{data['boss']}** ({data['difficulty']}) · pull {data['pull']}" in text
+    # the card's headline is the text's "Ended by", without its ids and what to look up
+    headline = data["headline"]["text"]
+    assert headline == "The boss gained Unbound Ferocity at 2:32 and kept it to the end, with 16 of 20 alive."
+    assert headline.removeprefix("The boss ").removesuffix(".").replace(", with ", ", ") in text
     assert len(json.dumps(data)) < 150_000 // 10  # far under Claude's limit for a tool result
 
 
@@ -128,6 +132,8 @@ async def test_the_death_view_states_what_death_recap_states(recorded):
         assert re.search(rf"^  {re.escape(saver)} \(.*: would have kept them alive", text, re.MULTILINE)
     assert f"Healthstones and healing potions before death: {data['stones']}" in text
     assert "Killed outright" not in text and not data["outright"]
+    assert data["saved_by"] == ["a healthstone"]  # the text's line of it is checked above: the card's headline
+    assert data["headline"] == {"text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"}
 
 
 async def test_the_death_view_draws_in_a_host_without_errors(recorded, tmp_path):
@@ -165,6 +171,8 @@ async def test_the_raid_night_view_states_what_progress_states(recorded):
         assert re.search(rf"^  {r['pull']}: .*{clock(r['duration_ms'])}[^;]*;{re.escape(first)}", text, re.MULTILINE), r
     ends = ", ".join(f"{w} {n}" for w, n in data["ends"])
     assert f"(pull_summary's \"Ended by\"): {ends}." in text
+    what, most = data["ends"][0]  # the card's headline: what ended the most pulls, counted over all of them
+    assert data["headline"]["text"] == f"{what[0].upper()}{what[1:]} ended {most} of the {len(data['pulls'])} pulls."
     assert "first third {:.1f}, middle {:.1f}, last third {:.1f}".format(*data["thirds"]) in text
 
 
@@ -853,7 +861,7 @@ async def test_the_pull_view_draws_in_a_host_without_errors(recorded, tmp_path):
         assert not s.errors, (s.path.name, s.errors)
         assert s.height > 100 and s.path.stat().st_size > 10_000
         assert "Scopidruid 0:48" in s.text and f"{data['boss_pct']}%" in s.text
-        assert f"the boss gaining Unbound Ferocity {clock(data['decided']['ms'])}" in s.text
+        assert data["headline"]["text"] in s.text  # how it ended, over the numbers
     inline, full = taken[0], taken[-1]
     assert "Open pull" in inline.text and "deaths (19)" not in inline.text.lower()
     assert "deaths (19)" in full.text.lower() and "Open pull" not in full.text
@@ -892,7 +900,7 @@ async def test_the_pull_chart_names_both_axes_and_draws_the_cooldowns_its_tool_p
     """Boss health runs 0 to 100% on every pull, named at both ends in the line's colour (it once ran from an
     unnamed floor: 50% on this pull); the inline card has the raid's and the healers' cooldowns, which the remote
     server's description of pull_summary says the user sees; on a narrow card the plot says when the wipe was
-    decided, and the stat over it why."""
+    decided, and the headline over it why."""
     data = await pull_data()
     raid = sum(c["kind"] == "raid" for c in data["cooldowns"]) + len(data["lusts"])
     healers = sum(c["kind"] == "healing" for c in data["cooldowns"])
@@ -916,7 +924,8 @@ TALL = "Math.ceil(document.body.getBoundingClientRect().height)"
 async def test_the_placeholder_has_the_shape_of_the_view_that_is_loading(recorded, monkeypatch, width):
     """While a view's data is read its placeholder is about as tall as the view that replaces it, so the answer
     around it doesn't jump (every view once had the replay's 3:2 stage: 214 px too tall for a pull's card at 760),
-    and has no spinner. A night's is as tall as a night with a dozen endings; its true height depends on the night."""
+    and has no spinner. Every card has one shape, so a night's placeholder is as near as a pull's (its lists once
+    made its height the night's own)."""
     from wipebot.core import viewhost
     answer, read = viewhost.answer, asyncio.Event()
 
@@ -927,7 +936,7 @@ async def test_the_placeholder_has_the_shape_of_the_view_that_is_loading(recorde
     monkeypatch.setattr(viewhost, "answer", held)
     async with chromium() as browser:
         for case, shape, within in (("pull-summary", "pull", 40), ("death-recap", "death", 40),
-                                    ("pull-map", "replay", 40), ("progress", "night", 160)):
+                                    ("pull-map", "replay", 40), ("progress", "night", 40)):
             read.clear()
             errors: list[str] = []
             tool, args = CASES[case].tool, CASES[case].args
@@ -1244,6 +1253,8 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     assert not failed
     n = sum(not r["reset"] for r in data["pulls"])  # a reset is no pull of the night's, in the text and the view
     assert f"Died before the wipe was decided on {data['died']} of {n} pulls" in text
+    assert data["headline"]["text"].startswith(f"Died before the wipe was decided on {data['died']} of {n} pulls; ")
+    assert data["headline"]["text"].endswith(f" alive at {data['lived']['saved']} of those {data['died']} deaths.")
     assert f"dead for {data['dead_s']} s of the {data['counted_s']} s" in text and f"({data['dead_pct']}%" in text
     best = f"pull {data['best']['pull']} ({kit_short(data['best']['per_s_alive'])}/s"
     assert f"Best pull by {data['what']} per second alive: {best}" in text
@@ -1287,7 +1298,9 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
     assert f"dead (no output at all) {lost['dead_s']:.0f} s" in text and f"casting gaps (no cast begun) " \
                                                                        f"{lost['gaps_s']:.0f} s" in text
     assert f"Died: {clock(data['died'][0]['ms'])} to {data['died'][0]['by']}" in text
-    assert data["standing"]["caveat"] in text  # why a wipe's standing among kills proves little, in the text's words
+    # alive 53 s of the pull: an opener is placed among no kills, on the card as in the text
+    assert data["standing"] is None and "against kills: not compared" in text
+    assert data["headline"] == {"text": data["notes"]["fix"][0] + ".", "kind": "fix"}  # the weightiest thing to fix
     assert not [n for n in data["notes"]["good"] + data["notes"]["fix"] if "percentile" in n or "used" in n]
     for cd in data["cooldowns"]:  # as player_pull lists them: uses / possible at their times
         uses = f"{len(cd['uses'])}/{cd['possible']}" + (" at " + ", ".join(clock(t) for t in cd["uses"])
@@ -1339,7 +1352,7 @@ async def test_view_keys_name_the_player_as_logged_and_ask_for_the_comparison(re
 def made_up_player(top: bool) -> dict:
     """A player view's data, made up (Warcraft Logs asks for synthetic data in public tests): a healer who died after
     the wipe was decided, with a casting gap, two cooldowns and, with `top`, casts against top players."""
-    return {
+    made = {
         "view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge",
         "title": "Torvek's Forge pull 4",
         "difficulty": "Mythic", "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678#fight=9", "kill": False,
@@ -1350,7 +1363,8 @@ def made_up_player(top: bool) -> dict:
         "output": {"what": "healing", "total": 40_000_000, "per_s_alive": 290_000, "rank": 2, "of": 4,
                    "role": "healers", "top": [{"name": "Chain Heal", "total": 12_000_000}]},
         "standing": {"kind": "kills", "n": 900, "exact": False, "mine": 290_000,
-                     "points": [["100th best", 360_000], ["500th best", 320_000], ["900th best", 250_000]]},
+                     "points": [["100th best", 360_000], ["500th best", 320_000], ["900th best", 250_000]],
+                     "caveat": f"{views.SHORT_PULL} {views.CAPPED_HEALING}"},
         "lost": {"until_ms": 140000, "dead_s": 0.0, "gaps_s": 4.0, "capped_s": 0.0, "resource": ""},
         "alive_s": 143, "alive_until_ms": 143000, "gaps": [[100000, 104000]], "capped": [], "dead": [[143000, 150000]],
         "died": [{"ms": 143000, "by": "Molten Fury", "fallout": True}],
@@ -1364,6 +1378,8 @@ def made_up_player(top: bool) -> dict:
                           {"name": "Astral Shift", "mine": 0.0, "median": 0.4, "low": 0.0, "high": 0.6,
                            "flag": "never cast"}]} if top else None,
     }
+    made["notes"] = views.player_notes(made)
+    return made | {"headline": views.player_headline(made)}
 
 
 def made_up_night() -> dict:
@@ -1378,7 +1394,7 @@ def made_up_night() -> dict:
                                 "fallout": death[1]} if death else None,
                       "dead_s": 5.0 if death and not death[1] else 0.0, "counted_s": 55.0 * n, "cooldowns": [1, 2]})
     return {"view": "player_night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge",
-            "title": "Mirelle on Torvek's Forge",
+            "title": "Mirelle on Torvek's Forge", "headline": views.player_night_headline(2, 6, 1),
             "player": {"name": "Mirelle", "spec": "Restoration", "class": "Shaman", "color": "#0070DD",
                        "role": "healer"},
             "what": "healing", "role_name": "healers", "pulls": pulls, "total_pulls": 6, "died": 2, "first": 1,
@@ -1490,16 +1506,22 @@ async def test_a_night_of_one_pull_counts_one_pull(monkeypatch):
     there and no key for a line that isn't drawn."""
     night = {"view": "night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "difficulty": "Heroic",
              "title": "Torvek's Forge, Mon 1 Jan", "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678",
+             "headline": {"text": "Killed on the first pull.", "kind": ""},
              "combat_ms": 240000, "guild_best": None, "phased": False, "ends": [["a kill", 1]], "firsts": [],
              "first_n": 3, "thirds": None,
              "bosses": [{"boss": "Torvek's Forge", "pulls": 1, "kill": True, "best": None}],
              "pulls": [{"pull": 1, "pct": 0.0, "kill": True, "reset": False, "live": False, "duration_ms": 240000,
                         "phase": "", "health": None, "ended": "a kill", "best": False, "first": None}]}
+    from wipebot.core import viewhost
     made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, night)
     async with drawn("progress", {}) as (view, errors):
+        card = (await view.locator("body").inner_text()).lower()
+    async with drawn("progress", {}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, more):
         text = (await view.locator("body").inner_text()).lower()
-    assert not errors and "1 pull ·" in text and "the only pull" in text and "how the pull ended" in text
-    assert "pulls" not in text and "what killed the first" not in text and "best so far" not in text
+    assert not errors and not more and "1 pull ·" in text and "the only pull" in text and "how the pull ended" in text
+    assert "killed on the first pull." in card and "1 pull ·" in card and "how the pull ended" not in card
+    for said in (card, text):
+        assert "pulls" not in said and "what killed the first" not in said and "best so far" not in said
 
 
 async def test_counts_and_ranks_are_written_as_the_tools_write_them(monkeypatch):
@@ -1520,15 +1542,17 @@ async def test_counts_and_ranks_are_written_as_the_tools_write_them(monkeypatch)
 
 
 async def test_a_missed_save_is_what_to_do_differently_and_a_death_with_no_killing_blow_says_only_that(recorded):
-    """The death view's line on what would have kept them alive is marked as a fix (it once had the plus of what
-    went well), the thing first; a death the log names no killing blow for isn't "killed by no killing blow"."""
-    notes = '() => [...document.querySelectorAll(".notes li")].map((li) => [li.className, li.textContent])'
+    """The death view's line on what would have kept them alive is its headline, marked as a fix (it once had the
+    plus of what went well), the thing first; a death the log names no killing blow for isn't "killed by no killing
+    blow", in its headline or its chart."""
+    lead = '() => [...document.querySelectorAll(".lead")].map((p) => [p.className, p.textContent])'
     async with drawn("death_recap", DEATH_CASE.args) as (view, errors):
-        assert await view.evaluate(notes) == [["fix", "−A healthstone, used in time, would have kept them alive."]]
+        assert await view.evaluate(lead) == [["lead fix", "−A healthstone, used in time, would have kept them alive."]]
         assert not errors
     async with drawn("death_recap", CASES["death-recap-thrown"].args) as (view, errors):
         labels = await view.evaluate('() => [...document.querySelectorAll("svg text.td")].map((t) => t.textContent)')
         assert labels == ["no killing blow recorded"] and not errors
+        assert await view.evaluate(lead) == [["lead ", "Died at 0:53, no killing blow recorded."]]
 
 
 async def test_a_night_says_a_death_with_no_killing_blow_as_the_log_does(monkeypatch):
@@ -1540,8 +1564,9 @@ async def test_a_night_says_a_death_with_no_killing_blow_as_the_log_does(monkeyp
                          "pulls": [{"pull": 2, "ms": 60000, "place": 1, "saved": True}]},
                         {"by": "no killing blow recorded", "no_blow": True, "icon": None,
                          "pulls": [{"pull": 4, "ms": 120000, "place": 4, "saved": None}]}]
+    from wipebot.core import viewhost
     made_up_view(monkeypatch, {"view": "player_night", "report": night["report"], "player": "Mirelle"}, night)
-    async with drawn("player_night", {}) as (view, errors):
+    async with drawn("player_night", {}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
         tip = lambda at: view.locator(at).get_attribute("data-tip")  # noqa: E731
         chips = [await tip(f'[data-pull-chip="{n}"]') for n in (2, 4)]
         bars = [await tip(f'[data-pull-col="{n}"]') for n in (2, 4)]
@@ -1755,3 +1780,183 @@ def test_where_a_wipe_stands_among_kills_is_no_praise_and_no_fault_of_a_healers(
     assert views.player_notes(_facts(standing=below))["fix"] == ["Below the 25th percentile of ranked kills"]
     healer = _facts(standing=below, output={"what": "healing", "rank": 3, "of": 4, "role": "healers"})
     assert views.player_notes(healer) == {"good": ["Kept casting: 2 s of gaps in 3:00"], "fix": []}
+
+
+# ---- the card: one shape in every view, led by a sentence code wrote ----
+
+def test_a_pulls_headline_is_how_it_ended_in_one_sentence():
+    """pull_summary's "Ended by", led by its first moment, without the ids and what to look up: one sentence for
+    each way a pull ends."""
+    f = {"startTime": 0, "endTime": 312_000, "kill": True}
+    assert views.pull_headline(f, None, 3) == {"text": "Killed in 5:12 with 3 deaths.", "kind": ""}
+    assert views.pull_headline(f, None, 1)["text"] == "Killed in 5:12 with 1 death."
+    assert views.pull_headline(f, None, 0)["text"] == "Killed in 5:12 without a death."
+    said = lambda *ending, **more: views.pull_headline(f, Ending(*ending, **more), 9)["text"]  # noqa: E731
+    assert said("live", 20, 130_000) == "Still going: 2:10 logged so far."
+    assert said("reset", 20, 24_000) == "A reset: the boss untouched."
+    assert said("alive", 20, 190_000, alive_at_end=14) == "Ended at 3:10 with 14 of 20 alive: no death decided it."
+    march = EndCast(118_000, "March", (1300001,), 16, 18, "March", 115_000)
+    assert said("cast", 20, 120_000, alive_at_end=18, cast=march) == (
+        "The boss cast March at 1:55 and it landed on 16 of the 18 alive at 1:58, as the pull ended with 18 of 20 "
+        "alive.")
+    assert said("cascade", 20, 162_000, first_death_ms=31_000, half_dead_ms=139_000) == (
+        "Deaths one after another from 0:31 until half the raid was dead at 2:19, no single hit killing many.")
+    burst = MassDeath(55_000, "Mutilate", (1287001,), 4, 1)
+    assert said("moments", 20, 88_000, (burst,)) == "Mutilate killed 4 within 1 s at 0:55."
+    assert said("moments", 20, 88_000, (burst, HalfDead(70_000)), lead_in=LeadIn(42_000, 3, 1)) == (
+        "Mutilate killed 4 within 1 s at 0:55, after 3 deaths one after another from 0:42.")
+    # as many deaths as a hit killing many takes lead, as they do in "Ended by"
+    assert said("moments", 20, 88_000, (burst, HalfDead(70_000)), lead_in=LeadIn(42_000, 5, 1)) == (
+        "5 deaths one after another from 0:42, then Mutilate killed 4 within 1 s at 0:55.")
+    pulses = MassDeath(93_000, "Tempest", (1287083,), 4, 5, waves=True)
+    assert said("moments", 20, 110_000, (pulses,)) == "Tempest killed 4 in pulses within 5 s from 1:33."
+    unnamed = MassDeath(107_000, "", (), 13, 2)
+    assert said("moments", 20, 123_000, (unnamed,)) == "13 died at once within 2 s at 1:47, no killing blow logged."
+    assert said("moments", 20, 162_000, (KeptBuff(152_000, "Unbound Ferocity", 16),)) == (
+        "The boss gained Unbound Ferocity at 2:32 and kept it to the end, with 16 of 20 alive.")
+    assert said("moments", 20, 162_000, (HalfDead(100_000),)) == "Half the raid was dead at 1:40."
+
+
+def test_a_deaths_headline_is_what_it_comes_down_to():
+    """What killed outright is no defensive's to stop; a death after the wipe was decided is nobody's to fix, with
+    whatever was ready; before it, what was ready and would have kept them alive is what to do differently."""
+    head = "If pressed at the start of the lethal burst (2:00):"
+    short = "  Barkskin (20% less damage taken for 8 s): 30k less of the 150k it covers: not enough on its own"
+    stone = "  a healthstone (if they had one; none used this pull) (heals 25%): 120k: would have kept them alive"
+    shift = "  Astral Shift (40% less damage taken for 12 s): 60k less of the 150k: would have kept them alive"
+    said = lambda *facts: views.death_headline("Slag Wave", 121_000, *facts)  # noqa: E731
+    assert said(False, 64, [head, short, stone], False) == {
+        "text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"}
+    assert said(False, 64, [head, shift, stone], False)["text"] == (
+        "Astral Shift or a healthstone, used in time, would have kept them alive.")
+    assert said(False, 64, [head, shift, stone], True) == {
+        "text": "Killed by Slag Wave at 2:01, after the wipe was decided.", "kind": ""}
+    assert said(True, 97, [], False) == {
+        "text": "Slag Wave killed them outright from 97% health: it wasn't damage that outpaced their healing.",
+        "kind": "mind"}
+    assert said(False, 64, [head, short], False)["text"] == (
+        "Killed by Slag Wave at 2:01: nothing ready would have been enough on its own.")
+    assert said(False, 64, [], False) == {"text": "Killed by Slag Wave at 2:01.", "kind": ""}  # can't tell: no more
+    assert views.death_headline(views.NO_KILLING_BLOW, 53_000, False, None, [], False)["text"] == (
+        "Died at 0:53, no killing blow recorded.")
+
+
+def test_a_nights_headline_counts_what_ended_the_most_pulls_over_all_of_them():
+    """One count on the card: every pull that ended, resets among them, as the list of endings counts them (the card
+    once said "10 of 32" over "How the 33 pulls ended")."""
+    row = lambda n, **over: {"pull": n, "kill": False, "live": False, "reset": False} | over  # noqa: E731
+    night = [row(1), row(2, reset=True), row(3), row(4)]
+    ends = [("Mutilate killing many", 2), ("a reset", 1), ("deaths one after another", 1)]
+    assert views.night_headline(night, ends) == {"text": "Mutilate killing many ended 2 of the 4 pulls.", "kind": ""}
+    going = [*night, row(5, live=True)]  # a pull still going hasn't ended
+    assert views.night_headline(going, ends)["text"] == "Mutilate killing many ended 2 of the 4 pulls."
+    assert views.night_headline([*night, row(5, kill=True)], ends)["text"] == "Killed on pull 5 of 5."
+    assert views.night_headline([row(1, kill=True)], [("a kill", 1)])["text"] == "Killed on the first pull."
+    assert views.night_headline([row(1, reset=True), row(2, reset=True)], [("a reset", 2)])["text"] == (
+        "2 pulls, none past a reset.")
+
+
+def test_a_players_headline_is_the_weightiest_note_and_their_nights_what_would_have_kept_them_alive():
+    died = _facts(died=[{"ms": 95000, "by": "Toxic Fumes", "fallout": False}])
+    died["notes"] = views.player_notes(died)
+    assert views.player_headline(died) == {"text": "Died at 1:35 to Toxic Fumes, before the wipe was decided.",
+                                           "kind": "fix"}
+    steady = _facts()
+    steady["notes"] = views.player_notes(steady)
+    assert views.player_headline(steady) == {"text": "Kept casting: 2 s of gaps in 3:00.", "kind": "good"}
+    plain = _facts(output={"what": "damage", "rank": 4, "of": 14, "role": "damage dealers", "per_s_alive": 248_000},
+                   alive_s=160, duration_ms=180_000) | {"notes": {"good": [], "fix": []}}
+    assert views.player_headline(plain) == {
+        "text": "248.00k damage per second over the 160 s alive, rank 4 of 14 damage dealers by total.", "kind": ""}
+    assert views.player_night_headline(0, 12, 0) == {
+        "text": "Never died before a wipe was decided in 12 pulls.", "kind": "good"}
+    assert views.player_night_headline(8, 33, 0) == {
+        "text": "Died before the wipe was decided on 8 of 33 pulls.", "kind": ""}
+    assert views.player_night_headline(8, 33, 3) == {
+        "text": "Died before the wipe was decided on 8 of 33 pulls; a ready defensive or a healthstone would have "
+                "kept them alive at 3 of those 8 deaths.", "kind": "fix"}
+    assert views.player_night_headline(1, 1, 1)["text"] == (
+        "Died before the wipe was decided on 1 of 1 pull; a ready defensive or a healthstone would have kept them "
+        "alive.")
+
+
+CARD = """() => {
+  const all = (sel) => [...document.querySelectorAll(sel)];
+  return { lead: all(".lead").map((p) => p.textContent), stats: all(".stats .stat").length,
+           buttons: all(".actions button").map((b) => b.textContent), charts: all("#app svg").length,
+           lists: all("ul.ranked").length, tables: all("table").length,
+           tall: Math.ceil(document.body.getBoundingClientRect().height),
+           order: all("table, ul.ranked").map((e) => e.tagName.toLowerCase()) };
+}"""
+
+
+@pytest.mark.parametrize("width", [380, 760])
+async def test_every_card_is_a_headline_four_stats_one_chart_and_two_buttons(recorded, width):
+    """The inline card has one shape in every view (kit.card): a sentence code wrote, at most four numbers, one chart
+    and at most two buttons, "Open ..." first. A night's is that too: it once ran to 684 px at 760 wide and 836 on a
+    phone, with two lists the answer's text has already; they and the pulls' table are in fullscreen, the table
+    first."""
+    from wipebot.core import viewhost
+    for case, opens, most in (("pull-summary", "Open pull", 520), ("death-recap", "Open death", 500),
+                              ("progress", "Open night", 420)):
+        async with drawn(CASES[case].tool, CASES[case].args, width=width) as (view, errors):
+            card = await view.evaluate(CARD)
+            want = await view.evaluate("kit.CARD")
+        assert not errors and want == {"stats": 4, "chart": 220, "buttons": 2}
+        assert len(card["lead"]) == 1 and card["lead"][0].endswith("."), case
+        assert 1 <= card["stats"] <= 4 and card["charts"] == 1 and card["lists"] == card["tables"] == 0, case
+        assert card["buttons"][0] == opens and len(card["buttons"]) <= 2 and card["tall"] <= most, (case, card)
+    night = CASES["progress"]
+    async with drawn(night.tool, night.args, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        full = await view.evaluate(CARD)
+    assert not errors and full["order"] == ["table", "ul", "ul"] and "Open night" not in full["buttons"]
+
+
+async def test_the_player_cards_are_the_same_card_and_a_wipes_standing_is_fullscreens_with_why(made_up, monkeypatch):
+    """A player's pull and night are the card too. Where a wipe's output stands among ranked kills isn't on the card
+    or in a picture: it is drawn in fullscreen only, with why it proves little by itself, in the tool's words."""
+    from wipebot.core import viewhost
+    async with drawn("player_pull", {"player": "Mirelle"}) as (view, errors):
+        card, text = await view.evaluate(CARD), await view.locator("body").inner_text()
+    assert not errors and card["lead"] == ["290.00k healing per second over the 143 s alive, rank 2 of 4 healers "
+                                           "by total."]
+    assert card["stats"] == 4 and card["charts"] == 1 and card["buttons"] == ["Open player", "Against top players"]
+    assert "ranked" not in text and "100th best" not in text and views.SHORT_PULL not in text
+    async with drawn("player_pull", {"player": "Mirelle"}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, _):
+        text = await view.locator("body").inner_text()
+    assert "ranked Restoration Shaman kills" in text and "100th best" in text
+    assert f"{views.SHORT_PULL} {views.CAPPED_HEALING}" in text
+    night = made_up_night()
+    made_up_view(monkeypatch, {"view": "player_night", "report": night["report"], "player": "Mirelle"}, night)
+    async with drawn("player_night", {}) as (view, errors):
+        card = await view.evaluate(CARD)
+    assert not errors and card["stats"] == 4 and card["charts"] == 0 and card["buttons"] == ["Open night"]
+    assert card["lead"] == ["−Died before the wipe was decided on 2 of 6 pulls; a ready defensive or a healthstone "
+                            "would have kept them alive at 1 of those 2 deaths."]
+
+
+async def test_asked_about_the_whole_night_the_card_leads_with_its_bosses(monkeypatch):
+    """progress without a boss answers for the whole night, and its text leads with every boss: so does its card,
+    each with its pulls and its kill or best wipe (it once drew the last boss alone, as if asked about it). Asked
+    about one boss, the others are in fullscreen."""
+    night = {"view": "night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "difficulty": "Heroic",
+             "title": "Torvek's Forge, Mon 1 Jan", "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678",
+             "combat_ms": 600000, "guild_best": None, "phased": False, "first_n": 3, "thirds": None,
+             "ends": [["Slag Wave killing many", 2]], "firsts": [["Slag Wave", 4]],
+             "bosses": [{"boss": "Ashen Warden", "pulls": 1, "kill": True, "best": None},
+                        {"boss": "Torvek's Forge", "pulls": 2, "kill": False, "best": 41.5}],
+             "pulls": [{"pull": n, "pct": pct, "kill": False, "reset": False, "live": False, "duration_ms": 300000,
+                        "phase": "", "health": None, "ended": "Slag Wave killing many", "best": n == 1,
+                        "first": None} for n, pct in ((1, 41.5), (2, 60.0))]}
+    night["headline"] = views.night_headline(night["pulls"], [("Slag Wave killing many", 2)])
+    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, night)
+    chips = '() => [...document.querySelectorAll(".chips.bosses .chip")].map((b) => [b.textContent, b.className])'
+    async with drawn("progress", {"report": night["report"]}) as (view, errors):
+        assert await view.evaluate(chips) == [["Ashen Warden · 1 pull, killed", "chip"],
+                                              ["Torvek's Forge · 2 pulls, best 42%", "chip on"]]
+        under = "document.querySelector('.chips.bosses + [data-panel] h1').textContent"  # then that boss's card
+        assert await view.evaluate(under) == "Torvek's Forge"
+        assert (await view.evaluate(CARD))["lead"] == ["Slag Wave killing many ended 2 of the 2 pulls."]
+        assert not errors
+    async with drawn("progress", {"report": night["report"], "boss": "Torvek"}) as (view, errors):
+        assert await view.evaluate(chips) == [] and not errors

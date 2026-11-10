@@ -1,16 +1,18 @@
 // ---- the raid's night on a boss: each pull's boss health left, coloured by what ended it, against the night's best
-// so far and the guild's best before the night; how the pulls ended; the night's other bosses (progress's facts);
-// with progress's weeks, the best pull of each raid night first.
-// Two panels (data-panel), each its own picture in Discord; a pull's bar opens that pull's view ----
+// so far and the guild's best before the night (progress's facts); with progress's weeks, the best pull of each raid
+// night instead. Inline that is the card (kit.card); asked about the whole night, the night's bosses come first.
+// Fullscreen adds the pulls one per row, how they ended and what killed their first deaths: lists the answer's text
+// has too. In Discord two panels (data-panel), each its own picture. A pull's bar opens that pull's view ----
 views.night = (() => {
-  let D = null, root = null, open = null, drawnWidth = 0;
+  let D = null, root = null, open = null, whole = false;
   const QUIET = new Set(["a reset", "a kill", "still going", "no death, the raid alive"]);
 
-  async function show(into, key, opener) {
-    root = into; open = opener;
+  // `asked`: the tool's own arguments when this view is the tool's answer; without a boss it was the whole night
+  async function show(into, key, opener, asked) {
+    root = into; open = opener; whole = !!asked && !asked.boss;
     D = await app.callTool("view_data", { view: "night", report: key.report, boss: key.boss, ...(key.weeks ? { weeks: key.weeks } : {}) });
     render();
-    new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
+    kit.watch(into, () => root === into, render);
   }
 
   // The ways most pulls ended keep a hue each, the most common first, and the rest are "other", hollow (kit.palette:
@@ -27,35 +29,35 @@ views.night = (() => {
   // else the boss's % (the bars stand on Warcraft Logs' % of the whole fight, which ranks wipes across phases)
   const said = (r) => r.health != null ? `${r.phase.split(" ")[0]} ${pct(r.health)}` : pct(r.pct);
 
+  // The card's numbers. What ended the most pulls is the headline of a night without a kill (views.night_headline):
+  // here only after a kill, and counted as there and in the list of endings, over every pull that ended.
   function stats() {
     const wipes = D.pulls.filter((r) => !r.kill && !r.reset && !r.live && r.pct != null);
     const best = wipes.reduce((b, r) => (!b || r.pct < b.pct ? r : b), null), kill = D.pulls.find((r) => r.kill);
-    const top = D.ends.find(([w]) => !QUIET.has(w)), counted = D.pulls.filter((r) => !r.live && !r.reset).length;
+    const top = D.ends.find(([w]) => !QUIET.has(w)), ended = D.pulls.filter((r) => !r.live).length;
     const g = D.guild_best, beat = g && best && best.pct < g.pct;
-    return kit.stats([
+    return [
       kill ? ["Killed", `pull ${kill.pull}`, "good", D.pulls.length > 1 ? `after ${D.pulls.length} pulls` : "the only pull"]
         : best ? ["Best wipe", said(best), "", `pull ${best.pull}`] : null,
       g ? ["Guild best before", said(g), "", beat ? "beaten tonight" : g.day] : null,
-      top ? ["Ended most pulls", top[0].replace(/ killing many$/, ""), "decided", `${top[1]} of ${counted}${/killing many$/.test(top[0]) ? ", killing many" : ""}`] : null,
+      kill && top ? ["Ended most pulls", top[0].replace(/ killing many$/, ""), "decided", `${top[1]} of ${ended}${/killing many$/.test(top[0]) ? ", killing many" : ""}`] : null,
       D.thirds ? ["Average wipe", D.thirds.map((t) => `${Math.round(t)}%`).join(" → "), "", D.phased ? "WCL %, first, middle, last third" : "first, middle, last third"] : null,
-    ]);
+    ];
   }
 
+  // The night's bosses, the one drawn marked: its pulls, and the kill or how far the best wipe got
   function bosses() {
     if (D.bosses.length < 2) return "";
     return `<div class="chips bosses">${D.bosses.map((b) => `<button class="chip${b.boss === D.boss ? " on" : ""}" data-boss="${kit.esc(b.boss)}">`
-      + `${kit.esc(b.boss)} · ${b.kill ? "kill" : b.best != null ? pct(b.best) : kit.plural(b.pulls, "pull")}</button>`).join("")}</div>`;
+      + `${kit.esc(b.boss)} · ${kit.plural(b.pulls, "pull")}${b.kill ? ", killed" : b.best != null ? `, best ${pct(b.best)}` : ""}</button>`).join("")}</div>`;
   }
 
-  function head() {
-    const sub = [D.difficulty, kit.plural(D.pulls.length, "pull"), `${Math.round(D.combat_ms / 60000)} min in combat`, D.title.split(", ").pop()].filter(Boolean).join(" · ");
-    return kit.head(D.boss, sub);
-  }
+  const sub = () => [D.difficulty, kit.plural(D.pulls.length, "pull"), `${Math.round(D.combat_ms / 60000)} min in combat`, D.title.split(", ").pop()].filter(Boolean).join(" · ");
 
   // Pull by pull: boss health left (lower is better) in the colour of what ended the pull, the night's best so far
   // (a line), the guild's best before the night (dashed)
-  function chart(W, lanes, legend) {
-    const color = colorOf(), n = D.pulls.length, L = 40, R = 16, T = 12, plotH = lanes ? 200 : 130;
+  function chart(W, lanes) {
+    const color = colorOf(), n = D.pulls.length, L = 40, R = 16, T = 12, plotH = lanes ? 200 : app.picture() ? 130 : 110;
     const band = (W - L - R) / Math.max(n, 1), x = (i) => L + i * band, bw = Math.max(2, Math.min(20, band * 0.72));
     const y = (v) => T + plotH - v / 100 * plotH;
     let o = "";
@@ -87,13 +89,12 @@ views.night = (() => {
     }
     const every = Math.max(1, Math.ceil(24 / band));
     D.pulls.forEach((r, i) => { if (kit.numbered(i, n, every)) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle"'); });
-    // the legend, only where the list of how the pulls ended isn't drawn under it (that list is the legend): the
-    // coloured endings by how many pulls, the rest as one "other", then the line
+    // the legend: the coloured endings by how many pulls, the rest as one "other", then the line
     const other = D.ends.filter(([w]) => !QUIET.has(w) && !color.hued(w)).reduce((n, [, k]) => n + k, 0);
-    const keys = !legend ? [] : D.ends.filter(([w]) => w !== "still going" && (QUIET.has(w) || color.hued(w))).map(([w, k]) =>
+    const keys = D.ends.filter(([w]) => w !== "still going" && (QUIET.has(w) || color.hued(w))).map(([w, k]) =>
       [(lx, ly) => w === "a kill" ? `<path d="M${lx + 5} ${ly - 10} l4 8 l-8 0z" fill="var(--gold)"/>` : `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" ${color.svg(w)}/>`,
-       `${w.replace(/ killing many$/, "")} ${k}`]);
-    if (legend && other) keys.push([(lx, ly) => `<rect x="${lx + 0.5}" y="${ly - 8.5}" width="9" height="9" rx="2" ${color.svg("")}/>`, `other ${other}`]);
+       `${w.replace(/ killing many$/, "").replace(/ and keeping it to the end$/, "")} ${k}`]);
+    if (other) keys.push([(lx, ly) => `<rect x="${lx + 0.5}" y="${ly - 8.5}" width="9" height="9" rx="2" ${color.svg("")}/>`, `other ${other}`]);
     if (line.length > 1) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="1.6"/>`, "best so far"]);
     const [under, ly] = kit.legend(keys, W, T + plotH + 34);
     o += under;
@@ -112,12 +113,12 @@ views.night = (() => {
   function weeksStats() {
     const W = D.weeks, kill = W.find((r) => r.kill), first = W[0], last = W[W.length - 1];
     const pulls = W.reduce((k, r) => k + r.pulls, 0), before = kill ? W.slice(0, W.indexOf(kill) + 1) : W;
-    return kit.stats([
+    return [
       ["Nights", `${W.length}`, "", W.length > 1 ? `${first.day} – ${last.day}` : first.day],
       kill ? ["Killed", kill.day, "good", `pull ${kill.kill} that night, ${kit.plural(before.reduce((k, r) => k + r.pulls, 0), "pull")} in all`]
         : ["Pulls", `${pulls}`, "", "over these nights"],
       W.length > 1 ? ["Best pull, first night → last", `${best(first)} → ${best(last)}`, "", W.some((r) => r.phase) ? "the phase and boss health in it" : "boss health left"] : null,
-    ]);
+    ];
   }
 
   function weeksChart(W0) {
@@ -156,9 +157,10 @@ views.night = (() => {
     return kit.svg(W0, ly + 4, o, `${D.boss}: the best pull on each raid night`);
   }
 
-  function weeks(width) {
+  // Night by night: inline it is the card, tonight's pulls a click away (`open`)
+  function weeks(width, open) {
     const sub = [D.difficulty, `best pull night by night, last ${D.weeks.length === 1 ? "night" : `${D.weeks.length} nights`}`].filter(Boolean).join(" · ");
-    return `<div data-panel="weeks">${kit.head(D.boss, sub)}${weeksStats()}${weeksChart(width)}</div>`;
+    return `<div data-panel="weeks">${kit.card({ title: D.boss, sub, stats: weeksStats(), chart: weeksChart(width), open })}</div>`;
   }
 
   // How the pulls ended, and what killed each pull's first deaths: two ranked lists
@@ -169,8 +171,8 @@ views.night = (() => {
     const ends = D.ends.map(([w, k]) => `<li><span><i class="sw" style="${color.css(w)}"></i>${kit.esc(w)}</span>${bar(k, color.css(w))}<span class="count">${k}</span></li>`).join("");
     const firsts = D.firsts.map(([w, k]) => `<li><span>${kit.esc(w)}</span>${bar(k, "background:var(--dead)")}<span class="count">${k}</span></li>`).join("");
     const each = counted === 1 ? "the pull" : "each pull";
-    return `<div class="section-title">${counted === 1 ? "How the pull ended" : `How the ${counted} pulls ended`}</div><ul class="ranked">${ends}</ul>`
-      + (firsts ? `<div class="section-title">What killed the first ${D.first_n === 1 ? "death" : `${D.first_n} deaths`} of ${each}</div><ul class="ranked">${firsts}</ul>` : "");
+    return `<div><div class="section-title">${counted === 1 ? "How the pull ended" : `How the ${counted} pulls ended`}</div><ul class="ranked">${ends}</ul></div>`
+      + (firsts ? `<div><div class="section-title">What killed the first ${D.first_n === 1 ? "death" : `${D.first_n} deaths`} of ${each}</div><ul class="ranked">${firsts}</ul></div>` : "");
   }
 
   function table() {
@@ -184,25 +186,19 @@ views.night = (() => {
 
   function render() {
     if (!D || !root) return;
-    const full = app.context().displayMode === "fullscreen", picture = app.picture();
-    drawnWidth = root.clientWidth;
-    const width = Math.max(300, drawnWidth || 640);
-    // Asked night by night, those come first; a picture then leaves out how tonight's pulls ended. The chart has its
-    // own legend wherever that list isn't under it: in a picture each panel is posted alone.
-    // A picture of two nights' best pulls says no more than the answer's text: from three
-    const nights = D.weeks && D.weeks.length >= (picture ? 3 : 1) ? weeks(width) : "";
-    const listed = !(nights && picture);
-    const tonight = `<div data-panel="pulls">${head()}${stats()}${chart(width, full, picture || !listed)}</div>`;
-    const panels = nights + tonight + (listed ? `<div data-panel="endings">${endings()}</div>` : "");
-    if (picture) { root.innerHTML = panels; return; }
-    root.innerHTML = (full ? bosses() : "") + panels + (full ? table()
-      : `<div class="actions">${app.canGoFullscreen() ? '<button class="primary" id="rn-open">Open night</button>' : ""}</div>`);
-    const o = root.querySelector("#rn-open");
-    if (o) o.onclick = () => app.requestDisplayMode("fullscreen").then(render);
+    const { full, picture, width } = kit.frame(root);
+    // Asked night by night, those come first: a picture of them then leaves out how tonight's pulls ended (and one
+    // of two nights' best pulls says no more than the answer's text: from three), and inline they are the card
+    const nights = D.weeks && D.weeks.length >= (picture ? 3 : 1);
+    const tonight = () => `<div data-panel="pulls">${kit.card({ title: D.boss, sub: sub(), headline: D.headline, stats: stats(),
+                                                                chart: chart(width, full), open: "Open night" })}</div>`;
+    if (picture) root.innerHTML = (nights ? weeks(width) : "") + tonight() + (nights ? "" : `<div data-panel="endings">${endings()}</div>`);
+    else if (!full) root.innerHTML = (whole ? bosses() : "") + (nights ? weeks(width, "Open night") : tonight());
+    else root.innerHTML = bosses() + (nights ? weeks(width) : "") + tonight() + table() + `<div class="lists">${endings()}</div>`;
     const pull = (n) => open("pull", { report: D.report, pull: n, boss: D.boss });
     root.querySelectorAll("[data-pull-col]").forEach((el) => el.addEventListener("click", () => pull(+el.dataset.pullCol)));
     root.querySelectorAll("tr[data-pull]").forEach((tr) => tr.onclick = () => pull(+tr.dataset.pull));
-    root.querySelectorAll("[data-boss]").forEach((b) => b.onclick = () => open("night", { report: D.report, boss: b.dataset.boss }));
+    root.querySelectorAll("[data-boss]").forEach((b) => b.onclick = () => { if (b.dataset.boss !== D.boss) open("night", { report: D.report, boss: b.dataset.boss }); });
     root.querySelectorAll("[data-night]").forEach((el) => el.addEventListener("click", () => {
       if (el.dataset.night !== D.report) open("night", { report: el.dataset.night, boss: D.boss });
     }));

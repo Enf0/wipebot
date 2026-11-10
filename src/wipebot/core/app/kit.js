@@ -69,8 +69,9 @@ const kit = (() => {
   }
   // A card's head: its title (a player's name in their class's ink) and the line beside it
   const head = (title, sub, color) => `<div class="head"><h1${color ? ` ${cls(color)}` : ""}>${esc(title)}</h1><span class="sub">${esc(sub)}</span></div>`;
-  // The card's few numbers: [label, value, class of the value, a note under it]
-  const stats = (items) => `<div class="stats">${items.filter(Boolean).map(([k, v, cls, note]) =>
+  // The card's few numbers: [label, value, class of the value, a note under it]; `cols`: in columns of one width,
+  // as many as fit (a card's: its notes then wrap in their column)
+  const stats = (items, cols = false) => `<div class="stats${cols ? " cols" : ""}">${items.filter(Boolean).map(([k, v, cls, note]) =>
     `<div class="stat"><div class="k">${esc(k)}</div><div class="v ${cls || ""}">${esc(v)}</div>`
     + (note ? `<div class="n">${esc(note)}</div>` : "") + "</div>").join("")}</div>`;
   // A chart's legend under it, from y: each key ([mark(x, y) => its SVG, name]) left to right, on a new row where
@@ -90,6 +91,39 @@ const kit = (() => {
   const MARK = { good: "+", fix: "−", mind: "!" };
   const notes = (items) => !items.length ? "" : `<ul class="notes">${items.map(([kind, s]) =>
     `<li class="${kind}"><span class="mk">${MARK[kind]}</span>${esc(s)}</li>`).join("")}</ul>`;
+  // A view's card, the same shape in every view: its head, one headline (a sentence the server wrote from the tool's
+  // facts, views.py's "headline": the card words nothing itself; marked as a note is where it says what went well or
+  // what to do differently), at most CARD.stats numbers, one chart of about CARD.chart px, and at most CARD.buttons
+  // buttons: `open` ("Open pull": the same card in fullscreen, with more under it) first, where the host has a
+  // fullscreen, then the view's own ([id, label]). Fullscreen draws the same card without `open`; a still picture
+  // has no buttons.
+  const CARD = { stats: 4, chart: 220, buttons: 2 };
+  const lead = (h) => !h || !h.text ? "" : `<p class="lead ${h.kind || ""}">${h.kind ? `<span class="mk">${MARK[h.kind]}</span>` : ""}${esc(h.text)}</p>`;
+  function card({ title, sub, color, headline, stats: items = [], chart = "", open = "", buttons = [] }) {
+    const inline = app.context().displayMode !== "fullscreen";
+    const all = app.picture() ? [] : [inline && open && app.canGoFullscreen() && ["card-open", open, true], ...buttons].filter(Boolean);
+    return head(title, sub, color) + lead(headline) + stats(items.filter(Boolean).slice(0, CARD.stats), true) + chart
+      + (all.length ? `<div class="actions">${all.slice(0, CARD.buttons).map(([id, label, primary]) =>
+        `<button id="${id}"${primary ? ' class="primary"' : ""}>${esc(label)}</button>`).join("")}</div>` : "");
+  }
+  document.addEventListener("click", (e) => {  // the host's answer redraws the view (main.js, on its new context)
+    if (e.target.closest && e.target.closest("#card-open")) app.requestDisplayMode("fullscreen");
+  });
+  // What a click on one of the view's own buttons does, where the card drew it
+  const press = (root, id, fn) => { const b = root.querySelector(`#${id}`); if (b) b.onclick = fn; };
+  // How a view is drawn now: in fullscreen, as a still picture, and the width its charts are drawn at
+  const frame = (root) => ({ full: app.context().displayMode === "fullscreen", picture: app.picture(),
+                             width: Math.max(300, root.clientWidth || 640) });
+  // A chart is drawn at the width it has, so its text stays readable: `render` draws the view again when that
+  // width changes, for as long as the view is the one `shown`
+  function watch(into, shown, render) {
+    let drawn = into.clientWidth;
+    new ResizeObserver(() => {
+      if (!shown() || Math.abs(into.clientWidth - drawn) <= 24) return;
+      drawn = into.clientWidth;
+      render();
+    }).observe(into);
+  }
   // A mark's tooltip: data-tip on it, shown by the one tooltip below (hover, a tap on a touch screen, or the
   // keyboard reaching the mark)
   const tip = (s) => s ? ` data-tip="${esc(s)}"` : "";
@@ -193,6 +227,7 @@ const kit = (() => {
   });
   document.addEventListener("focusout", hide);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered };
+  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered,
+           CARD, card, press, frame, watch };
 })();
-const views = {};  // each view: views.<name>.show(root, key, open), drawn into root
+const views = {};  // each view: views.<name>.show(root, key, open, asked), drawn into root

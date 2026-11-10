@@ -1,14 +1,15 @@
-// ---- one death: the hits in the seconds before it with their health after each, the healing they got, the killing
-// blow (or that it killed outright), their defensives then, and who died with them (death_recap's facts) ----
+// ---- one death: what it comes down to in one sentence (views.death_headline), the hits in the seconds before it
+// with their health after each, the healing they got, the killing blow, their defensives then, and who died with
+// them (death_recap's facts) ----
 views.death = (() => {
-  let D = null, root = null, open = null, drawnWidth = 0;
+  let D = null, root = null, open = null;
 
   async function show(into, key, opener) {
     root = into; open = opener;
     D = await app.callTool("view_data", { view: "death", report: key.report, pull: key.pull, boss: key.boss,
                                           player: key.player, death: key.death || 1 });
     render();
-    new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
+    kit.watch(into, () => root === into, render);
   }
 
   // Each ability's hue, by the damage it did in the window (absorbed included): the most first, the rest "other"
@@ -23,7 +24,7 @@ views.death = (() => {
     const ready = (D.defensives || []).filter((d) => d.state !== "cooldown");
     const down = (D.defensives || []).filter((d) => d.state === "cooldown");
     const last = D.hits.filter((h) => h.overkill).pop();
-    return kit.stats([
+    return [
       ["Killing blow", D.by, "dead", D.outright ? "killed outright: no hit logged" : last ? `${kit.short(last.overkill)} overkill` : ""],
       D.defensives == null ? null
         : ready.length ? ["Ready, not used", ready.map((d) => d.name).join(", "), "decided",
@@ -31,34 +32,18 @@ views.death = (() => {
         : ["Defensives", down.length ? "on cooldown" : "none listed", "", down.map((d) => `${d.name} at ${kit.clock(d.last_ms)}`).join(", ")],
       ["Healthstones", D.stones ? `${D.stones} used` : "none used", "", "before the death"],
       D.with.length ? ["Died with", `${D.with.length} within 3 s`, "", D.with.slice(0, 3).map((w) => w.name).join(", ")] : null,
-    ]);
+    ];
   }
-
-  function verdict() {
-    if (D.outright) return kit.notes([["mind", `${D.by} killed outright at ${lastHp()}% health: it wasn't damage that outpaced the healing.`]]);
-    if (!D.saved_by.length) return "";
-    // what to do differently, as the "Ready, not used" above it: the thing first, then what it would have done
-    const by = D.saved_by.join(" or ");
-    return kit.notes([["fix", `${by[0].toUpperCase()}${by.slice(1)}, used in time, would have kept them alive.`]]);
-  }
-
-  const lastHp = () => { const h = D.hits.filter((x) => x.hp != null).pop(); return h ? h.hp : "?"; };
 
   function render() {
     if (!D || !root) return;
-    const full = app.context().displayMode === "fullscreen", picture = app.picture();
-    drawnWidth = root.clientWidth;
-    const width = Math.max(300, drawnWidth || 640), p = D.player;
+    const { full, picture, width } = kit.frame(root), p = D.player;
     const sub = [`${p.spec} ${p.class}`, D.title, `died ${kit.clock(D.at_ms)}`, D.fallout ? "after the wipe was decided" : null,
                  D.deaths > 1 ? `death ${D.death} of ${D.deaths}` : null].filter(Boolean).join(" · ");
-    const card = kit.head(p.name, sub, p.color) + stats() + verdict() + chart(full ? Math.max(560, width) : width, full);
-    if (picture) { root.innerHTML = card; return; }
-    root.innerHTML = card + (full ? hitList() : "")
-      + `<div class="actions">${app.canGoFullscreen() && !full ? '<button class="primary" id="dv-open">Open death</button>' : ""}`
-      + `<button id="dv-pull">Their pull</button></div>`;
-    const o = root.querySelector("#dv-open");
-    if (o) o.onclick = () => app.requestDisplayMode("fullscreen").then(render);
-    root.querySelector("#dv-pull").onclick = () => open("player", { report: D.report, pull: D.pull, boss: D.boss, player: p.name });
+    root.innerHTML = kit.card({ title: p.name, sub, color: p.color, headline: D.headline, stats: stats(),
+                                chart: chart(full ? Math.max(560, width) : width, full) + (full && !picture ? hitList() : ""),
+                                open: "Open death", buttons: [["dv-pull", "Their pull"]] });
+    kit.press(root, "dv-pull", () => open("player", { report: D.report, pull: D.pull, boss: D.boss, player: p.name }));
   }
 
   // The window before the death: each hit a bar (what got through, solid; what was absorbed, light), their health

@@ -3,6 +3,7 @@
 "pull": 13,
 "boss": "Sszorak",
 "title": "Sszorak pull 13",
+"headline": {"text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"},
 "difficulty": "Mythic",
 "url": "https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21",
 "player": {"name": "Scopidruid", "spec": "Balance", "class": "Druid", "color": "#FF7C0A", "role": "dps"},
