@@ -911,6 +911,13 @@ def reading_guilds(ids: frozenset[int] | None) -> Generator[None]:
         _guilds.reset(reset)
 
 
+def reading_guilds_from_here(ids: frozenset[int] | None) -> None:
+    """As `reading_guilds`, with no end: in the task that calls it and in every task started from it after. A host
+    app calls it once as it starts, with an empty set, so that what it runs outside an asker's `reading_guilds`
+    reads no guild's saved things, where a single user's own copy reads every guild's."""
+    _guilds.set(ids)
+
+
 def _a_member(guild_id: int) -> bool:
     """Whether the user may read what the guild keeps: on the remote server, a member signed in; in a host app, when
     the guild is one it said its asker reads (`reading_guilds`); on a single user's own copy, yes."""

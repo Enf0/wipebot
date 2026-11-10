@@ -470,7 +470,7 @@ class WipeBot(discord.Client):
     async def setup_hook(self) -> None:
         # From here on, whatever the bot runs outside an asker's own scope (Context.reading) reads no guild's raid
         # notes, plans or nights to come: every task it starts takes this with it.
-        server.reading_guilds(frozenset()).__enter__()
+        server.reading_guilds_from_here(frozenset())
         self._syncing = asyncio.create_task(emojis.sync(self, self.icons))  # the first time, a minute
         self.add_dynamic_items(Act, Pick, FollowUp)  # the pictures' buttons and menus and the follow-ups, also old
         if not self.trying:

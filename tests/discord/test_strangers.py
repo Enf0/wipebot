@@ -2,6 +2,7 @@
 theirs, and a raider who links another guild's report, tried against what a guild keeps (its raid notes, plans and
 Viserio key) and against what another asker reads Warcraft Logs with. Each thing the bot stores gets its strangers
 here when it's added. The core's own are in tests/core/test_guilds.py."""
+import asyncio
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, cast
@@ -124,6 +125,28 @@ async def test_a_note_pasted_in_a_server_that_only_links_the_guild_is_not_saved(
     assert "isn't set up yet" in await paste(NOT_SET_UP)
     shared.own_keys = False  # a host's own bot saves for the servers it is in
     assert (await paste(CLAIMS)).startswith("Saved the raid note") and len(book.notes(14169, 3420)) == 2
+
+
+async def test_what_the_bot_runs_outside_any_askers_scope_reads_no_guilds_saved_things(bot, monkeypatch):
+    """A call the bot makes without saying whose it is (Context.reading) reads nothing a guild keeps, not every
+    guild's as a single user's own copy does: from its start on, in every task it starts after."""
+    async def nothing(*args) -> None:
+        pass
+    monkeypatch.setattr(wipebot.emojis, "sync", nothing)
+    bot.trying = True  # no polling here
+
+    async def reads() -> bool:
+        return server._a_member(14169)
+
+    async def started() -> None:
+        assert await reads()  # before the bot starts: nobody said whose
+        await bot.setup_hook()
+        assert not await reads() and not await asyncio.create_task(reads())  # here, and in a task started after
+        with Context(guild_id=14169).reading():  # an asker's own scope still reads their server's guild's
+            assert await asyncio.create_task(reads())
+        assert not await asyncio.create_task(reads())
+    await asyncio.create_task(started())  # in a task of its own, as the bot runs in one: nothing is left behind here
+    assert await reads()
 
 
 # ---------- the tools, asked as each of them ----------
