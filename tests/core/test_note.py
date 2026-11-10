@@ -388,3 +388,61 @@ def test_a_planned_spell_never_cast_on_any_pull_says_another_may_do_its_job():
     assert ("    3:10 Spell [1714], 3 pulls: not cast 3 (p1, p2, p3); never cast on any of these pulls: a talent may "
             "replace it, or another spell do its job (breakdown of their casts)") in lines
     assert "    0:41 Spell [192077], 3 pulls: not cast 3 (p1, p2, p3)" in lines
+
+
+async def test_a_check_asked_for_one_player_prints_their_rows_and_counts_the_raids(recorded):
+    """A third of the note checks were about one raider ("did I miss my soak?") and came back with twenty players'
+    rows to find theirs in. With a player the same check prints their rows, with the raid's as counts."""
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    text = NOTE.read_text(encoding="utf-8")
+    whole = await note.note_check(rep, text, 42, "Sszorak")
+    own = await note.note_check(rep, text, 42, "Sszorak", player="enfo")
+    lines = own.splitlines()
+    assert len(own) < len(whole) / 2 and lines[0] == whole.splitlines()[0]
+    assert lines[1].startswith("Printed for Enfo alone") and "Printed for" not in whole
+    assert "Assignments in the note's text, Enfo's: Mutilate Soaks: Left (10 players); " in lines[2]
+    assert "  3:14 Left: 6 of 10 hit, 351.59k each; Enfo: not hit (alive)" in lines
+    assert "  0:24 Right: 7 of 9 hit, 370.75k each" in lines  # another group's soak: its count alone
+    assert ("Planned cooldowns (time in the note: what happened), Enfo's 6 of the raid's 38 (on time 4, early 10, "
+            "late 10, not cast 11, dead 3):") in lines
+    assert "  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, 1s late" in lines
+    assert "    Enfo: pressed none (died at 3:21; ready: none)" in lines
+    assert lines[-1].endswith("isn't a spell the log can match to them; only callouts for personals are): 6 to other "
+                              "players")
+    assert not any(name in own for name in ("Zebinomage", "Scopidruid", "Miralupa", "Martin"))
+    with pytest.raises(FactError, match="no single player"):
+        await note.note_check(rep, text, 42, "Sszorak", player="Nobodyatall")
+
+
+async def test_the_cooldowns_planned_after_the_wipe_was_decided_are_counted_with_the_next_three(recorded):
+    """A wipe decided at 0:56 was followed by 48 lines of the plan it never reached; `upcoming` shows a whole note."""
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    text = NOTE.read_text(encoding="utf-8")
+    assert ("  Planned after the wipe was decided at 4:08, so not checked against this pull: 21 lines, the next 4:25 "
+            "Dragepie Zephyr [374227], 4:29 Namsus Apotheosis [200183], 4:30 Miralupa Divine Hymn [64843]"
+            ) in (await note.note_check(rep, text, 42, "Sszorak")).splitlines()
+    own = await note.note_check(rep, text, 42, "Sszorak", player="Zebinomage")  # in no planned line, and no kick
+    assert "Planned cooldowns: the note plans none for Zebinomage." in own.splitlines()
+
+
+def test_a_note_shown_as_it_is_is_cut_to_one_players_part():
+    """The newest note for the next raid, asked for one raider ("what's my job tomorrow?"): their labels, their
+    timed lines and the callouts to everyone, read from the note as shown."""
+    torvek = SimpleNamespace(id=1, name="Torvek")
+    rep = cast(Any, SimpleNamespace(player=lambda name: torvek, ability_ref=lambda spell: f"Spell [{spell}]",
+                                    find_player=lambda name: torvek if name == "Torvek" else None))
+    head = "For the next raid, so here is the newest raid note the guild saved for Vashnik, as it is:"
+    shown = (f"{head}\nEncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
+             "time:30;ph:2;tag:Torvek;spellid:98008 (Spirit Link Totem [98008]);\n"
+             "time:45;ph:1;tag:Mirelle;spellid:64843 (Divine Hymn [64843]);\n"
+             "time:75;ph:1;tag:everyone;text:Big Personals;\n"
+             "time:80;ph:1;tag:Torvek;text:Grab the orb;\n\n"
+             "Soaks\nLeft: Torvek Mirelle\nRight: Brightleaf\n")
+    first, *rest = note.own_part(rep, shown, "torvek").splitlines()
+    assert first.startswith(head.removesuffix(":") + ". Of it, Torvek's part (")
+    assert rest == ["Assignments in the note's text, Torvek's: Soaks: Left (2 players)",
+                    "Planned cooldowns: ph2 0:30 Spell [98008]",
+                    'Callouts to them: 1:20 "Grab the orb"',
+                    'Callouts to everyone: 1:15 "Big Personals"']
+    none = "For the next raid, and the guild has no raid note saved for Vashnik."
+    assert note.own_part(rep, none, "torvek") == none

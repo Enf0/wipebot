@@ -1149,33 +1149,35 @@ async def raid_note(note: Annotated[str | None, Field(description=(
                     upcoming: Annotated[bool, Field(description=(
                         "the newest note saved for the boss, for the next raid (\"who does what tomorrow?\"), as "
                         "it is: not checked against a pull"))] = False,
+                    player: Annotated[str | None, Field(description=(
+                        "one player's part only: their soaks, cooldowns, kicks and personals, with the raid's "
+                        "counts for scale"))] = None,
                     report: Report_ = None) -> str:
     """For "did people do their jobs?", "who missed their soak?", "were the cooldowns on time?", "who didn't kick
-    as assigned?", and over the night "who missed their soak most?", "who pressed personals when the note said?".
-    The raid's assignment and cooldown note checked against a pull: the assignments (soak groups, spreads,
-    single-player jobs), each soak's hits against the group the note calls to soak then (who of the group wasn't
-    hit, alive or dead, who else was; a hit at no group's time, or on too few players to tell whose soak it was, is
-    listed and counted for no one), each planned cooldown against when the player cast it (on time, early, late, not
-    cast), each kick assignment (a callout to one player as an add begins a cast) against who kicked that cast, and
-    each callout for personals ("Big Personals" to everyone) with what the players it names pressed around it and
-    what they had ready.
-    Reading it: a callout's tracked spells carry Lorrgs' tags (defensive, raid_cd, tank, move, dps, untagged);
-    only callouts for personals or defensives are checked, a defensive or a tank cooldown counting as pressed, with
-    what else those who pressed none pressed (untagged ones may be a defensive Lorrgs doesn't tag, such as
-    Anti-Magic Shell). Other callouts (grab an orb, CC a player) ask for nothing the log can match, so they're
-    listed as not checked. Spreads are listed, not checked: raid_plan checks positions.
-    With all_pulls, one call checks every pull on the boss (each against the note saved before it began) and counts
-    per player: soaks of their group missed while alive, each planned cooldown on time, early, late or not cast,
-    kicks made and missed, and per callout for personals how often they pressed a defensive and what was ready
-    when they didn't; a night's question needs no call per pull. Asked about a boss the report has no pull on, or
-    with `upcoming`, it gives the newest note saved for it, as it is: a pull is checked against the note of its own
-    night."""
+    as assigned?", over the night "who missed their soak most?", and for one raider "did I do my part?".
+    The raid's assignment and cooldown note checked against a pull: the assignments, each soak's hits against the
+    group the note calls to soak then, each planned cooldown against when the player cast it, each kick assignment
+    (a callout to one player as an add begins a cast) against who kicked that cast, and each callout for personals
+    ("Big Personals") with what the players it names pressed around it. With all_pulls, one call checks every pull
+    on the boss (each against the note saved before it began) and counts all of that per player: a night's
+    question needs no call per pull. With `player`, the same check printed for that player alone, the raid's rows
+    as counts.
+    Reading it: each section's first line says how it counts. A soak hit at no group's time, or on too few players
+    to tell whose it was, counts for no one. A planned cooldown "not cast" says when the spell was on cooldown from
+    their own earlier cast and when it was planned in the pull's last seconds. At a callout for personals only a
+    defensive or tank cooldown (Lorrgs' tags) counts as pressed; "already running" is one pressed earlier and still
+    up, not counted as a miss; "ready" lists only what the player cast at least once that night; an untagged spell
+    may be a defensive Lorrgs doesn't tag. Other callouts, spreads, the interrupt order and lines to a role or a
+    group are listed, not checked (raid_plan checks positions). Asked about a boss the report has no pull on, or
+    with `upcoming`, it gives the newest note saved for it, as it is: a pull is checked against the note of its
+    own night."""
     rep, source = await lib().report(report), ""
     if not note and (upcoming or (boss and not pulled(rep, boss))):
-        return await _unpulled_note(rep, boss or rep.boss_key(rep.fight(None, None)), upcoming)
+        shown = await _unpulled_note(rep, boss or rep.boss_key(rep.fight(None, None)), upcoming)
+        return notes.own_part(rep, shown, player) if player else shown
     if not note:
         note, source = await _saved_note(rep, pull, boss, all_pulls)
-    return await notes.note_check(rep, note, pull, boss, source=source, all_pulls=all_pulls)
+    return await notes.note_check(rep, note, pull, boss, source=source, all_pulls=all_pulls, player=player)
 
 
 def pulled(rep: Report, boss: str) -> bool:

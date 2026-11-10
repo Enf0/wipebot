@@ -1,0 +1,23 @@
+The raid note for Twin Fangs (Mythic), checked against every The Twin Fangs pull (39), each until its wipe was decided (the boss's enrage or half the raid dead) and against the note as it was saved before it began. "p3 1:15" is pull 3 at 1:15.
+The note's kick order fits pulls 12-39, not 1-11, which had another: there, Kick #2 left was kicked by Dragepie (15 of its 19 casts), Kick #5 left was kicked by Slushmania (10 of its 13 casts), and Attractîv, named in the note, was in none of them (tanks' kicks on others' assignments left out as backup). Kicks are counted for pulls 12-39 only; soaks and cooldowns for every pull.
+Printed for Enfo alone: their rows in full, the raid's as counts for scale (without `player`, every player's rows).
+Assignments in the note's text, Enfo's: Ravenous Feast and Tainted Blood Groups: Right (6 players); Broodling Kicks - Cast Order: Kick #2 right (1 player)
+Ravenous Feast and Tainted Blood Groups: 176 hits of Ravenous Feast [1290662] over 35 pulls (2 more after the wipes were decided), each given to the group called to soak within 20 s of it with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them and which they missed:
+  Missed none while alive: Enfo (Right) 57 of 57
+  The raid, for scale: 11 of the 19 players of the groups missed a soak while alive, the most 14
+  Hit by another group's soak too: Enfo 2
+  Counted for no one: 2 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p27 2:02, p33 2:02
+Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls; of them, how many were planned in the last 10 s before the wipe was decided or the pull ended, and at how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), dead by then:
+  Enfo: 77 planned uses; on time 52, early 2 (1 s), late 12 (3 s), not cast 9, 2 of them in the pull's last 10 s, dead 2
+    0:37 Ascendance [114052], 37 pulls: on time 30, early 1 (1 s), late 3 (2 s), not cast 3 (p10, p15, p23)
+    2:00 Spirit Link Totem [98008], 17 pulls: on time 13, not cast 2 (p5, p21), 2 of them in the pull's last 10 s, dead 2
+    2:14 Wind Rush Totem [192077], 13 pulls: on time 3, late 6 (3 s), not cast 4 (p11, p22, p25, p29)
+    3:37 Ascendance [114052], 6 pulls: on time 3, late 3 (4 s)
+    4:49 Wind Rush Totem [192077], 2 pulls: on time 2
+    6:10 Spirit Link Totem [98008], 1 pull: on time 1
+    6:40 Ascendance [114052], 1 pull: early 1 (1 s)
+  The raid, for scale: 656 planned uses of 11 players; on time 203, early 220 (3 s), late 97 (2 s), not cast 109, 18 of them in the pull's last 10 s, 6 of them on cooldown, dead 11
+Kick assignments (a callout to one player when an add begins a cast someone kicked on this boss that night). Which side's add begins first varies, so a note timed for one side is a second off for the other: each wave is read as noted or with each pair's casts swapped, whichever has more players kicking their own, and a kick on another cast begun within 1.5 s of the callout counts too. Over the pulls, per player, most casts that went through first: of their kicks while alive, how many they made, how many another player covered (kicked their cast first: handled, no one's miss; by whom), and the casts of theirs that weren't kicked (they went through unless it says otherwise; with the cast of the wave they kicked instead, if any); dead for how many more:
+  Enfo (Kick #2 right): kicked 50 of 59; covered 5 (Karadim 5); not kicked 4: p13 0:40, p20 3:15, p32 1:41, p37 6:51
+  The raid, for scale: 10 players kicked 448 of 569 while alive; 93 covered, 28 not kicked
+  Pulls whose wipe was decided within 10 s after casts on assignments went through: 11 of 28; Enfo's cast was the first to go through on 0

@@ -1,0 +1,27 @@
+The raid note for Sszorak (Mythic), checked against Sszorak pull 42 (4:49, wipe, https://www.warcraftlogs.com/reports/vjt3KLbN8g62J1H9#fight=46); the wipe was decided at 4:08 (half the raid was dead). Note times count from the pull's start (ph:1) or from the phase's first start.
+Printed for Enfo alone: their rows in full, the raid's as counts for scale (without `player`, every player's rows).
+Assignments in the note's text, Enfo's: Mutilate Soaks: Left (10 players); Virulence Spreads: Don't Stack (4 players)
+Mutilate Soaks: each hit of Mutilate [1285999], given to the group called to soak within 20 s of it with most of its players hit (10 hits):
+  0:16 Left: 10 of 10 hit, 366.44k each; Enfo: hit
+  0:24 Right: 7 of 9 hit, 370.75k each
+  0:55 Right: 7 of 9 hit, 375.54k each
+  1:03 Left: 9 of 10 hit, 384.37k each; Enfo: hit
+  2:23 Left: 8 of 10 hit, 371.13k each; Enfo: hit
+  2:31 Right: 6 of 9 hit, 461.20k each
+  3:06 Right: 3 of 9 hit, 564.44k each; Enfo: hit, from outside the group (Left)
+  3:14 Left: 6 of 10 hit, 351.59k each; Enfo: not hit (alive)
+  2 more after the wipe was decided at 4:08
+Planned cooldowns (time in the note: what happened), Enfo's 6 of the raid's 38 (on time 4, early 10, late 10, not cast 11, dead 3):
+  1:08 Enfo Ascendance [114052]: cast at 1:16, 9s late
+  1:08 Enfo Poison Cleansing Totem [383013]: not cast within 30s (alive; cast at 2:27)
+  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, 1s late
+  1:39 Enfo Wind Rush Totem [192077]: cast at 1:38, on time
+  3:14 Enfo Poison Cleansing Totem [383013]: not cast within 30s (alive; cast at 2:27)
+  3:46 Enfo Wind Rush Totem [192077]: not cast within 30s (alive; cast at 1:38)
+  Planned after the wipe was decided at 4:08, so not checked against this pull: 21 lines, 4 of them Enfo's, the next 4:34 Enfo Ascendance [114052], 4:39 Enfo Spirit Link Totem [98008] for Virulence [1297707], 5:21 Enfo Poison Cleansing Totem [383013]
+Callouts for personals, with what each player it names pressed from 3 s before to 5 s after it (the spells Lorrgs tracks for their spec, with its tags; only a defensive or tank cooldown answers it), who isn't counted as missing it (one was already running, pressed earlier and still up by Lorrgs' duration, which talents change; or as the line says), and for those who pressed none, which of the ones that answer it they had ready, of those they cast at least once on the night's pulls (off cooldown by Lorrgs' base cooldown, ignoring charges and cooldown reduction; one they never cast may be a talent they don't have or a passive):
+  1:15 everyone: "Big Personals": of 20 alive, 5 pressed a defensive or tank cooldown, 9 pressed none (1 of them only other spells), 6 not counted
+    Enfo: pressed none, not counted against them (pressed Ascendance at 1:16, the note's plan for them then)
+  3:19 everyone: "Big Personals": of 18 alive, 3 pressed a defensive or tank cooldown, 9 pressed none (4 of them only other spells), 6 not counted (1 with one already running)
+    Enfo: pressed none (died at 3:21; ready: none)
+Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): 6 to other players

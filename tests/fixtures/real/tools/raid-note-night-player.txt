@@ -1,0 +1,12 @@
+The raid note for Sszorak (Mythic), checked against every Sszorak pull (42), each until its wipe was decided (the boss's enrage or half the raid dead) and against the note as it was saved before it began. "p3 1:15" is pull 3 at 1:15.
+Printed for Zebinomage alone: their rows in full, the raid's as counts for scale (without `player`, every player's rows).
+Assignments in the note's text, Zebinomage's: Mutilate Soaks: Right (9 players); Virulence Spreads: Spread (15 players)
+Mutilate Soaks: 172 hits of Mutilate [1285999] over 42 pulls (10 more after the wipes were decided), each given to the group called to soak within 20 s of it with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them and which they missed:
+  Zebinomage (Right): hit by 80 of 86; missed 6: p2 1:07, p7 2:15, p13 0:16, p32 2:15, p33 0:55, p35 0:55; dead for 1 more
+  The raid, for scale: 15 of the 16 players of the groups missed a soak while alive, the most 60
+  Counted for no one: 4 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p1 0:08, p3 0:59, p10 0:08, p19 0:08
+Planned cooldowns: the note plans none for Zebinomage.
+Callouts for personals over the pulls, per callout and per player it names, most often pressing none first: how many of the callouts they were alive and counted for, at how many they pressed a defensive or tank cooldown from 3 s before to 5 s after it (callouts by the tag of what they pressed), the ones they pressed none at, with at how many of those they had one ready (one they cast at least once on these pulls, off cooldown by Lorrgs' base cooldown, ignoring charges and cooldown reduction; one they never cast may be a talent they don't have or a passive) and the tags of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such as Anti-Magic Shell, may be one), and those not counted against them (one was already running, pressed earlier and still up by Lorrgs' duration, which talents change; they pressed the cooldown the note plans for them then; or a tank kept a tank cooldown for just after):
+  "Big Personals" to everyone (34 callouts over 33 pulls, at 1:15, 3:19):
+    The raid, for scale: 21 players pressed at 106 of the 459 callouts they were alive and counted for
+    Zebinomage: alive for 23; pressed at 15 (defensive 15); none at 8: p2 1:15, p5 1:15, p6 1:15, p11 1:15, p13 1:15, p24 1:15, p28 1:15, p29 1:15 (one ready at 8); not counted at 10 (one already running 10)

@@ -17,7 +17,7 @@ import math
 import re
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Awaitable, Callable, Collection, Mapping
+from collections.abc import Awaitable, Callable, Collection, Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -353,23 +353,76 @@ class PullCheck:
     stray: dict[str, tuple[int, int]] = field(default_factory=dict)  # tags that are no player (`_stray`)
 
 
-async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | None = None,
-                     source: str = "", all_pulls: bool = False) -> str:
+async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | None = None,  # noqa: PLR0913
+                     source: str = "", all_pulls: bool = False, player: str | None = None) -> str:
     """The note's part for the pull's boss, checked against the pull: the assignments, each soak group's hits
     (who of the group was hit, who wasn't and why, who else was), each planned cooldown against the player's casts,
     and the callouts to one player or to everyone. With `all_pulls`, every pull on the boss (each against the
-    note's version for it), counted per player."""
+    note's version for it), counted per player. With `player`, the same checks printed for that player alone
+    (`Asked`): their rows in full, the raid's as counts."""
     f = rep.fight(pull, boss)
+    who = rep.player(player) if player else None
     found = versions(text)
     if not any(for_boss(v.notes, f["encounterID"]) for v in found):
         raise FactError(f"the note has no part for {f['name']} (it has: "
                         + ", ".join(dict.fromkeys(n.boss or str(n.encounter_id) for v in found for n in v.notes)) + ")")
     if all_pulls:
         pulls = rep.by_boss[rep.boss_key(f)]
-        return rep.still_going(pulls) + await _night(rep, found, rep.ended(pulls), source)
+        return rep.still_going(pulls) + await _night(rep, found, rep.ended(pulls), source, who)
     v = _version(found, (rep.start_ms + f["startTime"]) / 1000)
     note = for_boss(v.notes, f["encounterID"]) or next(n for v in found if (n := for_boss(v.notes, f["encounterID"])))
-    return _pull_text(rep, await _check(rep, f, note), source or (v.source() if v.saved_at else ""))
+    return _pull_text(rep, await _check(rep, f, note), source or (v.source() if v.saved_at else ""),
+                      _asked(rep, who, [note]) if who else None)
+
+
+@dataclass(frozen=True)
+class Asked:
+    """The one player a check is printed for (raid_note's `player`): their rows in full and the raid's as counts,
+    so their numbers have a scale. The checks are the same; only what is printed differs."""
+    name: str  # as the report has them
+    names: frozenset[str]  # that, and the names the note writes them by
+
+    def __contains__(self, name: object) -> bool:
+        return name in self.names
+
+    def said(self) -> str:
+        return (f"Printed for {self.name} alone: their rows in full, the raid's as counts for scale (without "
+                "`player`, every player's rows).")
+
+
+def _asked(rep: Report, p: Player, notes: Iterable[Note]) -> Asked:
+    return Asked(p.name, frozenset({p.name} | {n for note in notes for n, q in _players(rep, note).items()
+                                               if q.id == p.id}))
+
+
+NAMED_SPELL = re.compile(r"(\b(?:spellid|bossSpell):\d+) \([^;]*\)")  # a spell id with its name put after it
+
+
+def own_part(rep: Report, shown: str, player: str) -> str:
+    """A note shown as it is (the newest saved, for a boss with no pull or for the next raid: a first line, then the
+    note with each spell named), cut to one player's part: the labels they're under, the interrupt lines they're
+    on, their timed cooldowns, and the callouts to them and to everyone. Times are the note's, from the start of
+    its phase. `shown` comes back as it is when it holds no note."""
+    head, _, body = shown.partition("\n")
+    try:
+        note = parse(NAMED_SPELL.sub(r"\1", body))[0]
+    except (FactError, IndexError):
+        return shown
+    asked = _asked(rep, rep.player(player), [note])
+
+    def at(c: Cooldown | Callout) -> str:
+        return (f"ph{c.phase} " if c.phase != 1 else "") + clock(c.at * 1000)
+    lines = _assignments(rep, note, asked)
+    if mine := [c for c in note.cooldowns if c.player in asked]:
+        lines.append("Planned cooldowns: " + ", ".join(
+            f"{at(c)} {rep.ability_ref(c.spell)}" + (f" for {rep.ability_ref(c.boss_spell)}" if c.boss_spell else "")
+            for c in mine))
+    for to, calls in (("them", [c for c in note.callouts if any(n in asked for n in c.players)]),
+                      (EVERYONE, [c for c in note.callouts if not c.players])):
+        if calls:
+            lines.append(f"Callouts to {to}: " + ", ".join(f'{at(c)} "{c.text}"' for c in calls))
+    return "\n".join([head.removesuffix(":") + f". Of it, {asked.name}'s part (without `player`, the whole note; "
+                      "times count from the start of the pull, or of the phase where one is named):"] + lines)
 
 
 async def assigns_kicks(rep: Report, f: dict, text: str) -> bool:
@@ -504,10 +557,21 @@ def _other_difficulty(note: Note, fights: list[dict]) -> str:
             "not fit them.")
 
 
-def _assignments(rep: Report, note: Note) -> list[str]:
+def _assignments(rep: Report, note: Note, asked: Asked | None = None) -> list[str]:
     """What the note says besides its checked lines, as written: the assignments, the interrupt order and the
-    reminders to everyone."""
+    reminders to everyone. For one player (`asked`): the labels they're under, and the interrupt lines they're on."""
     lines = []
+    if asked:
+        mine = [f"{heading}: " + ", ".join(f"{label} ({plural(len(ns), 'player')})" for label, ns in groups.items()
+                                           if any(n in asked for n in ns))
+                for heading, groups in note.groups.items() if any(n in asked for ns in groups.values() for n in ns)]
+        if note.groups:
+            lines.append(f"Assignments in the note's text, {asked.name}'s: " + ("; ".join(mine) or "none"))
+        if on := [(i, names) for i, names in enumerate(note.interrupts, 1) if any(n in asked for n in names)]:
+            lines.append(f"Interrupt order (the note's intstart block, each line in the addon's order; not checked "
+                         f"against the log), the lines with {asked.name} of {len(note.interrupts)}: "
+                         + "; ".join(f"line {i}: {' '.join(names)}" for i, names in on))
+        return lines
     if note.groups:
         lines = ["Assignments in the note's text:"] + [
             f"  {heading}: " + "; ".join(f"{label}: {' '.join(ns)}" for label, ns in groups.items())
@@ -558,7 +622,45 @@ def _not_checked(note: Note, stray: Mapping[str, tuple[int, int]]) -> list[str]:
     return lines
 
 
-def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PLR0915
+def _planned_line(rep: Report, at: float, cd: Cooldown) -> str:
+    return (f"{clock(at)} {cd.player} {rep.ability_ref(cd.spell)}"
+            + (f" for {rep.ability_ref(cd.boss_spell)}" if cd.boss_spell else ""))
+
+
+def _pull_tally(uses: list[PlannedUse]) -> str:
+    """'on time 4, early 12, late 9, not cast 6, dead 2' over a pull's planned uses: the raid's, for scale."""
+    off = [(u.cast_at - u.at) / 1000 for u in uses if u.cast_at is not None]
+    left = Counter("not cast" if u.state == "alive" else "dead" if u.state.startswith("dead") else u.state
+                   for u in uses if u.cast_at is None)
+    counts = {"on time": sum(abs(d) < 1 for d in off), "early": sum(d <= -1 for d in off),
+              "late": sum(d >= 1 for d in off), **left}
+    return ", ".join(f"{what} {n}" for what, n in counts.items() if n)
+
+
+def _idle(k: CalloutCheck, n: str, ready: list[dict]) -> str:
+    """'died at 3:21; pressed only X 3:17; ready: Y' of a player who pressed none at a callout."""
+    return ((f"died at {clock(k.fell[n])}; " if n in k.fell else "")
+            + (f"pressed only {', '.join(f'{_spell(sp)} {clock(t)}' for t, sp in k.others[n])}; "
+               if n in k.others else "")
+            + f"ready: {', '.join(_spell(sp) for sp in ready) or 'none'}")
+
+
+def _own_callout(k: CalloutCheck, asked: Asked) -> str:
+    """What one player did at a callout for personals, or '' when it wasn't to them."""
+    for n, mine in k.pressed:
+        if n in asked:
+            return "pressed " + ", ".join(f"{_spell(sp)} {clock(t)}" for t, sp in mine)
+    for n, ready in k.idle:
+        if n in asked:
+            return f"pressed none ({_idle(k, n, ready)})"
+    for n, why in k.excused:
+        if n in asked:
+            return f"pressed none, not counted against them ({why})"
+    return "dead" if any(n in asked for n in k.dead) else ""
+
+
+def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, PLR0915
+               asked: Asked | None = None) -> str:
     f, end = c.f, c.f["endTime"] - c.f["startTime"]
     lines = [_head(c.note).replace("the boss", f["name"]) + (f", {source}" if source else "")
              + f", checked against {rep.label(f)} ({clock(end)}, " + ("KILL" if f["kill"] else "wipe")
@@ -566,15 +668,20 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                                     if c.decided else "")
              + ". Note times count from the pull's start (ph:1) or from the phase's first start."
              + _other_difficulty(c.note, [f])]
-    lines += _assignments(rep, c.note)
-    lines += _pull_soaks(rep, c.soaks, c.until)
-    if c.planned:
-        lines.append("Planned cooldowns (time in the note: what happened):")
-        for u in c.planned.uses:
-            cd = u.cooldown
-            line = f"  {clock(u.at)} {cd.player} {rep.ability_ref(cd.spell)}"
-            if cd.boss_spell:
-                line += f" for {rep.ability_ref(cd.boss_spell)}"
+    if asked:
+        lines.append(asked.said())
+    lines += _assignments(rep, c.note, asked)
+    lines += _pull_soaks(rep, c.soaks, c.until, asked)
+    none_planned = asked is not None and not any(cd.player in asked for cd in c.note.cooldowns)
+    if c.planned and asked and none_planned:
+        lines.append(f"Planned cooldowns: the note plans none for {asked.name}.")
+    if c.planned and not none_planned:
+        uses = [u for u in c.planned.uses if asked is None or u.cooldown.player in asked]
+        lines.append("Planned cooldowns (time in the note: what happened)" + (
+            f", {asked.name}'s {len(uses)} of the raid's {len(c.planned.uses)} ({_pull_tally(c.planned.uses)})"
+            if asked and c.planned.uses else "") + ":")
+        for u in uses:
+            line = f"  {_planned_line(rep, u.at, u.cooldown)}"
             if u.cast_at is not None:
                 d = (u.cast_at - u.at) / 1000
                 line += f": cast at {clock(u.cast_at)}, " + ("on time" if abs(d) < 1 else
@@ -594,13 +701,14 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                         "the wipe was decided" if c.until < end else "the pull ended")
                 line += ")"
             lines.append(line)
-        if c.planned.later:  # still the note's plan: listed, so a review of the note sees all of it
+        if c.planned.later:  # counted, with the next ones: the whole plan is what `upcoming` shows
+            later = [x for x in c.planned.later if asked is None or x[1].player in asked]
             lines.append("  Planned after " + (
                 f"the wipe was decided at {clock(c.until)}" if c.until < end else f"the pull ended at {clock(end)}")
-                + ", so not checked against this pull:")
-            lines += [f"  {clock(at)} {cd.player} {rep.ability_ref(cd.spell)}"
-                      + (f" for {rep.ability_ref(cd.boss_spell)}" if cd.boss_spell else "")
-                      for at, cd in c.planned.later]
+                + f", so not checked against this pull: {plural(len(c.planned.later), 'line')}"
+                + (f", {len(later)} of them {asked.name}'s" if asked else "")
+                + ((", the next " if len(later) > LATER_SHOWN else ": ")
+                   + ", ".join(_planned_line(rep, at, cd) for at, cd in later[:LATER_SHOWN]) if later else ""))
         if c.planned.skipped:
             lines.append(f"  {c.planned.skipped} planned in phases the pull never reached")
         lines += [f"  {_twice(rep, t)}" for t in c.planned.twice]
@@ -612,12 +720,15 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                      "and for those who pressed none, which of the ones that answer it they had ready, of those they "
                      f"cast at least once on the night's pulls ({READY_ARE}):")
     for k in c.callouts:
+        if asked and k.callout.players and not any(n in asked for n in k.callout.players):
+            continue  # to other players
         line = f"  {clock(k.at)} {' '.join(k.callout.players) or 'everyone'}: \"{k.callout.text}\""
         if not k.in_pull:
             lines.append(line + ": not in this pull")
             continue
         if not k.pressed and not k.idle and not k.excused:
-            lines.append(line + ": dead by then (" + ", ".join(k.dead) + ")")
+            lines.append(line + ": dead by then (" + (", ".join(k.dead) if asked is None else
+                                                      plural(len(k.dead), "player")) + ")")
             continue
         running = sum(why.startswith(RUNNING) for _, why in k.excused)
         lines.append(line + f": of {len(k.pressed) + len(k.idle) + len(k.excused)} alive, {len(k.pressed)} pressed "
@@ -625,42 +736,52 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                      + (f" ({len(k.others)} of them only other spells)" if k.others else "")
                      + (f", {len(k.excused)} not counted" + (f" ({running} with one {RUNNING})" if running else "")
                         if k.excused else ""))
+        if asked:
+            if own := _own_callout(k, asked):
+                lines.append(f"    {asked.name}: {own}")
+            continue
         if k.pressed:
             lines.append("    pressed: " + "; ".join(
                 f"{n} " + ", ".join(f"{_spell(sp)} {clock(t)}" for t, sp in mine) for n, mine in k.pressed))
         if k.idle:
-            lines.append("    pressed none: " + "; ".join(
-                f"{n} (" + (f"died at {clock(k.fell[n])}; " if n in k.fell else "")
-                + (f"pressed only {', '.join(f'{_spell(sp)} {clock(t)}' for t, sp in k.others[n])}; "
-                   if n in k.others else "")
-                + f"ready: {', '.join(_spell(sp) for sp in ready) or 'none'})" for n, ready in k.idle))
+            lines.append("    pressed none: " + "; ".join(f"{n} ({_idle(k, n, ready)})" for n, ready in k.idle))
         if k.excused:
             lines.append("    pressed none, not counted against them: " + "; ".join(f"{n} ({why})"
                                                                               for n, why in k.excused))
         if k.dead:
             lines.append("    dead: " + ", ".join(k.dead))
     if c.unchecked:
+        shown = [(at, co) for at, co in c.unchecked
+                 if asked is None or not co.players or any(n in asked for n in co.players)]
+        rest = len(c.unchecked) - len(shown)
         lines.append(UNCHECKED + ": " + "; ".join(
-            f"{clock(at)} {' '.join(co.players) or EVERYONE} \"{co.text}\"" for at, co in c.unchecked))
-    if c.kicks:
+            [f"{clock(at)} {' '.join(co.players) or EVERYONE} \"{co.text}\"" for at, co in shown]
+            + ([f"{rest} to other players"] if rest else [])))
+    if c.kicks and asked and not any(k.player in asked for k in c.kicks):
+        lines.append(f"Kick assignments: the note gives {asked.name} none ({len(c.kicks)} to other players).")
+    elif c.kicks:
         lines.append(KICKS_ARE + ", each with the cast that was theirs and what became of it (covered: another "
-                     "player kicked it first, so it was handled and was no one's miss):")
+                     "player kicked it first, so it was handled and was no one's miss)" + (
+                         f", {asked.name}'s of the raid's {len(c.kicks)} ({_kick_tally(c.kicks)})" if asked else "")
+                     + ":")
     for k in c.kicks:
-        lines.append(f"  {clock(k.at)} {k.player} \"{k.callout.text}\": {_kick_line(k)}")
+        if asked is None or k.player in asked:
+            lines.append(f"  {clock(k.at)} {k.player} \"{k.callout.text}\": {_kick_line(k)}")
     if before := through_before(c):
         lines.append(f"  Went through in the {LOST_AFTER_MS // 1000} s before the wipe was decided at "
                      f"{clock(c.until)}: " + ", ".join(_through(k) for k in before))
     if c.unavailable:
         lines.append(c.unavailable)
     lines += _not_checked(c.note, c.stray)
-    if c.missing:
-        lines.append("Named in the note but not in this pull: " + ", ".join(c.missing))
+    if missing := [n for n in c.missing if asked is None or n in asked]:
+        lines.append("Named in the note but not in this pull: " + ", ".join(missing))
     return "\n".join(lines)
 
 
-def _pull_soaks(rep: Report, soaks: list[Soaks], until: float) -> list[str]:
+def _pull_soaks(rep: Report, soaks: list[Soaks], until: float, asked: Asked | None = None) -> list[str]:
     """Each soak section's hits on one pull up to `until`, in order: the group a hit was given to with who of it
-    wasn't hit and who else was, or why it was given to none."""
+    wasn't hit and who else was, or why it was given to none. For one player (`asked`): each hit's count, and what
+    it was for them."""
     lines = []
     for s in soaks:
         if s.ability is None:
@@ -683,17 +804,37 @@ def _pull_soaks(rep: Report, soaks: list[Soaks], until: float) -> list[str]:
                 took[(n, h.label)] += n in h.hit
                 alive[(n, h.label)] += n in h.hit or (n, "alive") in h.absent
             line = f"  {clock(h.at)} {h.label}: {len(h.hit & set(h.group))} of {len(h.group)} hit, {short(h.size)} each"
+            if asked:
+                own = ([f"not hit ({st})" for n, st in h.absent if n in asked]
+                       + [f"hit, from outside the group ({g})" if g else "hit, in no group" for n, g in h.others
+                          if n in asked] + ["hit" for n in h.group if n in asked and n in h.hit])
+                lines.append(line + (f"; {asked.name}: {own[0]}" if own else ""))
+                continue
             if h.absent:
                 line += "; not hit: " + ", ".join(f"{n} ({st})" for n, st in h.absent)
             if h.others:
                 line += "; also hit: " + ", ".join(f"{n} ({g})" if g else n for n, g in h.others)
             lines.append(line)
         lines += _untimed([s])
+        if asked:
+            took, alive = _of(took, asked), _of(alive, asked)
         if few := _few_soaks(took, alive):
             lines.append(few)
         if s.later:
             lines.append(f"  {s.later} more after the wipe was decided at {clock(until)}")
     return lines
+
+
+def _of(counts: Counter, asked: Asked) -> Counter:
+    """The counts of one player, of counts per player or per (player, group)."""
+    return Counter({k: n for k, n in counts.items() if (k[0] if isinstance(k, tuple) else k) in asked})
+
+
+def _kick_tally(kicks: list[KickCheck]) -> str:
+    """'kicked 9, covered 2, not kicked 1, dead 1' over a pull's kick assignments: the raid's, for scale."""
+    counts = Counter("kicked" if k.kicked else "covered" if k.cast[1] == "kicked" else "not kicked"
+                     if k.state == "alive" else "dead" if k.state.startswith("dead") else k.state for k in kicks)
+    return ", ".join(f"{what} {n}" for what, n in counts.items())
 
 
 def _by_count(counts: Counter) -> list[tuple[str, int]]:
@@ -1172,12 +1313,14 @@ async def _check_night(rep: Report, found: list[Version], fights: list[dict]) ->
     return Night(fights, checks, usable, by_pull, used, change)
 
 
-async def _night(rep: Report, found: list[Version], fights: list[dict], source: str) -> str:
+async def _night(rep: Report, found: list[Version], fights: list[dict], source: str,
+                 who: Player | None = None) -> str:
     """Each pull checked against its version of the note, then counted per player: soaks, planned cooldowns,
-    callouts."""
+    callouts. For one player (`who`): their rows, and the raid's counts."""
     night = await _check_night(rep, found, fights)
     checks, by_pull, usable, used, change = night.checks, night.by_pull, night.usable, night.used, night.change
     latest = checks[-1].note
+    asked = _asked(rep, who, [c.note for c in checks]) if who else None
     if len(used) == 1 and by_pull[fights[0]["id"]].saved_at is not None:
         source = by_pull[fights[0]["id"]].source() + (f"; {source}" if source else "")
     lines = [_head(latest).replace("the boss", rep.boss_key(fights[0])) + (f", {source}" if source else "")
@@ -1191,11 +1334,13 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
     lines += _saved_late(rep, fights, by_pull)
     if change:
         lines.append(_change_text(rep, fights, change))
-    lines += _assignments(rep, latest)
-    lines += _night_soaks(rep, checks)
-    lines += _night_cooldowns(rep, checks)
-    lines += _night_kicks(rep, checks[change.start:] if change else checks)
-    lines += _night_callouts(rep, checks)
+    if asked:
+        lines.append(asked.said())
+    lines += _assignments(rep, latest, asked)
+    lines += _night_soaks(rep, checks, asked)
+    lines += _night_cooldowns(rep, checks, asked)
+    lines += _night_kicks(rep, checks[change.start:] if change else checks, asked)
+    lines += _night_callouts(rep, checks, asked)
     lines += list(dict.fromkeys(c.unavailable for c in checks if c.unavailable))
     lines += _not_checked(latest, {tag: n for c in checks for tag, n in c.stray.items()})
     return "\n".join(lines)
@@ -1228,6 +1373,8 @@ async def _prefetch(rep: Report, fights: list[dict], notes: dict[int, Note]) -> 
 
 
 LISTED = 12  # moments listed per player; the rest are counted
+LATER_SHOWN = 3  # planned cooldowns shown of those after the wipe was decided; the rest are counted
+FOR_SCALE = "The raid, for scale"
 
 
 def _pulls(rep: Report, at: list[tuple[dict, float]]) -> str:
@@ -1237,7 +1384,8 @@ def _pulls(rep: Report, at: list[tuple[dict, float]]) -> str:
     return text
 
 
-def _night_soaks(rep: Report, checks: list[PullCheck]) -> list[str]:  # noqa: C901
+def _night_soaks(rep: Report, checks: list[PullCheck],  # noqa: C901, PLR0912, PLR0915
+                 asked: Asked | None = None) -> list[str]:
     out = []
     for heading in dict.fromkeys(s.heading for c in checks for s in c.soaks):
         sections = [(c, s) for c in checks for s in c.soaks if s.heading == heading and s.ability is not None]
@@ -1280,9 +1428,12 @@ def _night_soaks(rep: Report, checks: list[PullCheck]) -> list[str]:  # noqa: C9
                    "alive, how many hit them and which they missed:")
         few = _few(took, alive)  # named apart below, as likely not soaking with the group: no row of misses
         none = []
+        rows = [k for k in alive if k not in few]
         for k in sorted(alive, key=lambda k: (-len(missed[k]), k)):
             row = f"{k[0]} ({k[1]})"
             also = f"; dead for {dead[k]} more" if dead[k] else ""
+            if asked and k[0] not in asked:
+                continue
             if missed[k] and k not in few:
                 out.append(f"  {row}: hit by {took[k]} of {alive[k]}; missed {len(missed[k])}: {_pulls(rep, missed[k])}"
                            + also)
@@ -1290,6 +1441,12 @@ def _night_soaks(rep: Report, checks: list[PullCheck]) -> list[str]:  # noqa: C9
                 none.append(f"{row} {took[k]} of {alive[k]}{also.replace(';', ',')}")
         if none:
             out.append("  Missed none while alive: " + "; ".join(none))
+        if asked:
+            most = max((len(missed[k]) for k in rows), default=0)
+            out.append(f"  {FOR_SCALE}: {sum(bool(missed[k]) for k in rows)} of the {len(rows)} players of the groups "
+                       f"missed a soak while alive, the most {most}")
+            other, stray = _of(other, asked), _of(stray, asked)
+            took, alive = _of(took, asked), _of(alive, asked)
         if other:
             out.append("  Hit by another group's soak too: " + ", ".join(f"{n} {k}" for n, k in _by_count(other)))
         out += [f"  Counted for no one: {plural(len(at), 'hit')} {NO_GROUP[why]}: {_pulls(rep, at)}"
@@ -1345,7 +1502,7 @@ def _few_soaks(took: Counter, alive: Counter) -> str:
                         for k in sorted(few, key=lambda k: (took[k] / alive[k], name(k)))))
 
 
-def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
+def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None = None) -> list[str]:
     uses = [(c, u) for c in checks if c.planned for u in c.planned.uses]
     if not uses:
         return []
@@ -1361,6 +1518,8 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
     for c, u in uses:
         per_player[u.cooldown.player][(u.cooldown.at + 1000 * u.cooldown.phase, u.cooldown.spell,
                                        u.cooldown.boss_spell)].append((c, u))
+    if asked and not any(name in asked for name in per_player):
+        return [f"Planned cooldowns: the note plans none for {asked.name}."]
 
     def tally(rows: list[tuple[PullCheck, PlannedUse]], which: bool = False) -> str:
         on = [r for r in rows if r[1].cast_at is not None and abs(r[1].cast_at - r[1].at) < 1000]
@@ -1395,6 +1554,8 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
         spells = {r[1].cooldown.spell for r in everything}
         never[name] = {sp for sp in spells if sum(missed([r]) for r in everything if r[1].cooldown.spell == sp)
                        >= NEVER_CAST_MIN and not any(r[1].casts for r in everything if r[1].cooldown.spell == sp)}
+        if asked and name not in asked:
+            continue
         out.append(f"  {name}: {len(everything)} planned uses; {tally(everything)}")
         for rows in sorted(entries.values(), key=lambda rows: rows[0][1].at):
             u = rows[0][1]
@@ -1404,8 +1565,11 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:
             out.append(line + f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}"
                        + ("; never cast on any of these pulls: a talent may replace it, or another spell do its job "
                           "(breakdown of their casts)" if u.cooldown.spell in never[name] else ""))
+    if asked:
+        out.append(f"  {FOR_SCALE}: {len(uses)} planned uses of {plural(len(per_player), 'player')}; {tally(uses)}")
     twice = {(cd.player, cd.spell, first, again): (first, again, cd)
-             for c in checks if c.planned for first, again, cd in c.planned.twice}
+             for c in checks if c.planned for first, again, cd in c.planned.twice
+             if asked is None or cd.player in asked}
     return out + [f"  {_twice(rep, t)}" for t in twice.values()]
 
 
@@ -1415,10 +1579,12 @@ def _twice(rep: Report, twice: tuple[float, float, Cooldown]) -> str:
             "use written twice, checked as the first")
 
 
-def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
-    calls = [(c, k) for c in checks for k in c.callouts if k.in_pull]
+def _night_callouts(rep: Report, checks: list[PullCheck],  # noqa: C901
+                    asked: Asked | None = None) -> list[str]:
+    calls = [(c, k) for c in checks for k in c.callouts if k.in_pull
+             and (asked is None or not k.callout.players or any(n in asked for n in k.callout.players))]
     if not calls:
-        return _night_unchecked(checks)
+        return _night_unchecked(checks, asked)
     out = [f"Callouts for personals over the pulls, per callout and per player it names, most often pressing none "
            f"first: how many of the callouts they were alive and counted for, at how many they pressed "
            f"{PERSONALS_ARE} from {CALL_BEFORE_MS // 1000} s before to {CALL_AFTER_MS // 1000} s after it "
@@ -1458,7 +1624,12 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
                 alive[n] += 0  # listed, not counted
                 excused[n].append(why.split(" for ")[0] if why.startswith("a tank") else f"one {RUNNING}"
                                   if why.startswith(RUNNING) else "pressed the note's plan for them")
+        if asked:
+            out.append(f"    {FOR_SCALE}: {plural(len(alive), 'player')} pressed at {sum(pressed_n.values())} of the "
+                       f"{sum(alive.values())} callouts they were alive and counted for")
         for n in sorted(alive, key=lambda n: (-len(none[n]), n)):
+            if asked and n not in asked:
+                continue
             line = f"    {n}: alive for {alive[n]}; pressed at {pressed_n[n]}"
             if pressed[n]:
                 line += " (" + ", ".join(f"{t} {k}" for t, k in _by_count(pressed[n])) + ")"
@@ -1471,14 +1642,17 @@ def _night_callouts(rep: Report, checks: list[PullCheck]) -> list[str]:
                 line += f"; not counted at {len(excused[n])} (" + ", ".join(
                     f"{why} {k}" for why, k in Counter(excused[n]).most_common()) + ")"
             out.append(line)
-    return out + _night_unchecked(checks)
+    return out + _night_unchecked(checks, asked)
 
 
-def _night_unchecked(checks: list[PullCheck]) -> list[str]:
-    """The callouts the log can't check, each once with its times and how many pulls reached it."""
+def _night_unchecked(checks: list[PullCheck], asked: Asked | None = None) -> list[str]:
+    """The callouts the log can't check, each once with its times and how many pulls reached it; for one player,
+    those to them or to everyone."""
     seen: dict[tuple[str, tuple[str, ...]], tuple[set[str], set[int]]] = {}
     for c in checks:
         for at, co in c.unchecked:
+            if asked and co.players and not any(n in asked for n in co.players):
+                continue
             times, pulls = seen.setdefault((co.text, co.players), (set(), set()))
             times.add(clock(at))
             pulls.add(c.f["id"])
@@ -1546,10 +1720,12 @@ def _change_text(rep: Report, fights: list[dict], change: OrderChange) -> str:
             "only; soaks and cooldowns for every pull.")
 
 
-def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
+def _night_kicks(rep: Report, checks: list[PullCheck], asked: Asked | None = None) -> list[str]:  # noqa: C901
     rows = [(c, k) for c in checks for k in c.kicks]
     if not rows:
         return []
+    if asked and not any(k.player in asked for _, k in rows):
+        return [f"Kick assignments: the note gives {asked.name} none."]
     out = [KICKS_ARE + ". Over the pulls, per player, most casts that went through first: of their kicks while alive, "
            "how many they made, how many another player covered (kicked their cast first: handled, no one's miss; by "
            "whom), and the casts of theirs that weren't kicked (they went through unless it says otherwise; with the "
@@ -1574,6 +1750,8 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
             else:
                 missed[k.player].append((c.f, k))
     for n in sorted(alive.keys() | dead.keys(), key=lambda n: (-len(missed[n]), -sum(covered[n].values()), n)):
+        if asked and n not in asked:
+            continue
         line = f"  {n} ({', '.join(texts[n])}): kicked {made[n]} of {alive[n]}"
         if covered[n]:
             line += f"; covered {sum(covered[n].values())} (" + ", ".join(
@@ -1583,11 +1761,22 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
         if dead[n]:
             line += f"; dead for {dead[n]} more"
         out.append(line)
+    lost = [(c, before) for c in checks if (before := through_before(c))]
+    if asked:  # the raid's counts, and of the pulls lost to a cast going through, theirs
+        out.append(f"  {FOR_SCALE}: {plural(len(alive.keys() | dead.keys()), 'player')} kicked {sum(made.values())} of "
+                   f"{sum(alive.values())} while alive; {sum(sum(by.values()) for by in covered.values())} covered, "
+                   f"{sum(len(m) for m in missed.values())} not kicked")
+        mine = [(c.f, k) for c, before in lost for k in before[:1] if k.player in asked and k.state == "alive"]
+        if lost:
+            out.append(f"  Pulls whose wipe was decided within {LOST_AFTER_MS // 1000} s after casts on assignments "
+                       f"went through: {len(lost)} of {len(checks)}; {asked.name}'s cast was the first to go through "
+                       f"on {len(mine)}" + (": " + ", ".join(f"p{rep.pull_no(f)} {clock(k.cast[0])}" for f, k in mine)
+                                            if mine else ""))
+        return out
     through = Counter(k.callout.text for _, k in rows if k.cast[1] == "went through")
     if through:
         out.append("  Their casts that went through, per assignment: " + ", ".join(
             f"\"{t}\" {n}" for t, n in _by_count(through)))
-    lost = [(c, before) for c in checks if (before := through_before(c))]
     if lost:
         out.append(f"  Pulls whose wipe was decided within {LOST_AFTER_MS // 1000} s after casts on assignments went "
                    f"through, {len(lost)} of {len(checks)} (when it was decided, then the casts, first one first): "

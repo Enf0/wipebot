@@ -54,28 +54,7 @@ Planned cooldowns (time in the note: what happened):
   3:46 Enfo Wind Rush Totem [192077]: not cast within 30 s (alive; cast at 1:38)
   3:47 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30 s (dead since 3:22; cast at 0:01, 2:59)
   3:57 Dragepie Time Spiral [374968]: not cast within 30 s (alive; cast at 1:46)
-  Planned after the wipe was decided at 4:08, so not checked against this pull:
-  4:25 Dragepie Zephyr [374227]
-  4:29 Namsus Apotheosis [200183]
-  4:30 Miralupa Divine Hymn [64843]
-  4:34 Enfo Ascendance [114052]
-  4:34 Sonyosh Poison Cleansing Totem [383013]
-  4:37 Deathadim Anti-Magic Zone [51052]
-  4:39 Pomaa Rallying Cry [97462] for Virulence [1297707]
-  4:39 Scopidruid Stampeding Roar [106898] for Virulence [1297707]
-  4:39 Enfo Spirit Link Totem [98008] for Virulence [1297707]
-  4:47 Fappachino Darkness [196718]
-  5:11 Lïzårðmâñ Zephyr [374227]
-  5:17 Miralupa Apotheosis [200183]
-  5:21 Namsus Divine Hymn [64843]
-  5:21 Enfo Poison Cleansing Totem [383013]
-  5:22 Sonyosh Wind Rush Totem [192077]
-  5:32 Lïzårðmâñ Stasis (Store) [370537]
-  5:34 Lïzårðmâñ Rewind [363534]
-  5:51 Lïzårðmâñ Time Spiral [374968]
-  5:53 Enfo Wind Rush Totem [192077]
-  5:54 Scopidruid Stampeding Roar [106898]
-  6:03 Dragepie Time Spiral [374968]
+  Planned after the wipe was decided at 4:08, so not checked against this pull: 21 lines, the next 4:25 Dragepie Zephyr [374227], 4:29 Namsus Apotheosis [200183], 4:30 Miralupa Divine Hymn [64843]
 Callouts for personals, with what each player it names pressed from 3 s before to 5 s after it (the spells Lorrgs tracks for their spec, with its tags; only a defensive or tank cooldown answers it), who isn't counted as missing it (one was already running, pressed earlier and still up by Lorrgs' duration, which talents change; or as the line says), and for those who pressed none, which of the ones that answer it they had ready, of those they cast at least once on the night's pulls (off cooldown by Lorrgs' base cooldown, ignoring charges and cooldown reduction; one they never cast may be a talent they don't have or a passive):
   1:15 everyone: "Big Personals": of 20 alive, 5 pressed a defensive or tank cooldown, 9 pressed none (1 of them only other spells), 6 not counted
     pressed: Algmor Aspect of the Turtle [defensive] 1:19; Draiman Feint [defensive] 1:18; Krøpling Prismatic Barrier [defensive] 1:19; Slushmania Crimson Vial [defensive] 1:19; Zebinomage Prismatic Barrier [defensive] 1:16

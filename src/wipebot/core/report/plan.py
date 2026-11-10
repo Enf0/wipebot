@@ -305,7 +305,8 @@ async def plan_check(rep: Report, text: str, pull: PullRef = None, boss: str | N
 
 async def plan_show(rep: Report, text: str, boss: str | None = None, player: str | None = None) -> str:
     """The newest version of each plan for `boss` (else the latest pull's boss), every scene in words (describe),
-    with no pull. The report names the raiders the plan's labels mean; `player`'s spot is listed first."""
+    with no pull. The report names the raiders the plan's labels mean; with `player`, each scene that names them
+    is cut to their part (`_own_part`)."""
     plans = parse(text)
     wanted = boss or rep.boss(None)
     found = [p for p in plans if p.boss and (knowledge.matches_boss(wanted, p.boss)
@@ -345,11 +346,30 @@ async def plan_show(rep: Report, text: str, boss: str | None = None, player: str
         for n, sc in enumerate(p.scenes, 1):
             if len(p.scenes) > 1:  # with its link, to point a raider at the scene itself
                 lines.append(f"Scene {sc.name}" + (f" ({link})" if (link := scene_link(p, n)) else "") + ":")
-            lines += ["  " + line for line in describe(sc, who, rep.ability_ref, is_asked)]
+            described = describe(sc, who, rep.ability_ref, is_asked)
+            lines += ["  " + line for line in (_own_part(described, len(sc.spots)) if player else described)]
         if player and not any(is_asked(s.label, s.role) for sc in p.scenes for s in sc.spots):
             lines.append(f"{player} isn't named on this plan: spots are by number, filled by the night's "
                          "assignment.")
     return "\n".join(lines)
+
+
+ASKED = "Asked: "  # how describe marks the lines of the player asked about
+HOLDS = ": holds "  # ... and begins the list of what a shape holds
+
+
+def _own_part(lines: list[str], spots: int) -> list[str]:
+    """A scene's lines (describe) cut to the part of the player asked about: its notes, the lines marked as theirs
+    (their spot, their group in the side panel), the shapes that hold their spot with what else they hold, and the
+    rest counted. A scene that doesn't name them is left whole: they may fill any of its numbered spots."""
+    mine = [line.removeprefix(ASKED) for line in lines if line.startswith(ASKED)]
+    names = [line.partition(": ")[0] for line in mine if not line.startswith("In the side panel")]
+    if not names:
+        return lines
+    kept = [line for line in lines if line.startswith(("Note: ", ASKED))
+            or HOLDS in line and any(name in line.partition(HOLDS)[2] for name in names)]
+    return kept + [f"Left out: {plural(len(lines) - len(kept), 'more line')} of this scene, "
+                   f"{plural(spots - len(names), 'other spot')} among them (`show` without `player` prints them)"]
 
 
 def set_aside(versions: dict[str, list[Plan]], at: float) -> set[str]:
