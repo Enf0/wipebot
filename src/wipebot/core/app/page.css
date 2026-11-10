@@ -99,6 +99,7 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 @media (max-width: 480px) {  /* a narrow card wraps its numbers and its notes onto more lines */
   #status[data-shape="player"] .sk-stage { height: 440px; }
   #status[data-shape="player_night"] .sk-rows { height: 430px; }
+  #status[data-shape="night"] .sk-rows { height: 420px; }  /* an ending's name takes two lines there */
   #status[data-shape="replay"] .sk-head { padding-bottom: 48px; }
 }
 #status .sk-stage::before { content: ""; position: absolute; inset: 0;
