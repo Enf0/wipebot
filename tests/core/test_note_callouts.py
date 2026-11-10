@@ -28,6 +28,8 @@ class Raid:
     """A stand-in report of one boss's pulls: a mage and a shaman in each, their specs' spells as Lorrgs has them,
     and each pull's casts (player, spell, ms) and deaths (player, ms)."""
 
+    names = NAMES
+
     def __init__(self, casts: dict[int, list[tuple[int, dict, float]]], deaths: dict[int, list[tuple[int, float]]]):
         self.casts, self.died = casts, deaths
         self.by_boss = {"Vashnik": [{"id": i, "startTime": 0} for i in casts]}

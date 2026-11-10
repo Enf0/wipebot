@@ -52,14 +52,14 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
   Lïzårðmâñ: 146 planned uses; on time 68, early 12 (1 s), late 56 (2 s), not cast 9, 2 of them in the last 10 s, 1 of them on cooldown, dead 1
     0:16 Rewind [363534], 39 pulls: on time 16, late 20 (3 s), not cast 2 (p9, p30), 1 of them in the last 10 s, dead 1
     1:01 Zephyr [374227], 35 pulls: on time 23, early 1 (1 s), late 8 (1 s), not cast 3 (p25, p32, p36)
-    1:10 Time Dilation [357170], 35 pulls: on time 21, early 2 (2 s), late 12 (2 s)
+    1:10 Time Dilation [357170] "Time Dilation on Wutroll", 35 pulls: on time 21, early 2 (2 s), late 12 (2 s); cast on Wutroll 34, themselves 1
     2:14 Time Spiral [374968], 13 pulls: on time 2, late 11 (2 s)
     3:28 Rewind [363534], 8 pulls: on time 1, early 6 (1 s), not cast 1 (p24), 1 of them in the last 10 s
     3:36 Zephyr [374227], 6 pulls: on time 1, early 2 (7 s), not cast 3 (p10, p25, p37), 1 of them on cooldown
-    3:45 Time Dilation [357170], 6 pulls: on time 3, early 1 (1 s), late 2 (2 s)
+    3:45 Time Dilation [357170] "Time Dilation on Wutroll", 6 pulls: on time 3, early 1 (1 s), late 2 (2 s); cast on Wutroll 6
     4:48 Time Spiral [374968], 2 pulls: late 2 (3 s)
     6:11 Zephyr [374227], 1 pull: on time 1
-    6:20 Time Dilation [357170], 1 pull: late 1 (3 s)
+    6:20 Time Dilation [357170] "Time Dilation on Wutroll", 1 pull: late 1 (3 s); cast on Wutroll 1
   Dscopi: 18 planned uses; on time 2, early 3 (1 s), late 2 (2 s), not cast 8, 1 of them in the last 10 s, dead 3
     2:02 Darkness [196718], 17 pulls: on time 2, early 3 (1 s), late 2 (2 s), not cast 7 (p8, p14, p17, p27, p31, p37, p38), 1 of them in the last 10 s, dead 3
     6:11 Darkness [196718], 1 pull: not cast 1 (p37)
@@ -73,9 +73,9 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     4:37 Zephyr [374227], 2 pulls: on time 1, early 1 (2 s)
     6:08 Time Spiral [374968], 1 pull: early 1 (2 s)
   Karadim: 42 planned uses; on time 25, early 11 (1 s), late 3 (2 s), not cast 3
-    1:10 Blessing of Sacrifice [6940], 35 pulls: on time 20, early 10 (1 s), late 3 (2 s), not cast 2 (p2, p3)
-    3:45 Blessing of Sacrifice [6940], 6 pulls: on time 4, early 1 (1 s), not cast 1 (p10)
-    6:20 Blessing of Sacrifice [6940], 1 pull: on time 1
+    1:10 Blessing of Sacrifice [6940] "Sac Wutroll", 35 pulls: on time 20, early 10 (1 s), late 3 (2 s), not cast 2 (p2, p3); cast on Wutroll 33
+    3:45 Blessing of Sacrifice [6940] "Sac Wutroll", 6 pulls: on time 4, early 1 (1 s), not cast 1 (p10); cast on Wutroll 5
+    6:20 Blessing of Sacrifice [6940] "Sac Wutroll", 1 pull: on time 1; cast on Wutroll 1
   Namsus: 81 planned uses; on time 28, early 35 (2 s), late 15 (2 s), not cast 3, 3 of them in the last 10 s
     0:38 Apotheosis [200183], 37 pulls: on time 17, early 13 (2 s), late 7 (2 s)
     1:39 Divine Hymn [64843], 29 pulls: on time 10, early 12 (3 s), late 6 (2 s), not cast 1 (p6), 1 of them in the last 10 s

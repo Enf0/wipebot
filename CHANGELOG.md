@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   ![Healing by pull over all 33 Sszorak pulls: a bar per pull, pull 9 hollow as a reset, three dashed lines at 1.67M, 1.65M and 1.87M for the thirds of the night, and under them Enfo's own healing in the same pulls](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/trend-by-pull.webp)
 
+- `Agent` **A planned external says who it went on.** A raid note's line for Guardian Spirit, Blessing of Sacrifice or another spell cast on someone names them in its own words ("Guardian Spirit" and the tank's name), and the check dropped those words. It now prints them, and beside when the spell was cast, who the log says it was cast on: a cooldown pressed on time on the wrong player, or on the caster, now shows, on a pull and counted over a night.
+
 ### Changed
 
 - `Discord` **Wipebot's own messages are in Norwegian when your question is.** The answers already followed the question's language; now so do the line under your question while the answer is written, the steps under an answer, the buttons and menus, and what Wipebot says when it can't answer (no AI key on the server yet, Warcraft Logs not answering, a question that took too long). A question too short to tell gets the server's language (`/wipebot setup language:`), and the Norwegian keeps the game's words as raiders write them ("pullet", "deaths", "adds").

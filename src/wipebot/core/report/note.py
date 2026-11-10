@@ -111,6 +111,7 @@ class Cooldown:
     player: str
     spell: int
     boss_spell: int | None = None  # the boss ability it's for
+    text: str = ""  # the line's own words, if it has any: who an external is for ("Guardian Spirit Wutroll")
 
 
 @dataclass
@@ -245,7 +246,7 @@ def _timed(note: Note, f: dict[str, str]) -> bool:
             note.reminders.append(Reminder(at, phase, int(f["spellid"]), f.get("text", "")))
             return True
         boss_spell = int(f["bossspell"]) if f.get("bossspell", "").isdigit() else None
-        note.cooldowns += [Cooldown(at, phase, t, int(f["spellid"]), boss_spell) for t in tags]
+        note.cooldowns += [Cooldown(at, phase, t, int(f["spellid"]), boss_spell, f.get("text", "")) for t in tags]
     elif f.get("text"):
         note.callouts.append(Callout(at, phase, () if everyone else tuple(tags), f["text"]))
     else:
@@ -356,6 +357,7 @@ class PlannedUse:
     # Lorrgs' base cooldown in s); the two differ when their own casts on the night show a shorter one
     cooling: tuple[float, float, float] | None = None
     said: str = ""  # its time as the note has it, where that isn't `at`: "P3 0:36" in a later phase (`Phases.said`)
+    on: str = ""  # who the matched cast was cast on, where the log gives it a player: a name, or "themselves"
 
 
 @dataclass
@@ -864,8 +866,14 @@ def _times_said(times: Iterable[tuple[Phases, Callout]]) -> str:
 
 
 def _planned_line(rep: Report, at: float, cd: Cooldown) -> str:
-    return (f"{clock(at)} {cd.player} {rep.ability_ref(cd.spell)}"
-            + (f" for {rep.ability_ref(cd.boss_spell)}" if cd.boss_spell else ""))
+    return f"{clock(at)} {cd.player} {_planned_spell(rep, cd)}"
+
+
+def _planned_spell(rep: Report, cd: Cooldown) -> str:
+    """A planned cooldown's spell, with the boss ability it's for and the line's own words, where it has them: the
+    note's text is where it says who an external is for, to read beside who the cast was on."""
+    return (rep.ability_ref(cd.spell) + (f" for {rep.ability_ref(cd.boss_spell)}" if cd.boss_spell else "")
+            + (f' "{cd.text}"' if cd.text else ""))
 
 
 def _pull_tally(uses: list[PlannedUse]) -> str:
@@ -924,7 +932,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
             line = f"  {_planned_line(rep, u.at, u.cooldown)}"
             if u.cast_at is not None:
                 d = (u.cast_at - u.at) / 1000
-                line += f": cast at {clock(u.cast_at)}, " + ("on time" if abs(d) < 1 else
+                line += f": cast at {clock(u.cast_at)}{f' on {u.on}' if u.on else ''}, " + ("on time" if abs(d) < 1 else
                                                               f"{abs(d):.0f} s {'late' if d > 0 else 'early'}")
             else:
                 line += f": not cast within {MATCH_S} s ({u.state}"
@@ -1259,6 +1267,7 @@ async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player
     for e in await _planned_casts(rep, f, whole or note):
         by_source[e.get("sourceID", -1)].append(e)
     casts: dict[tuple[str, int], list[float]] = defaultdict(list)  # (note name, spell) -> ms from the pull's start
+    on: dict[tuple[str, int, float], str] = {}  # (note name, spell, ms) -> the player that cast was cast on
     for name, p in here.items():
         wanted = {c.spell: rep.ids_named([rep.ability(c.spell)]) | {c.spell} for c in note.cooldowns
                   if c.player == name}
@@ -1268,6 +1277,8 @@ async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player
                     at = e["timestamp"] - t0
                     if not (seen := casts[(name, spell)]) or at - seen[-1] > REPEAT_CAST_MS:
                         seen.append(at)
+                        if e.get("targetID") in rep.names:
+                            on[(name, spell, at)] = "themselves" if e["targetID"] == p.id else rep.actor(e["targetID"])
     planned, twice = [], []
     for c in sorted((c for c in note.cooldowns if when(c) is not None), key=when):
         first = next((p for p in planned if (p.player, p.spell, p.boss_spell) == (c.player, c.spell, c.boss_spell)
@@ -1285,7 +1296,8 @@ async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player
         if i not in matched and key not in used:
             matched[i] = at
             used.add(key)
-    uses = [PlannedUse(when(c), c, matched.get(i), state(c.player, when(c)), casts[(c.player, c.spell)])
+    uses = [PlannedUse(when(c), c, matched.get(i), state(c.player, when(c)), casts[(c.player, c.spell)],
+                       on=on.get((c.player, c.spell, matched.get(i, -1)), ""))
             for i, c in enumerate(planned) if when(c) <= until]
     await _cooling(rep, f, here, uses, night)
     return Planned(uses, [(when(c), c) for c in planned if when(c) > until],
@@ -1865,10 +1877,10 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
         out.append(f"  {name}: {plural(len(everything), 'planned use')}; {tally(everything)}")
         for rows in sorted(entries.values(), key=lambda rows: (rows[0][1].cooldown.phase, rows[0][1].cooldown.at)):
             u = rows[0][1]
-            line = f"    {u.said or clock(u.at)} {rep.ability_ref(u.cooldown.spell)}"
-            if u.cooldown.boss_spell:
-                line += f" for {rep.ability_ref(u.cooldown.boss_spell)}"
+            line = f"    {u.said or clock(u.at)} {_planned_spell(rep, u.cooldown)}"
+            cast_on = Counter(r[1].on for r in rows if r[1].on)
             out.append(line + f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}"
+                       + ("; cast on " + ", ".join(f"{n} {k}" for n, k in _by_count(cast_on)) if cast_on else "")
                        + ("; never cast on any of these pulls: a talent may replace it, or another spell do its job "
                           "(breakdown of their casts)" if u.cooldown.spell in never[name] else ""))
     if asked:

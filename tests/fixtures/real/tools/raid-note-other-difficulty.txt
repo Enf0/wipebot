@@ -18,14 +18,14 @@ Planned cooldowns (time in the note: what happened):
   0:01 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 0:00, on time
   0:03 Miralupa Apotheosis [200183]: cast at 0:06, 3 s late
   0:04 Cptola Avenging Wrath [31884]: cast at 0:04, on time
-  0:22 Miralupa Guardian Spirit [47788]: not cast within 30 s (alive)
+  0:22 Miralupa Guardian Spirit [47788] "Guardian Spirit Wutroll": not cast within 30 s (alive)
   0:37 Lïzårðmâñ Time Spiral [374968]: not cast within 30 s (alive)
   0:39 Namsus Apotheosis [200183]: cast at 0:26, 13 s early
   0:41 Enfo Wind Rush Totem [192077]: cast at 0:39, 1 s early
   0:44 Miralupa Divine Hymn [64843]: not cast within 30 s (alive; cast at 1:44, 7:17)
   0:45 Scopidruid Stampeding Roar [106898]: not cast within 30 s (alive)
   0:47 Lïzårðmâñ Zephyr [374227]: not cast within 30 s (alive; cast at 3:01)
-  0:58 Namsus Guardian Spirit [47788]: not cast within 30 s (alive; cast at 7:08)
+  0:58 Namsus Guardian Spirit [47788] "Guardian Spirit Wutroll": not cast within 30 s (alive; cast at 7:08)
   1:00 Enfo Ascendance [114052]: not cast within 30 s (alive; cast at 1:40, 4:41)
   1:25 Dragepie Time Spiral [374968]: not cast within 30 s (not in this pull)
   1:39 Cptola Light's Potential [1236616]: not cast within 30 s (alive)
@@ -37,16 +37,16 @@ Planned cooldowns (time in the note: what happened):
   1:50 Sonyosh Wind Rush Totem [192077]: not cast within 30 s (not in this pull)
   1:51 Scopidruid Stampeding Roar [106898]: not cast within 30 s (alive)
   1:52 Lïzårðmâñ Time Spiral [374968]: not cast within 30 s (alive)
-  2:01 Peggerino Curse of Tongues [1714]: not cast within 30 s (alive)
-  2:01 Zebinolock Curse of Tongues [1714]: not cast within 30 s (not in this pull)
+  2:01 Peggerino Curse of Tongues [1714] "Curse Unmarked Add": not cast within 30 s (alive)
+  2:01 Zebinolock Curse of Tongues [1714] "Curse Raid-Marked Add": not cast within 30 s (not in this pull)
   2:09 Dragepie Time Spiral [374968]: not cast within 30 s (not in this pull)
-  2:34 Peggerino Curse of Tongues [1714]: not cast within 30 s (alive)
-  2:34 Zebinolock Curse of Tongues [1714]: not cast within 30 s (not in this pull)
+  2:34 Peggerino Curse of Tongues [1714] "Curse Unmarked Add": not cast within 30 s (alive)
+  2:34 Zebinolock Curse of Tongues [1714] "Curse Raid-Marked Add": not cast within 30 s (not in this pull)
   2:44 Namsus Divine Hymn [64843]: cast at 2:53, 9 s late
   2:45 Enfo Ascendance [114052]: not cast within 30 s (alive; cast at 1:40, 4:41; on cooldown from the 1:40 cast, 180 s by Lorrgs' base cooldown)
-  2:45 Miralupa Guardian Spirit [47788]: not cast within 30 s (alive)
-  2:45 Cptola Blessing of Sacrifice [6940]: not cast within 30 s (alive)
-  2:46 Lïzårðmâñ Time Dilation [357170]: not cast within 30 s (alive; cast at 5:56)
+  2:45 Miralupa Guardian Spirit [47788] "Guardian Spirit Wutroll": not cast within 30 s (alive)
+  2:45 Cptola Blessing of Sacrifice [6940] "Blessing of Sacrifice Wutroll": not cast within 30 s (alive)
+  2:46 Lïzårðmâñ Time Dilation [357170] "Time Dilation Wutroll": not cast within 30 s (alive; cast at 5:56)
   2:48 Cptola Avenging Wrath [31884]: cast at 2:45, 3 s early
   2:51 Miralupa Apotheosis [200183]: cast at 2:26, 25 s early
   3:16 Scopidruid Stampeding Roar [106898]: not cast within 30 s (alive)
@@ -69,8 +69,8 @@ Planned cooldowns (time in the note: what happened):
   4:35 Nexsozz Anti-Magic Zone [51052]: not cast within 30 s (not in this pull)
   4:37 Lïzårðmâñ Time Spiral [374968]: not cast within 30 s (alive)
   4:47 Dragepie Time Spiral [374968]: not cast within 30 s (not in this pull)
-  4:59 Lïzårðmâñ Time Dilation [357170]: not cast within 30 s (alive; cast at 5:56)
-  5:00 Cptola Blessing of Sacrifice [6940]: not cast within 30 s (alive)
+  4:59 Lïzårðmâñ Time Dilation [357170] "Time Dilation Wutroll": not cast within 30 s (alive; cast at 5:56)
+  5:00 Cptola Blessing of Sacrifice [6940] "Blessing of Sacrifice Wutroll": not cast within 30 s (alive)
   5:16 Enfo Light's Potential [1236616]: not cast within 30 s (alive)
   5:28 Miralupa Apotheosis [200183]: not cast within 30 s (alive; cast at 0:06, 2:26, 4:29, 6:29; on cooldown from the 4:29 cast, 120 s by Lorrgs' base cooldown)
   5:29 Miralupa Light's Potential [1236616]: not cast within 30 s (alive; cast at 3:32)
@@ -80,7 +80,7 @@ Planned cooldowns (time in the note: what happened):
   5:39 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 5:35, 3 s early
   6:07 Scopidruid Stampeding Roar [106898]: not cast within 30 s (dead since 5:56)
   6:10 Sonyosh Wind Rush Totem [192077]: not cast within 30 s (not in this pull)
-  6:10 Lïzårðmâñ Time Dilation [357170]: cast at 5:56, 14 s early
+  6:10 Lïzårðmâñ Time Dilation [357170] "Time Dilation Wutroll": cast at 5:56 on Scopidruid, 14 s early
   6:11 Cptola Avenging Wrath [31884]: not cast within 30 s (alive; cast at 0:04, 2:45, 4:52, 6:55; on cooldown from the 4:52 cast, 120 s by Lorrgs' base cooldown)
   6:27 Namsus Apotheosis [200183]: not cast within 30 s (alive; cast at 0:26, 3:23, 5:46; on cooldown from the 5:46 cast, 120 s by Lorrgs' base cooldown)
   6:27 Namsus Light's Potential [1236616]: not cast within 30 s (alive)

@@ -30,6 +30,11 @@ What the GraphQL API does that its schema doesn't say, each checked against real
 - For aura events (Buffs, Debuffs) the `sourceID` filter selects the player who has the aura; the events keep
   their real source. A dying player's auras are removed about 20 ms before the death event.
 - `events(dataType: Healing)` takes `targetID` for the healing a player received.
+- A `cast` event's `targetID` is the player a spell was cast on, where it has one: on the four recorded raid-note
+  nights (October and November 2026) every Guardian Spirit, Blessing of Sacrifice and Time Dilation carried the
+  player it went on (142 casts on another player, one on the caster, whose own id it then is), and every other
+  planned cooldown -1 (1,449 casts: raid cooldowns, totems, personals). A spell aimed at an enemy carries the
+  enemy's id (Ascendance logged the boss). The raid note check prints "on <name>" only for a target that is a player.
 - `report.playerDetails` returns `potionUse`/`healthstoneUse` 0, but `table(dataType: Summary)` →
   `playerDetails.{tanks,healers,dps}[]` has WCL's real counts (`healthstoneUse` = healthstones and healing
   potions, `potionUse` = combat potions, pre-pull ones included); pass `endTime` for "before a death".

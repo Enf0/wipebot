@@ -28,7 +28,7 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     0:04 Avenging Wrath [31884], 28 pulls: on time 2, early 6 (2 s), late 8 (21 s), not cast 12 (p1, p2, p5, p6, p7, p9, p10, p17, p18, p19, p23, p28)
     2:05 Avenging Wrath [31884], 19 pulls: on time 1, early 2 (25 s), late 4 (19 s), not cast 12 (p3, p4, p8, p12, p13, p14, p16, p21, p24, p26, p27, p28), 2 of them in the last 10 s, 6 of them on cooldown
     P2 0:01 Light's Potential [1236616], 15 pulls: late 1 (10 s), not cast 11 (p4, p10, p13, p19, p20, p21, p24, p25, p26, p27, p28), dead 3
-    P2 1:07 Blessing of Sacrifice [6940], 13 pulls: late 4 (8 s), not cast 5 (p4, p5, p20, p21, p26), 2 of them in the last 10 s, dead 4
+    P2 1:07 Blessing of Sacrifice [6940] "Blessing of Sacrifice Wutroll", 13 pulls: late 4 (8 s), not cast 5 (p4, p5, p20, p21, p26), 2 of them in the last 10 s, dead 4; cast on Wutroll 4
     P2 1:10 Avenging Wrath [31884], 13 pulls: early 1 (29 s), not cast 8 (p4, p5, p10, p20, p21, p25, p26, p28), 2 of them in the last 10 s, 8 of them on cooldown, dead 4
     P3 0:16 Avenging Wrath [31884], 1 pull: dead 1
   Enfo: 97 planned uses; on time 39, early 7 (1 s), late 16 (3 s), not cast 32, 5 of them in the last 10 s, 12 of them on cooldown, dead 3
@@ -40,15 +40,15 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     P2 2:35 Wind Rush Totem [192077], 2 pulls: late 1 (6 s), dead 1
     I1 0:24 Spirit Link Totem [98008], 1 pull: late 1 (1 s)
   Zebinolock: 34 planned uses; not cast 32, dead 2
-    P2 0:23 Curse of Tongues [1714], 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 0:56 Curse of Tongues [1714], 13 pulls: not cast 12 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p27, p28), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 1:48 Curse of Tongues [1714], 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 2:21 Curse of Tongues [1714], 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 3:13 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:23 Curse of Tongues [1714] "Curse Raid-Marked Add", 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:56 Curse of Tongues [1714] "Curse Raid-Marked Add", 13 pulls: not cast 12 (p4, p5, p16, p19, p20, p21, p23, p24, p25, p26, p27, p28), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 1:48 Curse of Tongues [1714] "Curse Raid-Marked Add", 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 2:21 Curse of Tongues [1714] "Curse Raid-Marked Add", 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 3:13 Curse of Tongues [1714] "Curse Raid-Marked Add", 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
   Namsus: 137 planned uses; on time 38, early 46 (2 s), late 24 (4 s), not cast 29, 4 of them in the last 10 s, 8 of them on cooldown
     0:01 Soulcoiler Ritual Vessel [1291894], 28 pulls: on time 23, late 3 (1 s), not cast 2 (p7, p26)
     0:39 Apotheosis [200183], 27 pulls: on time 7, early 9 (2 s), late 10 (2 s), not cast 1 (p17), 1 of them in the last 10 s
-    0:58 Guardian Spirit [47788], 25 pulls: on time 3, early 15 (2 s), not cast 7 (p3, p5, p6, p8, p18, p22, p24), 1 of them in the last 10 s
+    0:58 Guardian Spirit [47788] "Guardian Spirit Wutroll", 25 pulls: on time 3, early 15 (2 s), not cast 7 (p3, p5, p6, p8, p18, p22, p24), 1 of them in the last 10 s; cast on Wutroll 16, Krøpling 1, Zebinolock 1
     1:48 Divine Hymn [64843], 21 pulls: on time 4, early 16 (2 s), not cast 1 (p21), 1 of them on cooldown
     2:30 Soulcoiler Ritual Vessel [1291894], 11 pulls: early 4 (23 s), late 2 (14 s), not cast 5 (p5, p16, p21, p26, p27)
     2:41 Light's Potential [1236616], 1 pull: early 1 (1 s)
@@ -56,15 +56,15 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     P2 1:06 Divine Hymn [64843], 13 pulls: late 6 (11 s), not cast 7 (p4, p5, p19, p20, p21, p23, p27), 2 of them in the last 10 s, 5 of them on cooldown
     P2 1:46 Soulcoiler Ritual Vessel [1291894], 3 pulls: not cast 3 (p25, p27, p28)
     P2 1:50 Apotheosis [200183], 3 pulls: late 2 (20 s), not cast 1 (p27), 1 of them on cooldown
-    P2 2:33 Guardian Spirit [47788], 2 pulls: late 1 (6 s), not cast 1 (p25)
+    P2 2:33 Guardian Spirit [47788] "Guardian Spirit Wutroll", 2 pulls: late 1 (6 s), not cast 1 (p25); cast on Wutroll 1
     I1 0:11 Divine Hymn [64843], 1 pull: not cast 1 (p28), 1 of them on cooldown
     I1 0:15 Soulcoiler Ritual Vessel [1291894], 1 pull: early 1 (19 s)
   Peggerino: 34 planned uses; not cast 29, dead 5
-    P2 0:23 Curse of Tongues [1714], 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 0:56 Curse of Tongues [1714], 13 pulls: not cast 9 (p4, p16, p19, p23, p24, p25, p26, p27, p28), dead 4; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 1:48 Curse of Tongues [1714], 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 2:21 Curse of Tongues [1714], 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
-    P2 3:13 Curse of Tongues [1714], 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:23 Curse of Tongues [1714] "Curse Unmarked Add", 15 pulls: not cast 14 (p4, p5, p13, p14, p16, p19, p20, p21, p23, p24, p25, p26 and 2 more), dead 1; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 0:56 Curse of Tongues [1714] "Curse Unmarked Add", 13 pulls: not cast 9 (p4, p16, p19, p23, p24, p25, p26, p27, p28), dead 4; never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 1:48 Curse of Tongues [1714] "Curse Unmarked Add", 3 pulls: not cast 3 (p25, p27, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 2:21 Curse of Tongues [1714] "Curse Unmarked Add", 2 pulls: not cast 2 (p25, p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
+    P2 3:13 Curse of Tongues [1714] "Curse Unmarked Add", 1 pull: not cast 1 (p28); never cast on any of these pulls: a talent may replace it, or another spell do its job (breakdown of their casts)
   Dragepie: 63 planned uses; on time 5, early 17 (3 s), late 12 (2 s), not cast 27, 2 of them in the last 10 s, 14 of them on cooldown, dead 2
     1:25 Time Spiral [374968], 24 pulls: on time 4, early 6 (3 s), late 9 (2 s), not cast 4 (p13, p20, p21, p27), dead 1
     1:48 Zephyr [374227], 21 pulls: on time 1, early 11 (4 s), late 1 (7 s), not cast 7 (p2, p3, p11, p13, p14, p16, p26), 2 of them in the last 10 s, 1 of them on cooldown, dead 1
@@ -73,11 +73,11 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     I1 0:15 Zephyr [374227], 1 pull: not cast 1 (p28), 1 of them on cooldown
   Miralupa: 130 planned uses; on time 28, early 33 (3 s), late 45 (3 s), not cast 24, 7 of them in the last 10 s, 11 of them on cooldown
     0:03 Apotheosis [200183], 28 pulls: on time 13, late 14 (2 s), not cast 1 (p7)
-    0:22 Guardian Spirit [47788], 27 pulls: on time 2, early 23 (3 s), not cast 2 (p4, p9)
+    0:22 Guardian Spirit [47788] "Guardian Spirit Wutroll", 27 pulls: on time 2, early 23 (3 s), not cast 2 (p4, p9); cast on Wutroll 23, Lïzårðmâñ 1, Namsus 1
     0:44 Divine Hymn [64843], 26 pulls: on time 9, early 5 (2 s), late 11 (2 s), not cast 1 (p14)
     2:08 Apotheosis [200183], 19 pulls: on time 4, early 4 (2 s), late 11 (3 s)
     2:38 Light's Potential [1236616], 3 pulls: not cast 3 (p5, p26, p27)
-    P2 1:07 Guardian Spirit [47788], 13 pulls: late 7 (6 s), not cast 6 (p4, p5, p19, p20, p21, p23), 4 of them in the last 10 s
+    P2 1:07 Guardian Spirit [47788] "Guardian Spirit Wutroll", 13 pulls: late 7 (6 s), not cast 6 (p4, p5, p19, p20, p21, p23), 4 of them in the last 10 s; cast on Wutroll 7
     P2 1:13 Apotheosis [200183], 11 pulls: late 2 (19 s), not cast 9 (p5, p10, p16, p19, p20, p21, p25, p26, p28), 3 of them in the last 10 s, 9 of them on cooldown
     P2 2:29 Divine Hymn [64843], 2 pulls: early 1 (11 s), not cast 1 (p25), 1 of them on cooldown
     I1 0:06 Apotheosis [200183], 1 pull: not cast 1 (p28), 1 of them on cooldown
@@ -88,9 +88,9 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     P2 0:02 Rewind [363534] for Dreadful Presence [1288635], 15 pulls: late 11 (7 s), not cast 4 (p4, p5, p10, p14), 4 of them on cooldown
     P2 0:02 Light's Potential [1236616] for Dreadful Presence [1288635], 15 pulls: early 2 (10 s), late 12 (10 s), not cast 1 (p14)
     P2 0:14 Time Spiral [374968], 15 pulls: late 12 (9 s), not cast 2 (p13, p23), dead 1
-    P2 1:08 Time Dilation [357170], 13 pulls: late 6 (6 s), not cast 6 (p5, p19, p20, p21, p23, p28), 3 of them in the last 10 s, dead 1
+    P2 1:08 Time Dilation [357170] "Time Dilation Wutroll", 13 pulls: late 6 (6 s), not cast 6 (p5, p19, p20, p21, p23, p28), 3 of them in the last 10 s, dead 1; cast on Wutroll 6
     P2 2:14 Time Spiral [374968], 2 pulls: late 2 (10 s)
-    P2 2:33 Time Dilation [357170], 2 pulls: late 1 (4 s), not cast 1 (p25)
+    P2 2:33 Time Dilation [357170] "Time Dilation Wutroll", 2 pulls: late 1 (4 s), not cast 1 (p25); cast on Wutroll 1
     I1 0:15 Zephyr [374227], 1 pull: not cast 1 (p28)
   Scopidruid: 64 planned uses; late 2 (8 s), not cast 18, 2 of them on cooldown, dead 2
     0:45 Stampeding Roar [106898], 26 pulls: not cast 6 (p23, p24, p25, p26, p27, p28)

@@ -354,7 +354,7 @@ async def test_one_cooldown_written_twice_in_a_note_is_checked_as_one_use(monkey
     plan = note.Note(3418, "Mythic", "Vashnik", cooldowns=[note.Cooldown(at, 1, "Lïzårðmâñ", zephyr)
                                                             for at in (42, 43, 90)])
     rep = SimpleNamespace(ids_named=lambda names: set(), ability=lambda spell: "Zephyr", was_in=lambda f, p: True,
-                          ability_ref=lambda spell: "Zephyr [374227]")
+                          ability_ref=lambda spell: "Zephyr [374227]", names={5: "Lïzårðmâñ"})
 
     async def casts(rep, f, n):
         return [{"type": "cast", "sourceID": 5, "abilityGameID": zephyr, "timestamp": 43_200},
