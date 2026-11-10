@@ -18,4 +18,4 @@ Damage taken on Sszorak pull 13, each pull until its 3rd death, by ability (1:28
   17. Seriously Sharp Seashell (own): 138.90k (1.57k/s), 0% of total, 0 hits and 84 ticks, 1.65k on average; most on Zebinomage 22.98k, Enfo 22.96k, Peggerino 20.57k, Krøpling 20.50k
   18. Caustic Residue: 84.98k (961/s), 0% of total, 0 hits and 2 ticks, 42.49k on average; most on Nexsozz 44.44k, Enfo 40.54k
   19. Set Fire to the Pain (own): 14.49k (164/s), 0% of total, 0 hits and 8 ticks, 1.81k on average; most on Fappachino 14.49k
-(own): every hit of it came from a player or a pet, not from an enemy, so it is no mechanic of the fight.
+(own): every hit of it came from a player or a pet, not from an enemy.

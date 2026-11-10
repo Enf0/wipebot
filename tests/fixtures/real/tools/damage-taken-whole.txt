@@ -19,4 +19,4 @@ Damage taken on Sszorak pull 13, by ability (2:42 of combat; total 314.25M, 1.93
   18. Fel Armor (own): 378.66k (2.33k/s), 0% of total, 0 hits and 600 ticks, 631 on average; most on Sveini 192.41k, Peggerino 186.25k
   19. Seriously Sharp Seashell (own): 257.39k (1.58k/s), 0% of total, 0 hits and 156 ticks, 1.65k on average; most on Peggerino 41.04k, Lïzårðmâñ 38.47k, Enfo 32.77k, Namsus 31.85k
   20. Set Fire to the Pain (own): 42.16k (259/s), 0% of total, 0 hits and 42 ticks, 1.00k on average; most on Fappachino 42.16k
-(own): every hit of it came from a player or a pet, not from an enemy, so it is no mechanic of the fight.
+(own): every hit of it came from a player or a pet, not from an enemy.

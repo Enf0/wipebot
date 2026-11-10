@@ -357,8 +357,7 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
                      "design, and the more healers share the damage, the more each overheals: compare it only within "
                      "one spec and as many healers. It costs mana and casts, nothing more.")
     if own:
-        lines.append(f"{OWN}: every hit of it came from a player or a pet, not from an enemy, so it is no mechanic "
-                     "of the fight.")
+        lines.append(f"{OWN}: every hit of it came from a player or a pet, not from an enemy.")
     if parsed:
         lines.append(f"Parses are Warcraft Logs' {s.metric} percentiles against the same spec on this kill, for the "
                      "players ranked by it: compare players by these, not by the totals across specs.")
@@ -374,8 +373,10 @@ def _in_fewer(rep: Report, q: Asked, p: Player, value: float) -> str:
     if not present or len(present) == len(q.fights):
         return ""
     own = sum(q.ends.get(f["id"], f["endTime"]) - q.starts.get(f["id"], f["startTime"]) for f in present) / 1000
-    rate = f"{60 * value / own:.1f}/min" if q.data_type == "Casts" else f"{short(value / own)}/s" if own else ""
-    return f", in {len(present)} of {len(q.fights)} pulls ({rate} over them)" if own else ""
+    if own <= 0:
+        return ""
+    rate = f"{60 * value / own:.1f}/min" if q.data_type == "Casts" else f"{short(value / own)}/s"
+    return f", in {len(present)} of {len(q.fights)} pulls ({rate} over them)"
 
 
 async def _parses(rep: Report, q: Asked) -> tuple[dict[str, int], str]:

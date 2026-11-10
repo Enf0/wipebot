@@ -150,6 +150,8 @@ def test_a_player_in_only_some_pulls_gets_their_rate_over_those():
     # Casts too: a healer in 12 of 33 pulls read "1.4/min" over the raid's whole night
     assert tables._in_fewer(rep, replace(q, data_type="Casts"), p, 30) == ", in 2 of 3 pulls (20.0/min over them)"
     assert tables._in_fewer(rep, replace(q, data_type="Buffs"), p, 1) == ""
+    # pulls with no time in what is summed (each stopped at its start) have no rate, for casts as for damage
+    assert tables._in_fewer(rep, replace(q, data_type="Casts", ends={1: 100_000, 3: 300_000}), p, 30) == ""
 
 
 def test_damage_on_one_enemy_is_asked_by_its_name_over_the_pulls_it_was_in():
@@ -189,8 +191,8 @@ async def test_a_breakdown_is_headed_in_words_and_marks_damage_players_dealt_the
     assert lines[0].startswith("Damage taken on Sszorak pull 13, by ability (")
     assert [line.split(":")[0] for line in lines[1:5]] == ["  1. Mutilate", "  2. Stagger (own)",
                                                            "  3. Raging Crosswinds", "  4. Cleave"]
-    assert lines[5] == ("(own): every hit of it came from a player or a pet, not from an enemy, so it is no "
-                        "mechanic of the fight.")
+    # what the log shows and no more: on a fight that turns players on each other, such a row is a mechanic
+    assert lines[5] == "(own): every hit of it came from a player or a pet, not from an enemy."
     assert (await tables.breakdown(rep, "DamageDone", pulls=[13])).startswith("Damage done on Sszorak pull 13")
     assert (await tables.breakdown(rep, "EnemyDebuffs", pulls=[13])).startswith("Debuffs on enemies on Sszorak pull")
 
