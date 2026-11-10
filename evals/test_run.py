@@ -471,6 +471,19 @@ async def test_auto_that_looks_low_becomes_a_three_trial_run():
     assert compared(base, run).lines[-1].startswith("VERDICT: no change shown, but look")
 
 
+async def test_auto_shows_a_rise_only_as_three_trials_would():
+    """Twelve of the others one answer better, and ten steady cases wrong on their third answer only: at two
+    answers each that reads as a rise, which three trials don't show. So the third answers are asked."""
+    from evals.run import compared
+    better = {f"f{i}": [True] * 6 for i in range(1, 21, 2)} | dict.fromkeys(("f0", "f2"), [True, True, False] * 2)
+    source = answers_like_the_baseline(**better, **{f"s{i}": [True, True, False, True, True, True] for i in range(10)})
+    base, run, said = await asked("auto", source)
+    _, three, _ = await asked(3, source)
+    assert "spreads above the baseline's: asking the 72 steady cases a third time" in said
+    assert run["trials"] == three["trials"] == 3 and run["passed"] == three["passed"]
+    assert compared(base, run).verdict == compared(base, three).verdict == "no change shown"
+
+
 async def test_a_case_that_moved_is_asked_to_six_answers_before_it_is_printed():
     from evals.run import compared
     source = answers_like_the_baseline(s0=[False] * 6, s1=[False, False, False, True, True, True])

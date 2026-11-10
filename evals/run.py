@@ -46,11 +46,12 @@ A run, and a baseline, keep a hash of the judge (its prompts and model) and of e
 baseline only on the cases unchanged since, with a warning when the judge changed; a case is listed as moved only
 when its pass rate moved beyond noise (beyond_noise), and the total with its expected spread from run to run.
 With `--trials auto` a case the baseline judged the same on every trial is asked twice and every other case three
-times; once the total is half a spread below the baseline's, every case gets its third answer (ask_all). In any run a
-case that moved beyond noise is asked again, up to six answers, before it is printed. A comparison ends in one verdict
-line (compared): no change shown, a drop shown, a rise shown or cannot tell, with the smallest drop it could have
-shown. A run exits non-zero when an answer errored, a tool crashed or a drop is shown: the total two spreads below the
-baseline's, or a case that stayed down on six answers. One spread below says "look" and exits zero.
+times; once the total is half a spread below the baseline's, or two above, every case gets its third answer, so the
+total shows a drop or a rise only on three trials (ask_all). In any run a case that moved beyond noise is asked again,
+up to six answers, before it is printed. A comparison ends in one verdict line (compared): no change shown, a drop
+shown, a rise shown or cannot tell, with the smallest drop it could have shown. A run exits non-zero when an answer
+errored, a tool crashed or a drop is shown: the total two spreads below the baseline's, or a case that stayed down on
+six answers. One spread below says "look" and exits zero.
 """
 import argparse
 import asyncio
@@ -857,8 +858,8 @@ async def ask_all(cases: list[dict], base: dict | None, trials: int | str, judge
                   one: Callable[[dict], Awaitable[None]], so_far: Callable[[], dict], confirm: bool = True) -> None:
     """Ask every case its planned answers (`one` asks a case once and keeps the answer; `so_far` is the run's tally
     until now), then what the comparison with the baseline calls for:
-    - with auto, the third answer for the steady cases too once the total is ESCALATE spreads below the baseline's,
-      so a run that looks low is a three-trial run, and reads as one;
+    - with auto, the third answer for the steady cases too once the total is ESCALATE spreads below the baseline's
+      or SHOWN above, so a run that looks low, or shows a rise, is a three-trial run and reads as one;
     - in any run (`confirm`), more answers, up to CONFIRM_TRIALS, for each case that moved beyond noise, so that no
       case is printed as moved on the luck of three answers. A second round covers answers that errored."""
     plan = planned(base, cases, judge_model, trials)
@@ -870,9 +871,9 @@ async def ask_all(cases: list[dict], base: dict | None, trials: int | str, judge
     if not base or judge_warning(base, so_far()):
         return
     short = [c for c in cases if plan[c["id"]] < UNSETTLED_TRIALS]
-    if short and (low := compared(base, so_far()).low) >= ESCALATE:
-        print(f"\nThe total is {low:.1f} spreads below the baseline's: asking the {len(short)} steady cases a third "
-              "time, as a three-trial run would.\n", flush=True)
+    if short and ((low := compared(base, so_far()).low) >= ESCALATE or low <= -SHOWN):
+        print(f"\nThe total is {abs(low):.1f} spreads {'below' if low > 0 else 'above'} the baseline's: asking the "
+              f"{len(short)} steady cases a third time, as a three-trial run would.\n", flush=True)
         await asyncio.gather(*(one(c) for c in short for _ in range(UNSETTLED_TRIALS - plan[c["id"]])))
     for _ in range(2 if confirm else 0):
         now = so_far()
