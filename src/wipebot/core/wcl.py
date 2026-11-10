@@ -858,8 +858,9 @@ class WCL:
 
     async def ensure_points(self, need: float, what: str) -> None:
         """Refuse an opt-in heavy read (`what`, about `need` points) that would leave less than RESERVE_SHARE of the
-        hour's points for ordinary questions (a frozen cache, the evals', spends none)."""
-        if cache().frozen or not (rate := await self.points()):
+        hour's points, as this process may spend them (`my_points`), for ordinary questions (a frozen cache, the
+        evals', spends none)."""
+        if cache().frozen or not (rate := await self.my_points()):
             return
         limit = rate["limitPerHour"]
         left, reserve = limit - rate["pointsSpentThisHour"], limit * RESERVE_SHARE

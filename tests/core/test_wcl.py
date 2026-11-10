@@ -399,6 +399,16 @@ async def test_a_server_with_a_share_of_the_points_is_refused_past_it_until_the_
     assert len(asked) == 3
 
 
+async def test_a_heavy_read_is_weighed_against_the_servers_share_of_the_points(monkeypatch):
+    """Against the account's whole hour it was let start, then refused midway once the share ran out."""
+    w = _budgeted(monkeypatch, share="0.1")
+    _hourly(w, monkeypatch, 1000, 600, cost=200)
+    await w.query("query { a }")  # 200 of the share's 360 spent; the account has 2600 of 3600 left
+    await w.ensure_points(100, "taunts")  # 160 left, 60 of them kept
+    with pytest.raises(WCLError, match="taunts reads about 150 .*160 of this hour's 360 are left, 60 of them kept"):
+        await w.ensure_points(150, "taunts")
+
+
 async def test_on_the_new_point_system_a_share_counts_only_what_the_account_pays(monkeypatch):
     """Opted in, a signed-in user's own points pay first: only the application points (database points among
     them) are the account's."""

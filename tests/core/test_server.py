@@ -445,18 +445,83 @@ def test_one_user_is_held_to_their_points_and_calls_in_the_last_hour(monkeypatch
     now[0] += 600
     limits.add("1", {"total": 50, "application": 5})
     assert limits.refusal("1") == ("not answered: this user has asked for 110 Warcraft Logs points in the last "
-                                   "hour, the most this server gives one user; ask again in 50 min")
+                                   "hour, and this server gives one user 100 an hour; ask again in 50 min (a tool that "
+                                   "takes no report still answers)")
     assert limits.refusal("2") is None
     now[0] += 3001  # the first call is over an hour old
     assert limits.refusal("1") is None
     limits.add("1", {})
     limits.add("1", {})
-    assert "asked for 3 tool calls" in (limits.refusal("1") or "")
+    assert limits.refusal("1") == ("not answered: this user has asked for 3 tool calls in the last hour, and this "
+                                   "server gives one user 3 an hour; ask again in 10 min")
     # on the new point system, the user's own points are theirs: only what the account pays counts
     own = server.UserLimits(points=100, own_points=True)
     for _ in range(10):
         own.add("1", {"total": 60, "application": 5})
     assert own.refusal("1") is None
+
+
+def test_the_wait_a_refused_user_is_told_is_until_their_points_are_under_the_limit(monkeypatch):
+    """Not until their oldest call is an hour old, whatever it cost: after that wait they were refused again."""
+    now = [0.0]
+    monkeypatch.setattr(server.time, "time", lambda: now[0])
+    def told(spent: int, minutes: int) -> str:
+        return (f"not answered: this user has asked for {spent} Warcraft Logs points in the last hour, and this "
+                f"server gives one user 300 an hour; ask again in {minutes} min (a tool that takes no report still "
+                "answers)")
+    limits = server.UserLimits(points=300)
+    limits.add("1", {"total": 2})
+    now[0] = 30 * 60
+    limits.add("1", {"total": 400})
+    now[0] = 31 * 60
+    assert limits.refusal("1") == told(402, 59)
+    now[0] = 60 * 60 + 1  # the cheap call is over an hour old: still over
+    assert limits.refusal("1") == told(400, 30)
+    now[0] = 90 * 60 + 1
+    assert limits.refusal("1") is None
+    # both limits reached: the later of the two waits
+    both = server.UserLimits(points=300, calls=2)
+    now[0] = 0
+    both.add("1", {"total": 1})
+    now[0] = 20 * 60
+    both.add("1", {"total": 400})
+    assert both.refusal("1") == told(401, 60)
+
+
+async def test_calls_sent_at_once_are_counted_as_they_start(monkeypatch):
+    """Claude and ChatGPT send a turn's tool calls together: counted as each ended, all of them passed the check."""
+    from mcp.server.auth.middleware import auth_context
+    monkeypatch.setattr(auth_context, "get_access_token", lambda: type("T", (), {"subject": "1", "client_id": "c"})())
+    limits = server.UserLimits(points=100, calls=2)
+    setup = server.Setup(remote=server.Remote(guilds=list, user_name=str, limits=limits))
+
+    async def tool() -> str:
+        await asyncio.sleep(0.01)
+        return "ok"
+    got = await asyncio.gather(*(server.guarded(tool, setup)() for _ in range(8)), return_exceptions=True)
+    assert [r for r in got if r == "ok"] == ["ok", "ok"]
+    assert all("asked for 2 tool calls" in str(r) for r in got if r != "ok") and len(limits._spent["1"]) == 2
+
+
+async def test_past_the_points_limit_a_tool_that_reads_no_log_still_answers(monkeypatch):
+    """The points are Warcraft Logs': a tool that takes no report (a spell's tooltip, a spec's guide) spends none."""
+    from mcp.server.auth.middleware import auth_context
+    monkeypatch.setattr(auth_context, "get_access_token", lambda: type("T", (), {"subject": "1", "client_id": "c"})())
+    limits = server.UserLimits(points=100, calls=4)
+    limits.add("1", {"total": 150})
+    setup = server.Setup(remote=server.Remote(guilds=list, user_name=str, limits=limits))
+
+    async def of_a_log(report: str | None = None) -> str:
+        return "ok"
+
+    async def of_the_game(spell: str = "") -> str:
+        return "ok"
+    with pytest.raises(ToolError, match="asked for 150 Warcraft Logs points"):
+        await server.guarded(of_a_log, setup)()
+    assert await server.guarded(of_the_game, setup)() == "ok" and await server.guarded(of_the_game, setup)() == "ok"
+    assert await server.guarded(of_the_game, setup)() == "ok"
+    with pytest.raises(ToolError, match="asked for 4 tool calls"):  # the calls limit holds for every tool
+        await server.guarded(of_the_game, setup)()
 
 
 async def test_a_call_past_the_users_limit_is_refused_and_not_counted(monkeypatch):

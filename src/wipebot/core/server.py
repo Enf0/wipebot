@@ -135,35 +135,58 @@ class UserLimits:
     """How much one signed-in user may ask of a server in an hour, so no one spends the Warcraft Logs points everyone
     on it shares: at most `points` (on the new point system only those the account pays, not the user's own;
     `own_points` says whether it's on it, None: as the account's limit says) and `calls` tool calls, over the last
-    hour; None is no limit."""
+    hour; None is no limit. A call counts from when it starts (`start`), so calls sent at once don't all pass, and
+    its points when it ends (`spent`): they aren't known before, so the points can still be passed by what was
+    running when they ran out."""
     points: float | None = None
     calls: int | None = None
     own_points: bool | None = None
-    _spent: dict[str, deque[tuple[float, float]]] = field(default_factory=dict)  # user -> (when, points) per call
+    _spent: dict[str, deque[list[float]]] = field(default_factory=dict)  # user -> [when, points] per call
 
-    def refusal(self, user: str) -> str | None:
-        """Why the user's next call isn't answered, or None."""
+    def refusal(self, user: str, reads_logs: bool = True) -> str | None:
+        """Why the user's next call isn't answered, or None: what they asked for in the last hour, what the server
+        gives one user, and the minutes until enough of it is over an hour old. A call that reads no log
+        (`reads_logs` False: a tool that takes no report) is held to the calls only."""
         now, calls = time.time(), self._spent.get(user)
         while calls and calls[0][0] < now - 3600:
             calls.popleft()
         if not calls:
             self._spent.pop(user, None)
             return None
-        spent = sum(p for _, p in calls)
+        # (when the user is under the limit again, what they asked for and are given, what still answers)
+        reached: list[tuple[float, str, str]] = []
         if self.calls is not None and len(calls) >= self.calls:
-            what = plural(len(calls), "tool call")
-        elif self.points is not None and spent >= self.points:
-            what = f"{spent:,.0f} Warcraft Logs points"
-        else:
+            reached.append((calls[len(calls) - self.calls][0], f"{plural(len(calls), 'tool call')} in the last hour, "
+                            f"and this server gives one user {self.calls} an hour", ""))
+        spent = sum(p for _, p in calls)
+        if reads_logs and self.points is not None and spent >= self.points:
+            # under it again once the calls from the oldest on, whose points make up the excess, are an hour old
+            left, under = spent, now
+            for when, cost in calls:
+                left, under = left - cost, when
+                if left < self.points:
+                    break
+            reached.append((under, f"{spent:,.0f} Warcraft Logs points in the last hour, and this server gives one "
+                            f"user {self.points:,.0f} an hour", " (a tool that takes no report still answers)"))
+        if not reached:
             return None
-        minutes = math.ceil((calls[0][0] + 3600 - now) / 60)
-        return (f"not answered: this user has asked for {what} in the last hour, the most this server gives one "
-                f"user; ask again in {minutes} min")
+        last, what, still = max(reached, key=lambda r: r[0])
+        return (f"not answered: this user has asked for {what}; ask again in "
+                f"{math.ceil((last + 3600 - now) / 60)} min{still}")
+
+    def start(self, user: str) -> list[float]:
+        """A call the user makes, counted from now; `spent` adds its points."""
+        call = [time.time(), 0.0]
+        self._spent.setdefault(user, deque()).append(call)
+        return call
+
+    def spent(self, call: list[float], points: dict) -> None:
+        """What the Warcraft Logs queries of a call (`start`) cost (wcl.Points.record), once it ended."""
+        call[1] = float(points.get("application" if wcl.on_new_point_system(self.own_points) else "total", 0))
 
     def add(self, user: str, points: dict) -> None:
-        """A call the user made, with what its Warcraft Logs queries cost (wcl.Points.record)."""
-        cost = points.get("application" if wcl.on_new_point_system(self.own_points) else "total", 0)
-        self._spent.setdefault(user, deque()).append((time.time(), float(cost)))
+        """A call the user made, with what its Warcraft Logs queries cost."""
+        self.spent(self.start(user), points)
 
 
 @dataclass
@@ -213,14 +236,14 @@ def _log_call(remote: Remote, tool: str, args: dict) -> tuple[str | None, str | 
     return (token.subject, token.client_id) if token else (None, None)
 
 
-def _limited(remote: Remote, user: str | None) -> UserLimits | None:
-    """The limits a call by `user` counts against, if any; a ToolError when they're reached (a refused call isn't
-    counted)."""
+def _limited(remote: Remote, user: str | None, reads_logs: bool) -> list[float] | None:
+    """The call by `user` that starts now, as their limits count it (UserLimits.start), if they have any; a
+    ToolError when the limits are reached (a refused call isn't counted)."""
     if not (remote.limits and user):
         return None
-    if refused := remote.limits.refusal(user):
+    if refused := remote.limits.refusal(user, reads_logs):
         raise ToolError(refused)
-    return remote.limits
+    return remote.limits.start(user)
 
 
 def _text(result: object) -> str:
@@ -401,6 +424,8 @@ def guarded(fn, setup: Setup = DEFAULT):
     source it was waiting for. Serving many users, each call is logged with its user, kept (Remote.record; one its
     client gave up on as cancelled, with how long it ran) and read with their Warcraft Logs token
     (Remote.wcl_token)."""
+    reads_logs = "report" in inspect.signature(fn).parameters  # the other tools spend no Warcraft Logs points
+
     async def run(*args, **kwargs):
         return await _in_time(fn, setup, args, kwargs)
 
@@ -408,9 +433,9 @@ def guarded(fn, setup: Setup = DEFAULT):
         shown = {k: v for k, v in kwargs.items() if v is not None and k != "ctx"}
         user, client = _log_call(remote, fn.__name__, shown)
         started, began, failed, out = time.time(), time.monotonic(), True, ""
-        points, limited = wcl.Points(), None
+        points, counted = wcl.Points(), None
         try:
-            limited = _limited(remote, user)
+            counted = _limited(remote, user, reads_logs)
             # the user's own points pay first; what the call cost is kept with it
             with _as_user(remote, user), wcl.counting_points() as points:
                 result = await run(*args, **kwargs)
@@ -429,8 +454,8 @@ def guarded(fn, setup: Setup = DEFAULT):
             out = repr(e)
             raise
         finally:
-            if limited and user:
-                limited.add(user, points.record())
+            if counted and remote.limits:
+                remote.limits.spent(counted, points.record())
             if remote.record:  # nothing a report that isn't public showed is kept
                 remote.record(user, client, fn.__name__, shown, started, time.monotonic() - began, failed,
                               PRIVATE_KEPT if points.private else out, points.record())

@@ -19,7 +19,7 @@ A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and bes
 
 Every guild shares the public copy, and Warcraft Logs lets it read only so much each hour: when that's used up,
 questions that need new data wait for the next hour. One person gets only a part of each hour's share, so a single
-long night can't use it up for everyone; past it, their own questions wait. Signed in with Warcraft Logs, your
+long night can't use it up for everyone; past it, the copy says when to ask again. Signed in with Warcraft Logs, your
 questions use your own allowance first. For your guild alone, run your own copy ([Setup](#setup)).
 
 ## What you can ask
