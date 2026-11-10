@@ -330,6 +330,8 @@ def test_only_the_verdicts_first_sentence_is_bold(text, expected):
     pytest.param("- **⚠️** Move it later.", "- ⚠️ Move it later.", id="bold around the marker alone"),
     pytest.param("- ⚠️ **Move it.** Later.", "- ⚠️ **Move it.** Later.", id="already before the bold"),
     pytest.param("- **Fine**⚠️ and **more**.", "- **Fine**⚠️ and **more**.", id="not where bold closes"),
+    pytest.param("- **⚠️ **Move it.** Later.", "- **⚠️ **Move it.** Later.", id="no words in its bold: left whole"),
+    pytest.param("- **⚠️\nMove it.**", "- **⚠️\nMove it.**", id="its bold goes on a line below: left whole"),
 ])
 def test_the_fix_marker_stands_before_the_bold_words_not_in_them(text, expected):
     assert marker_before_bold(text) == expected

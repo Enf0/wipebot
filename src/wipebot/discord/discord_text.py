@@ -73,8 +73,9 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
 
 # The end of a sentence in the opening verdict: a stop and a capital after it ("f.eks. 0:07" and "nr. 2" go on)
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-ZÆØÅÄÖÜ])")
-# The marker of the one thing to fix, written where bold opens: "**⚠️ Move the first Rewind later.**", "**⚠️**"
-MARKER_IN_BOLD = re.compile(r"(?<!\S)\*\*(⚠\ufe0f?)(\*\*|[ \t]*(?=[^\s*]))")
+# The marker of the one thing to fix, written where bold opens: "**⚠️ Move the first Rewind later.**", "**⚠️**".
+# The emoji is taken whole, with the selector that makes it one, or not at all.
+MARKER_IN_BOLD = re.compile(r"(?<!\S)\*\*(⚠\ufe0f?)(?!\ufe0f)(\*\*|[ \t]*(?=[^\s*]))")
 
 
 def verdict_bold(text: str) -> str:
