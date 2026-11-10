@@ -895,10 +895,16 @@ def _ability_of(rep: Report, heading: str, hit_ids: set[int]) -> list[int]:
     return []
 
 
+def _same(names: Iterable[str]) -> frozenset[str]:
+    """The players a list of names is, to tell whether a callout's tags are a group's players: their realms left
+    off, as a timed line's tags are read (under a heading the names stay as written)."""
+    return frozenset(_bare(n) for n in names)
+
+
 def _soak_sections(note: Note) -> dict[str, dict[str, list[str]]]:
     """The note's sections of groups that get timed callouts: soak groups, not a spread list."""
     called = {frozenset(c.players) for c in note.callouts if len(c.players) > 1}
-    return {h: gs for h, gs in note.groups.items() if any(frozenset(ns) in called for ns in gs.values() if len(ns) > 1)}
+    return {h: gs for h, gs in note.groups.items() if any(_same(ns) in called for ns in gs.values() if len(ns) > 1)}
 
 
 DAMAGE_BY_ABILITY: dict[str, Any] = {"hostilityType": "Friendlies", "viewBy": "Ability"}
@@ -910,7 +916,7 @@ def _soak_calls(note: Note, groups: dict[str, list[str]], when) -> dict[str, lis
     time its soaks, so a hit at any time may be its. A label with no players has no soaks: no times, and not None."""
     out: dict[str, list[float] | None] = {}
     for label, names in groups.items():
-        mine = [c for c in note.callouts if names and frozenset(c.players) == frozenset(names)]
+        mine = [c for c in note.callouts if names and frozenset(c.players) == _same(names)]
         out[label] = [at for c in mine if (at := when(c)) is not None] if mine or not names else None
     return out
 
@@ -1072,7 +1078,7 @@ def _callouts_to_check(note: Note, when, until: float,
                        kicks: set[int]) -> tuple[list[tuple[float, Callout]], list[tuple[float, Callout]]]:
     """The callouts up to `until` that aren't a soak group's or a kick assignment (`kicks`, their ids), in order:
     those asking for personals, which the log can check, and the rest, which it can't (PERSONALS)."""
-    soak = {frozenset(ns) for gs in _soak_sections(note).values() for ns in gs.values()}
+    soak = {_same(ns) for gs in _soak_sections(note).values() for ns in gs.values()}
     calls = sorted(((at, c) for c in note.callouts if frozenset(c.players) not in soak and id(c) not in kicks
                     and (at := when(c)) is not None and at <= until),
                    key=lambda x: x[0])

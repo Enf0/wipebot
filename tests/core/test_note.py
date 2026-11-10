@@ -480,6 +480,14 @@ async def test_a_night_asked_for_one_player_says_how_many_of_the_pulls_they_were
     assert night.splitlines()[1].startswith("Printed for Sveini alone, who was in 28 of the 42 pulls: their rows ")
 
 
+async def test_names_written_with_their_realm_under_a_heading_are_still_the_soak_groups(recorded):
+    """A name with its realm is the name, on a timed line and under a heading alike: with the realm on the soak
+    groups' lines the note's callouts to them no longer matched the groups, so no soak was checked."""
+    left = "Left: Deathadim Scopidruid Algmor Krøpling Agonco Nexsozz Draiman Sonyosh Enfo Namsus"
+    new = await _pull_42((left, "Left: " + " ".join(f"{name}-Kazzak" for name in left.split()[1:])))
+    assert len(new) == 1 and new[0].startswith("  Mutilate Soaks: Left: Deathadim-Kazzak Scopidruid-Kazzak ")
+
+
 def test_a_note_for_the_next_raid_cut_to_one_player_keeps_what_everyone_is_told_and_says_what_wasnt_read():
     """One raider's part of the note as it is left out the reminders to everyone ("Go to diamond") and, without a
     word, every line the reading couldn't take, their own among them; and a time with no phase after a ph:3 one
