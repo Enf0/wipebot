@@ -7,8 +7,9 @@ with today's code on the frozen data. A number no output has is
 either stale (fix the case) or worked out by the case's writer (a gap between two times, a sum): such a number goes
 in the case's `derived`, which says so and keeps it from being flagged.
 
-A replayed call that fails now is a failure of the lint, like a stale number. One that fails for lack of data (the
-frozen file doesn't hold what the call reads today and Warcraft Logs didn't give it) says nothing about the case:
+A replayed call that fails now is a failure of the lint, like a stale number, and counted apart from the numbers. One
+that fails for lack of data (the frozen file doesn't hold what the call reads today and Warcraft Logs didn't give it)
+says nothing about the case, and neither does an output that printed but says a section of it had none (PART_MISSING):
 unless the outputs that did replay hold every number, its case is left unchecked and said so, with none of its
 numbers flagged, and the lint doesn't pass.
 """

@@ -20,10 +20,12 @@ They meet in two places. `just record-tools` records the tool tests' data from t
 same frozen nights. `just evals --lint` replays the tool calls the saved eval answers made, with today's code, and
 flags a number in a case that no tool prints any more, as a snapshot change can leave a case stale. It looks for a
 number anywhere in those outputs, so it misses most wrong numbers (seven in ten of slightly changed ones are still
-found): a flag is worth reading, a pass proves little. A replayed call that fails now fails it too. A case whose calls
-need data the frozen file lacks and Warcraft Logs didn't give is left unchecked and said so, and the lint doesn't
-pass; so doesn't a results folder with no run to replay. `just evals --endings` fails below the agreed count of pulls
-whose "Ended by" line names the expert's cause first, or when a pull couldn't be read.
+found): a flag is worth reading, a pass proves little. A replayed call that fails now fails it too, counted apart
+from the numbers on its last line. A case whose calls need data the frozen file lacks and Warcraft Logs didn't give
+is left unchecked and said so, and the lint doesn't pass: a call that fails for it, or one that printed but says a
+section of it had none ("Not available: auth_failed"), unless the outputs that did print hold every number. So
+doesn't a results folder with no run to replay. `just evals --endings` fails below the agreed count of pulls whose
+"Ended by" line names the expert's cause first, or when a pull couldn't be read.
 
 ## A case
 
@@ -31,7 +33,10 @@ whose "Ended by" line names the expert's cause first, or when a pull couldn't be
 maintainers' guild, whose uploader agreed to their use. A case is a `question` (with what a Discord message tells the
 bot), the `expect`ed main point (missing it fails the answer), what would make it `wrong` (stating any of it fails
 the answer, often the tempting misreading of the log), and supporting `facts` (counted, never failing). Every number
-in a case comes from a tool's output. Every field: `cases/README.md`.
+in a case comes from a tool's output. Where a case's point is a number (when the tank died, when the enrage came), it
+names it in `numbers`, and code fails an answer that doesn't state it; the few cases whose point is the form (a
+quick answer while the raid is on, a post after a wipe) set its limits in `form`, which code measures. A judge told
+that rounded numbers and missing detail are fine lets both through. Every field: `cases/README.md`.
 
 ## A run
 
@@ -62,9 +67,10 @@ of all-right answers reads about 91%, and a pass rate of 90% sits at the judge's
 ### What a pass means
 
 An answer passes when the judge finds the case's main point in it (`expect`), finds nothing of its `wrong` list
-stated, and the conversation made the calls the case requires (`calls`, `asks_first`). Each trial keeps which of these
-named checks it passed; a baseline keeps the list it was scored by, and a later run is scored by that list when the
-two are compared, so a check added later moves no comparison until the next baseline.
+stated, the conversation made the calls the case requires (`calls`, `asks_first`), and the answer holds what the
+case has code check (`numbers`, `form`). Each trial keeps which of these named checks it passed; a baseline keeps the
+list it was scored by, and a later run is scored by that list when the two are compared, so a check added later moves
+no comparison until the next baseline.
 
 An answer fails, whatever the judge made of its text, when the raider would have met a failure: a tool crashed, the
 answer hit the bot's cap of turns or spend, or (in the bot) it took longer than the bot waits. The time a tool call
@@ -86,8 +92,9 @@ Code also measures how every answer is built (`wipebot.discord.form`, no model):
 and each bullet's, the sentences in a bullet, where the change to make stands, its follow-ups. As the bot, an answer
 that leaves the form the bot's prompt asks for gets a `form:` line under its verdict (a bullet over 30 words, a
 second sentence beside the verdict, the change to make not first, a paragraph after the last bullet), held to what
-its case is: an answer in chat, one while the raid is going on, or a post after a wipe. It never fails an answer. In
-a client the form is the client's own, so there it's only measured.
+its case is: an answer in chat, one while the raid is going on, or a post after a wipe. It never fails an answer,
+but in the few cases that set their own limits (`form`). In a client the form is the client's own, so there it's only
+measured.
 
 Warcraft Logs and the guide sites come from `cache.sqlite`, frozen: what a run asks that isn't there is fetched once
 and kept, with the clock set to when it was recorded. It holds rankings and the sites' pages, so it's never in the
@@ -108,7 +115,7 @@ many asked Warcraft Logs live for data the frozen file didn't hold, and how many
 Its headline is the answers in which the main point got across (the passes), with its spread from run to run and the
 cases right on every trial. Under it, from the baseline: the totals where the baseline always, sometimes and never
 passed, and its known failures (cases it fails more than once in three), so a failure the baseline already had isn't
-read as news. The `hard` mark in a case is no longer what splits the total.
+read as news.
 
 A run is compared with its baseline only on the cases unchanged since (each case and the judge carry a hash). The
 total weighs each case as the baseline did; the cases the baseline judged the same on every trial and the others are
@@ -141,10 +148,19 @@ rate. `just evals --form evals/results/X.json` measures a saved run again, free.
 a moved number: a fail can be the judge's.
 
 `--save-baseline` prints the comparison with the baseline it replaces and refuses a run that errored, in which a tool
-crashed, that was filtered or doesn't cover every case as it is today, or is a spread or more below it, unless
+crashed, that doesn't cover every case as it is today, or is a spread or more below it, unless
 `--accept "<reason>"` says why;
 the reason is kept in the file with what was replaced and the like-for-like total on the unchanged cases.
 `--save-baseline evals/results/X.json` makes a saved three-trial run the baseline without asking a model.
+
+With `-k`, a three-trial run of some cases is merged into its mode's baseline, so a corrected case costs three
+trials of itself and not of the suite: the run's cases replace their own entries, every other case keeps its own,
+and the file lists under `merged` which cases came in, from which commit and run file, and what each had before. The
+same is refused for the merged cases as for a whole baseline (an error, a crashed tool, a case with under three
+judged answers or changed since the run, a spread or more below the entries it replaces on the cases unchanged
+since), with `--accept` to keep it all the same, and a run answered or judged by another model than the baseline's
+is never merged. The merged cases are counted by the checks the baseline was scored by, like its other cases, so a
+`numbers` or `form` check added since counts from the next whole baseline.
 
 A full run (no `-k`, the mode's own model and effort) is kept as its mode's last in `full-runs.json`, which is
 tracked: commit it. A run that judged fewer than nine in ten of its answers (the rest errored) is not kept.
@@ -176,6 +192,7 @@ just evals --connector-only         # as a client with only the connector
 just evals --bot                    # as the Discord bot
 just evals --model sonnet           # another model for the answers
 just evals --trials 3 --save-baseline             # keep this run as the baseline (--accept "<reason>" if refused)
+just evals -k night-dispels --trials 3 --save-baseline  # put the cases just run into the baseline, the rest kept
 just evals --save-baseline evals/results/X.json   # a saved three-trial run as the baseline (no model)
 just evals --summary evals/results/X.json         # a saved run's summary and comparison again (no model)
 just evals --record evals/results/X.json          # a saved full run as its mode's last in full-runs.json (no model)
