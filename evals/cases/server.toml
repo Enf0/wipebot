@@ -62,5 +62,5 @@ explodes them and sets off 20 Venom Ruptures, which wipes the raid. The players 
 need clear space; everyone else moves around them."""
 facts = ["picked up, a purple orb is Mutagenic Venom: heavy damage within 8 yards for 5 s, then a new purple orb drops",
          "a green orb (Coalesced Venom) sets off one Venom Rupture when it is destroyed"]
-wrong = ["says purple and green orbs may touch, or should be popped together",
+wrong = ["says a purple orb may touch a green one or another purple one",
          "says it needs a log or a pull to answer"]

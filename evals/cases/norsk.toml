@@ -85,8 +85,9 @@ question = "hvor mange tempest tok jeg på siste pull? føltes som jeg sto i alt
 asker = "Agonco"
 pull = 42
 boss = "Sszorak"
-expect = """8 Tempest hits on pull 42 until the wipe was decided at 4:08 (4.16M damage, the debuff applied 6 times):
-more than anyone but the tank Deathadim (11), ahead of Enfo (6) and of Namsus, Sonyosh and Scopidruid (5 each)."""
+expect = """8 Tempest hits on pull 42 until the wipe was decided at 4:08 (4.16M damage), or 9 over the whole pull, the
+last one killing them at 4:42: more than anyone but the tank Deathadim (11), ahead of Enfo (6) and of Namsus, Sonyosh
+and Scopidruid (5 each)."""
 facts = ["2 of the 8 came within 1 s of an earlier hit: one hit or two, the log can't tell",
          "none of them killed them before the wipe was decided; they died to Tempest at 4:42, after it"]
 wrong = ["gives the whole night's Tempest hits as the pull's",
@@ -121,7 +122,7 @@ asker = "Pomaa"
 expect = """At least 5 players have to be hit by Guillotine. With fewer, the axe does an Execution instead: about
 1.67M Nature damage to every player, which wipes the raid."""
 facts = ["Guillotine's damage is split among the players within 9 yards of its target",
-         "it leaves them taking 500% more damage from Guillotine for 1.7 min, so the same players can't take the next",
+         "it leaves them taking 500% more damage from Guillotine, permanently on Mythic, so they can't take the next",
          "Grim Guillotine fails the same way, into Grim Execution (Shadow damage)",
          "on Heroic and below the minimum is 3"]
 wrong = ["gives another minimum than 5 for Mythic",

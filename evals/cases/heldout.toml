@@ -25,7 +25,7 @@ expect = """The second wave's Bomber Beetles went off together: four of them die
 the whole raid and stacked, and it killed 8 players at 2:05-2:06. The pull didn't recover from that. The fix is to set
 the beetles off one at a time and let the debuff drop in between."""
 facts = ["Digestive Juices reached 4 stacks on Slushmania at 2:03",
-         "the first wave's three beetles, at 0:18-0:21, killed nobody",
+         "the first wave's three beetles, at 0:18-0:23, killed nobody",
          "the pull ended at 2:48 with the boss at 41.0%"]
 wrong = ["names Dark Frenzy or Suffocation at 2:48 as what lost the pull",
          "calls it an enrage, or says the raid needs more damage",
@@ -81,7 +81,7 @@ asker = "Pomaa"
 boss = "Kith'ix"
 expect = """None: 16 Mindstinger Eggs came on the kill and all 16 died before their Hatch cast went through."""
 facts = ["on the first pull 2 eggs hatched, at 2:22",
-         "the eggs took 19.97M damage on the kill, most of it from Pomaa (2.31M) and Slushmania (2.30M)"]
+         "the eggs took 19.97M damage on the kill, Pomaa (2.31M) and Slushmania (2.30M) doing the most"]
 wrong = ["says eggs hatched on the kill",
          "says the log can't show whether an egg hatched"]
 
