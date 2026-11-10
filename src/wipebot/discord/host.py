@@ -89,6 +89,7 @@ class Context:
     discord_name: str | None = None  # the asker's Discord name, when their character isn't known
     pull: int | None = None  # the pull it's about (a reply to the answer after it); None for the latest
     boss: str | None = None
+    link: str = ""  # the pull of another report that the question links: "Sszorak pull 4 of report AbC123xyz"
     live: bool = False  # the report's line says "being logged now" whatever the report: an eval's frozen raid night
     where: str = ""  # e.g. "in a DM"
     guild: str | None = None  # the server's guild on Warcraft Logs: "name, realm, region", to find its other reports

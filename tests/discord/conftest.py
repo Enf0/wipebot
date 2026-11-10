@@ -124,7 +124,8 @@ class FakeLibrary:
             return SimpleNamespace(name=found[0])
         fights = [{"id": 30, "name": "Sszorak"}, {"id": 31, "name": "Sszorak"}]
         return SimpleNamespace(code=code, player=player, fights=fights, boss_key=lambda f: f["name"],
-                               pull_no=lambda f: fights.index(f) + 1)
+                               pull_no=lambda f: fights.index(f) + 1,
+                               label=lambda f: f"{f['name']} pull {fights.index(f) + 1}")
 
 
 @pytest.fixture

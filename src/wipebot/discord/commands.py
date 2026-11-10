@@ -44,6 +44,16 @@ MENTION = re.compile(r"<@[!&]?\d+>")
 BY_LINK = (" A plan is also saved by its link: in Viserio's assignment note, right-click the raidstrats.gg badge at "
            "the bottom right of a section's raid plan, Copy Link, and paste the link to me; the night's raiders "
            "come with it.")
+# ...with the pull it opens: "?fight=4&type=healing" as the address bar has it, "#fight=21" as the tools link a pull
+PULL_LINK = re.compile(r"warcraftlogs\.com/reports/([A-Za-z0-9]+)[^\s<>()\[\]]*?[?#&]fight=(\d+|last)\b")
+
+
+def linked_pull(text: str) -> tuple[str, int | None] | None:
+    """The one pull a text links on Warcraft Logs: its report's code and the fight's id there (None for "last", the
+    report's latest). None when the text links no pull, or different ones. A fight's id isn't its pull number: ids
+    count over the report, pulls per boss."""
+    found = {(code, None if fight == "last" else int(fight)) for code, fight in PULL_LINK.findall(text)}
+    return found.pop() if len(found) == 1 else None
 
 
 def looks_like_note(text: str) -> bool:

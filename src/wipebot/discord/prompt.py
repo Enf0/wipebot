@@ -223,7 +223,8 @@ def report_line(report: Report, now: datetime | None = None, doubt: str = "",
 
 
 def asker_line(ctx: Context, report: Report | None) -> str:
-    """Who asked, what's remembered about them, where, which pull it's about, and the raid notes and plans saved."""
+    """Who asked, what's remembered about them, where, which pull it's about, the pull of another report the
+    question links, and the raid notes and plans saved."""
     if ctx.asker and report:
         try:
             parts = [f"asked by {report.player(ctx.asker).label}"]
@@ -246,6 +247,8 @@ def asker_line(ctx: Context, report: Report | None) -> str:
         parts.append(f"about {report.label(report.fight(ctx.pull, ctx.boss))}")
     elif report:
         parts.append(f"latest pull is {report.label(report.fights[-1])}")
+    if ctx.link:
+        parts.append(f"the question's link opens {plain(ctx.link)}")
     parts += _saved_for("raid note (assignments and cooldowns)", ctx.noted)
     parts += _saved_for("raid plan (positions)", ctx.planned)
     return "[" + "; ".join(parts) + "]"

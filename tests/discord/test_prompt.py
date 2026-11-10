@@ -90,6 +90,8 @@ def test_report_line_groups_bosses_by_raid_when_the_log_holds_two():
     (Context(asker="Torvek", discord_name="Rowan", where="in #raid", pull=1, boss="Sszorak"),
      "[asked by Torvek (Frost Mage); in #raid; about Sszorak pull 1]"),  # their character, as the log has it
     (Context(asker="Nobody"), "[asked by Nobody; latest pull is Sszorak pull 2]"),  # not in this report
+    (Context(asker="Nobody", link="Vashnik pull 4 of report AbC123xyz"),  # the question links another report's pull
+     "[asked by Nobody; latest pull is Sszorak pull 2; the question's link opens Vashnik pull 4 of report AbC123xyz]"),
     (Context(asker="Torvek", notes=["don't name me in the channel", "answer in English"]),
      '[asked by Torvek (Frost Mage); remembered: "don\'t name me in the channel"; "answer in English"; '
      "latest pull is Sszorak pull 2]"),

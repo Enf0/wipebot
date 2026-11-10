@@ -818,6 +818,8 @@ class WipeBot(discord.Client):
                 log.exception("loading report %s failed", code)
                 await respond(message, texts.WCL_DOWN.to(lang))
                 return
+        with ctx.reading():
+            await self._about_link(ctx, code, question)
         key = ("dm", author.id) if is_dm else (message.channel.id, author.id)
         if self.record_answers:
             log.info("question from %s %s (report %s): %s", name, where, code, question)
@@ -1132,6 +1134,27 @@ class WipeBot(discord.Client):
         fight = next((f for f in report.fights if f["id"] == fight_id), None)
         if fight:
             ctx.boss, ctx.pull = report.boss_key(fight), report.pull_no(fight)
+
+    async def _about_link(self, ctx: Context, code: str, question: str) -> None:
+        """A question that links one pull on Warcraft Logs is about that pull: of the conversation's report, as a
+        reply to its post is; of another report, the asker's line names the report, boss and pull, so the model
+        needn't turn the link's fight into a pull with a query of its own. A link that can't be read now, or to a
+        fight that is no boss pull, changes nothing: the tools say what is wrong with it."""
+        if not (found := commands.linked_pull(question)):
+            return
+        linked, fight_id = found
+        try:
+            report = await self.library.report(linked)
+        except (FactError, WCLError) as e:
+            log.info("the pull a question links wasn't read: %s", e)
+            return
+        fights = report.fights[-1:] if fight_id is None else [f for f in report.fights if f["id"] == fight_id]
+        if not fights:
+            return
+        if linked != code:
+            ctx.link = f"{report.label(fights[0])} of report {linked}"
+        elif fight_id is not None:  # "last" is the latest pull, which a question is about anyway
+            ctx.boss, ctx.pull = report.boss_key(fights[0]), report.pull_no(fights[0])
 
     async def _remember(self, user_id: int, name: str, code: str, args: dict) -> str:
         """The remember tool for one raider: keep or forget their character and notes; what to tell the model."""

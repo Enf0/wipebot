@@ -13,7 +13,7 @@ import pytest
 from tests.support import NOTE
 from tests.support.messages import shown
 from wipebot.core import server
-from wipebot.core.wcl import WCLError
+from wipebot.core.wcl import Unreadable, WCLError
 from wipebot.discord import bot as wipebot
 from wipebot.discord import config, keys, progress, texts
 from wipebot.discord.bot import (
@@ -271,6 +271,37 @@ async def test_a_reply_to_a_post_after_a_wipe_is_about_that_pull(bot, message, a
     assert (ctx.boss, ctx.pull) == ("Sszorak", 2)
 
 
+@pytest.mark.parametrize("link, about, linked", [
+    pytest.param("reports/LIVE1?fight=30&type=healing&source=6", ("Sszorak", 1), "", id="the address bar's link"),
+    pytest.param("reports/LIVE1#fight=31", ("Sszorak", 2), "", id="a link as the tools give it"),
+    pytest.param("reports/LIVE1#fight=last", (None, None), "", id="the latest pull, as without a link"),
+    pytest.param("reports/LIVE1?fight=4", (None, None), "", id="no boss pull of the report"),
+    pytest.param("reports/AbC123xyz?fight=30&type=damage-done", (None, None), "Sszorak pull 1 of report AbC123xyz",
+                 id="another report's pull"),
+    pytest.param("reports/AbC123xyz?fight=last", (None, None), "Sszorak pull 2 of report AbC123xyz",
+                 id="another report's latest"),
+    pytest.param("reports/LIVE1", (None, None), "", id="a report, no pull"),
+])
+async def test_a_pull_linked_in_a_question_is_the_pull_it_is_about(bot, message, asked, link, about, linked):
+    """A fight's id in a link isn't the pull's number (pulls count per boss), so the bot says which pull it is: the
+    model used to spend a query of its own on that."""
+    await bot.on_message(message(f"<@99> what happened here? https://www.warcraftlogs.com/{link}"))
+    code, ctx = asked[0][1], asked[0][3]
+    assert code == "LIVE1" and (ctx.boss, ctx.pull) == about and ctx.link == linked
+
+
+async def test_a_linked_pull_that_cant_be_read_is_left_to_the_tools(bot, message, asked, monkeypatch):
+    read = bot.library.report
+
+    async def report(code, max_age_s=None):
+        if code == "AbC123xyz":
+            raise Unreadable("AbC123xyz")
+        return await read(code, max_age_s)
+    monkeypatch.setattr(bot.library, "report", report)
+    await bot.on_message(message("<@99> and this one? https://www.warcraftlogs.com/reports/AbC123xyz?fight=3"))
+    assert [a[1] for a in asked] == ["LIVE1"] and asked[0][3].link == ""
+
+
 async def test_a_dm_is_answered_in_the_dm(bot, message, asked, monkeypatch):
     monkeypatch.setattr(bot, "get_guild", lambda guild_id: SimpleNamespace(get_member=lambda i: server_member()))
     msg = message("how did I do?", dm=True)
@@ -295,6 +326,10 @@ async def test_a_server_not_set_up_answers_about_the_report_its_raiders_link(bot
     assert [a[1] for a in asked] == ["AbC123xyz", "AbC123xyz"]
     ctx = asked[0][3]
     assert ctx.guild is None and ctx.notebook is None and ctx.server_id == 2002
+    assert (ctx.boss, ctx.pull, ctx.link) == (None, None, "")  # fight 4 is no boss pull of it
+    await bot.on_message(message("<@99> and https://www.warcraftlogs.com/reports/AbC123xyz?fight=31&type=deaths ?",
+                                 guild_id=2002))
+    assert (asked[2][1], asked[2][3].boss, asked[2][3].pull) == ("AbC123xyz", "Sszorak", 2)  # the pull it links
 
 
 async def test_a_raider_signed_in_asks_about_their_own_guild_where_nobody_set_up(bot, message, asked, follower):

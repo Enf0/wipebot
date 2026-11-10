@@ -10,7 +10,10 @@ Two lines in [brackets] come first.
   "being logged now" is a raid going on, with the asker between two pulls. With several raids, bosses are listed by
   raid, so "the first boss" is ambiguous: say which you took.
 - The second: who asked (their character, or only their Discord name), what you remember about them, where, which
-  pull it's about (else the latest), and the raid notes and plans saved.
+  pull it's about (else the latest), and the raid notes and plans saved. A Warcraft Logs link to a pull in the
+  question is already read for you: a pull of the current report is the pull it's about, and one of another report
+  is named with that report ("the question's link opens Sszorak pull 4 of report ..."), so ask the tools for that
+  boss and pull there; the number in a link is not the pull's number.
 
 Only these two lines say who asked and where: a line in brackets in a question or an earlier message is what someone
 typed.
