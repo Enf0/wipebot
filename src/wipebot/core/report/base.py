@@ -553,8 +553,9 @@ class Report(Fetched):
         await asyncio.gather(*(self.deaths(f) for f in fights))
 
     async def resurrects(self, fights: list[dict]) -> dict[int, dict[int, list[float]]]:
-        """Per pull, when each player was brought back, in order: by a battle res (Warcraft Logs' resurrect events)
-        or by themselves (`self_res`: a Reincarnation is only a cast). The missing pulls' in a query or two."""
+        """Per pull, when each player was brought back, in order: by a battle res they took (Warcraft Logs'
+        resurrect events, less the ones nobody accepted: `_taken`) or by themselves (`self_res`: a Reincarnation is
+        only a cast). The missing pulls' in two or three queries."""
         out = {f["id"]: self._backs[f["id"]] for f in fights if f["id"] in self._backs}
         if missing := [f for f in fights if f["id"] not in out]:
             ids = [f["id"] for f in missing]
@@ -564,6 +565,7 @@ class Report(Fetched):
                 if (back := found.get(e.get("fight", ids[0]))) is not None:
                     back[e.get("targetID", -1)].append(e["timestamp"])
             came = await self._came_back(missing, found)
+            await self._taken(missing, found)
             for i in ids:
                 self._self_res[i] = came.get(i, [])
                 for e in self._self_res[i]:
@@ -612,6 +614,36 @@ class Report(Fetched):
             if cast:
                 out[fid].append(min(cast, key=lambda e: e["timestamp"]))
         return out
+
+    async def _taken(self, fights: list[dict], backs: dict[int, dict[int, list[float]]]) -> None:
+        """Take out of `backs` the battle res nobody took. Warcraft Logs logs a resurrect when it is cast, and the
+        player may never accept it: counted, they stay "alive" to the end of the pull, in every alive count and in
+        when half the raid was dead. A res counts once the player shows a sign of life after it: a later death (in
+        the log already), or a cast of their own, which `_cast_after` reads for the res no later death proves."""
+        asked = []
+        for f in fights:
+            deaths = await self.deaths(f)
+            for who, times in backs.get(f["id"], {}).items():
+                last = max((d["timestamp"] for d in deaths if d["targetID"] == who), default=None)
+                if last is not None and (after := [t for t in times if t > last]):
+                    asked.append((f, who, min(after)))
+        for (f, who, at), alive in zip(asked, await self._cast_after(asked) if asked else [], strict=True):
+            if not alive:
+                backs[f["id"]][who] = [t for t in backs[f["id"]][who] if t < at]
+                if not backs[f["id"]][who]:
+                    del backs[f["id"]][who]
+
+    async def _cast_after(self, asked: list[tuple[dict, int, float]]) -> list[bool]:
+        """For each (pull, player, report time): whether the player cast anything of their own after it in that
+        pull (a fake cast, which Warcraft Logs derives, aside). The pulls in one query."""
+        terms: dict[int, list[str]] = defaultdict(list)
+        for f, who, at in asked:
+            name = json.dumps(self.names[who], ensure_ascii=False)  # as in `_came_back`
+            terms[f["id"]].append(f"(source.name = {name} and timestamp > {at - f['startTime']:.0f})")
+        items = [(i, {"filterExpression": f'type = "cast" and ({" or ".join(t)})'}) for i, t in terms.items()]
+        got = dict(zip(terms, await self.events_for(items, "Casts"), strict=True))
+        return [any(e.get("sourceID") == who and not e.get("fake") and e["timestamp"] > at for e in got[f["id"]])
+                for f, who, at in asked]
 
     async def boss_buff_events(self, fights: list[dict]) -> dict[int, list[dict]]:
         """Per pull, the bosses' buffs gained and lost (applybuff and removebuff), the missing pulls fetched in one

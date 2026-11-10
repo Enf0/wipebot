@@ -15,6 +15,7 @@ from .base import (
     PARTNER_DEATH_MS,
     PARTNER_SLACK_MS,
     REPEAT_CAST_MS,
+    SAME_DEATH_MS,
     FactError,
     PullRef,
     Report,
@@ -375,8 +376,15 @@ async def _lusts(rep: Report, f: dict) -> Found:
 
 
 async def _battle_res(rep: Report, f: dict) -> Found:
+    backs = (await rep.resurrects([f]))[f["id"]]
+
+    def taken(e: dict) -> str:
+        """A res is logged when it is cast: one the player never took (Report._taken) brought nobody back."""
+        took = any(abs(t - e["timestamp"]) <= SAME_DEATH_MS for t in backs.get(e.get("targetID", -1), []))
+        return "" if took else " (not taken: they did nothing after it, and stay dead in the counts)"
     return Found([(e["timestamp"], f"battle res: {rep.ability(e['abilityGameID'])} by "
-                                   f"{rep.actor(rep.owner(e.get('sourceID', 0)))} on {rep.actor(e.get('targetID', 0))}")
+                                   f"{rep.actor(rep.owner(e.get('sourceID', 0)))} on {rep.actor(e.get('targetID', 0))}"
+                                   f"{taken(e)}")
                   for e in await rep.events(f["id"], "All", filterExpression='type = "resurrect"')]
                  + [(e["timestamp"], f"{rep.names[e['sourceID']]} back to life by themselves (first cast since dying: "
                                      f"{rep.ability(e['abilityGameID'])})") for e in await rep.self_res(f)])

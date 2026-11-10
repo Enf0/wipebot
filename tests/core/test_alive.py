@@ -14,6 +14,18 @@ def test_time_alive_stops_at_each_death_and_starts_again_at_a_battle_res():
     assert alive_ms(deaths, [], 9, 0, 100_000) == 100_000
 
 
+def _took(rep, who: int, at: float):
+    """The client's events_many, with a cast of `who` at `at` among every pull's casts: the sign of life that shows
+    a battle res was taken (a res nobody took brings nobody back)."""
+    real = rep.wcl.events_many
+
+    async def events_many(code, items, data_type, **filters):
+        if data_type != "Casts":
+            return await real(code, items, data_type, **filters)
+        return [[{"type": "cast", "sourceID": who, "timestamp": at, "abilityGameID": 1}] for _ in items]
+    return events_many
+
+
 async def test_a_mechanics_damage_per_minute_alive_counts_the_time_after_a_battle_res(rep, patch_wcl):
     """Four players take the same hit; one died early and was brought back at once: they took it at the same rate
     per minute alive, not several times the others'."""
@@ -32,7 +44,7 @@ async def test_a_mechanics_damage_per_minute_alive_counts_the_time_after_a_battl
             return [{"timestamp": t0 + 10_000, "type": "damage", "sourceID": boss, "targetID": i,
                      "abilityGameID": gid, "amount": 1_000_000, "fight": f["id"]} for i in ids]
         return await events(code, fight_id, data_type, **filters)
-    patch_wcl(rep, events=answer)
+    patch_wcl(rep, events=answer, events_many=_took(rep, ids[0], t0 + 22_000))
     text = await mechanics.mechanic_outliers(rep, 13)
     line = next(line for line in text.splitlines() if line.startswith(f"  {rep.ability(gid)}"))
     assert all(f"{rep.names[i]} 1.0x" in line for i in ids[:3]), line
@@ -56,7 +68,7 @@ async def test_a_player_brought_back_by_a_battle_res_has_their_kick_ready_again(
         if data_type == "Casts":
             return []
         return await events(code, fight_id, data_type, **filters)
-    patch_wcl(rep, events=answer)
+    patch_wcl(rep, events=answer, events_many=_took(rep, a, t0 + 31_000))
     ready, _ = await adds.kicks_ready(rep, f, [t0 + 25_000, t0 + 40_000])
     assert ready == {t0 + 25_000: [rep.names[c]], t0 + 40_000: sorted([rep.names[a], rep.names[c]])}
 
@@ -93,6 +105,6 @@ async def test_a_player_who_kicks_with_two_spells_has_a_kick_ready_while_either_
         if data_type == "Casts":  # both pressed 1 at 20 s
             return [{"timestamp": t0 + 20_000, "type": "cast", "sourceID": who, "abilityGameID": 1} for who in (a, b)]
         return await events(code, fight_id, data_type, **filters)
-    patch_wcl(rep, events=answer)
+    patch_wcl(rep, events=answer, events_many=_took(rep, a, t0 + 31_000))
     ready, _ = await adds.kicks_ready(rep, f, [t0 + 25_000, t0 + 40_000])
     assert ready == {t0 + 25_000: [rep.names[a]], t0 + 40_000: sorted([rep.names[a], rep.names[b]])}

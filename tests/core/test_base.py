@@ -265,7 +265,9 @@ def test_a_player_brought_back_by_a_battle_res_is_alive_until_they_die_again():
 async def test_a_player_casting_after_their_death_came_back_by_themselves(rep, patch_wcl):
     """A Reincarnation is only a cast: a player's first cast after a death no battle res answered brings them back,
     as a battle res would. A fake cast (Warcraft Logs derives one from a dead Demon Hunter) doesn't, a death a battle
-    res answered isn't asked about, and every pull's casts come in one query."""
+    res answered isn't asked about, and every pull's casts come in one query. A battle res is logged when it is
+    cast: it brings a player back once they took it, which a cast of theirs after it shows (one more query, for the
+    pulls with a res no later death proves); one nobody took brings nobody back."""
     pulls = rep.by_boss["Vashnik the Malignant"]
     f, t0 = pulls[1], pulls[1]["startTime"]
     deaths = await rep.deaths(f)  # 1:38, 2:24 and 3:50 the first three
@@ -276,21 +278,32 @@ async def test_a_player_casting_after_their_death_came_back_by_themselves(rep, p
             "timestamp": hunter["timestamp"] + 1000}
     res = {"type": "resurrect", "sourceID": shaman["targetID"], "targetID": revived["targetID"], "fight": f["id"],
            "abilityGameID": 20484, "timestamp": revived["timestamp"] + 9000}
+    took = {"type": "cast", "sourceID": revived["targetID"], "abilityGameID": 133, "fight": f["id"],
+            "timestamp": res["timestamp"] + 3000}
+    first = {d["targetID"] for d in deaths[:3]}
+    left = next(d for d in deaths[3:] if d["targetID"] not in first  # ressed 5 s after their only death: never took it
+                and sum(x["targetID"] == d["targetID"] for x in deaths) == 1)
+    unused = {**res, "targetID": left["targetID"], "timestamp": left["timestamp"] + 5000}
     asked = []
     real_events, real_many = rep.wcl.events, rep.wcl.events_many
 
     async def events(code, fight_id, data_type, **filters):
-        return [res] if data_type == "All" else await real_events(code, fight_id, data_type, **filters)
+        return [res, unused] if data_type == "All" else await real_events(code, fight_id, data_type, **filters)
 
     async def events_many(code, items, data_type, **filters):
         if data_type != "Casts":
             return await real_many(code, items, data_type, **filters)
         asked.append({fid: own["filterExpression"] for fid, own in items})
-        return [[came, fake] if fid == f["id"] else [] for fid, _ in items]
+        return [[came, fake, took] if fid == f["id"] else [] for fid, _ in items]
     patch_wcl(rep, events=events, events_many=events_many)
 
     backs = await rep.resurrects(pulls)
-    assert len(asked) == 1 and list(asked[0]) == [g["id"] for g in pulls]
+    assert len(asked) == 2 and list(asked[0]) == [g["id"] for g in pulls]
+    after = asked[1][f["id"]]  # the res no later death proves: did the player cast after it?
+    assert list(asked[1]) == [f["id"]] and all(
+        f'source.name = "{rep.names[e["targetID"]]}" and timestamp > {e["timestamp"] - t0}' in after
+        for e in (res, unused))
+    assert left["targetID"] not in backs[f["id"]]  # nobody took it
     asks = asked[0][f["id"]]
     assert f'source.name = "{rep.names[shaman["targetID"]]}" and timestamp > {shaman["timestamp"] - t0}' in asks
     assert f"timestamp > {revived['timestamp'] - t0}" not in asks
@@ -298,12 +311,19 @@ async def test_a_player_casting_after_their_death_came_back_by_themselves(rep, p
     assert backs[f["id"]][revived["targetID"]] == [res["timestamp"]]
     assert hunter["targetID"] not in backs[f["id"]]
     assert await rep.self_res(f) == [came]
-    timeline = (await fight._battle_res(rep, f)).events
-    assert [at for at, _ in timeline] == [res["timestamp"], came["timestamp"]]
-    assert f"{rep.names[shaman['targetID']]} back to life by themselves" in timeline[1][1]
+    timeline = dict((await fight._battle_res(rep, f)).events)
+    assert sorted(timeline) == sorted([res["timestamp"], unused["timestamp"], came["timestamp"]])
+    assert f"{rep.names[shaman['targetID']]} back to life by themselves" in timeline[came["timestamp"]]
+    assert "not taken" not in timeline[res["timestamp"]]
+    assert timeline[unused["timestamp"]].endswith(
+        f"on {rep.names[left['targetID']]} (not taken: they did nothing after it, and stay dead in the counts)")
     raid = await rep.raid_size(f)
-    assert alive_after(deaths, backs[f["id"]], raid)[:2] == [raid - 1, raid - 1]  # one died, the shaman came back
-    assert await rep.resurrects(pulls) == backs and len(asked) == 1  # remembered
+    counts = alive_after(deaths, backs[f["id"]], raid)
+    assert counts[:2] == [raid - 1, raid - 1]  # one died, the shaman came back
+    # two readings of the pull agree on who was alive at its end: the one battle res taken, the other not
+    assert counts[-1] == alive_at(deaths, backs[f["id"]], raid, f["endTime"])
+    assert f"({counts[-1]} alive" in (await fight.pull_summary(rep, rep.pull_no(f), "Vashnik")).splitlines()[-3]
+    assert await rep.resurrects(pulls) == backs and len(asked) == 2  # remembered
 
 
 async def test_the_raids_pauses_are_of_the_living(rep):

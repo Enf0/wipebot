@@ -208,6 +208,20 @@ async def test_half_the_raid_dead_is_a_death_with_half_the_raid_dead(recorded):
         assert 0 <= t0 + at - first <= last - first + DEATH_BURST_MS, p.label
 
 
+async def test_two_counts_of_the_living_agree_after_every_death(recorded):
+    """The rows of a pull (alive_after) and its ending, cards and maps (alive_at) count the same players alive after
+    each death, a battle res counted in both; and at a wipe's end no more are alive than had no death that stayed."""
+    for p in recorded.pulls:
+        counts = alive_after(p.deaths, p.backs, p.raid)
+        for n, (d, alive) in enumerate(zip(p.deaths, counts, strict=True)):
+            if n + 1 == len(p.deaths) or p.deaths[n + 1]["timestamp"] > d["timestamp"]:
+                assert alive == alive_at(p.deaths, p.backs, p.raid, d["timestamp"]), p.label
+        if p.deaths and p.wipe:
+            stayed = {d["targetID"] for d in p.deaths
+                      if not any(b > d["timestamp"] for b in p.backs.get(d["targetID"], []))}
+            assert counts[-1] <= p.raid - len(stayed), p.label
+
+
 async def test_every_death_is_of_a_player_in_the_raid(recorded):
     """The raid size the alive counts start from holds everyone who died."""
     for p in recorded.pulls:
@@ -302,6 +316,7 @@ async def test_a_players_night_counts_within_each_pull(local):
             s = pulls[code, f["id"]].summary
             first = next(d for d in s.deaths if d.at_ms == n.death[1]["timestamp"] - f["startTime"])
             assert n.fallout == first.fallout, label
+        assert not (n.counted and n.reset), label  # a reset's death is nobody's
         for sp, times, possible in n.cooldowns:
             assert all(0 <= t <= n.counted_s * 1000 for t in times), (label, sp["name"])
             if possible is None:
@@ -317,3 +332,10 @@ async def test_percentiles_are_within_0_and_100(local):
     assert s is not None and s.n >= len(s.points) > 0
     amounts = [v for _, v in s.points]
     assert amounts == sorted(amounts, reverse=True)  # best first
+
+
+async def test_a_players_night_counts_the_same_deaths_in_its_headline_and_its_trend(local):
+    """The deaths that count over the night are the sum of the trend's thirds: a reset is in neither."""
+    role = Counter(n.played.role for n in local.night).most_common(1)[0][0]
+    thirds = coaching.night_trend(local.night, role)
+    assert thirds and sum(n.counted for n in local.night) == sum(t.died for t in thirds)
