@@ -150,6 +150,7 @@ def test_the_budget_holds_the_numbers_the_bots_prompt_sets():
     model no longer reads."""
     said = " ".join(prompt.HOST_PROMPT.split())
     assert f"one short sentence of at most {form.CHAT.verdict_words} words" in said
+    assert "what backs it goes in the bullets, never in a second sentence after it" in said  # beside_verdict
     assert f"a night, a player or a plan, at most {NUMBER.get(form.CHAT.bullets)}" in said
     assert f"Then the bullets, each at most {form.CHAT.bullet_words} words" in said
     # after its bold point a bullet has one sentence, and a second for what to do
