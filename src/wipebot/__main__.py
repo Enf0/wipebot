@@ -322,8 +322,8 @@ def _bot_commands(sub) -> None:
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="wipebot", description="AI raid coaching for World of Warcraft.",
-                                epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(prog="wipebot", epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+                                description="A raid assistant for World of Warcraft.")
     sub = p.add_subparsers(dest="cmd", required=True, metavar="COMMAND")
     _tool_commands(sub)
     _bot_commands(sub)

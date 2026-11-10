@@ -2,7 +2,7 @@
   "name": "{slug}",
   "displayName": "{name}",
   "version": "{version}",
-  "description": "World of Warcraft raid analysis for {guild}: why a pull wiped, how a night went, how a player did, from Warcraft Logs, with the method for reading them.",
+  "description": "A World of Warcraft raid assistant for {guild}: why a pull wiped, how a night went, how a player did, how a boss works, with the method for reading a log.",
   "author": { "name": "{name}", "url": "{site}" },
   "homepage": "{site}",
   "keywords": ["world-of-warcraft", "warcraft-logs", "raiding", "raid-analysis"],

@@ -1,8 +1,8 @@
 # {name}
 
-World of Warcraft raid analysis for {guild}, from the guild's Warcraft Logs reports. Ask why a pull wiped, how a raid
-night went, what keeps wiping the raid, or how a player did and why their damage or healing is low, and get an answer
-the way an experienced raid leader reads the log.
+A World of Warcraft raid assistant for {guild}. Ask why a pull wiped, how a raid night went, what keeps wiping the
+raid, how a player did and why their damage or healing is low, or how a boss works, and get an answer the way an
+experienced raid leader reads the log and the guides.
 
 The plugin has two parts:
 

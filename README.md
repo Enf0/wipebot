@@ -1,10 +1,11 @@
 <h1><img src="docs/brand/wipebot-icon.svg" width="44" height="44" alt="" align="top"> Wipebot</h1>
 
-Wipebot answers questions about a World of Warcraft® raid from its [Warcraft Logs](https://www.warcraftlogs.com)
-report: why a pull wiped, what killed you, what to change before the next one. Code works out the numbers from the
-log, and an AI model picks what to read and explains it. Ask in Claude, ChatGPT or another assistant that takes MCP
-connectors, or in Discord, where it answers in the guild's channels and DMs and posts after each wipe. Use the free
-public copy, or run your own for your guild.
+Wipebot is a raid assistant for World of Warcraft®. Ask why a pull wiped, what killed you, what to change before the
+next one or how the next boss works, and it answers from the raid's [Warcraft Logs](https://www.warcraftlogs.com)
+report, the game's guides and the raid notes you give it. Code works out the numbers from the log, and an AI model
+picks what to read and explains it. Ask in Claude, ChatGPT or another assistant that takes MCP connectors, or in
+Discord, where it answers in the guild's channels and DMs and posts after each wipe. Use the free public copy, or
+run your own for your guild.
 
 ## Try it
 

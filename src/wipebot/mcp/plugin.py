@@ -46,11 +46,11 @@ def _portable(name: str, guild: str, mcp_url: str, version: str) -> bytes:
     except metadata.PackageNotFoundError:
         release = "0.0.0"
     site = mcp_url.removesuffix("/mcp")
-    what = f"World of Warcraft raid analysis for {guild}, from Warcraft Logs"
+    what = f"A World of Warcraft raid assistant for {guild}"
     return _json({
         "$schema": f"{AGENT_PLUGINS}/plugin.schema.json", "name": _slug(name), "version": f"{release}+{version}",
-        "description": f"{what}: why a pull wiped, how a night went, how a player did, with the method for reading "
-                       "them.",
+        "description": f"{what}: why a pull wiped, how a night went, how a player did, how a boss works, with the "
+                       "method for reading a log.",
         "author": {"name": name, "url": site}, "homepage": site, "keywords": ["world-of-warcraft", "warcraft-logs",
                                                                            "raiding", "raid-analysis"],
         "extensions": {"com.openai": {"interface": {
@@ -86,9 +86,9 @@ def marketplace(name: str, guild: str, mcp_url: str, repo: str) -> dict[str, byt
     files = {f"plugins/{slug}/{path}": data for path, data in plugin_files(name, guild, mcp_url).items()}
     files[".claude-plugin/marketplace.json"] = (json.dumps({
         "name": slug, "owner": {"name": name, "url": mcp_url.removesuffix("/mcp")},
-        "metadata": {"description": f"{name}, World of Warcraft raid analysis for {guild}, as a Claude plugin."},
+        "metadata": {"description": f"{name}, a World of Warcraft raid assistant for {guild}, as a Claude plugin."},
         "plugins": [{"name": slug, "source": f"./plugins/{slug}",
-                     "description": f"World of Warcraft raid analysis for {guild}, from Warcraft Logs."}],
+                     "description": f"A World of Warcraft raid assistant for {guild}."}],
     }, indent=2) + "\n").encode()
     files[".agents/plugins/marketplace.json"] = _json({
         "name": slug, "interface": {"displayName": name},
