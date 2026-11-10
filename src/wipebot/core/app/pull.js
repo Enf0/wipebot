@@ -1,5 +1,6 @@
 // ---- the pull: how it ended, boss health against raid damage taken, phases, the boss's casts, cooldowns, deaths ----
-// Inline: the card (four numbers, the chart, two actions). Fullscreen: the same with lanes and the deaths to click.
+// Inline: the card (four numbers, the chart with the cooldowns in one row, two actions). Fullscreen: the same with a
+// lane each for the boss's casts, the raid's cooldowns and the healers', and the deaths to click.
 views.pull = (() => {
   let D = null, root = null, open = null, drawnWidth = 0;
 
@@ -101,6 +102,9 @@ views.pull = (() => {
 
   const { labels, niceMax } = kit;
   const PEAK_BEFORE_MS = 10000;  // a healer cooldown this long before a damage peak is named with it
+  // a cooldown's mark in the card's one row of them: the raid's a dot, a healer's a plus
+  const RAID_MARK = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="3.2" fill="var(--blue)"/>`;
+  const HEALER_MARK = (cx, cy) => `<path d="M${cx - 4} ${cy}h8M${cx} ${cy - 4}v8" stroke="var(--green)" stroke-width="2.4" fill="none"/>`;
 
   function chart({ W, L, R, plotH, lanes }) {
     const x = (ms) => L + ms / D.duration_ms * (W - L - R);
@@ -119,6 +123,8 @@ views.pull = (() => {
       y += 20;
     }
     const tracked = D.casts.filter((c) => c.tracked);
+    const cooldowns = [...D.cooldowns.filter((c) => c.kind === "raid" || c.kind === "healing"),
+                       ...D.lusts.map((ms) => ({ ms, kind: "raid", name: "Bloodlust", player: "" }))].sort((a, b) => a.ms - b.ms);
     if (lanes) {
       o += label("Boss casts", y + 12);
       for (const c of D.casts) {
@@ -146,55 +152,97 @@ views.pull = (() => {
         y += 20;
       }
       y += 4;
-    } else if (tracked.length) {
-      for (const c of tracked) o += `<path d="M${x(c.ms)} ${y} l4 5 l-4 5 l-4 -5z" fill="var(--gold)"${kit.tip(`${c.name} ${kit.clock(c.ms)}`)}/>`;
-      y += 14;
+    } else {
+      if (tracked.length) {
+        for (const c of tracked) o += `<path d="M${x(c.ms)} ${y} l4 5 l-4 5 l-4 -5z" fill="var(--gold)"${kit.tip(`${c.name} ${kit.clock(c.ms)}`)}/>`;
+        y += 14;
+      }
+      // the cooldowns in one row: a dot for the raid's, a plus for a healer's (shape as well as colour)
+      for (const c of cooldowns) {
+        o += (c.kind === "raid" ? RAID_MARK(x(c.ms), y + 5) : HEALER_MARK(x(c.ms), y + 5))
+          + kit.hit(x(c.ms) - 5, y - 1, 10, 12, `${c.name}${c.player ? ` (${c.player})` : ""} ${kit.clock(c.ms)}`);
+      }
+      if (cooldowns.length) y += 13;
     }
     const top = y, bottom = y + plotH;
     const tick = [5, 10, 15, 30, 60, 120, 300].map((s) => s * 1000).find((s) => D.duration_ms / s <= (lanes ? 12 : 8)) || 600000;
     for (let t = 0; t <= D.duration_ms; t += tick) o += kit.line(x(t), top, x(t), bottom, "var(--line)");
     o += kit.line(L, bottom, W - R, bottom, "var(--line)");
-    // raid damage taken per second
-    const per = D.damage.per_s, step = D.damage.step_ms;
+    // What is written inside the plot keeps clear of what was written before it: [x0, x1, y0, y1] each
+    const boxes = [];
+    const free = (x0, x1, y0, y1) => !boxes.some((q) => x0 < q[1] && q[0] < x1 && y0 < q[3] && q[2] < y1);
+    const dx = D.decided ? x(D.decided.ms) : null;
+    // raid damage taken per second, on the left axis
+    const per = D.damage.per_s, step = D.damage.step_ms, peaks = per.length ? D.damage.peaks || [] : [];
+    const max = per.length ? niceMax(Math.max(...per.map((q) => q[1]))) : 1;
+    const yD = (v) => bottom - v / max * plotH;
     if (per.length) {
-      const max = niceMax(Math.max(...per.map((p) => p[1])));
-      const yD = (v) => bottom - v / max * plotH;
-      // the peaks (twice the pull's median or more): a band behind, its height on top, the healer cooldowns near it
-      for (const pk of D.damage.peaks || []) {
+      // the peaks (twice the pull's median or more): a band behind, the healer cooldowns near it in its tooltip
+      for (const pk of peaks) {
         const near = D.cooldowns.filter((c) => c.kind === "healing" && c.ms >= pk.from_ms - PEAK_BEFORE_MS && c.ms <= pk.to_ms);
         const tip = `Raid damage peak ${kit.clock(pk.from_ms)}-${kit.clock(pk.to_ms)}: up to ${kit.short(pk.per_s)}/s, twice the pull's median or more`
           + (near.length ? `\nHealer cooldowns from ${PEAK_BEFORE_MS / 1000} s before: ${near.map((c) => `${c.name}${c.player ? ` (${c.player})` : ""} ${kit.clock(c.ms)}`).join(", ")}`
             : `\nNo healer cooldown from ${PEAK_BEFORE_MS / 1000} s before`);
         o += `<rect x="${x(pk.from_ms)}" y="${top}" width="${Math.max(2, x(pk.to_ms) - x(pk.from_ms))}" height="${plotH}" fill="var(--dead)" opacity=".09"${kit.tip(tip)}/>`;
-        const s = kit.short(pk.per_s), cx = (x(pk.from_ms) + x(pk.to_ms)) / 2;
-        o += kit.text(cx, Math.max(top + 9, yD(pk.per_s) - 5), s, "td", 'font-weight="600" text-anchor="middle" pointer-events="none"');
       }
       const pts = per.map(([ms, v]) => [Math.min(ms + step / 2, D.duration_ms), v]);
       o += `<path d="M${x(pts[0][0])} ${bottom} ${pts.map(([ms, v]) => `L${x(ms)} ${yD(v)}`).join(" ")} L${x(pts[pts.length - 1][0])} ${bottom}Z" fill="var(--blue)" opacity=".18"/>`;
       o += `<path d="${pts.map(([ms, v], i) => `${i ? "L" : "M"}${x(ms)} ${yD(v)}`).join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.2" opacity=".8"/>`;
-      o += kit.text(L - 6, yD(max) + 8, `${kit.short(max)}/s`, "tm", 'text-anchor="end"');
+      o += kit.text(L - 6, top + 8, `${kit.short(max)}/s`, "tm", 'text-anchor="end"');
       o += kit.text(L - 6, bottom, "0", "tm", 'text-anchor="end"');
     }
-    // boss health
+    // boss health, on the right axis: 0 to 100% on every pull, so the lines of two pulls compare, the axis and the
+    // line's end named in the line's colour
+    const yH = (pct) => top + (100 - pct) / 100 * plotH;
     if (D.health.length) {
-      const least = Math.min(...D.health.map((p) => p[1]));
-      const lo = Math.max(0, Math.floor((least - 5) / 25) * 25);
-      const yH = (p) => top + (100 - p) / (100 - lo) * plotH;
       // a new health bar (the next boss of a phase) starts a new line instead of a jump up
-      const d = D.health.map(([ms, p], i) => `${i && p - D.health[i - 1][1] <= 10 ? "L" : "M"}${x(ms)} ${yH(p)}`).join(" ");
+      const d = D.health.map(([ms, pct], i) => `${i && pct - D.health[i - 1][1] <= 10 ? "L" : "M"}${x(ms)} ${yH(pct)}`).join(" ");
       o += `<path d="${d}" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linejoin="round"/>`;
-      const [lastMs, lastPct] = D.health[D.health.length - 1];
-      o += `<circle cx="${x(lastMs)}" cy="${yH(lastPct)}" r="3.5" fill="var(--gold)"/>`;
-      o += kit.text(W - R + 5, yH(lastPct) + 4, `${D.kill ? 0 : (D.boss_pct ?? lastPct)}%`, "tg", 'font-weight="600"', kit.SIZE.value);
-      if (Math.abs(yH(100) - yH(lastPct)) > 14) o += kit.text(W - R + 5, yH(100) + 4, "100%");
+      const [lastMs, lastPct] = D.health[D.health.length - 1], endY = yH(lastPct);
+      o += `<circle cx="${x(lastMs)}" cy="${endY}" r="3.5" fill="var(--gold)"/>`;
+      o += kit.text(W - R + 5, endY + 4, `${D.kill ? 0 : (D.boss_pct ?? lastPct)}%`, "tg", 'font-weight="600"', kit.SIZE.value);
+      if (endY - 7 > top + 10) o += kit.text(W - R + 5, top + 8, "100%", "tg");
+      if (endY + 5 < bottom - 11) o += kit.text(W - R + 5, bottom, "0%", "tg");
     }
-    // when the wipe was decided
+    // the health line's highest and lowest y between two x of the plot; null where it isn't drawn
+    const healthBetween = (x0, x1) => {
+      const at = (px) => {
+        for (let i = 1; i < D.health.length; i++) {
+          const [a, pa] = D.health[i - 1], [b, pb] = D.health[i], xa = x(a), xb = x(b);
+          if (px >= xa && px <= xb) return yH(pa + (pb - pa) * (xb > xa ? (px - xa) / (xb - xa) : 0));
+        }
+        return null;
+      };
+      const ys = [at(x0), at(x1), ...D.health.filter(([ms]) => x(ms) > x0 && x(ms) < x1).map(([, pct]) => yH(pct))].filter((v) => v != null);
+      return ys.length ? [Math.min(...ys), Math.max(...ys)] : null;
+    };
+    // when the wipe was decided: the dashed line, and on its side with more room the time and, on a card wide enough
+    // for it, why (the "Ended by" over the chart says it too); over the health line where there's room, else under it
     if (D.decided) {
-      const dx = x(D.decided.ms), right = dx > (W - R) * 0.6;
+      const right = dx > (W - R) * 0.6, rows = [[`decided ${kit.clock(D.decided.ms)}`, kit.SIZE.value, 'font-weight="600"']];
+      if (W >= 500) rows.push([D.decided.why, kit.SIZE.label, ""]);
       o += kit.line(dx, top - 4, dx, bottom + 28, "var(--decided)", 'stroke-width="1.6" stroke-dasharray="4 3"');
-      const anchor = right ? `text-anchor="end"` : "", tx = right ? dx - 5 : dx + 5;
-      o += kit.text(tx, top + 22, `decided ${kit.clock(D.decided.ms)}`, "to", `${anchor} font-weight="600"`, kit.SIZE.value);
-      o += kit.text(tx, top + 35, D.decided.why, "to", anchor);
+      const w = Math.max(...rows.map(([text, size]) => kit.width(text, size))), x0 = right ? dx - 5 - w : dx + 5;
+      const line = healthBetween(x0, x0 + w), tall = (rows.length - 1) * 13;
+      let ty = top + 12;
+      if (line && ty + tall + 4 > line[0] - 3) ty = Math.min(line[1] + 15, bottom - tall - 4);
+      rows.forEach(([text, size, attrs], i) => {
+        o += kit.text(right ? dx - 5 : dx + 5, ty + i * 13, text, "to", `${right ? 'text-anchor="end"' : ""} ${attrs}`, size);
+      });
+      boxes.push([x0 - 3, x0 + w + 3, ty - 11, ty + tall + 4]);
+    }
+    // each peak's height: over the peak, or beside the line the wipe was decided at where it would sit on it, a row
+    // lower where that is taken or the health line runs through; a peak with no room for it keeps its tooltip
+    for (const pk of peaks) {
+      const text = kit.short(pk.per_s), w = kit.width(text), cx = (x(pk.from_ms) + x(pk.to_ms)) / 2;
+      const py = Math.max(top + 9, yD(pk.per_s) - 5), tries = [[cx - w / 2, py]];
+      if (dx != null && Math.abs(cx - dx) < w / 2 + 6) for (const row of [0, 1, 2, 3]) tries.push([dx - 5 - w, py + 13 * row], [dx + 5, py + 13 * row]);
+      const clear = (lx, ly) => { const line = healthBetween(lx, lx + w); return !line || line[1] < ly - 12 || line[0] > ly + 6; };
+      const at = tries.find(([lx, ly]) => lx >= L && lx + w <= W - R - 2 && ly < bottom - 2 && (dx == null || lx > dx + 2 || lx + w < dx - 2)
+        && free(lx - 2, lx + w + 2, ly - 9, ly + 3) && clear(lx, ly));
+      if (!at) continue;
+      o += kit.text(at[0], at[1], text, "td", 'font-weight="600" pointer-events="none"');
+      boxes.push([at[0] - 2, at[0] + w + 2, at[1] - 9, at[1] + 3]);
     }
     // deaths, those whose marks would touch as one; after the wipe was decided grey
     const dy = bottom + 16, groups = [];
@@ -230,6 +278,8 @@ views.pull = (() => {
       killers ? [(lx, ly) => `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="none" stroke="var(--dead)" stroke-width="1.8"/>`, "death, by its killer"]
         : [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--dead)"/>`, "death"]];
     if (tracked.length) keys.splice(2, 0, [(lx, ly) => `<path d="M${lx + 5} ${ly - 9} l5 5 l-5 5 l-5 -5z" fill="var(--gold)"/>`, "the boss's main casts"]);
+    if (!lanes && cooldowns.some((c) => c.kind === "raid")) keys.push([(lx, ly) => RAID_MARK(lx + 5, ly - 4), "raid cooldown"]);
+    if (!lanes && cooldowns.some((c) => c.kind === "healing")) keys.push([(lx, ly) => HEALER_MARK(lx + 5, ly - 4), "healer cooldown"]);
     if (D.decided) keys.push([(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--muted)" opacity=".6"/>`, "after it was decided"]);
     const [under, ly] = kit.legend(keys, W, ay + 20);
     o += under;

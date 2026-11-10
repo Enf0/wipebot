@@ -45,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **The words on the cards are put right.** A parse reads "81st percentile", not "81th". A death the log names no killing blow for is labelled "no killing blow recorded", not "killed by no killing blow recorded". A boss killed on the first pull has "1 pull", and no heading or key for what isn't there. "Could have lived" says "Astral Shift on 1 death", and the rank under "per second alive" says it is by total. On a death, what would have kept the player alive is marked as something to do differently, as it is on their night, and no longer with the plus of what went well.
 
   ![Scopidruid's death on Sszorak pull 13: under the numbers, a minus and "A healthstone, used in time, would have kept them alive", then the hits and their health in the 10 s before the death](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/death-missed-save.webp)
+- `Agent` **The pull's chart names both of its scales, and its labels keep apart.** The boss's health now runs from 100% to 0 on every pull, so the lines of two pulls compare, with the scale on the right written in the line's gold. On a phone the moment the wipe was decided and a damage peak's height no longer print across each other or across the health line: each takes the free place nearest to it, and why the wipe was decided stays in "Ended by" over the chart. The card also has the cooldowns its tool said it had: one row over the chart, a dot for a raid cooldown and a plus for a healer's.
+
+  ![Vashnik pull 16 at a phone's width: a row of dots and pluses for the cooldowns over the chart, "decided 6:28" above the health line beside its dashed line, and 100% and 9.43% in gold on the right](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/pull-chart-phone.webp)
 
 ## [0.41.1] - 2026-11-09
 

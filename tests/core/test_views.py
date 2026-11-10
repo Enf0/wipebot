@@ -644,6 +644,53 @@ async def test_the_pull_view_draws_in_a_host_without_errors(recorded, tmp_path):
     assert "deaths (19)" in full.text.lower() and "Open pull" not in full.text
 
 
+CHART = """() => {
+  const texts = [...document.querySelectorAll("#pv-chart svg text")].map((t) => {
+    const r = t.getBoundingClientRect();
+    return { said: t.textContent, cls: t.getAttribute("class"), y: +t.getAttribute("y"),
+             box: [r.left, r.right, r.top, r.bottom] };
+  });
+  const over = [];  // two texts on one another: more than a pixel across and three down (a line's own leading)
+  texts.forEach((a, i) => texts.slice(i + 1).forEach((b) => {
+    const across = a.box[0] < b.box[1] - 1 && b.box[0] < a.box[1] - 1;
+    if (across && a.box[2] < b.box[3] - 3 && b.box[2] < a.box[3] - 3) over.push([a.said, b.said]);
+  }));
+  const count = (sel) => document.querySelectorAll(`#pv-chart svg ${sel}`).length;
+  return { texts, over, raid: count('circle[fill="var(--blue)"]'), healers: count('path[stroke="var(--green)"]') };
+}"""
+
+
+@pytest.mark.parametrize("case", ["pull-summary", "vashnik-summary", "altar-summary"])
+@pytest.mark.parametrize("width", [320, 760])
+async def test_nothing_written_in_the_pull_chart_runs_into_anything_else(recorded, case, width):
+    """At a phone's width too: the moment the wipe was decided, a damage peak's height and the two axes' labels each
+    keep their own place (they once ran across each other and the health line on a narrow card)."""
+    async with drawn("pull_summary", CASES[case].args, width=width) as (view, errors):
+        chart = await view.evaluate(CHART)
+    assert not errors and chart["over"] == []
+
+
+async def test_the_pull_chart_names_both_axes_and_draws_the_cooldowns_its_tool_promises(recorded):
+    """Boss health runs 0 to 100% on every pull, named at both ends in the line's colour (it once ran from an
+    unnamed floor: 50% on this pull); the inline card has the raid's and the healers' cooldowns, which the remote
+    server's description of pull_summary says the user sees; on a narrow card the plot says when the wipe was
+    decided, and the stat over it why."""
+    data = await pull_data()
+    raid = sum(c["kind"] == "raid" for c in data["cooldowns"]) + len(data["lusts"])
+    healers = sum(c["kind"] == "healing" for c in data["cooldowns"])
+    assert raid and healers
+    for width, why in ((760, True), (320, False)):
+        async with drawn("pull_summary", PULL_CASE.args, width=width) as (view, errors):
+            chart = await view.evaluate(CHART)
+        said = {t["said"]: t for t in chart["texts"]}
+        assert not errors and said["100%"]["cls"] == said["0%"]["cls"] == "tg" and said["0"]["cls"] == "tm"
+        assert said["0%"]["y"] == said["0"]["y"]
+        assert said["100%"]["y"] < said[f"{data['boss_pct']}%"]["y"] < said["0%"]["y"]
+        assert (chart["raid"], chart["healers"]) == (raid + 1, healers + 1)  # each mark, and its key in the legend
+        assert "raid cooldown" in said and "healer cooldown" in said
+        assert f"decided {clock(data['decided']['ms'])}" in said and (data["decided"]["why"] in said) == why
+
+
 async def test_the_page_speaks_the_protocol_in_order(recorded, tmp_path):
     (s,) = await shots(tmp_path, "pull_summary", PULL_CASE.args, themes=("dark",), widths=(430,))
     said = [(m["dir"], m["msg"].get("method") or "reply") for m in s.messages]
