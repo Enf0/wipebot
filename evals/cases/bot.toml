@@ -57,4 +57,3 @@ form = {bullets = 3, bullet_sentences = 1}  # by code, as the bot: what the prom
 numbers = ["2:15", "2:32"]  # by code: the Mutilate and the enrage
 facts = ["2:15", "2:32"]
 wrong = ["blames the enrage's fallout deaths after 2:32"]
-

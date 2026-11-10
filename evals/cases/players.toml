@@ -193,8 +193,8 @@ asker = "Sonyosh"
 pull = 2
 boss = "Vashnik the Malignant"
 expect = """A good kill with one real gain: the time at the Maelstrom cap (11% of the kill, where the top parses
-spend 0-4%); the other gaps are small."""
-drifts = ["88th", "0-4%", "3.6"]
+spend 0-2%); the other gaps are small."""
+drifts = ["88th", "0-2%", "3.6"]
 facts = ["88th percentile",
          "never died, no casting gaps, Flame Shock up 100%",
          "Ascendance as often as the top parses",

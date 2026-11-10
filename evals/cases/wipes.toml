@@ -122,7 +122,7 @@ boss = "Nymrissa Wavecaller"
 expect = """Bubblefin Berserkers (murlocs that got into the bubble) killed most of the raid with Pulsing Tides: three
 came at 3:50, after the 3:41 Swirling Whirlpools popped the bubble, and their pulses killed players three at a time
 from 3:53 to the wipe. The fix is stopping the murlocs before the bubble."""
-numbers = ["3:50"]  # by code: when Pulsing Tides began to kill
+numbers = ["3:50"]  # by code: when the three Berserkers came; their pulses killed from 3:53
 facts = ["Pulsing Tides killed 14; half the raid was dead at 3:56",
          "the one Berserker earlier in the pull, at 2:00, was killed at 2:12",
          "on Mythic, killing the Frostscale first so the murlocs can be hurt (the guide's rule)"]
@@ -277,5 +277,3 @@ facts = ["Nexsozz died at 0:16 (896k, 716k overkill), 9 yd from the boss and 27Â
 wrong = ["Tempest is the cause of the wipe or of Nexsozz's death",
          "says a defensive (Icebound Fortitude) or a healthstone would have saved Nexsozz",
          "says Nexsozz's death caused or decided the wipe"]
-
-
