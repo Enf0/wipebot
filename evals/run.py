@@ -900,12 +900,14 @@ def judged_by(model: str) -> dict:
 
 
 def case_hash(case: dict) -> str:
-    """What a case asks and checks: all but its id, the hard set, the lint's `drifts`, the coverage's `tools`, the
-    engine's `cause` and its file's `kind` (question, expect, facts, wrong, its report and who asks), spaces aside, so
-    a reflowed line keeps the hash and a changed word doesn't."""
+    """What an answer is asked with and what the judge is asked (question, expect, facts, wrong, calls, its report
+    and who asks), spaces aside, so a reflowed line keeps the hash and a changed word doesn't. Left out is what only
+    code reads: its id, the hard set, the lint's `derived` and `drifts`, the coverage's `tools`, the engine's
+    `cause`, its file's `kind`, and the code checks' `numbers` and `form`. So a case that gains a code check still
+    compares with a baseline saved before it."""
     def plain(v):
         return " ".join(v.split()) if isinstance(v, str) else [plain(x) for x in v] if isinstance(v, list) else v
-    left_out = ("id", "hard", "drifts", "tools", "cause", "kind")
+    left_out = ("id", "hard", "derived", "drifts", "tools", "cause", "kind", "numbers", "form")
     return short_hash({k: plain(v) for k, v in case.items() if k not in left_out})
 
 

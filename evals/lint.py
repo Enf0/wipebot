@@ -18,7 +18,8 @@ import re
 from pathlib import Path
 from typing import NamedTuple
 
-TIME = re.compile(r"(?<![\d:])\d{1,2}:\d{2}(?![\d:])")
+# A time may end a clause ("- 5:27: 5 before"); it is not one inside a longer clock (1:05 in 1:05:27)
+TIME = re.compile(r"(?<![\d:])\d{1,2}:\d{2}(?!\d|:\d)")
 AMOUNT = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s?([kKM])\b")
 PERCENT = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s?%")
 SHARE = re.compile(r"(?<![\d.:])(\d+\.\d+|\d+(?=/\d)|(?<=\d/)\d+)(?![\d:])")  # 68.9, or either side of 38/24
@@ -30,6 +31,9 @@ SAVED_ARGS = {"raid_note": "note", "raid_plan": "plan"}  # the bot fills these f
 ASKED_WRONG = ("no single player matching", "give a guild, with its server and region")
 # A replay that needed data the frozen file lacks and this machine couldn't fetch (refused keys, Warcraft Logs down)
 NO_DATA = ("auth_failed", "upstream_error")
+# The same inside an output that otherwise printed: a tool says one of its sections so and goes on (compare_with_top's
+# casts without the top parses), and the numbers of that section are then in no output
+PART_MISSING = re.compile(rf"Not available: (?:{'|'.join(NO_DATA)})")
 AMOUNT_TOLERANCE = 0.03  # "about 210k" for 210.05k, "164k" for 163.64k
 PERCENT_TOLERANCE = 0.51  # "34%" for 34.1%
 
@@ -50,7 +54,7 @@ def in_output(token: str, output: str) -> bool:
     it: a stale time that is also another event's passes (matching on the fact's words flagged more right facts
     than stale ones, as tools word a line otherwise)."""
     if TIME.fullmatch(token):
-        return re.search(rf"(?<![\d:]){re.escape(token)}(?![\d:])", output) is not None
+        return re.search(rf"(?<![\d:]){re.escape(token)}(?!\d|:\d)", output) is not None
     if m := AMOUNT.fullmatch(token):
         want = float(m.group(1)) * SCALE[m.group(2)]
         return any(abs(float(v) * SCALE[s] - want) <= AMOUNT_TOLERANCE * want for v, s in AMOUNT.findall(output))
@@ -135,7 +139,8 @@ async def lint(cases: list[dict], results: Path) -> Linted:
             [r for r in runs if (r.get("case_hashes") or {}).get(case["id"]) == case_hash(case)], case["id"])}
         found = await asyncio.gather(*(run(n, a) for n, a in calls))
         replayed = "\n".join(t for t in found if t is not None and not failure(t))
-        lacking = [t for t in found if failure(t) and any(w in str(t) for w in NO_DATA)]
+        lacking = [t for t in found if t is not None and (PART_MISSING.search(t) if not failure(t)
+                                                          else any(w in t for w in NO_DATA))]
         for (n, a), t in zip(calls, found, strict=True):  # first: a call that fails now, whatever else the case lacks
             if failure(t) and t not in lacking and json.dumps([n, a], sort_keys=True) in now:
                 if any(w in str(t) for w in ASKED_WRONG):
@@ -145,7 +150,7 @@ async def lint(cases: list[dict], results: Path) -> Linted:
                     failed += 1
         if lacking and (not replayed or stale(case, replayed)):  # a number not found may be in the output not read
             print(f"{case['id']}: not checked: {len(lacking)} of its {len(calls)} calls need data the frozen file "
-                  f"lacks and Warcraft Logs didn't give ({next(w for w in NO_DATA if w in str(lacking[0]))})")
+                  f"lacks and Warcraft Logs didn't give ({next(w for w in NO_DATA if w in lacking[0])})")
             no_data += 1
             continue
         texts = [t for t in found if t is not None and not failure(t)]
