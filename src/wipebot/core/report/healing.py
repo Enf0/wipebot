@@ -336,7 +336,7 @@ def _healer_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers:
         idle, dead = sum(h.idle_s for _, h in mine), sum(h.dead_s for _, h in mine)
         missed = ", ".join(x for x in (f"no cast begun for {idle:.0f} s" if idle >= 1 else "",
                                        f"dead for {dead:.0f} s" if dead >= 1 else "") if x) or "casting throughout"
-        rows.append(f"  {p.name} ({p.spec}): {short(heal / spike_s)}/s ({_over(heal, over)} overheal) in the spikes, "
+        rows.append(f"  {p.label}: {short(heal / spike_s)}/s ({_over(heal, over)} overheal) in the spikes, "
                     f"{rest} the rest of the time; {missed} in {spike_s:.0f} s of spikes; "
                     f"{plural(sum(h.cooldowns for _, h in mine), 'healing cooldown')} in a spike, "
                     f"{sum(h.ready for _, h in mine)} left ready in one")
@@ -376,6 +376,6 @@ async def at_death(rep: Report, f: dict, p: Player, at: float) -> list[str]:
         if begun:
             text += (", " if text else "") + f"casting {rep.ability(begun[-1]['abilityGameID'])}" + (
                 " on them" if begun[-1].get("targetID") == p.id else "")
-        parts.append(f"{q.name} ({q.spec}): {text}")
+        parts.append(f"{q.label}: {text}")
     return [f"Healers in the {AT_DEATH_MS // 1000} s before the death (their casts, on the dying player marked): "
             + "; ".join(parts)]

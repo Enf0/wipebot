@@ -87,6 +87,16 @@ async def test_a_note_assigns_kicks_when_it_calls_one_player_as_an_add_begins_a_
     assert not await notes.assigns_kicks(rep, f, "\n".join(line for line in note.splitlines() if "Kick #" not in line))
 
 
+def test_no_output_names_a_player_by_a_spec_alone():
+    """'Providence (Holy)' is a Paladin or a Priest, 'Enfo (Restoration)' a Druid or a Shaman: a player is named
+    with spec and class (Player.label) in every pinned output. A stale case's snapshot waits for its recording."""
+    alone = re.compile(r"\w \((?:Holy|Restoration|Protection|Frost|Discipline|Preservation|Mistweaver)\)")
+    for case in CASES.values():
+        if not case.stale and case.snapshot.exists():
+            found = alone.findall(case.snapshot.read_text(encoding="utf-8"))
+            assert not found, f"{case.name}: {found[:3]}"
+
+
 def test_every_snapshot_has_a_case():
     assert {p.stem for p in TOOLS.glob("*.txt")} == {c.name for c in CASES.values() if not c.local}
     if LOCAL.exists():
