@@ -4,7 +4,7 @@ warcraft_cli), Warcraft Logs data about finished pulls, rankings. It survives re
 
 One SQLite file (~/.cache/wipebot/cache.sqlite; WIPEBOT_CACHE sets another path, or `off`). Values are JSON,
 compressed (a night's events shrink about tenfold); on the event loop a large one is decoded and encoded in a
-thread (`read`, `write`), so a night read from disk doesn't hold every other call. An
+thread of the cache's own (`read`, `write`), so a night read from disk doesn't hold every other call. An
 entry is fresh for the max age its caller gives; `fetch` serves one up to twice that old at once and gets a new one
 in the background (stale-while-revalidate), and an older one only when the source fails. Callers asking for the
 same key at once share one fetch; it goes on when they leave (a Warcraft Logs query is paid for once sent), unless
@@ -31,6 +31,7 @@ import sqlite3
 import time
 import zlib
 from collections.abc import Awaitable, Callable, Generator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
@@ -48,6 +49,10 @@ STALE_SERVED = 2  # an entry up to this many times its max age is served while a
 # one tool held the loop for a second, during which every other call, sign-in and heartbeat waited. A thread frees
 # the loop between values and while one is unpacked, not while its JSON is parsed.
 THREAD_BYTES = 32_000
+# ...in the cache's own threads, not the event loop's shared ones (asyncio.to_thread): those run the Warcraft Logs
+# queries, a tool's thirty at once, and a value waited behind them all (1.6 s behind 36 queries of 0.4 s on 8
+# threads, where decoding it took 0.03 s). Two, since only unpacking and packing run side by side: JSON holds the GIL.
+_threads = ThreadPoolExecutor(2, thread_name_prefix="wipebot-cache")
 MAX_MB = 2000  # past this, the oldest entries are dropped at the daily purge
 _unkept: set[str] = set()  # words a kept key may not hold: the codes of reports that aren't public
 
@@ -101,6 +106,11 @@ def _decode(stored: bytes) -> Any:
 
 def _encode(value: Any) -> bytes:
     return zlib.compress(json.dumps(value).encode(), 1)
+
+
+async def _in_thread(code: Callable[[Any], Any], value: Any) -> Any:
+    """`_decode` or `_encode` of `value`, in one of the cache's threads."""
+    return await asyncio.get_running_loop().run_in_executor(_threads, code, value)
 
 
 class Cache:
@@ -160,7 +170,7 @@ class Cache:
         """`get` for a caller on the event loop: a large value is decoded in a thread (THREAD_BYTES)."""
         if not keeps(key) or (row := self._row(key)) is None:
             return None
-        value = await asyncio.to_thread(_decode, row[0]) if len(row[0]) >= THREAD_BYTES else _decode(row[0])
+        value = await _in_thread(_decode, row[0]) if len(row[0]) >= THREAD_BYTES else _decode(row[0])
         return value, time.time() - row[1]
 
     def put(self, key: str, value: Any) -> None:
@@ -170,7 +180,7 @@ class Cache:
     async def write(self, key: str, value: Any) -> None:
         """`put` for a caller on the event loop: the value is encoded in a thread."""
         if keeps(key):
-            self._store(key, await asyncio.to_thread(_encode, value))
+            self._store(key, await _in_thread(_encode, value))
 
     def _store(self, key: str, stored: bytes) -> None:
         if not keeps(key):  # checked again once fetched: the report may have turned out private meanwhile

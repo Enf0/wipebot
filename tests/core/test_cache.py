@@ -203,3 +203,24 @@ async def test_a_large_value_is_decoded_and_encoded_off_the_event_loop(cache, mo
     threads.clear()
     assert await cache.fetch("small", 60, get) == "v" and threads == [here]
     assert (await cache.read("large"))[0] == large and cache.get("large")[0] == large
+
+
+async def test_a_large_value_doesnt_wait_behind_the_queries_in_the_loops_shared_threads(cache, monkeypatch):
+    """Warcraft Logs queries run in the event loop's shared threads, a tool's thirty at once: a value decoded or
+    encoded there waited behind them all (1.6 s behind 36 queries of 0.4 s, where it took 0.03 s)."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    from wipebot.core import cache as cache_module
+    monkeypatch.setattr(cache_module, "THREAD_BYTES", 100)
+    asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(1))
+    answered = threading.Event()
+    query = asyncio.ensure_future(asyncio.to_thread(answered.wait, 5))  # in flight: the shared threads are taken
+    await asyncio.sleep(0.01)
+    large = [f"event {i}" for i in range(1000)]
+    try:
+        await asyncio.wait_for(cache.write("large", large), 1)
+        assert (await asyncio.wait_for(cache.read("large"), 1))[0] == large
+    finally:
+        answered.set()
+        await query
