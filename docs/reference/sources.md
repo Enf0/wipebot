@@ -106,13 +106,16 @@ API: `wcl-api.md`.
   `tank`, `move`); filter `spell_type` to the class and spec to drop trinkets and racials.
 - Lorrgs' `cooldown` is the spell's base cooldown and `duration` its base duration, and either may be 0 (Reincarnation
   has both 0; Ice Block and Earth Elemental have no duration). A raider's own cooldown is often shorter: on the
-  recorded nights (October 2026) a Holy priest cast Divine Hymn 124 s apart against a base of 180 s, an evoker Obsidian
-  Scales 22 s apart (two charges, base 150 s), and the guild's notes plan Stampeding Roar 61 to 102 s apart against a
-  base of 120 s. So "on cooldown" by the base number says too much: the raid note check takes the time between the
-  player's closest two casts of the spell on the night where that is shorter, and "ready" keeps to the base number
-  and to spells the player cast at least once that night (of the defensive and tank spells off cooldown at a callout
-  on the recorded Sszorak night, a fifth had never been cast by that player on any pull: talents not taken and
-  passives).
+  recorded nights (October 2026) a Holy priest cast Divine Hymn 124 s apart against a base of 180 s, and an evoker
+  Obsidian Scales 22 s apart (two charges, base 150 s). So "on cooldown" by the base number says too much: the raid
+  note check takes the time between the player's closest two casts of the spell on the night where that is shorter,
+  and "ready" keeps to the base number and to spells the player cast at least once that night (of the defensive and
+  tank spells off cooldown at a callout on the recorded Sszorak night, a fifth had never been cast by that player on
+  any pull: talents not taken and passives).
+- A note may plan a spell again inside its cooldown, and the planned times alone don't show a shorter one: the
+  recorded Sszorak note plans Stampeding Roar 73 to 102 s apart against a base of 120 s, the druid's closest two
+  casts of it that night were 126 s apart, and the use planned at 1:40 was cast on none of the 11 pulls they were
+  alive at it (on cooldown each time from the cast the note plans at 0:27).
 - An NSRT note's lines, as the addon reads them (its Reminders.lua and InterruptDisplay.lua, November 2026): a field is
   found anywhere in a line (`time:` in seconds, decimals allowed; `ph:` a number, decimals allowed; `tag:`; `text:`;
   `spellid:`), and a timed line needs a time, a tag and a text or a spell. A tag is `everyone`, a character's name or
