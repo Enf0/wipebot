@@ -268,7 +268,11 @@ same way the bot does; the connector alone, in Claude or elsewhere, gets only th
   nobody set up yet, put a report link in the question; questions about the game need none, and a raider signed in
   with `/login` asks about their own guild's latest raid without one (posts after wipes still need setup). With the
   setting on, it also reads the channel's last 15 messages for context, and the messages, threads or channels a
-  question links to, such as your own notes on a boss (only ones the asker can read).
+  question links to, such as your own notes on a boss (only ones the asker can read). A link to a pull on Warcraft
+  Logs, from the address bar or an earlier answer, asks about that pull.
+- **How long an answer is:** as long as the question calls for: a who, when or how many gets the verdict and two
+  bullets, a pull three, a night, a player or a plan five. While the raid is being logged, every answer is one to
+  read between pulls: the verdict and at most three one-sentence bullets, the fix first, the rest as follow-ups.
 - **Who it names:** it names players wherever it's asked, in a channel as in a DM: who missed what, who died
   first, who took the most damage, with how to fix it.
 - **In your DMs instead:** ask it in a channel to send something to your DMs, and it answers there as if you'd
@@ -281,7 +285,8 @@ same way the bot does; the connector alone, in Claude or elsewhere, gets only th
 - **Pictures and buttons:** what Claude draws comes as pictures, each next to the part of the answer it backs, with
   buttons for the next thing to look at (the first death, a player's card, their night, their casts against the top);
   what a button opens only the clicker sees. A ranking of players (damage, healing, hits by a mechanic, kicks) comes
-  as a damage meter. An answer ends with up to three follow-ups as buttons instead of "want me to...?".
+  as a damage meter. An answer that read the logs ends with up to three follow-ups as buttons instead of "want me
+  to...?", none of them one it offered you before.
 - **It remembers** your character, so "how did I do?" needs no name, and preferences you ask it to keep ("answer in
   English"). Ask what it remembers, or tell it to forget.
 - **How much at once:** it answers up to eight questions at the same time, and the next waits its turn. One raider
