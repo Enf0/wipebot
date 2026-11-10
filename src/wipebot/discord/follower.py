@@ -42,9 +42,13 @@ class Follower:
     """Reads the live report through the core's Report, the same one the tools read, so the answers about a pull
     share what's been fetched."""
 
-    def __init__(self, library: Library, store: Store, guild_id: int, test_report: str | None = None):
+    def __init__(self, library: Library, store: Store, guild_id: int, test_report: str | None = None,
+                 server_id: int = 0):
         self.library, self.store = library, store
         self.guild_id = guild_id  # the guild on Warcraft Logs
+        # the Discord server whose posts it finds pulls for: a pull handled for one server is still new to another
+        # that follows the same report (0: for no server's posts)
+        self.server_id = server_id
         # `wipebot replay`: follow this (old) report as if it were live, one pull per poll.
         self.test_report = test_report
         self.code: str | None = test_report
@@ -82,7 +86,7 @@ class Follower:
     def _skip_backlog(self, report: Report, now_ms: float) -> None:
         for f in report.fights:
             if now_ms - (report.start_ms + f["endTime"]) > BACKLOG_S * 1000:
-                self.store.mark_posted(report.code, f["id"], latency_s=None)
+                self.store.mark_posted(report.code, f["id"], None, self.server_id)
 
     async def live(self) -> str | None:
         """The live report followed, None when nothing is being logged. Looked for again once the last look is
@@ -101,11 +105,11 @@ class Follower:
 
         report = await self.library.report(self.code, max_age_s=0)
         pulls = [pull_of(report, f) for f in sorted(report.fights, key=lambda f: f["id"])
-                 if not f.get("inProgress") and not self.store.is_posted(report.code, f["id"])]
+                 if not f.get("inProgress") and not self.store.is_posted(report.code, f["id"], self.server_id)]
         return pulls[:1] if self.test_report else pulls
 
     def done(self, pull: Pull) -> None:
         latency = None if self.test_report else time.time() - pull.ended_ms / 1000
-        self.store.mark_posted(pull.report, pull.fight, latency_s=latency)
+        self.store.mark_posted(pull.report, pull.fight, latency, self.server_id)
         if latency is not None:
             log.info("pull %s (%s) handled %.0f s after it ended", pull.fight, pull.boss, latency)

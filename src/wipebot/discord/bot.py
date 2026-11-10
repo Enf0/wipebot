@@ -619,7 +619,8 @@ class WipeBot(discord.Client):
         if key not in self.followers:
             test = self.test_report if s.discord_guild_id == self.test_server else None
             store = Store(":memory:") if test else self.store  # a replay doesn't mark the real pulls handled
-            self.followers[key] = Follower(self.library, store, s.wcl_guild_id, test)
+            self.followers[key] = Follower(self.library, store, s.wcl_guild_id, test,
+                                           0 if isinstance(s, LoginGuild) else s.discord_guild_id)
         return self.followers[key]
 
     @tasks.loop(seconds=POLL_S)

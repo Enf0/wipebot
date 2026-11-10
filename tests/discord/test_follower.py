@@ -115,3 +115,42 @@ async def test_with_nothing_live_a_look_is_not_repeated_within_the_check_interva
     follower._last_report_check = 0  # REPORT_CHECK_S later
     await follower.live()
     assert len(looks) == 2
+
+
+async def test_two_servers_following_one_report_each_get_its_pulls(night, live_wcl):
+    """A guild's raid server and its officers' server, or two guilds' servers on a shared log: a pull handled for one
+    is still new to the other."""
+    library, store = Library(wcl=live_wcl.client()), Store(":memory:")
+    raid, officers = Follower(library, store, 14169, server_id=1001), Follower(library, store, 14169, server_id=2002)
+    first = await raid.poll()
+    assert first
+    for p in first:
+        raid.done(p)
+    assert await raid.poll() == []
+    assert [p.fight for p in await officers.poll()] == [p.fight for p in first]  # not handled for this one yet
+    for p in first:
+        officers.done(p)
+    assert await officers.poll() == []
+
+
+def test_pulls_handled_before_servers_had_their_own_stay_handled_for_the_servers_following_them(tmp_path):
+    """A database from before 11 November 2026 kept each pull once: after the move, a restart during a raid posts none
+    of them again where the report is followed, and a server that starts following it later has its own."""
+    import sqlite3
+    path = tmp_path / "wipebot.db"
+    Store(path)._db.close()
+    old = sqlite3.connect(path)
+    old.executescript("""DROP TABLE posted;
+        CREATE TABLE posted (report TEXT NOT NULL, fight INTEGER NOT NULL, posted_at REAL NOT NULL, latency_s REAL,
+                             PRIMARY KEY (report, fight));
+        INSERT INTO posted VALUES ('LIVE1', 30, 1000.0, 45.0), ('LASTWEEK', 12, 500.0, NULL);
+        INSERT INTO following VALUES (1001, 20, 7, 'Rowan', NULL, 'LIVE1', 20, 'who died first', 900.0),
+                                     (1001, 7, 7, 'Rowan', 'Torvek', 'LIVE1', NULL, '', 950.0);""")
+    old.commit()
+    old.close()
+    store = Store(path)
+    assert store.is_posted("LIVE1", 30, 1001) and not store.is_posted("LIVE1", 30, 2002)
+    assert not store.is_posted("LIVE1", 31, 1001) and store.is_posted("LASTWEEK", 12)  # kept, for no server
+    assert store._db.execute("SELECT discord_guild_id, report, fight, latency_s FROM posted ORDER BY posted_at"
+                             ).fetchall() == [(0, "LASTWEEK", 12, None), (1001, "LIVE1", 30, 45.0)]
+    assert Store(path).is_posted("LIVE1", 30, 1001)  # opened again: nothing left to move

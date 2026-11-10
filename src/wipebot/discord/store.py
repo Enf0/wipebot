@@ -145,13 +145,18 @@ class Store:
             for column in columns:
                 if column in have:
                     self._db.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+        posted = {row[1] for row in self._db.execute("PRAGMA table_info(posted)")}
+        if posted and "discord_guild_id" not in posted:  # an older version's, each pull kept once for every server
+            self._db.execute("ALTER TABLE posted RENAME TO posted_before")  # moved over below (_posted_per_server)
         self._db.executescript(
             """CREATE TABLE IF NOT EXISTS posted (
                 report TEXT NOT NULL,
                 fight INTEGER NOT NULL,
                 posted_at REAL NOT NULL,
                 latency_s REAL,          -- seconds from pull end to post; NULL if skipped as backlog
-                PRIMARY KEY (report, fight)
+                discord_guild_id INTEGER NOT NULL DEFAULT 0,  -- the server it was handled for: two servers may follow
+                                         -- one report, each with its own posts (0: for no server)
+                PRIMARY KEY (discord_guild_id, report, fight)
             );
             CREATE TABLE IF NOT EXISTS post_messages (
                 message_id INTEGER PRIMARY KEY,  -- a Discord message holding the feedback after a pull
@@ -282,7 +287,23 @@ class Store:
         # the channels where players were named, until /wipebot names was dropped
         self._db.execute("DROP TABLE IF EXISTS naming_channels")
         self._db.commit()
+        self._posted_per_server()
         self._move_notes()
+
+    def _posted_per_server(self) -> None:
+        """The pulls an older version kept as handled once for every server, once: now handled for each server whose
+        posts follow that report, so a restart during a raid posts none of them again, and the rest for no server,
+        for the records."""
+        if not self._db.execute("SELECT 1 FROM sqlite_master WHERE name = 'posted_before'").fetchone():
+            return
+        into = "INSERT OR IGNORE INTO posted (report, fight, posted_at, latency_s, discord_guild_id) "
+        self._db.execute(into + "SELECT p.report, p.fight, p.posted_at, p.latency_s, f.discord_guild_id "
+                                "FROM posted_before p JOIN (SELECT DISTINCT discord_guild_id, code FROM following) f "
+                                "ON f.code = p.report")
+        self._db.execute(into + "SELECT report, fight, posted_at, latency_s, 0 FROM posted_before WHERE report NOT IN "
+                                "(SELECT code FROM following WHERE code IS NOT NULL)")
+        self._db.execute("DROP TABLE posted_before")
+        self._db.commit()
 
     def _move_notes(self) -> None:
         """Raid notes and plans kept here before (by Discord server) go to the notebook (by the server's guild on
@@ -326,14 +347,17 @@ class Store:
 
     # ---------- posts ----------
 
-    def is_posted(self, report: str, fight: int) -> bool:
-        row = self._db.execute("SELECT 1 FROM posted WHERE report = ? AND fight = ?", (report, fight)).fetchone()
+    def is_posted(self, report: str, fight: int, discord_guild_id: int = 0) -> bool:
+        """Whether a pull was handled for a server (its posts after wipes): each server following a report has its
+        own."""
+        row = self._db.execute("SELECT 1 FROM posted WHERE discord_guild_id = ? AND report = ? AND fight = ?",
+                               (discord_guild_id, report, fight)).fetchone()
         return row is not None
 
-    def mark_posted(self, report: str, fight: int, latency_s: float | None) -> None:
+    def mark_posted(self, report: str, fight: int, latency_s: float | None, discord_guild_id: int = 0) -> None:
         self._db.execute(
-            "INSERT OR IGNORE INTO posted (report, fight, posted_at, latency_s) VALUES (?, ?, ?, ?)",
-            (report, fight, time.time(), latency_s),
+            "INSERT OR IGNORE INTO posted (report, fight, posted_at, latency_s, discord_guild_id) "
+            "VALUES (?, ?, ?, ?, ?)", (report, fight, time.time(), latency_s, discord_guild_id),
         )
         self._db.commit()
 
