@@ -1,5 +1,5 @@
-"""Reading a raid note (report/note.py; NSRT's format). How it's checked against real pulls is pinned by the tool
-cases (test_tools.py)."""
+"""Reading a raid note (report/note.py; NSRT's format) and its kick check. How it's checked against real pulls is
+pinned by the tool cases (test_tools.py); the soak check has its own tests (test_note_soaks.py)."""
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import replace
@@ -29,6 +29,32 @@ def test_a_raid_note_is_read_per_boss():
     assert note.for_boss(notes, 3418) is notes[1] and note.for_boss(notes, 1) is None
     with pytest.raises(FactError, match="EncounterID"):
         note.parse("time:30;ph:1;tag:Torvek;spellid:98008;")
+
+
+def test_a_tag_that_is_no_players_name_is_still_read_as_one():
+    """What the reading makes today of the tags NSRT takes besides a name, pinned as it is so that a fix shows here:
+    a spell line to everyone is a cooldown planned for a player called "everyone" (the check then prints it as not
+    cast, by a player not in the pull), and a role, a group or a name with its realm is looked up as a character's
+    name, so its line is checked against no one. Only "everyone" on a text line is understood."""
+    [plan] = note.parse("EncounterID:3418;Name:Vashnik\n"
+                        "time:154;ph:1;tag:everyone;spellid:98008;\n"
+                        "time:30;ph:1;tag:everyone;text:Big Personals;\n"
+                        "time:40;ph:1;tag:healer;text:Personals;\n"
+                        "time:50;ph:1;tag:group1 Torvek-Kazzak;spellid:98008;\n")
+    assert plan.cooldowns == [note.Cooldown(154, 1, "everyone", 98008), note.Cooldown(50, 1, "group1", 98008),
+                              note.Cooldown(50, 1, "Torvek-Kazzak", 98008)]
+    assert plan.callouts == [note.Callout(30, 1, (), "Big Personals"), note.Callout(40, 1, ("healer",), "Personals")]
+
+
+def test_a_heading_or_a_label_written_twice_keeps_only_the_last():
+    """Pinned as it is today so that a fix shows here: of two blocks under one heading the second's labels replace
+    the first's of the same name, and of two lines with one label the second replaces the first, without a word in
+    the output, so a raider's job is gone from the assignments (Torvek's and Halvard's here)."""
+    [plan] = note.parse("EncounterID:3418;Name:Vashnik\n\n"
+                        "Orb Carriers\ngreen orb: Torvek\ngreen orb: Mirelle\nred orb: Halvard\n\n"
+                        "Orb Carriers\nred orb: Rowan\nblue orb: Brightleaf\n")
+    assert plan.groups == {"Orb Carriers": {"green orb": ["Mirelle"], "red orb": ["Rowan"],
+                                            "blue orb": ["Brightleaf"]}}
 
 
 def test_a_raid_note_saved_in_versions_is_read_per_version():
