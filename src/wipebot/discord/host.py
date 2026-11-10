@@ -40,6 +40,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from wipebot.core import server, viewhost, viserio, wcl
 from wipebot.core.notebook import Notebook
+from wipebot.core.notebook import Unreadable as NotesUnreadable
 from wipebot.core.report import FactError, Report
 
 from . import config, prompt
@@ -816,7 +817,11 @@ class Session:
     async def _roster(ctx: Context) -> dict[str, tuple[str, str]]:
         """The server's guild's roster from Viserio, name -> class and spec, for the icons of players the answer's
         reports and tool results don't give; none without icons or a key, or when Viserio doesn't answer."""
-        found = ctx.notebook.viserio_key(ctx.guild_id) if ctx.icons and ctx.notebook and ctx.guild_id else None
+        try:
+            found = ctx.notebook.viserio_key(ctx.guild_id) if ctx.icons and ctx.notebook and ctx.guild_id else None
+        except NotesUnreadable as e:  # a notes file locked or damaged costs the icons, never the answer
+            log.info("no roster from Viserio for the icons: %s", e)
+            return {}
         if not found:
             return {}
         try:

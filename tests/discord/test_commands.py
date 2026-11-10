@@ -257,6 +257,19 @@ def test_text_that_isnt_a_note_or_plan_is_refused(store, settings):
     assert "No raid note or plan saved yet" in commands.describe_notes(store, 1001)
 
 
+def test_notes_that_cant_be_read_are_said_so_in_the_setup_overview_not_as_none_saved(store, settings, monkeypatch):
+    """A notes file locked by another process or damaged: the overview says it can't be read now, and doesn't fail
+    or read as nothing saved."""
+    from wipebot.core.notebook import Unreadable
+
+    def locked(guild_id):
+        raise Unreadable("the saved raid notes and plans can't be read right now (database is locked)")
+    store.save_settings(settings)
+    monkeypatch.setattr(store.notebook, "latest_notes", locked)
+    said = commands.describe_notes(store, 1001)
+    assert "can't be read right now" in said and "No raid note or plan saved yet" not in said
+
+
 def test_a_note_needs_the_server_set_up_for_its_guild(store):
     from wipebot.core.report import FactError
     with pytest.raises(FactError, match="set up"):

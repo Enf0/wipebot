@@ -21,6 +21,7 @@ from discord import app_commands
 
 from wipebot.core import accounts, raidstrats, server
 from wipebot.core.accounts import parse_guild_link
+from wipebot.core.notebook import Unreadable as NotesUnreadable
 from wipebot.core.report import FactError
 from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
@@ -136,7 +137,11 @@ def describe_notes(store: Store, discord_guild_id: int) -> str:
     s = store.settings(discord_guild_id)
     if s is None:
         return "wipebot isn't set up here yet: run `/wipebot setup`, then save the raid note or plan."
-    saved, planned = store.notebook.latest_notes(s.wcl_guild_id), store.notebook.latest_plans(s.wcl_guild_id)
+    try:
+        saved, planned = store.notebook.latest_notes(s.wcl_guild_id), store.notebook.latest_plans(s.wcl_guild_id)
+    except NotesUnreadable:  # locked or damaged: the overview still shows the setup, and never "none saved"
+        return ("The saved raid notes and plans can't be read right now, which doesn't mean none is saved: run "
+                "`/wipebot setup` again in a moment.")
     parts = []
     if saved:
         parts.append("Raid notes saved here (the newest per boss):\n" + "\n".join(

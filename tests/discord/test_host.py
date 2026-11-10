@@ -698,3 +698,15 @@ async def test_a_question_with_pictures_is_one_message_of_text_and_images():
     assert sent == [{"type": "user", "parent_tool_use_id": None, "message": {"role": "user", "content": [
         {"type": "text", "text": "what's slowing me?"},
         {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "iVBORw=="}}]}}]
+
+
+async def test_a_notes_file_that_cant_be_read_costs_the_icons_not_the_answer():
+    """The roster for the icons is looked up while an answer is finished: a notes file locked or damaged then gives
+    no roster, where it once failed the answer."""
+    from wipebot.core.notebook import Unreadable
+
+    class Locked:
+        def viserio_key(self, guild_id):
+            raise Unreadable("the saved raid notes and plans can't be read right now (database is locked)")
+    ctx = Context(icons={"priest": "<:priest:1>"}, notebook=cast(Notebook, Locked()), guild_id=14169)
+    assert await Session._roster(ctx) == {}
