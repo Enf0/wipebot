@@ -62,8 +62,9 @@ async def player_pull(rep: Report, player: str, pull: PullRef = None, boss: str 
     lines = [f"{p.label}{f', hero talents {hero}' if hero else ''}, {p.role}, item level "
              f"{det.get('maxItemLevel', '?')}, on {rep.label(f)} ({clock(f['endTime'] - t0)}, {rep.url(f)})."]
     lines += [gear_stats(det), lost, parsed] if parsed is not None else [lost, gear_stats(det)]
+    early = any(d["timestamp"] <= _decided_ts(f, decided) for d in own)  # a later death is the wipe's fallout
     for (_, what), t in throughput:
-        lines += _throughput_lines(rep, f, p, what, t, bool(own), alive_s, spread)
+        lines += _throughput_lines(rep, f, p, what, t, bool(own), alive_s, spread, early)
     lines += [died, taken]
     cast = sum(r["total"] for r in counts)
     lines.append(f"Casts: {cast} ({60 * cast / max(alive_s, 1):.0f} per minute alive; as Warcraft Logs' Casts table "
@@ -100,9 +101,11 @@ async def _throughput_tables(rep: Report, f: dict, p: Player) -> list[tuple[tupl
 
 
 def _throughput_lines(rep: Report, f: dict, p: Player, what: str, t: dict, died: bool, alive_s: float,
-                      spread: Spread | str | None) -> list[str]:
+                      spread: Spread | str | None, died_early: bool | None = None) -> list[str]:
     """The player's healing or damage on a pull: total, per second, rank in their role, the same spec, top
-    abilities and targets, and on a wipe, where it stands against the spec's kills."""
+    abilities and targets, and on a wipe, where it stands against the spec's kills. `died_early`: they died before
+    the wipe was decided (as `died` when not given)."""
+    died_early = died if died_early is None else died_early
     here = rep.pull_players(f)
     dur_s = (f["endTime"] - f["startTime"]) / 1000
     peers = sorted((e for e in t["entries"] if (q := here.get(e.get("id"))) and q.role == p.role),
@@ -118,7 +121,7 @@ def _throughput_lines(rep: Report, f: dict, p: Player, what: str, t: dict, died:
         line += f", rank {peers.index(mine) + 1} of {len(peers)} {ROLE_NAMES[p.role]} (all specs)"
     if what == "healing" and (over := mine.get("overheal", 0)):
         line += f", overhealing {100 * over / (over + mine['total']):.0f}%"
-    if mine.get("activeTime"):
+    if mine.get("activeTime") and not died_early:  # WCL's, over the whole pull: of one who died, it reads as idling
         line += f", active {100 * mine['activeTime'] / 1000 / dur_s:.0f}% of the pull"
     lines = [line]
     same = [e for e in peers if e is not mine and (q := here.get(e.get("id")))
@@ -130,11 +133,16 @@ def _throughput_lines(rep: Report, f: dict, p: Player, what: str, t: dict, died:
     for a in mine.get("abilities", []):
         top[a["name"]] += a["total"]
     lines.append("  top: " + ", ".join(f"{name} {short(total)}" for name, total in top.most_common(5)))
-    if what == "damage" and (targets := sorted(mine.get("targets", []), key=lambda x: -x.get("total", 0))):
-        lines.append("  by target: " + ", ".join(
-            f"{x['name']} {100 * x['total'] / max(mine['total'], 1):.0f}%" for x in targets[:5]))
+    shares = sorted(((x["name"], 100 * x.get("total", 0) / max(mine["total"], 1)) for x in mine.get("targets", [])),
+                    key=lambda x: -x[1])
+    if what == "damage" and (shown := [f"{name} {share:.0f}%" for name, share in shares[:5] if round(share)]):
+        lines.append("  by target: " + ", ".join(shown))
     if spread is not None and (what == "healing") == (p.role == "healer"):
-        if bench := benchmark_line(f, p, mine["total"] / max(alive_s, 1), spread):
+        if not isinstance(spread, str) and (alive_s < BEST_MIN_S or alive_s < dur_s / OPENER_SHARE):
+            lines.append(f"  against kills: not compared. They were alive {alive_s:.0f} s of the "
+                         f"{clock(dur_s * 1000)} pull, and an opener (Bloodlust and every cooldown at the start) "
+                         "runs above any full kill.")
+        elif bench := benchmark_line(f, p, mine["total"] / max(alive_s, 1), spread):
             lines.append(bench)
     return lines
 
@@ -204,7 +212,11 @@ def time_lost_text(lost: TimeLost) -> str:
     head = (f"Time lost until {clock(lost.until_ms)}, when the wipe was decided" if lost.decided
             else f"Time lost over the {clock(lost.until_ms)} pull")
     shown = [f"{what} {s:.0f} s ({100 * s / max(window, 1):.0f}%)" for s, what in lost.costs() if s >= 1]
-    return f"{head}, biggest first: " + (", ".join(shown) if shown else "none") + "."
+    if not shown:
+        return f"{head}, biggest first: none."
+    # The base once, here: the lines below give the same gaps and cap as shares of the time alive
+    base = f"those {window:.0f} s" if lost.decided else f"its {window:.0f} s"
+    return f"{head}, biggest first, each a share of {base}: " + ", ".join(shown) + "."
 
 
 async def _death_note(rep: Report, f: dict, death: dict) -> str:
@@ -264,7 +276,7 @@ async def resource_use(rep: Report, f: dict, p: Player, casts: list[dict], alive
                      for a, b in sorted(longest))
     lines.append(f"{name} at its cap ({top}) for {100 * capped / 1000 / max(alive_s, 1):.0f}% of their time alive "
                  "(what it gained then was lost)" + (f"; longest stretches: {when}." if when else "."))
-    if lost := await lost_at_cap(rep, [f["id"]], p, kind, until_ts):
+    if lost := await lost_at_cap(rep, [f["id"]], p, kind, until_ts, capped):
         lines.append(lost)
     return lines, name, [(a, b) for a, b in stretches]
 
@@ -292,11 +304,12 @@ async def _mana_line(rep: Report, f: dict, p: Player, end: float) -> str | None:
     return "Mana over the pull: " + " · ".join(marks)
 
 
-async def lost_at_cap(rep: Report, fight_ids: list[int], p: Player, kind: int, until_ts: float | None = None
-                      ) -> str | None:
+async def lost_at_cap(rep: Report, fight_ids: list[int], p: Player, kind: int, until_ts: float | None = None,
+                      capped_ms: float = 0) -> str | None:
     """How much of a resource the player gained and lost at the cap, by source, from WCL's Resources table (one
     pull up to `until_ts`, or several pulls whole, summed): the cap's cost in units, which time at the cap doesn't
-    give (at 5 Holy Power, a Holy Shock's is lost)."""
+    give (at 5 Holy Power, a Holy Shock's is lost). With `capped_ms` at the cap and no loss logged, it says what
+    the table leaves out: a resource that fills by itself (Energy) loses that at the cap, and no event says so."""
     until = {"endTime": until_ts} if until_ts is not None else {}
     try:
         t = await rep.table(fight_ids, "Resources", sourceID=p.id, abilityID=100 + kind, **until)
@@ -313,7 +326,9 @@ async def lost_at_cap(rep: Report, fight_ids: list[int], p: Player, kind: int, u
             f"({100 * lost / gained:.0f}%); by source (Warcraft Logs' names), lost of gained: "
             + ", ".join(f"{r['name']} {r.get('wasted') or 0:.0f} of {r['gains']:.0f}" for r in rows[:LOST_SOURCES])
             + "".join(f"; drained by {r['name']} {-r['gains']:.0f} (net)" for r in drains)
-            + (CAP_READING if lost else ""))
+            + (CAP_READING if lost else
+               f". Its {capped_ms / 1000:.0f} s at the cap can have lost more: these are the gains of spells and "
+               "procs, and what a resource regenerates by itself isn't logged." if capped_ms >= 1000 else ""))
 
 
 async def _heals(p: Player) -> bool:
@@ -394,6 +409,7 @@ class NightPull:
 
 
 BEST_MIN_S = 60  # a player's best pull of a night is one this long until its wipe was decided, when there is one
+OPENER_SHARE = 3  # alive for less than this part of a pull (or than BEST_MIN_S), their output per second is an opener's
 
 
 def best_pulls(pulls: list[NightPull], role: str) -> list[NightPull]:

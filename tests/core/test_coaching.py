@@ -6,7 +6,7 @@ from typing import cast
 from tests.support import CODE, RESTO_SPELLS, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.pulls import Decided
-from wipebot.core.report import Player, adds, build, coaching, deaths, healing, mechanics, tables
+from wipebot.core.report import Player, Report, adds, build, coaching, deaths, healing, mechanics, ranks, tables
 
 
 async def test_the_resource_judged_is_the_one_the_spec_spends(rep, patch_wcl, fake_knowledge):
@@ -105,9 +105,11 @@ def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_
     lost = coaching.time_lost(f, deaths, casts, [(20_000, 25_000)], "Energy", [(85_000, 130_000)],
                               Decided(120_000))
     assert (lost.dead_s, lost.gaps_s, lost.capped_s) == (30, 5, 35)
+    # The shares name what they are of once: lower down, the same gaps and cap are shares of the time alive.
     assert coaching.time_lost_text(lost) == (
-        "Time lost until 2:00, when the wipe was decided, biggest first: Energy at its cap (only its gain lost) 35 s "
-        "(29%), dead (no output at all) 30 s (25%), casting gaps (no cast begun) 5 s (4%).")
+        "Time lost until 2:00, when the wipe was decided, biggest first, each a share of those 120 s: Energy at its "
+        "cap (only its gain lost) 35 s (29%), dead (no output at all) 30 s (25%), casting gaps (no cast begun) 5 s "
+        "(4%).")
     assert coaching.time_lost_text(coaching.time_lost(f, [], casts, [], "", [], None)) == (
         "Time lost over the 3:20 pull, biggest first: none.")
 
@@ -228,3 +230,45 @@ def test_a_cooldown_held_for_a_moment_is_counted_on_the_pulls_that_got_to_it():
     assert coaching._row_cooldowns(pulls[0], cds) == ["Heroism 1/1 at 0:02"]
     assert coaching._row_cooldowns(pulls[1], cds) == ["Spirit Link Totem at 1:11", "Heroism 1/1 at 0:03"]
     assert coaching._row_cooldowns(pulls[6], cds) == ["Spirit Link Totem unused", "Heroism 1/1 at 0:02"]
+
+
+def test_a_player_who_died_early_gets_no_active_time_and_no_percentile_against_kills():
+    # A rogue died 53 s into a 2:42 pull. "active 41% of the pull" is Warcraft Logs' active time over the whole
+    # pull and read as idling; 245k/s alive stood "above the 90th percentile" of full kills, for an opener with
+    # Bloodlust and every cooldown in it.
+    p = Player(7, "Torvek", "Rogue", "Assassination", "dps")
+    f = {"id": 1, "name": "Sszorak", "startTime": 0, "endTime": 162_000}
+    rep = cast(Report, SimpleNamespace(pull_players=lambda f: {7: p}))
+    table = {"entries": [{"id": 7, "name": "Torvek", "total": 13_000_000, "activeTime": 66_000,
+                          "abilities": [{"name": "Envenom", "total": 2_000_000}],
+                          "targets": [{"name": "Sszorak", "total": 12_990_000}, {"name": "Mirelle", "total": 10_000}]}]}
+    spread = ranks.Spread(42, True, [("90th percentile", 234_000.0), ("50th percentile", 214_000.0)])
+    lines = coaching._throughput_lines(rep, f, p, "damage", table, True, 53, spread)
+    assert lines[0] == ("Damage: 13.00M (80.25k/s over the pull, 245.28k/s over the 53 s alive), rank 1 of 1 damage "
+                        "dealers (all specs)")
+    assert lines[2] == "  by target: Sszorak 100%"  # a target that rounds to 0% is left out
+    assert lines[3] == ("  against kills: not compared. They were alive 53 s of the 2:42 pull, and an opener "
+                        "(Bloodlust and every cooldown at the start) runs above any full kill.")
+    # Alive to the end: Warcraft Logs' active time and the place among the kills stand
+    lines = coaching._throughput_lines(rep, f, p, "damage", table, False, 162, spread)
+    assert lines[0].endswith("(all specs), active 41% of the pull")
+    # ... as for one who died in the wipe's fallout, after it was decided
+    assert coaching._throughput_lines(rep, f, p, "damage", table, True, 154, spread, False)[0].endswith(
+        "over the 154 s alive), rank 1 of 1 damage dealers (all specs), active 41% of the pull")
+    assert lines[3].startswith("  against kills: 80.25k/s alive is below the 50th percentile of the 42 ranked")
+    # A pull that was over within a minute is an opener too, whoever lived
+    short_pull = {**f, "endTime": 45_000}
+    assert coaching._throughput_lines(rep, short_pull, p, "damage", table, False, 45, spread)[3].startswith(
+        "  against kills: not compared. They were alive 45 s of the 0:45 pull")
+
+
+async def test_time_at_the_cap_with_no_logged_loss_says_what_the_log_leaves_out(rep, patch_wcl):
+    # "Energy at its cap for 3% of their time alive (what it gained then was lost)" above "lost at the cap 0": the
+    # log counts what spells and procs gained, not what a resource regenerates by itself.
+    f, p = rep.fight(13), rep.player("Enfo")
+    patch_wcl(rep, table={"resources": [{"name": "Venomous Vim", "gains": 261, "wasted": 0}]})
+    assert await coaching.lost_at_cap(rep, [f["id"]], p, 3, capped_ms=2_000) == (
+        "Energy gained 261, of it lost at the cap 0 (0%); by source (Warcraft Logs' names), lost of gained: Venomous "
+        "Vim 0 of 261. Its 2 s at the cap can have lost more: these are the gains of spells and procs, and what a "
+        "resource regenerates by itself isn't logged.")
+    assert (await coaching.lost_at_cap(rep, [f["id"]], p, 3) or "").endswith("Venomous Vim 0 of 261")

@@ -1371,8 +1371,10 @@ async def player_pull(player: Player, pull: Pull = None, boss: Boss = None,
     (no cast begun) or with the resource at its cap (only its gain lost); how much of that the fight forces shows
     against top players of the spec, who meet the same fight (compare_with_top casts). Cooldown uses / possible
     assume pressing on cooldown from the pull until the player died or the wipe was decided. A wipe's percentile
-    against kills runs high on a short pull (Bloodlust and every cooldown come at the start); healing on a wipe
-    is capped by the damage taken."""
+    against kills runs high on a short pull (Bloodlust and every cooldown come at the start), and is left out for
+    a player alive under a minute or under a third of the pull; healing on a wipe is capped by the damage taken.
+    Active time is Warcraft Logs' over the whole pull, left out for a player who died before the wipe was
+    decided."""
     text = await coaching.player_pull(await lib().report(report), player, pull, boss)
     return await _shown("player_pull", {"player": player, "pull": pull, "boss": boss, "report": report}, text, ctx)
 
