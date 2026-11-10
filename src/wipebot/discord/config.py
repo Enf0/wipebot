@@ -16,12 +16,18 @@ def check_settings() -> None:
     the Warcraft Logs client. A copy that answers only on servers' own keys (own_keys) needs no key of its own."""
     from wipebot.core import wcl
     missing = [name for name in ("DISCORD_TOKEN",) if not os.environ.get(name)]
-    if not os.environ.get("ANTHROPIC_API_KEY") and not openrouter_key() and not own_keys():
+    if not has_key() and not own_keys():
         missing.insert(0, "ANTHROPIC_API_KEY or OPENROUTER_API_KEY")
     if not wcl.client_credentials():
         missing.append("WCL_CLIENT_ID and WCL_CLIENT_SECRET: a client from https://www.warcraftlogs.com/api/clients")
     if missing:
         raise SystemExit("Not set (.env.example says what each is):\n" + "\n".join(f"  {m}" for m in missing))
+
+
+def has_key() -> bool:
+    """Whether the bot has an AI key of its own (ANTHROPIC_API_KEY or OPENROUTER_API_KEY), for what it writes
+    itself: a copy that answers only on servers' own keys (own_keys) may have none."""
+    return bool(os.environ.get("ANTHROPIC_API_KEY") or openrouter_key())
 
 
 def openrouter_key() -> str | None:

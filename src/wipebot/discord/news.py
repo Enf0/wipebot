@@ -3,7 +3,8 @@ hasn't posted yet, in the server's language (/wipebot setup language:). From CHA
 Discord notices (tagged `Agent` or `Discord`), the model says each in a short line for raiders, most important
 first, leaving out what only matters elsewhere; the post shows each item's pictures under its line and counts what it
 left to the changelog. What's new decides whether a post is worth it and leads it; a few fixes may follow. Without
-the model, in English, each item's bold lead and first sentence, Added first, then Changed and Fixed."""
+the model (a bot with no AI key of its own, whose servers each answer on theirs), in English, each item's bold lead
+and first sentence, Added first, then Changed and Fixed."""
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -50,6 +51,11 @@ without the name: it follows>", \
 "more": "<'more in the changelog' in {language}>", "all": "<'All of it in the changelog' in {language}>"}}
 
 {items}"""
+
+
+class NotWritten(Exception):
+    """The model didn't write the post: it failed (no credit, no key), or answered something else than the lines
+    asked for. Not that it found nothing worth posting, which is an answer."""
 
 
 @dataclass
@@ -198,7 +204,7 @@ async def write(changelog: str, after: str, name: str, ask: Callable[[str], Awai
                 language: str | None = None) -> Post | None:
     """What's new since version `after`, for Discord, its lines by the model (`ask`: a prompt to its answer) in
     `language` (English for None) or, without one, in English, each item's bold lead and first sentence. None when
-    nothing is new for Discord, the model found nothing worth a raider's read, or it failed."""
+    nothing is new for Discord or the model found nothing worth a raider's read; NotWritten when the model failed."""
     found = items(changelog, after)
     version = latest(changelog)
     if not found or not version:
@@ -211,9 +217,11 @@ async def write(changelog: str, after: str, name: str, ask: Callable[[str], Awai
         prompt = REWRITE.format(name=name, shown=SHOWN, fixes=FIXES, items=numbered, language=language or ENGLISH)
         try:
             answer = picked(await ask(prompt), len(found))
-        except Exception:  # nothing posted: its changes wait for the next post
-            answer = None
-        if answer is None or not answer[0]:
+        except Exception as e:
+            raise NotWritten(f"{type(e).__name__}: {e}") from e
+        if answer is None:
+            raise NotWritten("the model's answer wasn't the lines asked for")
+        if not answer[0]:  # nothing posted: its changes wait for the next post
             return None
         picks, labels = answer
     if not (picks := shaped(picks, found)):

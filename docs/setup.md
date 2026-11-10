@@ -112,6 +112,8 @@ they then press **Connect** on the plugin's connector and sign in with Warcraft 
      (OpenRouter or Anthropic) for the server's answers to run on.
 
    `footer:` on setup ends answers with what they cost, and `news:` picks a channel for what's new in each release.
+   The bot words that post with its own AI key; with `WIPEBOT_OWN_KEYS` and no key of its own, it posts the
+   changelog's own lines, in English.
 
 Raiders @mention it or reply to it in a channel, or DM it; `/help` tells them what to ask, and `/usage` what's left of
 the hour's Warcraft Logs points (and of the budget, [below](#a-budget-the-guild-chips-in-to)). With

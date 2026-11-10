@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import discord
+import pytest
 
 from wipebot.discord import commands, news
 
@@ -94,15 +95,20 @@ async def test_without_the_model_a_post_has_each_items_lead_and_first_sentence()
     assert await news.write("## [0.2.0]\n\n- `MCP` Claude's.\n\n## [0.1.0]\n", "0.1.0", "Wipebot") is None
 
 
-async def test_nothing_is_posted_when_the_model_keeps_nothing_or_fails():
+async def test_nothing_is_posted_when_the_model_keeps_nothing_and_a_failure_is_told_apart():
     async def fails(prompt: str) -> str:
         raise RuntimeError("the API is down")
 
     async def nothing_worth_it(prompt: str) -> str:
         return json.dumps({"lines": [], **news.LABELS})
 
-    for ask in (fails, nothing_worth_it):
-        assert await news.write(CHANGELOG, "0.2.0", "Wipebot", ask) is None
+    async def chats(prompt: str) -> str:
+        return "Sure! Here's what's new."
+    assert await news.write(CHANGELOG, "0.2.0", "Wipebot", nothing_worth_it) is None
+    with pytest.raises(news.NotWritten, match="RuntimeError: the API is down"):
+        await news.write(CHANGELOG, "0.2.0", "Wipebot", fails)
+    with pytest.raises(news.NotWritten, match="wasn't the lines asked for"):
+        await news.write(CHANGELOG, "0.2.0", "Wipebot", chats)
 
 
 def test_fixes_follow_whats_new_a_few_at_most_and_alone_post_nothing():
@@ -134,6 +140,7 @@ async def test_a_new_release_is_posted_once_to_each_chosen_channel_and_the_first
     channels = {30: Channel(30), 31: Channel(31)}
     monkeypatch.setattr(bot, "get_channel", channels.get)
 
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setattr(bot, "_write_news", keeps_all)
     bot.store.set_news_channel(1001, 30)
     bot.store.set_news_channel(1002, 31)
@@ -204,6 +211,7 @@ async def test_a_patch_posts_nothing_and_the_next_minor_posts_it_too(bot, monkey
     channel = Channel(30)
     monkeypatch.setattr(bot, "get_channel", {30: channel}.get)
 
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setattr(bot, "_write_news", keeps_all)
     bot.store.set_news_channel(1001, 30)
     bot.store.set_state("news_version", "0.1.0")
@@ -226,6 +234,7 @@ async def test_a_minor_with_nothing_worth_it_waits_for_the_next_post(bot, monkey
     async def nothing_worth_it(prompt: str) -> str:
         asked.append(prompt)
         return json.dumps({"lines": [], **news.LABELS})
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setattr(bot, "_write_news", nothing_worth_it)
     bot.store.set_news_channel(1001, 30)
     bot.store.set_state("news_version", "0.1.0")
@@ -238,3 +247,45 @@ async def test_a_minor_with_nothing_worth_it_waits_for_the_next_post(bot, monkey
     await bot._post_news()
     assert "**Newer.**" in channel.texts[0] and "**Raid damage at a moment.**" in channel.texts[0]  # 0.3.0's too
     assert bot.store.state("news_version") == "0.4.0"
+
+
+async def test_a_bot_without_a_key_of_its_own_posts_the_changelogs_own_lines(bot, monkeypatch):
+    """Where each server answers on its own key the bot has none to write with: the post failed without a word, once
+    per release, and the release was marked as looked at."""
+    for name in ("ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(news, "read", lambda: CHANGELOG)
+    channel = Channel(30)
+    monkeypatch.setattr(bot, "get_channel", {30: channel}.get)
+
+    async def no_model(prompt: str) -> str:
+        raise AssertionError("asked the model")
+    monkeypatch.setattr(bot, "_write_news", no_model)
+    bot.store.set_news_channel(1001, 30)
+    bot.store.set_language(1001, "Norwegian")
+    bot.store.set_state("news_version", "0.1.0")
+    await bot._post_news()
+    await bot._post_news()  # a restart on the same release
+    assert len(channel.texts) == 1 and bot.store.state("news_version") == "0.3.0"
+    assert channel.texts[0].startswith('### What\'s new in Wipebot 0.3.0\n- **Raid damage at a moment.** "What was our '
+                                       'raid DPS at 2:15?" is answered from a window.\n- **Quieter buttons.**')
+
+
+async def test_a_post_the_model_failed_to_write_is_tried_again_at_the_next_start(bot, monkeypatch, caplog):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setattr(news, "read", lambda: CHANGELOG)
+    channel = Channel(30)
+    monkeypatch.setattr(bot, "get_channel", {30: channel}.get)
+
+    async def out_of_credit(prompt: str) -> str:
+        raise RuntimeError("billing_error")
+    monkeypatch.setattr(bot, "_write_news", out_of_credit)
+    bot.store.set_news_channel(1001, 30)
+    bot.store.set_state("news_version", "0.1.0")
+    with caplog.at_level("WARNING"):
+        await bot._post_news()
+    assert channel.texts == [] and bot.store.state("news_checked") is None
+    assert "what's new in 0.3.0 wasn't written (RuntimeError: billing_error)" in caplog.text
+    monkeypatch.setattr(bot, "_write_news", keeps_all)
+    await bot._post_news()
+    assert len(channel.texts) == 1 and bot.store.state("news_checked") == "0.3.0"
