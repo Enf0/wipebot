@@ -534,11 +534,11 @@ DAMAGE_BY_ABILITY: dict[str, Any] = {"hostilityType": "Friendlies", "viewBy": "A
 def _soak_calls(note: Note, groups: dict[str, list[str]], when) -> dict[str, list[float] | None]:
     """When the note calls each group of a soak section to soak on a pull, in ms from its start: the times of the
     callouts to exactly the group's players. None for a group the note has no such callout for: the note doesn't
-    time its soaks, so a hit at any time may be its."""
+    time its soaks, so a hit at any time may be its. A label with no players has no soaks: no times, and not None."""
     out: dict[str, list[float] | None] = {}
     for label, names in groups.items():
         mine = [c for c in note.callouts if names and frozenset(c.players) == frozenset(names)]
-        out[label] = [at for c in mine if (at := when(c)) is not None] if mine else None
+        out[label] = [at for c in mine if (at := when(c)) is not None] if mine or not names else None
     return out
 
 
@@ -547,15 +547,16 @@ def _whose(hit: AbstractSet[str], at: float, members: dict[str, list[str]],
     """The group a hit of a soak section's ability is given to, or "" with why it's given to none, and how many
     players of each group it could be given to were hit. Those are the groups the note calls to soak within
     SOAK_CALL_MS of the hit, and the ones it never times (`_soak_calls`); of them, the one with most of its players
-    hit. With none called then, the hit is OUTSIDE the note's soak times. UNCLEAR is a hit that singles none out: no
-    player of theirs hit, as many of two groups', or of the one with most only SOAK_FEW or fewer and under half of
-    it."""
+    hit. With none called then, and no player hit of a group it never times, the hit is OUTSIDE the note's soak
+    times. UNCLEAR is a hit that singles none out: no player of theirs hit, as many of two groups', or of the one
+    with most only SOAK_FEW or fewer and under half of it. Two labels for the same players (the first soak and the
+    third) are one group, under the first."""
     near = {label: len(hit & set(members[label])) for label, times in calls.items()
             if times is None or any(abs(t - at) <= SOAK_CALL_MS for t in times)}
-    if not near:
-        return "", OUTSIDE, near
+    if not any(n or calls[label] is not None for label, n in near.items()):
+        return "", OUTSIDE, {}
     label, most = max(near.items(), key=lambda kv: kv[1])
-    tied = sum(n == most for n in near.values()) > 1
+    tied = len({frozenset(members[g]) for g, n in near.items() if n == most}) > 1
     if not most or tied or (most <= SOAK_FEW and 2 * most < len(members[label])):
         return "", UNCLEAR, near
     return label, "", near

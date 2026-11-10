@@ -113,14 +113,55 @@ async def test_a_hit_on_a_player_or_two_or_as_many_of_two_groups_is_given_to_nei
 
 
 async def test_a_group_the_note_never_calls_is_matched_by_who_was_hit_alone_and_the_output_says_so():
-    """A soak group with no timed callout of its own has no soak times in the note: a hit at any time may be its."""
+    """A soak group with no timed callout of its own has no soak times in the note: a hit at any time may be its.
+    A hit on none of its players, with no other group called then, is outside the note's soak times all the same
+    (it read "can't tell whose soak ... (Center 0)")."""
     section = await _soaks(_note({"Right": (61,), "Left": (63,)}), {
         61_200: ["Torvek", "Mirelle"], 200_000: ["Brightleaf", "Stonewall", "Ysolde"], 300_000: ["Halvard", "Rowan"]})
     assert section.untimed == ["Center"]
-    assert [(h.label, h.why) for h in section.hits] == [("Right", ""), ("Center", ""), ("", note.UNCLEAR)]
-    assert section.hits[2].near == {"Center": 0}  # Left's players, with Left called 4 minutes before
-    assert note._pull_soaks(REP, [section], 600_000)[-1] == (
-        "  The note has no timed callout to Center: a hit at any time may be its, by the players hit alone")
+    # the last on Left's players, with Left called 4 minutes before
+    assert [(h.label, h.why, h.near) for h in section.hits] == [
+        ("Right", "", {"Right": 2, "Left": 0, "Center": 0}), ("Center", "", {"Center": 3}), ("", note.OUTSIDE, {})]
+    assert note._pull_soaks(REP, [section], 600_000)[-2:] == [
+        "  5:00 outside the note's soak times: 2 players hit, 300.00k each; counted for no one",
+        "  The note has no timed callout to Center: a hit at any time may be its, by the players hit alone"]
+
+
+async def test_a_label_with_no_players_is_no_group_a_hit_could_be_given_to():
+    """A label left empty under the soak heading ("Soak Right:" with no names yet) read as a group the note never
+    times: the output said a hit at any time may be its, and a hit far from every callout was "can't tell whose soak
+    ... (Soak Right 0)", not outside the note's soak times."""
+    [plan] = note.parse("EncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
+                        "time:61;ph:1;tag:Torvek Mirelle Halvard;text:Soak Left;\n\n"
+                        "Feast Soaks\nSoak Left: Torvek Mirelle Halvard\nSoak Right:\n")
+    assert plan.groups == {"Feast Soaks": {"Soak Left": ["Torvek", "Mirelle", "Halvard"], "Soak Right": []}}
+    section = await _soaks(plan, {61_200: ["Torvek", "Mirelle"], 200_000: ["Rowan", "Corwin", "Garrick"]})
+    assert section.untimed == []
+    assert [(h.label, h.why, h.near) for h in section.hits] == [("Soak Left", "", {"Soak Left": 2}),
+                                                                ("", note.OUTSIDE, {})]
+    assert note._pull_soaks(REP, [section], 600_000)[1:] == [
+        "  1:01 Soak Left: 2 of 3 hit, 300.00k each; not hit: Halvard (alive)",
+        "  3:20 outside the note's soak times: 3 players hit, 300.00k each; counted for no one"]
+
+
+async def test_the_same_players_under_two_labels_are_one_group_not_a_tie():
+    """A note that sends one group to the first soak and the third lists it twice ("Soak 1", "Soak 3") and calls the
+    same players both times. Each of their soaks was as many of two groups, so every one read "can't tell whose
+    soak" and no miss of theirs was counted. They are one group, under its first label."""
+    groups = {"Soak 1": ["Torvek", "Mirelle", "Halvard"], "Soak 2": ["Rowan", "Brightleaf", "Stonewall"],
+              "Soak 3": ["Torvek", "Mirelle", "Halvard"]}
+    plan = note.Note(3418, "Mythic", "Vashnik", groups={"Feast Soaks": groups}, callouts=[
+        note.Callout(61 + 20 * i, 1, tuple(names), label) for i, (label, names) in enumerate(groups.items())])
+    section = await _soaks(plan, {61_200: ["Torvek", "Mirelle", "Halvard"], 81_200: ["Rowan", "Brightleaf"],
+                                  101_200: ["Torvek", "Mirelle"]})
+    assert [(h.label, h.why) for h in section.hits] == [("Soak 1", ""), ("Soak 2", ""), ("Soak 1", "")]
+    assert [h.absent for h in section.hits] == [[], [("Stonewall", "alive")], [("Halvard", "alive")]]
+    night = note._night_soaks(REP, cast(Any, [SimpleNamespace(f={"id": 1}, soaks=[section])]))
+    assert night[1:] == [
+        "  Halvard (Soak 1): hit by 1 of 2; missed 1: p1 1:41",
+        "  Stonewall (Soak 2): hit by 0 of 1; missed 1: p1 1:21",
+        "  Missed none while alive: Brightleaf (Soak 2) 1 of 1; Mirelle (Soak 1) 2 of 2; Rowan (Soak 2) 1 of 1; "
+        "Torvek (Soak 1) 2 of 2"]
 
 
 async def test_a_night_counts_soaks_per_player_and_group_and_lists_the_hits_given_to_no_group():
