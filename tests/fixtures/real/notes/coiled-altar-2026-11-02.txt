@@ -1,0 +1,273 @@
+EncounterID:3429;Difficulty:Mythic;Name:Coiled Altar
+
+time:1;ph:1;tag:Namsus;spellid:1291894;
+time:3;ph:1;tag:Miralupa;spellid:200183;
+time:4;ph:1;tag:Cptola;spellid:31884;
+time:22;ph:1;tag:Miralupa;spellid:47788;text:Guardian Spirit Wutroll;
+time:37;ph:1;tag:Lïzårðmâñ;spellid:374968;
+time:39;ph:1;tag:Namsus;spellid:200183;
+time:41;ph:1;tag:Enfo;spellid:192077;
+time:44;ph:1;tag:Miralupa;spellid:64843;
+time:45;ph:1;tag:Scopidruid;spellid:106898;
+time:47;ph:1;tag:Lïzårðmâñ;spellid:374227;
+time:58;ph:1;tag:Namsus;spellid:47788;text:Guardian Spirit Wutroll;
+time:60;ph:1;tag:Enfo;spellid:114052;
+time:85;ph:1;tag:Dragepie;spellid:374968;
+time:107;ph:1;tag:everyone;text:Personals;
+time:108;ph:1;tag:Dragepie;spellid:374227;
+time:108;ph:1;tag:Namsus;spellid:64843;
+time:125;ph:1;tag:Cptola;spellid:31884;
+time:128;ph:1;tag:Miralupa;spellid:200183;
+time:130;ph:1;tag:Scopidruid;spellid:106898;
+time:150;ph:1;tag:Namsus;spellid:1291894;
+time:158;ph:1;tag:Miralupa;spellid:1236616;
+time:161;ph:1;tag:Namsus;spellid:1236616;
+time:162;ph:1;tag:Namsus;spellid:200183;
+time:167;ph:1;bossSpell:1288624;tag:Nexsozz;spellid:51052;
+time:167;ph:1;bossSpell:1288624;tag:Miralupa;spellid:64843;
+time:167;ph:1;bossSpell:1288624;tag:Fappachino;spellid:196718;
+time:167;ph:1;bossSpell:1288624;tag:Pomaa;spellid:97462;
+time:167;ph:1;bossSpell:1288624;tag:Cptola;spellid:31821;
+time:167;ph:1;bossSpell:1288624;tag:everyone;spellid:1298795;text:Push boss to phase 2;countdown:6;dur:30;colors:1 0.16 0.16 1;DisplayType:Circle;
+time:1;ph:2;tag:Cptola;spellid:1236616;
+time:2;ph:2;bossSpell:1288635;tag:Lïzårðmâñ;spellid:374227;
+time:2;ph:2;bossSpell:1288635;tag:Enfo;spellid:192077;
+time:2;ph:2;bossSpell:1288635;tag:Enfo;spellid:98008;
+time:2;ph:2;bossSpell:1288635;tag:Lïzårðmâñ;spellid:363534;
+time:2;ph:2;bossSpell:1288635;tag:Lïzårðmâñ;spellid:1236616;
+time:7;ph:2;tag:everyone;spellid:1285643;text:Go to {diamond} for Dreadmarch;countdown:3;dur:10;colors:0.63 0.16 1 1;DisplayType:Text;
+time:12;ph:2;tag:Sonyosh;spellid:192077;
+time:13;ph:2;tag:Scopidruid;spellid:106898;
+time:14;ph:2;tag:Lïzårðmâñ;spellid:374968;
+time:31;ph:2;tag:Dragepie;spellid:374968;
+time:44;ph:2;tag:everyone;spellid:1285643;text:Go to {diamond} for Dreadmarch;countdown:3;dur:10;colors:0.63 0.16 1 1;DisplayType:Text;
+time:66;ph:2;tag:Namsus;spellid:64843;
+time:67;ph:2;tag:Enfo;spellid:114052;
+time:67;ph:2;tag:Miralupa;spellid:47788;text:Guardian Spirit Wutroll;
+time:67;ph:2;tag:Cptola;spellid:6940;text:Blessing of Sacrifice Wutroll;
+time:68;ph:2;tag:Lïzårðmâñ;spellid:357170;text:Time Dilation Wutroll;
+time:70;ph:2;tag:Cptola;spellid:31884;
+time:73;ph:2;tag:Miralupa;spellid:200183;
+time:92;ph:2;tag:everyone;spellid:1285643;text:Go to {diamond} for Dreadmarch;countdown:3;dur:10;colors:0.63 0.16 1 1;DisplayType:Text;
+time:98;ph:2;tag:Scopidruid;spellid:106898;
+time:106;ph:2;tag:Namsus;spellid:1291894;
+time:110;ph:2;tag:Namsus;spellid:200183;
+time:129;ph:2;tag:everyone;spellid:1285643;text:Go to {diamond} for Dreadmarch;countdown:3;dur:10;colors:0.63 0.16 1 1;DisplayType:Text;
+time:134;ph:2;tag:Lïzårðmâñ;spellid:374968;
+time:149;ph:2;tag:Miralupa;spellid:64843;
+time:153;ph:2;tag:Lïzårðmâñ;spellid:357170;text:Time Dilation Wutroll;
+time:153;ph:2;tag:Namsus;spellid:47788;text:Guardian Spirit Wutroll;
+time:155;ph:2;tag:Enfo;spellid:192077;
+time:157;ph:2;tag:Dragepie;spellid:374968;
+time:177;ph:2;tag:everyone;spellid:1285643;text:Go to {diamond} for Dreadmarch;countdown:3;dur:10;colors:0.63 0.16 1 1;DisplayType:Text;
+time:183;ph:2;tag:Scopidruid;spellid:106898;
+time:205;ph:2;tag:Sonyosh;spellid:192077;
+time:215;ph:2;tag:everyone;spellid:1304033;text:Push boss to intermission;dur:10;colors:1 0.5 0 1;DisplayType:Circle;
+time:6;ph:2.5;tag:Miralupa;spellid:200183;
+time:11;ph:2.5;tag:Namsus;spellid:64843;
+time:15;ph:2.5;tag:Dragepie;spellid:374227;
+time:15;ph:2.5;tag:Lïzårðmâñ;spellid:374227;
+time:15;ph:2.5;tag:Namsus;spellid:1291894;
+time:24;ph:2.5;tag:Enfo;spellid:98008;
+time:24;ph:2.5;tag:Pomaa;spellid:97462;
+time:16;ph:3;tag:Cptola;spellid:31884;
+time:22;ph:3;tag:Namsus;spellid:200183;
+time:32;ph:3;tag:Scopidruid;spellid:106898;
+time:35;ph:3;tag:Miralupa;spellid:64843;
+time:35;ph:3;tag:Enfo;spellid:114052;
+time:35;ph:3;tag:Fappachino;spellid:196718;
+time:35;ph:3;tag:Cptola;spellid:31821;
+time:36;ph:3;tag:everyone;text:Personals;
+time:38;ph:3;tag:Enfo;spellid:192077;
+time:39;ph:3;tag:Lïzårðmâñ;spellid:363534;
+time:40;ph:3;tag:Nexsozz;spellid:51052;
+time:42;ph:3;tag:Lïzårðmâñ;spellid:374968;
+time:52;ph:3;tag:Dragepie;spellid:374968;
+time:64;ph:3;tag:Lïzårðmâñ;spellid:357170;text:Time Dilation Wutroll;
+time:65;ph:3;tag:Cptola;spellid:6940;text:Blessing of Sacrifice Wutroll;
+time:81;ph:3;tag:Enfo;spellid:1236616;
+time:93;ph:3;tag:Miralupa;spellid:200183;
+time:94;ph:3;tag:Miralupa;spellid:1236616;
+time:100;ph:3;tag:Dragepie;spellid:374227;
+time:100;ph:3;tag:Lïzårðmâñ;spellid:374227;
+time:100;ph:3;tag:Namsus;spellid:64843;
+time:104;ph:3;tag:Namsus;spellid:1291894;
+time:108;ph:3;tag:everyone;spellid:1310882;text:Gloombombs to Narnia;colors:0.2 0.4 1 1;DisplayType:Text;
+time:132;ph:3;tag:Scopidruid;spellid:106898;
+time:132;ph:3;tag:everyone;text:Personals;
+time:135;ph:3;tag:Sonyosh;spellid:192077;
+time:135;ph:3;tag:Lïzårðmâñ;spellid:357170;text:Time Dilation Wutroll;
+time:136;ph:3;tag:Cptola;spellid:31884;
+time:144;ph:3;tag:everyone;spellid:1282403;text:Ignore orbs;colors:1 0.16 0.16 1;DisplayType:Text;
+time:152;ph:3;tag:Namsus;spellid:200183;
+time:152;ph:3;tag:Namsus;spellid:1236616;
+time:158;ph:3;tag:everyone;spellid:46221;text:Nuke boss;TTS:Nuke boss, retards;DisplayType:Text;
+time:159;ph:3;tag:Enfo;spellid:192077;
+time:159;ph:3;tag:Miralupa;spellid:64843;
+time:172;ph:3;tag:everyone;spellid:1310882;text:Gloombombs to Narnia;colors:0.2 0.4 1 1;DisplayType:Text;
+time:180;ph:3;tag:Lïzårðmâñ;spellid:374968;
+time:181;ph:3;tag:Pomaa;spellid:97462;
+time:200;ph:3;tag:Dragepie;spellid:374968;
+time:203;ph:3;tag:Enfo;spellid:98008;
+time:215;ph:3;tag:Enfo;spellid:114052;
+time:7;ph:1;tag:Krøpling;text:Grab {cross} purple orb;dur:12;colors:1 0.16 0.16 1;DisplayType:Text;
+time:50;ph:1;tag:Krøpling;text:Grab {cross} purple orb;dur:12;colors:1 0.16 0.16 1;DisplayType:Text;
+time:92;ph:1;tag:Krøpling;text:Grab {cross} purple orb;dur:12;colors:1 0.16 0.16 1;DisplayType:Text;
+time:7;ph:1;tag:Karadim;text:Grab {square} purple orb;dur:12;colors:0.2 0.4 1 1;DisplayType:Text;
+time:50;ph:1;tag:Karadim;text:Grab {square} purple orb;dur:12;colors:0.2 0.4 1 1;DisplayType:Text;
+time:92;ph:1;tag:Karadim;text:Grab {square} purple orb;dur:12;colors:0.2 0.4 1 1;DisplayType:Text;
+time:7;ph:1;tag:Dragepie;text:Grab {triangle} purple orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:50;ph:1;tag:Dragepie;text:Grab {triangle} purple orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:92;ph:1;tag:Dragepie;text:Grab {triangle} purple orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:7;ph:1;tag:Cptola;text:Grab {diamond} purple orb;dur:12;colors:0.63 0.16 1 1;DisplayType:Text;
+time:50;ph:1;tag:Cptola;text:Grab {diamond} purple orb;dur:12;colors:0.63 0.16 1 1;DisplayType:Text;
+time:92;ph:1;tag:Cptola;text:Grab {diamond} purple orb;dur:12;colors:0.63 0.16 1 1;DisplayType:Text;
+time:7;ph:1;tag:Zebinolock;text:Grab {star} green orb;dur:12;colors:1 1 0.2 1;DisplayType:Text;
+time:50;ph:1;tag:Zebinolock;text:Grab {star} green orb;dur:12;colors:1 1 0.2 1;DisplayType:Text;
+time:92;ph:1;tag:Zebinolock;text:Grab {star} green orb;dur:12;colors:1 1 0.2 1;DisplayType:Text;
+time:7;ph:1;tag:Lïzårðmâñ;text:Grab {skull} green orb;dur:12;colors:1 1 1 1;DisplayType:Text;
+time:50;ph:1;tag:Lïzårðmâñ;text:Grab {skull} green orb;dur:12;colors:1 1 1 1;DisplayType:Text;
+time:92;ph:1;tag:Lïzårðmâñ;text:Grab {skull} green orb;dur:12;colors:1 1 1 1;DisplayType:Text;
+time:7;ph:1;tag:Peggerino;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:50;ph:1;tag:Peggerino;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:92;ph:1;tag:Peggerino;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:7;ph:1;tag:Scopidruid;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:50;ph:1;tag:Scopidruid;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:92;ph:1;tag:Scopidruid;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:7;ph:1;tag:Sonyosh Namsus Martin Enfo;text:Green orb backup;TTS:false;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:50;ph:1;tag:Sonyosh Namsus Martin Enfo;text:Green orb backup;TTS:false;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:92;ph:1;tag:Sonyosh Namsus Martin Enfo;text:Green orb backup;TTS:false;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:7;ph:3;tag:Cptola;text:Grab {cross} purple orb;dur:12;colors:1 0.16 0.16 1;DisplayType:Text;
+time:48;ph:3;tag:Cptola;text:Grab {cross} purple orb;dur:12;colors:1 0.16 0.16 1;DisplayType:Text;
+time:109;ph:3;tag:Cptola;text:Grab {cross} purple orb;dur:12;colors:1 0.16 0.16 1;DisplayType:Text;
+time:7;ph:3;tag:Karadim;text:Grab {square} purple orb;dur:12;colors:0.2 0.4 1 1;DisplayType:Text;
+time:48;ph:3;tag:Karadim;text:Grab {square} purple orb;dur:12;colors:0.2 0.4 1 1;DisplayType:Text;
+time:109;ph:3;tag:Karadim;text:Grab {square} purple orb;dur:12;colors:0.2 0.4 1 1;DisplayType:Text;
+time:7;ph:3;tag:Dragepie;text:Grab {triangle} purple orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:48;ph:3;tag:Dragepie;text:Grab {triangle} purple orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:109;ph:3;tag:Dragepie;text:Grab {triangle} purple orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:7;ph:3;tag:Krøpling;text:Grab {diamond} purple orb;dur:12;colors:0.63 0.16 1 1;DisplayType:Text;
+time:48;ph:3;tag:Krøpling;text:Grab {diamond} purple orb;dur:12;colors:0.63 0.16 1 1;DisplayType:Text;
+time:109;ph:3;tag:Krøpling;text:Grab {diamond} purple orb;dur:12;colors:0.63 0.16 1 1;DisplayType:Text;
+time:7;ph:3;tag:Zebinolock;text:Grab {star} green orb;dur:12;colors:1 1 0.2 1;DisplayType:Text;
+time:48;ph:3;tag:Zebinolock;text:Grab {star} green orb;dur:12;colors:1 1 0.2 1;DisplayType:Text;
+time:109;ph:3;tag:Zebinolock;text:Grab {star} green orb;dur:12;colors:1 1 0.2 1;DisplayType:Text;
+time:7;ph:3;tag:Lïzårðmâñ;text:Grab {skull} green orb;dur:12;colors:1 1 1 1;DisplayType:Text;
+time:48;ph:3;tag:Lïzårðmâñ;text:Grab {skull} green orb;dur:12;colors:1 1 1 1;DisplayType:Text;
+time:109;ph:3;tag:Lïzårðmâñ;text:Grab {skull} green orb;dur:12;colors:1 1 1 1;DisplayType:Text;
+time:7;ph:3;tag:Peggerino;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:48;ph:3;tag:Peggerino;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:109;ph:3;tag:Peggerino;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:7;ph:3;tag:Scopidruid;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:48;ph:3;tag:Scopidruid;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:109;ph:3;tag:Scopidruid;text:Grab side green orb;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:7;ph:3;tag:Sonyosh Namsus Martin Enfo;text:Green orb backup;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:48;ph:3;tag:Sonyosh Namsus Martin Enfo;text:Green orb backup;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:109;ph:3;tag:Sonyosh Namsus Martin Enfo;text:Green orb backup;dur:12;colors:0.16 1 0.16 1;DisplayType:Text;
+time:47.97;ph:1;tag:Draiman Martin Slushmania Pomaa Lïzårðmâñ Scopidruid;text:Soak Guillotine {square} + Grab Orbs;colors:0.2 0.4 1 1;DisplayType:Text;
+time:132.99;ph:1;tag:Karadim Wutroll Nalaxd Martin Cptola Namsus;text:Soak Guillotine {square};colors:0.2 0.4 1 1;DisplayType:Text;
+time:21.69;ph:3;tag:Draiman Martin Fappachino Peggerino Lïzårðmâñ Scopidruid;text:Soak Guillotine {square};colors:0.2 0.4 1 1;DisplayType:Text;
+time:86.13;ph:3;tag:Slushmania Pomaa Nexsozz Nalaxd Sonyosh Namsus;text:Soak Guillotine {square};colors:0.2 0.4 1 1;DisplayType:Text;
+time:186.13;ph:3;tag:Dragepie Martin Fappachino Peggerino Lïzårðmâñ Scopidruid Krøpling Zebinolock Miralupa Enfo;text:Soak Guillotine {square};colors:0.2 0.4 1 1;DisplayType:Text;
+time:9;ph:2;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:45;ph:2;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:94;ph:2;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:130;ph:2;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:179;ph:2;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:58;ph:3;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:154;ph:3;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:202;ph:3;tag:Wutroll;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:9;ph:2;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:45;ph:2;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:94;ph:2;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:130;ph:2;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:179;ph:2;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:58;ph:3;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:154;ph:3;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:202;ph:3;tag:Pomaa;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:9;ph:2;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:45;ph:2;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:94;ph:2;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:130;ph:2;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:179;ph:2;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:58;ph:3;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:154;ph:3;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:202;ph:3;tag:Fappachino;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:9;ph:2;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:45;ph:2;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:94;ph:2;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:130;ph:2;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:179;ph:2;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:58;ph:3;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:154;ph:3;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:202;ph:3;tag:Scopidruid;text:CC Mindcontrol;dur:6;colors:0.63 0.16 1 1;DisplayType:Text;
+time:23;ph:2;tag:Peggerino;spellid:1714;text:Curse Unmarked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:56;ph:2;tag:Peggerino;spellid:1714;text:Curse Unmarked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:108;ph:2;tag:Peggerino;spellid:1714;text:Curse Unmarked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:141;ph:2;tag:Peggerino;spellid:1714;text:Curse Unmarked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:193;ph:2;tag:Peggerino;spellid:1714;text:Curse Unmarked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:226;ph:2;tag:Peggerino;spellid:1714;text:Curse Unmarked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:23;ph:2;tag:Zebinolock;spellid:1714;text:Curse Raid-Marked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:56;ph:2;tag:Zebinolock;spellid:1714;text:Curse Raid-Marked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:108;ph:2;tag:Zebinolock;spellid:1714;text:Curse Raid-Marked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:141;ph:2;tag:Zebinolock;spellid:1714;text:Curse Raid-Marked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:193;ph:2;tag:Zebinolock;spellid:1714;text:Curse Raid-Marked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:226;ph:2;tag:Zebinolock;spellid:1714;text:Curse Raid-Marked Add;dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+time:128.99;ph:1;tag:Karadim;text:External Guillotine Target;dur:5;colors:1 0.5 0 1;DisplayType:Text;
+time:5;ph:2.5;tag:Lïzårðmâñ;text:Soak Ghost at {cross};dur:5;colors:1 0.16 0.16 1;DisplayType:Text;
+time:5;ph:2.5;tag:Cptola;text:Soak Ghost at {triangle};dur:5;colors:0.16 1 0.16 1;DisplayType:Text;
+time:5;ph:2.5;tag:Karadim;text:Soak Ghost at {diamond};dur:5;colors:0.63 0.16 1 1;DisplayType:Text;
+
+Orb Carriers
+{cross} purple orb: Krøpling
+{square} purple orb: Karadim
+{triangle} purple orb: Dragepie
+{diamond} purple orb: Cptola
+{star} green orb: Zebinolock
+{skull} green orb: Lïzårðmâñ
+side green orb: Peggerino
+side green orb: Scopidruid
+Orb Helpers: Sonyosh Namsus Martin Enfo
+
+Orb Carriers
+{cross} purple orb: Cptola
+{square} purple orb: Karadim
+{triangle} purple orb: Dragepie
+{diamond} purple orb: Krøpling
+{star} green orb: Zebinolock
+{skull} green orb: Lïzårðmâñ
+side green orb: Peggerino
+side green orb: Scopidruid
+Orb Helpers: Sonyosh Namsus Martin Enfo
+
+Guillotine Soaks
+P1 Soak 1: Draiman Martin Slushmania Pomaa Lïzårðmâñ Scopidruid
+P1 Soak 2: Karadim Wutroll Nalaxd Martin Cptola Namsus
+P3 Soak 1: Draiman Martin Fappachino Peggerino Lïzårðmâñ Scopidruid
+P3 Soak 2: Slushmania Pomaa Nexsozz Nalaxd Sonyosh Namsus
+P3 Soak 3: Dragepie Martin Fappachino Peggerino Lïzårðmâñ Scopidruid Krøpling Zebinolock Miralupa Enfo
+
+CC Mindcontrol
+1st CC on Mindcontrol: Wutroll
+2nd CC on Mindcontrol: Pomaa
+3rd CC on Mindcontrol: Fappachino
+4th CC on Mindcontrol: Scopidruid
+
+intstart
+Martin Peggerino Draiman Slushmania Dragepie Fappachino
+Karadim Sonyosh Karadim Zebinolock Scopidruid Krøpling
+intend
+
+Curse of Tongues on Adds
+Curse Unmarked Add: Peggerino
+Curse Raid-Marked Add: Zebinolock
+
+Guillotine Target Externals
+P1 Guillotine 2 External Guillotine Target: Karadim
+
+Soak Ghosts
+Soak Ghost at {cross}: Lïzårðmâñ
+Soak Ghost at {triangle}: Cptola
+Soak Ghost at {diamond}: Karadim
+
+invitelist:Karadim-Kazzak,Wutroll-Kazzak,Cptola-Frostmane,Enfo-Kazzak,Lïzårðmâñ-Kazzak,Miralupa-Kazzak,Namsus-TarrenMill,Martin-Kazzak,Dragepie-TarrenMill,Sonyosh-Kazzak,Slushmania-Kazzak,Pomaa-TarrenMill,Peggerino-Kazzak,Krøpling-Kazzak,Nexsozz-Stormscale,Nalaxd-TarrenMill,Draiman-Kazzak,Zebinolock-TarrenMill,Scopidruid-Kazzak,Fappachino-Kazzak;

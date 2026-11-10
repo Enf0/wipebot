@@ -17,6 +17,8 @@
 #   GM8XdBHaqpFgxK9Q  Mon 21 Sep: Nymrissa Wavecaller killed on pull 8
 #   8TcXMAP2gHQGr9pW  Wed 7 Oct: a Heroic Coiled Altar wipe at 0.3%, phases and an intermission
 #   BfgjDv6LC2HaVbFm  Wed 30 Sep: Mythic Nek'zali, two pulls with kicks on its adds
+#   fk2z6bCw4xRLNvht  28 Mythic Coiled Altar pulls, the last the first into Stage Three, with the raid note saved
+#                     for the boss on 2 Nov (../notes)
 # All are reports of The Dragonfell Tribe, the maintainers' guild (tests/README.md). Bosses other than Sszorak are
 # where how a pull ended is easy to get wrong (a tank death, a battle res, adds).
 
@@ -112,6 +114,12 @@ raid-note-order-change = { tool = "raid_note", report = "p7jRwgv8b1rY6LBd", boss
 raid-note-player = { tool = "raid_note", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", pull = 42, player = "Enfo", note = { file = "notes/sszorak-2026-10-12.txt" } }
 raid-note-night-player = { tool = "raid_note", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", all_pulls = true, player = "Zebinomage", note = { file = "notes/sszorak-2026-10-12.txt" } }
 raid-note-kicks-player = { tool = "raid_note", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", all_pulls = true, player = "Enfo", note = { file = "notes/twin-fangs-2026-10-21.txt" } }
+# a note with four phases (1, 2, 2.5 for the intermission, 3), soak groups per phase, an interrupt order, lines to
+# everyone and externals: the first pull of the night to reach Stage Three, and the night
+raid-note-phases = { tool = "raid_note", report = "fk2z6bCw4xRLNvht", boss = "Coiled Altar", pull = 28, note = { file = "notes/coiled-altar-2026-11-02.txt" } }
+raid-note-phases-night = { tool = "raid_note", report = "fk2z6bCw4xRLNvht", boss = "Coiled Altar", all_pulls = true, note = { file = "notes/coiled-altar-2026-11-02.txt" } }
+# the same Mythic note against a Heroic pull that went through every phase: the two differ, and it says so
+raid-note-other-difficulty = { tool = "raid_note", report = "8TcXMAP2gHQGr9pW", boss = "Coiled Altar", pull = 1, note = { file = "notes/coiled-altar-2026-11-02.txt" } }
 # spots against where everyone stood as Virulence ran out: mirrored on one side of the room, as drawn on the other
 # (the plan is a later version than the night's pulls had)
 raid-plan = { tool = "raid_plan", report = "vjt3KLbN8g62J1H9", pull = 42, plan = { file = "plans/sszorak-2026-10-14.txt" } }

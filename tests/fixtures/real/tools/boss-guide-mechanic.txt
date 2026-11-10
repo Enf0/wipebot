@@ -1,6 +1,6 @@
 Virulence on Sszorak: its tooltip, then the parts of each guide that name it (boss_guide without `mechanic` reads the whole guides).
 
-# No hotfix to Sszorak since 2026-08-13. Source: Blizzard's hotfix posts on Wowhead's blue tracker https://www.wowhead.com/blue-tracker/topic/us/world-of-warcraft-midnight-hotfixes-october-23-2382684
+# No hotfix to Sszorak since 2026-08-13. Source: Blizzard's hotfix posts on Wowhead's blue tracker https://www.wowhead.com/blue-tracker/topic/us/world-of-warcraft-midnight-hotfixes-october-6-2336376
 
 Tooltip (Wowhead, spell 1297707): Virulence.
 
