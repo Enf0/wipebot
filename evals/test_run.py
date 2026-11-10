@@ -151,6 +151,12 @@ def test_a_run_is_scored_by_the_checks_its_baseline_made():
     text = "\n".join(compare(old, with_form | {"model": "opus", "commit": "abc", "judge": judged_by("sonnet")}))
     assert "scored by the baseline's checks (expect, wrong, calls): this run's form is left out" in text
     assert "total 2 of 4" in text
+    # the other way round, a run from before the check against a baseline that counts it: nothing there failed it
+    before = old | {"model": "opus", "commit": "abc", "judge": judged_by("sonnet")}
+    found = run.compared(with_form | {"model": "opus", "judge": judged_by("sonnet")}, before)
+    unmade = "the baseline counts a check this run never made (form)"
+    assert f"  {unmade}: every answer here passes it unseen" in found.lines
+    assert found.verdict == "cannot tell" and unmade in found.lines[-1]
 
 
 def test_only_unchanged_cases_are_compared():

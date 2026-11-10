@@ -1120,16 +1120,19 @@ def compared(base: dict, now: dict) -> Comparison:
     time; the cases the baseline judged the same on every trial and the others are also totalled apart. The cases
     that moved beyond noise come one per line with how often chance does that, the others on one line. The verdict
     is a drop shown when the total is SHOWN spreads below the baseline's or a case stayed down on CONFIRM_TRIALS
-    answers, a look at LOOK spreads, and cannot tell when the judge changed, cases were skipped or the answers are
-    too few to have shown a drop."""
+    answers, a look at LOOK spreads, and cannot tell when the judge changed, the baseline counts a check the run
+    never made, cases were skipped or the answers are too few to have shown a drop."""
     warning = judge_warning(base, now)
     lines = [warning] if warning else []
     lines.append(f"Against the baseline ({base['model']}, {base.get('commit', '?')}, {trials_of(base)}):")
     lines.append("  " + errors_line(now))
-    parts = base.get("parts", PARTS)
-    if added := [part for part in now.get("parts", PARTS) if part not in parts]:
+    parts, mine = base.get("parts", PARTS), now.get("parts", PARTS)
+    if added := [part for part in mine if part not in parts]:
         lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {', '.join(added)} "
                      "is left out here, until a baseline has it")
+    if unmade := [part for part in parts if part not in mine]:  # a run from before the check: none of it failed it
+        lines.append(f"  the baseline counts a check this run never made ({', '.join(unmade)}): every answer here "
+                     "passes it unseen")
     now = scored(now, parts)
     if differs := tested_alike(base, now):
         lines.append(differs)
@@ -1166,6 +1169,8 @@ def compared(base: dict, now: dict) -> Comparison:
     # a case whose every trial errored is in no total, and its answers could have failed all the same
     errored = sum(now.get("errors", {}).get(c, 0) for c in [*same, *skipped.get("every trial errored", [])])
     cannot = ["the judge changed since the baseline"] if warning else []
+    if unmade:
+        cannot.append(f"the baseline counts a check this run never made ({', '.join(unmade)})")
     if len(same) < COVERED * len(now["passed"]):
         cannot.append(f"{len(now['passed']) - len(same)} of this run's {len(now['passed'])} cases not compared")
     if errored and width and above > -SHOWN >= (at - errored - was) / width:
