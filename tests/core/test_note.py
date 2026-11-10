@@ -478,3 +478,67 @@ async def test_a_night_asked_for_one_player_says_how_many_of_the_pulls_they_were
     night = await note.note_check(rep, NOTE.read_text(encoding="utf-8"), boss="Sszorak", all_pulls=True,
                                   player="Sveini")
     assert night.splitlines()[1].startswith("Printed for Sveini alone, who was in 28 of the 42 pulls: their rows ")
+
+
+def test_a_note_for_the_next_raid_cut_to_one_player_keeps_what_everyone_is_told_and_says_what_wasnt_read():
+    """One raider's part of the note as it is left out the reminders to everyone ("Go to diamond") and, without a
+    word, every line the reading couldn't take, their own among them; and a time with no phase after a ph:3 one
+    read as that phase's. The lines are in the order of the fight, the reminders are listed, and the lines not
+    understood are counted, theirs shown as written."""
+    torvek = SimpleNamespace(id=1, name="Torvek")
+    rep = cast(Any, SimpleNamespace(ability_ref=lambda spell: f"Spell [{spell}]",
+                                    find_player=lambda name: torvek if name.lower() == "torvek" else None))
+    shown = ("For the next raid, so here is the newest raid note the guild saved for Vashnik, as it is:\n"
+             "EncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
+             "time:48;ph:3;tag:Torvek;text:Grab the orb;\n"
+             "time:132;ph:1;tag:Torvek;text:Soak;\n"
+             "time:24;ph:2.5;tag:Torvek;spellid:98008 (Spirit Link Totem [98008]);\n"
+             "time:6;ph:2.5;tag:Mirelle;spellid:64843 (Divine Hymn [64843]);\n"
+             "time:7;ph:2;tag:everyone;spellid:1285643 (Dreadmarch [1285643]);text:Go to diamond;\n")
+    assert note.own_part(rep, shown, "torvek").splitlines()[1:] == [
+        'Callouts to them: 2:12 "Soak", ph3 0:48 "Grab the orb"',
+        'Reminders to everyone (the boss\'s cast or a move, shown with an icon): ph2 0:07 "Go to diamond"',
+        "Lines of the note not understood, so in none of the lists above: 2 lines; those tagged Torvek, as written: "
+        '"time:24;ph:2.5;tag:Torvek;spellid:98008 (Spirit Link Totem [98008]);"']
+    halvard = SimpleNamespace(id=2, name="Halvard")  # one of the report's players the note has no line for
+    rep.find_player = lambda name: halvard if name.lower() == "halvard" else None
+    assert note.own_part(rep, shown, "Halvard").splitlines()[1:] == [
+        "The note gives Halvard no line of their own.",
+        'Reminders to everyone (the boss\'s cast or a move, shown with an icon): ph2 0:07 "Go to diamond"',
+        "Lines of the note not understood, so in none of the lists above: 2 lines, none of them tagged Halvard"]
+
+
+def test_a_note_for_the_next_raid_is_cut_for_a_raider_the_report_doesnt_have():
+    """The newest note names who comes next time, the latest report who came last: a raider who missed that night
+    asked for their jobs and got "no single player matching" them in the report."""
+    rep = cast(Any, SimpleNamespace(ability_ref=lambda spell: f"Spell [{spell}]", find_player=lambda name: None))
+    shown = ("For the next raid, so here is the newest raid note the guild saved for Vashnik, as it is:\n"
+             "EncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
+             "time:30;ph:1;tag:Mírelle;spellid:64843 (Divine Hymn [64843]);\n\n"
+             "Soaks\nLeft: Torvek Mírelle\n")
+    first, *rest = note.own_part(rep, shown, "mirelle").splitlines()
+    assert "Of it, Mírelle's part (" in first
+    assert rest == ["Assignments in the note's text, Mírelle's: Soaks: Left (2 players)",
+                    "Planned cooldowns: 0:30 Spell [64843]"]
+    with pytest.raises(FactError, match="no single player matching 'Nobodyatall' in this report, and the note "
+                                        "names no one so"):
+        note.own_part(rep, shown, "Nobodyatall")
+
+
+async def test_the_note_the_tool_shows_for_the_next_raid_is_the_one_cut_to_a_players_part():
+    """The cut reads the note back from the text the tool shows (its spells named): the two must fit."""
+    book = Notebook(":memory:")
+    book.save_note(14169, 3418, "Vashnik", "EncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
+                   "time:41;ph:1;tag:Torvek;spellid:192077;bossSpell:1285643;\n"
+                   "time:50;ph:1;tag:Mirelle;spellid:64843;\n", "Rowan", at=1000.0)
+    torvek = SimpleNamespace(id=1, name="Torvek")
+
+    async def name_spells(ids):
+        pass
+    rep = cast(Any, SimpleNamespace(guild_name="The Copper Lanterns", name_spells=name_spells,
+                                    ability_ref=lambda spell: f"Wind Rush Totem (Rank 2) [{spell}]",
+                                    find_player=lambda name: torvek if name.lower() == "torvek" else None))
+    shown = await server.unpulled_note(book, 14169, rep, "Vashnik", upcoming=True)
+    assert "spellid:192077 (Wind Rush Totem (Rank 2) [192077]);bossSpell:1285643 (Wind Rush" in shown
+    assert note.own_part(rep, shown, "Torvek").splitlines()[1:] == [
+        "Planned cooldowns: 0:41 Wind Rush Totem (Rank 2) [192077] for Wind Rush Totem (Rank 2) [1285643]"]

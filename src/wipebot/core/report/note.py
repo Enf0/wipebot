@@ -405,28 +405,59 @@ NAMED_SPELL = re.compile(r"(\b(?:spellid|bossSpell):\d+) \([^;]*\)")  # a spell 
 def own_part(rep: Report, shown: str, player: str) -> str:
     """A note shown as it is (the newest saved, for a boss with no pull or for the next raid: a first line, then the
     note with each spell named), cut to one player's part: the labels they're under, the interrupt lines they're
-    on, their timed cooldowns, and the callouts to them and to everyone. Times are the note's, from the start of
-    its phase. `shown` comes back as it is when it holds no note."""
+    on, their timed cooldowns, the callouts to them, and what everyone is told (the callouts and the reminders),
+    each list in the fight's order. Lines that weren't understood are in none of these, so they are counted, and
+    theirs shown as written. The player is one of the report's, or one only the note names: the note is for who
+    comes next, and the report has who came last. Times are the note's, from the start of its phase. `shown` comes
+    back as it is when it holds no note."""
     head, _, body = shown.partition("\n")
     try:
         note = parse(NAMED_SPELL.sub(r"\1", body))[0]
     except (FactError, IndexError):
         return shown
-    asked = _asked(rep, rep.player(player), [note])
+    if p := rep.find_player(player):
+        asked = _asked(rep, p, [note])
+    elif written := {n for n in _named(note) | set(note.invited) if name_key(_bare(n)) == name_key(player)}:
+        asked = Asked(_bare(min(written)), frozenset(written))
+    else:
+        raise FactError(f"no single player matching {player!r} in this report, and the note names no one so")
 
-    def at(c: Cooldown | Callout) -> str:
+    def at(c: Cooldown | Callout | Reminder) -> str:
         return (f"ph{c.phase} " if c.phase != 1 else "") + clock(c.at * 1000)
-    lines = _assignments(rep, note, asked)
-    if mine := [c for c in note.cooldowns if c.player in asked]:
+
+    def order(c: Cooldown | Callout | Reminder) -> tuple[int, float]:
+        return c.phase, c.at
+    unread = _own_unread(note, body, asked)
+    lines = [] if unread or any(n in asked for n in _named(note)) else [
+        f"The note gives {asked.name} no line of their own."]
+    lines += _assignments(rep, note, asked)
+    if mine := sorted((c for c in note.cooldowns if c.player in asked), key=order):
         lines.append("Planned cooldowns: " + ", ".join(
             f"{at(c)} {rep.ability_ref(c.spell)}" + (f" for {rep.ability_ref(c.boss_spell)}" if c.boss_spell else "")
             for c in mine))
     for to, calls in (("them", [c for c in note.callouts if any(n in asked for n in c.players)]),
                       (EVERYONE, [c for c in note.callouts if not c.players])):
         if calls:
-            lines.append(f"Callouts to {to}: " + ", ".join(f'{at(c)} "{c.text}"' for c in calls))
+            lines.append(f"Callouts to {to}: " + ", ".join(f'{at(c)} "{c.text}"' for c in sorted(calls, key=order)))
+    if note.reminders:
+        lines.append("Reminders to everyone (the boss's cast or a move, shown with an icon): " + ", ".join(
+            f"{at(r)} " + (f'"{r.text}"' if r.text else rep.ability_ref(r.spell))
+            for r in sorted(note.reminders, key=order)))
+    if note.unread:
+        lines.append("Lines of the note not understood, so in none of the lists above: "
+                     + plural(len(note.unread), "line")
+                     + (f"; those tagged {asked.name}, as written: " + ", ".join(f'"{line}"' for line in unread)
+                        if unread else f", none of them tagged {asked.name}"))
     return "\n".join([head.removesuffix(":") + f". Of it, {asked.name}'s part (without `player`, the whole note; "
                       "times count from the start of the pull, or of the phase where one is named):"] + lines)
+
+
+def _own_unread(note: Note, body: str, asked: Asked) -> list[str]:
+    """The lines of a note that weren't understood and are tagged with one player's name, as `body` shows them
+    (its spells named)."""
+    return [line.strip() for line in body.splitlines() if NAMED_SPELL.sub(r"\1", line).strip() in note.unread
+            and any(_bare(t) in asked or name_key(_bare(t)) == name_key(asked.name)
+                    for t in _fields(line).get("tag", "").split())]
 
 
 async def assigns_kicks(rep: Report, f: dict, text: str) -> bool:
