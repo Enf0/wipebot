@@ -88,8 +88,8 @@ jobs:
           GH_TOKEN: ${{ secrets.WIPEBOT_DEV_DISPATCH_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
         if: ${{ env.GH_TOKEN != '' && env.TAG != '' }}
-        # The bot's first: a workflow that runs one deploy at a time keeps only the newest of those waiting, so
-        # when a deploy is already running, the one started last here is the one that still comes
+        # The bot and the public copy: each target has a queue of its own in that workflow, so both come even when
+        # a deploy is already running
         run: |
           set -eu
           for target in public-bot public; do
