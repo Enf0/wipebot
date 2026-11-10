@@ -267,6 +267,25 @@ def test_a_cases_note_is_one_the_guild_wrote_or_one_written_for_the_case():
     assert written.read_text(encoding="utf-8").replace(added, "") == real.read_text(encoding="utf-8")
 
 
+def test_the_cases_in_norwegian_read_as_norwegian_to_the_bot_and_the_others_dont():
+    cases = [c for c in run.load_cases() if c["kind"] in ("norsk", "conversations", "notes", "server", "heldout")]
+    norsk = [c for c in cases if c.get("language") == "Norwegian"]
+    assert len(norsk) >= 9 and {c["kind"] for c in norsk} == {"norsk", "heldout"}
+    for c in cases:
+        told = languages(c, NORSK if c in norsk else ENGLISH, "plugin")  # by the questions alone, as in a client
+        assert told == (("no", "no") if c in norsk else ("en", "en")), c["id"]
+
+
+def test_no_regular_case_reads_the_pulls_the_held_out_cases_are_on():
+    cases = run.load_cases()
+    held = [c for c in cases if c["kind"] == "heldout"]
+    (report, boss), = {(c["report"], c["boss"]) for c in held if c.get("boss")}
+    assert len(held) >= 6 and all(c["report"] == report for c in held)
+    for c in cases:
+        if c["kind"] != "heldout" and c["report"] == report:
+            assert c.get("boss") != boss and boss.lower() not in " ".join(run.questions(c)).lower(), c["id"]
+
+
 def test_a_case_with_earlier_messages_is_asked_by_someone_who_wrote_one_of_them():
     for c in run.load_cases():
         if c.get("earlier"):

@@ -1,53 +1,99 @@
 [defaults]
-report = "p7jRwgv8b1rY6LBd"
+report = "cZ8rp13y72gBQKY9"
+set_up = true         # asked from the guild's own server
+today = "2026-10-15"  # the day after the night
 
-# ---- Held out: written from the tools' output before any answer was read, on the guild's 21 October night, which
-#      nothing in the skill or the other cases was built on. A run leaves them out unless asked (`--held-out`): never
-#      run them while changing the skill or the tools' text, only at milestones, so a gap between them and the
-#      regular cases shows the method fitted to its own cases. ----
-
-[[case]]
-id = "heldout-night-what-kept-wiping-us"
-tools = ["progress"]
-where = "in a DM"
-question = "What kept wiping us on the Twin Fangs last night?"
-asker = "Enfo"
-boss = "The Twin Fangs"
-expect = """Visceral Burst (the Broodlings' cast) killing many at once ended most of the pulls, 21 of the 39, far ahead
-of Stone Breaker (7) and Caustic Globule (6); the fix is the kicks on the Broodlings, which still let casts through."""
-facts = ["21 of 39 pulls", "the best wipe, 0.9% on pull 37",
-         "Visceral Burst the night's killer: 168 deaths, the first death on only 4 pulls"]
-wrong = ["names Stone Breaker, Caustic Globule or healing as what ended most pulls",
-         "says the raid needs more damage"]
+# ---- Held out: written from the tools' output before any answer was read, on the guild's two Heroic Kith'ix pulls of
+#      14 October, which no regular case reads and no example in the skill or the bot's prompt uses. A run leaves them
+#      out unless asked (`--held-out`): never run them while changing the skill or the tools' text, only at
+#      milestones, so a gap between them and the regular cases shows the method fitted to its own cases.
+#      How blind they are: the night's other bosses have regular cases, the boss's name stands in three regular cases
+#      (its loot, the top players' builds, a report without it), and one of those, `ask-boss-not-in-report`, has read
+#      the boss's guide; none has read these pulls. What these cases expect is written in this file and nowhere else.
+#      None of them has been answered yet: no run has shown that a right answer passes them, and none has `tools`,
+#      which are tagged from the runs. ----
 
 [[case]]
-id = "heldout-so-close-more-dps"  # a false premise on the best wipe
-tools = ["pull_summary", "enemies"]
+id = "heldout-first-pull-wipe"  # adds going off together: one ability killing many, and the mechanic behind it
 where = "in a DM"
-question = "We got her to 0.9% on pull 37! We just need a bit more DPS, right?"
-asker = "Enfo"
-pull = 37
-boss = "The Twin Fangs"
-expect = """Not damage: pull 37 was lost to Visceral Bursts at the end, which killed 4 at 6:52 and 9 at 6:54 and left
-half the raid dead before the boss died; Uncoiled Wrath at 6:59 came as Vexhul died, after the wipe was decided, not
-an enrage that ended it. The fix is the kicks on the Broodlings' Visceral Burst."""
-facts = ["half the raid dead at 6:54",
-         "14 of the pull's 71 Visceral Burst casts went through, 52 were kicked",
-         "casts went through at 6:48 and 6:50 with kicks ready"]
-wrong = ["agrees the raid needs more damage to kill her",
-         "calls Uncoiled Wrath an enrage that ended the pull, or says the raid ran out of time"]
+question = "why did we wipe on the first Kith'ix pull?"
+asker = "Deathadim"
+pull = 1
+boss = "Kith'ix"
+cause = "ability: Digestive Juices"  # what an expert names first; `just evals --endings`
+expect = """The second wave's Bomber Beetles went off together: four of them died at 2:01, Digestive Juices went onto
+the whole raid and stacked, and it killed 8 players at 2:05-2:06. The pull didn't recover from that. The fix is to set
+the beetles off one at a time and let the debuff drop in between."""
+facts = ["Digestive Juices reached 4 stacks on Slushmania at 2:03",
+         "the first wave's three beetles, at 0:18-0:21, killed nobody",
+         "the pull ended at 2:48 with the boss at 41.0%"]
+wrong = ["names Dark Frenzy or Suffocation at 2:48 as what lost the pull",
+         "calls it an enrage, or says the raid needs more damage",
+         "names players as having set the beetles off: the log doesn't show whose beetle it was"]
 
 [[case]]
-id = "heldout-healer-night"  # a healer's night: steady, rarely the first to die; a cooldown held, judged by timing
-tools = ["player_night"]
+id = "heldout-norsk-kill-against-first-pull"  # in Norwegian, in the raid's channel: the kill next to the wipe before
+language = "Norwegian"
+question = "hva gjorde vi annerledes på killen i forhold til første pull?"
+asker = "Namsus"
+boss = "Kith'ix"
+expect = """The beetles: on the kill (pull 2) the second wave's Bomber Beetles went off in two pairs, at 2:01 and 2:07,
+where on the first pull all four died at 2:01 and Digestive Juices killed 8 players at 2:05-2:06. On the kill nobody
+died until 3:44, and the boss died at 3:46."""
+facts = ["the kill reached P2 at 3:24",
+         "the kill's one death was Scopidruid's, to Explosive Restabilization at 3:44",
+         "the first pull was a wipe at 41.0% after 2:48"]
+wrong = ["says more damage or better gear made the difference",
+         "says the log can't compare the two pulls",
+         "names Dark Frenzy or Suffocation as what lost the first pull"]
+
+[[case]]
+id = "heldout-guide-beetles"  # a game rule, no log needed
 where = "in a DM"
-question = "How did I do on the Twin Fangs last night?"
+calls = ["boss_guide"]  # the rule comes from the guide, not from memory
+question = "how are we meant to handle the beetles on Kith'ix?"
+asker = "Wutroll"
+expect = """One at a time: a Bomber Beetle fixates on a random player and explodes on contact with any player, or after
+30 s, and each explosion puts Digestive Juices, a short stacking DoT, on the whole raid. So they are set off one by
+one, with the debuff dropping in between; the guide's way is to grip them onto the Venomous Hulk one at a time."""
+facts = ["Digestive Juices ticks every second for 4 s, and stacks",
+         "adds near Kith'ix take 75% less damage, so they are pulled away from the boss"]
+wrong = ["says to set the beetles off together, or to stack them up",
+         "says it needs a log or a pull to answer"]
+
+[[case]]
+id = "heldout-prep-on-the-kill"  # consumables, asked about everyone in the raid's channel
+question = "did everyone have their consumables on the Kith'ix kill?"
 asker = "Enfo"
-boss = "The Twin Fangs"
-expect = """Steady: never the first death and healing per second alive steady over the night (about 359-382k), most
-deaths coming as the raid fell apart; worth a look is Spirit Link Totem, pressed on few pulls (first use around 2:00
-when it was), judged against when the damage came rather than by how often."""
-facts = ["first death 0 times", "Spirit Link Totem 14 of 51, Ascendance 47 of 51",
-         "best pull by healing per second alive: pull 37"]
-wrong = ["faults their overhealing", "counts Spirit Link Totem uses against possible uses as the fault itself",
-         "says they died first often"]
+boss = "Kith'ix"
+expect = """Flask and food: everyone had them. Missing were an augment rune on 18 of the 23 players, a vantus rune on
+all 23, and a weapon enhancement on one player, Cptola."""
+facts = ["the kill was pull 2, with 23 players"]
+wrong = ["says someone lacked a flask or a food buff",
+         "says the log can't show consumables",
+         "declines to name Cptola in a channel"]
+
+[[case]]
+id = "heldout-eggs-on-the-kill"  # the adds: what came, what died, and whose casts went through
+where = "in a DM"
+question = "did any eggs hatch on the Kith'ix kill?"
+asker = "Pomaa"
+boss = "Kith'ix"
+expect = """None: 16 Mindstinger Eggs came on the kill and all 16 died before their Hatch cast went through."""
+facts = ["on the first pull 2 eggs hatched, at 2:22",
+         "the eggs took 19.97M damage on the kill, most of it from Pomaa (2.31M) and Slushmania (2.30M)"]
+wrong = ["says eggs hatched on the kill",
+         "says the log can't show whether an egg hatched"]
+
+[[case]]
+id = "heldout-night-against-before"  # the night next to the guild's earlier pulls on the boss
+where = "in a DM"
+question = "how did Kith'ix go last night compared to our earlier tries?"
+asker = "Krøpling"
+boss = "Kith'ix"
+expect = """Two pulls: the first was a wipe at 41.0%, already further than the guild's best wipe before that night
+(46.8%, in another log the same Wednesday), and the second was the kill, in 3:46 with one death."""
+facts = ["the first pull was lost to Digestive Juices killing 8 players at 2:05",
+         "the kill's one death was Scopidruid's, at 3:44"]
+wrong = ["says there was no kill",
+         "says the log can't tell how the guild did before that night"]
