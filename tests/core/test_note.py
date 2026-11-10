@@ -446,3 +446,35 @@ def test_a_note_shown_as_it_is_is_cut_to_one_players_part():
                     'Callouts to everyone: 1:15 "Big Personals"']
     none = "For the next raid, and the guild has no raid note saved for Vashnik."
     assert note.own_part(rep, none, "torvek") == none
+
+
+async def test_a_check_asked_for_a_player_who_wasnt_in_the_pull_says_so(recorded):
+    """One of the report's players who sat a pull out, or every pull on the boss, got a check that read as "no
+    jobs, none missed": no assignments, no planned cooldowns, no row, and not a word that they weren't there."""
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    text = NOTE.read_text(encoding="utf-8")
+    with pytest.raises(FactError, match="Sveini was not in Sszorak pull 42; in the report: Sszorak pulls 1-"):
+        await note.note_check(rep, text, 42, "Sszorak", player="Sveini")
+    fangs = await server.lib().report("fvkH4hGZwDRVnyXJ")
+    plan = (TOOLS.parent / "notes" / "twin-fangs-2026-10-19.txt").read_text(encoding="utf-8")
+    with pytest.raises(FactError, match="Miralupa was not in any pull on The Twin Fangs in this report; in the "
+                                        "report: Sszorak"):
+        await note.note_check(fangs, plan, boss="Twin Fangs", all_pulls=True, player="Miralupa")
+
+
+async def test_one_players_check_leaves_out_another_players_use_written_twice(recorded):
+    """Printed for one player, a pull still said of another's cooldown that the note plans it twice."""
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    spiral = "time:237;ph:1;tag:Dragepie;spellid:374968;"
+    text = NOTE.read_text(encoding="utf-8").replace(spiral, spiral + "\n" + spiral.replace("237", "238"))
+    twice = "  The note plans Dragepie's Time Spiral [374968] at both 3:57 and 3:58: one use written twice, checked as"
+    assert twice in await note.note_check(rep, text, 42, "Sszorak")
+    assert twice in await note.note_check(rep, text, 42, "Sszorak", player="Dragepie")
+    assert "Dragepie" not in await note.note_check(rep, text, 42, "Sszorak", player="Enfo")
+
+
+async def test_a_night_asked_for_one_player_says_how_many_of_the_pulls_they_were_in(recorded):
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    night = await note.note_check(rep, NOTE.read_text(encoding="utf-8"), boss="Sszorak", all_pulls=True,
+                                  player="Sveini")
+    assert night.splitlines()[1].startswith("Printed for Sveini alone, who was in 28 of the 42 pulls: their rows ")

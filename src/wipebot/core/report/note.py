@@ -359,7 +359,8 @@ async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | N
     (who of the group was hit, who wasn't and why, who else was), each planned cooldown against the player's casts,
     and the callouts to one player or to everyone. With `all_pulls`, every pull on the boss (each against the
     note's version for it), counted per player. With `player`, the same checks printed for that player alone
-    (`Asked`): their rows in full, the raid's as counts."""
+    (`Asked`): their rows in full, the raid's as counts. A player who wasn't in the pull, or in none of the boss's
+    pulls, is an error saying where they were: a check of them would read as no jobs and none missed."""
     f = rep.fight(pull, boss)
     who = rep.player(player) if player else None
     found = versions(text)
@@ -369,6 +370,8 @@ async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | N
     if all_pulls:
         pulls = rep.by_boss[rep.boss_key(f)]
         return rep.still_going(pulls) + await _night(rep, found, rep.ended(pulls), source, who)
+    if who:
+        rep.require_in(f, who)
     v = _version(found, (rep.start_ms + f["startTime"]) / 1000)
     note = for_boss(v.notes, f["encounterID"]) or next(n for v in found if (n := for_boss(v.notes, f["encounterID"])))
     return _pull_text(rep, await _check(rep, f, note), source or (v.source() if v.saved_at else ""),
@@ -385,8 +388,9 @@ class Asked:
     def __contains__(self, name: object) -> bool:
         return name in self.names
 
-    def said(self) -> str:
-        return (f"Printed for {self.name} alone: their rows in full, the raid's as counts for scale (without "
+    def said(self, was_in: str = "") -> str:
+        """The line that says so; `was_in`: ', who was in 28 of the 42 pulls' on a night they missed part of."""
+        return (f"Printed for {self.name} alone{was_in}: their rows in full, the raid's as counts for scale (without "
                 "`player`, every player's rows).")
 
 
@@ -711,7 +715,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
                    + ", ".join(_planned_line(rep, at, cd) for at, cd in later[:LATER_SHOWN]) if later else ""))
         if c.planned.skipped:
             lines.append(f"  {c.planned.skipped} planned in phases the pull never reached")
-        lines += [f"  {_twice(rep, t)}" for t in c.planned.twice]
+        lines += [f"  {_twice(rep, t)}" for t in c.planned.twice if asked is None or t[2].player in asked]
     if c.callouts:
         lines.append(f"Callouts for personals, with what each player it names pressed from {CALL_BEFORE_MS // 1000} "
                      f"s before to {CALL_AFTER_MS // 1000} s after it (the spells Lorrgs tracks for their spec, with "
@@ -1317,6 +1321,7 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
                  who: Player | None = None) -> str:
     """Each pull checked against its version of the note, then counted per player: soaks, planned cooldowns,
     callouts. For one player (`who`): their rows, and the raid's counts."""
+    theirs = rep.pulls_with(who, fights) if who else fights  # in none of them: an error, before anything is read
     night = await _check_night(rep, found, fights)
     checks, by_pull, usable, used, change = night.checks, night.by_pull, night.usable, night.used, night.change
     latest = checks[-1].note
@@ -1335,7 +1340,8 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
     if change:
         lines.append(_change_text(rep, fights, change))
     if asked:
-        lines.append(asked.said())
+        lines.append(asked.said(f", who was in {len(theirs)} of the {len(fights)} pulls"
+                                if len(theirs) < len(fights) else ""))
     lines += _assignments(rep, latest, asked)
     lines += _night_soaks(rep, checks, asked)
     lines += _night_cooldowns(rep, checks, asked)
