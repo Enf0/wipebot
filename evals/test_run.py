@@ -88,6 +88,33 @@ def test_a_tally_counts_errors_apart_and_the_answers_that_asked_warcraft_logs_li
     assert summary(t)[1] == "2 of 6 answers asked Warcraft Logs live, for data the frozen file didn't hold."
 
 
+def test_a_run_is_scored_by_the_checks_its_baseline_made():
+    """A check added since the baseline (here "form") fails answers in the run's own summary, and none in the
+    comparison; what fails an answer whatever the checks say (a crashed tool) fails it in both."""
+    from evals import run
+    ok = {"ok": True, "reason": ""}
+    fine = Trial(expect=ok, wrong=ok)
+    shapeless = Trial(expect=ok, wrong=ok, checks={"form": False})
+    crashed = Trial(expect=ok, wrong=ok, calls=[{"name": "progress", "failed": True,
+                                                 "result": "progress failed with an unexpected error"}])
+    wrong = Trial(expect=ok, wrong={"ok": False, "reason": ""}, uncalled=["spec_guide"])
+    case = {**CASE, "kind": "wipe"}
+    results = {"a": [run.settle(t, case, "plugin") for t in (fine, shapeless, crashed, wrong)]}
+    assert [t.passed for t in results["a"]] == [True, True, False, False]  # today's checks: form isn't one
+    assert wrong.checks == {"expect": True, "wrong": False, "calls": False}
+    now = run.tally_of([{**case, "id": "a"}], results)
+    assert now["parts"] == ["expect", "wrong", "calls"] and now["passed"] == {"a": 2}
+    assert now["failed"] == {"a": [["broke"], ["wrong", "calls"]]}
+    with_form = {**now, "parts": [*now["parts"], "form"], "passed": {"a": 1},
+                 "failed": {"a": [["form"], ["broke"], ["wrong", "calls"]]}}
+    assert run.scored(with_form, ["expect", "wrong", "calls"])["passed"] == {"a": 2}
+    assert run.scored(with_form, ["expect"])["passed"] == {"a": 3}  # only the crash still fails
+    old = tally({"a": 4}, trials=4, hashes={"a": case_hash({**case, "id": "a"})})  # no parts: expect, wrong, calls
+    text = "\n".join(compare(old, with_form | {"model": "opus", "commit": "abc", "judge": judged_by("sonnet")}))
+    assert "scored by the baseline's checks (expect, wrong, calls): this run's form is left out" in text
+    assert "total 2/4" in text
+
+
 def test_only_unchanged_cases_are_compared():
     base = tally({"a": 3, "b": 3, "c": 0}, hashes={"a": "h", "b": "old", "c": "h"})
     lines = compare(base, tally({"a": 3, "b": 0, "c": 3, "d": 1}))
