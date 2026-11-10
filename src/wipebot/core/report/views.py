@@ -44,7 +44,7 @@ from .coaching import (
     resource_use,
     time_lost,
 )
-from .cooldowns import NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
+from .cooldowns import DAMAGE_COOLDOWN, NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
 from .ending import ALIVE, Ending, HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending, pull_endings
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
@@ -352,7 +352,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
                   "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms),
                   "with": m.killed if (m := mass_death_of(ended, d["timestamp"] - t0, by)) else 0} for d in own],
         "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible,
-                       "raid": "raid_cd" in (sp.get("tags") or []), "dps": "dps" in (sp.get("tags") or []),
+                       "raid": "raid_cd" in (sp.get("tags") or []), "dps": DAMAGE_COOLDOWN in (sp.get("tags") or []),
                        "ready_ms": unused_from(sp, times, possible), "icon": icon(sp.get("spell_id"))}
                       for sp, times, possible in rows if not NOT_ON_COOLDOWN & set(sp.get("tags") or [])],
         "casts": [{"name": n, "n": k, "per_min": round(60 * k / max(alive_s, 1), 1), "icon": icon(ids.get(n))}

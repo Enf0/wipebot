@@ -20,6 +20,7 @@ from .base import FactError, Player, PullRef, Report, unavailable
 from .build import MAX_BUILD_TALENTS, SAME_HERO_MIN, TOP_PARSES, hero_of
 from .casting import GAP_MS, GCD_MAX_MS, Casting, alive, cast_rows, casting
 from .coaching import cap_stretches, resource_of, resource_points, resource_use
+from .cooldowns import DAMAGE_COOLDOWN
 from .ranks import (
     HEALERS_HEAD,
     HEALERS_READING,
@@ -424,8 +425,9 @@ async def _up_at_pull(rep: Report, f: dict, p: Player) -> set[str]:
 
 
 # A spell they didn't cast that the top parses, at their median, cast less than once in the time the player was alive
-# (Sprint at 0.7 a minute, for someone who died at 0:53): not one they failed to press
-NOT_DUE = "under one cast in their time alive"
+# (Sprint at 0.7 a minute, for someone who died at 0:53): not one they failed to press. The flag names whose rate it
+# is, as the other two that excuse a spell say why.
+NOT_DUE = "not due: under one cast in their time alive at the top's median"
 
 
 def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[Reference],
@@ -435,7 +437,8 @@ def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[R
     names of the player's items: an item of the top's they don't wear is "not worn", not "never cast"; `up`, the
     names of the buffs on them as the pull began: one of those was cast before it, not "never cast"; `minutes`, how
     long they were alive: a spell the top's median makes less than one cast of in that time is NOT_DUE, not "never
-    cast"."""
+    cast", unless Lorrgs tags it a damage cooldown: that one is pressed from the pull (as cooldown_use counts its
+    possible uses), so a rate over a whole kill says nothing of when it was due."""
     items = {name_key(g["name"]) for x in found for g in x.ranking.get("gear") or [] if g.get("name")}
     def known(n: str) -> list[float]:
         """The references' counts of a spell, those that aren't known left out."""
@@ -458,7 +461,8 @@ def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[R
             flag = "not worn: an item of theirs the player doesn't have on"
         elif me == 0 and name_key(n) in up:
             flag = "cast before the pull: up as it began"
-        elif me == 0 and minutes is not None and med * minutes < 1:
+        elif (me == 0 and minutes is not None and med * minutes < 1
+              and not (sp and DAMAGE_COOLDOWN in (sp.get("tags") or []))):
             flag = NOT_DUE
         elif me == 0 and sum(1 for x in others if x > 0) > len(others) / 2:
             flag = "never cast"

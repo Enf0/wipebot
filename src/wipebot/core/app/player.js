@@ -198,7 +198,7 @@ views.player = (() => {
     const t = D.top;
     const counted = t.rates.filter((r) => r.median != null && (r.median >= 0.3 || r.mine >= 0.3));
     // what the tool flags as off (never cast, far fewer, far more) comes first; what it says is no fault (an item
-    // not worn, cast before the pull, under one cast in their time alive) is no difference at all
+    // not worn, cast before the pull, not due in their time alive) is no difference at all
     const off = (r) => /^(never cast|far )/.test(r.flag), excused = (r) => !!r.flag && !off(r);
     const gap = (r) => off(r) ? 10 : excused(r) ? 0 : Math.abs(r.mine - r.median) / Math.max(r.median, 0.5);
     const rows = (n ? counted.slice().sort((a, b) => gap(b) - gap(a)).slice(0, n) : counted);

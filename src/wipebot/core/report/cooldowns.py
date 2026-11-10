@@ -13,6 +13,9 @@ from .casting import alive
 NOT_ON_COOLDOWN = {"defensive", "move", "tank"}
 # Lorrgs tags a throughput cooldown so even when it gives no cooldown (Ascendance, Deeply Rooted Elements, 0 s).
 ON_COOLDOWN = {"dps", "raid_cd"}
+# Of those, a damage cooldown is its own player's to press, from the pull on: one left unpressed is theirs to answer
+# for. A raid cooldown's use is someone's call the log doesn't show.
+DAMAGE_COOLDOWN = "dps"
 PREPULL_WINDOW_MS = 60_000  # a buff cast before the pull runs out within this (a potion lasts 30 s)
 OVER_BASE = "more than its base cooldown allows: a talent or effect shortens it"
 
