@@ -43,6 +43,20 @@ wrong = ["names someone outside those six as having kept Helical Toxins to the e
          "says Ula'tek's Dominance or the deaths after 3:04 lost the pull",
          "says it can't or won't name who kept Helical Toxins to the end"]
 [[case]]
+# Asked for something quick, with nothing saying the raid is on: the prompt's other way into the short form. Held by
+# code like the case below (all nine saved answers ran to two or three sentences a bullet, and the judge passed them).
+id = "between-pulls-quick"
+tools = ["pull_summary"]
+question = "quick, why did we wipe? pulling again in a sec"
+pull = 33
+boss = "Sszorak"
+expect = """Mutilate killed four at 2:15, leaving too few for the Serpent's Fury stack, so the boss enraged at 2:32;
+the fix is that soak."""
+form = {bullets = 3, bullet_sentences = 1}  # by code, as the bot: what the prompt asks for when asked to be quick
+numbers = ["2:15", "2:32"]  # by code: the Mutilate and the enrage
+facts = ["2:15", "2:32"]
+wrong = ["blames the enrage's fallout deaths after 2:32"]
+[[case]]
 # The raid is going on: a plain question is answered as between pulls too. The short form is held by code (`form`:
 # every saved answer to this pull ran to two or three sentences a bullet, and the judge passed them all); the judge
 # reads only what the answer says.
