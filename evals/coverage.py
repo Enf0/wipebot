@@ -4,7 +4,9 @@ line coverage, but every part of Wipebot can be asked about. Along four axes:
 - tools: each case's `tools` (what its right answers call), against every tool the apps have;
 - kinds of question: one cases file each (wipes, nights, players, ...);
 - where it's asked: a case's `where` in Discord, and each mode (plugin, connector only, bot);
-- bosses: a case's `boss`.
+- bosses: a case's `boss`;
+- how it's asked (`as_asked`): the question's language, its place in its conversation, a DM or a channel, a saved raid
+  note, each beside how raiders really ask (REAL_USE). Numbers to look at, no gate.
 
 From the latest full run of each mode (evals/results), also the cases whose answers never called a tool they're
 tagged with: the tag is stale, or the answers miss a step.
@@ -14,7 +16,7 @@ from collections import Counter
 from pathlib import Path
 
 from wipebot.core import server
-from wipebot.discord import prompt
+from wipebot.discord import prompt, texts
 
 # The connector's own tools (src/wipebot/mcp/remote.py), which the in-process server doesn't register.
 CONNECTOR_TOOLS = {"my_characters", "report_answer", "save_note_or_plan"}
@@ -23,6 +25,44 @@ NO_CASE_YET = {
     "spell_info": "the answers to the cases that could use it call it in fewer than two of three",
     "web_lookup": "no case needs a page no other tool reads yet",
 }
+
+
+# How raiders really ask, which the cases' own spread is read beside (as_asked): shares of the bot's answers in the
+# maintainers' guild over four weeks of autumn 2026, counted when the evals were reviewed on 10 November.
+REAL_USE = {
+    "language": "85% of the questions in chat are in Norwegian, 95% of those the owner didn't ask",
+    "turn": "68% are a second or later question of a conversation, 37% a fourth or later, 22% a sixth or later",
+    "place": "58% in a DM, 42% in a channel",
+    "note": "17% of the answers read a saved raid note or plan",
+    "boss": "The Coiled Altar 28%, Sszorak 23%, The Twin Fangs 15%",
+}
+LANGUAGES = {"en": "English", "no": "Norwegian", "": "not told"}
+
+
+def as_asked(cases: list[dict]) -> list[str]:
+    """How the cases are asked, each line beside the real share (REAL_USE): the language of the judged question
+    (a post's is the bot's own text, left out), how many messages of the conversation came before it (its earlier
+    questions, and what the case says people wrote before, `earlier`), DM or channel, a saved raid note, and the
+    boss it names."""
+    def of(counts: Counter) -> str:
+        return ", ".join(f"{what} {n}" for what, n in counts.most_common())
+    chat = [c for c in cases if c["kind"] != "posts"]
+    asked = [c["question"] if isinstance(c["question"], list) else [c["question"]] for c in chat]
+    languages = Counter(LANGUAGES[texts.language(q[-1], "") or texts.language(" ".join(q[:-1]), "")] for q in asked)
+    before = [len(q) - 1 + sum(who != "Wipebot" for who, _ in c.get("earlier", []))
+              for c, q in zip(chat, asked, strict=True)]
+    turns = Counter("the first" if n == 0 else "the second or third" if n < 3 else "the fourth or later"
+                    for n in before)
+    places = Counter("in a DM" if c.get("where") == "in a DM" else "in a channel" for c in cases)
+    noted = sum("note" in c for c in cases)
+    named = Counter(c["boss"] for c in cases if c.get("boss"))
+    return ["How the cases are asked, beside how raiders ask:",
+            f"  language of the question: {of(languages)} (real: {REAL_USE['language']})",
+            f"  the judged question in its conversation: {of(turns)} (real: {REAL_USE['turn']})",
+            f"  place: {of(places)} (real: {REAL_USE['place']})",
+            f"  with a saved raid note, as the bot: {noted} of {len(cases)} cases (real: {REAL_USE['note']})",
+            "  the boss named: " + ", ".join(f"{b} {n / len(cases):.0%}" for b, n in named.most_common(3))
+            + f" of the cases (real: {REAL_USE['boss']})"]
 
 
 def core_tools() -> set[str]:
@@ -65,6 +105,7 @@ def report(cases: list[dict], results: Path) -> list[str]:
                  + ", ".join(f"{w} {n}" for w, n in places.most_common()))
     bosses = Counter(c.get("boss") or "(none named)" for c in cases)
     lines.append("Bosses: " + ", ".join(f"{b} {n}" for b, n in bosses.most_common()))
+    lines += as_asked(cases)
     for mode, run in sorted(latest_runs(results, cases).items()):
         missed = []
         for c in cases:
