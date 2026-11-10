@@ -281,6 +281,10 @@ class Painter:
             page = await context.new_page()
             await _wire(page, setup, errors)
             await _settled(page)
+            # a view that couldn't load says why in place of its card (main.js's fail): no picture of that
+            failed = page.frames[-1].locator("#status.failed #status-msg")
+            if await failed.count():
+                raise RuntimeError(f"not drawn: {await failed.first.inner_text()}")
             await page.frames[-1].evaluate("document.fonts.ready.then(() => true)")
             if errors:
                 raise RuntimeError("; ".join(errors))

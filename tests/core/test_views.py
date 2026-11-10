@@ -516,6 +516,30 @@ async def test_the_painter_draws_the_pull_view_as_a_picture_for_the_bot(recorded
     assert 300 < img.height < 1000 and len(drawn) < 200_000  # the card alone, without its buttons
 
 
+async def test_the_painter_gives_no_picture_of_a_view_that_could_not_load(recorded, monkeypatch):
+    """A view whose data can't be read shows why in place of its card: that is no picture for an answer."""
+    pytest.importorskip("playwright")
+    from playwright.async_api import Error
+
+    from wipebot.core import viewhost
+    from wipebot.core.knowledge import KnowledgeError
+    monkeypatch.setattr(server.DEFAULT, "remote", None)
+
+    async def unread(**_: object) -> CallToolResult:
+        raise KnowledgeError("the report can't be read right now")
+    monkeypatch.setattr(server, "view_data", unread)
+    painter = viewhost.Painter()
+    try:
+        with pytest.raises(RuntimeError, match="not drawn: Couldn't load this view: the report can't be read"):
+            await painter.pictures("pull_summary", PULL_CASE.args)
+    except Error as e:
+        if "Executable doesn't exist" in str(e):
+            pytest.skip("needs Playwright's Chromium (just browser)")
+        raise
+    finally:
+        await painter.close()
+
+
 async def test_the_painter_names_each_panel_so_an_answer_can_post_the_one_its_about(recorded):
     pytest.importorskip("playwright")
     from playwright.async_api import Error
