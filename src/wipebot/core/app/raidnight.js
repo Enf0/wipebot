@@ -160,7 +160,8 @@ views.night = (() => {
   // Night by night: inline it is the card, tonight's pulls a click away (`open`)
   function weeks(width, open) {
     const sub = [D.difficulty, `best pull night by night, last ${D.weeks.length === 1 ? "night" : `${D.weeks.length} nights`}`].filter(Boolean).join(" · ");
-    return `<div data-panel="weeks">${kit.card({ title: D.boss, sub, stats: weeksStats(), chart: weeksChart(width), open })}</div>`;
+    return `<div data-panel="weeks">${kit.card({ title: D.boss, sub, stats: weeksStats(), chart: weeksChart(width), open,
+                                                  url: open ? D.url : "" })}</div>`;
   }
 
   // How the pulls ended, and what killed each pull's first deaths: two ranked lists
@@ -191,7 +192,7 @@ views.night = (() => {
     // of two nights' best pulls says no more than the answer's text: from three), and inline they are the card
     const nights = D.weeks && D.weeks.length >= (picture ? 3 : 1);
     const tonight = () => `<div data-panel="pulls">${kit.card({ title: D.boss, sub: sub(), headline: D.headline, stats: stats(),
-                                                                chart: chart(width, full), open: "Open night" })}</div>`;
+                                                                chart: chart(width, full), open: "Open night", url: D.url })}</div>`;
     if (picture) root.innerHTML = (nights ? weeks(width) : "") + tonight() + (nights ? "" : `<div data-panel="endings">${endings()}</div>`);
     else if (!full) root.innerHTML = (whole ? bosses() : "") + (nights ? weeks(width, "Open night") : tonight());
     else root.innerHTML = bosses() + (nights ? weeks(width) : "") + tonight() + table() + `<div class="lists">${endings()}</div>`;
@@ -204,5 +205,5 @@ views.night = (() => {
     }));
   }
 
-  return { show, relayout: render };
+  return { show, relayout: render, seen: () => `the night's pulls on ${D.title}` };
 })();

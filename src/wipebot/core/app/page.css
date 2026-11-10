@@ -119,6 +119,13 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 .head { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 6px; flex-wrap: wrap; }
 .head h1 { font-size: 15px; margin: 0; font-weight: 650; }
 .head .sub { color: var(--muted); font-size: 12.5px; }
+/* the card's way out, to the pull on Warcraft Logs: a link, not a third button (kit.card says where) */
+.out { color: var(--muted); font-size: 12.5px; white-space: nowrap; text-underline-offset: 2px;
+       text-decoration: underline color-mix(in srgb, currentColor 45%, transparent); }
+.out:hover { color: var(--ink); }
+.out:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+.out svg { display: inline-block; width: 9px; height: 9px; margin-left: 3px; }
+.actions .out { margin-left: auto; align-self: center; padding: 6px 0; }
 .head .back { margin-left: auto; height: 28px; font-size: 12.5px; }
 .stats { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 0 2px 8px; }
 .stats.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 18px; }

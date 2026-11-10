@@ -4,7 +4,7 @@ views.replay = (() => {
   const UNKNOWN = -32768;
   let R = null, tracks = [], bossTracks = [], view = null, images = {}, t = 0, playing = false, speed = 1, hover = -1;
   let P = [];  // raid_plan's moments: the plan's spots laid over the room at each, and who was off theirs
-  let loaded = "";
+  let loaded = "", report = "";
 
   const MARKUP = `
     <div class="head"><h1 id="rp-title"></h1><span id="rp-clock"></span><span id="rp-event"></span></div>
@@ -23,6 +23,7 @@ views.replay = (() => {
     const key = JSON.stringify(given);
     if (key === loaded && $("rp-map")) return;
     loaded = key;
+    report = asked.report;
     P = plan || [];
     const data = await app.callTool("pull_replay", { report: asked.report, pull: asked.pull, boss: asked.boss,
                                                      at_ms: asked.at_ms || 0, players: asked.players || [] });
@@ -59,7 +60,7 @@ views.replay = (() => {
       const b = document.createElement("button");
       b.textContent = `${m.ability} ${clock(m.ms)}`;  // text only: names come from the log and the plan
       b.title = momentText(m);
-      b.onclick = () => { setPlaying(false); seek(m.ms, true); };
+      b.onclick = () => { setPlaying(false); seek(m.ms, true); stopped(); };
       row.appendChild(b);
     });
     image(R.map.image); R.bosses.forEach((b) => image(b.icon)); R.players.forEach((p) => image(p.icon));
@@ -304,6 +305,16 @@ views.replay = (() => {
     if (on) { if (t >= R.duration_ms) seek(Math.max(0, R.at_ms - 5000), true); requestAnimationFrame(tick); }
   }
 
+  // What the model is told is on screen (kit.looking): the moment the user stopped at (a pause, a scrub, one of the
+  // plan's moments) with what the replay says of it, once they have stopped there, never a moment passing by in play
+  const seen = () => `the replay of ${R.title} at ${clock(t)}` + ($("rp-event").textContent ? `: ${$("rp-event").textContent}` : "");
+  const SETTLE_MS = 600;
+  let settling = 0;
+  function stopped() {
+    clearTimeout(settling);
+    settling = setTimeout(() => { if (!playing && R && $("rp-map")) kit.looking(seen(), report); }, SETTLE_MS);
+  }
+
   function wire() {
     new ResizeObserver(() => draw()).observe($("rp-stage"));
     // hover: who, spec, distance to the boss
@@ -331,7 +342,7 @@ views.replay = (() => {
       draw();
     });
     $("rp-map").addEventListener("pointerleave", () => { $("rp-tip").style.display = "none"; hover = -1; draw(); });
-    $("rp-play").onclick = () => setPlaying(!playing);
+    $("rp-play").onclick = () => { setPlaying(!playing); stopped(); };
     $("rp-speed").onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 4 : 1; $("rp-speed").textContent = speed + "×"; };
     $("rp-full").onclick = () => app.requestDisplayMode("fullscreen").then(fit);
     const tl = $("rp-timeline");
@@ -341,6 +352,7 @@ views.replay = (() => {
       for (const d of [...R.deaths.map((d) => d.ms), ...(R.decided ? [R.decided.ms] : [])])
         if (Math.abs(d - ms) / R.duration_ms * rect.width < 6) { ms = d - 500; break; }
       seek(ms, true);
+      stopped();
     }
     tl.addEventListener("pointerdown", (e) => { tl.setPointerCapture(e.pointerId); fromPointer(e); });
     tl.addEventListener("pointermove", (e) => { if (tl.hasPointerCapture(e.pointerId)) fromPointer(e); });
@@ -349,9 +361,10 @@ views.replay = (() => {
       else if (e.key === "ArrowLeft") seek(t - (e.shiftKey ? 10000 : 1000));
       else if (e.key === " ") setPlaying(!playing);
       else return;
+      stopped();
       e.preventDefault();
     });
   }
 
-  return { show, relayout: () => { fit(); draw(); }, stop: () => setPlaying(false) };
+  return { show, relayout: () => { fit(); draw(); }, stop: () => { clearTimeout(settling); setPlaying(false); }, seen };
 })();

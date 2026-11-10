@@ -52,7 +52,7 @@ views.player = (() => {
     const sub = [who(), p.hero, p.ilvl ? `item level ${p.ilvl}` : null, D.title].filter(Boolean).join(" · ");
     const against = D.top && typeof D.top === "object";
     const card = (drawn, buttons = []) => kit.card({ title: p.name, sub, color: p.color, headline: D.headline, stats: stats(), chart: drawn,
-                                                     open: "Open player", buttons });
+                                                     open: "Open player", buttons, url: D.url });
     if (picture || !full) {
       root.innerHTML = card(ribbon({ W: width, lanes: false }) + (against ? topSection(width, TOP_ROWS) : ""),
                             [!D.top && ["pl-top", "Against top players"]]);
@@ -268,5 +268,5 @@ views.player = (() => {
       + `</div>`;
   }
 
-  return { show, relayout: render };
+  return { show, relayout: render, seen: () => `${D.player.name} on ${D.title}` };
 })();

@@ -67,8 +67,10 @@ const kit = (() => {
       css: (n) => hue.has(n) ? `background:${hue.get(n)}` : "background:none;box-shadow:inset 0 0 0 1.2px var(--muted)",
     };
   }
-  // A card's head: its title (a player's name in their class's ink) and the line beside it
-  const head = (title, sub, color) => `<div class="head"><h1${color ? ` ${cls(color)}` : ""}>${esc(title)}</h1><span class="sub">${esc(sub)}</span></div>`;
+  // A card's head: its title (a player's name in their class's ink) and the line beside it, which `more` (markup)
+  // ends
+  const head = (title, sub, color, more = "") =>
+    `<div class="head"><h1${color ? ` ${cls(color)}` : ""}>${esc(title)}</h1><span class="sub">${esc(sub)}${more && sub ? " · " : ""}${more}</span></div>`;
   // The card's few numbers: [label, value, class of the value, a note under it]; `cols`: in columns of one width,
   // as many as fit (a card's: its notes then wrap in their column)
   const stats = (items, cols = false) => `<div class="stats${cols ? " cols" : ""}">${items.filter(Boolean).map(([k, v, cls, note]) =>
@@ -96,19 +98,31 @@ const kit = (() => {
   // what to do differently), at most CARD.stats numbers, one chart of about CARD.chart px, and at most CARD.buttons
   // buttons: `open` ("Open pull": the same card in fullscreen, with more under it) first, where the host has a
   // fullscreen, then the view's own ([id, label]). Fullscreen draws the same card without `open`; a still picture
-  // has no buttons.
+  // has no buttons. `url` (the server's, to the pull or the report on Warcraft Logs) is the card's way out, a link
+  // and not a third button: inline at the end of the buttons' row, in fullscreen at the end of the head's line. The
+  // host opens it where it says it opens links.
   const CARD = { stats: 4, chart: 220, buttons: 2 };
   const lead = (h) => !h || !h.text ? "" : `<p class="lead ${h.kind || ""}">${h.kind ? `<span class="mk">${MARK[h.kind]}</span>` : ""}${esc(h.text)}</p>`;
-  function card({ title, sub, color, headline, stats: items = [], chart = "", open = "", buttons = [] }) {
+  const OUT = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 1.5h5v5M8.5 1.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+  function card({ title, sub, color, headline, stats: items = [], chart = "", open = "", buttons = [], url = "" }) {
     const inline = app.context().displayMode !== "fullscreen";
     const all = app.picture() ? [] : [inline && open && app.canGoFullscreen() && ["card-open", open, true], ...buttons].filter(Boolean);
-    return head(title, sub, color) + lead(headline) + stats(items.filter(Boolean).slice(0, CARD.stats), true) + chart
-      + (all.length ? `<div class="actions">${all.slice(0, CARD.buttons).map(([id, label, primary]) =>
-        `<button id="${id}"${primary ? ' class="primary"' : ""}>${esc(label)}</button>`).join("")}</div>` : "");
+    const out = app.picture() || !/^https:\/\//.test(url) ? ""
+      : `<a class="out" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Warcraft Logs${OUT}</a>`;
+    return head(title, sub, color, inline ? "" : out) + lead(headline) + stats(items.filter(Boolean).slice(0, CARD.stats), true) + chart
+      + (all.length || (inline && out) ? `<div class="actions">${all.slice(0, CARD.buttons).map(([id, label, primary]) =>
+        `<button id="${id}"${primary ? ' class="primary"' : ""}>${esc(label)}</button>`).join("")}${inline ? out : ""}</div>` : "");
   }
-  document.addEventListener("click", (e) => {  // the host's answer redraws the view (main.js, on its new context)
-    if (e.target.closest && e.target.closest("#card-open")) app.requestDisplayMode("fullscreen");
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest) return;
+    // the host's answer redraws the view (main.js, on its new context)
+    if (e.target.closest("#card-open")) app.requestDisplayMode("fullscreen");
+    const out = e.target.closest("a.out");  // a host that opens links opens this one; elsewhere it is the browser's
+    if (out && app.canOpenLinks()) { e.preventDefault(); app.openLink(out.href); }
   });
+  // What the model is told the user has on screen, in one line (a view opened from another, the way back, the moment
+  // a replay stopped at): `what` is the view's own words for it, from its data
+  const looking = (what, report) => app.tellModel(`The user is now looking at ${what}${report ? ` (report ${report})` : ""}.`);
   // What a click on one of the view's own buttons does, where the card drew it
   const press = (root, id, fn) => { const b = root.querySelector(`#${id}`); if (b) b.onclick = fn; };
   // How a view is drawn now: in fullscreen, as a still picture, and the width its charts are drawn at
@@ -228,6 +242,6 @@ const kit = (() => {
   document.addEventListener("focusout", hide);
 
   return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered,
-           CARD, card, press, frame, watch };
+           CARD, card, press, frame, watch, looking };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open, asked), drawn into root

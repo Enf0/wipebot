@@ -64,7 +64,7 @@ views.player_night = (() => {
     const sub = [`${p.spec} ${p.class}`, D.boss,
                  D.pulls.length === D.total_pulls ? kit.plural(D.pulls.length, "pull") : `${D.pulls.length} of ${D.total_pulls} pulls`].join(" · ");
     return `<div data-panel="killers">${kit.card({ title: p.name, sub, color: p.color, headline: D.headline, stats: stats(), chart: killers(),
-                                                    open: "Open night" })}</div>`;
+                                                    open: "Open night", url: D.url })}</div>`;
   }
 
   // The night pull by pull: fullscreen, and the second of Discord's panels
@@ -187,5 +187,5 @@ views.player_night = (() => {
       + `</div>`;
   }
 
-  return { show, relayout: render };
+  return { show, relayout: render, seen: () => `${D.player.name}'s night on ${D.boss}` };
 })();

@@ -42,7 +42,7 @@ views.death = (() => {
                  D.deaths > 1 ? `death ${D.death} of ${D.deaths}` : null].filter(Boolean).join(" · ");
     root.innerHTML = kit.card({ title: p.name, sub, color: p.color, headline: D.headline, stats: stats(),
                                 chart: chart(full ? Math.max(560, width) : width, full) + (full && !picture ? hitList() : ""),
-                                open: "Open death", buttons: [["dv-pull", "Their pull"]] });
+                                open: "Open death", buttons: [["dv-pull", "Their pull"]], url: D.url });
     kit.press(root, "dv-pull", () => open("player", { report: D.report, pull: D.pull, boss: D.boss, player: p.name }));
   }
 
@@ -114,5 +114,5 @@ views.death = (() => {
       + `</div></div>`;
   }
 
-  return { show, relayout: render };
+  return { show, relayout: render, seen: () => `${D.player.name}'s death at ${kit.clock(D.at_ms)} on ${D.title}` };
 })();

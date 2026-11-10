@@ -11,7 +11,7 @@
     const status = root.querySelector("#status");
     if (status && view) status.dataset.shape = view;
   };
-  let args = null, started = "", stack = [], current = null;
+  let args = null, started = "", stack = [], current = null, told = false;
 
   // What went wrong, in one line where the view would be, with nothing of the placeholder left around it; with
   // `retry`, "Try again" does it (the usual cause, Warcraft Logs not answering in time, passes)
@@ -51,6 +51,9 @@
       current = views[view];
       root.querySelector("#status")?.remove();
       stack[stack.length - 1].title = body.querySelector("h1")?.textContent || view;
+      // The model is told what is on screen once it is no longer what it asked for: a view opened from another, and
+      // from then on the way back too (each line replaces the last). The tool's own view, as it first shows, isn't.
+      if ((stack.length > 1 || told) && current.seen) { told = true; kit.looking(current.seen(), key.report); }
     } catch (e) {
       body.remove();
       fail(`Couldn't load this view: ${e.message}`, () => go(view, key));
@@ -73,6 +76,7 @@
     const asked = JSON.stringify(key);
     if (asked === started) return;  // the same result again (a host re-rendering)
     started = asked;
+    told = false;
     stack = [{ view, key }];
     go(view, key);
   }

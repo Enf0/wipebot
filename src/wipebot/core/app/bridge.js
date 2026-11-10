@@ -1,6 +1,7 @@
 // ---- the MCP Apps bridge: JSON-RPC over postMessage with the host (spec 2026-01-26) ----
 // The page asks ui/initialize, says ui/notifications/initialized, then gets the tool's input and result. It calls our
-// server's tools through the host (tools/call), asks for fullscreen (ui/request-display-mode) and reports its size.
+// server's tools through the host (tools/call), asks for fullscreen (ui/request-display-mode), reports its size, says
+// what the user is looking at (ui/update-model-context) and has the host open a link (ui/open-link).
 const PICTURE_HOST = "wipebot-picture";  // viewhost.py's painter, which takes a still picture of a view
 const app = (() => {
   let nextId = 1, context = {}, capabilities = {}, host = {};
@@ -98,6 +99,20 @@ const app = (() => {
     return request("ui/message", { role: "user", content: [{ type: "text", text }] }).catch(() => {});
   }
 
+  // What the user has on screen now, for the model to read with their next message ("why did this one go wrong?"
+  // after a click on a pull). Only a host that says it takes it (hostCapabilities.updateModelContext) is told; each
+  // line replaces the last.
+  const canTellModel = () => !!capabilities.updateModelContext;
+  function tellModel(text) {
+    if (!canTellModel()) return Promise.resolve();
+    return request("ui/update-model-context", { content: [{ type: "text", text }] }).catch(() => {});
+  }
+
+  // A page outside (the pull on Warcraft Logs), opened by the host where it says it opens links: a view's frame may
+  // not open one itself.
+  const canOpenLinks = () => !!capabilities.openLinks;
+  function openLink(url) { return request("ui/open-link", { url }).catch(() => {}); }
+
   // A note for the server's log (viewer_log): what went wrong in a host we can't open devtools in.
   function log(note) {
     request("tools/call", { name: "viewer_log", arguments: { note: String(note).slice(0, 500) } }).catch(() => {});
@@ -106,7 +121,7 @@ const app = (() => {
   window.addEventListener("unhandledrejection", (e) => log(`rejection: ${e.reason && e.reason.message || e.reason}`));
 
   return {
-    connect, callTool, requestDisplayMode, canGoFullscreen, sendMessage, log,
+    connect, callTool, requestDisplayMode, canGoFullscreen, sendMessage, tellModel, canOpenLinks, openLink, log,
     picture: () => host.name === PICTURE_HOST,  // drawn as a still picture (the Discord bot's): no buttons
     on: (what, fn) => listeners[what].push(fn),
     context: () => context,

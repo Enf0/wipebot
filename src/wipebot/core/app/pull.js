@@ -43,7 +43,8 @@ views.pull = (() => {
     const { full, picture, width } = kit.frame(root);
     const sub = [D.difficulty, kit.clock(D.duration_ms), D.kill ? "kill" : D.live ? "still going" : null].filter(Boolean).join(" · ");
     const startAt = D.deaths.length ? Math.max(0, D.deaths[0].ms - 3000) : 0;
-    const card = (drawn, buttons) => kit.card({ title: D.title, sub, headline: D.headline, stats: stats(), chart: drawn, open: "Open pull", buttons });
+    const card = (drawn, buttons) => kit.card({ title: D.title, sub, headline: D.headline, stats: stats(), chart: drawn,
+                                                 open: "Open pull", buttons, url: D.url });
     if (picture || !full) {  // the card; a still picture is the same without its buttons
       const plotH = picture ? 130 : width < 500 ? 100 : 120;
       root.innerHTML = card(`<div id="pv-chart">${chart({ W: width, L: 40, R: 54, plotH })}</div>`, [["pv-replay", "Replay"]]);
@@ -271,5 +272,5 @@ views.pull = (() => {
     return kit.svg(W, ly + 6, o, `${D.title}: boss health and raid damage taken over time, phases, deaths`);
   }
 
-  return { show, relayout: render };
+  return { show, relayout: render, seen: () => D.title };
 })();

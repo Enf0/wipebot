@@ -1883,7 +1883,7 @@ def test_a_players_headline_is_the_weightiest_note_and_their_nights_what_would_h
 CARD = """() => {
   const all = (sel) => [...document.querySelectorAll(sel)];
   return { lead: all(".lead").map((p) => p.textContent), stats: all(".stats .stat").length,
-           buttons: all(".actions button").map((b) => b.textContent), charts: all("#app svg").length,
+           buttons: all(".actions button").map((b) => b.textContent), charts: all("#app svg:not(.out svg)").length,
            lists: all("ul.ranked").length, tables: all("table").length,
            tall: Math.ceil(document.body.getBoundingClientRect().height),
            order: all("table, ul.ranked").map((e) => e.tagName.toLowerCase()) };
@@ -1960,3 +1960,77 @@ async def test_asked_about_the_whole_night_the_card_leads_with_its_bosses(monkey
         assert not errors
     async with drawn("progress", {"report": night["report"], "boss": "Torvek"}) as (view, errors):
         assert await view.evaluate(chips) == [] and not errors
+
+
+HEARD = """(method) => window.__log.filter((m) => m.dir === "←" && m.msg.method === method).map((m) => m.msg.params)"""
+REPORT = "KBYT4xXn7VNjDgh8"
+
+
+async def test_the_model_is_told_what_the_user_opened_and_where_a_replay_stopped(recorded):
+    """A click on a pull in the night's card, then "why did this one go wrong?": the model reads which pull is on
+    screen with that message (ui/update-model-context: one line, each replacing the last), on the way back what is
+    there again, and in a replay the moment the user stopped at. The tool's own view, as it first shows, is what the
+    model asked for: nothing is sent."""
+    async with drawn("progress", NIGHT_OF_PULLS.args) as (view, errors):
+        async def told() -> list[str]:
+            said = await view.page.evaluate(HEARD, "ui/update-model-context")
+            assert all(list(p) == ["content"] and len(p["content"]) == 1 for p in said)
+            return [p["content"][0]["text"] for p in said]
+        assert await told() == []
+        await view.locator('[data-pull-col="13"]').click()
+        await view.locator("h1", has_text="Sszorak pull 13").wait_for()
+        assert await told() == [f"The user is now looking at Sszorak pull 13 (report {REPORT})."]
+        await view.get_by_role("button", name="Replay").click()
+        await view.locator("#rp-map").wait_for()
+        replay = "The user is now looking at the replay of Sszorak · pull 13 at"
+        assert (await told())[-1] == f"{replay} 0:45 (report {REPORT})."
+        for _ in range(4):  # scrubbing says the moment once, where it stopped
+            await view.locator("#rp-timeline").press("ArrowRight")
+        await view.page.wait_for_timeout(900)
+        assert (await told())[2:] == [f"{replay} 0:49: Scopidruid died (Ula'tek's Presence) (report {REPORT})."]
+        await view.locator("button.back").click()
+        await view.locator("#pv-chart").wait_for()
+        await view.locator("button.back").click()
+        await view.locator("[data-pull-col]").first.wait_for()
+        assert (await told())[3:] == [f"The user is now looking at Sszorak pull 13 (report {REPORT}).",
+                                      "The user is now looking at the night's pulls on Sszorak, Mon 5 Oct "
+                                      f"(report {REPORT})."]
+        assert not errors
+
+
+async def test_a_host_that_takes_no_model_context_is_sent_none(recorded):
+    async with drawn("progress", NIGHT_OF_PULLS.args, capabilities={"openLinks": {}}) as (view, errors):
+        await view.locator('[data-pull-col="13"]').click()
+        await view.locator("h1", has_text="Sszorak pull 13").wait_for()
+        assert await view.page.evaluate(HEARD, "ui/update-model-context") == [] and not errors
+
+
+CLICK_OUT = """(a) => new Promise((done) => {
+  window.addEventListener("click", (e) => { done(e.defaultPrevented); e.preventDefault(); }, { once: true });
+  a.click();
+})"""
+
+
+async def test_every_card_links_to_its_pull_on_warcraft_logs_and_the_host_opens_it(recorded):
+    """The link is the server's (the pull's, or the night's report): inline at the end of the card's buttons, in
+    fullscreen at the end of its head's line. A host that says it opens links is asked to (ui/open-link: a view's
+    frame may not open a page itself); in another the click is the browser's. A picture has none."""
+    from wipebot.core import viewhost
+    report = f"https://www.warcraftlogs.com/reports/{REPORT}"
+    for case, url in (("pull-summary", f"{report}#fight=21"), ("death-recap", f"{report}#fight=21"),
+                      ("progress", report)):
+        async with drawn(CASES[case].tool, CASES[case].args) as (view, errors):
+            out = view.locator(".actions a.out")
+            assert await out.inner_text() == "Warcraft Logs" and await out.get_attribute("href") == url, case
+            assert await out.evaluate(CLICK_OUT) is True
+            await view.page.wait_for_timeout(100)
+            assert await view.page.evaluate(HEARD, "ui/open-link") == [{"url": url}] and not errors, case
+    pull = CASES["pull-summary"]
+    async with drawn(pull.tool, pull.args, capabilities={}) as (view, errors):
+        assert await view.locator(".actions a.out").evaluate(CLICK_OUT) is False
+        assert await view.page.evaluate(HEARD, "ui/open-link") == [] and not errors
+    async with drawn(pull.tool, pull.args, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        assert await view.locator("a.out").count() == 1
+        assert await view.locator(".head .sub").inner_text() == "Mythic · 2:42 · Warcraft Logs" and not errors
+    async with drawn(pull.tool, pull.args, picture=True) as (view, errors):
+        assert await view.locator("a").count() == 0 and not errors
