@@ -64,11 +64,53 @@ def _linked(page: dict, kind: str) -> dict[int, str]:
             if e.get("entity_type") == kind and e.get("name")}
 
 
+NAME_CHARS = 60  # what a page gives as a linked spell's name is none when longer: it's the spell's journal entry
+# A link to a spell in a Wowhead guide's markup: the spell's id, its name as Wowhead slugs it in the address (a
+# link to the bare id has none) and the link's text
+_SPELL_LINK = re.compile(r'<a\b[^>]*\bhref="[^"]*?spell=(\d+)(?:/([a-z0-9-]+))?[^"]*"[^>]*>(.*?)</a>', re.S)
+
+
+def _spell_names(page: dict) -> dict[int, str]:
+    """id -> name of the spells a Wowhead boss guide links. The page's list of them (`_linked`) leaves a spell
+    linked only from the text without a name, and names one linked around its journal entry by that whole entry
+    (118 of the 400 spells on Midnight's 17 boss pages in November 2026, Gravebound and Toxic Deluge among them).
+    Those are named by their links: the address of one holds the name as Wowhead slugs it
+    ("/spell=1286837/gravebound"), and the name is what the page writes that slugs to the same, another spell's
+    name in the list or a link's text ("[Gravebound]"), else the slug's words ("manifestation of dread", which
+    `_key` still tells from no other name). A spell with neither a name nor such a link is left out."""
+    def slugged(name: str) -> str:
+        return slug(fold(fold_quotes(name)))
+    raw = "\n".join(c.get("content_raw") or "" for c in (page.get("body") or {}).get("section_chunks") or [])
+    links = [(int(spell_id), in_address, html.unescape(re.sub(r"<!--.*?-->|<[^>]+>", "", text, flags=re.S)))
+             for spell_id, in_address, text in _SPELL_LINK.findall(raw)]
+    slugs = {spell_id: in_address for spell_id, in_address, _ in reversed(links) if in_address}
+    listed = {e["id"]: e.get("name") or "" for e in (page.get("linked_entities") or {}).get("items") or []
+              if e.get("entity_type") == "spell"}
+    written: dict[str, str] = {}  # a slug -> the name as the page writes it
+    for name in [*listed.values(), *(text.strip().strip("[]") for _, _, text in links)]:
+        if name and len(name) <= NAME_CHARS:
+            written.setdefault(slugged(name), name)
+    names = {}
+    for spell_id, name in listed.items():
+        in_address = slugs.get(spell_id)
+        if in_address and slugged(name) != in_address:  # no name, an entry, or a name with more in it
+            name = written.get(in_address) or in_address.replace("-", " ")
+        if name and len(name) <= NAME_CHARS:
+            names[spell_id] = name
+    return names
+
+
+def _key(name: str) -> str:
+    """A spell's name for telling whether two are the same: as `_plain`, without the apostrophes, which a name read
+    from a link's address has lost ("ulateks presence")."""
+    return _plain(name).replace("'", "")
+
+
 async def _linked_spells(boss: str) -> dict[int, str]:
-    """id -> name of the spells the boss's Wowhead guide links: its abilities by name, with no tooltip read. None
-    when Wowhead has no guide for it."""
+    """id -> name of the spells the boss's Wowhead guide links (`_spell_names`): its abilities by name, with no
+    tooltip read. None when Wowhead has no guide for it."""
     try:
-        return _linked((await _wowhead_boss_page(boss))[1], "spell")
+        return _spell_names((await _wowhead_boss_page(boss))[1])
     except KnowledgeError:
         return {}
 
@@ -259,7 +301,7 @@ async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: st
     names Wowhead's guide links its spells under."""
     (guides, missing), linked, fixes = await asyncio.gather(boss_guides(boss, raid, difficulty), _linked_spells(boss),
                                                             _hotfixes(boss))
-    tips = await _tooltips([i for i, name in linked.items() if _plain(name) == _plain(mechanic)][:TOOLTIPS_NAMED])
+    tips = await _tooltips([i for i, name in linked.items() if _key(name) == _key(mechanic)][:TOOLTIPS_NAMED])
     parts = [f"{mechanic} on {boss}: its tooltip, then the parts of each guide that name it (boss_guide without "
              "`mechanic` reads the whole guides).", hotfixes_after(boss, guides, fixes, mechanic)]
     parts += [f"Tooltip (Wowhead, spell {s.id}): {s.text}" for s in tips[:2]]
@@ -293,14 +335,14 @@ async def boss_naming(mechanic: str, but: str, raid: str | None = None) -> tuple
     async def names(boss: str) -> set[str]:
         tracked, linked = await asyncio.gather(boss_spells(boss), _linked_spells(boss), return_exceptions=True)
         listed = [s.get("name") or "" for s in tracked] if isinstance(tracked, list) else []
-        return {_plain(n) for n in listed + list(linked.values() if isinstance(linked, dict) else [])}
+        return {_key(n) for n in listed + list(linked.values() if isinstance(linked, dict) else [])}
     try:
         async with asyncio.timeout(NAMING_S):
             bosses = [(r, b) for r, names_ in await raids() for b in names_ if not names_boss(b, but)]
             near = [rb for rb in bosses if raid and rb[0] == raid]
             for part in (near, [rb for rb in bosses if rb not in near]):
                 found = await asyncio.gather(*(names(b) for _, b in part))
-                if hit := next((rb for rb, known in zip(part, found, strict=True) if _plain(mechanic) in known),
+                if hit := next((rb for rb, known in zip(part, found, strict=True) if _key(mechanic) in known),
                                None):
                     return hit
     except KnowledgeError:

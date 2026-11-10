@@ -136,6 +136,12 @@ API: `wcl-api.md`.
   names. `wowhead entity spell <id>` gives clean tooltip text, but `tooltip.text` drops a spec's own clause
   (Death Grip's "[Blood: and forcing the enemy to attack you]", verified 2026-10-15), so `knowledge` reads
   `tooltip.html`.
+- `linked_entities` names only some of the spells: on the 17 boss pages of Midnight's raids as fetched in November
+  2026, 88 of the 400 linked spells have `name` null (those linked only from the text: Gravebound, Toxic Deluge)
+  and 30 have their whole journal entry as `name` (those linked around it). The links carry the name as Wowhead
+  slugs it, `href="/spell=1286837/gravebound"`, for 117 of those 118, and a link's text is often the name
+  ("[Gravebound]"; in prose it may be inflected, "[Manifestations of Dread]"). `knowledge.bosses._spell_names`
+  names a spell by them without reading its tooltip: its names equal the tooltips' for 399 of the 400.
 - The dungeon journal in that page (the `[html]` islands) marks each number of a spell's effects,
   `<!--pts1:0:0:<spell id>-->5<!---->`, and as fetched most damage and healing amounts are unscaled: "inflicting 5
   Shadow damage every 2 sec" where the tooltip says 192,517 (16 of about 32 amounts under 1,000 for the Coiled

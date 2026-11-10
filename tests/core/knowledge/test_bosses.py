@@ -313,6 +313,49 @@ async def test_one_mechanic_reads_its_own_tooltips_not_the_boss_s_sixty(monkeypa
         "Tooltip (Wowhead, spell 7): What spell 7 does.\nTooltip (Wowhead, spell 8): What spell 8 does.")
 
 
+# How Wowhead's page lists the spells it links (the shape of November 2026, the writing made up): one linked only
+# from the text has no name, and one linked around its journal entry has that whole entry as its name.
+ENTRY = "The boss throws an axe at a player, inflicting 12 Physical damage split among players within 9 yards."
+LINKS = {"linked_entities": {"items": [{"entity_type": "spell", "id": i, "name": name} for i, name in (
+            (1, "Guillotine"), (2, None), (3, ENTRY), (4, None), (5, None), (6, None))]},
+         "body": {"section_chunks": [{"title": "Strategy", "content_raw": (
+             '[html]<p><a href="/spell=2/gravebound">[Gravebound]</a> marks players, and <a style="color:#2959D3" '
+             'href="/spell=4/manifestation-of-dread">[Manifestations of Dread]</a> come out of them.</p><ul>'
+             '<li><b><a target="_blank" href="https://www.wowhead.com/spell=1">Guillotine</a></b>: '
+             f'<a href="/spell=3/guillotine" target="_blank">{ENTRY.replace("12", "<!--pts1:0:0:3-->12<!---->")}</a>'
+             '</li><li><b><a href="/spell=5/ulateks-presence">Ula\'tek\'s Presence</a></b>: the room darkens.</li>'
+             '<li><a href="https://www.wowhead.com/spell=6">here</a></li></ul>[/html]')}]}}
+
+
+async def test_a_spell_the_page_links_without_a_name_is_named_by_its_link(monkeypatch):
+    """A third of the spells on the tier's boss pages: without their names the mechanic's tooltip was left out,
+    the search under the other bosses missed them, and the abilities listed held whole journal entries."""
+    asked = []
+    monkeypatch.setattr(fetch, "cli", wowhead_boss(LINKS, asked))
+    assert await bosses._linked_spells("The Coiled Altar") == {
+        1: "Guillotine", 2: "Gravebound", 3: "Guillotine", 4: "manifestation of dread", 5: "Ula'tek's Presence"}
+    for mechanic, ids in (("gravebound", [2]), ("Manifestation of Dread", [4]), ("Guillotine", [1, 3]),
+                          ("Ula’tek’s Presence", [5]), ("ulateks presence", [5])):
+        asked.clear()
+        text = await bosses.boss_mechanic_text("The Coiled Altar", "The Venomous Abyss", "mythic", mechanic)
+        assert asked == ids and f"Tooltip (Wowhead, spell {ids[0]}): What spell {ids[0]} does." in text
+    with pytest.raises(KnowledgeError) as none:
+        await bosses.boss_mechanic_text("The Coiled Altar", "The Venomous Abyss", "mythic", "March of the Damned")
+    assert str(none.value) == ("no guide for The Coiled Altar names 'March of the Damned'; its abilities, as "
+                               "Wowhead's guide links them: Guillotine, Gravebound, manifestation of dread, Ula'tek's "
+                               "Presence")
+
+    async def raids():
+        return [("The Venomous Abyss", ["Sszorak", "The Coiled Altar"])]
+
+    async def no_spells(boss):
+        return []
+    monkeypatch.setattr(bosses, "raids", raids)
+    monkeypatch.setattr(bosses, "boss_spells", no_spells)
+    for mechanic in ("Gravebound", "manifestation of dread", "Ula'tek's Presence"):  # asked under the wrong boss
+        assert await bosses.boss_naming(mechanic, "Sszorak") == ("The Venomous Abyss", "The Coiled Altar")
+
+
 async def test_wowheads_journal_comes_without_its_amounts_and_says_so_once(monkeypatch):
     journal = ("[tabs][tab name=\"Abilities\"][html]<ul><li><div><span><b> Gloom Aura</b></span>: The boss glows, "
                "inflicting <!--pts1:0:0:12-->5<!----> Shadow damage every 2 sec.</div></li></ul>[/html][/tab][/tabs]")
