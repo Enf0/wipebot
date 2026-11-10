@@ -7,6 +7,7 @@
     just evals --save-baseline        # keep this run as its mode's baseline, to compare later runs with
     just evals --save-baseline evals/results/X.json   # a saved three-trial run as the baseline (no model)
     just evals --summary evals/results/X.json         # a saved run's summary and comparison again (no model)
+    just evals --record evals/results/X.json          # a saved full run as its mode's last in evals/full-runs.json
     just evals --connector-only       # as a client with only the connector: no skill, no instructions (own baseline)
     just evals --bot                  # as the Discord bot: its prompt with the skill (own baseline)
     just evals --label evals/results/X.json   # mark a run's answers pass or fail yourself (evals/labels.jsonl)
@@ -32,6 +33,9 @@ error is only what says nothing about the answer: a usage limit, a judge with no
 data this machine may not read. Errors are in no count; a summary and a comparison start with how many there were,
 and a run with one exits non-zero (settle).
 
+A full run (no -k) is kept as its mode's last in evals/full-runs.json, tracked: its commit, day, trials, passes,
+errors and verdict line. scripts/release.py prints how many answer-changing commits and days a release is from it.
+
 A run, and a baseline, keep what was tested (tested: the models' full names, the SDK and Claude Code versions, the
 effort, the commit, when the frozen data was last added to), and a comparison warns when the two differ. The date in
 a question's first line is the recorded data's, like the tools' clock (freeze_today).
@@ -54,6 +58,7 @@ import io
 import json
 import math
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -95,6 +100,8 @@ from wipebot.mcp.plugin import plugin_files
 
 HERE = Path(__file__).resolve().parent
 CACHE, LABELS = HERE / "cache.sqlite", HERE / "labels.jsonl"
+# Each mode's last full run (every case, no -k), tracked: scripts/release.py says how far a release is from it.
+FULL_RUNS = HERE / "full-runs.json"
 # The recorded data's "now" (wipebot.core.clock): after the guild's 12 Oct night (vjt3KLbN8g62J1H9, the
 # latest log a case relies on, ends 20:57 UTC), before the first Kith'ix log (14 Oct 00:49); the tool tests' clock.
 RECORDED_AT = datetime(2026, 10, 13, 15, 16, tzinfo=UTC).timestamp()
@@ -541,11 +548,15 @@ async def run(args) -> int:
     lines, found = report(tally, results, base, args.mode,
                           f"({shown}, {args.mode}, judge {args.judge_model}, ${cost:.2f})")
     print("\n" + "\n".join(lines))
+    if not args.filter and not args.held_out:
+        record_full_run(tally, args.mode, found.lines[-1] if found else "no baseline to compare with",
+                        f"{datetime.now(UTC):%Y-%m-%d}")
     stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
     out = HERE / "results" / f"{stamp}.json"
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({"model": shown, "mode": args.mode, "connector_only": args.mode == "connector",
                                "judge_model": args.judge_model, "filter": args.filter,
+                               "date": f"{datetime.now(UTC):%Y-%m-%d}",
                                "billed_to": args.billed_to, "trials": asked_trials, "commit": tally["commit"],
                                "judge": tally["judge"], "tested": tally["tested"],
                                "case_hashes": tally["case_hashes"],
@@ -593,6 +604,32 @@ def show_run(path: Path) -> int:
                           f"({path.name}: {tally['model']}, {run['mode']}, commit {tally['commit']})")
     print("\n".join(lines))
     return 1 if tally["errors"] or (found and found.verdict == "a drop shown") else 0
+
+
+def record_full_run(tally: dict, mode: str, verdict: str, day: str) -> dict:
+    """Keep a full run as its mode's last in FULL_RUNS: its commit and day, its trials, passes of answers, errors
+    and the verdict line of its comparison. The file is tracked: commit it with the change the run covered."""
+    runs = json.loads(FULL_RUNS.read_text(encoding="utf-8")) if FULL_RUNS.exists() else {}
+    runs[mode] = {"commit": tally["commit"], "date": day, "trials": trials_of(tally),
+                  "passed": sum(tally["passed"].values()), "of": sum(judged(tally, c) for c in tally["passed"]),
+                  "errors": sum(tally.get("errors", {}).values()), "verdict": verdict}
+    FULL_RUNS.write_text(json.dumps(runs, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"recorded as the last full {mode} run in evals/{FULL_RUNS.name}: commit it (scripts/release.py reads it)")
+    return runs[mode]
+
+
+def record_saved(path: Path) -> None:
+    """A saved full run as its mode's last (record_full_run), for one made where the file couldn't be committed (the
+    Evals workflow): no model. Its day is the file's own, else the date in its name, else when it was written."""
+    run, _, tally = read_run(path)
+    if run.get("filter"):
+        raise SystemExit(f"not a full run: it asked only the cases matching -k {run['filter']}")
+    base = json.loads(baseline(run["mode"]).read_text()) if baseline(run["mode"]).exists() else None
+    named = re.search(r"(20\d\d)(\d\d)(\d\d)", path.stem)
+    day = run.get("date") or ("-".join(named.groups()) if named else
+                              f"{datetime.fromtimestamp(path.stat().st_mtime, UTC):%Y-%m-%d}")
+    record_full_run(tally, run["mode"], compared(base, tally).lines[-1] if base else "no baseline to compare with",
+                    day)
 
 
 def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") -> None:
@@ -1275,7 +1312,7 @@ async def agreement(judge_model: str) -> None:
                 print(f"    {d['case']} {d['check']} ({by}: {'pass' if d['right'] else 'fail'}): {v.reason[:200]}")
 
 
-def main() -> None:
+def arguments() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run wipebot's eval cases.")
     parser.add_argument("-k", dest="filter", default="",
                         help="only cases whose id contains this (several, comma-separated: any of them)")
@@ -1299,6 +1336,8 @@ def main() -> None:
                              "errored, was filtered or is below the baseline it replaces, unless --accept")
     parser.add_argument("--accept", default="", metavar="REASON",
                         help="with --save-baseline: why a run it would refuse is the baseline all the same")
+    parser.add_argument("--record", metavar="RESULTS",
+                        help="keep a saved full run as its mode's last in evals/full-runs.json (no model)")
     parser.add_argument("--summary", metavar="RESULTS",
                         help="a saved run's summary and comparison again, by today's rules (no model)")
     parser.add_argument("--held-out", action="store_true",
@@ -1318,6 +1357,11 @@ def main() -> None:
                         help="how a saved run's answers are built, against the bot's prompt (no model)")
     parser.add_argument("--api-key", action="store_true",
                         help="bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude Code login)")
+    return parser
+
+
+def main() -> None:
+    parser = arguments()
     args = parser.parse_args()
     if args.trials == "auto" and args.save_baseline == "":
         parser.error("--trials auto with --save-baseline: a baseline asks every case as often, to judge the next run")
@@ -1325,6 +1369,8 @@ def main() -> None:
         parser.error("--held-out with --save-baseline: a baseline is the regular cases'")
     if args.summary:
         sys.exit(show_run(Path(args.summary)))
+    if args.record:
+        return record_saved(Path(args.record))
     if args.save_baseline:  # a saved run's file: no model
         run, _, tally = read_run(Path(args.save_baseline))
         return save_baseline(tally, run["mode"], args.accept, run.get("filter", ""))

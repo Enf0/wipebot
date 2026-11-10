@@ -1,6 +1,10 @@
 """Cutting a release (scripts/release.py): the changelog's Unreleased becomes the version's section, and which version
 the changelog calls for."""
 import datetime
+import json
+import subprocess
+
+import pytest
 
 from scripts import release
 
@@ -56,3 +60,68 @@ def test_a_line_about_a_picture_needs_the_picture_under_it():
              "- `Discord` **The map, pictured.** A map.\n  ![The map](https://raw.githubusercontent.com/x/map.webp)\n"
              "- `Agent` **Faster.** No drawing here, no pic.\n- `Agent` A plain fix with a chart in it.")
     assert release.unpictured(notes) == ["The night, drawn.", "A plain fix with a chart in it."]
+
+
+@pytest.fixture
+def repo(tmp_path, monkeypatch):
+    """A throwaway repository (no remote) as the release script's root; `commit(path)` adds a commit touching it."""
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args], cwd=tmp_path,
+                              check=True, capture_output=True, text=True).stdout.strip()
+    git("init", "--quiet", "--initial-branch=main")
+    count = iter(range(1000))
+
+    def commit(path: str) -> str:
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).write_text(f"{next(count)}\n")
+        git("add", path)
+        git("commit", "--quiet", "-m", f"touch {path}")
+        return git("rev-parse", "--short", "HEAD")
+    monkeypatch.setattr(release, "ROOT", tmp_path)
+    return tmp_path, commit
+
+
+def full_run(commit: str, date: str) -> dict:
+    return {"commit": commit, "date": date, "trials": "2-6 trials", "passed": 190, "of": 207, "errors": 0,
+            "verdict": "VERDICT: no change shown."}
+
+
+def test_a_release_says_how_far_it_is_from_each_modes_last_full_eval_run(repo):
+    root, commit = repo
+    at = commit("src/wipebot/core/server.py")
+    (root / "evals").mkdir()
+    (root / "evals" / "full-runs.json").write_text(json.dumps({"bot": full_run(at, "2026-11-01"),
+                                                              "plugin": full_run("0000000", "2026-11-05")}))
+    for path in ("docs/models.md", "src/wipebot/discord/host-prompt.md", "src/wipebot/mcp/remote.py",
+                 "src/wipebot/core/skills/raid-log-analysis/SKILL.md", "evals/cases/wipe.toml", "evals/run.py"):
+        commit(path)
+    lines, past = release.evals_distance(datetime.date(2026, 11, 10))
+    assert lines == [  # the bot's prompt, the skill and a case can move the bot's answers; docs, the server, no
+        f"Evals, bot: last full run 2026-11-01 at {at} (2-6 trials, 190/207 answers passed, 0 errors); since then 3 "
+        "commits that can change an answer and 9 days.",
+        "Evals, plugin: last full run 2026-11-05 at 0000000 (2-6 trials, 190/207 answers passed, 0 errors); since "
+        "then an unknown number of commits (its commit isn't in this checkout) and 5 days.",
+        "Evals, connector: no full run on record."]
+    assert past == []  # a mode without a record, or with a commit not here, stops nothing
+    assert release.body("What it brings.", lines) == "What it brings.\n\n" + "\n".join(lines)
+    assert release.body("", lines, "the suite is down").endswith(
+        "days.\nEvals, connector: no full run on record.\n\nReleased without a full eval run: the suite is down")
+
+
+def test_a_release_stops_only_past_the_distance(repo, monkeypatch):
+    root, commit = repo
+    at = commit("src/wipebot/core/server.py")
+    (root / "evals").mkdir()
+    (root / "evals" / "full-runs.json").write_text(json.dumps({"bot": full_run(at, "2026-11-01")}))
+    monkeypatch.setattr(release, "EVAL_COMMITS", 2)
+    commit("src/wipebot/core/a.py")
+    commit("src/wipebot/core/b.py")
+    assert release.evals_distance(datetime.date(2026, 11, 2))[1] == []  # at the limit, not past it
+    commit("src/wipebot/core/c.py")
+    assert release.evals_distance(datetime.date(2026, 11, 2))[1] == ["bot (3 commits, 1 days)"]
+    monkeypatch.setattr(release, "EVAL_COMMITS", 30)
+    assert release.evals_distance(datetime.date(2026, 11, 22))[1] == []  # 21 days
+    assert release.evals_distance(datetime.date(2026, 11, 23))[1] == ["bot (3 commits, 22 days)"]
+    (root / "evals" / "full-runs.json").unlink()
+    lines, past = release.evals_distance(datetime.date(2026, 11, 23))
+    assert past == [] and lines[0] == "Evals, bot: no full run on record."

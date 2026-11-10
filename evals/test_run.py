@@ -558,3 +558,36 @@ def test_a_saved_run_is_read_by_todays_rule_and_can_become_the_baseline(suite_on
     assert "\n    s0 0/3 (baseline 3/3), by chance 1 in 20\n" in out and "(run.json: opus, bot, commit def)" in out
     save_baseline(tally, run["mode"], filtered=run.get("filter", ""))
     assert json.loads(path.read_text())["passed"]["s0"] == 0
+
+
+def test_a_full_run_is_kept_as_its_modes_last(suite_on_disk, tmp_path, monkeypatch):
+    from evals import run
+    _, a_run = suite_on_disk
+    monkeypatch.setattr(run, "FULL_RUNS", tmp_path / "full-runs.json")
+    (tmp_path / "full-runs.json").write_text(json.dumps({"plugin": {"commit": "old"}}))
+    run.record_full_run(a_run(errors={"s0": 1}), "bot", "VERDICT: no change shown.", "2026-11-12")
+    kept = json.loads((tmp_path / "full-runs.json").read_text())
+    assert kept["plugin"] == {"commit": "old"}  # the other modes' stay
+    assert kept["bot"] == {"commit": "def", "date": "2026-11-12", "trials": "3 trials", "passed": 247, "of": 278,
+                           "errors": 1, "verdict": "VERDICT: no change shown."}
+    # a saved run, as the Evals workflow leaves one: recorded without a model, dated by its name
+    answer = {"answer": "x", "expect": {"ok": True, "reason": ""}, "wrong": {"ok": True, "reason": ""}}
+    saved = tmp_path / "bot-full-20261113.json"
+    file = {"model": "opus", "mode": "bot", "commit": "fed", "judge": judged_by("sonnet"),
+            "case_hashes": a_run()["case_hashes"], "cases": {c: [answer] * 3 for c in a_run()["passed"]}}
+    saved.write_text(json.dumps(file))
+    run.record_saved(saved)
+    kept = json.loads((tmp_path / "full-runs.json").read_text())["bot"]
+    assert (kept["commit"], kept["date"], kept["passed"], kept["of"]) == ("fed", "2026-11-13", 279, 279)
+    assert kept["verdict"].startswith("VERDICT: a rise shown")
+    saved.write_text(json.dumps(file | {"filter": "wipe"}))
+    with pytest.raises(SystemExit, match="not a full run: it asked only the cases matching -k wipe"):
+        run.record_saved(saved)
+
+
+def test_the_tracked_record_of_full_runs_names_modes_the_release_script_knows():
+    from evals.run import FULL_RUNS
+    from scripts.release import ANSWERS
+    runs = json.loads(FULL_RUNS.read_text())
+    assert set(runs) <= set(ANSWERS) and all(
+        set(r) == {"commit", "date", "trials", "passed", "of", "errors", "verdict"} for r in runs.values())

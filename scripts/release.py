@@ -7,9 +7,16 @@ says which one the changelog calls for and changes nothing: a minor version for 
 a patch for fixes only. What goes in the changelog, and the commit's summary (`--summary`), are written by hand
 first; deploying is a deployment's own. A line about a picture (one drawn, changed or shown) needs that picture
 under it, as the website, the release notes and Discord's what's new show it: the release stops without, unless
-`--without-pictures`."""
+`--without-pictures`.
+
+It also says how far the release is from the evals: for each mode, how many commits that can change an answer and how
+many days lie since its last recorded full run (evals/full-runs.json, which a full `just evals` run writes). That is
+printed with or without a version and written into the release commit's body. Past EVAL_COMMITS such commits or
+EVAL_DAYS days the release stops, until a full run is recorded or `--without-evals "<reason>"` says why not; the
+reason goes into the commit's body too."""
 import argparse
 import datetime
+import json
 import re
 import subprocess
 import sys
@@ -19,6 +26,15 @@ ROOT = Path(__file__).resolve().parents[1]
 CHANGELOG = ROOT / "CHANGELOG.md"
 PYPROJECT = ROOT / "pyproject.toml"
 UNRELEASED = "## [Unreleased]"
+FULL_RUNS = Path("evals") / "full-runs.json"
+# What an answer is made of, per eval mode: a commit that touches one of these since the mode's last full run can have
+# moved its answers. The core (the tools and the skill) and the cases are every mode's; then the app that answers.
+ANSWERS = {"bot": ("src/wipebot/core", "src/wipebot/discord", "evals/cases"),
+           "plugin": ("src/wipebot/core", "src/wipebot/mcp", "evals/cases"),
+           "connector": ("src/wipebot/core", "src/wipebot/mcp", "evals/cases")}
+# How far from a mode's last full run a release may be: past either, it stops (--without-evals "<reason>" to pass).
+# By distance and not at every release: a gate that stops each one is overridden each time.
+EVAL_COMMITS, EVAL_DAYS = 30, 21
 VERSION = re.compile(r'^version = "([^"]+)"$', re.M)  # the first is [project]'s
 
 
@@ -82,6 +98,38 @@ def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True, text=True)
 
 
+def evals_distance(today: datetime.date) -> tuple[list[str], list[str]]:
+    """How far HEAD is from each mode's last recorded full eval run: a line per mode, for the terminal and the
+    release commit's body, and the modes past EVAL_COMMITS answer-changing commits or EVAL_DAYS days, with why. A
+    mode with no run on record, or one whose commit this checkout doesn't have, is said and stops nothing."""
+    path = ROOT / FULL_RUNS
+    runs = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    lines, past = [], []
+    for mode, paths in ANSWERS.items():
+        if not (last := runs.get(mode)):
+            lines.append(f"Evals, {mode}: no full run on record.")
+            continue
+        days = (today - datetime.date.fromisoformat(last["date"])).days
+        known = subprocess.run(["git", "cat-file", "-e", f"{last['commit']}^{{commit}}"], cwd=ROOT,
+                               capture_output=True).returncode == 0
+        commits = int(git("rev-list", "--count", f"{last['commit']}..HEAD", "--", *paths)) if known else None
+        lines.append(f"Evals, {mode}: last full run {last['date']} at {last['commit']} ({last['trials']}, "
+                     f"{last['passed']}/{last['of']} answers passed, {last['errors']} errors); since then "
+                     + (f"{commits} commits that can change an answer" if known else
+                        "an unknown number of commits (its commit isn't in this checkout)") + f" and {days} days.")
+        if (commits or 0) > EVAL_COMMITS or days > EVAL_DAYS:
+            past.append(f"{mode} ({commits if known else '?'} commits, {days} days)")
+    return lines, past
+
+
+def body(summary: str, distance: list[str], without_evals: str = "") -> str:
+    """The release commit's body: what the version brings, then how far it is from the evals, and why it went out
+    past the limit when it did."""
+    return "\n\n".join(part for part in (summary, "\n".join(distance),
+                                         f"Released without a full eval run: {without_evals}" if without_evals else "")
+                       if part)
+
+
 def ready() -> str:
     """Why the tree can't be released from, or ''."""
     if git("status", "--porcelain", "--untracked-files=no"):
@@ -101,6 +149,9 @@ def main() -> None:
     parser.add_argument("--notes", action="store_true", help="only print the released version's notes")
     parser.add_argument("--without-pictures", action="store_true",
                         help="release even with lines about a picture that have none under them")
+    parser.add_argument("--without-evals", default="", metavar="REASON",
+                        help=f"release although a mode's last full eval run is more than {EVAL_COMMITS} "
+                             f"answer-changing commits or {EVAL_DAYS} days back: why, kept in the commit's body")
     args = parser.parse_args()
     changelog, pyproject = CHANGELOG.read_text(encoding="utf-8"), PYPROJECT.read_text(encoding="utf-8")
     if args.notes:
@@ -112,6 +163,8 @@ def main() -> None:
     notes = unreleased(changelog)
     if not notes:
         sys.exit("CHANGELOG.md has nothing under Unreleased")
+    distance, past = evals_distance(datetime.date.today())
+    print("\n".join(distance))
     if not args.version:
         print(f"Wipebot {current}; the changelog calls for {suggest(current, notes)}: just release "
               f"{suggest(current, notes)} --summary \"...\"")
@@ -126,12 +179,16 @@ def main() -> None:
     if (missing := unpictured(notes)) and not args.without_pictures:
         sys.exit("These lines talk about a picture but have none under them (docs/images, by its "
                  "raw.githubusercontent.com address): " + "; ".join(missing) + ". Add them, or --without-pictures.")
+    if past and not args.without_evals:
+        sys.exit(f"Too far from the last full eval run: {', '.join(past)}; the limit is {EVAL_COMMITS} commits that "
+                 f"can change an answer or {EVAL_DAYS} days. Run the full suite (`just evals --trials auto`, in the "
+                 "modes named) and commit evals/full-runs.json, or say why not: --without-evals \"<reason>\".")
     CHANGELOG.write_text(cut(changelog, args.version, datetime.date.today()), encoding="utf-8")
     PYPROJECT.write_text(bump(pyproject, args.version), encoding="utf-8")
     run("uv", "lock", "--quiet")
     run("git", "add", "CHANGELOG.md", "pyproject.toml", "uv.lock")
     title = f"Wipebot {args.version}"
-    run("git", "commit", "--quiet", "-m", f"chore: {title}" + (f"\n\n{args.summary}" if args.summary else ""))
+    run("git", "commit", "--quiet", "-m", f"chore: {title}\n\n" + body(args.summary, distance, args.without_evals))
     run("git", "push", "origin", "main")
     print(f"pushed {title}: once Checks passes, the Release workflow makes {tag} and the GitHub release")
 

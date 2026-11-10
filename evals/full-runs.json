@@ -1,0 +1,20 @@
+{
+ "bot": {
+  "commit": "0bcd623",
+  "date": "2026-10-29",
+  "trials": "3 trials",
+  "passed": 246,
+  "of": 273,
+  "errors": 0,
+  "verdict": "VERDICT: cannot tell: 22 of this run's 91 cases not compared. Look: the total is 1.8 spreads below the baseline's."
+ },
+ "plugin": {
+  "commit": "172edb8",
+  "date": "2026-10-29",
+  "trials": "3 trials",
+  "passed": 229,
+  "of": 252,
+  "errors": 0,
+  "verdict": "VERDICT: cannot tell: 26 of this run's 84 cases not compared. Look: the total is 1.9 spreads below the baseline's."
+ }
+}
