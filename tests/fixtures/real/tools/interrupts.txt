@@ -1,3 +1,4 @@
+Boss "Nek'zali" is read as Nek'zali the Soulcoiler (Mythic), pulled last; Nek'zali the Soulcoiler (Heroic) matches it too.
 Interrupts on all 2 Nek'zali the Soulcoiler (Mythic) pulls:
   Soulcoiler's Curse: 24 began, 17 kicked, 1 went through, 6 ended otherwise (the caster died or was moved)
 By player (kicks; who let a cast through isn't in the log: a cast nobody kicked has no name on it):

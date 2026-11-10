@@ -1,3 +1,4 @@
+Boss "Nek'zali" is read as Nek'zali the Soulcoiler (Mythic), pulled last; Nek'zali the Soulcoiler (Heroic) matches it too.
 Enemies other than the boss on all 2 Nek'zali the Soulcoiler (Mythic) pulls, each whole pull, most damaged first (how many came and died over the pulls, in how many pulls, damage taken; for the most damaged, when each wave died and who damaged them; then their casts with a cast bar: begun, kicked and by whom, gone through):
   Echo of Jawae: 4 came over 2 pulls, 2 died, 2 with no death recorded, took 276.08M
     died by wave (deaths 20 s or more apart start a new one; the median over the pulls that reached it, and the range; when they came isn't logged): wave 1 (1 pull): first died 3:36 (3:36-3:36), last 3:36 (3:36-3:36); wave 2 (1 pull): first died 4:38 (4:38-4:38), last 4:38 (4:38-4:38)

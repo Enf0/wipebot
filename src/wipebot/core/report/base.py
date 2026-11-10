@@ -131,6 +131,10 @@ PullRef = int | str | None
 # link to a fight makes that pull, and its boss, the call's default (Report.linked). library.Library.report notes
 # each link's; a tool call starts with none (server.guarded).
 link_fights: ContextVar[dict[str, int] | None] = ContextVar("link_fights", default=None)
+# How the tool call being run read an argument that could be read several ways (a boss name fitting several
+# bosses), for the first line of its result: a list whoever runs the call gives it (server.guarded), None outside
+# a call.
+read_as: ContextVar[list[str] | None] = ContextVar("read_as", default=None)
 
 
 class FactError(ValueError):
@@ -174,6 +178,9 @@ class Player:
 
 
 CLOSE_NAME = 0.8  # difflib ratio for a typo to still match a name
+# and for a name to be offered as close when none matched: a raider's other character often shares only a stem
+# (Zebinolock for Zebinomage, 0.6)
+ALIKE_NAME = 0.55
 
 
 def match_player(name: str, players: Iterable[Player]) -> Player | None:
@@ -322,14 +329,43 @@ class Report(Fetched):
                         f"in this report: {counts})")
 
     def boss(self, name: str | None) -> str:
-        """The boss matching a name or part of it (knowledge.matches_boss); of several, the one pulled last. With
-        no name, the boss of the pull the call's link named (`linked`), else of the latest pull."""
+        """The boss matching a name or part of it (knowledge.matches_boss): the one the name is whole before those
+        it is part of, and of several the one pulled last, which the call's result then says (`read_as`). With no
+        name, the boss of the pull the call's link named (`linked`), else of the latest pull."""
         if not name:
             return self.boss_key(self.linked() or self.fights[-1])
         matches = [b for b in self.by_boss if knowledge.matches_boss(name, b)]
         if not matches:
-            raise FactError(f"no boss matching {name!r}; bosses in this report: {', '.join(self.by_boss)}")
-        return max(matches, key=lambda b: self.by_boss[b][-1]["startTime"])
+            raise FactError(self._no_boss(name))
+        # "Sszorak (Heroic)" is named whole by its words or by the boss's own ("sszorak", on two difficulties)
+        typed = knowledge.boss_words(name)
+        matches = [b for b in matches if typed in (knowledge.boss_words(b),
+                                                   knowledge.boss_words(self.by_boss[b][0]["name"]))] or matches
+        took = max(matches, key=lambda b: self.by_boss[b][-1]["startTime"])
+        if len(matches) > 1 and (said := read_as.get()) is not None:
+            others, match = ", ".join(b for b in matches if b != took), "matches" if len(matches) == 2 else "match"
+            note = f"Boss {name!r} is read as {took}, pulled last; {others} {match} it too."
+            if note not in said:
+                said.append(note)
+        return took
+
+    def _no_boss(self, name: str) -> str:
+        """What a call is told about a boss name fitting no boss of the report: that it wasn't pulled here, or,
+        for an enemy of a boss's fight, whose pulls it is in and which tools read it."""
+        enemies = {i: a["name"] for i, a in self.actors.items()
+                   if a["type"] == "NPC" and knowledge.matches_boss(name, a["name"])}
+        inside = [b for b, fights in self.by_boss.items()
+                  if any(n["id"] in enemies for f in fights for n in f.get("enemyNPCs") or [])]
+        if inside:
+            enemy = next(enemies[n["id"]] for f in self.by_boss[inside[-1]] for n in f.get("enemyNPCs") or []
+                         if n["id"] in enemies)
+            return (f"no boss matching {name!r} in this report: {enemy} is an enemy in {inside[-1]}'s pulls. With "
+                    f"`boss` {inside[-1]}, breakdown's `target` has the damage done to one enemy and enemies has the "
+                    "adds")
+        pulled = list(self.by_boss)
+        return (f"no boss matching {name!r} was pulled in this report, whose bosses are "
+                f"{' and '.join(filter(None, [', '.join(pulled[:-1]), pulled[-1]]))}; find_reports finds the report "
+                "of the night it was pulled")
 
     def pull_no(self, fight: dict) -> int:
         # By id: a refresh replaces the fight dicts while a tool may still hold an old one.
@@ -393,8 +429,18 @@ class Report(Fetched):
         """The player a tool was given (see find_player); none or several is an error."""
         if p := self.find_player(name):
             return p
-        raise FactError(f"no single player matching {name!r} in this report (find_reports with a player finds "
-                         f"the reports a character is in)")
+        names = sorted((p.name for p in self.players.values()), key=str.lower)
+        raise FactError(f"no single player matching {name!r} in this report{self._close_players(name)}. Its "
+                        f"players: {', '.join(names)}. find_reports with a player finds the reports a character is "
+                        "in.")
+
+    def _close_players(self, name: str) -> str:
+        """"; closest names: Zebinomage" for a name no single player of the report has: the names it starts or
+        that are like it (ALIKE_NAME: another character of the same raider, a nickname), '' when none is."""
+        typed, keys = name_key(name), {name_key(p.name): p.name for p in self.players.values()}
+        close = [k for k in keys if typed and k.startswith(typed)]
+        close += [k for k in difflib.get_close_matches(typed, list(keys), n=3, cutoff=ALIKE_NAME) if k not in close]
+        return f"; closest names: {', '.join(keys[k] for k in close[:4])}" if close else ""
 
     async def character(self, name: str) -> Player:
         """The player a tool about a character's season was given: the report's, or one who isn't in it (a raider
@@ -411,7 +457,8 @@ class Report(Fetched):
                                   (char.get("server") or {}).get("name") or server, region)
         except WCLError as e:
             raise FactError(f"Warcraft Logs unavailable: {e}") from e
-        raise FactError(f"no player matching {name!r} in this report, nor a character of that name on "
+        raise FactError(f"no player matching {name!r} in this report{self._close_players(name)}, nor a character "
+                        "of that name on "
                         + " or ".join(f"{s}-{r.upper()}" for (s, r), _ in realms.most_common(CHARACTER_REALMS))
                         + " (find_reports with a player and realm finds the reports a character is in)")
 

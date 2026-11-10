@@ -20,7 +20,7 @@ from .bosses import (
 )
 from .fetch import KnowledgeError
 from .maps import game_file, map_bounds, map_image, wcl_image
-from .names import matches_boss, names_boss, spaced
+from .names import boss_words, matches_boss, names_boss, spaced
 from .news import hotfixes_text
 from .pages import read_text, search_text
 from .players import character_experience_text
@@ -51,7 +51,7 @@ from .top_parses import cooldown_comparison_text, top_cooldowns_text
 
 __all__ = [
     "KnowledgeError", "boss_guide_text", "boss_loot_text", "boss_mechanic_text", "boss_naming", "boss_spells",
-    "boss_tooltips_text",
+    "boss_tooltips_text", "boss_words",
     "game_file", "raid_boss_spells", "spell_icon",
     "build_hero",
     "character_experience_text", "choice_versions", "class_and_spec", "consumable_items", "cooldown_comparison_text",

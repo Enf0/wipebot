@@ -1,3 +1,4 @@
+Boss 'The Coiled Altar' is read as The Coiled Altar (Mythic), pulled last; The Coiled Altar (Heroic) matches it too.
 Axegrinder, this night against another, per minute of the pulls each player was in (each until its wipe was decided), as the nights' pulls differ in number and length: Wed 28 Oct, 29 pulls (75 min) against Mon 26 Oct, 20 pulls (37 min).
 Raid: 11.34M damage per minute against 8.94M (+27%); deaths of any cause within 6 s of a hit 1.26 per minute against 1.12 (95 against 42); 22 against 9 with Axegrinder as the killing blow.
 Per player, most damage per minute this night first: per minute and rank of the 20 this night, then the other night's of 20, the change, hits, deaths of any cause within 6 s of a hit:

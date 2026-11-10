@@ -7,10 +7,10 @@ import re
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 
-from tests.support import CODE, NOTE
+from tests.support import CODE, NOTE, FakeWCL
 from tests.support.recorded import CASES
 from wipebot.core import notebook, server
-from wipebot.core.report import FactError
+from wipebot.core.report import FactError, Report
 
 # The tools that don't read a report, so take none; every other tool takes `report`.
 NO_REPORT = {"spell_info", "spec_guide", "hotfixes", "web_lookup"}
@@ -155,6 +155,24 @@ async def test_missing_report_is_a_readable_tool_error(monkeypatch):
     monkeypatch.setattr(server.DEFAULT, "library", server.Library())  # no default report
     with pytest.raises(ToolError, match="no report given"):
         await server.mcp.call_tool("progress", {})
+
+
+async def test_a_boss_name_read_one_of_several_ways_is_said_in_the_results_first_line(night):
+    class Mixed(FakeWCL):  # Vashnik pulled once on Heroic before the Mythic pulls
+        async def report_fights(self, code, cache_for=None):
+            report = await super().report_fights(code)
+            heroic = {**report["fights"][0], "id": 900, "difficulty": 4, "startTime": 0, "endTime": 1}
+            return {**report, "fights": [heroic, *report["fights"]]}
+    rep = Report(Mixed(night).client(), CODE)
+    await rep.load()
+
+    async def pulls(boss: str) -> str:
+        return f"{rep.boss(boss)}: {len(rep.by_boss[rep.boss(boss)])} pulls"
+
+    assert await server.guarded(pulls)(boss="vashnik") == (
+        "Boss 'vashnik' is read as Vashnik the Malignant (Mythic), pulled last; Vashnik the Malignant (Heroic) "
+        "matches it too.\nVashnik the Malignant (Mythic): 2 pulls")
+    assert await server.guarded(pulls)(boss="vashnik heroic") == "Vashnik the Malignant (Heroic): 1 pulls"
 
 
 async def test_a_mechanic_no_guide_names_is_answered_from_its_tooltip(monkeypatch, rep, patch_wcl, fake_knowledge):

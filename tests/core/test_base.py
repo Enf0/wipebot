@@ -8,7 +8,7 @@ import pytest
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import knowledge, server
 from wipebot.core.pulls import Decided, carried_buffs, is_reset, wipe_pct
-from wipebot.core.report import FactError, Report, casting, cooldowns, deaths, fight, ranks
+from wipebot.core.report import FactError, Report, base, casting, cooldowns, deaths, fight, ranks
 from wipebot.core.report.base import alive_after, alive_at, half_dead
 from wipebot.core.wcl import WCL, WCLError
 
@@ -41,6 +41,75 @@ async def test_a_boss_on_two_difficulties_counts_pulls_per_difficulty(night):
     assert r.fight(None, "vashnik")["id"] == 2  # the difficulty pulled last
     assert r.label(r.fight(2, "vashnik")) == "Vashnik the Malignant (Mythic) pull 2"
     assert r.fight(13)["id"] == 21
+
+
+async def test_a_boss_name_that_fits_several_takes_the_one_it_names_or_says_which_it_took(night):
+    r = Report(MixedWCL(night).client(), CODE)
+    await r.load()
+    said = base.read_as.set([])
+    try:
+        assert r.boss("Vashnik the Malignant (Heroic)") == "Vashnik the Malignant (Heroic)"  # named whole: nothing
+        assert r.boss("vashnik heroic") == "Vashnik the Malignant (Heroic)" and r.boss("ssz") == "Sszorak"
+        assert base.read_as.get() == []
+        assert r.boss("vashnik") == r.boss("Vashnik the Malignant") == "Vashnik the Malignant (Mythic)"
+        assert base.read_as.get() == [
+            "Boss 'vashnik' is read as Vashnik the Malignant (Mythic), pulled last; Vashnik the Malignant (Heroic) "
+            "matches it too.",
+            "Boss 'Vashnik the Malignant' is read as Vashnik the Malignant (Mythic), pulled last; Vashnik the "
+            "Malignant (Heroic) matches it too."]
+        r.boss("vashnik")  # said once in a call
+        assert len(base.read_as.get() or []) == 2
+    finally:
+        base.read_as.reset(said)
+    assert r.boss("vashnik") == "Vashnik the Malignant (Mythic)"  # outside a call: nothing to say it in
+
+
+async def test_a_boss_named_whole_is_taken_before_one_the_name_is_part_of(night):
+    end = night.fights[-1]["endTime"]
+    echo = {**night.fights[0], "id": 900, "name": "Echo of Sszorak", "encounterID": 1, "startTime": end + 60_000,
+            "endTime": end + 90_000}
+
+    class Later(FakeWCL):
+        async def report_fights(self, code, cache_for=None):
+            report = await super().report_fights(code)
+            return {**report, "fights": [*report["fights"], echo]}
+    r = Report(Later(night).client(), CODE)
+    await r.load()
+    said = base.read_as.set([])
+    try:
+        assert r.boss("sszorak") == "Sszorak" and r.boss("echo") == "Echo of Sszorak"
+        assert base.read_as.get() == []
+        assert r.boss("szor") == "Echo of Sszorak"  # part of both names: the one pulled last, and said
+        assert base.read_as.get() == ["Boss 'szor' is read as Echo of Sszorak, pulled last; Sszorak matches it too."]
+    finally:
+        base.read_as.reset(said)
+
+
+async def test_a_boss_not_in_the_report_says_where_to_look(rep):
+    with pytest.raises(FactError) as e:
+        rep.boss("Twin Fangs")
+    assert str(e.value) == ("no boss matching 'Twin Fangs' was pulled in this report, whose bosses are Vashnik the "
+                            "Malignant and Sszorak; find_reports finds the report of the night it was pulled")
+    # An enemy of a boss's fight is no boss: whose pulls it is in, and the tools that read it.
+    rep.actors[500] = {"id": 500, "name": "Shrouded Venom", "type": "NPC", "subType": "NPC"}
+    for f in rep.by_boss["Sszorak"]:
+        f["enemyNPCs"] = [{"id": 500, "gameID": 260895, "instanceCount": 4}]
+    with pytest.raises(FactError) as e:
+        rep.boss("shrouded venom")
+    assert str(e.value) == ("no boss matching 'shrouded venom' in this report: Shrouded Venom is an enemy in "
+                            "Sszorak's pulls. With `boss` Sszorak, breakdown's `target` has the damage done to one "
+                            "enemy and enemies has the adds")
+
+
+async def test_a_name_no_player_has_comes_with_the_close_names_and_the_reports_players(rep):
+    names = ", ".join(sorted((p.name for p in rep.players.values()), key=str.lower))
+    assert "Scopidruid, " in names and len(rep.players) == 24
+    for typed, close in (("Dscopi", "; closest names: Scopidruid"), ("Zebinolock", "; closest names: Zebinomage"),
+                         ("Keithpop", "")):
+        with pytest.raises(FactError) as e:
+            rep.player(typed)
+        assert str(e.value) == (f"no single player matching {typed!r} in this report{close}. Its players: {names}. "
+                                "find_reports with a player finds the reports a character is in.")
 
 
 async def test_player_names_match_without_accents_or_with_a_typo(rep):
