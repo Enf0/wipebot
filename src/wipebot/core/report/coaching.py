@@ -214,8 +214,9 @@ def time_lost_text(lost: TimeLost) -> str:
     shown = [f"{what} {s:.0f} s ({100 * s / max(window, 1):.0f}%)" for s, what in lost.costs() if s >= 1]
     if not shown:
         return f"{head}, biggest first: none."
-    # The base once, here: the lines below give the same gaps and cap as shares of the time alive
-    base = f"those {window:.0f} s" if lost.decided else f"its {window:.0f} s"
+    # The base once, here: the lines below give the same gaps and cap as shares of the time alive. In whole
+    # seconds as the clock beside it counts them, so that "until 2:32" is not "153 s".
+    base = f"those {int(window)} s" if lost.decided else f"its {int(window)} s"
     return f"{head}, biggest first, each a share of {base}: " + ", ".join(shown) + "."
 
 

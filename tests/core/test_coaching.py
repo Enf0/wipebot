@@ -112,6 +112,10 @@ def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_
         "(4%).")
     assert coaching.time_lost_text(coaching.time_lost(f, [], casts, [], "", [], None)) == (
         "Time lost over the 3:20 pull, biggest first: none.")
+    # The seconds are the clock's: a wipe decided at 152.6 s read "until 2:32 ... a share of those 153 s".
+    late = coaching.time_lost_text(coaching.time_lost(f, deaths, casts, [], "", [], Decided(152_600)))
+    assert late.startswith("Time lost until 2:32, when the wipe was decided, biggest first, each a share of those "
+                           "152 s: ")
 
 
 async def test_a_reset_is_no_pull_of_a_players_night_in_any_count(rep):
