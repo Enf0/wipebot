@@ -228,9 +228,12 @@ question's first lines, the saved note and the `remember` tool are production's 
 is written). A case with none of the keys is asked exactly as before, and its hash is what it was.
 
 - **The `language` check** is a fourth named part of a pass, beside `expect`, `wrong` and `calls`: an answer in
-  another language than its question fails, by code (`checks.in_language`, the bot's own way of telling Norwegian
-  from English), in every mode. Tried on seven saved runs (1,119 answers), it failed none. A baseline from before
-  it is compared on the first three parts, and the comparison says so, until a baseline is saved that has the fourth.
+  another language than its question fails, by code (`checks.in_language`, by the bot's own lists of each
+  language's common words), in every mode. An answer is held to it only when its language shows clearly, at least
+  five of one language's common words and twice the other's, because a Norwegian answer names "The Twin Fangs" and
+  an English one quotes the note's Norwegian. Tried on seven saved runs (1,119 answers), it failed none. A baseline
+  from before it is compared on the first three parts, and the comparison says so, until a baseline is saved that
+  has the fourth.
 - **What is not carried yet**: linked messages, pictures, raid plans, a report being logged, and `follow_pulls`,
   which stays a stand-in. The lint replays calls on the recorded data's day and with no note saved, so it checks a
   `today` or `note` case's numbers only where the call turns on neither.

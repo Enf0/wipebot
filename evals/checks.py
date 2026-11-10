@@ -177,21 +177,35 @@ def wrong_prompt(question: str, wrong: list[str], answer: str) -> str:
     return WRONG.format(question=question, wrong="\n".join(f"- {w}" for w in wrong), answer=answer)
 
 
-# ---- how an answer is built: measured by code on every answer, no model, never a pass or fail ----
+# ---- an answer's language: told by code on every answer, no model; another one than its question's fails ----
+
+# An answer's language shows when one language's common words (texts.NORWEGIAN, texts.ENGLISH) are at least this
+# many and at least twice the other's. Fewer tell nothing, because an answer quotes the other language: a Norwegian
+# one names "The Twin Fangs" and "Blood of the Old Ones", an English one quotes a note's Norwegian lines and writes
+# "2 min". The answers of the seven saved runs have 9 or more, and at least four times the other's.
+CLEAR = 5
+
+
+def answer_language(answer: str) -> str:
+    """'no' for an answer in Norwegian, 'en' for one in English, "" for one whose language doesn't show (CLEAR)."""
+    text = texts.LINK.sub(" ", answer)
+    no, en = len(texts.NORWEGIAN.findall(text)), len(texts.ENGLISH.findall(text))
+    return "no" if no >= max(CLEAR, 2 * en) else "en" if en >= max(CLEAR, 2 * no) else ""
+
 
 def languages(case: dict, answer: str, mode: str = "plugin") -> tuple[str, str] | None:
-    """(the language the case asks in, the language the answer is in), each 'no' or 'en', told the way the bot tells
-    a question's (texts.language: which language's common words a text has more of, with the game's English words
-    in neither count). The question's own first; where that doesn't show (a short one, a bare link), the questions
-    before it in the conversation, then, as the bot, the server's language the case sets (`language`), as the bot's
-    prompt says. None where the check says nothing: a post, whose question is the bot's own English text, a case
-    whose language shows nowhere, or an answer with as many of one language's words as of the other's."""
+    """(the language the case asks in, the language the answer is in), each 'no' or 'en'. The question's is told the
+    way the bot tells it (texts.language: which language's common words it has more of): the question's own first;
+    where that doesn't show (a short one, a bare link), the questions before it in the conversation, then, as the
+    bot, the server's language the case sets (`language`), as the bot's prompt says. The answer's is told by the
+    same words, with a clear lead (answer_language). None where the check says nothing: a post, whose question is
+    the bot's own English text, a case whose language shows nowhere, or an answer whose language doesn't show."""
     if case.get("kind") == "posts":
         return None
     *before, last = case["question"] if isinstance(case["question"], list) else [case["question"]]
     asked = (texts.language(last, "") or texts.language(" ".join(before), "")
              or (texts.named(case["language"]) if mode == "bot" and case.get("language") else ""))
-    answered = texts.language(answer, "")
+    answered = answer_language(answer)
     return (asked, answered) if asked and answered else None
 
 
@@ -202,6 +216,8 @@ def in_language(case: dict, answer: str, mode: str = "plugin") -> bool | None:
     found = languages(case, answer, mode)
     return None if found is None else found[0] == found[1]
 
+
+# ---- how an answer is built: measured by code on every answer, no model, never a pass or fail ----
 
 def built(case: dict, answer: str, mode: str) -> tuple[dict, dict[str, str] | None]:
     """How the answer is built (form.Form as a dict: its words, its verdict's and each bullet's, where the change to
