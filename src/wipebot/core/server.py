@@ -226,13 +226,19 @@ def setup() -> Setup:
     return _current.get()
 
 
+LOGGED_CHARS = 200  # of an argument in a call's log line: a pasted raid note is up to MAX_PASTE
+
+
 def _log_call(remote: Remote, tool: str, args: dict) -> tuple[str | None, str | None]:
-    """Who called which tool, while serving many users; returns the token's (subject, client)."""
+    """Who called which tool, while serving many users, a long argument cut (the record keeps it whole); returns
+    the token's (subject, client)."""
     from mcp.server.auth.middleware.auth_context import get_access_token
 
     token = get_access_token()
     who = remote.user_name(token.subject) if token and token.subject else "someone"
-    log.info("%s: %s %s", who, tool, args)
+    log.info("%s: %s %s", who, tool, {
+        k: f"{v[:LOGGED_CHARS]}... ({len(v):,} characters)" if isinstance(v, str) and len(v) > LOGGED_CHARS else v
+        for k, v in args.items()})
     return (token.subject, token.client_id) if token else (None, None)
 
 

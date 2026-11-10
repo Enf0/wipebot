@@ -12,6 +12,7 @@ import logging
 import math
 import os
 import re
+import sys
 import threading
 import time
 from collections import Counter
@@ -618,9 +619,21 @@ class Hour:
         rate = self.rate or {}
         account = (f"the account had spent at least {rate['pointsSpentThisHour']:,.0f} of {rate['limitPerHour']:,} "
                    f"({rate.get('databasePointsSpentThisHour', 0):,.0f} database)" if rate else "")
-        log.info("Warcraft Logs points, the hour to %s: %s by this process (%s database)%s",
+        log.info("Warcraft Logs points, the hour to %s: %s by this process (%s database)%s%s",
                  time.strftime("%H:%M", time.localtime(ended)), f"{self._own['total']:,.0f}",
-                 f"{self._own['database']:,.0f}", f"; {account}" if account else "")
+                 f"{self._own['database']:,.0f}", f"; {account}" if account else "", _peak_memory())
+
+
+def _peak_memory() -> str:
+    """"; this process's memory peaked at 512 MB", for the hour's log line: the reports a process has loaded are
+    bounded by their number (library.KEPT_REPORTS), not their size, and a night's events take tens of MB. '' where
+    the platform doesn't say."""
+    try:
+        import resource
+    except ImportError:  # Windows
+        return ""
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss  # KB on Linux, bytes on macOS
+    return f"; this process's memory peaked at {peak / (1024 * 1024 if sys.platform == 'darwin' else 1024):,.0f} MB"
 
 
 class Points:

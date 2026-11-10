@@ -337,6 +337,21 @@ async def test_each_call_is_kept_with_its_result_or_error(monkeypatch):
     assert all(k[5] >= 0 for k in kept)
 
 
+async def test_a_long_argument_is_logged_cut_and_kept_whole(monkeypatch, caplog):
+    """A pasted raid note is up to 100,000 characters: the log line of a call says who asked what, not all of it."""
+    kept = []
+    monkeypatch.setattr(server.DEFAULT, "remote", server.Remote(guilds=list, user_name=str,
+                                                               record=lambda *a: kept.append(a[3])))
+
+    async def save(pasted: str, boss: str | None = None) -> str:
+        return "saved"
+    with caplog.at_level("INFO", "wipebot.calls"):
+        await server.guarded(save)(pasted="EncounterID:3420 " * 1000, boss="Sszorak")
+    line = next(r.getMessage() for r in caplog.records if r.name == "wipebot.calls")
+    assert len(line) < 500 and "... (17,000 characters)" in line and "'boss': 'Sszorak'" in line
+    assert kept == [{"pasted": "EncounterID:3420 " * 1000, "boss": "Sszorak"}]
+
+
 async def test_a_signed_in_users_calls_read_warcraft_logs_with_their_own_token(monkeypatch):
     """So their own Warcraft Logs points pay first; someone else's call, or one with no user, reads as the server."""
     from mcp.server.auth.middleware.auth_context import auth_context_var

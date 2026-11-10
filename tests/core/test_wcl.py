@@ -361,6 +361,8 @@ async def test_when_an_hour_ends_its_points_are_logged_this_processs_and_the_acc
         await w.query("query { a }")
     assert "the hour to" in caplog.text and ": 6 by this process (0 database); the account had spent at least " \
         "2,500 of 3,600 (9 database)" in caplog.text
+    # with the most memory the process has held: loaded reports are bounded by count, not by size
+    assert re.search(r"\(9 database\); this process's memory peaked at [\d,]+ MB$", caplog.messages[-1])
 
 
 async def test_kept_for_others_a_process_waits_for_the_next_hour_once_its_share_is_spent(monkeypatch):
