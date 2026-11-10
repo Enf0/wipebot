@@ -7,10 +7,10 @@ played from `spec_guide`, read before judging either.
 ## A pull: "Why did we wipe on Vashnik pull 16?"
 
 What the tools showed. `pull_summary`: the best pull of the log so far. "Ended by": deaths from 4:36 until half the
-raid was dead at 6:28, no single hit killing many. "Not an enrage buff". It got past what ended most earlier pulls,
-Malignance killing many (4 of 15). Two players died at 3:48 and both were back up, as the players alive after each
-death show. The deaths that stayed: a damage dealer at 4:36 and a healer, Lïzårðmâñ, at 4:59; Deathadim, a tank, at
-5:13 to Melee with 17 alive; Wutroll, the other tank, at 6:16 to Melee with 14 alive; two more to Melee at 6:20 and
+raid was dead at 6:28, no single hit killing many. "Not an enrage buff". It got past what ended the most earlier
+pulls, Malignance killing many (4 of 15). Two players died at 3:48 and both were back up, as the players alive after
+each death show. The deaths that stayed: a damage dealer at 4:36 and a healer, Lïzårðmâñ, at 4:59; Deathadim, a tank,
+at 5:13 to Melee with 17 alive; Wutroll, the other tank, at 6:16 to Melee with 14 alive; two more to Melee at 6:20 and
 6:22. The nine deaths after 6:28 are marked as fallout.
 `tank_swaps`: the tanks traded the boss back and forth until 4:24; Wutroll held it alone from 5:15 and stood at
 Dripping Fangs 3 at 6:15, where their stints otherwise end at 1; whose turn it was to taunt isn't in the log.

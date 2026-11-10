@@ -55,7 +55,7 @@ The pictures are real tool output from the tests' report, with made-up names; th
   When no enrage ended it, it says so: deaths lost the pull, not a damage check. Deaths after the wipe was decided
   are marked as fallout and don't count against anyone.
 - **How it compares.** Each wipe is compared with the night's earlier pulls and the guild's best on the boss so far,
-  and says whether it ended the way earlier pulls that night did, or got past what ended most of them.
+  and says whether it ended the way earlier pulls that night did, or got past what ended the most of them.
 - **One death in detail** ("what killed X?", "could they have lived?"): every hit in the 10 seconds before it, with
   health after each hit, the healing they got and what each healer was casting, the defensives they had ready and
   whether a healthstone or potion was used.
