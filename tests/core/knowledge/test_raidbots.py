@@ -10,6 +10,7 @@ async def test_raidbots_down_is_unavailable_not_empty(monkeypatch):
         raise httpx.ConnectError("down")
     monkeypatch.setattr(httpx.AsyncClient, "get", get)
     monkeypatch.setattr(raidbots, "_talents", Memo())
+    monkeypatch.setattr(raidbots, "_files", Memo())
     for accessor in (raidbots.talent_names, raidbots.talent_trees, raidbots.consumable_items, raidbots.enchant_names):
         with pytest.raises(KnowledgeError, match="Raidbots"):
             await accessor()
@@ -32,3 +33,18 @@ async def test_a_choice_nodes_two_versions_of_one_spell_are_told_apart(monkeypat
                                              4: "Jet Stream", 5: "Everbloom", 6: "Everbloom"}
     assert await raidbots.choice_versions() == {1: 2, 2: 1}
     assert await raidbots.talent_parts() == {1: "spec", 2: "spec", 3: "spec", 4: "spec", 5: "spec", 6: "spec"}
+
+
+async def test_a_raidbots_file_is_read_once_and_kept_as_read(monkeypatch):
+    """talents.json takes 24 ms to read from the cache on disk, and one answer asked for it several times."""
+    from wipebot.core import cache
+    read = []
+
+    class Kept(cache.NoCache):
+        async def fetch(self, key, max_age_s, get, *, cancel=False):
+            read.append(key)
+            return [{"specId": 264}, "not a spec"]
+    monkeypatch.setattr(cache, "_cache", Kept())
+    monkeypatch.setattr(raidbots, "_files", Memo())
+    assert await raidbots.talent_trees() == await raidbots.talent_trees() == [{"specId": 264}]
+    assert read == ['["raidbots", "talents.json"]']

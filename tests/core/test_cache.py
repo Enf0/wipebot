@@ -34,7 +34,7 @@ async def test_a_stale_value_is_served_and_replaced_in_the_background(cache):
     async def get():
         return "new"
     assert await cache.fetch("k", 60, get) == "old"  # older than its max age, not twice it: served at once
-    await asyncio.sleep(0)  # the refresh runs
+    await cache.drain()  # the refresh runs
     assert cache.get("k")[0] == "new"
 
 
@@ -98,7 +98,7 @@ async def test_a_fetch_goes_on_when_its_callers_leave_unless_asked_to_stop(cache
     caller = asyncio.ensure_future(cache.fetch("k", 60, get))
     await asyncio.sleep(0)
     caller.cancel()
-    await asyncio.sleep(0.05)
+    await cache.drain()
     assert cache.get("k")[0] == "v"  # a Warcraft Logs query is paid for once sent: kept
 
 
@@ -176,3 +176,30 @@ async def test_a_refresh_in_the_background_that_finds_it_gone_drops_the_old_copy
     await asyncio.sleep(0)
     with pytest.raises(Gone):
         await cache.fetch('["report", "GONE000000000000", "deaths"]', 60, get)
+
+
+async def test_a_large_value_is_decoded_and_encoded_off_the_event_loop(cache, monkeypatch):
+    """One pull's events are 12 MB of JSON, 0.14 s to decode, and a night's pulls came back to back: one tool held
+    the loop for a second, and every other call waited. A large value is unpacked in a thread, a small one where it
+    is (a thread costs more than it saves)."""
+    import threading
+
+    from wipebot.core import cache as cache_module
+    threads = []
+    decode, encode = cache_module._decode, cache_module._encode
+    monkeypatch.setattr(cache_module, "_decode", lambda stored: threads.append(threading.current_thread()) or
+                        decode(stored))
+    monkeypatch.setattr(cache_module, "_encode", lambda value: threads.append(threading.current_thread()) or
+                        encode(value))
+    monkeypatch.setattr(cache_module, "THREAD_BYTES", 100)
+    large = [f"event {i}" for i in range(1000)]
+
+    async def get():
+        return large
+    here = threading.current_thread()
+    assert await cache.fetch("large", 60, get) == large and threads.pop() is not here  # stored
+    assert await cache.fetch("large", 60, get) == large and threads.pop() is not here  # read back
+    cache.put("small", "v")
+    threads.clear()
+    assert await cache.fetch("small", 60, get) == "v" and threads == [here]
+    assert (await cache.read("large"))[0] == large and cache.get("large")[0] == large

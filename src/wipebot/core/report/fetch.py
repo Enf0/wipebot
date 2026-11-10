@@ -69,8 +69,10 @@ class Fetched:
             if key in self._kept:
                 out[item] = cast(T, self._kept[key])
             elif (persist_s is not None and self._finished([fid])
-                  and (found := cache().get(cache_key("report", self.code, *key)))):
-                out[item] = self._kept[key] = found[0]  # an old entry serves too, as `keep` does (it's FOREVER)
+                  and (found := await cache().read(cache_key("report", self.code, *key)))):
+                # an old entry serves too, as `keep` does (it's FOREVER); a night's entries one at a time, the event
+                # loop free between them
+                out[item] = self._kept[key] = found[0]
             elif key in self._fetching:
                 shared[item] = self._fetching[key]
             else:

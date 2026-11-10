@@ -7,11 +7,16 @@ from ..cache import DAY, cache, cache_key
 from .fetch import KnowledgeError, Memo
 
 RAIDBOTS_URL = "https://www.raidbots.com/static/data/live/{}"
+_files = Memo()  # the files as read: talents.json takes 24 ms to read from the cache, and an answer reads it often
 
 
 async def raidbots(file: str) -> list:
-    """One of Raidbots' generated game data files (talents.json, flasks.json, ...), kept in the cache for a day; a
-    stale copy when Raidbots can't be reached."""
+    """One of Raidbots' generated game data files (talents.json, flasks.json, ...), kept in the cache for a day (and
+    in memory as read, MEMO_S); a stale copy when Raidbots can't be reached. The list is shared: not to be
+    changed."""
+    if file in _files:
+        return _files[file]
+
     async def get() -> list | dict:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.get(RAIDBOTS_URL.format(file))
@@ -23,7 +28,7 @@ async def raidbots(file: str) -> list:
         raise KnowledgeError(f"Raidbots' {file} can't be fetched: {e}") from e
     if not isinstance(data, list):
         raise KnowledgeError(f"Raidbots' {file} isn't a list")
-    return [x for x in data if isinstance(x, dict)]
+    return _files.keep(file, [x for x in data if isinstance(x, dict)])
 
 
 _talents = Memo()

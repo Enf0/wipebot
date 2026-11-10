@@ -95,14 +95,14 @@ class Replay(cache.Cache):
         self._dbs = [sqlite3.connect(f"file:{p}?mode=ro&immutable=1", uri=True, check_same_thread=False)
                      for p in (RECORDED, LOCAL_RECORDED) if p.exists()]
 
-    def get(self, key):
+    def _row(self, key):
         for db in self._dbs:
             if row := db.execute("SELECT value, stored_at FROM cache WHERE key = ?", (key,)).fetchone():
-                return json.loads(zlib.decompress(row[0])), time.time() - row[1]
+                return row
         return None
 
     async def fetch(self, key, max_age_s, get, *, cancel=False):
-        if (found := self.get(key)) is None:
+        if (found := await self.read(key)) is None:
             raise LookupError(f"not recorded (run `just record-tools`): {key[:300]}")
         return found[0]
 
@@ -122,9 +122,9 @@ class Recorder(cache.Cache):
     def _note(self, key: str) -> None:
         (self.local_keys if self.local else self.keys).add(key)
 
-    def get(self, key):  # a look-up without a fetch (Report.keep_many) is asked for too
+    def _row(self, key):  # a look-up without a fetch (Report.keep_many) is asked for too
         self._note(key)
-        return super().get(key)
+        return super()._row(key)
 
     async def fetch(self, key, max_age_s, get, *, cancel=False):
         self._note(key)

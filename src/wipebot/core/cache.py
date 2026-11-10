@@ -3,7 +3,8 @@ warcraft_cli), Warcraft Logs data about finished pulls, rankings. It survives re
 `wipebot call` and the evals don't fetch it all again.
 
 One SQLite file (~/.cache/wipebot/cache.sqlite; WIPEBOT_CACHE sets another path, or `off`). Values are JSON,
-compressed (a night's events shrink about tenfold). An
+compressed (a night's events shrink about tenfold); on the event loop a large one is decoded and encoded in a
+thread (`read`, `write`), so a night read from disk doesn't hold every other call. An
 entry is fresh for the max age its caller gives; `fetch` serves one up to twice that old at once and gets a new one
 in the background (stale-while-revalidate), and an older one only when the source fails. Callers asking for the
 same key at once share one fetch; it goes on when they leave (a Warcraft Logs query is paid for once sent), unless
@@ -42,6 +43,11 @@ KEEP_DAYS = 30  # entries older than this are dropped, when the cache opens and 
 HOUR, DAY = 3600, 86400
 FOREVER = KEEP_DAYS * DAY  # for what never changes, such as a finished pull
 STALE_SERVED = 2  # an entry up to this many times its max age is served while a new one is fetched
+# A stored value this large is decoded in a thread when read on the event loop. One pull's damage events are 0.9 MB
+# stored, 12.7 MB of JSON and 0.14 s to decode, and a night's pulls came back to back: reading the tests' recordings,
+# one tool held the loop for a second, during which every other call, sign-in and heartbeat waited. A thread frees
+# the loop between values and while one is unpacked, not while its JSON is parsed.
+THREAD_BYTES = 32_000
 MAX_MB = 2000  # past this, the oldest entries are dropped at the daily purge
 _unkept: set[str] = set()  # words a kept key may not hold: the codes of reports that aren't public
 
@@ -89,6 +95,14 @@ def keeps(key: str) -> bool:
     return not any(word in key for word in _unkept)
 
 
+def _decode(stored: bytes) -> Any:
+    return json.loads(zlib.decompress(stored))
+
+
+def _encode(value: Any) -> bytes:
+    return zlib.compress(json.dumps(value).encode(), 1)
+
+
 class Cache:
     frozen = False
 
@@ -132,20 +146,39 @@ class Cache:
             self._recorded_at = float(row[0])
         return self._recorded_at
 
+    def _row(self, key: str) -> tuple[bytes, float] | None:
+        """(the value as stored, when it was stored), or None."""
+        return self._db.execute("SELECT value, stored_at FROM cache WHERE key = ?", (key,)).fetchone()
+
     def get(self, key: str) -> tuple[Any, float] | None:
         """(value, age in seconds), or None."""
-        if not keeps(key):
+        if not keeps(key) or (row := self._row(key)) is None:
             return None
-        row = self._db.execute("SELECT value, stored_at FROM cache WHERE key = ?", (key,)).fetchone()
-        return (json.loads(zlib.decompress(row[0])), time.time() - row[1]) if row else None
+        return _decode(row[0]), time.time() - row[1]
+
+    async def read(self, key: str) -> tuple[Any, float] | None:
+        """`get` for a caller on the event loop: a large value is decoded in a thread (THREAD_BYTES)."""
+        if not keeps(key) or (row := self._row(key)) is None:
+            return None
+        value = await asyncio.to_thread(_decode, row[0]) if len(row[0]) >= THREAD_BYTES else _decode(row[0])
+        return value, time.time() - row[1]
 
     def put(self, key: str, value: Any) -> None:
+        if keeps(key):
+            self._store(key, _encode(value))
+
+    async def write(self, key: str, value: Any) -> None:
+        """`put` for a caller on the event loop: the value is encoded in a thread."""
+        if keeps(key):
+            self._store(key, await asyncio.to_thread(_encode, value))
+
+    def _store(self, key: str, stored: bytes) -> None:
         if not keeps(key):  # checked again once fetched: the report may have turned out private meanwhile
             return
         if not self.frozen and time.time() - self._purged_at > DAY:
             self.purge()
         self._db.execute("INSERT OR REPLACE INTO cache (key, stored_at, value) VALUES (?, ?, ?)",
-                         (key, time.time(), zlib.compress(json.dumps(value).encode(), 1)))
+                         (key, time.time(), stored))
 
     def forget(self, word: str) -> None:
         """Drop every entry whose key holds `word` (the code of a report Warcraft Logs no longer shows); a frozen
@@ -162,7 +195,7 @@ class Cache:
         goes on)."""
         if not keeps(key):
             return await get()
-        found = self.get(key)
+        found = await self.read(key)
         if found is not None:
             value, age = found
             if self.frozen or age <= max_age_s:
@@ -199,7 +232,7 @@ class Cache:
             except Gone as e:
                 self.forget(e.word)
                 raise
-            self.put(key, value)
+            await self.write(key, value)
             return value
 
         def done(task: asyncio.Future) -> None:
@@ -232,10 +265,13 @@ class NoCache(Cache):
     def __init__(self):
         self._tasks = set()
 
-    def get(self, key: str) -> tuple[Any, float] | None:
+    def _row(self, key: str) -> tuple[bytes, float] | None:
         return None
 
     def put(self, key: str, value: Any) -> None:
+        pass
+
+    async def write(self, key: str, value: Any) -> None:
         pass
 
     def forget(self, word: str) -> None:
