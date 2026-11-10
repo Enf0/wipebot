@@ -486,7 +486,7 @@ def _phase_starts(f: dict) -> dict[int, float]:
 async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) -> PullCheck:
     """One pull against the note. `night`: the casts of the night's pulls on the boss, shared by a night's checks
     (read for this pull alone otherwise, and only when a callout or a planned cooldown needs them)."""
-    night = night or _Night(rep, rep.by_boss[rep.boss_key(f)])
+    night = night or _night_of(rep, f)
     t0, end = f["startTime"], f["endTime"] - f["startTime"]
     starts = _phase_starts(f)
     in_pull = {p.name for p in rep.pull_players(f).values()}
@@ -1120,6 +1120,13 @@ class _Night:
         return self.got
 
 
+def _night_of(rep: Report, f: dict) -> _Night:
+    """The night one pull's check reads: the boss's ended pulls and the pull itself. Another pull still going is
+    left out, as a night's check leaves it out: what it logged so far isn't a pull's, and its casts are never
+    kept, so every check would ask for them again."""
+    return _Night(rep, [g for g in rep.by_boss[rep.boss_key(f)] if g["id"] not in rep.live or g["id"] == f["id"]])
+
+
 async def _tonight(rep: Report, fights: list[dict]) -> Tonight:
     """`Tonight` over these pulls, their casts fetched in one query (Report.tracked_casts keeps each pull's)."""
     out = Tonight()
@@ -1159,7 +1166,7 @@ async def _callouts(rep: Report, f: dict, note: Note, players: dict[str, Player]
     if not calls:
         return []
     here = rep.pull_players(f)
-    tonight = await (night or _Night(rep, rep.by_boss[rep.boss_key(f)]))()
+    tonight = await (night or _night_of(rep, f))()
     kits, pressed_at = tonight.kits[f["id"]], tonight.pressed[f["id"]]
     fell: dict[int, list[float]] = defaultdict(list)  # player -> when they died, ms from the pull's start
     for d in await rep.deaths(f):

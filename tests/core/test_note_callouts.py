@@ -31,6 +31,8 @@ class Raid:
     def __init__(self, casts: dict[int, list[tuple[int, dict, float]]], deaths: dict[int, list[tuple[int, float]]]):
         self.casts, self.died = casts, deaths
         self.by_boss = {"Vashnik": [{"id": i, "startTime": 0} for i in casts]}
+        self.live: set[int] = set()  # the pulls still going
+        self.asked: list[list[int]] = []  # the pulls each read of the casts was for
 
     def boss_key(self, f: dict) -> str:
         return "Vashnik"
@@ -48,6 +50,7 @@ class Raid:
         return c["abilityGameID"] == sp["spell_id"]
 
     async def tracked_casts(self, fights: list[dict]) -> dict[int, list[dict]]:
+        self.asked.append([f["id"] for f in fights])
         return {f["id"]: [{"sourceID": who, "abilityGameID": sp["spell_id"], "timestamp": at}
                           for who, sp, at in self.casts[f["id"]]] for f in fights}
 
@@ -107,6 +110,20 @@ async def test_ready_lists_only_what_answers_the_callout_and_the_player_cast_tha
     # at 1:50 for 40 s, had run out and wasn't back
     assert ready == {"Enfo": ["Astral Shift"], "Zebinomage": ["Ice Block"]}
     assert check.others == {}  # Spiritwalker's Grace at 0:58 is outside the window
+
+
+async def test_one_pulls_check_leaves_a_pull_still_going_out_of_the_night_it_reads():
+    """One pull's check read the casts of every pull on the boss, the one still being logged among them: those are
+    never kept, so every check of an ended pull asked Warcraft Logs for them again, and a spell pressed so far only
+    in the pull still going read as one the player has. The pull asked about is read whatever it is."""
+    raid = Raid({1: [(SHAMAN, SHIFT, 30_000)], 2: [], 3: [(MAGE, BLOCK, 20_000)]}, {})
+    raid.live = {3}
+    check = await _personals(raid, 2, 200_000)
+    assert raid.asked == [[1, 2]]
+    assert {name: [sp["name"] for sp in spells] for name, spells in check.idle} == {
+        "Enfo": ["Astral Shift"], "Zebinomage": []}
+    await _personals(raid, 3, 10_000)
+    assert raid.asked[1:] == [[1, 2, 3]]
 
 
 async def test_a_planned_cooldown_not_cast_says_when_the_spell_was_on_cooldown_from_their_own_cast():
