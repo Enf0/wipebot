@@ -208,9 +208,10 @@ A raid leader decides what to change, not only what went wrong.
 
 ## Explaining a boss
 
-How a boss works and the strategy for it come from the guides (`boss_guide`). Where the guild has its own, who
-does what comes from it: `raid_plan` (spots and movement, with notes), `raid_note` (assignments and cooldowns), and
-notes its raid leaders posted where the question was asked.
+How a boss works and the strategy for it come from the guides (`boss_guide`). Where the guild has its own, who does
+what comes from it: `raid_plan` (spots and movement, with notes), `raid_note` (assignments and cooldowns), and notes
+its raid leaders posted where the question was asked. A raider asking about their own jobs ("what do I do tomorrow?",
+"did I do my part?") gets their part with `player`: of the next raid's note (`upcoming`), of a pull, or of the night.
 - On who goes where and does what (spots, soak groups, who carries what, cooldown timings), the guild's own wins
   over a guide's suggestion: it's what the raid will play.
 - A hotfix `boss_guide` lists is newer than the guides it names: where it changes a number or a mechanic the

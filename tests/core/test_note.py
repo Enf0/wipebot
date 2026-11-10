@@ -74,6 +74,11 @@ def test_the_interrupt_order_between_intstart_and_intend_is_read_and_shown_as_wr
     assert note._assignments(cast(Any, None), plan)[-1] == (
         "Interrupt order (the note's intstart block, each line in the addon's order; not checked against the log): "
         "line 1: Torvek Mirelle Halvard; line 2: Rowan Brightleaf Rowan")
+    order = "EncounterID:3418;Name:Vashnik\n\nintstart\nTorvek Mirelle Halvard\n\nRowan Brightleaf Rowan\nintend\n"
+    rep, pull = cast(Any, SimpleNamespace(start_ms=0)), {"startTime": 0, "encounterID": 3418}
+    assert note.kick_order(rep, pull, order) == 2  # what `enemies` says of the note's kicks
+    assert note.kick_order(rep, {**pull, "encounterID": 3420}, order) == 0  # another boss's note
+    assert note.kick_order(rep, pull, "EncounterID:3418;Name:Vashnik\n\nOrbs\nred orb: Rowan\n") == 0
     [open_] = note.parse("EncounterID:3418;Name:Vashnik\n\nintstart\nTorvek Mirelle\n\nOrbs\nred orb: Rowan\n")
     assert open_.interrupts == [] and open_.groups == {"Orbs": {"red orb": ["Rowan"]}}  # never closed: no block
     assert open_.unread == ["intstart", "Torvek Mirelle"]

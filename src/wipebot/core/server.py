@@ -846,7 +846,8 @@ async def enemies(pull: Pull = None, boss: Boss = None,
 async def _jobs(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool = False, kicks: bool = False) -> str:
     """What a tool says after who was hit, carried a debuff or had a kick ready: whose job it was isn't in the log,
     and whether the guild saved a raid note for the pull (for the boss that night, with `all_pulls`), which may
-    assign it; with `kicks`, whether that note assigns kicks. JOBS_NOT_LOGGED where the guild's notes can't be read."""
+    assign it; with `kicks`, whether that note assigns kicks or has an interrupt order. JOBS_NOT_LOGGED where the
+    guild's notes can't be read."""
     if not rep.guild_id or not _a_member(rep.guild_id):
         return JOBS_NOT_LOGGED
     f = rep.fight(pull, boss)
@@ -863,8 +864,12 @@ async def _jobs(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool = 
         return (f"Whose kick it was isn't in the log, but {rep.guild_name}'s raid note saved for {night} assigns "
                 "kicks (a callout to one player as an add begins a cast): raid_note shows whose each cast was and "
                 "who kicked it.")
+    if n := notes.kick_order(rep, f, found[0]):  # an order of names, not a callout per cast: nothing to check it by
+        return (f"Whose kick it was isn't in the log; {rep.guild_name}'s raid note saved for {night} has an interrupt "
+                f"order of {plural(n, 'line')}, which says who kicks in what order and not which cast is whose: "
+                f"raid_note shows it as written, not checked against the log. And {NOT_AN_ASSIGNMENT}.")
     return (f"Whose kick it was isn't in the log, and {rep.guild_name}'s raid note saved for {night} assigns none "
-            f"(no callout to one player as an add begins a cast); {NOT_AN_ASSIGNMENT}.")
+            f"(no callout to one player as an add begins a cast, and no interrupt order); {NOT_AN_ASSIGNMENT}.")
 
 
 # Said with every "no note or plan": what the model is tempted to put in its place.
@@ -1243,7 +1248,7 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
                         "with"))] = False,
                     show: Annotated[bool, Field(description=(
                         "the plan itself, every scene, with no pull: for \"what's our plan?\", \"where do I "
-                        "stand?\"; with player, their spot first"))] = False,
+                        "stand?\"; with player, each scene cut to their part"))] = False,
                     report: Report_ = None, *, ctx: Context) -> CallToolResult:
     """For "was everyone on their spot?", "who stood in the wrong place for the spread?", "show me where people
     stood against the plan"; with `show`, "what's our plan for this boss?", "where do I stand in P2?", "who takes
@@ -1262,7 +1267,9 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     the name typed on it (and the raider it matches), its role, and where it is by the boss and the raid markers;
     the notes, adds, ability icons with their labels, shapes with what's in them, and arrows. Places are as the plan
     draws them, not in the room; a spot without a name is filled by the night's assignment, which the plan doesn't
-    have. Asked about a boss the report has no pull on, it shows the plan."""
+    have. With `player` too, a scene that names them is cut to their part (their spot or their row of the side panel,
+    who and what is at the same place, the shapes that hold it, the notes) with the rest counted. Asked about a boss
+    the report has no pull on, it shows the plan."""
     rep, unpulled = await lib().report(report), ""
     if boss and not show and not pulled(rep, boss):  # not pulled yet: there's only the plan to show
         show, unpulled = True, f"{boss} has no pull in this report, so the plan is shown as it is.\n"

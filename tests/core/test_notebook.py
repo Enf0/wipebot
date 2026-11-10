@@ -101,17 +101,25 @@ async def test_a_member_of_the_reports_guild_reads_its_notes_on_the_remote_serve
 
 async def test_after_who_was_hit_a_tool_says_whether_the_guild_saved_a_note_and_whether_it_assigns_kicks(
         book, monkeypatch):
-    """Whose job it was isn't in the log; a saved note may assign it, and code can tell whether it assigns kicks."""
+    """Whose job it was isn't in the log; a saved note may assign it, and code can tell whether it assigns kicks. A
+    note with an interrupt order and no callout per cast said "assigns none", and a raider on its first line was told
+    there was no kick order: it has an answer of its own, since such an order can't be checked against the log."""
     assert "The Copper Lanterns saved a raid note for Sszorak that night, which may assign it: raid_note shows" in \
         await server._jobs(night(), None, None)
 
     async def assigns_kicks(rep, f, text):
         return text == "the note"
     monkeypatch.setattr(server.notes, "assigns_kicks", assigns_kicks)
+    monkeypatch.setattr(server.notes, "kick_order", lambda rep, f, text: 2 if text == "an order" else 0)
     assert "raid note saved for Sszorak that night assigns kicks (a callout to one player as an add begins a cast): " \
            "raid_note shows whose each cast was" in await server._jobs(night(), None, None, kicks=True)
     book.save_note(14169, 3420, "Sszorak", "spreads only", "Rowan", at=1200.0)  # the version for the pull
-    assert "raid note saved for Sszorak that night assigns none" in await server._jobs(night(), None, None, kicks=True)
+    assert "raid note saved for Sszorak that night assigns none (no callout to one player as an add begins a cast, " \
+           "and no interrupt order)" in await server._jobs(night(), None, None, kicks=True)
+    book.save_note(14169, 3420, "Sszorak", "an order", "Rowan", at=1300.0)
+    order = await server._jobs(night(), None, None, kicks=True)
+    assert "raid note saved for Sszorak that night has an interrupt order of 2 lines" in order
+    assert "raid_note shows it as written, not checked against the log" in order and "assigns none" not in order
     assert "The Copper Lanterns has no raid note saved for Sszorak that night; who did it on other pulls isn't" in \
         await server._jobs(night(555), None, None)
     assert await server._jobs(night(None), None, None) == JOBS_NOT_LOGGED  # a personal log: no guild's notes

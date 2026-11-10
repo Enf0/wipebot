@@ -475,6 +475,14 @@ async def assigns_kicks(rep: Report, f: dict, text: str) -> bool:
                              f["endTime"] - f["startTime"]))
 
 
+def kick_order(rep: Report, f: dict, text: str) -> int:
+    """How many lines the interrupt order (the intstart block) has in the note's version for pull `f`, on its boss:
+    0 for a note without one. Such an order is shown as written and checked against nothing: which add a line is
+    for is the addon's rule for the boss, not in the note."""
+    note = for_boss(_version(versions(text), (rep.start_ms + f["startTime"]) / 1000).notes, f["encounterID"])
+    return len(note.interrupts) if note else 0
+
+
 def _phase_starts(f: dict) -> dict[int, float]:
     """Each phase's first start, in ms from the pull's start."""
     starts: dict[int, float] = {1: 0.0}
