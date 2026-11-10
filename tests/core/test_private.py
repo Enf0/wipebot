@@ -278,3 +278,38 @@ async def test_a_private_report_its_owner_published_is_read_and_kept_as_any_othe
     with wcl.counting_points() as points:
         await lib.report(CODE)  # anyone reads it now, and their call is kept as any other
     assert list(lib._reports) == [CODE] and not points.private
+
+
+async def test_a_report_warcraft_logs_refuses_in_the_middle_of_a_call_is_let_go_at_once(night, monkeypatch):
+    """Made private an hour ago: the daily question isn't due yet, but Warcraft Logs has just refused a call that
+    asked for more of the report. The next call isn't answered from the copy in memory either."""
+    kept = Cache(":memory:")
+    monkeypatch.setattr(library, "cache", lambda: kept)
+    fake = PrivateWCL(night, set())
+    monkeypatch.setattr(fake, "report_fights", FakeWCL(night).report_fights)  # public: anyone reads it
+    lib = library.Library(wcl=fake.client())
+    setup = server.Setup(lib)
+
+    async def from_memory(report: str) -> str:
+        return (await server.lib().report(report)).title
+
+    async def asks_for_more(report: str) -> str:
+        rep = await server.lib().report(report)
+        raise wcl.Unreadable(rep.code)  # as a query naming it is answered once it's hidden
+
+    assert await server.guarded(from_memory, setup)(report=CODE)
+    loaded = lib._reports[CODE]
+    kept.put(cache_key("report", CODE, "deaths"), ["who died"])
+    fake.hidden = True
+    with pytest.raises(ToolError, match="won't show report"):
+        await server.guarded(asks_for_more, setup)(report=CODE)
+    assert CODE not in lib._reports and kept.get(cache_key("report", CODE, "deaths")) is None
+    with pytest.raises(ToolError, match="won't show report"):
+        await server.guarded(from_memory, setup)(report=CODE)
+    # A report someone can't read lets go of nothing others loaded: a stranger's call on a private one
+    wcl.mark_private(CODE)
+    theirs = (hashlib.sha256(b"a's").hexdigest(), CODE)
+    lib._reports[theirs] = loaded
+    with pytest.raises(ToolError, match="won't show report"):
+        await server.guarded(from_memory, setup)(report=CODE)
+    assert theirs in lib._reports

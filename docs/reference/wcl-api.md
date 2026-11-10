@@ -241,8 +241,9 @@ The remote server signs people in with Warcraft Logs (`core/accounts.py`).
   exist (verified 28 October 2026), "This report does not exist."; both are `wcl.Unreadable`.
   That answer is Warcraft Logs' say on who sees a report, not an outage (`cache.Gone`): no older copy is served in
   its place, and what was kept of the report is dropped. A loaded report is asked for again, its `visibility` only
-  (cost not measured yet), with each load and once a day (`Library._still_shown`), since a settled report is otherwise answered
-  from memory and disk without a query. A call is marked as having read a private report where the report is
+  (cost not measured yet), with each load and once a day (`Library._still_shown`), since a settled report is
+  otherwise answered from memory and disk without a query; a call that asks for more of it and is refused lets the
+  loaded copy go at once (`Library.refused`). A call is marked as having read a private report where the report is
   handed to it (`wcl.read_private`), not per query: a call answered from memory sends none.
 - `userData.currentUser` (user token, scope `view-user-profile`) gives `id` (an int), `name`, `battleTag` and
   `characters`: the ones the user claimed, in any guild.

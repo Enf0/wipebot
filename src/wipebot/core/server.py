@@ -405,6 +405,8 @@ async def _answered(fn, setup: Setup, args: tuple, kwargs: dict) -> object:
                 await asyncio.sleep(PULL_WAIT_S)
             await e.report.refresh()
         except (FactError, KnowledgeError, WCLError, notebook.Unreadable) as e:
+            if isinstance(e, wcl.Unreadable) and setup.library:  # not answered from the copy loaded either
+                setup.library.refused(e.code)
             raise ToolError(_told(e)) from e
         except Exception as e:
             raise _unexpected(fn.__name__, setup, e) from e

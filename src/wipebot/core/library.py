@@ -37,8 +37,9 @@ class Library:
     that isn't public (wcl.read_private), however it reads it.
     Warcraft Logs decides who sees a report later too: with each load, and for a loaded report every VISIBLE_FOR_S,
     it's asked whether it still shows the report to the asker. One made private or deleted since is let go, with
-    everything kept of it on disk (`_forget`), and is told as any report Warcraft Logs won't show; a private one
-    made public is read and kept as any other again."""
+    everything kept of it on disk (`_forget`), and is told as any report Warcraft Logs won't show; so is one it
+    refuses a call that asks for more of it (`refused`). A private one made public is read and kept as any other
+    again."""
 
     def __init__(self, default_report: str | None = None, wcl: WCL | None = None,
                  latest: Callable[[], Awaitable[str | None]] | None = None):
@@ -169,6 +170,17 @@ class Library:
         self._let_go(key)
         if key == code:
             cache().forget(code)
+
+    def refused(self, code: str) -> None:
+        """Warcraft Logs refused report `code` to the call being run while it asked for more of it (wcl.Unreadable
+        from a query, the report loaded): the copy loaded for the asker is let go now, as when the daily question
+        finds it hidden (`_forget`), so the next call isn't answered from it. Nothing loaded for anyone else is."""
+        try:
+            key = _key(code)
+        except wcl.Unreadable:  # a private report and an asker with no token for it: nothing is loaded for them
+            return
+        if key in self._reports:
+            self._forget(key, code)
 
     async def night(self, night_: dict, max_age_s: float = LIVE_RELOAD_S) -> list[Report]:
         """The reports of one of the guild's raid nights (night.raid_nights), loaded side by side."""
