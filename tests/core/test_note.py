@@ -11,6 +11,7 @@ import pytest
 from tests.support import NOTE
 from tests.support.recorded import TOOLS, Replay, serve_from
 from wipebot.core import server
+from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Player, Report, note
 
 VASHNIK = "EncounterID:3418;Difficulty:Mythic;Name:Vashnik\ntime:30;ph:2;tag:Torvek;spellid:98008;\n"
@@ -31,30 +32,115 @@ def test_a_raid_note_is_read_per_boss():
         note.parse("time:30;ph:1;tag:Torvek;spellid:98008;")
 
 
-def test_a_tag_that_is_no_players_name_is_still_read_as_one():
-    """What the reading makes today of the tags NSRT takes besides a name, pinned as it is so that a fix shows here:
-    a spell line to everyone is a cooldown planned for a player called "everyone" (the check then prints it as not
-    cast, by a player not in the pull), and a role, a group or a name with its realm is looked up as a character's
-    name, so its line is checked against no one. Only "everyone" on a text line is understood."""
+def test_a_spell_line_to_everyone_is_a_reminder_and_a_realm_is_no_part_of_a_name():
+    """A spell line to everyone shows the boss's cast or a move with an icon: it was read as a cooldown planned for a
+    player called "everyone", who then "wasn't in the pull" seven times a pull. A name with its realm is the name;
+    a role or a group stays the tag it is (the check sets it aside: it's no one's name)."""
     [plan] = note.parse("EncounterID:3418;Name:Vashnik\n"
-                        "time:154;ph:1;tag:everyone;spellid:98008;\n"
+                        "time:154;ph:1;tag:everyone;spellid:98008;text:Go to diamond;\n"
                         "time:30;ph:1;tag:everyone;text:Big Personals;\n"
                         "time:40;ph:1;tag:healer;text:Personals;\n"
-                        "time:50;ph:1;tag:group1 Torvek-Kazzak;spellid:98008;\n")
-    assert plan.cooldowns == [note.Cooldown(154, 1, "everyone", 98008), note.Cooldown(50, 1, "group1", 98008),
-                              note.Cooldown(50, 1, "Torvek-Kazzak", 98008)]
+                        "time:50;ph:1;tag:group1 Torvek-Kazzak;spellid:98008;\n"
+                        "invitelist:Torvek-Kazzak,Mirelle-TarrenMill;\n")
+    assert plan.reminders == [note.Reminder(154, 1, 98008, "Go to diamond")]
+    assert plan.cooldowns == [note.Cooldown(50, 1, "group1", 98008), note.Cooldown(50, 1, "Torvek", 98008)]
     assert plan.callouts == [note.Callout(30, 1, (), "Big Personals"), note.Callout(40, 1, ("healer",), "Personals")]
+    assert plan.invited == ["Torvek", "Mirelle"] and plan.unread == []
+    assert note.receipt(plan) == "2 timed cooldowns, 2 callouts, 1 reminder to everyone"
 
 
-def test_a_heading_or_a_label_written_twice_keeps_only_the_last():
-    """Pinned as it is today so that a fix shows here: of two blocks under one heading the second's labels replace
-    the first's of the same name, and of two lines with one label the second replaces the first, without a word in
-    the output, so a raider's job is gone from the assignments (Torvek's and Halvard's here)."""
+def test_a_heading_or_a_label_written_twice_keeps_both():
+    """Of two blocks under one heading the second's labels replaced the first's, and of two lines with one label
+    the second replaced the first, without a word: a raider's job was gone from the assignments (Torvek's and
+    Halvard's here). Both are kept, the second numbered."""
     [plan] = note.parse("EncounterID:3418;Name:Vashnik\n\n"
                         "Orb Carriers\ngreen orb: Torvek\ngreen orb: Mirelle\nred orb: Halvard\n\n"
                         "Orb Carriers\nred orb: Rowan\nblue orb: Brightleaf\n")
-    assert plan.groups == {"Orb Carriers": {"green orb": ["Mirelle"], "red orb": ["Rowan"],
-                                            "blue orb": ["Brightleaf"]}}
+    assert plan.groups == {"Orb Carriers": {"green orb": ["Torvek"], "green orb (2)": ["Mirelle"],
+                                            "red orb": ["Halvard"]},
+                           "Orb Carriers (2)": {"red orb": ["Rowan"], "blue orb": ["Brightleaf"]}}
+    assert plan.unread == []
+
+
+def test_what_the_note_says_that_isnt_understood_is_kept_and_said():
+    """A line the reading can't take was dropped without a word: a time as 1:03, a phase that's no whole number, a
+    line with no tag, words under no heading's label. NSRT reads a line's fields wherever they stand, so a line
+    whose time isn't first is a timed line (it was taken for a heading, and the line after it lost)."""
+    [plan] = note.parse("EncounterID:3418;Name:Vashnik\n"
+                        "ph:1;time:16;tag:Torvek;spellid:98008;\n"
+                        "time:1:03;ph:1;tag:Torvek;spellid:98008;\n"
+                        "time:7;ph:2.5;tag:Torvek;spellid:98008;\n"
+                        "time:20;ph:1;spellid:98008;\n"
+                        "time:25;ph:1;tag:Torvek;\n\n"
+                        "Use a healthstone early\n\n"
+                        "Orbs\nred orb: Rowan\n")
+    assert plan.cooldowns == [note.Cooldown(16, 1, "Torvek", 98008)]
+    assert plan.unread == ["time:1:03;ph:1;tag:Torvek;spellid:98008;", "time:7;ph:2.5;tag:Torvek;spellid:98008;",
+                           "time:20;ph:1;spellid:98008;", "time:25;ph:1;tag:Torvek;", "Use a healthstone early"]
+    assert note.not_understood(plan) == 'not understood: 5 lines, the first "time:1:03;ph:1;tag:Torvek;spellid:98008;"'
+    assert note._not_checked(plan, {})[0].startswith("Lines of the note not understood: 5 lines, the first ")
+    whole = note.parse(NOTE.read_text(encoding="utf-8"))[0]
+    assert note.not_understood(whole) == "" and note._not_checked(whole, {}) == []
+
+
+def test_saving_a_note_says_what_was_read_and_what_wasnt():
+    """The officer who pastes a note hears at once what of it was read: the reminders counted, and the lines not
+    understood with the first of them."""
+    pasted = ("EncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
+              "time:30;ph:1;tag:Torvek;spellid:98008;\ntime:1:03;ph:1;tag:Torvek;spellid:98008;\n"
+              "time:40;ph:1;tag:everyone;spellid:98008;\n\nOrbs\nred orb: Rowan\n")
+    said = server.save_pasted(Notebook(":memory:"), 14169, pasted, "Rowan", at=1000.0)
+    assert said.splitlines()[-1] == (
+        "- **Vashnik** (Mythic): 1 timed cooldown, 0 callouts, 1 reminder to everyone; "
+        'Orbs (red orb); not understood: 1 line, the first "time:1:03;ph:1;tag:Torvek;spellid:98008;"')
+
+
+@pytest.fixture
+def recorded(monkeypatch):
+    """The tools answer from the recorded answers, with nothing loaded yet."""
+    serve_from(monkeypatch, Replay())
+
+
+async def _pull_42(*edits: tuple[str, str]) -> list[str]:
+    """The lines the check of Sszorak pull 42 gains when the recorded note is changed (old text, new text), with the
+    note's spells as they are so the recorded answers still serve."""
+    text = NOTE.read_text(encoding="utf-8")
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    before = (await note.note_check(rep, text, 42, "Sszorak")).splitlines()
+    for old, new in edits:
+        assert old in text
+        text = text.replace(old, new)
+    return [line for line in (await note.note_check(rep, text, 42, "Sszorak")).splitlines() if line not in before]
+
+
+async def test_a_tag_that_is_no_player_is_set_aside_and_never_a_player_who_wasnt_in_the_pull(recorded):
+    """A callout to healers or to a group read "not in this pull", with "healer" among those named in the note but
+    absent, and a spell line to everyone as a cooldown "everyone" didn't cast. A role or a group is no one the log
+    can name: its lines are listed once as not checked. A name with its realm is checked as the name."""
+    new = await _pull_42(
+        ("time:75;ph:1;tag:everyone;text:Big Personals;", "time:75;ph:1;tag:healer;text:Big Personals;"),
+        ("time:199;ph:1;tag:everyone;text:Big Personals;", "time:199;ph:1;tag:group1 group2;text:Big Personals;"),
+        ("time:16;ph:1;tag:Miralupa;spellid:64843;", "time:16;ph:1;tag:Miralupa-Kazzak;spellid:64843;"),
+        ("time:71;ph:1;tag:Deathadim;spellid:51052;",
+         "time:71;ph:1;tag:Deathadim melee;spellid:51052;\ntime:90;ph:1;tag:everyone;spellid:51052;"))
+    assert not any("not in this pull" in line and "healer" in line for line in new)
+    assert ("Tags that are no player of the report and no name on the note's invite list (a role, a group or a "
+            "nickname, which the log can't match to players), their lines not checked: group1 (1 callout), group2 "
+            "(1 callout), healer (1 callout), melee (1 cooldown)") in new
+    assert any(line.startswith("Reminders to everyone (1 timed line with a spell and no player to press it")
+               and line.endswith("not checked: Anti-Magic Zone [51052]") for line in new)
+    assert not [line for line in new if "Miralupa" in line and "Divine Hymn" in line]  # checked as before
+    assert not [line for line in new if line.startswith("Named in the note")]  # still only Mizaroth
+
+
+async def test_words_under_a_heading_arent_read_as_players_names(recorded):
+    """ "Swap: at 2 stacks, Deathadim first" under "Tanks" gave "Named in the note but not in this pull: 2, at,
+    first, in, melee, stacks,, stay". A line is a list of players when at least half its words are players of the
+    report or names on the invite list; else it's the note's words, shown with the assignments as written."""
+    new = await _pull_42(("Virulence trigger\nTrigger: Martin",
+                          "Virulence trigger\nTrigger: Martin\n\nTanks\nSwap: at 2 stacks, Deathadim first\n"
+                          "Note: stay in melee"))
+    assert new == ["  Tanks: Swap: at 2 stacks, Deathadim first; Note: stay in melee"]
 
 
 def test_a_raid_note_saved_in_versions_is_read_per_version():

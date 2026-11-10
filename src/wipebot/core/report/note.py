@@ -4,20 +4,25 @@ A note holds, per boss under an `EncounterID:3420;Difficulty:Mythic;Name:Sszorak
 - timed cooldowns, `time:72;ph:1;tag:Lirenna;spellid:98008;` (with `bossSpell:<id>`, the boss ability it's for);
 - timed callouts to players or everyone, `time:11;ph:1;tag:Zuvyg Gutafaend ...;text:Soak Left;...`, a callout to one
   player at the moment an add begins a cast being a kick assignment (`text:Kick #1 left`);
+- timed reminders, a spell line to everyone (`time:7;ph:2;tag:everyone;spellid:1285643;text:Go to diamond;`): the
+  boss's cast or a move shown with an icon, which no one presses;
 - the assignments as text: a heading naming the mechanic ("Mutilate Soaks"), then `Label: players` lines;
 - an `invitelist:`.
+A tag is a player's name (NSRT also takes a nickname, a role, a group, melee or ranged, a class or spec id), with or
+without the realm. What isn't one of these lines is kept as not understood (`Note.unread`) and said.
 """
+import itertools
 import re
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Collection, Mapping
 from collections.abc import Set as AbstractSet
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..knowledge import KnowledgeError
 from ..pulls import Decided
-from ..text import clock, plural, ranges, short
+from ..text import clock, name_key, plural, ranges, short
 from . import saved
 from .adds import interruptible_casts, kicked_tonight
 from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since, unavailable
@@ -96,6 +101,15 @@ class Callout:
 
 
 @dataclass
+class Reminder:
+    """A timed spell line to everyone: the boss's cast or a move shown with an icon, nothing a player presses."""
+    at: float
+    phase: int
+    spell: int
+    text: str = ""
+
+
+@dataclass
 class Note:
     encounter_id: int
     difficulty: str
@@ -104,9 +118,16 @@ class Note:
     callouts: list[Callout] = field(default_factory=list)
     groups: dict[str, dict[str, list[str]]] = field(default_factory=dict)  # heading -> label -> players
     text: str = ""  # this boss's part of the note, as pasted
+    reminders: list[Reminder] = field(default_factory=list)
+    invited: list[str] = field(default_factory=list)  # the invitelist's names, without their realms
+    unread: list[str] = field(default_factory=list)  # the lines that weren't understood, as written
 
 
 HEADER = re.compile(r"^\s*EncounterID:\s*(\d+)\s*;", re.I | re.M)
+TIMED = re.compile(r"(?:^|;)\s*time:", re.I)  # a timed line: NSRT reads a line's fields wherever they stand
+# The tags NSRT takes that are no player's name (its Reminders.lua: a role, the raid group, melee or ranged, a class
+# or spec id): the log can't say whom the addon showed such a line to.
+NOT_A_NAME = re.compile(r"tank|healer|damager|melee|ranged|group\d|\d+", re.I)
 
 
 def parse(text: str) -> list[Note]:
@@ -122,37 +143,72 @@ def _fields(line: str) -> dict[str, str]:
     return {k.strip().lower(): v.strip() for k, _, v in (p.partition(":") for p in line.split(";")) if k.strip()}
 
 
+def _bare(name: str) -> str:
+    """A name without its realm ("Torvek-Kazzak"): a character's name has no hyphen."""
+    return name.partition("-")[0] or name
+
+
+def _numbered(name: str, taken: Collection[str]) -> str:
+    """`name`, or "name (2)", "name (3)" when the note has one already: of a heading or a label written twice, both
+    are kept."""
+    return name if name not in taken else next(
+        numbered for k in itertools.count(2) if (numbered := f"{name} ({k})") not in taken)
+
+
 def _parse_one(text: str) -> Note:
     lines = text.splitlines()
     head = _fields(lines[0])
     note = Note(int(head["encounterid"]), head.get("difficulty", ""), head.get("name", ""), text=text)
-    heading = None
+    heading: str | None = None
+
+    def close() -> None:
+        """A heading with no line under it is words of the note that nothing reads."""
+        if heading is not None and heading not in note.groups:
+            note.unread.append(heading)
     for raw in lines[1:]:
         line = raw.strip()
         if not line:
+            close()
             heading = None
-            continue
-        if line.lower().startswith("time:"):
-            f = _fields(line)
-            try:
-                at, phase = float(f["time"]), int(f.get("ph") or 1)
-            except (KeyError, ValueError):
-                continue
-            tags = f.get("tag", "").split()
-            if f.get("spellid", "").isdigit():
-                boss_spell = int(f["bossspell"]) if f.get("bossspell", "").isdigit() else None
-                note.cooldowns += [Cooldown(at, phase, t, int(f["spellid"]), boss_spell) for t in tags]
-            elif f.get("text"):
-                players = () if [t.lower() for t in tags] == [EVERYONE] else tuple(tags)
-                note.callouts.append(Callout(at, phase, players, f["text"]))
+        elif TIMED.search(line):
+            if not _timed(note, _fields(line)):
+                note.unread.append(line)
         elif line.lower().startswith("invitelist:"):
-            continue
+            note.invited += [_bare(n.strip()) for n in line.partition(":")[2].strip(" ;").split(",") if n.strip()]
         elif ": " in line or line.endswith(":"):
             label, _, names = line.partition(":")
-            note.groups.setdefault(heading or label.strip(), {})[label.strip()] = names.split()
+            section = note.groups.setdefault(heading or label.strip(), {})
+            section[_numbered(label.strip(), section)] = names.split()
         else:
-            heading = line
+            close()
+            heading = _numbered(line, note.groups)
+    close()
     return note
+
+
+def _timed(note: Note, f: dict[str, str]) -> bool:
+    """A timed line's fields read into the note, as NSRT takes them: a time in seconds, a tag, and a spell or a
+    text. False for a line it can't read: its time is no number of seconds (1:03 isn't), its phase no whole number,
+    or it has no tag or neither a spell nor a text."""
+    try:
+        at, phase = float(f["time"]), int(f.get("ph") or 1)
+    except (KeyError, ValueError):
+        return False
+    tags = [_bare(t) for t in f.get("tag", "").split()]
+    everyone = [t.lower() for t in tags] == [EVERYONE]
+    if not tags:
+        return False
+    if f.get("spellid", "").isdigit():
+        if everyone:
+            note.reminders.append(Reminder(at, phase, int(f["spellid"]), f.get("text", "")))
+            return True
+        boss_spell = int(f["bossspell"]) if f.get("bossspell", "").isdigit() else None
+        note.cooldowns += [Cooldown(at, phase, t, int(f["spellid"]), boss_spell) for t in tags]
+    elif f.get("text"):
+        note.callouts.append(Callout(at, phase, () if everyone else tuple(tags), f["text"]))
+    else:
+        return False
+    return True
 
 
 def for_boss(notes: list[Note], encounter_id: int) -> Note | None:
@@ -269,6 +325,7 @@ class PullCheck:
     missing: list[str]  # named in the note, not in the pull
     unavailable: str = ""  # why the callouts couldn't be checked
     unchecked: list[tuple[float, Callout]] = field(default_factory=list)  # callouts the log can't check (PERSONALS)
+    stray: dict[str, tuple[int, int]] = field(default_factory=dict)  # tags that are no player (`_stray`)
 
 
 async def note_check(rep: Report, text: str, pull: PullRef = None, boss: str | None = None,
@@ -299,7 +356,7 @@ async def assigns_kicks(rep: Report, f: dict, text: str) -> bool:
     if note is None:
         return False
     starts = _phase_starts(f)
-    players = {n: p for n in _named(note) if (p := rep.find_player(n))}
+    players = _players(rep, note)
     return bool(await _kicks(rep, f, note, players, lambda *_: "",
                              lambda c: None if c.phase not in starts else starts[c.phase] + c.at * 1000,
                              f["endTime"] - f["startTime"]))
@@ -317,8 +374,11 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
     t0, end = f["startTime"], f["endTime"] - f["startTime"]
     starts = _phase_starts(f)
     in_pull = {p.name for p in rep.pull_players(f).values()}
-    named = _named(note)
-    players = {n: p for n in named if (p := rep.find_player(n))}
+    players = _players(rep, note)
+    stray = _stray(note, players)
+    full, note = note, replace(  # what's checked: a line whose tags are no player is listed, not checked
+        note, cooldowns=[c for c in note.cooldowns if c.player not in stray],
+        callouts=[c for c in note.callouts if not c.players or not set(c.players) <= stray.keys()])
     deaths = await rep.deaths(f)
     backs = (await rep.resurrects([f]))[f["id"]]
     ids = {rep.actor(d["targetID"]): d["targetID"] for d in deaths}
@@ -331,7 +391,7 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
         since = dead_since(deaths, backs.get(pid, []), pid, t0 + at)
         return None if since is None else since - t0
     decided = await rep.decided_at(f)
-    await rep.name_spells({c.spell for c in note.cooldowns} | {c.boss_spell for c in note.cooldowns if c.boss_spell})
+    await rep.name_spells({c.spell for c in full.cooldowns} | {c.boss_spell for c in full.cooldowns if c.boss_spell})
 
     def when(c: Cooldown | Callout) -> float | None:
         """Ms from the pull's start; None in a phase the pull never reached."""
@@ -352,9 +412,10 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
         callouts, why = await _callouts(rep, f, note, players, died, when, calls), ""
     except KnowledgeError as e:
         callouts, why = [], unavailable("Callouts (Lorrgs' spells for each spec)", e)
-    return PullCheck(f, note, decided, until, await _soaks(rep, f, note, players, state, when, until),
-                     await _cooldowns(rep, f, note, players, state, when, until), callouts, kicks,
-                     sorted(n for n in named if n not in players or players[n].name not in in_pull), why, unchecked)
+    return PullCheck(f, full, decided, until, await _soaks(rep, f, note, players, state, when, until),
+                     await _cooldowns(rep, f, note, players, state, when, until, full), callouts, kicks,
+                     sorted(n for n in _people(note, players) - stray.keys()
+                            if n not in players or players[n].name not in in_pull), why, unchecked, stray)
 
 
 def _named(note: Note) -> set[str]:
@@ -362,16 +423,93 @@ def _named(note: Note) -> set[str]:
         n for g in note.groups.values() for ns in g.values() for n in ns}
 
 
+def _players(rep: Report, note: Note) -> dict[str, Player]:
+    """The report's player each name in the note means, by the name as written: its realm left off, and a tag that
+    is a role or a group (NOT_A_NAME) no one's name."""
+    return {n: p for n in _named(note) if not NOT_A_NAME.fullmatch(n) and (p := rep.find_player(_bare(n)))}
+
+
+def _known(note: Note, players: Mapping[str, Player]) -> Callable[[str], bool]:
+    """Whether a word of the note is someone's name: a player of the report, or on the note's invite list."""
+    invited = {name_key(n) for n in note.invited}
+    return lambda n: n in players or name_key(_bare(n)) in invited
+
+
+def _stray(note: Note, players: Mapping[str, Player]) -> dict[str, tuple[int, int]]:
+    """The tags on timed lines that are no one's name (`_known`): a role, a group, a nickname, which the addon shows
+    to players the log can't name. Per tag, how many cooldown lines and callouts carry it: listed, not checked, and
+    never a player who "wasn't in the pull"."""
+    known = _known(note, players)
+    out: dict[str, tuple[int, int]] = {}
+    for n in (c.player for c in note.cooldowns):
+        if not known(n):
+            out[n] = (out.get(n, (0, 0))[0] + 1, 0)
+    for n in (n for c in note.callouts for n in c.players):
+        if not known(n):
+            out[n] = (out.get(n, (0, 0))[0], out.get(n, (0, 0))[1] + 1)
+    return out
+
+
+def _people(note: Note, players: Mapping[str, Player]) -> set[str]:
+    """The names the note gives a job: the tags of its timed lines, and the words of its assignment lines, of a
+    line at least half of whose words are someone's name (`_known`). Another line is the note's words ("Swap: at 2
+    stacks, Torvek first"), not a list of players."""
+    known = _known(note, players)
+    listed = [ns for g in note.groups.values() for ns in g.values()]
+    return ({c.player for c in note.cooldowns} | {n for c in note.callouts for n in c.players}
+            | {n for ns in listed if 2 * sum(map(known, ns)) >= len(ns) for n in ns})
+
+
 def _head(note: Note) -> str:
     return f"The raid note for {note.boss or 'the boss'}" + (f" ({note.difficulty})" if note.difficulty else "")
 
 
-def _assignments(note: Note) -> list[str]:
-    if not note.groups:
-        return []
-    return ["Assignments in the note's text:"] + [
-        f"  {heading}: " + "; ".join(f"{label}: {' '.join(ns)}" for label, ns in groups.items())
-        for heading, groups in note.groups.items()]
+def _assignments(rep: Report, note: Note) -> list[str]:
+    """What the note says besides its checked lines, as written: the assignments and the reminders to everyone."""
+    lines = []
+    if note.groups:
+        lines = ["Assignments in the note's text:"] + [
+            f"  {heading}: " + "; ".join(f"{label}: {' '.join(ns)}" for label, ns in groups.items())
+            for heading, groups in note.groups.items()]
+    if note.reminders:
+        said = Counter(f'"{r.text}"' if r.text else rep.ability_ref(r.spell) for r in note.reminders)
+        lines.append(f"Reminders to everyone ({plural(len(note.reminders), 'timed line')} with a spell and no player "
+                     "to press it: the boss's cast or a move, shown with an icon), not checked: "
+                     + ", ".join(what + (f" {n} times" if n > 1 else "") for what, n in said.items()))
+    return lines
+
+
+UNREAD_SHOWN = 100  # characters of the first line not understood that are shown
+
+
+def receipt(note: Note) -> str:
+    """What was read from a boss's note, for the officer who saved it: '59 timed cooldowns, 28 callouts'."""
+    return (f"{plural(len(note.cooldowns), 'timed cooldown')}, {plural(len(note.callouts), 'callout')}"
+            + (f", {plural(len(note.reminders), 'reminder')} to everyone" if note.reminders else ""))
+
+
+def not_understood(note: Note) -> str:
+    """'not understood: 3 lines, the first "time:1:03;ph:1;..."', or '' for a note read whole."""
+    if not note.unread:
+        return ""
+    first = note.unread[0]
+    return (f"not understood: {plural(len(note.unread), 'line')}, the first \"{first[:UNREAD_SHOWN]}"
+            + ("..." if len(first) > UNREAD_SHOWN else "") + "\"")
+
+
+def _not_checked(note: Note, stray: Mapping[str, tuple[int, int]]) -> list[str]:
+    """What of the note no check could take up, each said once: the tags that are no player, and the lines that
+    weren't understood. Nothing for a note read whole."""
+    lines = []
+    if stray:
+        lines.append("Tags that are no player of the report and no name on the note's invite list (a role, a group or "
+                     "a nickname, which the log can't match to players), their lines not checked: " + ", ".join(
+                         f"{tag} (" + ", ".join(plural(n, what) for n, what in ((cds, "cooldown"), (calls, "callout"))
+                                                 if n) + ")" for tag, (cds, calls) in sorted(stray.items())))
+    if unread := not_understood(note):
+        lines.append(f"Lines of the note {unread} (a timed line has a time in seconds, a whole phase, a tag, and a "
+                     "spell or a text; an assignment is a heading with \"Label: players\" lines under it)")
+    return lines
 
 
 def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PLR0915
@@ -381,7 +519,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
              + f", {rep.url(f)})" + (f"; the wipe was decided at {clock(c.decided.at_ms)} ({c.decided.why})"
                                     if c.decided else "")
              + ". Note times count from the pull's start (ph:1) or from the phase's first start."]
-    lines += _assignments(c.note)
+    lines += _assignments(rep, c.note)
     lines += _pull_soaks(rep, c.soaks, c.until)
     if c.planned:
         lines.append("Planned cooldowns (time in the note: what happened):")
@@ -456,6 +594,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                      f"{clock(c.until)}: " + ", ".join(_through(k) for k in before))
     if c.unavailable:
         lines.append(c.unavailable)
+    lines += _not_checked(c.note, c.stray)
     if c.missing:
         lines.append("Named in the note but not in this pull: " + ", ".join(c.missing))
     return "\n".join(lines)
@@ -612,16 +751,18 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
 
 
 async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,
-                     until: float) -> Planned | None:
+                     until: float, whole: Note | None = None) -> Planned | None:
     """Each planned cooldown against the player's casts of it on the pull: the nearest within MATCH_S, each cast
-    used for one line only. A channel's casts in a row (Divine Hymn logs each tick) are one use."""
+    used for one line only. A channel's casts in a row (Divine Hymn logs each tick) are one use. The casts are
+    asked for by the `whole` note's spells (the note before the lines to no player were left out), as the night's
+    one query asks for them (`_prefetch`)."""
     if not note.cooldowns:
         return None
     t0 = f["startTime"]
     planners = {c.player for c in note.cooldowns}
     here = {n: p for n, p in players.items() if n in planners and rep.was_in(f, p)}
     by_source: dict[int, list[dict]] = defaultdict(list)
-    for e in await _planned_casts(rep, f, note):
+    for e in await _planned_casts(rep, f, whole or note):
         by_source[e.get("sourceID", -1)].append(e)
     casts: dict[tuple[str, int], list[float]] = defaultdict(list)  # (note name, spell) -> ms from the pull's start
     for name, p in here.items():
@@ -896,12 +1037,13 @@ async def _night(rep: Report, found: list[Version], fights: list[dict], source: 
     lines += _saved_late(rep, fights, by_pull)
     if change:
         lines.append(_change_text(rep, fights, change))
-    lines += _assignments(latest)
+    lines += _assignments(rep, latest)
     lines += _night_soaks(rep, checks)
     lines += _night_cooldowns(rep, checks)
     lines += _night_kicks(rep, checks[change.start:] if change else checks)
     lines += _night_callouts(rep, checks)
     lines += list(dict.fromkeys(c.unavailable for c in checks if c.unavailable))
+    lines += _not_checked(latest, {tag: n for c in checks for tag, n in c.stray.items()})
     return "\n".join(lines)
 
 

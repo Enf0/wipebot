@@ -1093,9 +1093,8 @@ def _save_notes(book: notebook.Notebook, guild_id: int, text: str, saved_by: str
     for (n, boss), (saved_at, _) in zip(parsed, when, strict=True):
         book.save_note(guild_id, n.encounter_id, boss, n.text, saved_by, saved_at)
         groups = "; ".join(f"{heading} ({', '.join(labels)})" for heading, labels in n.groups.items())
-        lines.append(f"**{boss}**" + (f" ({n.difficulty})" if n.difficulty else "")
-                     + f": {plural(len(n.cooldowns), 'timed cooldown')}, {plural(len(n.callouts), 'callout')}"
-                     + (f"; {groups}" if groups else ""))
+        lines.append(f"**{boss}**" + (f" ({n.difficulty})" if n.difficulty else "") + f": {notes.receipt(n)}"
+                     + "".join(f"; {part}" for part in (groups, notes.not_understood(n)) if part))
     kept = "that night's only, as a note changes with who comes: the previous one is kept for earlier pulls"
     return (_saved_for("raid note", kept, [s for _, s in when]) + "\n"
             + "\n".join(f"- {line}" for line in lines))
