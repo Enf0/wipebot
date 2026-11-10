@@ -301,9 +301,11 @@ async def report_answer(
 
 def allow_reports(mcp: MCPServer, setup: server.Setup) -> None:
     """Give a server whose calls are kept (Remote.record) report_answer: a report is a kept call whose arguments are
-    the report."""
+    the report. It loads up front where a client defers tools behind a search (as the core's ALWAYS_LOAD do): its
+    description is what tells the model to offer a report when the user says an answer was wrong, and a deferred
+    tool's description is never read before the tool is searched for."""
     mcp.add_tool(server.guarded(report_answer, setup), name="report_answer", title=server.title("report_answer"),
-                 annotations=REPORTS, structured_output=False)
+                 annotations=REPORTS, structured_output=False, meta={"anthropic/alwaysLoad": True})
     if tool := mcp._tool_manager.get_tool("report_answer"):  # as server.register's
         tool.parameters = server.compact(tool.parameters)
 

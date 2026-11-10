@@ -643,6 +643,9 @@ def test_a_user_sends_a_report_on_an_answer_kept_as_a_call_with_who_sent_it(reco
     tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
     report = tools["report_answer"]
     assert report["title"] == "Report answer" and "only when they ask for it or agree" in report["description"]
+    # a client that defers tools behind a search reads no description until then: the offer is made from this one
+    assert "end that reply by offering to send it" in report["description"]
+    assert report["_meta"] == {"anthropic/alwaysLoad": True}
     assert list(report["inputSchema"]["properties"]) == ["question", "answer", "problem", "kind"]
     assert report["inputSchema"]["properties"]["kind"]["enum"] == ["wrong", "missing", "slow", "good"]
     assert report["annotations"] == {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False,
