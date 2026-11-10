@@ -36,7 +36,7 @@ from .casting import alive, casting, raid_pauses, without
 from .coaching import best_pulls, dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
-from .ending import HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending
+from .ending import card_text, kind_of_end, mass_death_of, pull_ending, pull_endings
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
 from .meter import Meter
 from .night import BossNight, kill_rankings, wipe_thirds
@@ -438,7 +438,7 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
     fights = rep.by_boss[boss]
     await rep.decided_cuts(fights)
     before = await rep.guild_best(fights[0])
-    endings = await asyncio.gather(*(pull_ending(rep, f) for f in fights))
+    endings = await pull_endings(rep, fights)
     rows, firsts, best = [], Counter(), None
     for f, e in zip(fights, endings, strict=True):
         deaths = await rep.deaths(f)
@@ -864,24 +864,4 @@ def icons(data: object) -> set[str]:
 
 def _ended(e) -> dict | None:
     """How the pull ended, in a few words for the card, and when; None for a kill."""
-    if e is None:
-        return None
-    match e.kind:
-        case "live":
-            return {"text": "still going", "ms": None}
-        case "reset":
-            return {"text": "a reset", "ms": None}
-        case "cascade":
-            return {"text": "deaths one after another", "ms": e.half_dead_ms}
-        case "called_off":
-            return {"text": "called off", "ms": None}
-    match e.moments[0]:
-        case MassDeath(ability="", at_ms=at, killed=n):
-            return {"text": f"{n} dying at once", "ms": at}
-        case MassDeath(ability=name, at_ms=at, killed=n):
-            return {"text": f"{name} killing {n}", "ms": at}
-        case KeptBuff(name=name, at_ms=at):
-            return {"text": f"the boss gaining {name}", "ms": at}
-        case HalfDead(at_ms=at):
-            return {"text": "half the raid dead", "ms": at}
-    return None
+    return {"text": found[0], "ms": found[1]} if (found := card_text(e)) else None

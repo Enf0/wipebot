@@ -5,7 +5,7 @@
 views.night = (() => {
   let D = null, root = null, open = null, drawnWidth = 0;
   const COLORS = ["#b98cf5", "#e07a5f", "#5fb3d4", "#7fb069", "#c9b458", "#d48ac7"];  // the endings, most pulls first
-  const QUIET = new Set(["a reset", "a kill", "still going", "called off"]);
+  const QUIET = new Set(["a reset", "a kill", "still going", "no death, the raid alive"]);
 
   async function show(into, key, opener) {
     root = into; open = opener;
@@ -20,7 +20,7 @@ views.night = (() => {
   const named = () => D.ends.map(([what]) => what).filter((w) => !QUIET.has(w));
   function colorOf() {
     const m = new Map(named().slice(0, HUES).map((w, i) => [w, COLORS[i]]));
-    return (w) => w === "a kill" ? "var(--gold)" : w === "a reset" || w === "called off" ? "var(--line)" : m.get(w) || "var(--muted)";
+    return (w) => w === "a kill" ? "var(--gold)" : w === "a reset" || w === "no death, the raid alive" ? "var(--line)" : m.get(w) || "var(--muted)";
   }
 
   const pct = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;

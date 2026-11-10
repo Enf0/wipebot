@@ -22,7 +22,7 @@ from .base import (
     half_dead,
     unavailable,
 )
-from .ending import Ending, ending, ending_text, kind_of_end, pull_ending, ruled_out
+from .ending import Ending, ending_text, kind_of_end, pull_ending, pull_endings, ruled_out
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -58,8 +58,7 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     decided = await rep.decided_at(f)
     backs = (await rep.resurrects([f]))[f["id"]]
     lines = [await rep.summary(f), f"Warcraft Logs: {rep.url(f)}"]
-    enrages = await rep.enrages(f)
-    ended = ending(rep, f, deaths, backs, raid, enrages, decided)
+    ended = await pull_ending(rep, f)
     if text := ending_text(ended):
         lines.append(text)
     if not_it := ruled_out(ended, buffs, decided):
@@ -122,7 +121,8 @@ async def _same_ending(rep: Report, f: dict, ended: Ending | None) -> str | None
     if not earlier:
         return None
     await rep.decided_cuts(earlier)  # every earlier pull's deaths, buffs and battle res at once
-    kinds = {rep.pull_no(x): kind_of_end(await pull_ending(rep, x)) for x in earlier}
+    kinds = {rep.pull_no(x): kind_of_end(e)
+             for x, e in zip(earlier, await pull_endings(rep, earlier), strict=True)}
     this = kind_of_end(ended)
     same = [n for n, k in kinds.items() if k == this]
     common, most = Counter(k for k in kinds.values() if k not in ("a reset", "a kill")).most_common(1)[0] \

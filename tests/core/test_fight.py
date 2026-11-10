@@ -10,7 +10,16 @@ from tests.support import CODE, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.pulls import Decided, mass_hits
 from wipebot.core.report import fight
-from wipebot.core.report.ending import ending, ending_ability, ending_text, lead
+from wipebot.core.report.ending import (
+    card_text,
+    ending,
+    ending_ability,
+    ending_text,
+    kind_of_end,
+    lead,
+    pull_ending,
+    pull_endings,
+)
 
 T0 = 1_000_000  # a pull late in the log: times in the text are from its start
 PULL = {"id": 1, "kill": False, "fightPercentage": 40.0, "startTime": T0, "endTime": T0 + 120_000}
@@ -50,9 +59,15 @@ def test_in_a_small_raid_three_dying_at_once_is_a_hit_killing_many(rep, deaths):
     assert "killed 3" not in str(ended_by(rep, PULL, died, {}, 20, [], None))  # 20 players: 4 at least
 
 
-def test_a_wipe_nothing_decided_was_called_off_and_one_still_going_has_no_end(rep, deaths):
+def test_a_wipe_no_death_decided_ended_with_the_raid_alive_and_one_still_going_has_no_end(rep, deaths):
+    # The log has no word for why a raid stopped: the ending says what it shows, and claims no call.
     died = deaths((30.0, SWIPE), (40.0, CRASH))
-    assert ended_by(rep, PULL, died, {}, 20, [], None) == "Ended by: called off at 2:00 with 18 of 20 alive."
+    alive = ending(rep, PULL, died, {}, 20, [], None)
+    assert ending_text(alive) == (
+        "Ended by: no death. The pull ended at 2:00 with 18 of 20 alive and nothing in the log decided it: called off "
+        "or reset, the log doesn't say which.")
+    assert (lead(alive), kind_of_end(alive), ending_ability(alive)) == ("alive", "no death, the raid alive", None)
+    assert card_text(alive) == ("no death, the raid alive", None)
     assert ended_by(rep, {**PULL, "inProgress": True}, died, {}, 20, [], None) == (
         "Ended by: not yet, the pull is still going (2:00 logged so far).")
     assert ended_by(rep, {**PULL, "kill": True}, died, {}, 20, [], None) is None
@@ -117,13 +132,115 @@ def test_the_deaths_leading_into_a_moment_are_named_and_lead_when_they_are_many(
     backs: dict[int, list[float]] = {903: [T0 + 81_000.0]}  # 903 battle-ressed: not one of the deaths that stayed
     e = ending(rep, PULL, died, backs, 20, [], None)
     assert e and e.lead_in and (e.lead_in.first_ms, e.lead_in.deaths, e.lead_in.tanks) == (70_000, 4, 0)
-    assert str(ending_text(e)).endswith("Before it, 4 deaths one after another from 1:10, none brought back: what each "
-                                        "left short may be what lost it.")
-    assert lead(e) == "deaths from 1:10"  # four is a fifth of 20
+    # four is a fifth of 20, as many as a hit killing many takes: they lead, in the text, the label, the card and
+    # what the evals check alike
+    assert ending_text(e) == (
+        "Ended by (from the log, earliest first): 4 deaths one after another from 1:10, none brought back (what each "
+        "left short may be what lost the rest); then Venom Burst [901] killed 4 within 1 s at 1:40 (one ability "
+        "killing many at once: find which mechanic failed).")
+    assert lead(e) == "deaths from 1:10"
+    assert kind_of_end(e) == "deaths leading into Venom Burst killing many"
+    assert card_text(e) == ("deaths leading into Venom Burst killing 4", 100_000)
     fewer = ending(rep, PULL, died[4:], backs, 20, [], None)  # two deaths before it: named, but don't lead
     assert fewer and fewer.lead_in and fewer.lead_in.deaths == 2 and lead(fewer) == "ability: Venom Burst"
+    assert str(ending_text(fewer)).endswith("Before it, 2 deaths one after another from 1:30, none brought back: what "
+                                            "each left short may be what lost it.")
+    assert (kind_of_end(fewer), card_text(fewer)) == ("Venom Burst killing many", ("Venom Burst killing 4", 100_000))
     # the mechanic a post reads up on first: the one ending it, none when the deaths before it lead
     assert ending_ability(fewer) == "Venom Burst" and ending_ability(e) is None
+
+
+def _landing(name_id: int, at_s: float, targets: list[int], source: int = 9001) -> list[dict]:
+    return [{"type": "applydebuff", "timestamp": T0 + at_s * 1000 + n, "sourceID": source, "targetID": who,
+             "abilityGameID": name_id} for n, who in enumerate(targets)]
+
+
+@pytest.fixture
+def alive_pull(rep, monkeypatch):
+    """A pull of the night's first boss that ended at 2:00 with 18 of 20 alive and no death deciding it, answered
+    from made-up events: alive_pull(debuffs, casts, earlier) sets the enemies' debuffs on players, the enemies'
+    casts, and the debuff's applications on the pull before it; returns the pull and the queries asked."""
+    first = rep.by_boss[next(iter(rep.by_boss))][0]
+    f = {**first, "id": 990, "kill": False, "fightPercentage": 40.0, "startTime": first["endTime"] + T0,
+         "endTime": first["endTime"] + T0 + 120_000}
+    players: list[int] = first["friendlyPlayers"][:20]
+    died = [{"targetID": players[0], "timestamp": f["startTime"] + 30_000, "killingAbilityGameID": SWIPE},
+            {"targetID": players[1], "timestamp": f["startTime"] + 40_000, "killingAbilityGameID": CRASH}]
+    asked: list[tuple] = []
+
+    def answer(debuffs: list[dict], casts: list[dict], earlier: list[dict] | None = None):
+        shift = f["startTime"] - T0
+
+        def moved(events):
+            return [{**e, "timestamp": e["timestamp"] + shift} for e in events]
+
+        async def events(fid, kind, **filters):
+            asked.append((fid, kind, tuple(sorted(filters))))
+            return moved(debuffs if kind == "Debuffs" else casts)
+
+        async def events_for(items, kind, **filters):
+            asked.append(("for", kind, tuple(i for i, _ in items)))
+            return [[{**e, "timestamp": first["startTime"] + e["timestamp"] - T0} for e in earlier or []]
+                    if "filterExpression" in extra else moved(debuffs if kind == "Debuffs" else casts)
+                    for _, extra in items]
+
+        async def value(v):
+            return v
+        monkeypatch.setattr(rep, "events", events)
+        monkeypatch.setattr(rep, "events_for", events_for)
+        monkeypatch.setattr(rep, "deaths", lambda g: value(died if g["id"] == 990 else []))
+        monkeypatch.setattr(rep, "resurrects", lambda fs: value({g["id"]: {} for g in fs}))
+        monkeypatch.setattr(rep, "enrages", lambda g: value([]))
+        monkeypatch.setattr(rep, "decided_at", lambda g: value(None))
+        monkeypatch.setattr(rep, "raid_size", lambda g: value(20))
+        monkeypatch.setattr(rep, "decided_cuts", lambda fs: value({}))
+        return f, players, asked
+    return answer
+
+
+async def test_a_cast_of_the_boss_that_lands_on_the_living_as_the_pull_ends_is_what_ended_it(rep, alive_pull):
+    # 18 of 20 alive at 2:00: the boss cast March at 1:57 and Dread landed on all 18 a second later, as it had at
+    # no earlier moment of the pull and on no earlier pull. The ending says what the log shows, and names the cast.
+    rep.abilities |= {SWIPE: "Tail Swipe", CRASH: "Shadow Crash", 801: "March", 802: "Dread", 803: "Sting"}
+    boss = next(iter(rep.bosses))
+    cast = [{"type": "cast", "timestamp": T0 + 117_000, "sourceID": boss, "abilityGameID": 801}]
+    f, players, asked = alive_pull([], cast)
+    living = players[2:]
+    f, players, asked = alive_pull(_landing(803, 50, living[:3]) + _landing(802, 118, living), cast)
+    e = await pull_ending(rep, f)
+    assert ending_text(e) == (
+        "Ended by: the boss cast March at 1:57 and Dread [802] landed on 18 of the 18 alive at 1:58, 2 s before the "
+        "pull ended at 2:00 with 18 of 20 alive. No death decided it, and it landed on that many at no earlier "
+        "moment of this pull or of the pulls before it: look the cast up, one that ends the fight is what ended this "
+        "pull.")
+    assert (lead(e), kind_of_end(e), ending_ability(e)) == ("cast: March", "the boss casting March", "March")
+    assert card_text(e) == ("the boss casting March", 118_000)
+    # a night's pulls: the ones that ended with the raid alive are read in one query per kind
+    asked.clear()
+    assert [kind_of_end(x) for x in await pull_endings(rep, [f, {**f, "id": 991}])] == ["the boss casting March"] * 2
+    assert asked[:2] == [("for", "Debuffs", (990, 991)), ("for", "Casts", (990, 991))]
+
+
+async def test_a_debuff_the_raid_carries_through_the_fight_is_not_what_ended_a_pull(rep, alive_pull):
+    rep.abilities |= {SWIPE: "Tail Swipe", CRASH: "Shadow Crash", 801: "March", 802: "Dread"}
+    alive = "Ended by: no death. The pull ended at 2:00 with 18 of 20 alive and nothing in the log decided it"
+    f, players, _ = alive_pull([], [])
+    living = players[2:]
+    # it landed on the raid a minute earlier in this pull as well: part of the fight
+    f, *_ = alive_pull(_landing(802, 58, living) + _landing(802, 118, living), [])
+    assert str(ending_text(await pull_ending(rep, f))).startswith(alive)
+    # or on the pull before, which went on: part of the fight too
+    f, *_ = alive_pull(_landing(802, 118, living), [], earlier=_landing(802, 20, living))
+    assert str(ending_text(await pull_ending(rep, f))).startswith(alive)
+    # on a few players only, or well before the end: nothing the pull ended on
+    f, *_ = alive_pull(_landing(802, 118, living[:5]), [])
+    assert str(ending_text(await pull_ending(rep, f))).startswith(alive)
+    f, *_ = alive_pull(_landing(802, 100, living), [])
+    assert str(ending_text(await pull_ending(rep, f))).startswith(alive)
+    # with no cast of the boss's logged before it, the debuff is what the log names
+    f, *_ = alive_pull(_landing(802, 118, living), [])
+    assert str(ending_text(await pull_ending(rep, f))).startswith(
+        "Ended by: the boss's Dread [802] landed on 18 of the 18 alive at 1:58, 2 s before the pull ended")
 
 
 def test_a_cascade_starts_at_the_first_death_that_stayed(rep, deaths):

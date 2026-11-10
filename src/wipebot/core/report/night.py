@@ -26,7 +26,7 @@ from ..pulls import (
 from ..text import clock, clusters, date, ordinal, plural
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
-from .ending import Ending, kind_of_end, pull_ending
+from .ending import Ending, kind_of_end, pull_endings
 
 
 def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
@@ -327,6 +327,7 @@ async def progress(rep: Report, boss: str | None = None) -> str:
     first_killers: Counter = Counter()
     ends: Counter = Counter()  # what ended each pull, by kind_of_end
     kept: dict[str, list[float]] = defaultdict(list)  # end buff -> when it was gained, per pull
+    endings = dict(zip([f["id"] for f in fights], await pull_endings(rep, fights), strict=True))
     for i, f in enumerate(fights, 1):
         deaths = await rep.deaths(f)
         buffs = await rep.end_buffs(f)
@@ -342,7 +343,7 @@ async def progress(rep: Report, boss: str | None = None) -> str:
                  f"{clock(deaths[0]['timestamp'] - f['startTime'])})" if deaths else "-")
         result = wipe_text(f) if phased and not f["kill"] else f"{pct_text(pct)} {phase_label(f) or ''}"
         decided = await rep.decided_at(f)
-        ending = None if f.get("inProgress") else await pull_ending(rep, f)
+        ending = None if f.get("inProgress") else endings[f["id"]]
         if not f.get("inProgress"):
             ends[kind_of_end(ending)] += 1
         end = _end_buffs(buffs, enrages, decided)
@@ -457,7 +458,11 @@ async def boss_night(reps: list[Report], start_ms: float, encounter: int, diffic
     kill = next((i for i, (_, f) in enumerate(pulls, 1) if f["kill"]), None)
     wipes = [(pct, i) for i, (_, f) in enumerate(pulls, 1) if not f["kill"] and not is_reset(f)
              and (kill is None or i < kill) and (pct := wipe_pct(f)) is not None]
-    ends = Counter([kind_of_end(await pull_ending(r, f)) for r, f in pulls])
+    ended = {}
+    for r in reps:
+        mine = [f for x, f in pulls if x is r]
+        ended |= {(r.code, f["id"]): e for f, e in zip(mine, await pull_endings(r, mine), strict=True)}
+    ends = Counter([kind_of_end(ended[(r.code, f["id"])]) for r, f in pulls])
     best = min(wipes) if wipes else None
     furthest = pulls[best[1] - 1][1] if best else None
     return BossNight(start_ms, len(pulls), kill, best, tuple(ends.most_common()), pulls[0][0].code,
