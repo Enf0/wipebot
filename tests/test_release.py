@@ -173,10 +173,10 @@ def test_a_release_past_the_distance_stops_until_it_says_why(repo, monkeypatch, 
         release.main()
     assert not ran and (root / "changelog.txt").read_text() == CHANGELOG
     monkeypatch.setattr("sys.argv", ["release.py", "0.3.0", "--summary", "What it brings.", "--without-evals",
-                                     "the plan ran out"])
+                                     "the suite is down"])
     release.main()
     message = next(args for args in ran if args[:2] == ("git", "commit"))[-1]
     assert message.startswith("chore: Wipebot 0.3.0\n\nWhat it brings.\n\nEvals, bot: last full run ")
     assert "then 2 commits that can change an answer (1 of them says a full eval is pending) and 0 days." in message
-    assert message.endswith("\n\nReleased without a full eval run: the plan ran out")
+    assert message.endswith("\n\nReleased without a full eval run: the suite is down")
     assert "## [0.3.0]" in (root / "changelog.txt").read_text()
