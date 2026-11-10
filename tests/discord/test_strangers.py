@@ -127,6 +127,18 @@ async def test_a_note_pasted_in_a_server_that_only_links_the_guild_is_not_saved(
     assert (await paste(CLAIMS)).startswith("Saved the raid note") and len(book.notes(14169, 3420)) == 2
 
 
+async def test_a_note_pasted_where_nobody_set_the_server_up_asks_for_setup_whoever_pastes_it(shared, paste):
+    """A raider signed in with /login has their own guild stand in for a server nobody set up: their paste is saved
+    nowhere, and what it's told is to set the server up, not to verify a link that isn't there (on any bot)."""
+    shared.store.save_login(8, 43, "Mallory#1", "mallory's token", 4e9,
+                            guild=(14169, "The Copper Lanterns", "argent-dawn", "eu"))
+    for own_keys in (True, False):
+        shared.own_keys = own_keys
+        told = await paste(NOT_SET_UP)
+        assert "isn't set up yet: run `/wipebot setup` first" in told and "are off here" not in told
+    assert shared.store.notebook.latest_notes(14169) == []
+
+
 async def test_what_the_bot_runs_outside_any_askers_scope_reads_no_guilds_saved_things(bot, monkeypatch):
     """A call the bot makes without saying whose it is (Context.reading) reads nothing a guild keeps, not every
     guild's as a single user's own copy does: from its start on, in every task it starts after."""

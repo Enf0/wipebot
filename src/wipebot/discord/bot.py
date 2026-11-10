@@ -1170,7 +1170,9 @@ class WipeBot(discord.Client):
         if not member or not is_officer(s, member):
             await respond(message, f"Only officers save the raid note or plan: {officers(s)}.")
             return
-        if s.set_up and not s.keeps_notes(self.own_keys):  # the guild isn't shown to be this server's own
+        # the guild linked isn't shown to be this server's own (a raider's own guild standing in for a server nobody
+        # set up is no link: that paste is told to set the server up, below)
+        if s.set_up and not isinstance(s, LoginGuild) and not s.keeps_notes(self.own_keys):
             await respond(message, f"I didn't save that. {commands.notes_off(s)}")
             return
         since = None
