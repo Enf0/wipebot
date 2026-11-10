@@ -14,8 +14,8 @@ The spikes that came back pull after pull (starts within 10 s of each other; the
   2:55, Noxious Blast, Mark of Blood: 2 spikes in 2 pulls, 11 s, 3.76M/s taken, healing 2.66M/s; 1.0 healing cooldowns per spike, 1 with one ready and unused; 14 deaths
 Healing cooldowns most often ready and unused in a spike: Zephyr (Lïzårðmâñ) 6 times, Rewind (Lïzårðmâñ) 3 times, Stasis (Lïzårðmâñ) 3 times, Divine Hymn (Miralupa) 3 times, Apotheosis (Miralupa) 2 times
 Each healer in the spikes against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns):
-  Enfo (Restoration): 481.84k/s (19% overheal) in the spikes, 294.97k/s (30% overheal) the rest of the time; casting throughout in 111 s of spikes; 2 healing cooldowns in a spike, 0 left ready in one
-  Namsus (Holy): 412.84k/s (29% overheal) in the spikes, 308.22k/s (42% overheal) the rest of the time; casting throughout in 111 s of spikes; 4 healing cooldowns in a spike, 1 left ready in one
-  Miralupa (Holy): 434.49k/s (26% overheal) in the spikes, 307.68k/s (40% overheal) the rest of the time; no cast begun for 7 s in 111 s of spikes; 8 healing cooldowns in a spike, 5 left ready in one
-  Lïzårðmâñ (Preservation): 481.44k/s (27% overheal) in the spikes, 276.46k/s (45% overheal) the rest of the time; dead for 2 s in 111 s of spikes; 4 healing cooldowns in a spike, 12 left ready in one
+  Enfo (Restoration Shaman): 481.84k/s (19% overheal) in the spikes, 294.97k/s (30% overheal) the rest of the time; casting throughout in 111 s of spikes; 2 healing cooldowns in a spike, 0 left ready in one
+  Namsus (Holy Priest): 412.84k/s (29% overheal) in the spikes, 308.22k/s (42% overheal) the rest of the time; casting throughout in 111 s of spikes; 4 healing cooldowns in a spike, 1 left ready in one
+  Miralupa (Holy Priest): 434.49k/s (26% overheal) in the spikes, 307.68k/s (40% overheal) the rest of the time; no cast begun for 7 s in 111 s of spikes; 8 healing cooldowns in a spike, 5 left ready in one
+  Lïzårðmâñ (Preservation Evoker): 481.44k/s (27% overheal) in the spikes, 276.46k/s (45% overheal) the rest of the time; dead for 2 s in 111 s of spikes; 4 healing cooldowns in a spike, 12 left ready in one
 Ability ids: Toxic Droplets [1284451], Mark of Blood [1284506], Mark of Acid [1284500], Unstable Miasma [1288282], Contaminate [1284258], Noxious Blast [1284452], Helical Toxins [1284813]
