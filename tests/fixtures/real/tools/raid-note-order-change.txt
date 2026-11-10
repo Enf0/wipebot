@@ -3,27 +3,28 @@ The note's kick order fits pulls 12-39, not 1-11, which had another: there, Kick
 Assignments in the note's text:
   Ravenous Feast and Tainted Blood Groups: Right: Peggerino Krøpling Zebinomage Enfo Cptola Namsus; Left: Attractîv Sonyosh Dragepie Algmor Dscopi Lïzårðmâñ; Center: Karadim Nexsozz Nalaxd Agonco Slushmania Draiman Pomaa Wutroll
   Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Karadim; Kick #2 left: Attractîv; Kick #2 right: Enfo; Kick #3 left: Algmor; Kick #3 right: Krøpling; Kick #4 left: Dscopi; Kick #4 right: Peggerino; Kick #5 left: Dragepie; Kick #5 right: Zebinomage
-Ravenous Feast and Tainted Blood Groups: 87 hits of Ravenous Feast [1290662] over 35 pulls (1 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
-  Agonco (Center): hit by 48 of 56; missed 8: p8 1:03, p10 2:04, p16 1:03, p19 1:03, p21 2:02, p22 1:03, p27 1:03, p31 2:02; dead for 2 more; in the other group's 2
-  Draiman (Center): hit by 54 of 57; missed 3: p18 1:01, p25 3:38, p27 1:03; dead for 1 more; in the other group's 1
-  Slushmania (Center): hit by 54 of 56; missed 2: p10 2:04, p12 1:01; dead for 2 more; in the other group's 3
-  Wutroll (Center): hit by 56 of 58; missed 2: p10 3:36, p21 2:02; in the other group's 3
-  Cptola (Right): hit by 26 of 27; missed 1: p29 3:36; in the other group's 31
-  Karadim (Center): hit by 56 of 57; missed 1: p21 2:02; dead for 1 more; in the other group's 4
-  Algmor (Left): hit by 1 of 1; dead for 1 more; in the other group's 56
-  Attractîv (Left): hit by 1 of 1; in the other group's 44
-  Dragepie (Left): hit by 1 of 1; dead for 1 more; in the other group's 58
-  Dscopi (Left): hit by 2 of 2; in the other group's 52
-  Enfo (Right): hit by 27 of 27; in the other group's 32
-  Krøpling (Right): hit by 26 of 26; dead for 1 more; in the other group's 31
-  Lïzårðmâñ (Left): hit by 1 of 1; dead for 1 more; in the other group's 56
-  Nalaxd (Center): hit by 54 of 54; dead for 4 more; in the other group's 1
-  Namsus (Right): hit by 27 of 27; in the other group's 32
-  Nexsozz (Center): hit by 57 of 57; dead for 1 more; in the other group's 3
-  Peggerino (Right): hit by 27 of 27; in the other group's 30
-  Pomaa (Center): hit by 54 of 54; dead for 4 more; in the other group's 3
-  Sonyosh (Left): hit by 1 of 1; dead for 1 more; in the other group's 58
-  Zebinomage (Right): hit by 26 of 26; dead for 1 more; in the other group's 31
+Ravenous Feast and Tainted Blood Groups: 176 hits of Ravenous Feast [1290662] over 35 pulls (2 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
+  Wutroll (Center): hit by 4 of 61; missed 57: p2 1:04, p3 1:04, p4 1:04, p5 1:04, p6 1:04, p7 1:04, p8 1:04, p8 2:05, p9 1:04, p10 1:04, p10 2:05, p10 3:39 and 45 more, the last p39 1:04; in the other group's 55
+  Agonco (Center): hit by 45 of 59; missed 14: p3 1:04, p8 1:04, p9 1:04, p10 1:04, p10 2:05, p11 2:05, p16 1:04, p19 1:04, p21 2:02, p22 1:04, p27 1:04, p31 2:05 and 2 more, the last p38 1:04; dead for 2 more; in the other group's 5
+  Attractîv (Left): hit by 38 of 43; missed 5: p17 3:38, p22 2:04, p24 1:03, p25 4:39, p31 1:03; in the other group's 7
+  Draiman (Center): hit by 55 of 60; missed 5: p17 3:39, p18 1:04, p25 3:39, p27 1:04, p37 6:14; dead for 1 more
+  Dscopi (Left): hit by 53 of 58; missed 5: p7 1:03, p11 2:04, p27 1:03, p31 2:04, p34 1:03; in the other group's 1
+  Algmor (Left): hit by 54 of 57; missed 3: p10 1:03, p17 3:38, p22 1:03; dead for 1 more; in the other group's 3
+  Karadim (Center): hit by 57 of 60; missed 3: p3 1:04, p21 2:02, p29 2:05; dead for 1 more; in the other group's 3
+  Lïzårðmâñ (Left): hit by 55 of 57; missed 2: p25 1:03, p37 3:38; dead for 1 more; in the other group's 2
+  Nalaxd (Center): hit by 55 of 57; missed 2: p17 3:39, p37 6:14; dead for 4 more
+  Slushmania (Center): hit by 57 of 59; missed 2: p10 2:05, p12 1:04; dead for 2 more
+  Cptola (Right): hit by 56 of 57; missed 1: p29 3:36; in the other group's 1
+  Nexsozz (Center): hit by 59 of 60; missed 1: p3 1:04; dead for 1 more; in the other group's 1
+  Dragepie (Left): hit by 57 of 57; dead for 1 more; in the other group's 3
+  Enfo (Right): hit by 57 of 57; in the other group's 2
+  Krøpling (Right): hit by 56 of 56; dead for 1 more; in the other group's 1
+  Namsus (Right): hit by 57 of 57; in the other group's 2
+  Peggerino (Right): hit by 57 of 57
+  Pomaa (Center): hit by 57 of 57; dead for 4 more
+  Sonyosh (Left): hit by 57 of 57; dead for 1 more; in the other group's 2
+  Zebinomage (Right): hit by 56 of 56; dead for 1 more; in the other group's 1
+  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Wutroll (4 of 61)
   Hit, in no group: Grusarn 14
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
   Attractîv: 61 planned uses; on time 1, early 1 (2 s), late 1 (29 s), not cast 41, dead 1

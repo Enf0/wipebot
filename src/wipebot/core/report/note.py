@@ -24,7 +24,9 @@ from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since
 
 MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it this close to its time
 NEVER_CAST_MIN = 3  # pulls a planned spell was missed on, never cast at all, before the night says so
-BURST_MS = 2_000  # hits of an ability this close together are one hit of it (one soak)
+# Hits of an ability this close together are one hit of it (one soak). One landing's hits come within 50 ms in the
+# log, and soaks that go group after group (The Twin Fangs' Ravenous Feast) land 1.5 s apart or more.
+BURST_MS = 500
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
 PLANNED_NEAR_MS = 10_000  # a cooldown the note plans for a player this close to a callout is their answer to it
 HELD_MS = 15_000  # a tank's cooldown pressed this soon after a callout's window was kept for what came next
