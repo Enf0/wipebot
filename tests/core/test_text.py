@@ -28,3 +28,9 @@ def test_a_date_that_is_the_evening_before_in_the_americas_carries_its_time_in_u
     assert text.day(evening, with_time=True) == "Wed 14 Oct 18:56 UTC"
     # A date to count nights by stays a date.
     assert text.day(night, with_time=False) == "Wed 14 Oct" and text.date(night, with_time=False) == "Wed 2026-10-14"
+
+
+def test_a_nights_length_over_an_hour_is_written_with_its_hours():
+    # "174:43 long" for a night of 2 h 55 min read as a time in a pull; under an hour it is a pull's clock.
+    assert text.span(10_483_000) == "2:54:43" and text.span(3_600_000) == "1:00:00"
+    assert text.span(3_599_999) == "59:59" and text.span(626_000) == "10:26"

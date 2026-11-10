@@ -88,11 +88,16 @@ def test_progress_says_whether_the_night_beat_the_guild_best():
     pulls = [{"id": 1, "kill": False, "fightPercentage": 70.0, "startTime": 0, "endTime": 120_000},
              {"id": 2, "kill": False, "fightPercentage": 65.0, "startTime": 0, "endTime": 150_000}]
     marks, best = night._marks(pulls, before)
-    assert marks == {1: " best of the night until then", 2: " best of the night until then"}
+    # A mark is set off from its row (" · "), and the first pull is no "best until then": it always is
+    assert marks == {2: " · best of the night until then"}
     assert night._record(before, pulls, best, False) == (
         " Tonight's best wipe, 65.0% on pull 2, didn't get as far: the guild's best stands.")
     marks, best = night._marks(pulls, GuildBest(68.0, "abc", 21, 13, 1_760_040_000_000))
-    assert marks[2] == " best of the night until then, new guild best"
+    assert marks == {2: " · best of the night until then, new guild best"}
+    marks, best = night._marks(pulls, GuildBest(75.0, "abc", 21, 13, 1_760_040_000_000))
+    assert marks[1] == " · new guild best" and best == (2, pulls[1], 65.0)
+    kill = [{**pulls[0], "kill": True}, {**pulls[1], "fightPercentage": 100.0, "bossPercentage": 100.0}]
+    assert night._marks(kill, None)[0][1] == " · KILL"
 
 
 async def test_the_nights_killer_splits_off_the_deaths_in_hits_killing_many(rep):
@@ -107,3 +112,15 @@ async def test_the_nights_killer_splits_off_the_deaths_in_hits_killing_many(rep)
     assert " Close behind: Mutilate [1285999], 55 deaths." in line
     assert (" Outside hits killing many, the most deaths were to Tempest [1287083]: 48 deaths on 22 pulls, against "
             "17 to Virulence; killed most: ") in line
+
+
+async def test_the_night_at_a_glance_names_a_boss_difficulty_once_and_its_length_in_hours(rep, monkeypatch):
+    f = rep.fight(13, "Sszorak")
+    text = await night.overview(rep)
+    assert ", 2:54:43 long, " in text and "- Sszorak (Mythic): 33 pulls (1 reset), 54:57 in combat" in text
+    # A boss pulled on two difficulties in one night carries the difficulty in its name: it printed
+    # "Sszorak (Mythic) (Mythic)".
+    monkeypatch.setattr(rep, "_mixed", {f["encounterID"]})
+    monkeypatch.setattr(rep, "by_boss", {rep.boss_key(f): rep.by_boss["Sszorak"]})
+    text = await night.overview(rep)
+    assert "- Sszorak (Mythic): 33 pulls" in text and "(Mythic) (Mythic)" not in text

@@ -372,7 +372,7 @@ async def at_death(rep: Report, f: dict, p: Player, at: float) -> list[str]:
         begun = [c for c in theirs if c["type"] == "begincast" and not any(
             x["type"] == "cast" and x["abilityGameID"] == c["abilityGameID"] and x["timestamp"] >= c["timestamp"]
             for x in theirs)]
-        text = ", ".join(f"{name}" + (f" x{n}" if n > 1 else "") for name, n in on.most_common(CASTS_NAMED))
+        text = ", ".join(f"{name}" + (f" ×{n}" if n > 1 else "") for name, n in on.most_common(CASTS_NAMED))
         if begun:
             text += (", " if text else "") + f"casting {rep.ability(begun[-1]['abilityGameID'])}" + (
                 " on them" if begun[-1].get("targetID") == p.id else "")

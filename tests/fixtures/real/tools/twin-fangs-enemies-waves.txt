@@ -8,6 +8,6 @@ Enemies other than the boss on The Twin Fangs pull 13 (6:37, KILL, https://www.w
       wave 4 (3 died 4:18-4:22): took 34.86M; Nalaxd 4.89M, Dscopi 3.38M, Martin 3.17M, Agonco 3.15M, Zebinomage 2.75M, Slushmania 2.55M, Pomaa 2.55M, Sonyosh 2.45M, Dragepie 2.32M, Nexsozz 2.08M, Krøpling 1.87M, Peggerino 1.41M, Attractîv 964.91k, Algmor 942.29k, Karadim 285.60k, Lïzårðmâñ 98.73k, Cptola 2.53k
       wave 5 (3 died 5:53-5:56): took 34.86M; Martin 4.83M, Dscopi 4.39M, Sonyosh 4.28M, Agonco 4.02M, Nalaxd 2.55M, Zebinomage 2.46M, Nexsozz 2.37M, Pomaa 2.14M, Dragepie 2.07M, Slushmania 1.96M, Attractîv 1.12M, Algmor 956.96k, Peggerino 863.57k, Krøpling 825.59k
   Barbed Bulwark: 87 came, 0 died, 87 with no death recorded: gone with the kill (despawned, transformed or removed), took 283.84k; most by Sonyosh 42.23k, Pomaa 31.78k, Nalaxd 29.11k, Agonco 25.65k
-  Broodling of Ithraz: 50 came, 0 died, 50 with no death recorded: gone with the kill (despawned, transformed or removed), took 0; most by nobody
+  Broodling of Ithraz: 50 came, 0 died, 50 with no death recorded: gone with the kill (despawned, transformed or removed), took no damage
     casts Visceral Burst: 50 begun, 50 kicked, 0 went through; kicked by Karadim 7, Sonyosh 5, Enfo 5, Peggerino 5, Algmor 4, Krøpling 4, Dscopi 4, Wutroll 4
 No death recorded for any Barbed Bulwark: the log can't show when they were killed or in what order, only how many came, the damage they took and their casts.

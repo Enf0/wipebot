@@ -17,7 +17,7 @@ No killing blow recorded. Last logged position at 0:51: 113 yd from the middle o
 Total 766.12k damage in the window.
 Healing received in the window: 653.03k effective (+31.90k overhealing), most from Cptola 273.68k, Lïzårðmâñ 136.39k, Enfo 130.47k, Draiman 89.44k.
   per second: 0:43 +36.28k · 0:44 +124.07k · 0:45 +76.06k · 0:46 +131.96k · 0:47 +62.06k · 0:48 +105.27k · 0:49 +28.20k · 0:50 +36.62k · 0:51 +38.22k · 0:52 +14.29k · 0:53 +0
-Healers in the 5 s before the death (their casts, on the dying player marked): Cptola (Holy Paladin): Reclamation x8, Holy Shock, Divine Toll, Beacon of Virtue; Enfo (Restoration Shaman): Riptide x2, Chain Heal, Surging Totem; Namsus (Holy Priest): Prayer of Mending, Holy Word: Serenity; Lïzårðmâñ (Preservation Evoker): Twin Flame x2, Verdant Embrace x2, Glide, Naturalize
+Healers in the 5 s before the death (their casts, on the dying player marked): Cptola (Holy Paladin): Reclamation ×8, Holy Shock, Divine Toll, Beacon of Virtue; Enfo (Restoration Shaman): Riptide ×2, Chain Heal, Surging Totem; Namsus (Holy Priest): Prayer of Mending, Holy Word: Serenity; Lïzårðmâñ (Preservation Evoker): Twin Flame ×2, Verdant Embrace ×2, Glide, Naturalize
 Buffs from others on them at death (gained during the pull): Earthliving Weapon (Enfo, from 0:38), Elemental Resistance (Enfo, from 0:43), Dream Breath (Lïzårðmâñ, from 0:47), Visage (Lïzårðmâñ, from 0:47)
 Enemy debuffs on them at death: Turbulent Gusts (from 0:47)
 Personal defensives (list and cooldowns from Lorrgs; use times from the log):

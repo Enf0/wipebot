@@ -393,9 +393,9 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
             if u.cast_at is not None:
                 d = (u.cast_at - u.at) / 1000
                 line += f": cast at {clock(u.cast_at)}, " + ("on time" if abs(d) < 1 else
-                                                              f"{abs(d):.0f}s {'late' if d > 0 else 'early'}")
+                                                              f"{abs(d):.0f} s {'late' if d > 0 else 'early'}")
             else:
-                line += f": not cast within {MATCH_S}s ({u.state}"
+                line += f": not cast within {MATCH_S} s ({u.state}"
                 if u.casts:
                     line += "; cast at " + ", ".join(clock(x) for x in u.casts)
                 line += ")"

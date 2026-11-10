@@ -214,7 +214,7 @@ def test_a_wipe_with_no_death_after_the_decision_or_none_says_plainly_what_kille
 
 def test_a_difficulty_or_buff_the_tables_dont_name_reads_as_its_number():
     s = summarize({**WIPE, "difficulty": 8}, [WIPE], [], {}, {}, [buff(50_000, 77)])
-    assert (s.difficulty, s.boss_buffs) == ("difficulty 8", [("spell 77", 50_000)])
+    assert (s.difficulty, s.boss_buffs) == ("difficulty 8, not a raid's", [("spell 77", 50_000)])
 
 
 def test_a_kill_or_a_pull_still_going_has_no_buffs_at_the_end():

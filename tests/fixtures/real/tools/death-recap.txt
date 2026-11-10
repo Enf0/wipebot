@@ -20,7 +20,7 @@ Ability ids: Ula'tek's Presence [1285965], Raging Crosswinds [1285616], Venomous
 Total 1.06M damage in the window.
 Healing received in the window: 237.96k effective (+138.58k overhealing), most from Lïzårðmâñ 86.91k, Enfo 75.14k, Namsus 33.22k, Scopidruid 14.99k.
   per second: 0:38 +43.18k · 0:39 +0 · 0:40 +43.74k · 0:41 +11.38k · 0:42 +19.50k · 0:43 +24.77k · 0:44 +20.50k · 0:45 +13.84k · 0:46 +31.97k · 0:47 +29.08k · 0:48 +0
-Healers in the 5 s before the death (their casts, on the dying player marked): Cptola (Holy Paladin): Reclamation x4, Holy Shock x2, Eternal Flame; Enfo (Restoration Shaman): Chain Heal x2, Healing Stream Totem; Namsus (Holy Priest): Benediction, Spatial Rift; Lïzårðmâñ (Preservation Evoker): Temporal Anomaly, Echo, Twin Flame, Dream Breath
+Healers in the 5 s before the death (their casts, on the dying player marked): Cptola (Holy Paladin): Reclamation ×4, Holy Shock ×2, Eternal Flame; Enfo (Restoration Shaman): Chain Heal ×2, Healing Stream Totem; Namsus (Holy Priest): Benediction, Spatial Rift; Lïzårðmâñ (Preservation Evoker): Temporal Anomaly, Echo, Twin Flame, Dream Breath
 Buffs from others on them at death (gained during the pull): Riptide (Enfo, from 0:29), Rune of Lingering (Namsus, from 0:47), Elemental Resistance (Enfo, from 0:47), Visage (Lïzårðmâñ, from 0:47)
 Enemy debuffs on them at death: Turbulent Gusts (from 0:47)
 Personal defensives (list and cooldowns from Lorrgs; use times from the log):

@@ -330,6 +330,22 @@ async def test_a_pull_gets_past_what_ended_earlier_pulls_not_past_pulls_nothing_
     assert await fight._same_ending(rep, f, hit) is None
     assert await fight._same_ending(rep, f, alive) == (
         "This pull ended the way 3 earlier pulls on Sszorak in this log did (pulls 1-2, 4): no death, the raid alive.")
+    # What ended the most earlier pulls is named first, then how many of them: "most earlier pulls, 3 of 4: ..."
+    # read as a list of pulls.
+    earlier[:] = [hit, hit, hit, alive]
+    cascade = Ending("cascade", 20, 120_000, first_death_ms=30_000, half_dead_ms=90_000)
+    assert await fight._same_ending(rep, f, cascade) == (
+        "This pull got past what ended the most earlier pulls: Venom Burst killing many (3 of 4).")
+
+
+async def test_a_fight_on_no_raid_difficulty_says_so_and_is_no_difficulty_10(rep, monkeypatch):
+    # A Mythic+ run reaches Warcraft Logs as one fight with a difficulty that is no raid's: "(difficulty 10)" with
+    # "raid size 5" and "the boss dead" read as a bug. The raid's own pulls carry no such line.
+    assert fight.NOT_A_RAID not in await fight.pull_summary(rep, 12, "Sszorak")
+    monkeypatch.setitem(rep.fight(13, "Sszorak"), "difficulty", 10)
+    lines = (await fight.pull_summary(rep, 13, "Sszorak")).splitlines()
+    assert lines[0].startswith("**Sszorak** (difficulty 10, not a raid's) · pull ")
+    assert fight.NOT_A_RAID in lines and "a key's level, its timer or its trash" in fight.NOT_A_RAID
 
 
 def test_a_cascade_starts_at_the_first_death_that_stayed(rep, deaths):

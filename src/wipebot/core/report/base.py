@@ -19,11 +19,11 @@ from .. import knowledge
 from ..cache import DAY, FOREVER
 from ..knowledge import KnowledgeError, spaced
 from ..pulls import (
-    DIFFICULTIES,
     NO_KILLING_BLOW,
     Decided,
     GuildBest,
     carried_buffs,
+    difficulty_name,
     end_buffs,
     first_by_name,
     format_summary,
@@ -297,7 +297,7 @@ class Report(Fetched):
         """How the tools name a fight's boss: 'Sszorak', or 'Sszorak (Heroic)' when the report has the boss on
         more than one difficulty."""
         if fight["encounterID"] in self._mixed:
-            return f"{fight['name']} ({DIFFICULTIES.get(fight.get('difficulty'), fight.get('difficulty'))})"
+            return f"{fight['name']} ({difficulty_name(fight)})"
         return fight["name"]
 
     def boss(self, name: str | None) -> str:

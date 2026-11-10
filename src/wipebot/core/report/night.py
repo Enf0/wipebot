@@ -15,6 +15,7 @@ from ..pulls import (
     GuildBest,
     attempt,
     by_phase,
+    difficulty_name,
     is_reset,
     mass_hits,
     pct_text,
@@ -24,7 +25,7 @@ from ..pulls import (
     wipe_pcts,
     wipe_text,
 )
-from ..text import clock, clusters, date, ordinal, plural, ranges
+from ..text import clock, clusters, date, ordinal, plural, ranges, span
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
 from .ending import Ending, KeptBuff, kind_of_end, pull_endings
@@ -43,7 +44,7 @@ async def overview(rep: Report) -> str:
     """The night at a glance: every boss, pulls, kills (with Warcraft Logs' speed and execution percentiles), best
     wipe and time spent, and the guild's progress rank in the raid."""
     lines = [f"Report {rep.code} \"{rep.title}\" ({rep.zone}), {date(rep.start_ms, with_time=True)}, "
-             f"{clock(rep.end_ms - rep.start_ms)} long, {plural(len(rep.players), 'player')}."]
+             f"{span(rep.end_ms - rep.start_ms)} long, {plural(len(rep.players), 'player')}."]
     (ranked, no_ranks), (progress, no_progress), doubt = await asyncio.gather(
         _or_unavailable("Kills' speed and execution percentiles", _kill_rankings(rep)),
         _or_unavailable(f"{rep.guild_name}'s progress rank", _guild_progress(rep)), rep.guild_run_doubt())
@@ -58,10 +59,10 @@ async def overview(rep: Report) -> str:
         wipes = wipe_pcts(pulls)
         resets = sum(1 for f in pulls if is_reset(f))
         spent = sum(f["endTime"] - f["startTime"] for f in pulls)
-        diff = DIFFICULTIES.get(pulls[0].get("difficulty"), "?")
-        text = f"- {b} ({diff}): {plural(len(pulls), 'pull')}" + (f" ({resets} reset{'s' if resets > 1 else ''})"
-                                                          if resets else "")
-        text += f", {clock(spent)} in combat, "
+        diff = f"({difficulty_name(pulls[0])})"  # the boss's key has it already when the night has two of them
+        text = f"- {b if b.endswith(diff) else f'{b} {diff}'}: {plural(len(pulls), 'pull')}" + (
+            f" ({resets} reset{'s' if resets > 1 else ''})" if resets else "")
+        text += f", {span(spent)} in combat, "
         if kills:
             text += f"killed on pull {pulls.index(kills[0]) + 1}"
             if k := ranked.get(kills[0]["id"]):
@@ -292,21 +293,25 @@ def _ended(ending: Ending | None, decided: Decided | None) -> str:
 
 
 def _marks(fights: list[dict], before: GuildBest | None) -> tuple[dict[int, str], tuple[int, dict, float] | None]:
-    """Each pull's mark in `progress` by its number (a kill, a reset, the night's best until then and a new guild
-    best), and the night's best wipe: its number, the fight and its %."""
+    """Each pull's mark in `progress` by its number, set off from its row (a kill, a reset, the night's best until
+    then and a new guild best), and the night's best wipe: its number, the fight and its %. The night's first wipe
+    is its best until then by being first, so it is marked only as a new guild best."""
     marks: dict[int, str] = {}
     best = None
     for i, f in enumerate(fights, 1):
         pct = None if f["kill"] else wipe_pct(f)
         if f["kill"]:
-            marks[i] = " KILL"
+            marks[i] = " · KILL"
         elif f.get("inProgress"):
-            marks[i] = " in progress"
+            marks[i] = " · in progress"
         elif is_reset(f):
-            marks[i] = " reset"
+            marks[i] = " · reset"
         elif pct is not None and (best is None or pct < best[2]):
+            said = (["best of the night until then"] if best else []) + (
+                ["new guild best"] if before and pct < before.pct else [])
             best = i, f, pct
-            marks[i] = " best of the night until then" + (", new guild best" if before and pct < before.pct else "")
+            if said:
+                marks[i] = " · " + ", ".join(said)
     return marks, best
 
 
@@ -358,7 +363,8 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         pct = 0.0 if f["kill"] else wipe_pct(f)
         first = (f"{rep.names[deaths[0]['targetID']]} ({rep.ability(deaths[0].get('killingAbilityGameID'))}, "
                  f"{clock(deaths[0]['timestamp'] - f['startTime'])})" if deaths else "-")
-        result = wipe_text(f) if phased and not f["kill"] else f"{pct_text(pct)} {phase_label(f) or ''}"
+        result = wipe_text(f) if phased and not f["kill"] else " ".join(
+            x for x in (pct_text(pct), phase_label(f)) if x)  # a boss without phases has no label
         decided = await rep.decided_at(f)
         ending = None if f.get("inProgress") else endings[f["id"]]
         for name, at in enrages:
@@ -388,7 +394,7 @@ async def progress(rep: Report, boss: str | None = None) -> str:
                  + ", ".join(f"{what} {n}" for what, n in ends.most_common()) + ".")
     lines.append(f"Killers of the first {FIRST_DEATHS} deaths per pull"
                  + (" (deaths after the boss gained one of those buffs left out)" if kept else "") + ": "
-                 + ", ".join(f"{a} x{n}" for a, n in first_killers.most_common(6)))
+                 + ", ".join(f"{a} ×{n}" for a, n in first_killers.most_common(6)))
     if killer := await _nights_killer(rep, fights):
         lines.append(killer)
     return "\n".join(lines)

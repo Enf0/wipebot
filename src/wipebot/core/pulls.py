@@ -97,6 +97,12 @@ def wipe_pct(fight: dict) -> float | None:
     return pct if pct is not None else fight.get("bossPercentage")
 
 
+def difficulty_name(fight: dict) -> str:
+    """'Mythic'; for a fight on none of the raid's difficulties (a dungeon run, which Warcraft Logs gives as one
+    fight), its number with what it isn't: the bare 'difficulty 10' reads as a bug."""
+    return DIFFICULTIES.get(fight.get("difficulty")) or f"difficulty {fight.get('difficulty')}, not a raid's"
+
+
 def is_reset(fight: dict) -> bool:
     """A wipe with the boss still (nearly) at full health: the raid reset, it didn't attempt the boss."""
     return not fight["kill"] and not fight.get("inProgress") and (wipe_pct(fight) or 0) >= RESET_PCT
@@ -291,7 +297,7 @@ def summarize(
 
     return PullSummary(
         boss=fight["name"],
-        difficulty=DIFFICULTIES.get(fight.get("difficulty"), f"difficulty {fight.get('difficulty')}"),
+        difficulty=difficulty_name(fight),
         pull_no=len(same_boss),
         kill=bool(fight["kill"]),
         boss_pct=wipe_pct(fight),

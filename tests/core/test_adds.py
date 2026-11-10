@@ -1,6 +1,6 @@
 """The adds of a pull (report/adds.py): how many came and died, and how their casts ended."""
 from wipebot.core.pulls import first_by_name
-from wipebot.core.report.adds import _finish_orphans, came_of
+from wipebot.core.report.adds import _finish_orphans, _took, came_of
 
 
 def test_as_many_came_as_died_when_more_die_than_the_listed_actor_counts():
@@ -8,6 +8,11 @@ def test_as_many_came_as_died_when_more_die_than_the_listed_actor_counts():
     totems = {"id": 141, "instanceCount": 36}
     assert came_of(totems, {141: [60_000.0] * 46}) == 46
     assert came_of(totems, {141: [60_000.0] * 30}) == 36
+
+
+def test_an_enemy_nobody_hit_took_no_damage():
+    # "took 0; most by nobody" for a unit nobody could or did hit
+    assert _took(0) == ", took no damage" and _took(1_204_000) == ", took 1.20M"
 
 
 def test_a_cast_whose_begin_is_logged_on_another_instance_finishes_that_begin():

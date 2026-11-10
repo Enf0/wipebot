@@ -6,7 +6,7 @@ Enemies other than the boss on all 8 Nymrissa Wavecaller pulls, each whole pull,
   Bubblefin Berserker: 69 came over 6 pulls, 3 died, 66 with no death recorded, took 49.44M
     died by wave (deaths 20 s or more apart start a new one; the median over the pulls that reached it, and the range; when they came isn't logged): wave 1 (2 pulls): first died 3:59 (2:12-3:59), last 4:03 (2:12-4:03)
     damage on them by player, all pulls summed (one who died early or missed pulls has less): Slushmania 7.58M, Agonco 5.24M, Grusarn 4.08M, Wutroll 3.95M, Krøpling 3.43M, Sonyosh 3.02M, Zebinomage 2.90M, Algmor 2.63M, Nexsozz 2.58M, Pomaa 2.54M, Draiman 2.50M, Fappachino 2.10M, Deathadim 1.39M, Scopidruid 1.19M, Nalaw 1.17M, Sinnatony 1.11M, Peggerino 875.54k, Martin 674.83k, Lïzårðmâñ 353.26k, Providence 90.51k, Miralupa 30.16k
-  Shark: 6 came over 6 pulls, 0 died, 6 with no death recorded, took 0
+  Shark: 6 came over 6 pulls, 0 died, 6 with no death recorded, took no damage
 No death recorded for any Bubblefin Shorerunner, Bubblefin Frostscale: the log can't show when they were killed or in what order, only how many came, the damage they took and their casts.
 By pull (the most damaged kinds):
   pull 1 (1:59, wipe): Bubblefin Shorerunner 34 came, 0 died; Bubblefin Frostscale 4 came, 0 died

@@ -105,7 +105,7 @@ async def _aura_lines(rep: Report, f: dict, p: Player, at: float) -> list[str]:
             f"{n} ({rep.names[src]}, from {clock(since - t0)})" for n, src, since in sorted(given, key=lambda x: x[2]))
             or "none"),
             "Enemy debuffs on them at death: " + (", ".join(
-                f"{n}{f' x{stack}' if stack > 1 else ''} (from {clock(since - t0)})"
+                f"{n}{f' ×{stack}' if stack > 1 else ''} (from {clock(since - t0)})"
                 for n, (_, since, stack) in sorted(auras["debuffs"].items(), key=lambda kv: kv[1][1])) or "none")]
 
 

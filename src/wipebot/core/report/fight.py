@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError
-from ..pulls import is_reset, phase_health, phase_label
+from ..pulls import DIFFICULTIES, is_reset, phase_health, phase_label
 from ..text import clock, ids_line, ordinal, parse_clock, plural, ranges, short
 from ..wcl import WCL, WCLError
 from .adds import ADD_GROUP_MS, add_wave, boss_units, interruptible_casts
@@ -51,6 +51,11 @@ def boss_left(f: dict) -> str:
                                                   if fight is not None and abs(fight - pct) >= 0.05 else "")
 
 
+NOT_A_RAID = ("Not a raid pull: Warcraft Logs gives this fight no raid difficulty, as it does a dungeon run. It is "
+              "read as one boss pull all the same: \"the boss\", \"raid size\" and the kill or wipe are the whole "
+              "fight's, and nothing here knows of a key's level, its timer or its trash.")
+
+
 async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
     f = rep.fight(pull, boss)
     deaths = await rep.deaths(f)
@@ -59,6 +64,8 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     decided = await rep.decided_at(f)
     backs = (await rep.resurrects([f]))[f["id"]]
     lines = [await rep.summary(f), f"Warcraft Logs: {rep.url(f)}"]
+    if f.get("difficulty") not in DIFFICULTIES:
+        lines.append(NOT_A_RAID)
     ended = await pull_ending(rep, f)
     if text := ending_text(ended):
         lines.append(text)
@@ -135,7 +142,7 @@ async def _same_ending(rep: Report, f: dict, ended: Ending | None) -> str | None
         parts.append(f"ended the way {plural(len(same), 'earlier pull')} on {f['name']} in this log did (pull"
                      f"{'s' if len(same) > 1 else ''} {ranges(same)}): {this}")
     if common and common != this and most >= REPEAT_ENDINGS:
-        parts.append(f"got past what ended most earlier pulls, {most} of {len(earlier)}: {common}")
+        parts.append(f"got past what ended the most earlier pulls: {common} ({most} of {len(earlier)})")
     return ("This pull " + "; it ".join(parts) + ".") if parts else None
 
 
@@ -291,7 +298,7 @@ async def _boss_casts(rep: Report, f: dict) -> Found:
             marked = True
         if c.abilities > 1:
             text += f" ({c.abilities} abilities)"
-        out.events.append((c.at, f"boss casts {text}" + (f" x{c.n}" if c.n > 1 else "")))
+        out.events.append((c.at, f"boss casts {text}" + (f" ×{c.n}" if c.n > 1 else "")))
     if marked:
         out.notes.append(f"{TRACKED_MARK} marks the boss abilities Lorrgs tracks for this boss: the casts its timeline "
                          "is built on, to line pulls up by.")

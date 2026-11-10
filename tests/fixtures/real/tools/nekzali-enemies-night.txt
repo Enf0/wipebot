@@ -10,8 +10,8 @@ Enemies other than the boss on all 2 Nek'zali the Soulcoiler (Mythic) pulls, eac
   Drowned Echo: 10 came over 2 pulls, 0 died, 10 with no death recorded, took 83.49M
     damage on them by player, all pulls summed (one who died early or missed pulls has less): Agonco 13.85M, Nalaxd 11.81M, Krøpling 11.11M, Martin 9.68M, Draiman 9.42M, Sinnatony 8.63M, Providence 8.45M, Fappachino 7.87M, Wutroll 951.64k, Lïzårðmâñ 879.59k, Zebinomage 812.39k, Deathadim 31.10k
     casts Soulcoiler's Curse: 24 begun, 17 kicked, 1 went through, 6 ended otherwise (the add died or was moved); kicked by Agonco 4, Sinnatony 4, Draiman 3, Fappachino 3, Krøpling 2, Deathadim 1
-  Soulcoil Well: 2 came over 2 pulls, 0 died, 2 with no death recorded, took 0
-  Summoner Jawae: 2 came over 2 pulls, 0 died, 2 with no death recorded, took 0
+  Soulcoil Well: 2 came over 2 pulls, 0 died, 2 with no death recorded, took no damage
+  Summoner Jawae: 2 came over 2 pulls, 0 died, 2 with no death recorded, took no damage
     casts Soul Transfer: 2 begun, 0 kicked, 2 went through (nobody kicked it on this boss that night: it may not be kickable)
 No death recorded for any Drowned Echo: the log can't show when they were killed or in what order, only how many came, the damage they took and their casts.
 By pull (the most damaged kinds):

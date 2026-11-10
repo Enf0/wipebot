@@ -11,6 +11,13 @@ def clock(ms: float) -> str:
     return f"{s // 60}:{s % 60:02d}"
 
 
+def span(ms: float) -> str:
+    """How long a night or a boss's pulls took together: 'm:ss' as a pull's clock under an hour, 'h:mm:ss' from an
+    hour ('2:54:43', not '174:43', which reads as a time in a pull)."""
+    s = int(max(ms, 0) // 1000)
+    return clock(ms) if s < 3600 else f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
+
+
 def parse_clock(text: str) -> float | None:
     """'2:31' or '151' (seconds) -> milliseconds; None for anything else."""
     m = re.fullmatch(r"\s*(?:(\d+):)?(\d+(?:\.\d+)?)\s*", text)

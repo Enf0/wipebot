@@ -106,7 +106,7 @@ def add_wave(f: dict, name: str, ability: str, wave: list[tuple[float, str, str 
         elif len(these) <= 3:
             text += " (" + ", ".join(clock(c[0] - t0) for c in these) + ")"
         parts.append(text)
-    return f"{name} casts {ability} x{len(wave)}: " + ", ".join(parts)
+    return f"{name} casts {ability} ×{len(wave)}: " + ", ".join(parts)
 
 
 async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jobs: str = JOBS_NOT_LOGGED,
@@ -169,8 +169,8 @@ async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jo
             rest = f", {alive} alive at the end"
         lines.append(f"  {name}{' (a boss-type unit)' if n['id'] in rep.bosses else ''}: {came} came, "
                      f"{len(died)} died" + (f" (at {when})" if died else "") + rest
-                     + f", took {short(taken.get(n['id'], 0))}; most by "
-                     + (", ".join(f"{who} {short(total)}" for who, total in dealers) or "nobody"))
+                     + _took(taken.get(n["id"], 0))
+                     + ("; most by " + ", ".join(f"{who} {short(total)}" for who, total in dealers) if dealers else ""))
         lines += [_cast_line(ability, these, kickable, ready, t0) for (add, ability), these in casts.items()
                   if add == name]
         lines += waved if name == waves_of else []
@@ -188,6 +188,12 @@ async def enemies(rep: Report, pull: PullRef = None, boss: str | None = None, jo
         lines.append("A boss-type unit that comes once is the boss, left out: "
                      + ", ".join(dict.fromkeys(rep.actor(b) for b in bosses)) + ".")
     return "\n".join(lines + (waved if waves_of is None else []))
+
+
+def _took(total: float) -> str:
+    """', took 1.20M', or that the kind took no damage: one nobody could or did hit, which the log can't tell
+    apart."""
+    return f", took {short(total)}" if total else ", took no damage"
 
 
 def _deaths(died_events: list[dict], kind: dict[int, int], t0: float) -> dict[int, list[float]]:
@@ -274,7 +280,7 @@ async def enemies_night(rep: Report, boss: str | None = None) -> str:
     for name in sorted(came, key=lambda n: -taken[n])[:10]:
         lines.append(f"  {name}: {came[name]} came over {plural(pulls_with[name], 'pull')}, {died[name]} died"
                      + (f", {came[name] - died[name]} with no death recorded" if came[name] > died[name] else "")
-                     + f", took {short(taken[name])}")
+                     + _took(taken[name]))
         lines += _kind_lines(waves[name], by_player[name]) if name in by_player else []
         for (add, ability), these in sorted(casts.items()):
             if add == name:
