@@ -1013,8 +1013,8 @@ class WipeBot(discord.Client):
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
             with ctx.reading():  # as the asker: the pull the question links, the session's report as it opens, the
                 # answer's pictures as it's sent
-                if kind == "chat":
-                    await self._about_link(ctx, code, question)
+                if kind == "chat" and (linked := commands.linked_pull(question)):
+                    await self._about_link(ctx, code, *linked)
                 answer = await self.conversations.ask(key, code, question, ctx, earlier,
                                                       message.id if message else None, timeout)
                 sent = await send(await self._with_footer(kind, ctx, answer))
@@ -1148,16 +1148,14 @@ class WipeBot(discord.Client):
         if fight:
             ctx.boss, ctx.pull = report.boss_key(fight), report.pull_no(fight)
 
-    async def _about_link(self, ctx: Context, code: str, question: str) -> None:
-        """A question that links one pull on Warcraft Logs is about that pull: of the conversation's report, as a
-        reply to its post is; of another report, the asker's line names the report, boss and pull, so the model
-        needn't turn the link's fight into a pull with a query of its own. A link that can't be read now, or to a
-        fight that is no boss pull, changes nothing: the tools say what is wrong with it, and the question is
-        answered whatever went wrong here. The report is read once the question is let through (`_too_many`), so a
-        raider held back reads none."""
-        if not (found := commands.linked_pull(question)):
-            return
-        linked, fight_id = found
+    async def _about_link(self, ctx: Context, code: str, linked: str, fight_id: int | None) -> None:
+        """A question that links one pull on Warcraft Logs (commands.linked_pull: report `linked`, its fight
+        `fight_id`, None for its latest) is about that pull: of the conversation's report, as a reply to its post
+        is; of another report, the asker's line names the report, boss and pull, so the model needn't turn the
+        link's fight into a pull with a query of its own. A link that can't be read now, or to a fight that is no
+        boss pull, changes nothing: the tools say what is wrong with it, and the question is answered whatever
+        went wrong here. The report is read once the question is let through (`_too_many`), so a raider held back
+        reads none."""
         try:
             report = await self.library.report(linked)
         except (FactError, WCLError) as e:
