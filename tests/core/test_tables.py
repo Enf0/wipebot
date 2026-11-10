@@ -1,5 +1,6 @@
 """`breakdown` (report/tables.py): what it asks Warcraft Logs for. What it makes of the answers is pinned by the tool
 cases on real pulls (test_tools.py: damage taken, healing, buffs, by pull, interrupts, dispels)."""
+from collections import Counter
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import cast
@@ -146,7 +147,9 @@ def test_a_player_in_only_some_pulls_gets_their_rate_over_those():
                      False)
     assert tables._in_fewer(rep, q, p, 9_000_000) == ", in 2 of 3 pulls (100.00k/s over them)"
     assert tables._in_fewer(rep, replace(q, fights=[fights[0]]), p, 1) == ""
-    assert tables._in_fewer(rep, replace(q, data_type="Casts"), p, 1) == ""
+    # Casts too: a healer in 12 of 33 pulls read "1.4/min" over the raid's whole night
+    assert tables._in_fewer(rep, replace(q, data_type="Casts"), p, 30) == ", in 2 of 3 pulls (20.0/min over them)"
+    assert tables._in_fewer(rep, replace(q, data_type="Buffs"), p, 1) == ""
 
 
 def test_damage_on_one_enemy_is_asked_by_its_name_over_the_pulls_it_was_in():
@@ -165,3 +168,48 @@ def test_damage_on_one_enemy_is_asked_by_its_name_over_the_pulls_it_was_in():
 async def test_a_target_is_for_damage_done(rep):
     with pytest.raises(FactError, match="target works for DamageDone"):
         await tables.breakdown(rep, "Healing", target="Sszorak")
+
+
+def test_a_cast_rows_hits_are_said_only_when_they_differ_from_its_casts():
+    # "408 casts (8.4/min), 86% of total, 408 hits" gave one number two names
+    assert tables._extra(408, Counter(hits=408), "Casts", True) == ""
+    assert tables._extra(408, Counter(hits=412), "Casts", True) == ", 412 hits"
+
+
+async def test_a_breakdown_is_headed_in_words_and_marks_damage_players_dealt_themselves(rep, patch_wcl):
+    # The heading read "DamageTaken on ...", the name of Warcraft Logs' table. Among the boss's abilities, a tank's
+    # delayed damage and a spell that costs its caster health stood unmarked: the table names who dealt each.
+    boss, monk = {"name": "Sszorak", "type": "Boss"}, {"name": "Wutroll", "type": "Monk"}
+    entries = [{"name": "Mutilate", "guid": 1, "total": 900, "hitCount": 3, "sources": [boss]},
+               {"name": "Stagger", "guid": 2, "total": 100, "tickCount": 5, "sources": [monk]},
+               {"name": "Raging Crosswinds", "guid": 3, "total": 50, "hitCount": 1, "sources": []},
+               {"name": "Cleave", "guid": 4, "total": 40, "hitCount": 1, "sources": [boss, monk]}]
+    patch_wcl(rep, table=lambda *_, **__: {"entries": entries})
+    lines = (await tables.breakdown(rep, "DamageTaken", "ability", pulls=[13], whole_pull=True)).splitlines()
+    assert lines[0].startswith("Damage taken on Sszorak pull 13, by ability (")
+    assert [line.split(":")[0] for line in lines[1:5]] == ["  1. Mutilate", "  2. Stagger (own)",
+                                                           "  3. Raging Crosswinds", "  4. Cleave"]
+    assert lines[5] == ("(own): every hit of it came from a player or a pet, not from an enemy, so it is no "
+                        "mechanic of the fight.")
+    assert (await tables.breakdown(rep, "DamageDone", pulls=[13])).startswith("Damage done on Sszorak pull 13")
+    assert (await tables.breakdown(rep, "EnemyDebuffs", pulls=[13])).startswith("Debuffs on enemies on Sszorak pull")
+
+
+async def test_one_casts_kickers_are_listed_once(rep, patch_wcl):
+    # With one cast listed, "kicked by Enfo 2, Pomaa 1" on its row and the list by player below it said the same.
+    one = {"name": "Visceral Burst", "spellsBegun": 4, "spellsInterrupted": 3, "spellsCompleted": 1,
+           "details": [{"name": "Enfo", "total": 2}, {"name": "Pomaa", "total": 1}]}
+    patch_wcl(rep, table=lambda *_, **__: {"entries": [{"entries": [one]}]})
+    lines = (await tables.breakdown(rep, "Interrupts", pulls=[13])).splitlines()
+    assert lines[1:] == ["  Visceral Burst: 4 began, 3 kicked, 1 went through",
+                         "By player (kicks; who let a cast through isn't in the log: a cast nobody kicked has no name "
+                         "on it):", "  Enfo: 2", "  Pomaa: 1"]
+    # Two casts: each row says who kicked that one, which the list by player sums
+    # (another pull each time: a report keeps a table it has read)
+    patch_wcl(rep, table=lambda *_, **__: {"entries": [{"entries": [one, {**one, "name": "Other"}]}]})
+    lines = (await tables.breakdown(rep, "Interrupts", pulls=[12])).splitlines()
+    assert lines[1] == "  Visceral Burst: 4 began, 3 kicked, 1 went through; kicked by Enfo 2, Pomaa 1"
+    # ... and by pull, where no list by player follows, the row keeps them
+    patch_wcl(rep, table=lambda *_, **__: {"entries": [{"entries": [one]}]})
+    lines = (await tables.breakdown(rep, "Interrupts", "pull", pulls=[11])).splitlines()
+    assert lines[1].endswith("; kicked by Enfo 2, Pomaa 1")

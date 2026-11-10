@@ -17,6 +17,10 @@ BREAKDOWN_TYPES = get_args(BreakdownType)
 GroupBy = Literal["player", "ability", "pull"]
 UNTIL_DECIDED_TYPES = ("DamageDone", "Healing", "DamageTaken", "Casts")  # tables summed per pull, cut at a moment
 TARGETS_SHOWN = 4  # damage taken by ability: the players who took most of each
+# A table in a heading, where Warcraft Logs' name for it isn't words
+TABLE_WORDS = {"DamageDone": "Damage done", "DamageTaken": "Damage taken", "EnemyDebuffs": "Debuffs on enemies"}
+ENEMY_SOURCES = ("Boss", "NPC")  # Warcraft Logs' type of a row's source that is no player or pet
+OWN = "(own)"  # damage taken by ability: a row whose every hit came from a player or a pet
 BY_ANOTHER_NAME = 30  # a player's other rows named when they have none of the ability asked about
 
 
@@ -169,7 +173,7 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
                         f", until {clock(ends[fights[0]['id']] - fights[0]['startTime'])}, when the wipe was decided "
                         "(whole_pull for the rest)")
         cut = bool(clipped)
-    what = "Debuffs on enemies" if data_type == "EnemyDebuffs" else data_type
+    what = TABLE_WORDS.get(data_type, data_type)
     who = (f", applied by {p.name}" if data_type == "EnemyDebuffs" else f", {p.name} only") if p else ""
     head = (("" if pulls else rep.still_going(rep.by_boss[b])) + f"{what} on {scope}{span}{who}"
             + (f", {ability} only" if ability else "")
@@ -243,14 +247,15 @@ async def _decided_note(rep: Report, fights: list[dict], ends: dict[int, float])
 
 
 async def _kicks_text(rep: Report, q: Asked) -> str:
-    lines = await _kicks(rep, q.data_type, q.fights, q.filters, q.ability)
+    by_player = q.group_by == "player" and q.data_type == "Interrupts"
+    kickers = await _kickers(rep, q.fights, q.filters, q.ability) if by_player else []
+    # One cast listed and the kicks by player below it: its row leaves them out, they are the same list
+    lines = await _kicks(rep, q.data_type, q.fights, q.filters, q.ability, by_whom=not kickers)
     if q.data_type == "Dispels":
         lines += await _dispelled(rep, q.fights, q.player, q.ability)
     if q.group_by == "pull":
         lines += await _kicks_per_pull(rep, q.data_type, q.fights, q.filters, q.ability)
-    elif q.group_by == "player" and q.data_type == "Interrupts":
-        lines += await _kickers(rep, q.fights, q.filters, q.ability)
-    return q.head + ":\n" + "\n".join(lines)
+    return q.head + ":\n" + "\n".join(lines + kickers)
 
 
 async def _by_pull(rep: Report, q: Asked) -> str:
@@ -322,11 +327,13 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
     lines = [f"{q.head}, by {'aura' if auras else q.group_by} ({clock(dur_s * 1000)} of combat{summed})"
              f"{', least first' if least else ''}{among}:"]
     players = {p.name: p for p in rep.players.values()} if q.group_by == "player" else {}
-    parsed = False
+    parsed = own = False
     ranked = list(enumerate(rows, 1))
     for k, (name, value, extra) in ranked[::-1][:25] if least else ranked[:25]:
         share = f", {100 * value / total:.0f}% of total" if not auras else ""
         tag = rep.tank_tag(name) if q.data_type == "DamageTaken" and q.group_by == "player" else ""
+        if q.data_type == "DamageTaken" and q.group_by == "ability" and 0 < value <= s.counts[name]["own"]:
+            tag, own = f" {OWN}", True
         p = players.get(name)
         who = rep.over(p, q.fights).label if p else name
         parse = (f", parse {ordinal(s.parses[name])} percentile of the spec" if p and name in s.parses
@@ -349,6 +356,9 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
         lines.append("Overheal is healing past full health. Heals over time and passive healing overheal more by "
                      "design, and the more healers share the damage, the more each overheals: compare it only within "
                      "one spec and as many healers. It costs mana and casts, nothing more.")
+    if own:
+        lines.append(f"{OWN}: every hit of it came from a player or a pet, not from an enemy, so it is no mechanic "
+                     "of the fight.")
     if parsed:
         lines.append(f"Parses are Warcraft Logs' {s.metric} percentiles against the same spec on this kill, for the "
                      "players ranked by it: compare players by these, not by the totals across specs.")
@@ -358,13 +368,14 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
 def _in_fewer(rep: Report, q: Asked, p: Player, value: float) -> str:
     """For a player in only some of the pulls summed, how many and their rate over those: the rate over every pull
     counts the pulls they sat out as time doing nothing."""
-    if q.cutoff or q.data_type not in ("DamageDone", "Healing", "DamageTaken"):
+    if q.cutoff or q.data_type not in ("DamageDone", "Healing", "DamageTaken", "Casts"):
         return ""
     present = [f for f in q.fights if p.id in rep.pull_players(f)]
     if not present or len(present) == len(q.fights):
         return ""
     own = sum(q.ends.get(f["id"], f["endTime"]) - q.starts.get(f["id"], f["startTime"]) for f in present) / 1000
-    return f", in {len(present)} of {len(q.fights)} pulls ({short(value / own)}/s over them)" if own else ""
+    rate = f"{60 * value / own:.1f}/min" if q.data_type == "Casts" else f"{short(value / own)}/s" if own else ""
+    return f", in {len(present)} of {len(q.fights)} pulls ({rate} over them)" if own else ""
 
 
 async def _parses(rep: Report, q: Asked) -> tuple[dict[str, int], str]:
@@ -478,18 +489,21 @@ def _kick_text(data_type: str, e: dict) -> str:
 
 
 async def _kicks(rep: Report, data_type: str, fights: list[dict], filters: dict,
-                 ability: str | None = None) -> list[str]:
+                 ability: str | None = None, by_whom: bool = True) -> list[str]:
     """Interrupts or dispels: per enemy cast or debuff (or just `ability`), how many began, how many were kicked
-    or dispelled and by whom, how many went through or ran out, and for dispels on whom they ran out."""
+    or dispelled and by whom, how many went through or ran out, and for dispels on whom they ran out. Without
+    `by_whom`, a single row leaves out who kicked it: the caller lists them."""
     t = await rep.table([f["id"] for f in fights], data_type,
                              **{k: v for k, v in filters.items() if k != "hostilityType"})
     # by whom: each dispel counts, so the dispellers' numbers add up to the dispels, not the applications dispelled
     stopped = "kicked by" if data_type == "Interrupts" else "dispels by"
     out = []
-    for e in sorted(_kick_entries(t, ability), key=lambda e: -_kick_counts(e)[1]):
+    listed = sorted(_kick_entries(t, ability), key=lambda e: -_kick_counts(e)[1])
+    for e in listed:
         who = ", ".join(f"{d['name']} {d['total']}"
                         for d in sorted(e.get("details", []), key=lambda d: -d.get("total", 0)))
-        text = f"  {_kick_text(data_type, e)}; {stopped} {who or 'nobody'}"
+        text = f"  {_kick_text(data_type, e)}" + (f"; {stopped} {who or 'nobody'}" if by_whom or len(listed) > 1
+                                                  else "")
         if data_type == "Dispels":
             on = Counter((m.get("target") or {}).get("name") for m in e.get("missedCasts") or [])
             on.pop(None, None)
@@ -598,8 +612,11 @@ def _table_rows(t: dict, data_type: str) -> list[tuple[str, float, Counter]]:
             counts: Counter = Counter(
                 overheal=e.get("overheal") or 0, hits=e.get("hitCount") or 0, ticks=e.get("tickCount") or 0,
                 crits=(e.get("critHitCount") or 0) + (e.get("critTickCount") or 0))
-            if data_type == "DamageTaken":  # by ability: who took it
+            if data_type == "DamageTaken":  # by ability: who took it, and how much of it players dealt themselves
                 counts.update({("on", x["name"]): x.get("total") or 0 for x in e.get("targets") or []})
+                sources = e.get("sources") or []
+                if sources and not any(x.get("type") in ENEMY_SOURCES for x in sources):
+                    counts["own"] = e.get("total") or 0
             rows.append((e["name"], e.get("total", 0), counts))
     return sorted(rows, key=lambda r: -r[1])
 
@@ -616,8 +633,8 @@ def _extra(value: float, c: Counter, data_type: str, per_hit: bool) -> str:
                   + f", {short(value / n)} on average")
         if c["crits"]:
             extra += f", {100 * c['crits'] / n:.0f}% crits"
-    elif per_hit and c["hits"]:
-        extra += f", {plural(c['hits'], 'hit')}"
+    elif per_hit and c["hits"] and not (data_type == "Casts" and c["hits"] == round(value)):
+        extra += f", {plural(c['hits'], 'hit')}"  # of a cast row only when they differ: one number, one name
     if on := sorted(((k[1], v) for k, v in c.items() if isinstance(k, tuple)), key=lambda kv: -kv[1]):
         extra += "; most on " + ", ".join(f"{who} {short(v)}" for who, v in on[:TARGETS_SHOWN])
     return extra

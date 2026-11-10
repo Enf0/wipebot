@@ -1,4 +1,4 @@
-DamageDone on Vashnik the Malignant pulls 15, 16, 1:30-1:40 of each pull (the 1 pull that got there), by player (0:10 of combat; total 14.83M, 1.48M/s):
+Damage done on Vashnik the Malignant pulls 15, 16, 1:30-1:40 of each pull (the 1 pull that got there), by player (0:10 of combat; total 14.83M, 1.48M/s):
   1. Sonyosh (Elemental Shaman): 1.95M (195.44k/s), 13% of total
   2. Peggerino (Demonology Warlock): 1.78M (177.93k/s), 12% of total
   3. Nalaw (Arms Warrior): 1.46M (146.27k/s), 10% of total
