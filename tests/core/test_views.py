@@ -217,8 +217,8 @@ async def test_a_meter_shows_the_deaths_a_mechanic_set_up(recorded):
     [m] = data["meters"]
     assert m["title"] == "Tempest" and m["icon"]
     for b in m["bars"]:
-        assert re.search(rf"^  {re.escape(b['name'])}(?: \(tank\))?: .*, {plural(b['died_after'], 'death')} soon "
-                         rf"after, {b['killed_by']} with it as the killing blow", text, re.MULTILINE), b["name"]
+        assert re.search(rf"^  {re.escape(b['name'])}(?: \(tank\))?: .*, {plural(b['died_after'], 'death')} within "
+                         rf"6 s, {plural(b['killed_by'], 'killing blow')}", text, re.MULTILINE), b["name"]
     assert f"{plural(sum(b['killed_by'] for b in m['bars']), 'death')} with it as the killing blow" in m["note"]
 
 

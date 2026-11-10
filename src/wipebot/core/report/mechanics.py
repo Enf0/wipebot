@@ -14,6 +14,11 @@ from .meter import MIN_BARS, Bar, Meter, Then
 HIT_THEN_DEATH_MS = 6_000  # a mechanic hit followed by death this soon counts as "died after"
 SAME_MOMENT_MS = 1_000  # a second hit this soon after the one before landed together with it
 APPLICATIONS_LISTED = 30  # debuff applications listed one by one, at most
+PLAYERS_LISTED = 30  # player rows, at most: with more hit, the output says how many it leaves out
+PULSE_HITS = 10  # hits with the debuff up before their timing says anything
+PULSE_FROM_MS = 500  # a pulse comes this long after the hit before, or longer: sooner is one moment's hits
+PULSE_SHARE = 0.9  # a pulse: this share of the hits with the debuff up came one interval after the hit before,
+PULSE_BAND = 0.1  # ... to within this share of the interval
 
 
 @dataclass
@@ -63,26 +68,75 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                   + "; whole_pull for the rest)")
     h = found
     by_debuff = h.by_debuff
+    counted, what = (h.debuffs, "debuff applications") if by_debuff else (h.hits, "hits")
+    # Over a night a player is ranked by the pulls they were in: one who sat out half of them was hit half as often.
+    there = _minutes(rep, fights, cut, window) if all_pulls else None
+    pulse = _pulse(h)
+    again = (f"; then, if any, hits while the debuff from an earlier hit was still up: those within "
+             f"{SAME_MOMENT_MS / 1000:g} s of the hit before (one hit or two, the log can't tell) and those later, "
+             "with how long after")
     lines = [going + f"{name} on {scope}. Per player"
-             + (", most debuff applications first (it was applied more often than it dealt damage, so the "
-                "applications count who it caught)" if by_debuff else "")
+             + (f", most {what} per minute of the pulls they were in first (each until its wipe was decided; a player "
+                "who sat out pulls is ranked by the ones they were in)" if there else
+                ", most debuff applications first" if by_debuff else "")
+             + (" (it was applied more often than it dealt damage, so the applications count who it caught)"
+                if by_debuff else "")
              + ": hits (and periodic ticks), damage incl. absorbed and ticks, "
              f"times the debuff was applied (applications over the whole {'night' if all_pulls else 'pull'}, not "
              f"stacks), deaths of any cause within {HIT_THEN_DEATH_MS // 1000} s after a hit or tick, deaths with "
              f"{name} itself as the killing blow (what it leaves behind, a spawn or a debuff that kills later, "
-             "counts under that ability's name); then, if any, hits while the debuff from an earlier hit was "
-             "still up and how long after the hit before:"]
-    for who in sorted(set(h.hits) | set(h.ticks) | set(h.debuffs),
-                      key=lambda w: (-h.debuffs[w], -h.hits[w], -h.ticks[w]) if by_debuff
-                      else (-h.hits[w], -h.ticks[w], -h.debuffs[w])):
-        lines.append(_player_line(rep, h, who))
+             "counts under that ability's name)" + ("" if pulse else again) + ":"]
+
+    def rate(w: int) -> float:
+        return counted[w] / max(there[0].get(rep.names[w], 0), 1e-9) if there else counted[w]
+    ranked = sorted(set(h.hits) | set(h.ticks) | set(h.debuffs),
+                    key=lambda w: (-rate(w), -h.debuffs[w], -h.hits[w], -h.ticks[w]) if by_debuff
+                    else (-rate(w), -h.hits[w], -h.ticks[w], -h.debuffs[w]))
+    lines += [_player_line(rep, h, who, (there[1][rep.names[who]], rate(who)) if there else None, not pulse)
+              for who in ranked[:PLAYERS_LISTED]]
+    if (left := len(ranked) - PLAYERS_LISTED) > 0:
+        lines.append(f"  and {plural(left, 'more player')} below them in this order, left out here")
+    if pulse:
+        every, at_it, up = pulse
+        lines.append(f"Hits with the debuff up: {up}, {at_it} of them {every / 1000:.1f} s after the hit before. It "
+                     f"hits again every {every / 1000:.1f} s while the debuff is up, so the rows don't count them "
+                     "apart.")
     lines.append(f"Total with {name} as the killing blow: {sum(h.killed_by.values())}"
-                 + (f" ({n} death{'s' if n > 1 else ''} within {HIT_THEN_DEATH_MS // 1000} s of a hit: the "
-                    "deaths it set up, by any killing blow)" if (n := sum(h.died_after.values())) else ""))
+                 + (f"; deaths of any cause within {HIT_THEN_DEATH_MS // 1000} s of a hit: {n}"
+                    if (n := sum(h.died_after.values())) else ""))
     if all_pulls:
-        lines = lines[:31] + [_per_pull(rep, fights, h)]
-    return "\n".join(lines[:32] + await _applications(rep, fights, h, _counting(fights, cut, window), name)
-                     + [jobs])
+        lines.append(_per_pull(rep, fights, h))
+    return "\n".join(lines + await _applications(rep, fights, h, _counting(fights, cut, window), name) + [jobs])
+
+
+def _minutes(rep: Report, fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None
+             ) -> tuple[dict[str, float], Counter, float]:
+    """(per player by name, the minutes of the pulls they were in; how many pulls that was; every pull's minutes),
+    each pull until its wipe was decided (`cut`) and within `window`: what a night's hits are a rate of."""
+    minutes: dict[str, float] = defaultdict(float)
+    pulls: Counter = Counter()
+    total = 0.0
+    for f in fights:
+        span = min(cut.get(f["id"], f["endTime"]), f["endTime"]) - f["startTime"]
+        if window:
+            span = max(0.0, min(span, window[1]) - window[0])
+        total += span / 60_000
+        for p in rep.pull_players(f).values():
+            minutes[p.name] += span / 60_000
+            pulls[p.name] += 1
+    return dict(minutes), pulls, total
+
+
+def _pulse(h: Hits) -> tuple[float, int, int] | None:
+    """(the interval in ms, the hits at it, every hit with the debuff up) for an ability that hits again at one
+    interval while its debuff is up (an aura logged as hits, not ticks): then a hit with the debuff up is no second
+    hit. None when those hits come at any time, or are too few to tell."""
+    gaps = [g for theirs in h.rehit_gaps.values() for g in theirs]
+    if len(gaps) < PULSE_HITS:
+        return None
+    every = statistics.median(gaps)
+    at_it = sum(abs(g - every) <= PULSE_BAND * every for g in gaps)
+    return (every, at_it, len(gaps)) if every >= PULSE_FROM_MS and at_it >= PULSE_SHARE * len(gaps) else None
 
 
 def _per_pull(rep: Report, fights: list[dict], h: Hits) -> str:
@@ -144,8 +198,7 @@ async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | Non
         scope += ", each until its wipe was decided" if all_pulls else ", until the wipe was decided"
     return Meter(h.name or ability, scope, bars, "applications" if by_debuff else "amount", ability=h.ability_id,
                  note=(f"{plural(sum(h.killed_by.values()), 'death')} with it as the killing blow, "
-                       f"{sum(h.died_after.values())} within {HIT_THEN_DEATH_MS // 1000} s of a hit (the deaths it "
-                       "set up)."),
+                       f"{sum(h.died_after.values())} of any cause within {HIT_THEN_DEATH_MS // 1000} s of a hit."),
                  others=sorted(n for pid, n in present.items() if pid not in who),
                  pulls=[rep.pull_no(f) for f in fights] if all_pulls else [],
                  per_pull="debuffs" if by_debuff else "hits")
@@ -182,16 +235,8 @@ async def night_of(rep: Report, ability: str, boss: str | None, whole_pull: bool
                    end: str | None) -> Night:
     """The ability's hits over every pull on the boss in `rep`, with each player's minutes in them."""
     fights, _, cut, window, h = await _asked(rep, ability, None, boss, True, whole_pull, start, end)
-    minutes: dict[str, float] = defaultdict(float)
-    total = 0.0
-    for f in fights:
-        span = min(cut.get(f["id"], f["endTime"]), f["endTime"]) - f["startTime"]
-        if window:
-            span = max(0.0, min(span, window[1]) - window[0])
-        total += span / 60_000
-        for p in rep.pull_players(f).values():
-            minutes[p.name] += span / 60_000
-    return Night(rep, fights, h, dict(minutes), total)
+    minutes, _, total = _minutes(rep, fights, cut, window)
+    return Night(rep, fights, h, minutes, total)
 
 
 def _change(now: float, then: float) -> str:
@@ -222,23 +267,24 @@ async def against(rep: Report, other: Report, ability: str, boss: str | None, wh
     kb_a, kb_b = sum(now.h.killed_by.values()), sum(then.h.killed_by.values())
     hits_a, hits_b = now.by_name(now.h.hits), then.by_name(then.h.hits)
     died_a, died_b = now.by_name(now.h.died_after), then.by_name(then.h.died_after)
+    soon = HIT_THEN_DEATH_MS // 1000
     lines = [f"{name}, this night against another, per minute of the pulls each player was in (each until its wipe "
              f"was decided), as the nights' pulls differ in number and length: {now.label} ({now.total_minutes:.0f} "
              f"min) against {then.label} ({then.total_minutes:.0f} min).",
-             f"Raid: {fmt(per_a)} {unit} per minute against {fmt(per_b)} ({_change(per_a, per_b)}); deaths it set up "
-             f"(within {HIT_THEN_DEATH_MS // 1000} s of a hit) {set_a / max(now.total_minutes, 1e-9):.2f} per minute "
+             f"Raid: {fmt(per_a)} {unit} per minute against {fmt(per_b)} ({_change(per_a, per_b)}); deaths of any "
+             f"cause within {soon} s of a hit {set_a / max(now.total_minutes, 1e-9):.2f} per minute "
              f"against {set_b / max(then.total_minutes, 1e-9):.2f} ({set_a} against {set_b}); {kb_a} against {kb_b} "
              f"with {name} as the killing blow.",
              f"Per player, most {unit} per minute this night first: per minute and rank of the {len(a)} this night, "
-             f"then the other night's of {len(b)}, the change, hits, deaths it set up:"]
+             f"then the other night's of {len(b)}, the change, hits, deaths of any cause within {soon} s of a hit:"]
     for n in sorted(a, key=lambda n: -a[n]):
         if n in b:
             lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}) against {fmt(b[n])} "
                          f"({ordinal(rb[n])}), {_change(a[n], b[n])}; hits {hits_a[n]} against {hits_b[n]}; deaths "
-                         f"set up {died_a[n]} against {died_b[n]}")
+                         f"within {soon} s {died_a[n]} against {died_b[n]}")
         else:
             lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}), not there the other night; "
-                         f"hits {hits_a[n]}; deaths set up {died_a[n]}")
+                         f"hits {hits_a[n]}; deaths within {soon} s {died_a[n]}")
     if gone := sorted(set(b) - set(a), key=lambda n: -b[n]):
         lines.append("Only the other night: " + ", ".join(f"{n} {fmt(b[n])} ({ordinal(rb[n])})" for n in gone))
     return "\n".join(lines)
@@ -321,16 +367,20 @@ async def _applications(rep: Report, fights: list[dict], h: Hits, counts: Callab
     return lines
 
 
-def _player_line(rep: Report, h: Hits, who: int) -> str:
+def _player_line(rep: Report, h: Hits, who: int, there: tuple[int, float] | None = None, again: bool = True) -> str:
+    """A player's row. `there`, over a night: the pulls they were in and what they are ranked by, per minute of
+    those pulls. `again`: with their hits while the debuff was up (left out for an ability that pulses)."""
+    in_pulls = f" in {plural(there[0], 'pull')} ({there[1]:.2f} per minute)" if there else ""
+    by_debuff = h.by_debuff
     line = (f"  {rep.names[who]}{rep.tank_tag(rep.names[who])}: {plural(h.hits[who], 'hit')}"
-            + (f" (+{plural(h.ticks[who], 'tick')})" if h.ticks[who] else "") + f", {short(h.damage[who])}, "
-            f"{plural(h.debuffs[who], 'application')}, {plural(h.died_after[who], 'death')} soon after, "
-            f"{h.killed_by[who]} with it as the killing blow")
-    if gaps := h.rehit_gaps[who]:
+            + (f" (+{plural(h.ticks[who], 'tick')})" if h.ticks[who] else "") + ("" if by_debuff else in_pulls)
+            + f", {short(h.damage[who])}, {plural(h.debuffs[who], 'application')}" + (in_pulls if by_debuff else "")
+            + f", {plural(h.died_after[who], 'death')} within {HIT_THEN_DEATH_MS // 1000} s, "
+            f"{plural(h.killed_by[who], 'killing blow')}")
+    if again and (gaps := h.rehit_gaps[who]):
         together = sum(1 for g in gaps if g <= SAME_MOMENT_MS)
         later = sorted(g for g in gaps if g > SAME_MOMENT_MS)
-        line += (f"; {plural(len(gaps), 'hit')} with the debuff up: {together} within {SAME_MOMENT_MS / 1000:g} s "
-                 "(one hit or two, the log can't tell)")
+        line += f"; {plural(len(gaps), 'hit')} with the debuff up: {together} within {SAME_MOMENT_MS / 1000:g} s"
         if later:
             line += f", {len(later)} later ({later[0] / 1000:.1f}" + (
                 f"-{later[-1] / 1000:.1f}" if len(later) > 1 else "") + " s)"

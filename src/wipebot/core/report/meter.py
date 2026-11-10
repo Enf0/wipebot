@@ -7,14 +7,15 @@ MIN_BARS = 3  # fewer players than this aren't a ranking: no meter
 
 @dataclass
 class Bar:
-    """One player's row: their amount, a few words the tool says of it, and the deaths it set up or dealt."""
+    """One player's row: their amount, a few words the tool says of it, and the deaths soon after a hit from it
+    or dealt by it."""
     name: str  # the character, as logged
     value: float
     note: str = ""  # "245 ticks", "overheal 23%", "parse 85th"
     died_after: int = 0  # deaths within a few seconds of a hit from it
     killed_by: int = 0  # deaths it dealt the killing blow
     per_pull: list[int | None] = field(default_factory=list)  # each of the meter's `pulls`' count; None: not in it
-    died_in: list[int] = field(default_factory=list)  # the pulls (indices into `pulls`) where it set up their death
+    died_in: list[int] = field(default_factory=list)  # the pulls (indices into `pulls`) where they died soon after it
     was: float | None = None  # with the meter's `then`: their amount the other night (None: not there)
     was_rank: int | None = None
 
@@ -22,7 +23,7 @@ class Bar:
 @dataclass
 class Then:
     """The other night a meter compares with (mechanic_hits' `against`): both nights' days, the raid's amount per
-    minute, the deaths it set up, the minutes of pulls, and how many players the other night ranked."""
+    minute, the deaths soon after a hit, the minutes of pulls, and how many players the other night ranked."""
     was_day: str
     day: str
     raid: float
