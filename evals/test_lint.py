@@ -91,6 +91,36 @@ async def test_a_replay_that_fails_is_a_failure_and_one_without_data_leaves_its_
     assert lint_line(type(found)(0, 4), 4) == "4 of 4 cases checked: every number is in its tools' output"
 
 
+async def test_a_call_the_tool_refuses_for_its_arguments_is_an_older_runs_not_a_failing_tool(tmp_path, capsys,
+                                                                                            monkeypatch):
+    """A saved call whose argument the tool takes otherwise now is refused in the server's sentence ("can't take",
+    "needs", "takes no"): left out, as an older run's, where it once counted as a tool that fails."""
+    import json
+
+    from evals.lint import lint
+    from evals.run import case_hash
+    from wipebot.core import server
+
+    def pull_summary(pull: int = 0) -> str: return ""
+
+    async def call(name: str, args: dict) -> tuple[str, bool]:
+        if args["pull"] == 1:
+            return "Pull 1 ended at 6:00 by the enrage.", False
+        raise RuntimeError({2: "pull_summary can't take 'last' as `pull`: it should be a valid integer.",
+                            3: "pull_summary needs `report`: the report's code.",
+                            4: "pull_summary takes no `player`. Its arguments: report, pull."}[args["pull"]])
+    monkeypatch.setattr(server, "configure", lambda: None)
+    monkeypatch.setattr(server, "_TOOLS", [("pull_summary", pull_summary)])
+    monkeypatch.setattr(server, "call", call)
+    case = {"id": "fine", "report": "R", "question": "why?", "expect": "The enrage at 6:00.", "wrong": ["x"]}
+    (tmp_path / "run.json").write_text(json.dumps({
+        "case_hashes": {"fine": case_hash(case)},
+        "cases": {"fine": [{"calls": [{"name": "pull_summary", "args": {"pull": n}, "failed": False}
+                                      for n in (1, 2, 3, 4)]}]}}))
+    assert await lint([case], tmp_path) == (0, 1, 0, 0)
+    assert "fails" not in capsys.readouterr().out
+
+
 def test_the_ended_by_line_names_the_experts_cause_first():
     """What the model and the raider read (ending_text), not only the engine's summary for the evals (lead)."""
     from evals.endings import names_first

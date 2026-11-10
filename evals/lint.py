@@ -35,6 +35,10 @@ NO_DATA = ("auth_failed", "upstream_error")
 # The same inside an output that otherwise printed: a tool says one of its sections so and goes on (compare_with_top's
 # casts without the top parses), and the numbers of that section are then in no output
 PART_MISSING = re.compile(rf"Not available: (?:{'|'.join(NO_DATA)})")
+# A replayed call refused for its arguments, which an older version of the case or the tool took (another report,
+# since private; a value the tool takes otherwise now): not a tool that fails. The server's words for it, the SDK's
+# before it told an ill-fitting argument in a sentence, and its own since.
+OLD_CALL = ("validation error", "Unknown tool", "won't show report", " can't take ", " needs `", " takes no `")
 AMOUNT_TOLERANCE = 0.03  # "about 210k" for 210.05k, "164k" for 163.64k
 PERCENT_TOLERANCE = 0.51  # "34%" for 34.1%
 
@@ -125,8 +129,7 @@ async def lint(cases: list[dict], results: Path) -> Linted:
                     text, failed = await server.call(name, args)
                 except Exception as e:  # noqa: BLE001  a tool that fails now is a finding, not a crash
                     text, failed = f"{type(e).__name__}: {e}", True
-                # arguments an older version of the case or the tool took (another report, since private)
-                old = failed and any(w in text for w in ("validation error", "Unknown tool", "won't show report"))
+                old = failed and any(w in text for w in OLD_CALL)
                 outputs[key] = None if old else f"<{name} failed: {text[:200]}>" if failed else text
         return outputs[key]
 
