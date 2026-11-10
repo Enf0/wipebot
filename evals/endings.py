@@ -49,8 +49,8 @@ def names_first(text: str | None, cause: str) -> bool:
 
 
 async def endings(cases: list[dict]) -> tuple[int, list[str], int]:
-    """(how many of the cases with a `cause` the engine leads with and prints first, a line per case, how many
-    pulls couldn't be read for lack of data)."""
+    """(how many of the cases with a `cause` the engine leads with and prints first, a line per case with the
+    printed "Ended by" line and the case's expect under it, how many pulls couldn't be read for lack of data)."""
     library, agree, lines, no_data = server.configure(), 0, [], 0
     for c in [c for c in cases if c.get("cause")]:
         try:
@@ -69,4 +69,7 @@ async def endings(cases: list[dict]) -> tuple[int, list[str], int]:
                      + ("" if found == c["cause"] else f", engine \"{found}\"")
                      + (f"; the engine leads with it, but its line doesn't name it first: {(text or 'a kill')[:140]}"
                         if same and not said else ""))
+        # the line the model reads beside what the case expects: a writer reads the two together after a snapshot
+        lines += [f"           prints: {(text or 'a kill')[:220]}",
+                  f"           expect: {' '.join(c['expect'].split())[:220]}"]
     return agree, lines, no_data

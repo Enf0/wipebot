@@ -25,7 +25,8 @@ from the numbers on its last line. A case whose calls need data the frozen file 
 is left unchecked and said so, and the lint doesn't pass: a call that fails for it, or one that printed but says a
 section of it had none ("Not available: auth_failed"), unless the outputs that did print hold every number. So
 doesn't a results folder with no run to replay. `just evals --endings` fails below the agreed count of pulls whose
-"Ended by" line names the expert's cause first, or when a pull couldn't be read.
+"Ended by" line names the expert's cause first, or when a pull couldn't be read; under each pull it prints that line
+and the case's expect, to read side by side after a snapshot.
 
 ## A case
 
