@@ -32,6 +32,10 @@ error is only what says nothing about the answer: a usage limit, a judge with no
 data this machine may not read. Errors are in no count; a summary and a comparison start with how many there were,
 and a run with one exits non-zero (settle).
 
+A run, and a baseline, keep what was tested (tested: the models' full names, the SDK and Claude Code versions, the
+effort, the commit, when the frozen data was last added to), and a comparison warns when the two differ. The date in
+a question's first line is the recorded data's, like the tools' clock (freeze_today).
+
 A run, and a baseline, keep a hash of the judge (its prompts and model) and of each case. A run is compared with the
 baseline only on the cases unchanged since, with a warning when the judge changed; a case is listed as moved only
 when its pass rate moved beyond noise (beyond_noise), and the total with its expected spread from run to run.
@@ -50,6 +54,7 @@ import io
 import json
 import math
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -58,6 +63,7 @@ import tomllib
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime
+from importlib.metadata import version
 from pathlib import Path
 
 from evals.checks import (
@@ -65,6 +71,7 @@ from evals.checks import (
     FACTS,
     FAIL_VOTES,
     GROUNDED_MODEL,
+    MODELS,
     RUBRIC,
     WRONG,
     built,
@@ -78,7 +85,7 @@ from evals.checks import (
 )
 from wipebot.core import server, wcl
 from wipebot.core.cache import cache
-from wipebot.discord import config
+from wipebot.discord import config, prompt
 from wipebot.discord.bot import CHAT_TIMEOUT_S, POST_TIMEOUT_S
 from wipebot.discord.checks import warnings
 from wipebot.discord.host import CAPPED, Context, ModelError, Session, ToolCall
@@ -214,6 +221,7 @@ def waited(calls: Iterable[ToolCall]) -> float | None:
 @dataclass
 class Trial:
     answer: str = ""
+    model: str = ""  # the model that answered, by the full name the API gave
     error: str = ""  # why it's an error
     seconds: float = 0.0
     waited_s: float | None = None  # of them, waiting for the next hour's Warcraft Logs points; None: not timed
@@ -345,6 +353,7 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
                 """What an answer cost and called; images as a count, a follow-up's calls marked with the question
                 they answered (0 the first)."""
                 t.cost_usd += answer.cost_usd or 0.0
+                t.model = answer.model or t.model
                 calls.extend({**c, "turn": turn} if len(questions(case)) > 1 else c for c in answer.records())
                 ran.extend(answer.calls)
             async with Session(library, case["report"], model, system_prompt=prompt,
@@ -499,6 +508,7 @@ async def run(args) -> int:
     shows a drop, else 0."""
     print(f"Answers and judging on {args.billed_to}.", flush=True)
     frozen()
+    freeze_today()
     model = args.model  # empty: the bot's own, for chat and for live answers
     if args.effort:
         os.environ["WIPEBOT_EFFORT"] = args.effort  # read by the answers' sessions only
@@ -525,7 +535,7 @@ async def run(args) -> int:
         return tally_of(cases, results, model=shown, commit=commit(), judge=judged_by(args.judge_model))
 
     await ask_all(cases, base, args.trials, args.judge_model, one, so_far, confirm=not args.no_confirm)
-    tally = so_far()
+    tally = so_far() | {"tested": tested(results)}
     asked_trials = tally["trials"]
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
     lines, found = report(tally, results, base, args.mode,
@@ -537,7 +547,8 @@ async def run(args) -> int:
     out.write_text(json.dumps({"model": shown, "mode": args.mode, "connector_only": args.mode == "connector",
                                "judge_model": args.judge_model, "filter": args.filter,
                                "billed_to": args.billed_to, "trials": asked_trials, "commit": tally["commit"],
-                               "judge": tally["judge"], "case_hashes": tally["case_hashes"],
+                               "judge": tally["judge"], "tested": tally["tested"],
+                               "case_hashes": tally["case_hashes"],
                                "cases": {c: [asdict(t) for t in ts] for c, ts in results.items()}},
                               indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"saved {out.relative_to(HERE.parent)}")
@@ -558,14 +569,15 @@ def read_run(path: Path) -> tuple[dict, dict[str, list[Trial]], dict]:
                for c, ts in run["cases"].items()}
     tally = tally_of([known.get(c, {"id": c}) for c in results], results, model=run.get("model", "?"),
                      commit=run.get("commit", "?"), judge=run.get("judge") or judged_by(run.get("judge_model", "")))
-    return run, results, tally | {"case_hashes": run.get("case_hashes") or tally["case_hashes"]}
+    kept = {k: run[k] for k in ("case_hashes", "tested") if run.get(k)}  # as the run asked them, and what it tested
+    return run, results, tally | kept
 
 
 def report(tally: dict, results: dict[str, list[Trial]], base: dict | None, mode: str,
            about: str) -> tuple[list[str], Comparison | None]:
     """What a run prints once it's asked, and a saved one with --summary: its summary, how its answers were made
     and built, and the comparison with its mode's baseline."""
-    lines = [*summary(tally, base), about, how_answered(tally, tally["passed"]),
+    lines = [*summary(tally, base), about, *filter(None, [tested_line(tally)]), how_answered(tally, tally["passed"]),
              *built_summary((t.form, t.slips) for ts in results.values() for t in ts if not t.errored)]
     if mode == "plugin":
         lines.append(skill_use(results))
@@ -620,6 +632,77 @@ def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") 
         {"accepted": {"reason": accept, "despite": doubts}} if doubts else {})
     path.write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"saved evals/{path.name}" + (f" (accepted despite: {'; '.join(doubts)})" if doubts else ""))
+
+
+def tested(results: dict[str, list[Trial]]) -> dict:
+    """What a run tested besides its commit, kept with the run and with a baseline so that a comparison can say when
+    the two differ: the models that answered and judged by the full names the API gave (an alias such as "opus"
+    moves to another model without a word), the Agent SDK and the Claude Code it drives, the answers' effort,
+    whether the code had uncommitted changes, and when the frozen data was last added to."""
+    try:
+        from claude_agent_sdk._cli_version import __cli_version__ as cli
+    except ImportError:  # the SDK moved it
+        cli = "?"
+    changed = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], capture_output=True, text=True,
+                             cwd=HERE).stdout.strip()
+    return {"answers": sorted({t.model for ts in results.values() for t in ts if t.model}),
+            "judge": sorted(MODELS), "sdk": version("claude-agent-sdk"), "cli": cli,
+            "effort": config.effort() or "", "uncommitted": bool(changed), "data": data_stored()}
+
+
+def data_stored(path: Path | None = None) -> str:
+    """When the frozen data was last added to (UTC), or "" without a file: a run that fetched what the file lacked
+    moves it, and the next run reads data the baseline's didn't."""
+    path = path or CACHE
+    if not path.exists():
+        return ""
+    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as db:
+        latest = db.execute("SELECT MAX(stored_at) FROM cache").fetchone()[0]
+    return f"{datetime.fromtimestamp(latest, UTC):%Y-%m-%d %H:%M}" if latest else ""
+
+
+def tested_line(tally: dict) -> str:
+    """A run's `tested` as one line, or '' for a run from before it was kept."""
+    t = tally.get("tested")
+    if not t:
+        return ""
+    return (f"Tested: answers by {', '.join(t['answers']) or '?'}"
+            + (f" at effort {t['effort']}" if t["effort"] else "")
+            + f"; judged by {', '.join(t['judge']) or '?'}; Agent SDK {t['sdk']}, Claude Code {t['cli']}; commit "
+            + tally.get("commit", "?") + (" with uncommitted changes" if t["uncommitted"] else "")
+            + f"; frozen data last added to {t['data'] or '?'}")
+
+
+def tested_alike(base: dict, now: dict) -> str:
+    """A comparison's warning when the run and the baseline weren't tested alike (tested), or ''."""
+    was, t = base.get("tested"), now.get("tested")
+    if not t:
+        return ""
+    if not was:
+        return ("  note: the baseline is older than the record of what a run tested: its models, versions and data "
+                "may differ from this run's")
+    names = {"answers": "the answers' model", "judge": "the judge's model", "sdk": "Agent SDK", "cli": "Claude Code",
+             "effort": "effort", "data": "frozen data last added to"}
+
+    def shown(v) -> str:
+        return (", ".join(v) if isinstance(v, list) else str(v)) or "none"
+    differs = [f"{name} {shown(was.get(k))} -> {shown(t.get(k))}" for k, name in names.items()
+               if was.get(k) != t.get(k)]
+    return f"  WARNING: not tested alike: {'; '.join(differs)}" if differs else ""
+
+
+def freeze_today() -> None:
+    """The date in each question's first line as of the recorded data's "now", like the tools' clock: the bot's
+    prompt takes the real date, so a run asked about the same report as "yesterday's" one day and as weeks old the
+    next. Wraps prompt.message, which the session calls for every question."""
+    real = prompt.message
+    if real.__module__ == __name__:  # frozen already
+        return
+
+    def message(*args, **kwargs) -> str:
+        kwargs.setdefault("now", datetime.fromtimestamp(RECORDED_AT).astimezone())
+        return real(*args, **kwargs)
+    setattr(prompt, "message", message)  # noqa: B010  the module's own function, replaced for this process
 
 
 def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dict:
@@ -957,6 +1040,8 @@ def compared(base: dict, now: dict) -> Comparison:
         lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {', '.join(added)} "
                      "is left out here, until a baseline has it")
     now = scored(now, parts)
+    if differs := tested_alike(base, now):
+        lines.append(differs)
     if base.get("case_hashes") is None:
         lines.append("  note: the baseline is older than case and judge hashes: every case is compared, though a "
                      "case or the judge may have changed since")

@@ -131,3 +131,39 @@ async def test_a_run_stops_at_its_start_when_warcraft_logs_refuses_the_keys(caps
     assert "didn't answer" in capsys.readouterr().out
     await run.keys_work(stand_in(wcl=stand_in(_run=lambda q, v: {})))
     assert capsys.readouterr().out == ""
+
+
+def test_a_question_is_dated_as_the_recorded_data_is(monkeypatch):
+    """The bot's prompt takes today's date; a run's questions carry the frozen clock's, whenever it is run."""
+    from wipebot.discord import prompt
+    from wipebot.discord.host import Context
+    code = prompt.message.__code__
+    assert "now" in code.co_varnames[:code.co_argcount]  # what freeze_today sets
+    monkeypatch.setattr(prompt, "message", prompt.message)  # put back after
+    run.freeze_today()
+    run.freeze_today()  # once is enough
+    assert "today is Tuesday 2026-10-13]" in prompt.message("How do I gem?", Context(where="in #raid"), None)
+
+
+def test_a_run_records_what_it_tested_and_a_comparison_says_when_that_differs(tmp_path, monkeypatch):
+    import sqlite3
+    monkeypatch.setattr(run, "MODELS", {"claude-sonnet-x"})
+    db = tmp_path / "cache.sqlite"
+    with sqlite3.connect(db) as made:
+        made.execute("CREATE TABLE cache (key TEXT PRIMARY KEY, stored_at REAL NOT NULL, value BLOB NOT NULL)")
+        made.executemany("INSERT INTO cache VALUES (?, ?, '')",
+                         [("a", run.RECORDED_AT), ("b", run.RECORDED_AT + 90000)])
+    monkeypatch.setattr(run, "CACHE", db)
+    monkeypatch.delenv("WIPEBOT_EFFORT", raising=False)
+    t = run.tested({"a": [run.Trial(model="claude-opus-x"), run.Trial(model="claude-opus-x"), run.Trial()]})
+    assert (t["answers"], t["judge"], t["effort"], t["data"]) == (["claude-opus-x"], ["claude-sonnet-x"], "",
+                                                                 "2026-10-14 16:16")
+    assert t["sdk"][0].isdigit() and t["cli"][0].isdigit() and isinstance(t["uncommitted"], bool)
+    now = {"commit": "abc", "tested": t}
+    assert run.tested_line(now).startswith("Tested: answers by claude-opus-x; judged by claude-sonnet-x; Agent SDK ")
+    assert run.tested_alike({"tested": t}, now) == "" and run.tested_alike({}, {"commit": "abc"}) == ""
+    assert run.tested_alike({}, now).startswith("  note: the baseline is older than the record of what a run tested")
+    older = t | {"answers": ["claude-opus-w"], "cli": "2.0.0", "data": "2026-10-13 15:16"}
+    assert run.tested_alike({"tested": older}, now) == (
+        "  WARNING: not tested alike: the answers' model claude-opus-w -> claude-opus-x; Claude Code 2.0.0 -> "
+        f"{t['cli']}; frozen data last added to 2026-10-13 15:16 -> 2026-10-14 16:16")

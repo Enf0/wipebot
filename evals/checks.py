@@ -154,11 +154,15 @@ async def judge_majority(prompt: str, model: str) -> Verdict:
     return Verdict(fails < passes, f"{kept.reason} ({fails} of {len(votes)} judges failed it)", cost)
 
 
+MODELS: set[str] = set()  # the models the judge's replies came from, by full name: for a run's record
+
+
 async def _ask_judge(prompt: str, model: str) -> tuple[str, float]:
     options = ClaudeAgentOptions(tools=[], setting_sources=[], strict_mcp_config=True, max_turns=1, model=model)
     text, cost = "", 0.0
     async for msg in query(prompt=prompt, options=options):
         if isinstance(msg, AssistantMessage):
+            MODELS.add(msg.model)
             text += "".join(b.text for b in msg.content if isinstance(b, TextBlock))
         elif isinstance(msg, ResultMessage):
             cost = msg.total_cost_usd or 0.0
