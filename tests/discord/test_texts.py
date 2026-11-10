@@ -42,6 +42,9 @@ def test_the_norwegian_keeps_the_games_words_as_raiders_write_them():
     ("hvem døde først?", "no"),
     ("why did we wipe?", "en"),
     ("INGEN som brukte slows på siste pullet??", "no"),
+    # a link's address is in no language: "fight=last" and "of-the" aren't the asker's English
+    ("hva skjedde? https://www.warcraftlogs.com/reports/AbC123?fight=last&type=healing", "no"),
+    ("kan du sjekke [denne](https://www.wowhead.com/guide/the-art-of-the-pull)?", "no"),
 ])
 def test_which_language_a_text_is_in(text, lang):
     assert texts.language(text) == lang
@@ -50,6 +53,7 @@ def test_which_language_a_text_is_in(text, lang):
 def test_a_text_that_doesnt_show_its_language_takes_the_servers():
     link = "https://www.warcraftlogs.com/reports/AbC123#fight=4"
     assert texts.language(link) == "en" and texts.language(link, "no") == "no"
+    assert texts.language("https://www.warcraftlogs.com/reports/AbC123?fight=last", "no") == "no"
     assert [texts.named(name) for name in ("Norwegian", "norsk", "Norsk bokmål", "Nynorsk", "no")] == ["no"] * 5
     assert [texts.named(name) for name in (None, "", "English", "Swedish", "Northern Sami")] == ["en"] * 5
     assert texts.locale_language(discord.Locale.norwegian) == "no"

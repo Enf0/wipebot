@@ -16,11 +16,13 @@ NORWEGIAN = re.compile(r"(?i)(?<!\w)(?:og|ikke|det|er|på|du|som|med|til|av|har|
                        r"|hvem|hvordan|når|vi|kan|min|mitt|meg|siste|ble|noen|fra)(?!\w)")
 ENGLISH = re.compile(r"(?i)(?<!\w)(?:and|not|the|is|on|you|with|to|of|has|was|it|are|what|also|your|why|who|how|when"
                      r"|we|can|my|did|do|last|any|from)(?!\w)")
+LINK = re.compile(r"https?://[^\s<>()\[\]]+")  # its address is in no language: "?fight=last", "/wrath-of-the-..."
 
 
 def language(text: str, unclear: str = "en") -> str:
-    """'no' for a text in Norwegian and 'en' for one in English, by which language's common words it has more of;
-    `unclear` when it has as many of each (a short question, a bare link)."""
+    """'no' for a text in Norwegian and 'en' for one in English, by which language's common words it has more of,
+    its links' addresses left out; `unclear` when it has as many of each (a short question, a bare link)."""
+    text = LINK.sub(" ", text)
     no, en = len(NORWEGIAN.findall(text)), len(ENGLISH.findall(text))
     return "no" if no > en else "en" if en > no else unclear
 
