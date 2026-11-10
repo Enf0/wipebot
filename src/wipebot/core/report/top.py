@@ -393,7 +393,7 @@ class Reference:
 class CastRate:
     """One spell's casts per minute alive, the player's against the top parses': the median and range of those whose
     logs count it (None when none does), and `flag` where the player's is far off ("never cast", "far fewer", "far
-    more")."""
+    more") or why a spell they didn't cast is no fault (an item not worn, cast before the pull, NOT_DUE)."""
     name: str
     mine: float
     median: float | None
@@ -423,11 +423,19 @@ async def _up_at_pull(rep: Report, f: dict, p: Player) -> set[str]:
     return {name_key(n) for n in out if n}
 
 
+# A spell they didn't cast that the top parses, at their median, cast less than once in the time the player was alive
+# (Sprint at 0.7 a minute, for someone who died at 0:53): not one they failed to press
+NOT_DUE = "under one cast in their time alive"
+
+
 def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[Reference],
-               lust_casts: set[str], worn: set[str] | None = None, up: Set[str] = frozenset()) -> list[CastRate]:
+               lust_casts: set[str], worn: set[str] | None = None, up: Set[str] = frozenset(),
+               minutes: float | None = None) -> list[CastRate]:
     """Each spell's casts per minute, theirs against the top parses', most cast by the top first. With `worn`, the
     names of the player's items: an item of the top's they don't wear is "not worn", not "never cast"; `up`, the
-    names of the buffs on them as the pull began: one of those was cast before it, not "never cast"."""
+    names of the buffs on them as the pull began: one of those was cast before it, not "never cast"; `minutes`, how
+    long they were alive: a spell the top's median makes less than one cast of in that time is NOT_DUE, not "never
+    cast"."""
     items = {name_key(g["name"]) for x in found for g in x.ranking.get("gear") or [] if g.get("name")}
     def known(n: str) -> list[float]:
         """The references' counts of a spell, those that aren't known left out."""
@@ -450,6 +458,8 @@ def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[R
             flag = "not worn: an item of theirs the player doesn't have on"
         elif me == 0 and name_key(n) in up:
             flag = "cast before the pull: up as it began"
+        elif me == 0 and minutes is not None and med * minutes < 1:
+            flag = NOT_DUE
         elif me == 0 and sum(1 for x in others if x > 0) > len(others) / 2:
             flag = "never cast"
         elif med and me < 0.6 * med:
@@ -531,7 +541,7 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
         return "Couldn't read the casts of any top parse."
     my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
     return CastComparison(p, f, hero, bool(same_hero), healers, alive_s, ilvl, found, names, merged, mine, my_cpm,
-                          cast_rates(names, my_cpm, found, lust_casts, _worn(det), up),
+                          cast_rates(names, my_cpm, found, lust_casts, _worn(det), up, alive_s / 60),
                           casting(events, alive_until, [d["timestamp"] for d in own]), resource, my_capped)
 
 

@@ -1296,6 +1296,11 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
     for r in data["top"]["rates"]:
         if r["median"] is not None:
             assert f"{r['mine']:.1f} / {r['median']:.1f} ({r['low']:.1f}-{r['high']:.1f})" in top
+    # alive for 53 s: Ambush (3.1 a minute at the top's median) is a spell to have pressed, Sprint and Vanish aren't
+    flags = {r["name"]: r["flag"] for r in data["top"]["rates"]}
+    assert [n for n, flag in flags.items() if flag == "never cast"] == ["Ambush"]
+    assert flags["Sprint"] == flags["Vanish"] == "under one cast in their time alive"
+    assert all(f"{n}: " in top and f"<- {flag}" in top for n, flag in flags.items() if flag)
 
 
 def kit_short(v: float) -> str:
@@ -1685,3 +1690,22 @@ async def test_a_view_in_panels_is_painted_a_picture_per_panel(made_up, monkeypa
         # the margin: the card's colour, nothing drawn in it
         edge = cast(tuple[tuple[int, int], ...], img.crop((0, 0, 24, img.height)).getextrema())
         assert all(most - least <= 3 for least, most in edge), edge
+
+
+# ---- what a card must not judge: the rule is the tool's, so its text and the card say the same ----
+
+def test_a_spell_never_cast_is_flagged_only_where_the_top_would_have_cast_it_in_the_time_alive():
+    """A rogue alive for 53 s of a wipe was told they never cast Sprint, Vanish, Shiv and Thistle Tea, each under one
+    cast in 53 s at the top players' median: only Ambush, 2.7 casts in that time, was a spell to have pressed. The
+    rule is compare_with_top's own (top.cast_rates), which the card draws from."""
+    from wipebot.core.report import top
+    median = {"Ambush": 3.1, "Shiv": 1.0, "Thistle Tea": 0.8, "Sprint": 0.7, "Vanish": 0.5}
+    found = [top.Reference({}, dict(median), top.Casting([], {}, 0.0)) for _ in range(3)]
+    mine: dict[str, float | None] = dict.fromkeys(median, 0.0)
+
+    def flags(**alive) -> dict[str, str]:
+        return {r.name: r.flag for r in top.cast_rates(top.SpellNames([]), mine, found, set(), **alive)}
+    short_life = flags(minutes=53 / 60)
+    assert short_life.pop("Ambush") == "never cast" and set(short_life.values()) == {top.NOT_DUE}
+    assert set(flags(minutes=5).values()) == {"never cast"}  # over a whole pull each is a spell to have pressed
+    assert set(flags().values()) == {"never cast"}  # the time alive not given: as before
