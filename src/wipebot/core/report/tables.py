@@ -651,3 +651,23 @@ def _fmt_value(value: float, data_type: str, dur_s: float, total_time_ms: float 
     if data_type in ("Buffs", "Debuffs"):
         return f"{100 * value / total_time_ms:.0f}% uptime" if total_time_ms else f"{value / 1000:.0f} s"
     return f"{short(value)} ({short(value / dur_s)}/s)" if dur_s else short(value)
+
+
+async def by_pull(rep: Report, data_type: str, pulls: list[int | str] | None = None, boss: str | None = None,
+                  player: str | None = None, ability: str | None = None, cutoff: int | None = None,
+                  whole_pull: bool = False, start: str | None = None, end: str | None = None,
+                  target: str | None = None, read: bool = True) -> tuple[Asked, list[tuple[list[tuple], float]]]:
+    """breakdown grouped by pull, for a picture of it (the trend view): what it is over (Asked: its pulls, those
+    that got to its window, and its heading's words) and, with `read`, each pull's (name, amount, extra) rows and
+    its counted seconds, read, merged and cut as the text's lines are (`_by_pull`)."""
+    q = await _asked(rep, data_type, "pull", pulls, boss, player, ability, cutoff, whole_pull, start, end, target)
+    if not read:
+        return q, []
+    per_pull = await _per_pull_tables(rep, q.fights, q.data_type, q.filters, q.ids, q.ends, q.starts)
+    found = []
+    for f, tables_ in zip(q.fights, per_pull, strict=True):
+        rows, total_time, _ = _merged_rows(tables_, q.data_type, "ability" if q.player else "player", q.ids != [None])
+        last, first = q.ends.get(f["id"], f["endTime"]), q.starts.get(f["id"], f["startTime"])
+        found.append((_without_moved(rows, q.data_type)[0],
+                      (total_time if q.cutoff and total_time else last - first) / 1000))  # WCL's time is cut too
+    return q, found
