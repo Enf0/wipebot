@@ -191,11 +191,11 @@ pull = 2
 boss = "Vashnik the Malignant"
 expect = """A good kill with one real gain: the time at the Maelstrom cap (11% of the kill, where the top parses
 spend 0-4%); the other gaps are small."""
-drifts = ["88th", "0-4%"]
+drifts = ["88th", "0-4%", "3.6"]
 facts = ["88th percentile",
          "never died, no casting gaps, Flame Shock up 100%",
          "Ascendance as often as the top parses",
-         "Maelstrom at its cap 11% of the kill, with fewer Earthquakes than the top (2.5 a minute against 3.9)",
+         "Maelstrom at its cap 11% of the kill, with fewer Earthquakes than the top (2.5 a minute against 3.6)",
          "legs enchanted with Arcanoweave Spellthread where the top use Sunfire Silk Spellthread",
          "no augment or vantus rune"]
 # compare_with_top says the top take the other version of Earthquake on its choice node: noting it in passing is
@@ -213,8 +213,9 @@ pull = 33
 boss = "Sszorak"
 expect = """Energy sat at its cap much of the time and Tiger Palm went out far less than the top parses: energy was
 wasted that Tiger Palm should have spent, while the rotation's core was fine."""
+drifts = ["10.9"]  # the top parses' Tiger Palms a minute (10.2 on 28 October, 10.9 on 29 October)
 facts = ["about 21% of the time alive",
-         "Tiger Palm 7.1 a minute against about 10.2 for the top Shado-Pan parses",
+         "Tiger Palm 7.1 a minute against about 10.9 for the top Shado-Pan parses",
          "Keg Smash and Breath of Fire cast as often as the top parses (13.3 a minute each), with 98% uptime",
          "Shuffle up 98%"]
 # Black Ox Brew is talented (compare_with_top's build: they take it instead of the guides' picks) and was never

@@ -67,7 +67,9 @@ wrong = ["analyses pull 9's deaths as if it were a real attempt"]
 
 [[case]]
 id = "wipe-enrage-after-collapse"  # the boss enraged, but the raid had died before it: deaths, not the timer
-cause = "deaths from 7:02"  # what an expert names first; `just evals --endings`
+# The engine is right (10 November): the first death, at 7:02, was brought back; the deaths nobody came back from
+# start at 8:00, and pull_summary says so first.
+cause = "deaths from 8:00"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "compare_pulls", "pull_summary", "pull_timeline"]
 report = "f8X1bzJ3T6HpArac"
 question = "We hit the enrage on Ula'tek at 6.4%. Do we need more DPS?"
@@ -75,12 +77,12 @@ asker = "Enfo"
 pull = 14
 boss = "Ula'tek"
 expect = """Not a race lost on the timer: Fury Unleashed at 9:58 only finished the last two players. The raid had died
-before it, from 7:02 on, half of it dead by 9:31, so the last Venomous Heart window (9:33-9:53), the burn that
+before it, one after another from 8:00 on, half of it dead by 9:31, so the last Venomous Heart window (9:33-9:53), the burn that
 should finish her, had three players in it. What was missing above all is players alive for that window; saying the damage was also behind the
 guild's later kill is fair, calling it a race lost on the timer isn't."""
 facts = ["Fury Unleashed at 9:58, when 26 players had already died; it killed the last two at 9:58 and 10:00",
-         "deaths from 7:02 on, six of them by 8:01 at the second platform break, and no single hit killing many",
-         "Volatile Purge killed nine at 9:31, which left half the raid dead",
+         "a first death at 7:02, then one after another from 8:00 on: six had died by 8:01, at the second platform break",
+         "Volatile Purge killed 10 within a second at 9:31, which left half the raid dead",
          "the boss at 10% at 9:31, with three players alive when Rage of the Shackled and the Venomous Heart came at 9:33"]
 wrong = ["says the enrage (Fury Unleashed) ended the pull, or that the raid ran out of time",
          "says the fix is more damage from rotations, gear or cooldowns, with no word on the deaths before the enrage"]
@@ -127,6 +129,9 @@ wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
          "the Swirling Whirlpools deaths (at 3:48-3:49) lost the pull"]
 [[case]]
 id = "wipe-tank-death"  # the first domino: a tank death that leaves a tank mechanic to the raid
+# The case is right (10 November): the engine leads with Stone Breaker and says the tank's death only after it
+# ("Before it, 3 deaths one after another from 7:00, a tank among them"). It stays a pull `--endings` differs on
+# until the engine names a tank's death first when a tank's mechanic then kills the raid.
 cause = "deaths from 7:00"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "death_recap", "mechanic_hits", "pull_summary", "pull_timeline", "tank_swaps"]
 report = "dTQMvNbBcPh6mDrA"
@@ -146,7 +151,7 @@ wrong = ["says the tank's first death at 2:51 lost the pull",
          "Eternal Venom stacks or Toxic Fumes lost the pull, with no word of the tank death",
          "says a named player failed a soak or the swap"]
 [[case]]
-id = "wipe-droplet-explosion"  # 10 dead in one second to erupting droplets, behind a lone death at 2:26
+id = "wipe-droplet-explosion"  # 11 dead in one second to erupting droplets, behind a lone death at 2:26
 cause = "ability: Noxious Blast"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "mechanic_hits", "pull_summary", "pull_timeline"]
 report = "GM8XdBHaqpFgxK9Q"
@@ -154,7 +159,7 @@ question = "Why did we wipe on Sentinels pull 16?"
 pull = 16
 boss = "Entombed Sentinels"
 expect = """The pull was lost when Toxic Droplets from the 2:21 set were left to erupt: their Noxious Blasts hit the
-whole raid at 2:35-2:36 and killed 10 within a second, half the raid. The fix is clearing that set, the one just
+whole raid at 2:35-2:36 and killed 11 within a second, half the raid. The fix is clearing that set, the one just
 before the intermission at 2:32, as the guide plans it (immunities on the hard sets)."""
 facts = ["Toxic Droplets at 2:21, the intermission (Vitriolic Stasis) at 2:32",
          "Noxious Blast hits every player: two at 2:35 (313.72k and 307.31k) and a third at 2:36 on one of the dead",
@@ -179,7 +184,7 @@ Calcified Corpse at 7:58 that killed most of the raid. The fix is filling every 
 group's too."""
 facts = ["three Serpent's Bites at 7:43: two were cleared in 10 s and 6 s, one was kept the full 15 s",
          "the Calcified Corpse at 7:58",
-         "it killed 8 within 1 s at 7:59 and 19 in all; half the raid was dead at 8:00",
+         "it killed 16 within 1 s at 7:59 and 19 in all; half the raid was dead at 8:00",
          "five players had died before it, from 3:28 to 7:54, a tank to Stone Venom at 7:54 among them"]
 wrong = ["says the tank's death at 7:54, the Caustic Waves or the platform break (Circling Prey) ended the pull",
          "says a lack of damage ended the pull (being behind the kill's pace is a fair side note)",

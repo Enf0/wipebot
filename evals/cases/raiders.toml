@@ -58,7 +58,9 @@ wrong = ["the pulls end because the raid fails a damage check or a timed enrage"
 
 [[case]]
 id = "real-follow-up-who-touched-cyst"  # in a channel; the log shows when cysts burst, not who touched one (#100-#101)
-cause = "ability: Viscous Cyst"  # what an expert names first; `just evals --endings`
+# The engine is right (10 November): four died to Tempest, Raging Crosswinds and Ula'tek's Presence from 1:34, the
+# knockbacks, before the cysts killed six at 1:39, and pull_summary says the deaths first.
+cause = "deaths from 1:34"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]
 report = "vjt3KLbN8g62J1H9"
 question = ["what killed everone on the last attempte", "can you see who touched the cyst"]
@@ -119,16 +121,17 @@ report = "vjt3KLbN8g62J1H9"
 where = "in a DM"
 question = "How am I doing compared to the best BM hunters on this boss? In terms of mechanics, cooldowns etc"
 asker = "Algmor"
-expect = """Nothing big to change in the build or the cooldowns against the top Beast Mastery hunters; the gap is
-staying alive: they died before the wipe was decided on most pulls."""
+expect = """Nothing big to change in the build or the cooldowns against the top Beast Mastery hunters; the gap that
+matters most is staying alive: they died before the wipe was decided on half the pulls. Fewer Kill Command or Barbed
+Shot casts as a second point is fair."""
 drifts = ["25th", "96%"]
-facts = ["26 of 42 pulls",
+facts = ["21 of 40 pulls",
          "all 73 talents common among the top",
          "Bestial Wrath at 0:02, 0:36 and 1:06, like the top",
          "203.76k/s alive on pull 42, above the 25th percentile of ranked kills",
          "Focus at its cap 15% of the time alive",
          "no augment rune, and a main-hand enchant 96% of the top replace with Rite of the Hash'ey"]
-wrong = ["says their talents differ from the top's",
+wrong = ["says their build is far from the top's, or makes talents the main thing to fix (that Dire Beast is the one pick most of the top take and they don't is right to say)",
          "makes fewer Barbed Shot or Kill Command casts than the top parses the main thing to fix, over staying alive"]
 
 [[case]]
@@ -256,8 +259,11 @@ asker = "Seaker"
 expect = """Gives the raid's damage per second in a window of a few seconds around 2:15 of The Coiled Altar pull 16,
 from the damage in that window: about 2.64M/s from 2:10 to 2:20 (26.44M in 10 s). Another window around 2:15 gives
 another number (2.39M/s from 2:13 to 2:17, 2.63M/s from 2:12 to 2:18), and is as right when the answer says which."""
-facts = ["Sonyosh did the most in 2:10-2:20 (3.97M), then Nalaxd (3.71M) and Krøpling (2.85M)",
-         "the whole pull until its wipe was decided at 4:22 averaged 2.27M/s"]
+# 2:15 is the moment asked about, which no output prints. The two other windows are breakdown's own totals with
+# another start and end (checked 10 November: 9.55M in 4 s is 2.39M/s, 15.79M in 6 s is 2.63M/s); the saved answers
+# all asked 2:10 to 2:20, so no replayed call prints their times.
+derived = ["2:15", "2:13 to 2:17", "2:12 to 2:18"]
+facts = ["Sonyosh did the most in 2:10-2:20 (3.97M), then Nalaxd (3.71M) and Krøpling (2.85M)"]
 wrong = ["gives the whole pull's average as the raid DPS at 2:15",
          "says the log can't give the damage at one moment of a pull"]
 

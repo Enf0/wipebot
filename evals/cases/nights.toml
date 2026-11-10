@@ -7,10 +7,12 @@ report = "KBYT4xXn7VNjDgh8"
 id = "night-bottleneck"
 tools = ["boss_guide", "mechanic_hits", "progress", "pull_summary", "pull_timeline"]
 question = "What keeps wiping us on Sszorak?"
-expect = """The boss enraging because a Serpent's Fury isn't popped by 14 players, on most pulls; the early deaths
-leave too few for the stack."""
-facts = ["20 of 33 pulls",
+expect = """The boss enraging (Unbound Ferocity) because a Serpent's Fury isn't popped by 14 players, more than
+anything else. Why the stack fell short may be either: on most pulls the enrage ended enough were alive and it still
+didn't form, and on others early deaths left too few."""
+facts = ["the boss enraged on 20 of 33 pulls, and the enrage is what ended 10",
          "11 of them at 1:17-1:25, the stack before the intermission; 6 at 2:32, 3 at 0:39",
+         "on pulls 13, 23, 24, 29, 30 and 31 it came with 14 to 18 alive, enough for the 14-player stack",
          "the early deaths are Virulence and Tempest (24 each among the first three deaths per pull)"]
 wrong = ["names the Mutilate soak, rather than the missed Serpent's Fury stacks, as what ends most pulls",
          "the second Serpent's Fury pop is too early, stated as fact rather than a possibility"]
@@ -129,17 +131,17 @@ where = "in a DM"  # a DM, as the asker had it
 question = "Were our dispels fast enough on Vashnik?"
 asker = "Miralupa"
 boss = "Vashnik the Malignant"
-expect = """Yes: nearly every Exploding Infection was dispelled. The one held longest on the kill, on Krøpling to 9
-stacks, killed them at 6:31, a second before the boss died, so it cost nothing."""
+expect = """Yes, or mostly yes: nearly every Exploding Infection was dispelled, and slow dispels are not what cost
+the night. Naming the few held long is fair: the one held into the Imbibe that went off and cost pull 4, and the ones
+on the kill (Sveini's through the 6:00 Imbibe, Krøpling's never dispelled), which cost nothing there."""
 facts = ["104 of 113 Exploding Infections were dispelled over the 8 pulls; 35 of 36 on the kill",
-         "Krøpling had it from 6:19 and died at 6:31; Dragepie died to Caustic Explosion the same second",
+         "the one never dispelled on the kill was Krøpling's, from 6:19: it killed them at 6:31, a second before the boss died",
          "Exploding Infection itself killed 3 over the night",
          "the guide wants it dispelled one at a time when the raid is stable, since each removal hits the whole raid"]
 # On the kill a totem went off at the 6:00 Imbibe (Malignance on 19 players at 6:05, Krøpling among them), and
-# Sveini's Infection reached 12 stacks at 6:04 before it was dispelled: holding through an Imbibe is what the guide's
-# "when the raid is stable" means, so neither is a fault to state. No raid note shows who had which dispel.
-# Pull 4: Martin's Exploding Infection reached 11 stacks and went off at 1:51, after the Imbibe; Caustic Explosion
-# killed him and three more. Saying an infection held into the Imbibe cost that pull is fair (22 October).
+# Sveini's Infection reached 12 stacks at 6:04 before it was dispelled; Dragepie died to Caustic Explosion the second
+# Krøpling did. Pull 4: Martin's reached 11 stacks at 1:51, after the Imbibe; Caustic Explosion killed him and three
+# more. No raid note shows who had which dispel.
 wrong = ["says slow dispels caused most of the wipes",
          "says Congealing Bolt needed dispelling (most ran out undispelled)",
          "blames a named healer for Krøpling's death"]
@@ -172,14 +174,14 @@ asker = "Miralupa"
 boss = "Ula'tek"
 expect = """Short (about three lines): the boss died on pull 8 (8:49). Mother's Wrath was the night's killer: on three
 Phase One wipes it hit the whole raid at once, which it does when its target is out of reach, so the change is keeping
-the boss and her tail tanked in reach through Phase One. (The best wipe, 6.2%, was a Serpent's Bite left unsoaked.)"""
+the boss and her tail tanked in reach through Phase One. (The best wipe, pull 6 at 8.7% in the last phase, 6.2% as
+Warcraft Logs counts it, was a Serpent's Bite left unsoaked.)"""
 facts = ["the kill on pull 8 at 8:49, with 7 deaths",
          "Mother's Wrath killed 11 at 1:59 on pull 1 and 15 at 1:59 on pull 3, and many on pull 4",
          "Mother's Wrath the night's killer, 58 deaths until each wipe was decided",
-         "the 6.2% wipe (pull 6) was a Calcified Corpse from an unsoaked Serpent's Bite"]
-wrong = ["gives no change about Mother's Wrath or the tanking in Phase One",
-         "treats Mother's Wrath as raid damage to heal through or survive with cooldowns, not as its target being out of reach",
-         "says the fix is more damage from rotations, gear or cooldowns, with no word on the Phase One wipes",
+         "the best wipe (pull 6, P3 8.7%, WCL 6.2%) was a Calcified Corpse from an unsoaked Serpent's Bite"]
+wrong = ["treats Mother's Wrath as raid damage to heal through or survive with cooldowns, not as its target being out of reach",
+         "makes more damage from rotations, gear or cooldowns the change for next week",
          "blames a named tank for Mother's Wrath going out (the log doesn't show why its target was out of reach)"]
 [[case]]
 id = "healers-imbibe-cooldowns"  # the guide's plan for a role against the log: cooldowns through each Imbibe
