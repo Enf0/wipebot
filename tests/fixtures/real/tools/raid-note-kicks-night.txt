@@ -2,26 +2,17 @@ The raid note for Twin Fangs (Mythic), checked against every The Twin Fangs pull
 Assignments in the note's text:
   Ravenous Feast and Tainted Blood Groups: Left: Attractîv Dragepie Martin Sonyosh Namsus Lïzårðmâñ; Right: Krøpling Zebinomage Peggerino Cptola Enfo Dscopi; Center: Draiman Slushmania Agonco Nalaxd Pomaa Nexsozz
   Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Enfo; Kick #2 left: Dragepie; Kick #2 right: Dscopi; Kick #3 left: Martin; Kick #3 right: Krøpling; Kick #4 left: Attractîv; Kick #4 right: Peggerino; Kick #5 left: Agonco; Kick #5 right: Zebinomage
-Ravenous Feast and Tainted Blood Groups: 14 hits of Ravenous Feast [1290662] over 7 pulls (4 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
-  Enfo (Right): hit by 2 of 4; missed 2: p6 1:03, p10 1:03; in the other group's 1
-  Agonco (Center): hit by 2 of 3; missed 1: p10 1:04; dead for 1 more; in the other group's 2
-  Cptola (Right): hit by 3 of 4; missed 1: p6 1:03; in the other group's 2
-  Dragepie (Left): hit by 4 of 5; missed 1: p11 1:01; dead for 1 more
-  Dscopi (Right): hit by 3 of 4; missed 1: p6 1:03; in the other group's 2
-  Nalaxd (Center): hit by 2 of 3; missed 1: p10 1:04; dead for 1 more; in the other group's 1
-  Pomaa (Center): hit by 3 of 4; missed 1: p12 1:03; in the other group's 1
-  Sonyosh (Left): hit by 5 of 6; missed 1: p12 1:01
-  Attractîv (Left): hit by 5 of 5; dead for 1 more
-  Draiman (Center): hit by 3 of 3; dead for 1 more; in the other group's 1
-  Krøpling (Right): hit by 4 of 4; in the other group's 1
-  Lïzårðmâñ (Left): hit by 6 of 6
-  Martin (Left): hit by 5 of 5; dead for 1 more
-  Namsus (Left): hit by 6 of 6
-  Nexsozz (Center): hit by 4 of 4; in the other group's 1
-  Peggerino (Right): hit by 4 of 4; in the other group's 1
-  Slushmania (Center): hit by 3 of 3; dead for 1 more; in the other group's 2
-  Zebinomage (Right): hit by 4 of 4; in the other group's 1
-  Hit, in no group: Wutroll 7, Karadim 6
+Ravenous Feast and Tainted Blood Groups: 14 hits of Ravenous Feast [1290662] over 7 pulls (4 more after the wipes were decided), each given to the group called to soak within 20 s of it with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them and which they missed:
+  Enfo (Right): hit by 2 of 4; missed 2: p6 1:03, p10 1:03
+  Agonco (Center): hit by 2 of 3; missed 1: p10 1:04
+  Cptola (Right): hit by 3 of 4; missed 1: p6 1:03
+  Dragepie (Left): hit by 3 of 4; missed 1: p11 1:01
+  Dscopi (Right): hit by 3 of 4; missed 1: p6 1:03
+  Nalaxd (Center): hit by 2 of 3; missed 1: p10 1:04
+  Missed none while alive: Attractîv (Left) 4 of 4; Draiman (Center) 3 of 3; Krøpling (Right) 4 of 4; Lïzårðmâñ (Left) 4 of 4; Martin (Left) 4 of 4; Namsus (Left) 4 of 4; Nexsozz (Center) 3 of 3; Peggerino (Right) 4 of 4; Pomaa (Center) 3 of 3; Slushmania (Center) 3 of 3; Sonyosh (Left) 4 of 4; Zebinomage (Right) 4 of 4
+  Hit by another group's soak too: Agonco 1, Cptola 1, Dscopi 1
+  Counted for no one: 3 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p6 1:05, p12 1:01, p12 1:03
+  Hit, in no group: Wutroll 5, Karadim 4
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
   Lïzårðmâñ: 34 planned uses; on time 6, early 5 (2 s), late 8 (3 s), not cast 14, dead 1
     0:16 Rewind [363534], 15 pulls: on time 4, late 8 (3 s), not cast 2 (p4, p13), dead 1

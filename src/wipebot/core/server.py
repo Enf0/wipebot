@@ -1165,11 +1165,12 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     """For "did people do their jobs?", "who missed their soak?", "were the cooldowns on time?", "who didn't kick
     as assigned?", and over the night "who missed their soak most?", "who pressed personals when the note said?".
     The raid's assignment and cooldown note checked against a pull: the assignments (soak groups, spreads,
-    single-player jobs), each soak's hits against its group (who of the group wasn't hit, alive or dead, who
-    else was), each planned cooldown against when the player cast it (on time, early, late, not cast), each kick
-    assignment (a callout to one player as an add begins a cast) against who kicked that cast, and each
-    callout for personals ("Big Personals" to everyone) with what the players it names pressed around it and what
-    they had ready.
+    single-player jobs), each soak's hits against the group the note calls to soak then (who of the group wasn't
+    hit, alive or dead, who else was; a hit at no group's time, or on too few players to tell whose soak it was, is
+    listed and counted for no one), each planned cooldown against when the player cast it (on time, early, late, not
+    cast), each kick assignment (a callout to one player as an add begins a cast) against who kicked that cast, and
+    each callout for personals ("Big Personals" to everyone) with what the players it names pressed around it and
+    what they had ready.
     Reading it: a callout's tracked spells carry Lorrgs' tags (defensive, raid_cd, tank, move, dps, untagged);
     only callouts for personals or defensives are checked, a defensive or a tank cooldown counting as pressed, with
     what else those who pressed none pressed (untagged ones may be a defensive Lorrgs doesn't tag, such as

@@ -4,7 +4,7 @@ Assignments in the note's text:
   Intermission Orb Popper: Orb Popper: Dragepie
   Virulence Spreads: Spread: Nexsozz Pomaa Fappachino Algmor Mizaroth Deathadim Agonco Slushmania Sonyosh Peggerino Scopidruid Zebinomage Krøpling Dragepie Draiman; Bait Serpent's Fury / Bite: Martin; Don't Stack: Enfo Namsus Miralupa Lïzårðmâñ
   Virulence trigger: Trigger: Martin
-Mutilate Soaks: each hit of Mutilate [1285999], matched to the group with most of its players hit (10 hits):
+Mutilate Soaks: each hit of Mutilate [1285999], given to the group called to soak within 20 s of it with most of its players hit (10 hits):
   0:16 Left: 10 of 10 hit, 366.44k each
   0:24 Right: 7 of 9 hit, 370.75k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll
   0:55 Right: 7 of 9 hit, 375.54k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll

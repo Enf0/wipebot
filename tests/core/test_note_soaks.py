@@ -12,6 +12,9 @@ from wipebot.core.report import note
 
 FEAST = 1290662
 GROUPS = {"Right": ["Torvek", "Mirelle"], "Left": ["Halvard", "Rowan"], "Center": ["Brightleaf", "Stonewall", "Ysolde"]}
+SIDES = {"Left": ["Torvek", "Mirelle", "Halvard", "Rowan", "Brightleaf", "Stonewall"],
+         "Right": ["Ysolde", "Corwin", "Thessaly", "Garrick", "Linnea", "Osric"]}
+REP = cast(Any, SimpleNamespace(ability_ref=lambda spell: f"Feast [{spell}]", pull_no=lambda f: f["id"]))
 
 
 @pytest.fixture
@@ -20,16 +23,17 @@ def recorded(monkeypatch):
     serve_from(monkeypatch, Replay())
 
 
-def _note(calls: dict[str, tuple[float, ...]]) -> note.Note:
-    """A note with GROUPS under "Feast Soaks", each group called to soak at these seconds."""
-    return note.Note(3418, "Mythic", "Vashnik", groups={"Feast Soaks": GROUPS}, callouts=[
-        note.Callout(at, 1, tuple(GROUPS[label]), f"Soak {label}") for label, times in calls.items() for at in times])
+def _note(calls: dict[str, tuple[float, ...]], groups: dict[str, list[str]] = GROUPS) -> note.Note:
+    """A note with `groups` under "Feast Soaks", each group called to soak at these seconds."""
+    return note.Note(3418, "Mythic", "Vashnik", groups={"Feast Soaks": groups}, callouts=[
+        note.Callout(at, 1, tuple(groups[label]), f"Soak {label}") for label, times in calls.items() for at in times])
 
 
 async def _soaks(plan: note.Note, landings: dict[int, list[str]], until: float = 600_000) -> note.Soaks:
     """The soak check of a pull where Feast landed on these players, {ms from the pull's start: who}, the hits of one
     landing a few ms apart as in a log."""
-    names = dict(enumerate(sorted({n for ns in GROUPS.values() for n in ns} | {n for ns in landings.values()
+    groups = plan.groups["Feast Soaks"]
+    names = dict(enumerate(sorted({n for ns in groups.values() for n in ns} | {n for ns in landings.values()
                                                                                for n in ns}), 1))
     ids = {n: i for i, n in names.items()}
 
@@ -43,7 +47,7 @@ async def _soaks(plan: note.Note, landings: dict[int, list[str]], until: float =
                           ids_named=lambda words: {FEAST} if list(words) == ["Feast"] else set())
     players = cast(Any, {n: SimpleNamespace(name=n) for n in names.values()})
     [section] = await note._soaks(cast(Any, rep), {"id": 1, "startTime": 0}, plan, players,
-                                  lambda name, at: "alive", until)
+                                  lambda name, at: "alive", lambda c: c.at * 1000, until)
     return section
 
 
@@ -69,4 +73,98 @@ async def test_the_recorded_twin_fangs_soaks_read_right_left_center_on_every_pul
     firsts = Counter(tuple(h.label for h in s.hits[:3]) for c in night.checks for s in c.soaks if s.hits)
     assert firsts == {("Right", "Left", "Center"): 35}
     labels = Counter(h.label for c in night.checks for s in c.soaks for h in s.hits)
-    assert labels == {"Right": 57, "Left": 58, "Center": 61}  # 57 waves before a wipe was decided, each group in each
+    # 57 waves before a wipe was decided, each group in each; and two hits as wipes were decided, on one player and
+    # on two of the Left group and two of the Center
+    assert labels == {"Right": 57, "Left": 57, "Center": 60, "": 2}
+
+
+async def test_a_hit_far_from_every_soak_callout_is_no_groups_soak():
+    """The Coiled Altar's Guillotine is soaked at the note's two Stage One callouts, 0:48 and 2:13, and comes again in
+    Stage Two on one player. That hit, 33 s from any callout, went to the group with the player in it, and the rest
+    of the group were listed as missing a soak (23 of the 57 missed soaks an officer was given one night)."""
+    plan = _note({"Right": (48,), "Left": (133,), "Center": (400,)})
+    section = await _soaks(plan, {48_200: ["Torvek", "Mirelle"], 133_100: ["Halvard", "Rowan"], 166_000: ["Torvek"]})
+    assert [(h.label, h.why) for h in section.hits] == [("Right", ""), ("Left", ""), ("", note.OUTSIDE)]
+    assert section.hits[2].absent == [] and section.hits[2].hit == {"Torvek"}  # listed, with no one missing it
+    assert note._pull_soaks(REP, [section], 600_000) == [
+        "Feast Soaks: each hit of Feast [1290662], given to the group called to soak within 20 s of it with most of "
+        "its players hit (3 hits):",
+        "  0:48 Right: 2 of 2 hit, 300.00k each",
+        "  2:13 Left: 2 of 2 hit, 300.00k each",
+        "  2:46 outside the note's soak times: 1 player hit, 300.00k each; counted for no one"]
+
+
+async def test_a_hit_on_a_player_or_two_or_as_many_of_two_groups_is_given_to_neither():
+    """Sszorak's note calls both sides at the same second and the side that goes first varies, so only who was hit
+    says whose soak it was. One player of each (pull 19 at 0:08) went to the first group in the note and two of one
+    (pull 1 at 0:08) to their group, each a miss for the rest of it; neither singles a group out. Four of one and a
+    visitor do."""
+    plan = _note({"Left": (11, 57), "Right": (11, 58)}, SIDES)
+    section = await _soaks(plan, {8_050: ["Torvek", "Ysolde"], 20_000: ["Mirelle", "Halvard"],
+                                  55_000: ["Torvek", "Mirelle", "Halvard", "Rowan", "Ysolde"]})
+    assert [(h.label, h.why, h.near) for h in section.hits] == [
+        ("", note.UNCLEAR, {"Left": 1, "Right": 1}), ("", note.UNCLEAR, {"Left": 2, "Right": 0}),
+        ("Left", "", {"Left": 4, "Right": 1})]
+    assert section.hits[2].absent == [("Brightleaf", "alive"), ("Stonewall", "alive")]
+    assert section.hits[2].others == [("Ysolde", "Right")]
+    assert note._pull_soaks(REP, [section], 600_000)[1:3] == [
+        "  0:08 can't tell whose soak: 2 players hit (Left 1, Right 1), 300.00k each; counted for no one",
+        "  0:20 can't tell whose soak: 2 players hit (Left 2, Right 0), 300.00k each; counted for no one"]
+
+
+async def test_a_group_the_note_never_calls_is_matched_by_who_was_hit_alone_and_the_output_says_so():
+    """A soak group with no timed callout of its own has no soak times in the note: a hit at any time may be its."""
+    section = await _soaks(_note({"Right": (61,), "Left": (63,)}), {
+        61_200: ["Torvek", "Mirelle"], 200_000: ["Brightleaf", "Stonewall", "Ysolde"], 300_000: ["Halvard", "Rowan"]})
+    assert section.untimed == ["Center"]
+    assert [(h.label, h.why) for h in section.hits] == [("Right", ""), ("Center", ""), ("", note.UNCLEAR)]
+    assert section.hits[2].near == {"Center": 0}  # Left's players, with Left called 4 minutes before
+    assert note._pull_soaks(REP, [section], 600_000)[-1] == (
+        "  The note has no timed callout to Center: a hit at any time may be its, by the players hit alone")
+
+
+async def test_a_night_counts_soaks_per_player_and_group_and_lists_the_hits_given_to_no_group():
+    """A player in two groups (a soak in each stage) gets a row for each; a row labelled with the first group seen
+    counted all of them. Those who missed none share a line, and hits given to no group are listed apart."""
+    groups = {"Stage One": ["Torvek", "Mirelle", "Halvard"], "Stage Three": ["Torvek", "Rowan", "Brightleaf"]}
+    plan = _note({"Stage One": (48,), "Stage Three": (300,)}, groups)
+    pulls = [await _soaks(plan, {48_100: ["Torvek", "Mirelle", "Halvard"], 166_000: ["Rowan"],
+                                 300_400: ["Rowan", "Brightleaf", "Halvard"]}),
+             await _soaks(plan, {48_100: ["Torvek", "Mirelle"]})]
+    checks = cast(Any, [SimpleNamespace(f={"id": i}, soaks=[s]) for i, s in enumerate(pulls, 1)])
+    assert note._night_soaks(REP, checks) == [
+        "Feast Soaks: 4 hits of Feast [1290662] over 2 pulls, each given to the group called to soak within 20 s of it "
+        "with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, "
+        "how many hit them and which they missed:",
+        "  Halvard (Stage One): hit by 1 of 2; missed 1: p2 0:48",
+        "  Torvek (Stage Three): hit by 0 of 1; missed 1: p1 5:00",
+        "  Missed none while alive: Brightleaf (Stage Three) 1 of 1; Mirelle (Stage One) 2 of 2; Rowan (Stage Three) "
+        "1 of 1; Torvek (Stage One) 2 of 2",
+        "  Hit by another group's soak too: Halvard 1",
+        "  Counted for no one: 1 hit outside the note's soak times (no group called within 20 s of them): p1 2:46"]
+
+
+async def test_groups_whose_ability_lands_on_a_player_or_two_each_time_are_not_soak_groups():
+    """A list of groups for another job (who CCs which set of orbs) under a heading naming an ability the raid avoids
+    read as soak groups: nine players each "missed" nine hits. When under a fifth of the hits in the note's times
+    land on a group, the night says so once and counts no one."""
+    plan = _note({"Left": (9, 50), "Right": (9, 50)}, SIDES)
+    pulls = [await _soaks(plan, {9_000: ["Torvek"], 50_000: ["Ysolde", "Mirelle"]}),
+             await _soaks(plan, {9_000: ["Corwin", "Garrick"]})]
+    checks = cast(Any, [SimpleNamespace(f={"id": i}, soaks=[s]) for i, s in enumerate(pulls, 1)])
+    assert note._night_soaks(REP, checks) == [
+        "Feast Soaks: 3 hits of Feast [1290662] over 2 pulls, but only 0 of the 3 in the note's soak times landed on "
+        "a group (under a fifth; the rest on a player or two of each): likely not soak groups (an ability to avoid, "
+        "or groups for another job), so no one is counted as missing it"]
+
+
+async def test_the_recorded_sszorak_night_charges_no_group_for_its_four_hits_on_a_few_players(recorded):
+    """The night of vjt3KLbN8g62J1H9: four of its 172 Mutilate hits landed on two to four players as the pull fell
+    apart (28 of the night's 328 "missed while alive"). Every hit of the night is within 20 s of a soak callout."""
+    text = (TOOLS.parent / "notes" / "sszorak-2026-10-12.txt").read_text(encoding="utf-8")
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    night = await note.check_night(rep, text, "Sszorak")
+    hits = [(c.f, h) for c in night.checks for s in c.soaks for h in s.hits]
+    assert [(rep.pull_no(f), h.at // 1000, h.why, len(h.hit)) for f, h in hits if not h.label] == [
+        (1, 8, note.UNCLEAR, 2), (3, 59, note.UNCLEAR, 2), (10, 8, note.UNCLEAR, 4), (19, 8, note.UNCLEAR, 2)]
+    assert sum(st == "alive" for _, h in hits for _, st in h.absent) == 300

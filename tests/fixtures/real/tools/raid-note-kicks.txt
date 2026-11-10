@@ -2,8 +2,7 @@ The raid note for Twin Fangs (Mythic), checked against The Twin Fangs pull 14 (1
 Assignments in the note's text:
   Ravenous Feast and Tainted Blood Groups: Left: Attractîv Dragepie Martin Sonyosh Namsus Lïzårðmâñ; Right: Krøpling Zebinomage Peggerino Cptola Enfo Dscopi; Center: Draiman Slushmania Agonco Nalaxd Pomaa Nexsozz
   Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Enfo; Kick #2 left: Dragepie; Kick #2 right: Dscopi; Kick #3 left: Martin; Kick #3 right: Krøpling; Kick #4 left: Attractîv; Kick #4 right: Peggerino; Kick #5 left: Agonco; Kick #5 right: Zebinomage
-Ravenous Feast and Tainted Blood Groups: each hit of Ravenous Feast [1290662], matched to the group with most of its players hit (2 hits):
-  2 more after the wipe was decided at 0:56
+Ravenous Feast and Tainted Blood Groups: 2 hits of Ravenous Feast [1290662], after the wipe was decided at 0:56: not checked
 Planned cooldowns (time in the note: what happened):
   0:16 Lïzårðmâñ Rewind [363534]: cast at 0:17, 2s late
   0:37 Enfo Ascendance [114052]: cast at 0:38, 2s late

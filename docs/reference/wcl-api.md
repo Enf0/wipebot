@@ -168,6 +168,11 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   damage. The events themselves have the normal source/target.
 - `table(DamageTaken, hostilityType: Friendlies)` lists only the top 5 abilities per player; filter with
   `sourceID` for one player's full list. `viewBy: Ability` gives per-ability totals with targets.
+- One landing of an ability on several players is logged within 50 ms: 2,328 gaps between successive hits of
+  Mutilate and Ravenous Feast over three nights (vjt3KLbN8g62J1H9, p7jRwgv8b1rY6LBd, fvkH4hGZwDRVnyXJ). The next
+  landing came 1.2 s later at the soonest: Ravenous Feast lands on three groups in turn, 2.0 s and 1.5 s apart (57
+  waves each), Mutilate 3.8 s apart or more. Three gaps of 0.2-0.3 s were hits as a raid wiped. So hits are one
+  landing when 500 ms apart or less (`note.BURST_MS`); at 2 s the three Ravenous Feast soaks read as one.
 - Dispels and Interrupts tables nest per ability: `entries[0].entries[]` with `spellsBegun`,
   `spellsInterrupted` (dispelled), `spellsCompleted` and per-player `details`. They don't say who was dispelled;
   `events(dataType: Dispels)` does: `type: "dispel"`, `sourceID` the dispeller (a totem, e.g. Poison Cleansing

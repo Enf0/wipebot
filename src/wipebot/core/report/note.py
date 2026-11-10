@@ -27,6 +27,17 @@ NEVER_CAST_MIN = 3  # pulls a planned spell was missed on, never cast at all, be
 # Hits of an ability this close together are one hit of it (one soak). One landing's hits come within 50 ms in the
 # log, and soaks that go group after group (The Twin Fangs' Ravenous Feast) land 1.5 s apart or more.
 BURST_MS = 500
+# A hit is a soak the note assigned when the note calls one of the section's groups to soak this close to it: on the
+# recorded nights every soak landed within 15 s of a callout to its group, and the hits that were no group's soak (the
+# ability's other use, in another stage) 31 s or more from any.
+SOAK_CALL_MS = 20_000
+# This few of a group's players in a hit, and under half the group, single no group out: a player or two standing in
+# another group's soak look the same.
+SOAK_FEW = 2
+OUTSIDE, UNCLEAR = "outside the note's soak times", "can't tell whose soak"  # why a hit is given to no group
+NO_GROUP = {OUTSIDE: f"outside the note's soak times (no group called within {SOAK_CALL_MS // 1000} s of them)",
+            UNCLEAR: "where the log can't tell whose soak it was (a player or two of a group hit, or as many of two)"}
+SOAKS_ARE = f"given to the group called to soak within {SOAK_CALL_MS // 1000} s of it with most of its players hit"
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
 PLANNED_NEAR_MS = 10_000  # a cooldown the note plans for a player this close to a callout is their answer to it
 HELD_MS = 15_000  # a tank's cooldown pressed this soon after a callout's window was kept for what came next
@@ -170,12 +181,14 @@ def _version(found: list[Version], start_s: float) -> Version:
 @dataclass
 class SoakHit:
     at: float  # ms from the pull's start
-    label: str  # the group it was matched to
+    label: str  # the group it was given to; "" for a hit given to none (`why`), which counts for no one
     group: list[str]
     hit: set[str]
     size: float  # the median damage per player hit
     absent: list[tuple[str, str]]  # (player of the group not hit, their state)
-    others: list[tuple[str, str | None]]  # (player hit from outside the group, their group if any)
+    others: list[tuple[str, str | None]]  # (player hit from outside the group, their groups if any)
+    why: str = ""  # OUTSIDE or UNCLEAR
+    near: dict[str, int] = field(default_factory=dict)  # of an UNCLEAR hit: the groups called then, players hit
 
 
 @dataclass
@@ -186,6 +199,7 @@ class Soaks:
     hits: list[SoakHit] = field(default_factory=list)
     total: int = 0  # every hit, counting those after the wipe was decided
     later: int = 0
+    untimed: list[str] = field(default_factory=list)  # the groups the note never calls to soak (`_soak_calls`)
 
 
 @dataclass
@@ -337,7 +351,7 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
         callouts, why = await _callouts(rep, f, note, players, died, when, calls), ""
     except KnowledgeError as e:
         callouts, why = [], unavailable("Callouts (Lorrgs' spells for each spec)", e)
-    return PullCheck(f, note, decided, until, await _soaks(rep, f, note, players, state, until),
+    return PullCheck(f, note, decided, until, await _soaks(rep, f, note, players, state, when, until),
                      await _cooldowns(rep, f, note, players, state, when, until), callouts, kicks,
                      sorted(n for n in named if n not in players or players[n].name not in in_pull), why, unchecked)
 
@@ -367,29 +381,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
                                     if c.decided else "")
              + ". Note times count from the pull's start (ph:1) or from the phase's first start."]
     lines += _assignments(c.note)
-    for s in c.soaks:
-        if s.ability is None:
-            lines.append(f"{s.heading}: no ability of that name hit players on this pull")
-            continue
-        lines.append(f"{s.heading}: each hit of {rep.ability_ref(s.ability)}, matched to the group with most of its "
-                     f"players hit ({plural(s.total, 'hit')}):")
-        for h in s.hits:
-            line = f"  {clock(h.at)} {h.label}: {len(h.hit & set(h.group))} of {len(h.group)} hit, {short(h.size)} each"
-            if h.absent:
-                line += "; not hit: " + ", ".join(f"{n} ({st})" for n, st in h.absent)
-            if h.others:
-                line += "; also hit: " + ", ".join(f"{n} ({g})" if g else n for n, g in h.others)
-            lines.append(line)
-        took: Counter = Counter()
-        alive: Counter = Counter()
-        for h in s.hits:
-            for n in h.group:
-                took[n] += n in h.hit
-                alive[n] += n in h.hit or (n, "alive") in h.absent
-        if few := _few_soaks(took, alive):
-            lines.append(few)
-        if s.later:
-            lines.append(f"  {s.later} more after the wipe was decided at {clock(c.until)}")
+    lines += _pull_soaks(rep, c.soaks, c.until)
     if c.planned:
         lines.append("Planned cooldowns (time in the note: what happened):")
         for u in c.planned.uses:
@@ -475,6 +467,44 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
     return "\n".join(lines)
 
 
+def _pull_soaks(rep: Report, soaks: list[Soaks], until: float) -> list[str]:
+    """Each soak section's hits on one pull up to `until`, in order: the group a hit was given to with who of it
+    wasn't hit and who else was, or why it was given to none."""
+    lines = []
+    for s in soaks:
+        if s.ability is None:
+            lines.append(f"{s.heading}: no ability of that name hit players on this pull")
+            continue
+        if s.later and not s.hits:  # nothing to check, so no rule to state
+            lines.append(f"{s.heading}: {plural(s.total, 'hit')} of {rep.ability_ref(s.ability)}, after the wipe was "
+                         f"decided at {clock(until)}: not checked")
+            continue
+        lines.append(f"{s.heading}: each hit of {rep.ability_ref(s.ability)}, {SOAKS_ARE} ({plural(s.total, 'hit')}):")
+        took: Counter = Counter()
+        alive: Counter = Counter()
+        for h in s.hits:
+            if not h.label:
+                lines.append(f"  {clock(h.at)} {h.why}: {plural(len(h.hit), 'player')} hit"
+                             + (" (" + ", ".join(f"{label} {n}" for label, n in h.near.items()) + ")" if h.near else "")
+                             + f", {short(h.size)} each; counted for no one")
+                continue
+            for n in h.group:
+                took[(n, h.label)] += n in h.hit
+                alive[(n, h.label)] += n in h.hit or (n, "alive") in h.absent
+            line = f"  {clock(h.at)} {h.label}: {len(h.hit & set(h.group))} of {len(h.group)} hit, {short(h.size)} each"
+            if h.absent:
+                line += "; not hit: " + ", ".join(f"{n} ({st})" for n, st in h.absent)
+            if h.others:
+                line += "; also hit: " + ", ".join(f"{n} ({g})" if g else n for n, g in h.others)
+            lines.append(line)
+        lines += _untimed([s])
+        if few := _few_soaks(took, alive):
+            lines.append(few)
+        if s.later:
+            lines.append(f"  {s.later} more after the wipe was decided at {clock(until)}")
+    return lines
+
+
 def _by_count(counts: Counter) -> list[tuple[str, int]]:
     """Most first, ties by name: the same order on every run (tags come from sets)."""
     return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
@@ -507,9 +537,40 @@ def _soak_sections(note: Note) -> dict[str, dict[str, list[str]]]:
 DAMAGE_BY_ABILITY: dict[str, Any] = {"hostilityType": "Friendlies", "viewBy": "Ability"}
 
 
-async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], state, until: float) -> list[Soaks]:
+def _soak_calls(note: Note, groups: dict[str, list[str]], when) -> dict[str, list[float] | None]:
+    """When the note calls each group of a soak section to soak on a pull, in ms from its start: the times of the
+    callouts to exactly the group's players. None for a group the note has no such callout for: the note doesn't
+    time its soaks, so a hit at any time may be its."""
+    out: dict[str, list[float] | None] = {}
+    for label, names in groups.items():
+        mine = [c for c in note.callouts if names and frozenset(c.players) == frozenset(names)]
+        out[label] = [at for c in mine if (at := when(c)) is not None] if mine else None
+    return out
+
+
+def _whose(hit: AbstractSet[str], at: float, members: dict[str, list[str]],
+           calls: dict[str, list[float] | None]) -> tuple[str, str, dict[str, int]]:
+    """The group a hit of a soak section's ability is given to, or "" with why it's given to none, and how many
+    players of each group it could be given to were hit. Those are the groups the note calls to soak within
+    SOAK_CALL_MS of the hit, and the ones it never times (`_soak_calls`); of them, the one with most of its players
+    hit. With none called then, the hit is OUTSIDE the note's soak times. UNCLEAR is a hit that singles none out: no
+    player of theirs hit, as many of two groups', or of the one with most only SOAK_FEW or fewer and under half of
+    it."""
+    near = {label: len(hit & set(members[label])) for label, times in calls.items()
+            if times is None or any(abs(t - at) <= SOAK_CALL_MS for t in times)}
+    if not near:
+        return "", OUTSIDE, near
+    label, most = max(near.items(), key=lambda kv: kv[1])
+    tied = sum(n == most for n in near.values()) > 1
+    if not most or tied or (most <= SOAK_FEW and 2 * most < len(members[label])):
+        return "", UNCLEAR, near
+    return label, "", near
+
+
+async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,
+                 until: float) -> list[Soaks]:
     """Per section of groups that get timed callouts (soak groups, not a spread list): each hit of the section's
-    ability, matched to the group with most of its players among those hit."""
+    ability, given to the group it was the soak of (`_whose`) or to none."""
     sections = _soak_sections(note)
     if not sections:
         return []
@@ -532,18 +593,25 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
                 bursts[-1].append(e)
             else:
                 bursts.append([e])
-        section = Soaks(heading, members, ids[0], total=len(bursts))
+        calls = _soak_calls(note, groups, when)
+        section = Soaks(heading, members, ids[0], total=len(bursts),
+                        untimed=[label for label, times in calls.items() if times is None])
         if later := sum(b[0]["timestamp"] - t0 > until for b in bursts):
             bursts = bursts[:-later]
         section.later = later
-        owner = {n: lab for lab, ns in members.items() for n in ns}
+        owner: dict[str, list[str]] = defaultdict(list)  # a player may be in several groups (a soak in each stage)
+        for label, ns in members.items():
+            for n in ns:
+                owner[n].append(label)
         for burst in bursts:
             at = burst[0]["timestamp"] - t0
             hit = {rep.actor(e["targetID"]) for e in burst}
-            label, group = max(members.items(), key=lambda kv: len(hit & set(kv[1])))
             size = sorted(e.get("amount", 0) + e.get("absorbed", 0) for e in burst)[len(burst) // 2]
-            section.hits.append(SoakHit(at, label, group, hit, size, [(n, state(n, at)) for n in group if n not in hit],
-                                        [(n, owner.get(n)) for n in sorted(hit - set(group))]))
+            label, why, near = _whose(hit, at, members, calls)
+            group = members[label] if label else []
+            section.hits.append(SoakHit(
+                at, label, group, hit, size, [(n, state(n, at)) for n in group if n not in hit],
+                [(n, "/".join(owner[n]) or None) for n in sorted(hit - set(group))] if label else [], why, near))
         out.append(section)
     return out
 
@@ -848,27 +916,26 @@ def _night_soaks(rep: Report, checks: list[PullCheck]) -> list[str]:  # noqa: C9
         if not sections:
             out.append(f"{heading}: no ability of that name hit players on any pull")
             continue
-        alive: Counter = Counter()
+        alive: Counter = Counter()  # these four per (player, group): a player may be in several groups
         took: Counter = Counter()
-        missed: dict[str, list[tuple[dict, float]]] = defaultdict(list)
+        missed: dict[tuple[str, str], list[tuple[dict, float]]] = defaultdict(list)
         dead: Counter = Counter()
         other: Counter = Counter()
-        group_of: dict[str, str] = {}
         stray: Counter = Counter()
+        no_group: dict[str, list[tuple[dict, float]]] = defaultdict(list)  # why -> the hits given to no group
         for c, s in sections:
             for h in s.hits:
-                for n in h.group:
-                    group_of.setdefault(n, h.label)
-                hit_in_group = h.hit & set(h.group)
-                for n in hit_in_group:
-                    alive[n] += 1
-                    took[n] += 1
+                if not h.label:
+                    no_group[h.why].append((c.f, h.at))
+                for n in h.hit & set(h.group):
+                    alive[(n, h.label)] += 1
+                    took[(n, h.label)] += 1
                 for n, st in h.absent:
                     if st == "alive":
-                        alive[n] += 1
-                        missed[n].append((c.f, h.at))
+                        alive[(n, h.label)] += 1
+                        missed[(n, h.label)].append((c.f, h.at))
                     elif st.startswith("dead"):
-                        dead[n] += 1
+                        dead[(n, h.label)] += 1
                 for n, g in h.others:
                     if g:
                         other[n] += 1
@@ -876,36 +943,78 @@ def _night_soaks(rep: Report, checks: list[PullCheck]) -> list[str]:  # noqa: C9
                         stray[n] += 1
         hits = sum(len(s.hits) for _, s in sections)
         later = sum(s.later for _, s in sections)
-        out.append(f"{heading}: {plural(hits, 'hit')} of {rep.ability_ref(sections[0][1].ability)} over "
-                   f"{plural(len(sections), 'pull')}"
-                   + (f" ({later} more after the wipes were decided)" if later else "")
-                   + ", each matched to the group with most of its players hit. Per player of a group, most missed "
-                   "first: of their group's hits while alive, how many hit them, the ones they missed, and hits of "
-                   "the other group that hit them too:")
-        for n in sorted(alive, key=lambda n: (-len(missed[n]), n)):
-            line = f"  {n} ({group_of.get(n, '?')}): hit by {took[n]} of {alive[n]}"
-            if missed[n]:
-                line += f"; missed {len(missed[n])}: {_pulls(rep, missed[n])}"
-            if dead[n]:
-                line += f"; dead for {dead[n]} more"
-            if other[n]:
-                line += f"; in the other group's {other[n]}"
+        head = (f"{heading}: {plural(hits, 'hit')} of {rep.ability_ref(sections[0][1].ability)} over "
+                f"{plural(len(sections), 'pull')}" + (f" ({later} more after the wipes were decided)" if later else ""))
+        if no_soaks := _no_soaks([h for _, s in sections for h in s.hits]):
+            out.append(f"{head}, {no_soaks}")
+            continue
+        out.append(f"{head}, each {SOAKS_ARE}. Per player of a group, most missed first: of their group's hits while "
+                   "alive, how many hit them and which they missed:")
+        few = _few(took, alive)  # named apart below, as likely not soaking with the group: no row of misses
+        none = []
+        for k in sorted(alive, key=lambda k: (-len(missed[k]), k)):
+            row = f"{k[0]} ({k[1]})"
+            also = f"; dead for {dead[k]} more" if dead[k] else ""
+            if missed[k] and k not in few:
+                out.append(f"  {row}: hit by {took[k]} of {alive[k]}; missed {len(missed[k])}: {_pulls(rep, missed[k])}"
+                           + also)
+            elif k not in few:
+                none.append(f"{row} {took[k]} of {alive[k]}{also.replace(';', ',')}")
+        if none:
+            out.append("  Missed none while alive: " + "; ".join(none))
+        if other:
+            out.append("  Hit by another group's soak too: " + ", ".join(f"{n} {k}" for n, k in _by_count(other)))
+        out += [f"  Counted for no one: {plural(len(at), 'hit')} {NO_GROUP[why]}: {_pulls(rep, at)}"
+                for why, at in no_group.items()]
+        out += _untimed([s for _, s in sections])
+        if line := _few_soaks(took, alive):
             out.append(line)
-        if few := _few_soaks(took, alive):
-            out.append(few)
         if stray:
             out.append("  Hit, in no group: " + ", ".join(f"{n} {k}" for n, k in _by_count(stray)))
     return out
 
 
+def _untimed(sections: list[Soaks]) -> list[str]:
+    """The line naming the groups the note never calls to soak, whose hits are found by the players hit alone."""
+    labels = list(dict.fromkeys(label for s in sections for label in s.untimed))
+    if not labels:
+        return []
+    return [f"  The note has no timed callout to {', '.join(labels)}: a hit at any time may be "
+            f"{'its' if len(labels) == 1 else 'theirs'}, by the players hit alone"]
+
+
+def _no_soaks(hits: list[SoakHit]) -> str:
+    """What the night says of a section whose groups aren't soaking its ability (a CC list, an ability to avoid): of
+    the hits in the note's soak times, at least FEW_SOAKS_MIN, under FEW_SOAKS could be given to a group, the rest
+    landing on a player or two of each. No one is counted as missing those; '' for a section that soaks."""
+    timed = [h for h in hits if h.why != OUTSIDE]
+    given = sum(bool(h.label) for h in timed)
+    if len(timed) < FEW_SOAKS_MIN or given >= FEW_SOAKS * len(timed):
+        return ""
+    return (f"but only {given} of the {len(timed)} in the note's soak times landed on a group (under a fifth; the "
+            "rest on a player or two of each): likely not soak groups (an ability to avoid, or groups for another "
+            "job), so no one is counted as missing it")
+
+
+def _few(took: Counter, alive: Counter) -> list:
+    """Who was hit by almost none of their group's soaks while alive (FEW_SOAKS), of the counts' keys."""
+    return [k for k in alive if alive[k] >= FEW_SOAKS_MIN and took[k] < FEW_SOAKS * alive[k]]
+
+
 def _few_soaks(took: Counter, alive: Counter) -> str:
-    """The line naming the players hit by almost none of their group's soaks while alive, or ''."""
-    few = [n for n in alive if alive[n] >= FEW_SOAKS_MIN and took[n] < FEW_SOAKS * alive[n]]
+    """The line naming the players hit by almost none of their group's soaks while alive, or ''. The counts are per
+    player or per (player, group); a player in several groups is named with the group."""
+    few = _few(took, alive)
     if not few:
         return ""
+    rows = Counter(k[0] for k in alive if isinstance(k, tuple))
+
+    def name(k: str | tuple[str, str]) -> str:
+        return k if isinstance(k, str) else k[0] if rows[k[0]] == 1 else f"{k[0]} in {k[1]}"
     return ("  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with "
             "this group (a reserve, a spot changed since the note was written): "
-            + ", ".join(f"{n} ({took[n]} of {alive[n]})" for n in sorted(few, key=lambda n: (took[n] / alive[n], n))))
+            + ", ".join(f"{name(k)} ({took[k]} of {alive[k]})"
+                        for k in sorted(few, key=lambda k: (took[k] / alive[k], name(k)))))
 
 
 def _night_cooldowns(rep: Report, checks: list[PullCheck]) -> list[str]:

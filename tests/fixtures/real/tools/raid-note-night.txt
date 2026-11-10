@@ -4,27 +4,27 @@ Assignments in the note's text:
   Intermission Orb Popper: Orb Popper: Dragepie
   Virulence Spreads: Spread: Nexsozz Pomaa Fappachino Algmor Mizaroth Deathadim Agonco Slushmania Sonyosh Peggerino Scopidruid Zebinomage Krøpling Dragepie Draiman; Bait Serpent's Fury / Bite: Martin; Don't Stack: Enfo Namsus Miralupa Lïzårðmâñ
   Virulence trigger: Trigger: Martin
-Mutilate Soaks: 172 hits of Mutilate [1285999] over 42 pulls (10 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
-  Miralupa (Right): hit by 1 of 88; missed 87: p1 0:20, p2 0:08, p2 1:07, p3 0:20, p4 0:24, p4 1:11, p4 2:31, p5 0:24, p5 0:55, p6 0:16, p6 1:11, p7 0:24 and 75 more, the last p42 3:06; in the other group's 1
-  Namsus (Left): hit by 12 of 84; missed 72: p1 0:08, p2 0:20, p2 0:59, p3 0:16, p3 0:55, p3 0:59, p4 0:08, p4 1:03, p5 0:20, p5 0:59, p6 0:08, p6 1:07 and 60 more, the last p42 3:14; in the other group's 5
-  Enfo (Left): hit by 21 of 84; missed 63: p1 0:08, p2 0:20, p2 0:59, p3 0:16, p3 0:59, p4 0:08, p4 1:03, p5 0:20, p5 0:59, p6 0:08, p6 1:07, p7 0:11 and 51 more, the last p42 3:14; in the other group's 2
-  Lïzårðmâñ (Right): hit by 49 of 87; missed 38: p1 0:20, p2 0:08, p2 1:07, p3 0:20, p4 0:24, p4 2:31, p5 0:24, p5 0:55, p6 0:16, p6 1:11, p7 0:24, p7 0:55 and 26 more, the last p42 3:06; dead for 1 more; in the other group's 5
-  Algmor (Left): hit by 71 of 80; missed 9: p1 0:08, p2 0:59, p3 0:55, p3 0:59, p4 1:03, p5 0:59, p6 1:07, p8 1:11, p19 0:08; dead for 4 more; in the other group's 5
-  Scopidruid (Left): hit by 69 of 78; missed 9: p1 0:08, p3 0:55, p3 0:59, p19 0:08, p25 1:03, p33 1:07, p37 2:31, p42 2:23, p42 3:14; dead for 6 more; in the other group's 4
-  Dragepie (Right): hit by 80 of 87; missed 7: p1 0:20, p7 0:55, p9 0:20, p10 0:08, p27 2:23, p30 0:16, p33 0:55; dead for 1 more; in the other group's 2
-  Peggerino (Right): hit by 79 of 86; missed 7: p5 0:24, p10 0:08, p11 2:31, p21 0:55, p32 2:15, p33 0:55, p42 3:06; dead for 2 more; in the other group's 2
-  Zebinomage (Right): hit by 80 of 87; missed 7: p2 1:07, p7 2:15, p10 0:08, p13 0:16, p32 2:15, p33 0:55, p35 0:55; dead for 1 more
-  Sonyosh (Left): hit by 75 of 81; missed 6: p1 0:08, p3 0:59, p4 2:15, p6 0:08, p19 0:08, p28 0:24; dead for 3 more; in the other group's 1
-  Agonco (Left): hit by 69 of 73; missed 4: p4 1:03, p6 1:07, p19 0:08, p28 0:24; dead for 11 more; in the other group's 2
-  Fappachino (Right): hit by 83 of 87; missed 4: p13 0:16, p37 2:27, p42 2:31, p42 3:06; dead for 1 more; in the other group's 5
-  Nexsozz (Left): hit by 79 of 83; missed 4: p1 0:08, p3 0:59, p14 1:11, p19 0:08; dead for 1 more; in the other group's 1
-  Krøpling (Left): hit by 79 of 82; missed 3: p1 0:08, p3 0:59, p19 0:08; dead for 2 more
-  Pomaa (Right): hit by 85 of 88; missed 3: p4 2:31, p10 0:08, p21 0:55; in the other group's 2
-  Deathadim (Left): hit by 82 of 84; missed 2: p2 0:59, p3 0:55; in the other group's 3
-  Draiman (Left): hit by 28 of 30; missed 2: p32 2:31, p33 1:07; dead for 1 more; in the other group's 2
-  Slushmania (Right): hit by 85 of 86; missed 1: p42 3:06; dead for 2 more; in the other group's 3
-  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Miralupa (1 of 88), Namsus (12 of 84)
-  Hit, in no group: Wutroll 89, Sveini 46, Martin 30
+Mutilate Soaks: 172 hits of Mutilate [1285999] over 42 pulls (10 more after the wipes were decided), each given to the group called to soak within 20 s of it with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them and which they missed:
+  Enfo (Left): hit by 21 of 81; missed 60: p2 0:20, p2 0:59, p3 0:16, p4 0:08, p4 1:03, p5 0:20, p5 0:59, p6 0:08, p6 1:07, p7 0:11, p7 1:11, p7 2:31 and 48 more, the last p42 3:14
+  Lïzårðmâñ (Right): hit by 49 of 86; missed 37: p1 0:20, p2 0:08, p2 1:07, p3 0:20, p4 0:24, p4 2:31, p5 0:24, p5 0:55, p6 0:16, p6 1:11, p7 0:24, p7 0:55 and 25 more, the last p42 3:06; dead for 1 more
+  Algmor (Left): hit by 71 of 77; missed 6: p2 0:59, p3 0:55, p4 1:03, p5 0:59, p6 1:07, p8 1:11; dead for 4 more
+  Dragepie (Right): hit by 80 of 86; missed 6: p1 0:20, p7 0:55, p9 0:20, p27 2:23, p30 0:16, p33 0:55; dead for 1 more
+  Peggerino (Right): hit by 79 of 85; missed 6: p5 0:24, p11 2:31, p21 0:55, p32 2:15, p33 0:55, p42 3:06; dead for 2 more
+  Scopidruid (Left): hit by 69 of 75; missed 6: p3 0:55, p25 1:03, p33 1:07, p37 2:31, p42 2:23, p42 3:14; dead for 6 more
+  Zebinomage (Right): hit by 80 of 86; missed 6: p2 1:07, p7 2:15, p13 0:16, p32 2:15, p33 0:55, p35 0:55; dead for 1 more
+  Fappachino (Right): hit by 82 of 86; missed 4: p13 0:16, p37 2:27, p42 2:31, p42 3:06; dead for 1 more
+  Agonco (Left): hit by 68 of 71; missed 3: p4 1:03, p6 1:07, p28 0:24; dead for 10 more
+  Sonyosh (Left): hit by 75 of 78; missed 3: p4 2:15, p6 0:08, p28 0:24; dead for 3 more
+  Deathadim (Left): hit by 79 of 81; missed 2: p2 0:59, p3 0:55
+  Draiman (Left): hit by 28 of 30; missed 2: p32 2:31, p33 1:07; dead for 1 more
+  Pomaa (Right): hit by 85 of 87; missed 2: p4 2:31, p21 0:55
+  Nexsozz (Left): hit by 79 of 80; missed 1: p14 1:11; dead for 1 more
+  Slushmania (Right): hit by 84 of 85; missed 1: p42 3:06; dead for 2 more
+  Missed none while alive: Krøpling (Left) 79 of 79, dead for 2 more
+  Hit by another group's soak too: Algmor 5, Lïzårðmâñ 5, Namsus 5, Fappachino 4, Scopidruid 4, Deathadim 3, Slushmania 3, Agonco 2, Dragepie 2, Draiman 2, Enfo 2, Peggerino 2, Pomaa 2, Miralupa 1, Sonyosh 1
+  Counted for no one: 4 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p1 0:08, p3 0:59, p10 0:08, p19 0:08
+  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Miralupa (1 of 87), Namsus (12 of 81)
+  Hit, in no group: Wutroll 87, Sveini 46, Martin 30
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
   Enfo: 134 planned uses; on time 14, early 36 (2 s), late 28 (6 s), not cast 50, dead 6
     1:08 Ascendance [114052], 37 pulls: on time 4, early 2 (2 s), late 19 (7 s), not cast 10 (p2, p3, p4, p5, p6, p13, p22, p29, p35, p36), dead 2
