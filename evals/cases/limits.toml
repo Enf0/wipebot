@@ -21,7 +21,11 @@ expect = """The spec guide's stat priority for an Elemental Shaman playing Farse
 and Crit about even, then Versatility."""
 facts = ["Farseer: Mastery > Haste >= Crit > Versatility",
          "their gear already has the most Mastery of their secondary stats"]
+# compare_with_top prints the top players' stat shares (more Crit than theirs) and says they are "not a stat
+# priority ... a gap from them is a note beside it, not a new priority": most saved answers still advised Crit over
+# Mastery, and the judge called that a side detail in one run and a contradiction in the next.
 wrong = ["gives a stat priority the guide doesn't (Crit or Haste first for Farseer)",
+         "tells them to take Crit over Mastery when choosing gear",
          "asks which spec or hero tree they play, or answers for Stormbringer as theirs"]
 
 [[case]]

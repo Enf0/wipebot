@@ -334,6 +334,7 @@ wrong = ["says the priests have an overhealing problem",
 
 [[case]]
 id = "real-holy-paladin-tasks-pushback"  # a Holy Paladin pushes back: tasks and two holy priests (#1129-#1130)
+cause = "ability: Execution"  # a two-boss fight for `just evals --endings`: Execution killed 9 within 1 s at 2:13
 tools = ["compare_with_top", "player_pull"]
 # The method under test: recheck the pushback, lead with the verdict, and grant only what a tool shows; #1130 opened
 # with "you're right that the healer comp pushes your numbers" against compare_with_top's own healer shares.

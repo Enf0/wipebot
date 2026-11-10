@@ -10,11 +10,11 @@ from wipebot.core.report.ending import ending_text, lead, pull_ending
 from wipebot.core.text import parse_clock
 
 SAME_DEATHS_MS = 2000  # "deaths from" two times this close apart name the same first death (one burst)
-# Of the cases with a `cause`, how many the engine led with the expert's on 10 November: 13 of the 14 pulls a machine
+# Of the cases with a `cause`, how many the engine led with the expert's on 10 November: 14 of the 15 pulls a machine
 # without Warcraft Logs keys can read (wipe-tank-death differs: its comment says why; wipe-tank-solo-soak's pull is
 # not in the frozen file as today's code reads it). A change to how pulls end that takes it below fails `--endings`.
-# Raise it when the engine gets one more right, or when the fifteenth is read and agrees.
-AGREED = 13
+# Raise it when the engine gets one more right, or when the sixteenth is read and agrees.
+AGREED = 14
 # How the "Ended by" line says each kind of cause (ending_text, moment_text): the words before or around the name
 SAID = {"reset": "a reset", "alive": "Ended by: no death", "live": "not yet, the pull is still going",
         "half the raid dead": "half the raid was dead", "moment: no killing blow": "no killing blow logged"}
