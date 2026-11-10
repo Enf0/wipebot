@@ -90,15 +90,36 @@ def test_one_ability_killing_in_pulses_over_a_few_seconds_is_one_moment(rep, dea
     assert "in pulses" not in str(ended_by(rep, PULL, unnamed, {}, 20, [], Decided(47_000)))
 
 
-def test_a_hit_killing_many_seconds_after_the_boss_gained_a_buff_is_named_with_it(rep, deaths):
-    # The buff may be the stage's aura and the hit what ended the pull (a Coiled Altar pull that was the night's
-    # first to reach Stage Two): both moments are named, earliest first. A hit well after the buff is its fallout.
+def test_a_hit_killing_many_seconds_after_a_buff_no_earlier_pull_shows_is_named_with_it(rep, deaths):
+    # The first pull to show a buff can't tell an enrage from a stage's aura (a Coiled Altar pull that was the night's
+    # first to reach Stage Two): a hit killing many within seconds of it is named beside it, as what the log leaves
+    # open. A hit well after the buff is its fallout, and so is any hit after a buff an earlier pull has shown: the
+    # deaths behind an enrage the raid has met are no mechanic to look for.
     died = deaths((20.0, SWIPE), (53.0, VENOM), (53.1, VENOM), (53.2, VENOM), (53.4, VENOM),
                   *[(70.0 + n / 10, CRASH) for n in range(5)])
-    text = ended_by(rep, PULL, died, {}, 20, [("Frenzy", 50_000)], Decided(50_000, "Frenzy"))
-    assert text == ("Ended by (from the log, earliest first): the boss gained Frenzy at 0:50 and kept it to the end, "
-                    "19 of 20 alive (look it up: an enrage makes every later death fallout); then Venom Burst [901] "
-                    "killed 4 within 1 s at 0:53 (one ability killing many at once: find which mechanic failed).")
+    buffs: list[tuple[str, float]] = [("Frenzy", 50_000)]
+    decided = Decided(50_000, "Frenzy")
+    enrage = ("Ended by (from the log, earliest first): the boss gained Frenzy at 0:50 and kept it to the end, "
+              "19 of 20 alive (look it up: an enrage makes every later death fallout)")
+    assert ended_by(rep, PULL, died, {}, 20, buffs, decided) == enrage + "."
+    assert ending_text(ending(rep, PULL, died, {}, 20, buffs, decided, unseen={"Frenzy"})) == enrage + (
+        "; then Venom Burst [901] killed 4 within 1 s at 0:53 (seconds after Frenzy, which the boss had on no earlier "
+        "pull in this log: fallout if that buff is an enrage, what ended the pull if it is part of the stage).")
+
+
+async def test_the_deaths_behind_an_enrage_the_raid_has_met_are_no_mechanic_to_find(rep):
+    # Pull 13 of the tests' night: the boss enraged at 2:32, as on earlier pulls, and Mutilated Gash killed seven a
+    # second later. The enrage ended it (the experts' reading, evals/cases/wipes.toml); the hit behind it is fallout
+    # and isn't named. On pull 1, the night's first sight of the buff, the hit a second after it is named with it.
+    def ended(text: str) -> str:
+        return next(line for line in text.splitlines() if line.startswith("Ended by"))
+    assert ended(await fight.pull_summary(rep, 13, "Sszorak")) == (
+        "Ended by (from the log, earliest first): the boss gained Unbound Ferocity at 2:32 and kept it to the end, "
+        "16 of 20 alive (look it up: an enrage makes every later death fallout).")
+    assert ended(await fight.pull_summary(rep, 1, "Sszorak")).endswith(
+        "20 of 20 alive (look it up: an enrage makes every later death fallout); then Venomous Surge [1306120] killed "
+        "15 within 1 s at 0:40 (seconds after Unbound Ferocity, which the boss had on no earlier pull in this log: "
+        "fallout if that buff is an enrage, what ended the pull if it is part of the stage).")
 
 
 async def test_death_rows_name_only_the_buff_that_decided_the_wipe(rep):

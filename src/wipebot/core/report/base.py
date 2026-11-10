@@ -673,6 +673,13 @@ class Report(Fetched):
         return ({a for g in earlier for a in lost_buffs(g, buffs[g["id"]])}
                 | {a for g in earlier if not g["kill"] for a in carried_buffs(g, buffs[g["id"]])})
 
+    async def seen_buffs(self, fight: dict) -> set[str]:
+        """The buffs the boss gained on the pulls before this one, by name (the events `routine_buffs` reads). One
+        it gains here for the first time has no earlier pull to tell an enrage from a stage's aura."""
+        earlier = [g for g in self.by_boss[self.boss_key(fight)] if g["startTime"] < fight["startTime"]]
+        buffs = await self.boss_buff_events(earlier)
+        return {self.ability(e["abilityGameID"]) for g in earlier for e in buffs[g["id"]] if e["type"] == "applybuff"}
+
     async def end_buffs(self, fight: dict) -> list[tuple[str, float]]:
         """(name, ms from pull start) of the buffs the boss gained and kept to the end of a wipe, e.g. an enrage. A
         buff several bosses gain (each Entombed Sentinel) is one, from the first to gain it. None for a pull still

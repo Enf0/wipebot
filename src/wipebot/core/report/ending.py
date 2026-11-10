@@ -4,6 +4,7 @@ log shows. What each mechanic is, the guide says. One reading serves every tool:
 (`ending_text`), progress and the views count and label pulls by it (`kind_of_end`), and the evals check what it
 leads with (`lead`)."""
 from collections import defaultdict
+from collections.abc import Collection
 from dataclasses import dataclass, replace
 
 from ..pulls import MASS_DEATH_MS, NO_KILLING_BLOW, WAVE_MS, Decided, is_reset, mass_hits, mass_of
@@ -26,6 +27,9 @@ class MassDeath:
     killed: int
     span_s: int  # from the first of those deaths to the last, at least 1
     waves: bool = False  # in pulses over a few seconds (WAVE_MS), not one hit
+    # The buff the boss gained seconds before it, for a hit after the wipe was decided by that buff on the first pull
+    # to show the buff: the log can't yet tell an enrage, with the hit its fallout, from a stage's aura.
+    after: str = ""
 
 
 @dataclass(frozen=True)
@@ -106,7 +110,9 @@ async def pull_ending(rep: Report, f: dict) -> Ending | None:
     """How a pull ended (`ending`), from what the report has read or reads for it. A pull that ended with the raid
     alive is read once more, for a cast of the boss's that ended it (`_end_cast`: the enemies' debuffs and casts)."""
     deaths, backs, raid = await rep.deaths(f), (await rep.resurrects([f]))[f["id"]], await rep.raid_size(f)
-    e = ending(rep, f, deaths, backs, raid, await rep.enrages(f), await rep.decided_at(f))
+    buffs = await rep.enrages(f)
+    unseen = {name for name, _ in buffs} - await rep.seen_buffs(f) if buffs else set()
+    e = ending(rep, f, deaths, backs, raid, buffs, await rep.decided_at(f), unseen)
     if e and e.kind == "alive" and (cast := await _end_cast(rep, f, deaths, backs, raid)):
         return replace(e, kind="cast", cast=cast)
     return e
@@ -172,11 +178,13 @@ async def _end_cast(rep: Report, f: dict, deaths: list[dict], backs: dict[int, l
 
 
 def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float]], raid: int,
-           buffs: list[tuple[str, float]], decided: Decided | None) -> Ending | None:
+           buffs: list[tuple[str, float]], decided: Decided | None, unseen: Collection[str] = ()) -> Ending | None:
     """How a wipe ended, from the log alone, earliest first: one ability killing many at once, a buff the boss kept to
     the end (`buffs`: the ones that can decide a wipe, Report.enrages), half the raid dead, or deaths one after
     another. A hit killing many is found among all the pull's deaths and counts whole when it began before the wipe
-    was decided (Report.decided_at ends the moment on its last death). None for a kill."""
+    was decided (Report.decided_at ends the moment on its last death). `unseen` are the buffs among `buffs` that no
+    earlier pull shows the boss with (Report.seen_buffs): a hit killing many within seconds of one is named after it.
+    None for a kill."""
     if f["kill"]:
         return None
     t0, length = f["startTime"], f["endTime"] - f["startTime"]
@@ -189,10 +197,15 @@ def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float
     half = half_dead(deaths, backs, raid) if decided and not decided.enrage else None
     kept = [KeptBuff(gained, name, alive_at(deaths, backs, raid, t0 + gained)) for name, gained in buffs
             if t0 + gained <= until]  # gained once the wipe was decided: fallout too
-    # A hit killing many that began before the wipe was decided, or within seconds of a buff the boss gained then:
-    # the buff may be the stage's, not an enrage, and the hit what ended the pull, so both are named.
-    moments: list[Moment] = [m for m in _mass_deaths(rep, deaths, t0, raid) if t0 + m.at_ms <= until or any(
-        0 <= m.at_ms - b.at_ms <= WAVE_MS for b in kept)]
+    hits = _mass_deaths(rep, deaths, t0, raid)
+    moments: list[Moment] = [m for m in hits if t0 + m.at_ms <= until]
+    # A hit killing many within seconds of a buff the boss has on no earlier pull: the buff may be the stage's, not
+    # an enrage, and the hit what ended the pull, so both are named. Behind a buff an earlier pull has shown (an
+    # enrage the raid has met, pull after pull), the hit is fallout, as every death after the wipe was decided.
+    for m in hits:
+        if t0 + m.at_ms > until and (buff := next((b.name for b in kept if b.name in unseen
+                                                   and 0 <= m.at_ms - b.at_ms <= WAVE_MS), None)):
+            moments.append(replace(m, after=buff))
     moments += kept
     if not moments and half is not None:  # half the raid dead, with no hit killing many and no enrage: a cascade
         stayed = [d for d in before if not _brought_back(d, backs)] or before  # a battle res undid a death
@@ -263,16 +276,19 @@ MASS_NOTE = MASS_HIT + ", a hit killing many: the raid's to stop, not counted as
 
 def moment_text(m: Moment, raid: int) -> str:
     match m:
-        case MassDeath(at_ms=at, ability=name, ids=ids, killed=n, span_s=span, waves=True):
-            return (f"{name} [{', '.join(map(str, ids))}] killed {n} in pulses within {span} s from {clock(at)} (one "
-                    "ability killing many in a few seconds: find which mechanic failed)")
-        case MassDeath(at_ms=at, ability=name, ids=ids, killed=n, span_s=span):
-            within = f"within {span} s at {clock(at)}"
+        case MassDeath(at_ms=at, ability=name, ids=ids, killed=n, span_s=span, waves=waves, after=buff):
+            when = f"in pulses within {span} s from {clock(at)}" if waves else f"within {span} s at {clock(at)}"
+            what = (f"{name} [{', '.join(map(str, ids))}] killed {n} {when}" if ids
+                    else f"{n} died at once, no killing blow logged, {when}")
+            if buff:  # what the log leaves open, not a mechanic to find: the buff's line says to look the buff up
+                return (f"{what} (seconds after {buff}, which the boss had on no earlier pull in this log: fallout if "
+                        "that buff is an enrage, what ended the pull if it is part of the stage)")
+            if waves:
+                return f"{what} (one ability killing many in a few seconds: find which mechanic failed)"
             if ids:
-                return (f"{name} [{', '.join(map(str, ids))}] killed {n} {within} (one ability killing many at once: "
-                        "find which mechanic failed)")
-            return (f"{n} died at once, no killing blow logged, {within} (one moment killing many: a fall, a "
-                    "knockback, a hit the log doesn't name, or the raid jumping off after a call; find which it was)")
+                return f"{what} (one ability killing many at once: find which mechanic failed)"
+            return (f"{what} (one moment killing many: a fall, a knockback, a hit the log doesn't name, or the raid "
+                    "jumping off after a call; find which it was)")
         case KeptBuff(at_ms=at, name=name, alive=alive):
             return (f"the boss gained {name} at {clock(at)} and kept it to the end, {alive} of {raid} alive (look it "
                     "up: an enrage makes every later death fallout)")
