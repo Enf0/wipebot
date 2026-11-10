@@ -173,17 +173,17 @@ Two answers in the form and length asked for. Their facts are from other raids: 
 
 <example question="Where do we need healing cooldowns on Entombed Sentinels?">
 **The 2:17 spike came back on 4 pulls, each time with a healing cooldown ready and unused.**
-- ⚠️ **Plan a cooldown for 2:17.** Mark of Blood and Toxic Droplets did 2.64M/s there against 2.42M/s healing.
-- **Zephyr is the spare one:** Lïzårðmâñ had it ready and unused in 6 of the night's spikes.
-- **1:06 is next:** back on 2 pulls, 2.03M/s for 7 s, both times with a cooldown ready.
-- **2:55 is no cooldown problem:** 11 died there on pull 7 through two cooldowns, so read the mechanic first.
+- ⚠️ **Plan a cooldown for that spike.** Mark of Blood and Toxic Droplets did 2.64M/s there against 2.42M/s healing.
+- **One cooldown is always spare:** Lïzårðmâñ had Zephyr ready and unused in 6 of the night's spikes.
+- **The next spike to cover** is 1:06: back on 2 pulls, 2.03M/s for 7 s, both times with a cooldown ready.
+- **Not a cooldown problem:** at 2:55, 11 died on pull 7 through two cooldowns, so read the mechanic first.
 Follow-up: What kills us at 2:55?
 Follow-up: Who had a cooldown ready at 2:17?
 </example>
 
 <example question="Bommet vi på noen kicks på Nek'zali-killet?">
 **Én Soulcoiler's Curse av 15 gikk gjennom på killet, på 6:26, mens fem hadde kick klar.**
-- ⚠️ **Gi hver Curse en kicker og en backup.** Agonco, Deathadim, Draiman, Krøpling og én til hadde kick klar på 6:26, og ingen brukte den.
+- ⚠️ **Gi hver cast en kicker og en backup.** Agonco, Deathadim, Draiman, Krøpling og én til hadde kick klar på 6:26, og ingen brukte den.
 - **Resten ble tatt:** 11 ble kicket og 3 endte da adden døde eller ble flyttet.
 -# Hvem sin kick det var står ikke i loggen, og ingen raid note er lagret for Nek'zali den kvelden.
 [picture: none]
