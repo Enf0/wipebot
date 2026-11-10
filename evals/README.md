@@ -93,8 +93,8 @@ Code also measures how every answer is built (`wipebot.discord.form`, no model):
 and each bullet's, the sentences in a bullet, where the change to make stands, its follow-ups. As the bot, an answer
 that leaves the form the bot's prompt asks for gets a `form:` line under its verdict (a bullet over 30 words, a
 second sentence beside the verdict, the change to make not first, a paragraph after the last bullet), held to what
-its case is: an answer in chat, one while the raid is going on, or a post after a wipe. It never fails an answer,
-but in the few cases that set their own limits (`form`). In a client the form is the client's own, so there it's only
+its case is: an answer in chat, one while the raid is going on, or a post after a wipe. It fails an answer only in
+the few cases that set their own limits (`form`). In a client the form is the client's own, so there it's only
 measured.
 
 Warcraft Logs and the guide sites come from `cache.sqlite`, frozen: what a run asks that isn't there is fetched once
@@ -157,11 +157,11 @@ the reason is kept in the file with what was replaced and the like-for-like tota
 With `-k`, a three-trial run of some cases is merged into its mode's baseline, so a corrected case costs three
 trials of itself and not of the suite: the run's cases replace their own entries, every other case keeps its own,
 and the file lists under `merged` which cases came in, from which commit and run file, and what each had before. The
-same is refused for the merged cases as for a whole baseline (an error, a crashed tool, a case with under three
-judged answers or changed since the run, a spread or more below the entries it replaces on the cases unchanged
-since), with `--accept` to keep it all the same, and a run answered or judged by another model than the baseline's
-is never merged. The merged cases are counted by the checks the baseline was scored by, like its other cases, so a
-`numbers` or `form` check added since counts from the next whole baseline.
+same is refused for the merged cases as for a whole baseline (an error, a crashed tool, a case changed since the
+run, a spread or more below the entries it replaces on the cases unchanged since), with `--accept` to keep it all
+the same. Never merged, whatever the reason: a case with under three judged answers, and a run answered or judged by
+another model than the baseline's. The merged cases are counted by the checks the baseline was scored by, like its
+other cases, so a `numbers` or `form` check added since counts from the next whole baseline.
 
 A full run (no `-k`, the mode's own model and effort) is kept as its mode's last in `full-runs.json`, which is
 tracked: commit it. A run that judged fewer than nine in ten of its answers (the rest errored) is not kept.
