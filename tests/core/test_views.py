@@ -2417,6 +2417,32 @@ async def test_a_trend_tells_a_kill_and_a_reset_from_a_wipe_and_draws_the_askers
         assert rows[2][5] == "–" and rows[6][5] == "262.00k" and not errors
 
 
+async def test_a_reset_doesnt_set_a_trends_scale(monkeypatch):
+    """A reset is left out of the medians, and of the chart's scale too: a raid that dies on purpose takes a night's
+    most damage per second in ten seconds, and its hollow bar once set the axis (10M/s for pulls of 1.2M to 1.6M,
+    each a sixth of the plot's height). The counted pulls set it, in the asker's row too; the reset's bar stops at
+    the plot's top, and its tooltip still says its amount."""
+    trend = made_up_trend()
+    trend["pulls"][1] |= {"rate": 6_000_000, "mine": 900_000}
+    key = {k: trend[k] for k in ("view", "report", "boss", "tool", "args")} | {"mark": "Mirelle"}
+    made_up_view(monkeypatch, key, trend)
+    box = """(sel) => { const b = document.querySelector(sel).getBBox(); return [b.y, b.height]; }"""
+    async with drawn("breakdown", trend["args"]) as (view, errors):
+        said = await view.locator(".trend-chart").inner_text()
+        assert said.startswith("2.0M/s\n") and "Mirelle, up to 262.00k/s" in said  # the axis, and the row's most
+        plot_top, plot = 14, 132  # trend.js: the plot's top and its height in a card
+        top, tall = await view.evaluate(box, '.trend-chart rect[stroke-dasharray="2 2"]')  # the reset's bar
+        assert top == plot_top and tall == plot
+        tall_of = "rects => rects.map((r) => r.getBBox().height)"
+        heights = await view.locator('.trend-chart rect[rx="2"][opacity=".8"]').evaluate_all(tall_of)
+        assert max(heights) == pytest.approx(plot * 1_610_000 / 2_000_000, abs=0.5), heights  # the kill's bar
+        own = sorted(await view.locator('.trend-chart rect[rx="1.5"]').evaluate_all(tall_of))
+        assert own[-2:] == [24, 24], own  # the asker's row: their most in a counted pull fills it, the reset's no more
+        assert (await view.evaluate("document.querySelector('[data-pull-col=\"2\"]').dataset.tip")).startswith(
+            "Pull 2: a reset, not counted\n6.00M/s: ")
+        assert not errors
+
+
 async def test_a_call_without_a_view_takes_no_room(recorded):
     """A host draws the page on every call of a tool with a view, and most calls of breakdown and mechanic_hits rank
     nobody: for those the page stays empty at no height, while the tool runs too. It once would have shown the

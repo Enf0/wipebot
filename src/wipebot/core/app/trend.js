@@ -49,7 +49,10 @@ views.trend = (() => {
   function chart(W, tall) {
     const n = D.pulls.length, L = 46, R = 10, T = 14, plotH = tall ? 220 : 132, mine = D.mine, own = mine ? 38 : 0;
     const band = (W - L - R) / Math.max(n, 1), x = (i) => L + i * band, bw = Math.max(2, Math.min(n > 8 ? 22 : 46, band * 0.7));
-    const max = kit.niceMax(Math.max(...D.pulls.map((r) => r.rate), D.count ? 1 : 10)), base = T + plotH, y = (v) => base - v / max * plotH;
+    // The scale is the counted pulls': a reset can hold a night's most in its few seconds (a raid dying on purpose),
+    // and its hollow bar stops at the plot's top where it does (its tooltip says its amount)
+    const scale = counted().length ? counted() : D.pulls;
+    const max = kit.niceMax(Math.max(...scale.map((r) => r.rate), D.count ? 1 : 10)), base = T + plotH, y = (v) => base - Math.min(v, max) / max * plotH;
     const fill = D.who ? kit.cls(D.who.color, "cb") : 'fill="var(--blue)"';
     let o = kit.line(L, base, W - R, base, "var(--line)");
     o += kit.text(L - 6, T + 8, `${D.count ? max : kit.short(max)}${unit()}`, "tm", 'text-anchor="end"') + kit.text(L - 6, base, "0", "tm", 'text-anchor="end"');
@@ -72,12 +75,13 @@ views.trend = (() => {
     });
     // the asker's own row: their amounts in the same pulls, to its own scale
     if (mine) {
-      const top = base + 30, most = Math.max(...D.pulls.map((r) => r.mine || 0), 1e-9);
+      const high = (rows) => Math.max(...rows.map((r) => r.mine || 0), 0);
+      const top = base + 30, most = high(scale) || high(D.pulls) || 1e-9;
       o += kit.text(L, top - 4, `${mine.name}, up to ${fmt(most)}${unit()}`, "cls", `font-weight="600" style="--c:${kit.esc(mine.color)}"`);
       o += kit.line(L, top + own - 12, W - R, top + own - 12, "var(--line)");
       D.pulls.forEach((r, i) => {
         if (r.mine == null) return;
-        const cx = x(i) + band / 2, h = Math.max(1, (own - 14) * r.mine / most);
+        const cx = x(i) + band / 2, h = Math.max(1, (own - 14) * Math.min(r.mine, most) / most);
         o += `<rect x="${cx - bw / 2}" y="${top + own - 12 - h}" width="${bw}" height="${h}" rx="1.5" ${kit.cls(mine.color, "cb")} opacity="${r.reset ? ".35" : ".8"}"/>`;
       });
     }
