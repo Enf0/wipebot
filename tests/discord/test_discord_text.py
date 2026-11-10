@@ -14,6 +14,7 @@ from wipebot.discord.discord_text import (
     link_abilities,
     link_items,
     link_scenes,
+    marker_before_bold,
     planned_classes,
     polish,
     specs_in,
@@ -318,3 +319,20 @@ def test_a_boss_ability_gets_its_icon_on_its_first_mention_linked_or_not():
 ])
 def test_only_the_verdicts_first_sentence_is_bold(text, expected):
     assert verdict_bold(text) == expected
+
+
+@pytest.mark.parametrize("text, expected", [
+    pytest.param("**Wipe på 31 %.**\n- **⚠️ Flytt første Rewind.** Den kom for tidlig.",
+                 "**Wipe på 31 %.**\n- ⚠️ **Flytt første Rewind.** Den kom for tidlig.", id="a bullet's lead"),
+    pytest.param("**⚠️ Tempest drepte fem.**\n- a", "⚠️ **Tempest drepte fem.**\n- a", id="the verdict"),
+    pytest.param("- **\u26a0 Move it.** Later.", "- \u26a0 **Move it.** Later.", id="without the emoji's selector"),
+    pytest.param("- **⚠️** Move it later.", "- ⚠️ Move it later.", id="bold around the marker alone"),
+    pytest.param("- ⚠️ **Move it.** Later.", "- ⚠️ **Move it.** Later.", id="already before the bold"),
+    pytest.param("- **Fine**⚠️ and **more**.", "- **Fine**⚠️ and **more**.", id="not where bold closes"),
+])
+def test_the_fix_marker_stands_before_the_bold_words_not_in_them(text, expected):
+    assert marker_before_bold(text) == expected
+
+
+def test_a_bold_verdict_of_two_sentences_keeps_one_bold_and_the_marker_outside_it():
+    assert polish("**⚠️ Flytt Rewind. Resten var bra.**\n\n- a", [], []) == "⚠️ **Flytt Rewind.** Resten var bra.\n- a"

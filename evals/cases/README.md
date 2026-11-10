@@ -19,6 +19,8 @@ answer makes, and what would make it wrong: often the tempting misreading of the
             not checked with the connector only, which has no skill to give it the step
   asks_first  tools only the last question may call, and it must: what the user has to agree to first (sending a
             report with `report_answer`), checked in every mode
+  live      true: asked while the raid is going on (the report's line says "being logged now", though the
+            frozen report is over), where the bot answers as between pulls; only `--bot` has that line
   request   for a post after a wipe (`posts.toml`): what the raider asked to have posted; without it, the
             asker's own feedback. The question is built as the bot builds it, so a post case has none
   cause     for a wipe: what an experienced raid leader names first ("enrage: Unbound Ferocity", "ability: Mutilate",

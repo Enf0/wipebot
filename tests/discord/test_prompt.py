@@ -12,6 +12,7 @@ from wipebot.discord.host import Context
 from wipebot.discord.prompt import (
     BOT_TOOLS,
     HOST_PROMPT,
+    LIVE,
     POST_CHARS,
     asker_line,
     message,
@@ -62,6 +63,9 @@ def test_report_line_dates_the_report_so_an_old_one_isnt_tonights():
     live = cast(Report, SimpleNamespace(**{k: getattr(REPORT, k) for k in ("code", "title", "guild_name", "start_ms",
                                                                            "by_boss")}, final=False))
     assert "(being logged now)" in report_line(live, WEDNESDAY)
+    # the words the prompt answers as between pulls on; an eval plays a frozen report as a raid going on
+    assert f'"{LIVE}"' in HOST_PROMPT and f"({LIVE})" in report_line(REPORT, sunday, live=True)
+    assert f"({LIVE})" in message("why did we wipe?", Context(live=True), REPORT, now=sunday)
     assert report_line(REPORT, WEDNESDAY, "only 1 of its 20 players are in the guild").endswith(
         "; note: only 1 of its 20 players are in the guild]")
 

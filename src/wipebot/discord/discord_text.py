@@ -67,11 +67,13 @@ def polish(text: str, results: Sequence[str], reports: Sequence[Report], icons: 
         specs |= {p.name: (p.class_name, p.spec) for r in reports[::-1] for p in r.players.values()}
         specs |= specs_in(results, icons)  # the pulls asked about, over the spec played most in the report
         text = add_icons(text, specs, icons)
-    return tight_lists(verdict_bold(text))
+    return tight_lists(marker_before_bold(verdict_bold(text)))
 
 
 # The end of a sentence in the opening verdict: a stop and a capital after it ("f.eks. 0:07" and "nr. 2" go on)
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-ZÆØÅÄÖÜ])")
+# The marker of the one thing to fix, written where bold opens: "**⚠️ Move the first Rewind later.**", "**⚠️**"
+MARKER_IN_BOLD = re.compile(r"(?<!\S)\*\*(⚠\ufe0f?)(\*\*|[ \t]*(?=[^\s*]))")
 
 
 def verdict_bold(text: str) -> str:
@@ -86,6 +88,12 @@ def verdict_bold(text: str) -> str:
         if not any(a <= m.start() < b for a, b in links):
             return f"**{inner[:m.start()]}** {inner[m.end():]}{nl}{rest}"
     return text
+
+
+def marker_before_bold(text: str) -> str:
+    """The marker of the fix before the bold words it marks, not inside them ("- ⚠️ **Move the first Rewind
+    later.**"): the prompt asks for it there, and inside the bold verdict it reads as part of the headline."""
+    return MARKER_IN_BOLD.sub(lambda m: m.group(1) if m.group(2) == "**" else f"{m.group(1)} **", text)
 
 
 def specs_in(results: Sequence[str], icons: Mapping[str, str]) -> dict[str, tuple[str, str]]:

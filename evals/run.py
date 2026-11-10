@@ -94,7 +94,8 @@ def baseline(mode: str) -> Path:
     connector: a client with only the connector; bot: the Discord bot) has its own."""
     return HERE / {"plugin": "baseline.json", "connector": "baseline-connector-only.json",
                    "bot": "baseline-bot.json"}[mode]
-CONTEXT = ["asker", "discord_name", "pull", "boss", "where"]  # case keys that go to the question's Context
+# case keys that go to the question's Context
+CONTEXT = ["asker", "discord_name", "pull", "boss", "where", "live"]
 JOBS = 4  # answers at a time
 KEEP_FOR_OTHERS = 1 / 2  # of each hour's Warcraft Logs points, left to the bot and the server (same account)
 # With only the connector, as claude.ai has it today: no skill (that comes with a plugin, or MCP-served skills) and no
@@ -218,10 +219,11 @@ def where(case: dict, client: bool = False) -> str:
 
 def asked(case: dict, client: bool = False) -> str:
     """The question as the judge and the labeller see it: who asked it and where (the cases' rules on naming players
-    turn on both), and a follow-up after the ones before it."""
+    turn on both), whether the raid was going on, and a follow-up after the ones before it."""
     *before, last = questions(case)
     who = case.get("asker") or (f"{case['discord_name']} (their Discord name)" if case.get("discord_name") else "")
-    head = "Asked" + (f" by {who}," if who else "") + f" {where(case, client)}: "
+    live = ", while the raid is going on" if case.get("live") and not client else ""
+    head = "Asked" + (f" by {who}," if who else "") + f" {where(case, client)}{live}: "
     return head + "".join(f"{q}\n(then, in the same conversation) " for q in before) + last
 
 

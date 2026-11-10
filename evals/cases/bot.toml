@@ -54,6 +54,19 @@ few for the Serpent's Fury stack, so the boss enraged at 2:32; the fix is that s
 facts = ["2:15", "2:32"]
 wrong = ["runs past three bullets or into headed sections",
          "blames the enrage's fallout deaths after 2:32"]
+[[case]]
+# the raid is going on: a plain question is answered as between pulls too. Hard until a run shows it passes.
+id = "live-raid-plain-question"
+hard = true
+question = "Why did we wipe?"
+pull = 33
+boss = "Sszorak"
+live = true
+expect = """As between pulls: a one-line verdict and at most three one-sentence bullets, the fix first. Mutilate killed
+four at 2:15, leaving too few for the Serpent's Fury stack, so the boss enraged at 2:32; the fix is that soak."""
+facts = ["2:15", "2:32"]
+wrong = ["runs past three bullets or into headed sections",
+         "blames the enrage's fallout deaths after 2:32"]
 
 [[case]]
 id = "bot-follow-ups"  # the closing offer is a Follow-up line (a button in Discord), not a question in the text

@@ -178,7 +178,7 @@ def message(question: str, ctx: Context, report: Report | None, doubt: str = "",
     """What the model gets for one question: what was said before it (ctx.earlier), the messages it links to
     (ctx.linked), the report's line (NO_REPORT without one), the asker's line, then the question."""
     # The question's own brackets as parentheses: only the two lines above say where it was asked and by whom.
-    line = report_line(report, now, doubt, raids) if report else NO_REPORT.format(
+    line = report_line(report, now, doubt, raids, ctx.live) if report else NO_REPORT.format(
         today=f"{(now or datetime.now().astimezone()):%A %Y-%m-%d}")
     text = f"{line}\n{asker_line(ctx, report)}\n{question.translate(BRACKETS)}"
     if ctx.linked:
@@ -195,16 +195,21 @@ NO_REPORT = ("[no Warcraft Logs report: none was linked, and there's no recent r
              "up, an admin's `/wipebot setup` with the guild's Warcraft Logs page); today is {today}]")
 
 
+LIVE = "being logged now"  # the raid is going on: the bot's prompt names these words
+
+
 def report_line(report: Report, now: datetime | None = None, doubt: str = "",
-                raids: list[tuple[str, list[str]]] | None = None) -> str:
+                raids: list[tuple[str, list[str]]] | None = None, live: bool = False) -> str:
     """The guild and report a question is about, as of now (a live report grows between questions), with the day it
     was logged and today's date, so an old report isn't called tonight's, and `doubt` when it may not be a guild
     run (Report.guild_run_doubt). Its bosses in the order pulled, or, when `raids` (Report.raids) has more than
-    one, by raid in each raid's boss order: a single-boss raid pulled first isn't "the first boss" of the tier."""
+    one, by raid in each raid's boss order: a single-boss raid pulled first isn't "the first boss" of the tier.
+    One still being logged, or played as one (`live`), is "being logged now": the prompt answers as between pulls
+    then."""
     now = now or datetime.now().astimezone()
     logged = datetime.fromtimestamp(report.start_ms / 1000, now.tzinfo)
     days = (now.date() - logged.date()).days
-    ago = "being logged now" if not report.final else {0: "today", 1: "yesterday"}.get(days, f"{days} days ago")
+    ago = LIVE if live or not report.final else {0: "today", 1: "yesterday"}.get(days, f"{days} days ago")
     def pulls(bosses: list[str]) -> str:
         return ", ".join(f"{b} ({len(report.by_boss[b])} pulls)" for b in bosses)
     if raids and len(raids) > 1:
