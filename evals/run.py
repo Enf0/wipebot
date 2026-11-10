@@ -570,7 +570,7 @@ async def run(args) -> int:
         record_full_run(tally, args.mode, found.lines[-1] if found else "no baseline to compare with",
                         f"{datetime.now(UTC):%Y-%m-%d}")
     if args.save_baseline is not None:
-        save_baseline(tally, args.mode, args.accept, args.filter)
+        save_baseline(tally, args.mode, args.accept, args.filter, out.name if any(results.values()) else "")
     return exit_code(tally, found)
 
 
@@ -668,18 +668,25 @@ def record_saved(path: Path) -> None:
                     day)
 
 
-def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") -> None:
+def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "", run: str = "") -> None:
     """Keep a run as its mode's baseline, after printing the comparison with the one it replaces. A run with a case
     asked fewer than UNSETTLED_TRIALS times is never one. A run that errored, in which a tool crashed, that doesn't
     cover every case of its mode as it is today, or is below the baseline it replaces by LOOK spreads or more is
     refused, unless `accept` says why: the reason is kept in the file, with what it replaced and the like-for-like
-    total on the unchanged cases."""
+    total on the unchanged cases.
+
+    A run of some cases (`filtered`, its -k) is merged into the baseline there is: its cases replace their own
+    entries, every other case's stays, and the file says which cases came from which commit and run (`run`, its
+    file). The same is refused for the cases it merges, and a run by another model or judge than the baseline's is
+    never merged. So a corrected case costs three trials of itself, not of the suite."""
     path = baseline(mode)
     old = json.loads(path.read_text()) if path.exists() else None
     if thin := [c for c in tally["passed"] if judged(tally, c) < UNSETTLED_TRIALS]:
         raise SystemExit(f"not a baseline: {len(thin)} cases have fewer than {UNSETTLED_TRIALS} judged answers "
                          f"({', '.join(thin[:5])}{', ...' if len(thin) > 5 else ''}): a baseline asks every case as "
                          "often, to judge the next run (--trials 3)")
+    if filtered and old:
+        return merge_baseline(old, tally, mode, accept, filtered, run)
     stale = [c["id"] for c in regular(mode)
              if c["id"] not in tally["passed"] or tally["case_hashes"].get(c["id"]) != case_hash(c)]
     doubts = red(tally, None)  # answers that errored, a tool that crashed: the next runs would be measured by them
@@ -704,6 +711,58 @@ def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") 
         {"accepted": {"reason": accept, "despite": doubts}} if doubts else {})
     path.write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"saved evals/{path.name}" + (f" (accepted despite: {'; '.join(doubts)})" if doubts else ""))
+
+
+# What a tally keeps per case, by case id: a merge replaces these entries for the cases of the run
+PER_CASE = ("case_hashes", "passed", "failed", "errors", "live", "facts", "calls", "first_tagged", "words", "slips")
+
+
+def merge_baseline(old: dict, tally: dict, mode: str, accept: str = "", filtered: str = "", run: str = "") -> None:
+    """The cases of a filtered run put in place of their entries in the baseline (save_baseline says when)."""
+    path, cases = baseline(mode), sorted(tally["passed"])
+    for what, mine, its in (("answered by", tally.get("model"), old.get("model")),
+                            ("judged by", tally.get("judge"), old.get("judge"))):
+        if mine != its:
+            raise SystemExit(f"not merged into the baseline: this run was {what} {mine}, the baseline {its}. Its "
+                             "other cases wouldn't compare with these: save a baseline from a run of every case.")
+    today = {c["id"]: case_hash(c) for c in regular(mode)}
+    doubts = red(tally, None)
+    if stale := [c for c in cases if tally["case_hashes"].get(c) != today.get(c)]:
+        doubts.append(f"{len(stale)} of its cases changed since the run or are not this mode's "
+                      f"({', '.join(stale[:5])})")
+    found = compared(old, tally)  # on the cases it ran that are unchanged since the baseline
+    print("Against the baseline's own entries for these cases:\n" + "\n".join(found.lines[1:]) + "\n")
+    if found.verdict == "a drop shown" or found.low >= LOOK:
+        doubts.append(f"it is {found.low:.1f} spreads below the baseline's entries for the cases unchanged since")
+    if doubts and not accept:
+        raise SystemExit(f"not merged into the baseline: {'; '.join(doubts)}. To keep it all the same, say why: "
+                         '--accept "<reason>" (kept in the file).')
+    new = scored(tally, old.get("parts", PARTS))  # a baseline counts every case by one list of checks: its own
+    def times(t: dict, c: str) -> int:
+        return t["trials"] if isinstance(t["trials"], int) else t["trials"].get(c, 0)
+    asked = {c: times(old, c) for c in old["passed"] if c not in new["passed"]} | {
+        c: times(new, c) for c in new["passed"]}
+    kept: dict = dict(old) | {"trials": next(iter(asked.values())) if len(set(asked.values())) == 1 else asked}
+    for key in PER_CASE:
+        if key in old or key in ("case_hashes", "passed"):
+            kept[key] = {c: v for c, v in old.get(key, {}).items() if c not in new["passed"]} | {
+                c: v for c, v in new.get(key, {}).items() if c in new["passed"]}
+    if "broke" in old:
+        whys = {why: {c: n for c, n in old["broke"].get(why, {}).items() if c not in new["passed"]}
+                | new.get("broke", {}).get(why, {}) for why in {*old["broke"], *new.get("broke", {})}}
+        kept["broke"] = {why: found for why, found in whys.items() if found}
+    if "hard" in old:
+        kept["hard"] = [c for c in old["hard"] if c not in new["passed"]] + new.get("hard", [])
+    kept["merged"] = old.get("merged", []) + [{
+        "cases": cases, "commit": tally.get("commit", "?"), "run": run, "filter": filtered,
+        "trials": trials_of(tally), "tested": tally.get("tested", {}),
+        "passed": [sum(new["passed"].values()), sum(judged(new, c) for c in cases)],
+        "before": {c: [old["passed"][c], judged(old, c)] for c in cases if c in old["passed"]},
+        "verdict": found.lines[-1]} | ({"accepted": {"reason": accept, "despite": doubts}} if doubts else {})]
+    path.write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"merged {len(cases)} cases into evals/{path.name} ({', '.join(cases[:5])}{', ...' if len(cases) > 5 else ''}"
+          f"): {len(asked) - len(cases)} other cases keep their entries"
+          + (f" (accepted despite: {'; '.join(doubts)})" if doubts else ""))
 
 
 def tested(results: dict[str, list[Trial]]) -> dict:
@@ -1436,7 +1495,7 @@ def main() -> None:
         return record_saved(Path(args.record))
     if args.save_baseline:  # a saved run's file: no model
         run, _, tally = read_run(Path(args.save_baseline))
-        return save_baseline(tally, run["mode"], args.accept, run.get("filter", ""))
+        return save_baseline(tally, run["mode"], args.accept, run.get("filter", ""), Path(args.save_baseline).name)
     args.billed_to = billed_to(args.api_key)
     if args.label:
         label(Path(args.label))

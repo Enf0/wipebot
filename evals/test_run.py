@@ -561,9 +561,7 @@ def test_a_baseline_is_not_saved_over_a_drop_errors_or_a_filter_without_a_reason
         save_baseline(low, "bot")
     with pytest.raises(SystemExit, match="2 answers errored"):
         save_baseline(a_run(errors={"s0": 2}, trials={c: 5 if c == "s0" else 3 for c in a_run()["passed"]}), "bot")
-    with pytest.raises(SystemExit, match="doesn't cover every case as it is today \\(-k wipe: 0 missing"):
-        save_baseline(a_run(), "bot", filtered="wipe")
-    partial = a_run()
+    partial = a_run()  # (a run of some cases, -k, is merged into the baseline: test_baseline_merge.py)
     partial = partial | {"passed": {c: n for c, n in partial["passed"].items() if c != "s0"},
                          "case_hashes": partial["case_hashes"] | {"s1": "older"}}
     with pytest.raises(SystemExit, match="2 missing or changed since: s0, s1"):
