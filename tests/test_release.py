@@ -2,6 +2,7 @@
 the changelog calls for."""
 import datetime
 import json
+import re
 import subprocess
 
 import pytest
@@ -64,18 +65,19 @@ def test_a_line_about_a_picture_needs_the_picture_under_it():
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    """A throwaway repository (no remote) as the release script's root; `commit(path)` adds a commit touching it."""
+    """A throwaway repository (no remote) as the release script's root; `commit(path)` adds a commit touching it,
+    with `body` under its summary."""
     def git(*args: str) -> str:
         return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args], cwd=tmp_path,
                               check=True, capture_output=True, text=True).stdout.strip()
     git("init", "--quiet", "--initial-branch=main")
     count = iter(range(1000))
 
-    def commit(path: str) -> str:
+    def commit(path: str, body: str = "") -> str:
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_text(f"{next(count)}\n")
         git("add", path)
-        git("commit", "--quiet", "-m", f"touch {path}")
+        git("commit", "--quiet", "-m", f"touch {path}" + (f"\n\n{body}" if body else ""))
         return git("rev-parse", "--short", "HEAD")
     monkeypatch.setattr(release, "ROOT", tmp_path)
     return tmp_path, commit
@@ -118,10 +120,63 @@ def test_a_release_stops_only_past_the_distance(repo, monkeypatch):
     commit("src/wipebot/core/b.py")
     assert release.evals_distance(datetime.date(2026, 11, 2))[1] == []  # at the limit, not past it
     commit("src/wipebot/core/c.py")
-    assert release.evals_distance(datetime.date(2026, 11, 2))[1] == ["bot (3 commits, 1 days)"]
+    assert release.evals_distance(datetime.date(2026, 11, 2))[1] == ["bot (3 commits, 1 day)"]
     monkeypatch.setattr(release, "EVAL_COMMITS", 30)
     assert release.evals_distance(datetime.date(2026, 11, 22))[1] == []  # 21 days
     assert release.evals_distance(datetime.date(2026, 11, 23))[1] == ["bot (3 commits, 22 days)"]
     (root / "evals" / "full-runs.json").unlink()
     lines, past = release.evals_distance(datetime.date(2026, 11, 23))
     assert past == [] and lines[0] == "Evals, bot: no full run on record."
+
+
+def test_a_commit_that_says_a_full_eval_is_pending_counts_where_no_path_says_so(repo):
+    root, commit = repo
+    at = commit("src/wipebot/core/server.py")
+    (root / "evals").mkdir()
+    (root / "evals" / "full-runs.json").write_text(json.dumps({"bot": full_run(at, "2026-11-01"),
+                                                              "plugin": full_run(at, "2026-11-01")}))
+    commit("pyproject.toml", "A newer SDK.")  # no answer's path, and it doesn't say it can move one
+    commit("docs/models.md", "Targeted evals: pending.")
+    assert [line.split("since then ")[1] for line in release.evals_distance(datetime.date(2026, 11, 2))[0][:2]] == [
+        "0 commits that can change an answer and 1 day."] * 2
+    commit("uv.lock", "A newer SDK, which can change how the model is asked.\n\nfull eval: pending")
+    commit("evals/run.py", "The questions are dated as the frozen data is. Full eval: pending.")
+    commit("src/wipebot/discord/host-prompt.md", "full eval: pending")  # the bot's by its path, so not the plugin's
+    commit("src/wipebot/core/tools.py")
+    lines, past = release.evals_distance(datetime.date(2026, 11, 2))
+    assert [line.split("since then ")[1] for line in lines[:2]] == [
+        "4 commits that can change an answer (3 of them say a full eval is pending) and 1 day.",
+        "3 commits that can change an answer (2 of them say a full eval is pending) and 1 day."]
+    assert past == []
+
+
+def test_a_release_past_the_distance_stops_until_it_says_why(repo, monkeypatch, capsys):
+    root, commit = repo
+    for name, text in (("CHANGELOG", CHANGELOG), ("PYPROJECT", '[project]\nname = "x"\nversion = "0.2.0"\n')):
+        monkeypatch.setattr(release, name, root / f"{name.lower()}.txt")
+        (root / f"{name.lower()}.txt").write_text(text)
+    at = commit("src/wipebot/core/server.py")
+    (root / "evals").mkdir()
+    (root / "evals" / "full-runs.json").write_text(json.dumps({"bot": full_run(at, f"{datetime.date.today()}")}))
+    monkeypatch.setattr(release, "EVAL_COMMITS", 1)
+    monkeypatch.setattr(release, "ready", lambda: "")
+    ran = []
+    monkeypatch.setattr(release, "run", lambda *args: ran.append(args))
+    commit("src/wipebot/core/a.py")
+    commit("uv.lock", "full eval: pending")
+    far = "Too far from the last full eval run: bot (2 commits, 0 days); the limit is 1 commits"
+    monkeypatch.setattr("sys.argv", ["release.py"])
+    release.main()  # without a version it says so, and changes nothing
+    assert f"A release would stop here. {far}" in capsys.readouterr().out
+    monkeypatch.setattr("sys.argv", ["release.py", "0.3.0"])
+    with pytest.raises(SystemExit, match=re.escape(far)):
+        release.main()
+    assert not ran and (root / "changelog.txt").read_text() == CHANGELOG
+    monkeypatch.setattr("sys.argv", ["release.py", "0.3.0", "--summary", "What it brings.", "--without-evals",
+                                     "the plan ran out"])
+    release.main()
+    message = next(args for args in ran if args[:2] == ("git", "commit"))[-1]
+    assert message.startswith("chore: Wipebot 0.3.0\n\nWhat it brings.\n\nEvals, bot: last full run ")
+    assert "then 2 commits that can change an answer (1 of them says a full eval is pending) and 0 days." in message
+    assert message.endswith("\n\nReleased without a full eval run: the plan ran out")
+    assert "## [0.3.0]" in (root / "changelog.txt").read_text()

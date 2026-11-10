@@ -10,10 +10,11 @@ under it, as the website, the release notes and Discord's what's new show it: th
 `--without-pictures`.
 
 It also says how far the release is from the evals: for each mode, how many commits that can change an answer and how
-many days lie since its last recorded full run (evals/full-runs.json, which a full `just evals` run writes). That is
-printed with or without a version and written into the release commit's body. Past EVAL_COMMITS such commits or
-EVAL_DAYS days the release stops, until a full run is recorded or `--without-evals "<reason>"` says why not; the
-reason goes into the commit's body too."""
+many days lie since its last recorded full run (evals/full-runs.json, which a full `just evals` run writes). A commit
+can change a mode's answers when it touches what the mode answers with (ANSWERS), or says `full eval: pending` and
+touches no mode's (a dependency, say). That is printed with or without a version and written into the release
+commit's body. Past EVAL_COMMITS such commits or EVAL_DAYS days the release stops, until a full run is recorded or
+`--without-evals "<reason>"` says why not; the reason goes into the commit's body too."""
 import argparse
 import datetime
 import json
@@ -35,6 +36,8 @@ ANSWERS = {"bot": ("src/wipebot/core", "src/wipebot/discord", "evals/cases"),
 # How far from a mode's last full run a release may be: past either, it stops (--without-evals "<reason>" to pass).
 # By distance and not at every release: a gate that stops each one is overridden each time.
 EVAL_COMMITS, EVAL_DAYS = 30, 21
+# What a commit's body says when it can move answers and no full run has covered it yet (CLAUDE.md), as git greps it
+PENDING = r"full evals\?: pending"
 VERSION = re.compile(r'^version = "([^"]+)"$', re.M)  # the first is [project]'s
 
 
@@ -98,12 +101,25 @@ def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True, text=True)
 
 
+def since(commit: str, *paths: str, pending: bool = False) -> set[str]:
+    """The commits after `commit` up to HEAD: those that touch `paths`, or those that say a full eval is pending."""
+    return set(git("rev-list", *(("-i", f"--grep={PENDING}") if pending else ()), f"{commit}..HEAD", "--",
+                   *paths).split())
+
+
+def some(n: int, what: str) -> str:
+    return f"{n} {what}{'s' * (n != 1)}"
+
+
 def evals_distance(today: datetime.date) -> tuple[list[str], list[str]]:
     """How far HEAD is from each mode's last recorded full eval run: a line per mode, for the terminal and the
     release commit's body, and the modes past EVAL_COMMITS answer-changing commits or EVAL_DAYS days, with why. A
-    mode with no run on record, or one whose commit this checkout doesn't have, is said and stops nothing."""
+    commit counts for a mode when it touches the mode's ANSWERS, and for every mode when it says a full eval is
+    pending and touches no mode's: which answers it moves, its paths can't say. A mode with no run on record, or
+    one whose commit this checkout doesn't have, is said and stops nothing."""
     path = ROOT / FULL_RUNS
     runs = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    anywhere = sorted({p for paths in ANSWERS.values() for p in paths})
     lines, past = [], []
     for mode, paths in ANSWERS.items():
         if not (last := runs.get(mode)):
@@ -112,14 +128,28 @@ def evals_distance(today: datetime.date) -> tuple[list[str], list[str]]:
         days = (today - datetime.date.fromisoformat(last["date"])).days
         known = subprocess.run(["git", "cat-file", "-e", f"{last['commit']}^{{commit}}"], cwd=ROOT,
                                capture_output=True).returncode == 0
-        commits = int(git("rev-list", "--count", f"{last['commit']}..HEAD", "--", *paths)) if known else None
+        if known:
+            pending = since(last["commit"], pending=True)
+            counted = since(last["commit"], *paths) | (pending - since(last["commit"], *anywhere))
+            commits, said = len(counted), len(counted & pending)
+            far = f"{some(commits, 'commit')} that can change an answer" + (
+                f" ({said} of them say{'s' * (said == 1)} a full eval is pending)" if said else "")
+        else:
+            commits, far = None, "an unknown number of commits (its commit isn't in this checkout)"
         lines.append(f"Evals, {mode}: last full run {last['date']} at {last['commit']} ({last['trials']}, "
-                     f"{last['passed']}/{last['of']} answers passed, {last['errors']} errors); since then "
-                     + (f"{commits} commits that can change an answer" if known else
-                        "an unknown number of commits (its commit isn't in this checkout)") + f" and {days} days.")
+                     f"{last['passed']}/{last['of']} answers passed, {last['errors']} errors); since then {far} "
+                     f"and {some(days, 'day')}.")
         if (commits or 0) > EVAL_COMMITS or days > EVAL_DAYS:
-            past.append(f"{mode} ({commits if known else '?'} commits, {days} days)")
+            past.append(f"{mode} ({'? commits' if commits is None else some(commits, 'commit')}, "
+                        f"{some(days, 'day')})")
     return lines, past
+
+
+def too_far(past: list[str]) -> str:
+    """What a release past the distance is told, and what the run without a version says it would be told."""
+    return (f"Too far from the last full eval run: {', '.join(past)}; the limit is {EVAL_COMMITS} commits that "
+            f"can change an answer or {EVAL_DAYS} days. Run the full suite (`just evals --trials auto`, in the "
+            "modes named) and commit evals/full-runs.json, or say why not: --without-evals \"<reason>\".")
 
 
 def body(summary: str, distance: list[str], without_evals: str = "") -> str:
@@ -166,6 +196,8 @@ def main() -> None:
     distance, past = evals_distance(datetime.date.today())
     print("\n".join(distance))
     if not args.version:
+        if past:
+            print("A release would stop here. " + too_far(past))
         print(f"Wipebot {current}; the changelog calls for {suggest(current, notes)}: just release "
               f"{suggest(current, notes)} --summary \"...\"")
         return
@@ -180,9 +212,7 @@ def main() -> None:
         sys.exit("These lines talk about a picture but have none under them (docs/images, by its "
                  "raw.githubusercontent.com address): " + "; ".join(missing) + ". Add them, or --without-pictures.")
     if past and not args.without_evals:
-        sys.exit(f"Too far from the last full eval run: {', '.join(past)}; the limit is {EVAL_COMMITS} commits that "
-                 f"can change an answer or {EVAL_DAYS} days. Run the full suite (`just evals --trials auto`, in the "
-                 "modes named) and commit evals/full-runs.json, or say why not: --without-evals \"<reason>\".")
+        sys.exit(too_far(past))
     CHANGELOG.write_text(cut(changelog, args.version, datetime.date.today()), encoding="utf-8")
     PYPROJECT.write_text(bump(pyproject, args.version), encoding="utf-8")
     run("uv", "lock", "--quiet")
