@@ -1,5 +1,5 @@
-"""What the free checks say about the cases: the lint's reading of a time, a tool's output with a part missing, and
-what the case hash covers."""
+"""What the free checks say about the cases: the lint's reading of a time, a tool's output with a part missing,
+what the case hash covers, and what --endings prints under a pull."""
 import json
 
 from evals.lint import in_output, numbers
@@ -47,3 +47,43 @@ def test_the_case_hash_covers_what_is_asked_and_judged_not_what_only_code_reads(
     for key, value in (("question", "why so?"), ("expect", "The enrage at 6:01."), ("wrong", ["a kill"]),
                        ("facts", ["15 alive"]), ("calls", ["progress"]), ("asker", "Enfo"), ("pull", 3)):
         assert case_hash(case | {key: value}) != case_hash(case), key
+
+
+async def test_endings_print_the_line_the_model_reads_beside_the_cases_expect(monkeypatch):
+    """Under each pull with a `cause`: its "Ended by" line as printed, then the case's expect on one line, to read
+    together. A pull this machine has no data for gets neither, and is counted apart."""
+    from evals import endings
+
+    class Report:
+        def fight(self, pull, boss):
+            return pull, boss
+
+        def label(self, fight):
+            return f"{fight[1]} pull {fight[0]}"
+
+    class Library:
+        async def report(self, code, max_age_s):
+            if code == "gone":
+                raise endings.wcl.WCLError("auth_failed: the keys were refused")
+            return Report()
+
+    async def ending(rep, fight):
+        return fight
+    monkeypatch.setattr(endings.server, "configure", Library)
+    monkeypatch.setattr(endings, "pull_ending", ending)
+    monkeypatch.setattr(endings, "lead", lambda e: "enrage: Fury" if e[0] == 3 else "deaths from 1:10")
+    monkeypatch.setattr(endings, "ending_text", lambda e: f"Ended by: what pull {e[0]} printed.")
+    cases = [{"id": "a", "report": "R", "pull": 3, "boss": "Sszorak", "cause": "enrage: Fury",
+              "expect": "The enrage\nat 6:00."},
+             {"id": "b", "report": "R", "pull": 4, "boss": "Sszorak", "cause": "reset", "expect": "A reset."},
+             {"id": "c", "report": "gone", "pull": 1, "cause": "reset", "expect": "A reset."},
+             {"id": "d", "report": "R", "expect": "It names no cause: not a pull to check."}]
+    assert await endings.endings(cases) == (0, [
+        '  UNSAID   a (Sszorak pull 3): expert "enrage: Fury"; the engine leads with it, but its line doesn\'t name '
+        "it first: Ended by: what pull 3 printed.",
+        "           prints: Ended by: what pull 3 printed.",
+        "           expect: The enrage at 6:00.",
+        '  DIFFERS  b (Sszorak pull 4): expert "reset", engine "deaths from 1:10"',
+        "           prints: Ended by: what pull 4 printed.",
+        "           expect: A reset.",
+        "  NO DATA  c: auth_failed: the keys were refused"], 1)
