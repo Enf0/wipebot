@@ -134,8 +134,8 @@ async def test_two_servers_following_one_report_each_get_its_pulls(night, live_w
 
 
 def test_pulls_handled_before_servers_had_their_own_stay_handled_for_the_servers_following_them(tmp_path):
-    """A database from before 11 November 2026 kept each pull once: after the move, a restart during a raid posts none
-    of them again where the report is followed, and a server that starts following it later has its own."""
+    """A database from before each server had its own kept each pull once: after the move, a restart during a raid
+    posts none of them again where the report is followed, and a server that starts following it later has its own."""
     import sqlite3
     path = tmp_path / "wipebot.db"
     Store(path)._db.close()
