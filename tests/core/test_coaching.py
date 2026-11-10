@@ -112,6 +112,30 @@ def test_time_lost_weighs_deaths_gaps_and_the_cap_in_seconds_until_the_wipe_was_
         "Time lost over the 3:20 pull, biggest first: none.")
 
 
+async def test_a_reset_is_no_pull_of_a_players_night_in_any_count(rep):
+    # Pull 9 of the tests' night is a reset: twelve die with no killing blow at 0:11, the boss untouched. Its row
+    # stays, marked; the headline, the deaths that count, the trend and the defensives leave it out alike.
+    p = rep.player("Enfo")
+    pulls, *_ = await coaching.night_pulls(rep, p, rep.by_boss["Sszorak"])
+    reset = pulls[8]
+    assert reset.reset and reset.death and not reset.counted
+    counted = sum(x.counted for x in pulls)
+    assert counted == sum(t.died for t in coaching.night_trend(pulls, "healer") or [])
+    text = await coaching.player_night(rep, "Enfo", "Sszorak")
+    assert f"Died before the wipe was decided on {counted} of 32 pulls (1 reset left out; later deaths" in text
+    assert f"of the {counted} deaths that count" in text
+    assert "  pull 9 (100.0%, 0:24): a reset, not counted; " in text
+    table = await deaths.defensives(rep, "Sszorak")
+    assert "on Sszorak: 32 pulls (1 reset left out), until each wipe was decided" in table
+    assert ": 33 pulls" not in table and ": 32 pulls, " in table
+    own = await deaths.defensives(rep, "Sszorak", player="Enfo")
+    assert own.startswith(f"Enfo's {counted} deaths on Sszorak before each wipe was decided, over 32 pulls (1 reset "
+                          "left out), each replayed")
+    assert "Not counted, 1 death on a reset (the boss untouched, no attempt): pull 9 0:11." in own
+    hits = await mechanics.mechanic_hits(rep, "Mutilate", boss="Sszorak", all_pulls=True)
+    assert "on all 32 Sszorak pulls (1 reset left out)" in hits
+
+
 async def test_a_pull_still_going_is_left_out_of_the_night(fake_knowledge):
     fake_knowledge(spec_spells=RESTO_SPELLS, lust_debuffs=[57723], boss_spells=[])
     night = Night()  # changed below: not the session's

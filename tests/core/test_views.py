@@ -591,7 +591,7 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     data = await night_data()
     text, failed = await server.call("player_night", NIGHT_CASE.args)
     assert not failed
-    n = len(data["pulls"])
+    n = sum(not r["reset"] for r in data["pulls"])  # a reset is no pull of the night's, in the text and the view
     assert f"Died before the wipe was decided on {data['died']} of {n} pulls" in text
     assert f"dead for {data['dead_s']} s of the {data['counted_s']} s" in text and f"({data['dead_pct']}%" in text
     best = f"pull {data['best']['pull']} ({kit_short(data['best']['per_s_alive'])}/s"
@@ -762,7 +762,8 @@ async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_
     monkeypatch.setattr(viewhost, "tool_result", tool_result)
     first, opened = await shots(tmp_path, "player_night", {"player": "Mirelle"}, themes=("dark",), widths=(760,),
                                 modes=("fullscreen",), clicks=('css:tr[data-pull="4"]',))
-    assert not first.errors and "2 of 6" in first.text and "first to die once" in first.text
+    # 2 of 5: the sixth of the made-up night's pulls is a reset, no pull of the player's night
+    assert not first.errors and "2 of 5" in first.text and "first to die once" in first.text
     assert "could have lived" in first.text.lower() and "1 of 2" in first.text and "Astral Shift at 1" in first.text
     assert "what killed mirelle" in first.text.lower() and "Slag Wave" in first.text
     assert "6: 330k" in first.text and "pull by pull" in first.text.lower()

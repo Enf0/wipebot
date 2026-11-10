@@ -15,7 +15,7 @@ views.player_night = (() => {
   const times = (n) => n === 0 ? "never" : n === 1 ? "once" : n === 2 ? "twice" : `${n} times`;
 
   function stats() {
-    const n = D.pulls.length, L = D.lived;
+    const n = D.pulls.filter((p) => !p.reset).length, L = D.lived;
     return kit.stats([
       ["Died before the wipe was decided", `${D.died} of ${n}`, D.died ? "dead" : "",
        `${D.first ? `first to die ${times(D.first)}` : "never first to die"}, ${times(D.early)} among the first ${D.early_n}`],

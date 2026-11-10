@@ -347,9 +347,10 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
     wipe was decided: uses, and at each death whether a defensive was off cooldown but not used. With `player`,
     each of their deaths instead, replayed with what was ready (the death recap's arithmetic)."""
     pulls = rep.by_boss[rep.boss(boss)]
-    fights, going = rep.ended(pulls), rep.still_going(pulls)
+    going = rep.still_going(pulls)
     if player:
-        return going + await _deaths_replayed(rep, rep.player(player), fights, whole_pull)
+        return going + await _deaths_replayed(rep, rep.player(player), rep.ended(pulls), whole_pull)
+    fights, resets = rep.attempts(pulls)  # a reset's deaths are nobody's, and it is no pull to use a defensive on
     await rep.all_deaths(fights)
     decided = {} if whole_pull else await rep.decided_cuts(fights)
     cut = {f["id"]: decided.get(f["id"], f["endTime"]) for f in fights}
@@ -389,8 +390,9 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
                     ready_at_death[q.id][sp["name"]] += 1
     scope = "until each wipe was decided (whole_pull for the rest)" if not whole_pull else "whole pulls"
     lines = [going + f"Healthstones and healing potions, and personal defensives (Lorrgs' defensive tag), on "
-             f"{rep.boss_key(fights[0])}: {plural(len(fights), 'pull')}, {scope}. Per player: pulls, healthstones "
-             "and potions, each defensive's uses, deaths, and at how many deaths each defensive they used on this "
+             f"{rep.boss_key(fights[0])}: {plural(len(fights), 'pull')}{resets}, {scope}. Per player: pulls, "
+             "healthstones and potions, each defensive's uses, deaths, and at how many deaths each defensive they "
+             "used on this "
              "boss was off cooldown but unused (ignoring charges and cooldown reduction; whether one was needed is for "
              "the death recap; deaths in a hit killing many apart, the raid's to stop); defensives never cast are a "
              "talent choice or passive, not a miss:"]
@@ -460,7 +462,7 @@ class Replayed:
 async def replay_deaths(rep: Report, p: Player, fights: list[dict], whole_pull: bool = False) -> list[Replayed]:
     """Each of a player's deaths on `fights` (before each wipe was decided, unless `whole_pull`), replayed with
     what was ready."""
-    fights = rep.pulls_with(p, fights)
+    fights = rep.attempts(rep.pulls_with(p, fights))[0]  # a reset's death isn't theirs to replay
     await rep.all_deaths(fights)
     decided = {} if whole_pull else await rep.decided_cuts(fights)
     todo = [(f, d) for f in fights for d in await rep.deaths(f)
@@ -487,9 +489,14 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
     done = [r for r in replayed if not r.mass]
     saved = sum(bool(savers(r.more)) for r in done)
     scope = "before each wipe was decided" if not whole_pull else "in the whole pulls"
-    lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, each replayed with "
-             f"what was ready (secondary to what killed them): a ready defensive or a healthstone would have kept "
-             f"them alive at {saved} of them."]
+    attempts, resets = rep.attempts(fights)
+    lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, over "
+             f"{plural(len(attempts), 'pull')}{resets}, each replayed with what was ready (secondary to what killed "
+             f"them): a ready defensive or a healthstone would have kept them alive at {saved} of them."]
+    if on_reset := [f"pull {rep.pull_no(f)} {clock(d['timestamp'] - f['startTime'])}"
+                    for f in fights if f not in attempts for d in await rep.deaths(f) if d["targetID"] == p.id]:
+        lines.append(f"Not counted, {plural(len(on_reset), 'death')} on a reset (the boss untouched, no attempt): "
+                     f"{', '.join(on_reset)}.")
     if mass := [(r, m) for r in replayed if (m := r.mass)]:
         lines.append(f"Not replayed, {plural(len(mass), 'death')} in a hit killing many (the raid's to stop; a "
                      f"defensive would only have bought seconds of a pull it lost): "

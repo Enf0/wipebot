@@ -387,7 +387,8 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
             "death": death, "dead_s": round(x.dead_s, 1), "counted_s": round(x.counted_s, 1),
             "cooldowns": [sum(min(len(t), n) for _, t, n in judged), sum(n for _, _, n in judged)],
         })
-    counted = [r for r in rows if r["death"] and not r["death"]["fallout"] and not r["death"]["mass"]]
+    counted = [r for r in rows if r["death"] and not r["reset"] and not r["death"]["fallout"]
+               and not r["death"]["mass"]]  # as NightPull.counted: a reset is no pull of the night's
     # each death before its wipe was decided, replayed with what was ready (the defensives tool's replay): True when a
     # ready defensive or a healthstone would have kept them alive, False when nothing ready would have, None can't tell
     # (the deaths the card counts: their first in each pull, a later one after a battle res left out, as above)
@@ -403,7 +404,8 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
                            "saved": bool(savers(more)) if more else False if replay and replay.outright else None,
                            "outright": bool(replay and replay.outright)})
     judged = [x["saved"] for k in killers.values() for x in k["pulls"]]
-    dead_s, counted_s = sum(x.dead_s for x in pulls), sum(x.counted_s for x in pulls)  # unrounded, as the text sums
+    dead_s, counted_s = (sum(x.dead_s for x in pulls if not x.reset),  # unrounded and without resets, as the text
+                         sum(x.counted_s for x in pulls if not x.reset))
     eligible = {rep.pull_no(x.f) for x in best_pulls(pulls, role)}  # as the text picks it
     best = max((r for r in rows if r["pull"] in eligible), key=lambda r: r["per_s_alive"], default=None)
     return {
@@ -415,7 +417,8 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         "died": len(counted), "first": sum(r["death"]["place"] == 1 for r in counted),
         "early": sum(r["death"]["place"] <= FIRST_DEATHS for r in counted), "early_n": FIRST_DEATHS,
         "dead_s": round(dead_s), "counted_s": round(counted_s), "dead_pct": round(100 * dead_s / max(counted_s, 1)),
-        "cooldowns_total": [sum(r["cooldowns"][0] for r in rows), sum(r["cooldowns"][1] for r in rows)],
+        "cooldowns_total": [sum(r["cooldowns"][0] for r in rows if not r["reset"]),
+                            sum(r["cooldowns"][1] for r in rows if not r["reset"])],
         "best": {"pull": best["pull"], "per_s_alive": best["per_s_alive"]} if best else None,
         "killers": sorted(killers.values(), key=lambda k: (k["by"] == NO_KILLING_BLOW, -len(k["pulls"]))),
         "lived": {"saved": sum(v is True for v in judged), "of": len(judged),

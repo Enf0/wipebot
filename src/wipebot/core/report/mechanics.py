@@ -3,7 +3,7 @@ import itertools
 import math
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 
 from ..pulls import attempt
@@ -50,7 +50,8 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                         all_pulls: bool = False, whole_pull: bool = False, start: str | None = None,
                         end: str | None = None, jobs: str = JOBS_NOT_LOGGED) -> str:
     fights, going, cut, window, found = await _asked(rep, ability, pull, boss, all_pulls, whole_pull, start, end)
-    scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
+    scope = (f"all {plural(len(fights), fights[0]['name'] + ' pull')}{rep.attempts(rep.by_boss[rep.boss(boss)])[1]}"
+             if all_pulls else rep.label(fights[0]))
     if window:
         scope += f", from {clock(window[0])} to {clock(window[1]) if window[1] < math.inf else 'the end'} of each"
     if not found.hits and not found.ticks and not found.debuffs:
@@ -101,10 +102,13 @@ async def _asked(rep: Report, ability: str, pull: PullRef, boss: str | None, all
                                                           tuple[float, float] | None, Hits]:
     """(the pulls, a note on one still going, when each wipe was decided, the window in each pull, the hits)."""
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
-    fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
-    cut = {} if whole_pull else await rep.decided_cuts(fights)  # later hits are fallout
+    read, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
+    fights = rep.attempts(pulls)[0] if all_pulls else pulls
+    cut = {} if whole_pull else await rep.decided_cuts(read)  # later hits are fallout
     window = pull_window(start, end)
-    found = await _hits(rep, fights, rep.ability_ids(ability), _counting(fights, cut, window))
+    # a reset is no pull of the night's (as mechanic_outliers counts them): its hits and deaths count for nobody
+    resets = {f["id"] for f in read if f not in fights}
+    found = await _hits(rep, read, rep.ability_ids(ability), _counting(read, cut, window, resets))
     return fights, going, cut, window, found
 
 
@@ -132,7 +136,8 @@ async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | Non
                         if all_pulls else [],
                         [i for i, f in enumerate(fights) if h.pull_died_after[(f["id"], w)]] if all_pulls else []))
     present = {p.id: p.name for f in fights for p in rep.pull_players(f).values()}
-    scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
+    scope = (f"all {plural(len(fights), fights[0]['name'] + ' pull')}{rep.attempts(rep.by_boss[rep.boss(boss)])[1]}"
+             if all_pulls else rep.label(fights[0]))
     if window:
         scope += f", {clock(window[0])}-{clock(window[1]) if window[1] < math.inf else 'end'} of each"
     if cut:
@@ -263,13 +268,15 @@ async def meter_against(rep: Report, other: Report, ability: str, boss: str | No
                            now.total_minutes, then.total_minutes, len(b)))
 
 
-def _counting(fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None) -> Callable[[dict], bool]:
-    """Whether an event counts: before its pull's wipe was decided (`cut`), and within `window` of its pull's start."""
+def _counting(fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None,
+              skip: Collection[int] = ()) -> Callable[[dict], bool]:
+    """Whether an event counts: not on a pull to `skip` (a reset), before its pull's wipe was decided (`cut`), and
+    within `window` of its pull's start."""
     starts = {f["id"]: f["startTime"] for f in fights}
 
     def counts(e: dict) -> bool:
         fight = e.get("fight", fights[0]["id"])
-        if e["timestamp"] > cut.get(fight, math.inf):
+        if fight in skip or e["timestamp"] > cut.get(fight, math.inf):
             return False
         return window is None or window[0] <= e["timestamp"] - starts.get(fight, fights[0]["startTime"]) <= window[1]
     return counts

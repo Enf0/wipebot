@@ -375,9 +375,16 @@ class NightPull:
     parse: str | None  # a kill's parse
 
     @property
+    def reset(self) -> bool:
+        """A reset, the boss untouched: no pull of the player's night. Its row stays, marked; its death, its time
+        dead and its cooldowns are left out of every count over the night."""
+        return is_reset(self.f)
+
+    @property
     def counted(self) -> bool:
-        """Whether they died before the wipe was decided, and not in a hit killing many: a death that counts."""
-        return bool(self.death) and not self.fallout and not self.mass
+        """Whether they died before the wipe was decided, and not in a hit killing many or on a reset: a death that
+        counts."""
+        return bool(self.death) and not self.fallout and not self.mass and not self.reset
 
 
 BEST_MIN_S = 60  # a player's best pull of a night is one this long until its wipe was decided, when there is one
@@ -514,7 +521,7 @@ async def night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[
 def night_cooldowns(pulls: list[NightPull], skipped: set[str], why: str) -> NightCooldowns:
     cds = NightCooldowns(unavailable=why)
     for pull in pulls:
-        for sp, times, possible in pull.cooldowns:
+        for sp, times, possible in () if pull.reset else pull.cooldowns:
             if NOT_ON_COOLDOWN & set(sp.get("tags") or []):
                 cds.moments[sp["name"]] += len(times)
                 continue
@@ -567,11 +574,13 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
                 lost: str | None = None, lived: str | None = None) -> str:
     main_role = Counter(pull.played.role for pull in pulls).most_common(1)[0][0]
     what = "healing" if main_role == "healer" else "damage"
-    counted = [pull for pull in pulls if pull.counted]
-    mass = sum(pull.mass for pull in pulls)
+    judged = [pull for pull in pulls if not pull.reset]  # a reset is no pull of the night's, in any count below
+    resets = len(pulls) - len(judged)
+    counted = [pull for pull in judged if pull.counted]
+    mass = sum(pull.mass for pull in judged)
     first = sum(pull.death[0] == 0 for pull in counted if pull.death)
     early = sum(pull.death[0] < FIRST_DEATHS for pull in counted if pull.death)
-    dead_s, counted_s = sum(pull.dead_s for pull in pulls), sum(pull.counted_s for pull in pulls)
+    dead_s, counted_s = sum(pull.dead_s for pull in judged), sum(pull.counted_s for pull in judged)
     ranked = [((pull.mine or {}).get("total", 0) / max(pull.alive_s, 1), rep.pull_no(pull.f))
               for pull in best_pulls(pulls, main_role)]
     best = max(ranked, key=lambda x: x[0], default=None)  # the first of equals, as pulls go
@@ -583,7 +592,8 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
     # Everyone dies on a wipe, so "died in 42 of 42" says nothing: only the deaths before a wipe was decided count.
     played = rep.over(p, [pull.f for pull in pulls])  # "also Protection" only for the pulls asked about
     lines = [f"{played.label} on {b}, {which}. Died before the wipe was decided on {len(counted)} of "
-             f"{plural(len(pulls), 'pull')} (later deaths are fallout and don't count"
+             f"{plural(len(judged), 'pull')} (" + (f"{plural(resets, 'reset')} left out; " if resets else "")
+             + "later deaths are fallout and don't count"
              + (f"; nor {plural(mass, 'death')} in a hit killing many, the raid's to stop" if mass else "")
              + "); first death "
              f"{plural(first, 'time')}, among the first {FIRST_DEATHS} deaths {plural(early, 'time')}; dead for "
@@ -647,6 +657,8 @@ def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns) -> 
                + (" at " + ", ".join(clock(t) for t in sorted(times)) if times else "")
                for sp, times, possible in pull.cooldowns if sp["name"] in cds.used and sp["name"] not in never]
     pct = "kill" if f["kill"] else wipe_text(f)
+    if pull.reset:
+        perf = f"a reset, not counted; {perf}"
     return (f"  pull {rep.pull_no(f)} ({pct}, {clock(f['endTime'] - f['startTime'])}): {perf}; {death}"
             + (f"; cooldowns {', '.join(cd_text)}" if cd_text else ""))
 

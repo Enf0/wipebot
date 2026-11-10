@@ -13,6 +13,7 @@ from ..pulls import DIFFICULTIES, attempt
 from ..text import clock, date, fight_url, plural, short
 from ..wcl import WCLError
 from .base import ROLE_NAMES, FactError, Report, unavailable
+from .ending import mass_death
 
 TREND_KILLERS = 6  # the abilities named for what a player keeps dying to
 
@@ -25,7 +26,7 @@ async def deaths_by_night(nights: list[tuple[float, list[Report]]], player: str,
     by_night: dict[str, Counter] = defaultdict(Counter)  # ability -> deaths, per night
     label = player
     for start, reps in nights:
-        pulls = early = first = 0
+        pulls = early = first = mass = 0
         killers: Counter = Counter()
         bosses: set[str] = set()
         for rep in reps:
@@ -55,13 +56,16 @@ async def deaths_by_night(nights: list[tuple[float, list[Report]]], player: str,
                     continue
                 early += 1
                 first += k == 0
+                mass += bool(await mass_death(rep, f, deaths[k]))
                 killers[rep.ability(deaths[k].get("killingAbilityGameID"))] += 1
         if not pulls:
             continue
         day = date(start)
         by_night[day] = killers
         rows.append(f"- {day}: {plural(pulls, 'pull')} on {', '.join(sorted(bosses))}; died before the wipe was "
-                    f"decided in {early} ({100 * early / pulls:.0f}%), the first death {plural(first, 'time')}"
+                    f"decided in {early} ({100 * early / pulls:.0f}%)"
+                    + (f", {mass} of them in a hit killing many (the raid's to stop)" if mass else "")
+                    + f", the first death {plural(first, 'time')}"
                     + (": " + ", ".join(f"{a} {n}" for a, n in killers.most_common(TREND_KILLERS)) if killers
                        else ""))
     if not rows:

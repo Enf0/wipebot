@@ -448,6 +448,16 @@ class Report(Fetched):
             raise FactError(f"the only {self.boss_key(fights[0])} pull is still going: ask again once it has ended")
         return kept
 
+    def attempts(self, fights: list[dict]) -> tuple[list[dict], str]:
+        """A boss's pulls that an answer over the night counts, and how it says so: the ended ones that were
+        attempts, with " (1 reset left out)" when a reset (the boss untouched) was left out. A reset's deaths are
+        no player's, and it is no pull of anyone's night. When every pull was a reset, they stay."""
+        ended = self.ended(fights)
+        kept = [f for f in ended if not is_reset(f)]
+        if not kept or len(kept) == len(ended):
+            return ended, ""
+        return kept, f" ({plural(len(ended) - len(kept), 'reset')} left out)"
+
     def still_going(self, fights: list[dict]) -> str:
         """What an answer over the night opens with when `ended` left pulls out ('' when none)."""
         going = [str(self.pull_no(f)) for f in fights if f["id"] in self.live]
