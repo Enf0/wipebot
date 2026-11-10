@@ -32,7 +32,7 @@ from . import adds, mana, mechanics, tables, versus
 from . import note as notes
 from .base import ROLE_NAMES, PullRef, Report, alive_after
 from .build import hero_of
-from .casting import alive, casting, raid_pauses, without
+from .casting import alive, cast_counts, casting, raid_pauses, without
 from .coaching import best_pulls, dead_spans, night_cooldowns, night_pulls, night_trend, resource_use, time_lost
 from .cooldowns import NOT_ON_COOLDOWN, cooldown_use, prepull
 from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
@@ -302,7 +302,7 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
         rows, _ = await cooldown_use(rep, p, f, casts, early[f["id"]])
     except KnowledgeError:
         rows = []
-    counts = Counter(rep.ability(c["abilityGameID"]) for c in casts)
+    counts = Counter({r["name"]: r["total"] for r in await cast_counts(rep, f, p)})  # as player_pull counts them
     ids = {rep.ability(c["abilityGameID"]): c["abilityGameID"] for c in casts}  # a spell's id, by its name
     span = lambda spans: [[round(a - t0), round(b - t0)] for a, b in spans]  # noqa: E731
     out = {

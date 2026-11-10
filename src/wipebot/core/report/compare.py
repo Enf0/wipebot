@@ -8,6 +8,7 @@ from ..text import clock, fight_url, plural, short
 from ..wcl import WCLError
 from .base import SAME_DEATH_MS, FactError, PullRef, Report
 from .fight import boss_tracks, tracks
+from .tables import totals_by_name
 
 PACE_POINTS = 3  # boss health this many points above the kill's at the same moment is behind its pace
 PACE_STEP_MS = 10_000  # the moments the pace is compared at
@@ -157,13 +158,13 @@ async def compare_pulls(rep: Report, pull_a: PullRef, pull_b: PullRef, boss: str
                            for d in deaths if (d["timestamp"] <= cut) == before) for before in (True, False)]
         until, note = await rep.until_decided(f, False)
         t = await rep.table(f["id"], "DamageTaken", hostilityType="Friendlies", viewBy="Ability", **until)
-        top = sorted(t["entries"], key=lambda e: -e.get("total", 0))[:8]
+        top = totals_by_name(t, "DamageTaken")[:8]
         out.append("\n".join([
             await rep.summary(f),
             (f"All killers until the wipe was decided ({decided.why} at {clock(decided.at_ms)}): " if decided
              else "All killers: ") + (", ".join(f"{a} x{c}" for a, c in killers[0].most_common()) or "none"),
             *(["All killers after that (fallout): "
                + (", ".join(f"{a} x{c}" for a, c in killers[1].most_common()) or "none")] if decided else []),
-            f"Most damage taken{note}: " + ", ".join(f"{e['name']} {short(e['total'])}" for e in top),
+            f"Most damage taken{note}: " + ", ".join(f"{name} {short(total)}" for name, total in top),
         ]))
     return "\n\n".join(out)

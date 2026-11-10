@@ -36,6 +36,22 @@ def cast_rows(entries: list[dict]) -> list[dict]:
     return rows
 
 
+async def cast_counts(rep: Report, f: dict, p: Player) -> list[dict]:
+    """A player's casts on a pull, a row per spell ({name, guid, total}), most cast first, as Warcraft Logs' Casts
+    table counts them (cast_rows): a press logged under two ids is one cast (Mutilate's main and off hand), rows of
+    one name are added up, and a proc Warcraft Logs logs as a cast event without listing it (a Holy Paladin's
+    Reclamation) is left out. player_pull and the player's view count from here and compare_with_top from the same
+    rows, so a spell's casts per minute are one number in each. A player's own table: the all-players one keeps
+    only each player's top five spells."""
+    table = await rep.table(f["id"], "Casts", sourceID=p.id)
+    merged: dict[str, dict] = {}
+    for row in cast_rows(table.get("entries") or []):
+        if n := row.get("total") or 0:
+            kept = merged.setdefault(row["name"], {"name": row["name"], "guid": row.get("guid"), "total": 0})
+            kept["total"] += n
+    return sorted(merged.values(), key=lambda r: -r["total"])
+
+
 def alive(rep: Report, f: dict, p: Player, deaths: list[dict], casts: list[dict]) -> tuple[float, float]:
     """(seconds alive, the last moment alive) of a player in a pull. A player brought back (a battle res,
     Reincarnation) is alive again from their next cast after a death, not a fake one (Warcraft Logs derives one

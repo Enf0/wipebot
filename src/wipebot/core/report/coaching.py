@@ -14,11 +14,12 @@ from ..text import clock, name_key, plural, short
 from ..wcl import WCLError
 from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report, unavailable
 from .build import gear_stats, hero_of, prepared
-from .casting import alive, casting, casting_lines, raid_pauses, without
+from .casting import alive, cast_counts, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
 from .deaths import Replayed, replay_deaths, savers
 from .ending import MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
+from .tables import totals_by_name
 
 # WCL's power types (classResources `type`, Resources graphs at 100 + type), the game's Enum.PowerType.
 POWER_TYPES = {0: "Mana", 1: "Rage", 2: "Focus", 3: "Energy", 4: "Combo Points", 5: "Runes", 6: "Runic Power",
@@ -40,8 +41,8 @@ async def player_pull(rep: Report, player: str, pull: PullRef = None, boss: str 
     rep.require_in(f, p)
     p = rep.in_pull(f, p)
     t0 = f["startTime"]
-    details, deaths, events, pauses = await asyncio.gather(rep.details(f), rep.deaths(f), rep.cast_events(f, p),
-                                                           raid_pauses(rep, f))
+    details, deaths, events, pauses, counts = await asyncio.gather(
+        rep.details(f), rep.deaths(f), rep.cast_events(f, p), raid_pauses(rep, f), cast_counts(rep, f, p))
     det = details.get(p.id, {})
     own = [d for d in deaths if d["targetID"] == p.id]
     casts = [c for c in events if c["type"] == "cast"]
@@ -64,9 +65,10 @@ async def player_pull(rep: Report, player: str, pull: PullRef = None, boss: str 
     for (_, what), t in throughput:
         lines += _throughput_lines(rep, f, p, what, t, bool(own), alive_s, spread)
     lines += [died, taken]
-    counts = Counter(rep.ability_ref(c["abilityGameID"]) for c in casts)
-    lines.append(f"Casts: {len(casts)} ({60 * len(casts) / max(alive_s, 1):.0f} per minute alive; every cast "
-                 "event, procs and items included): " + ", ".join(f"{a} {n}" for a, n in counts.most_common(18)))
+    cast = sum(r["total"] for r in counts)
+    lines.append(f"Casts: {cast} ({60 * cast / max(alive_s, 1):.0f} per minute alive; as Warcraft Logs' Casts table "
+                 "counts them: the procs and items it lists included, a spell logged under several ids once): "
+                 + ", ".join(f"{r['name']}{f' [{g}]' if (g := r['guid']) else ''} {r['total']}" for r in counts[:18]))
     lines += casting_lines(rep, f, flow, alive_s, pauses)
     lines += cooldowns + uptimes + resource
     lines.append(f"Healthstones and healing potions: {stones}, combat potions: {potions}")
@@ -124,7 +126,10 @@ def _throughput_lines(rep: Report, f: dict, p: Player, what: str, t: dict, died:
     if same:
         lines.append("  same spec in this pull: " + ", ".join(f"{e['name']} {short(e['total'] / dur_s)}/s"
                                                                for e in same))
-    lines.append("  top: " + ", ".join(f"{a['name']} {short(a['total'])}" for a in mine.get("abilities", [])[:5]))
+    top: Counter = Counter()  # an ability listed under two ids (Lava Burst) is one row, as breakdown counts it
+    for a in mine.get("abilities", []):
+        top[a["name"]] += a["total"]
+    lines.append("  top: " + ", ".join(f"{name} {short(total)}" for name, total in top.most_common(5)))
     if what == "damage" and (targets := sorted(mine.get("targets", []), key=lambda x: -x.get("total", 0))):
         lines.append("  by target: " + ", ".join(
             f"{x['name']} {100 * x['total'] / max(mine['total'], 1):.0f}%" for x in targets[:5]))
@@ -143,8 +148,8 @@ async def _died_line(rep: Report, f: dict, own: list[dict]) -> str:
 async def _taken_line(rep: Report, f: dict, p: Player) -> str:
     until, note = await rep.until_decided(f, False)
     t = await rep.table(f["id"], "DamageTaken", hostilityType="Friendlies", sourceID=p.id, **until)
-    taken = sorted(t["entries"], key=lambda e: -e.get("total", 0))[:6]
-    return f"Damage taken{note}: " + ", ".join(f"{e['name']} {short(e['total'])}" for e in taken)
+    return f"Damage taken{note}: " + ", ".join(f"{name} {short(total)}"
+                                                 for name, total in totals_by_name(t, "DamageTaken")[:6])
 
 
 def _decided_ts(f: dict, decided: Decided | None) -> float:

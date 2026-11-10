@@ -423,6 +423,14 @@ def _merged_rows(tables: list[dict], data_type: str, group_by: str, per_hit: boo
     return rows, total_time, {n: c for n, (_, c) in merged.items()}
 
 
+def totals_by_name(t: dict, data_type: str) -> list[tuple[str, float]]:
+    """A table's (name, amount) rows, biggest first, as breakdown counts them (_merged_rows): an ability logged
+    under several ids (Virulence's hit and its pulses) is one row with their sum. Every tool that lists a table's
+    abilities reads them here, so an ability's damage on a pull is one number whichever tool is asked."""
+    rows, _, _ = _merged_rows([t], data_type, "ability")
+    return [(name, value) for name, value, _ in rows]
+
+
 RARELY_DISPELLED = 0.25  # a debuff dispelled on fewer applications than this share: not one anyone bothers with
 
 

@@ -557,8 +557,9 @@ async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: st
     lines += _rate_lines(c.names, c.mine, c.rates)
     lines.append(f"Total: {sum(v or 0 for v in c.my_cpm.values()):.0f} / "
                  f"{_median([sum(v or 0 for v in x.cpm.values()) for x in found]):.0f} per "
-                 "minute. Every cast event counts (procs and items too); a spell logged under several ids or a "
-                 "replacing talent's name counts as one. Cooldowns of a minute or more depend on the pull's "
+                 "minute. Casts as Warcraft Logs' Casts table counts them (the procs and items it lists too); a spell "
+                 "logged under several ids or a replacing talent's name counts as one. Cooldowns of a minute or more "
+                 "depend on the pull's "
                  "length, and a pull with Bloodlust at the start is busier than a whole kill.")
     if forms := c.names.upgraded:
         lines.append(", ".join(sorted({rep.ability(i) for i in forms})) + ": a talent's form of a spell that the log "

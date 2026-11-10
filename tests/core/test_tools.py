@@ -3,6 +3,7 @@ recorded answers (support/recorded.py); and what a snapshot can't hold, the pict
 import base64
 import io
 import json
+import re
 import struct
 
 import pytest
@@ -45,6 +46,35 @@ async def test_tool_output_matches_snapshot(recorded, case: Case):
             await run(case)
         pytest.skip(f"recorded before {case.stale}: `just record-tools`, then `just snapshot`")
     assert_snapshot(case.snapshot, await run(case))
+
+
+async def test_an_abilitys_damage_on_a_pull_is_one_number_in_every_tool(recorded):
+    """compare_pulls' most damage taken and breakdown's damage taken by ability read one table the same way: an
+    ability logged under several ids (Virulence, Venomous Surge) is one row with their sum in both, in one order."""
+    compared, taken = await run(CASES["compare-pulls"]), await run(CASES["damage-taken"])
+    pull_13 = compared.split("\n\n")[1].splitlines()[-1]
+    assert pull_13.startswith("Most damage taken until 2:32")
+    listed = [tuple(row.rsplit(" ", 1)) for row in pull_13.split("): ", 1)[1].split(", ")]
+    rows = re.findall(r"^  \d+\. (.+?): (\S+) \(", taken, re.M)
+    assert len(listed) == 8 and listed == rows[:8]
+    assert ("Virulence", "17.87M") in listed and ("Venomous Surge", "13.04M") in listed
+
+
+@pytest.mark.parametrize("mine, top", [("player-pull", "compare-with-top"),
+                                       ("player-pull-holy-power", "compare-with-top-healer")])
+async def test_a_players_casts_per_minute_are_one_number_in_both_tools(recorded, mine, top):
+    """player_pull and compare_with_top count a player's casts from Warcraft Logs' Casts table alike: a Rogue's
+    Mutilate once per press, not once per hand, and a Paladin's Reclamation procs not at all."""
+    if not LOCAL_RECORDED.exists():
+        pytest.skip(NOT_LOCAL)
+    pull, against = await run(CASES[mine]), await run(CASES[top])
+    per_minute = re.search(r"^Casts: \d+ \((\d+) per minute alive", pull, re.M)
+    total = re.search(r"^Total: (\d+) / ", against, re.M)
+    assert per_minute and total and per_minute[1] == total[1]
+    for name, mine_cpm in re.findall(r"^  (.+? \[\d+\]): ([\d.]+) / ", against, re.M):
+        alive_s = int(re.search(r"\((\d+) s alive\)", against)[1])  # ty: ignore[not-subscriptable]
+        n = re.search(re.escape(name) + r" (\d+)[,\n]", pull)
+        assert n and abs(60 * int(n[1]) / alive_s - float(mine_cpm)) < 0.2, name
 
 
 async def test_a_note_assigns_kicks_when_it_calls_one_player_as_an_add_begins_a_cast(recorded):
