@@ -85,6 +85,26 @@ def test_a_summary_says_what_the_comparison_skips_and_what_the_baseline_already_
         "(baseline 0/3)"]
 
 
+def test_a_summary_says_which_answers_failed_whatever_the_judge_said_and_a_crashed_tool_is_red():
+    from evals import run
+    ok = {"ok": True, "reason": ""}
+    crash = {"name": "progress", "failed": True, "result": "progress failed with an unexpected error: TypeError"}
+    case = {**CASE, "kind": "wipe"}
+    answers = (Trial(expect=ok, wrong=ok), Trial(expect=ok, wrong=ok, calls=[crash]),
+               Trial(error="ModelError: error_max_turns"))
+    results = {"a": [run.settle(t, case, "bot") for t in answers],
+               "b": [run.settle(Trial(expect=ok, wrong=ok, seconds=400.0, waited_s=0.0), case, "bot")]}
+    t = run.tally_of([{**case, "id": "a"}, {**case, "id": "b"}], results)
+    assert t["broke"] == {"a tool crashed": {"a": 1}, "hit the bot's cap": {"a": 1}, "took too long": {"b": 1}}
+    assert summary(t)[:4] == ["No answer errored.",
+                              "1 answer failed whatever the judge said (a tool crashed): a (1)",
+                              "1 answer failed whatever the judge said (hit the bot's cap): a (1)",
+                              "1 answer failed whatever the judge said (took too long): b (1)"]
+    assert run.red(t, None) == ["a tool crashed in 1 answer"]  # the cap and the wait are the model's, and counted
+    assert run.red(t | {"broke": {}, "errors": {"a": 2}}, None) == ["2 answers errored"]
+    assert run.red(tally({"a": 3}), None) == [] and run.exit_code(tally({"a": 3}), None) == 0
+
+
 def test_a_run_in_which_every_answer_errored_still_has_a_total_line():
     lines = summary(tally({"a": 0, "b": 0}, trials=1, errors={"a": 1, "b": 1}))
     assert lines[0] == "ERRORS: 2 answers errored and are in no count below: a (1), b (1)"
@@ -388,6 +408,13 @@ def test_a_comparison_cannot_tell_when_the_judge_changed_or_cases_were_skipped()
                             trials={f"s{i}": 4 for i in range(20, 26)})
     assert name == "cannot tell" and "the 6 errored answers could have made it a drop" in line
     assert line.endswith("Look: the total is 1.4 spreads below the baseline's.")
+    # five cases whose every answer errored are in no total: failed, their fifteen answers would have been a drop
+    lost = {f"s{i}": 0 for i in range(5)}
+    name, line = verdict_of(lost, errors=dict.fromkeys(lost, 3))
+    assert (name, line) == ("cannot tell", "VERDICT: cannot tell: the 15 errored answers could have made it a drop.")
+    everything = dict.fromkeys(suite()[0]["passed"], 0)
+    name, line = verdict_of(everything, errors=dict.fromkeys(everything, 3))
+    assert (name, line) == ("cannot tell", "VERDICT: cannot tell: none of this run's cases was compared.")
 
 
 # ---- asking: --trials auto and the cases asked again, with made-up answers in place of the model ----
@@ -551,12 +578,18 @@ def test_a_saved_run_is_read_by_todays_rule_and_can_become_the_baseline(suite_on
     run, results, tally = read_run(saved)
     assert tally["errors"] == {} and tally["passed"]["s0"] == 0 and tally["failed"]["s0"] == [["broke"]] * 3
     assert results["f0"][2].checks == {"expect": True, "wrong": False, "calls": True}
-    assert show_run(saved) == 0  # none of three: listed, and for a run to ask again
+    assert tally["broke"] == {"a tool crashed": {"s0": 3}}
+    assert show_run(saved) == 1  # a crashed tool is a fault in the code, whatever the totals make of three answers
     out = capsys.readouterr().out
-    assert out.startswith("No answer errored.\n0 of 279 answers asked Warcraft Logs live, for data the frozen file "
-                          "didn't hold.\n93 of 93 cases are compared with the baseline\n")
+    assert out.startswith("No answer errored.\n3 answers failed whatever the judge said (a tool crashed): s0 (3)\n"
+                          "0 of 279 answers asked Warcraft Logs live, for data the frozen file didn't hold.\n"
+                          "93 of 93 cases are compared with the baseline\n")
     assert "\n    s0 0/3 (baseline 3/3), by chance 1 in 20\n" in out and "(run.json: opus, bot, commit def)" in out
-    save_baseline(tally, run["mode"], filtered=run.get("filter", ""))
+    assert out.endswith("VERDICT: no change shown: a drop of 10.9 answers (3.9 points) or more would have shown.\n"
+                        "Exits non-zero: a tool crashed in 3 answers.\n")
+    with pytest.raises(SystemExit, match="not saved as the baseline: a tool crashed in 3 answers"):
+        save_baseline(tally, run["mode"], filtered=run.get("filter", ""))
+    save_baseline(tally, run["mode"], accept="the tool is fixed in the next commit", filtered=run.get("filter", ""))
     assert json.loads(path.read_text())["passed"]["s0"] == 0
 
 

@@ -31,7 +31,8 @@ An answer fails when the judge fails it, and also when the raider would have met
 of the text: a tool crashed, the answer hit the bot's cap of turns or spend, or it took longer than the bot waits. An
 error is only what says nothing about the answer: a usage limit, a judge with no verdict, a service that was down,
 data this machine may not read. Errors are in no count; a summary and a comparison start with how many there were,
-and a run with one exits non-zero (settle).
+and a run with one exits non-zero (settle). So does a run in which a tool crashed, which the summary names next: a
+fault in the code, which the totals alone may not show as one.
 
 A full run (no -k, the mode's own model and effort) is kept as its mode's last in evals/full-runs.json, tracked: its
 commit, day, trials, passes, errors and verdict line. scripts/release.py prints how many answer-changing commits and
@@ -48,8 +49,8 @@ With `--trials auto` a case the baseline judged the same on every trial is asked
 times; once the total is half a spread below the baseline's, every case gets its third answer (ask_all). In any run a
 case that moved beyond noise is asked again, up to six answers, before it is printed. A comparison ends in one verdict
 line (compared): no change shown, a drop shown, a rise shown or cannot tell, with the smallest drop it could have
-shown. A run exits non-zero when an answer errored or a drop is shown: the total two spreads below the baseline's, or
-a case that stayed down on six answers. One spread below says "look" and exits zero.
+shown. A run exits non-zero when an answer errored, a tool crashed or a drop is shown: the total two spreads below the
+baseline's, or a case that stayed down on six answers. One spread below says "look" and exits zero.
 """
 import argparse
 import asyncio
@@ -138,6 +139,8 @@ CONNECTOR_ONLY = ("You are Claude, an AI assistant made by Anthropic, in a chat 
 # A tool that crashed (a bad argument is the model's doing, and no crash): the raider would have met it too, so the
 # answer fails whatever the judge makes of it.
 CRASHED = ("failed with an unexpected error",)
+# Why an answer failed whatever the judge made of it (Trial.broke starts with one; a tally counts its answers by them)
+CRASH, CAP, SLOW = "a tool crashed", "hit the bot's cap", "took too long"
 # Data this machine couldn't read, which says nothing about the answer: a report Warcraft Logs won't show, or keys it
 # refused (a run checks them once at its start, keys_work).
 NO_DATA = ("won't show report", "auth_failed")
@@ -172,13 +175,13 @@ def settle(t: Trial, case: dict, mode: str) -> Trial:
                      if any(w in str(c.get("result")) for w in words)), "")
     t.error = t.broke = ""
     if cap := next((c for c in CAPPED if c in session), ""):
-        t.broke = f"hit the bot's cap ({cap}): the raider is told it needed more digging than one answer gets"
+        t.broke = f"{CAP} ({cap}): the raider is told it needed more digging than one answer gets"
     elif session:
         t.error = session
     elif crashed := said(CRASHED):
-        t.broke = f"a tool crashed: {crashed}"
+        t.broke = f"{CRASH}: {crashed}"
     elif mode == "bot" and t.waited_s is not None and t.seconds - t.waited_s > (limit := time_limit(case)):
-        t.broke = f"took {t.seconds - t.waited_s:.0f} s: the bot gives up after {limit} s"
+        t.broke = f"{SLOW}: {t.seconds - t.waited_s:.0f} s, and the bot gives up after {limit} s"
     elif unread := said(NO_DATA) or ("" if judged_ok else said((DOWN,))):
         t.error = unread
     else:
@@ -513,8 +516,8 @@ async def keys_work(library: server.Library) -> None:
 
 
 async def run(args) -> int:
-    """Ask the cases, print and save what came of it; 1 when an answer errored or the comparison with the baseline
-    shows a drop, else 0."""
+    """Ask the cases, print and save what came of it; 1 when an answer errored, a tool crashed or the comparison
+    with the baseline shows a drop (red), else 0."""
     print(f"Answers and judging on {args.billed_to}.", flush=True)
     frozen()
     freeze_today()
@@ -567,7 +570,14 @@ async def run(args) -> int:
     print(f"saved {out.relative_to(HERE.parent)}")
     if args.save_baseline is not None:
         save_baseline(tally, args.mode, args.accept, args.filter)
-    return 1 if tally["errors"] or (found and found.verdict == "a drop shown") else 0
+    return exit_code(tally, found)
+
+
+def exit_code(tally: dict, found: Comparison | None) -> int:
+    """1, with why on a last line, when a run is red (red), else 0."""
+    if why := red(tally, found):
+        print(f"Exits non-zero: {'; '.join(why)}.")
+    return 1 if why else 0
 
 
 def read_run(path: Path) -> tuple[dict, dict[str, list[Trial]], dict]:
@@ -605,7 +615,7 @@ def show_run(path: Path) -> int:
     lines, found = report(tally, results, base, run["mode"],
                           f"({path.name}: {tally['model']}, {run['mode']}, commit {tally['commit']})")
     print("\n".join(lines))
-    return 1 if tally["errors"] or (found and found.verdict == "a drop shown") else 0
+    return exit_code(tally, found)
 
 
 def record_full_run(tally: dict, mode: str, verdict: str, day: str) -> dict:
@@ -636,9 +646,10 @@ def record_saved(path: Path) -> None:
 
 def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") -> None:
     """Keep a run as its mode's baseline, after printing the comparison with the one it replaces. A run with a case
-    asked fewer than UNSETTLED_TRIALS times is never one. A run that errored, doesn't cover every case of its mode
-    as it is today, or is below the baseline it replaces by LOOK spreads or more is refused, unless `accept` says
-    why: the reason is kept in the file, with what it replaced and the like-for-like total on the unchanged cases."""
+    asked fewer than UNSETTLED_TRIALS times is never one. A run that errored, in which a tool crashed, that doesn't
+    cover every case of its mode as it is today, or is below the baseline it replaces by LOOK spreads or more is
+    refused, unless `accept` says why: the reason is kept in the file, with what it replaced and the like-for-like
+    total on the unchanged cases."""
     path = baseline(mode)
     old = json.loads(path.read_text()) if path.exists() else None
     if thin := [c for c in tally["passed"] if judged(tally, c) < UNSETTLED_TRIALS]:
@@ -649,7 +660,7 @@ def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") 
         "client_only" if mode == "bot" else "bot_only")]
     stale = [c["id"] for c in against
              if c["id"] not in tally["passed"] or tally["case_hashes"].get(c["id"]) != case_hash(c)]
-    doubts = [f"{sum(tally['errors'].values())} answers errored"] if tally["errors"] else []
+    doubts = red(tally, None)  # answers that errored, a tool that crashed: the next runs would be measured by them
     if filtered or stale:
         doubts.append(f"it doesn't cover every case as it is today ({filtered and f'-k {filtered}: '}{len(stale)} "
                       f"missing or changed since{': ' + ', '.join(stale[:5]) if stale else ''})")
@@ -747,7 +758,8 @@ def freeze_today() -> None:
 def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dict:
     """What a run found, as it's compared and as a baseline keeps it (`about`: its model, commit and judge): each
     case's trials, passes and errors, the checks it was scored by and which of them each failed answer failed, the
-    answers that asked Warcraft Logs live, and what the answers did besides passing (answers)."""
+    answers that failed whatever the judge said by why (`broke`), the answers that asked Warcraft Logs live, and
+    what the answers did besides passing (answers)."""
     asked = {c: len(ts) for c, ts in results.items()}
     return {**about, "trials": next(iter(asked.values())) if len(set(asked.values())) == 1 else asked,
             "case_hashes": {c["id"]: case_hash(c) for c in cases},
@@ -756,6 +768,8 @@ def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dic
             "failed": {c: f for c, ts in results.items()
                        if (f := [failed_parts(t) for t in ts if not t.passed and not t.errored])},
             "errors": {c: n for c, ts in results.items() if (n := sum(t.errored for t in ts))},
+            "broke": {why: found for why in (CRASH, CAP, SLOW) if (found := {
+                c: n for c, ts in results.items() if (n := sum(t.broke.startswith(why) for t in ts))})},
             "live": {c: n for c, ts in results.items() if (n := sum(asked_live(t) for t in ts))},
             "hard": [c["id"] for c in cases if c.get("hard")]} | answers(cases, results)
 
@@ -912,19 +926,35 @@ def errors_line(tally: dict) -> str:
             + ", ".join(f"{c} ({n})" for c, n in errors.items()))
 
 
+def broke_lines(tally: dict) -> list[str]:
+    """The answers that failed whatever the judge made of their text, by why, a line each: they are failed answers
+    in every count below, and a crashed tool is a fault in the code that no count would show as one."""
+    return [f"{(n := sum(cases.values()))} answer{'s' * (n > 1)} failed whatever the judge said ({why}): "
+            + ", ".join(f"{c} ({n})" for c, n in cases.items()) for why, cases in tally.get("broke", {}).items()]
+
+
+def red(tally: dict, found: Comparison | None) -> list[str]:
+    """Why a run exits non-zero, or none: an answer errored, a tool crashed, or the comparison shows a drop."""
+    errors, crashed = sum(tally.get("errors", {}).values()), sum(tally.get("broke", {}).get(CRASH, {}).values())
+    return [why for why in (f"{errors} answer{'s' * (errors > 1)} errored" if errors else "",
+                            f"a tool crashed in {crashed} answer{'s' * (crashed > 1)}" if crashed else "",
+                            "the comparison shows a drop" if found and found.verdict == "a drop shown" else "") if why]
+
+
 def known_failure(passed: int, of: int) -> bool:
     """Whether a baseline fails a case more than once in three: a failure of it now is no news."""
     return of - passed > of / 3
 
 
 def summary(tally: dict, base: dict | None = None) -> list[str]:
-    """What a run found, first what could flatter it: the answers that errored, those that asked Warcraft Logs live,
-    and with a baseline how many cases the comparison skips and why. Then each case's passes over its judged trials
-    (flaky when it both passed and failed, with the baseline's result where that wasn't a pass on every trial), the
-    total and its spread, how many cases were right on every trial, and from the baseline: the totals where it
-    always, sometimes and never passed, and its known failures."""
+    """What a run found, first what could flatter it: the answers that errored, those that failed whatever the
+    judge said (a crashed tool, the bot's cap, its wait), those that asked Warcraft Logs live, and with a baseline
+    how many cases the comparison skips and why. Then each case's passes over its judged trials (flaky when it both
+    passed and failed, with the baseline's result where that wasn't a pass on every trial), the total and its
+    spread, how many cases were right on every trial, and from the baseline: the totals where it always, sometimes
+    and never passed, and its known failures."""
     errors = tally.get("errors", {})
-    lines = [errors_line(tally)]
+    lines = [errors_line(tally), *broke_lines(tally)]
     if "live" in tally:  # a run's; a baseline from before 10 November has no count
         asked = sum(judged(tally, c) + errors.get(c, 0) for c in tally["passed"])
         lines.append(f"{sum(tally['live'].values())} of {asked} answers asked Warcraft Logs live, for data the "
@@ -1089,7 +1119,7 @@ def compared(base: dict, now: dict) -> Comparison:
     lines.append(f"  compared {len(same)} of {len(now['passed'])} cases"
                  + (f"; skipped {'; '.join(why)}" if why else ""))
     if not same:
-        lines.append("VERDICT: cannot tell: no case of this run is in the baseline unchanged.")
+        lines.append("VERDICT: cannot tell: none of this run's cases was compared.")
         return Comparison(lines, "cannot tell")
     weight, was, at, width = total(base, now, same)
     above = (at - was) / width if width else 0.0  # in spreads
@@ -1110,7 +1140,9 @@ def compared(base: dict, now: dict) -> Comparison:
                  + (" none" if not moved else ""))
     if noise:
         lines.append(f"  within noise: {', '.join(noise)}")
-    answers, errored = sum(judged(now, c) for c in same), sum(now.get("errors", {}).get(c, 0) for c in same)
+    answers = sum(judged(now, c) for c in same)
+    # a case whose every trial errored is in no total, and its answers could have failed all the same
+    errored = sum(now.get("errors", {}).get(c, 0) for c in [*same, *skipped.get("every trial errored", [])])
     cannot = ["the judge changed since the baseline"] if warning else []
     if len(same) < COVERED * len(now["passed"]):
         cannot.append(f"{len(now['passed']) - len(same)} of this run's {len(now['passed'])} cases not compared")
