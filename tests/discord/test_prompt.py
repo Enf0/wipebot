@@ -169,6 +169,15 @@ async def test_a_post_comes_with_the_tool_it_starts_from_already_run():
     assert await post_prefetch(unread, "Sszorak", 12, None, "") == []
 
 
+def test_the_host_prompt_says_what_every_picture_draws():
+    """The bot posts a picture for each tool with a view (server.VIEW_TOOLS), and the prompt's last rules say what
+    each shows, so an answer names what matters instead of redrawing it in text. Discord's pictures are the bot's
+    own (the remote server says what Claude and ChatGPT show in its tools' descriptions), so the text stays here:
+    this keeps a newly drawn tool from landing without its line."""
+    drawn = HOST_PROMPT[HOST_PROMPT.index("- A pull you read with pull_summary"):]
+    assert [tool for tool in server.VIEW_TOOLS if tool not in drawn] == []
+
+
 async def test_the_host_prompt_names_only_tools_the_bot_has():
     """The tools and arguments the host prompt names are the core's or the bot's own, so it never sends the model
     after one it lacks."""

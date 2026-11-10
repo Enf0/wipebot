@@ -753,6 +753,18 @@ def test_pull_tools_open_the_views_which_read_the_app_only_tools(client):
         assert again["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC]}
 
 
+def test_every_tool_a_host_shows_a_view_for_says_what_the_user_sees(client):
+    """A host shows these tools' views on every call, and the model can't see them: the description's note tells
+    it what the user already has in front of them. A view added without its note would be redrawn in text."""
+    call, _ = session(client)
+    shown = [t for t in call("tools/list", {})["tools"]
+             if (ui := (t.get("_meta") or {}).get("ui")) and "app" not in ui.get("visibility", [])]
+    assert {t["name"] for t in shown} >= {"pull_map", "pull_summary", "player_pull", "death_recap", "progress"}
+    for tool in shown:
+        note = tool["description"].rsplit("\n", 1)[-1]
+        assert note.startswith("In Claude") and "the user" in note, tool["name"]
+
+
 @pytest.fixture
 def images(monkeypatch) -> list[str]:
     """Warcraft Logs' assets, faked: an icon, and nothing else. Returns what was fetched."""
