@@ -11,7 +11,8 @@ Ravenous Feast and Tainted Blood Groups: 14 hits of Ravenous Feast [1290662] ove
   Nalaxd (Center): hit by 2 of 3; missed 1: p10 1:04
   Missed none while alive: Attractîv (Left) 4 of 4; Draiman (Center) 3 of 3; Krøpling (Right) 4 of 4; Lïzårðmâñ (Left) 4 of 4; Martin (Left) 4 of 4; Namsus (Left) 4 of 4; Nexsozz (Center) 3 of 3; Peggerino (Right) 4 of 4; Pomaa (Center) 3 of 3; Slushmania (Center) 3 of 3; Sonyosh (Left) 4 of 4; Zebinomage (Right) 4 of 4
   Hit by another group's soak too: Agonco 1, Cptola 1, Dscopi 1
-  Counted for no one: 3 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p6 1:05, p12 1:01, p12 1:03
+  Counted for no one: 1 hit on most of the living players of two or more groups at once, so no one group's soak: p6 1:05
+  Counted for no one: 2 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p12 1:01, p12 1:03
   Hit, in no group: Wutroll 5, Karadim 4
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls; of them, how many were planned in the last 10 s before the wipe was decided or the pull ended, and at how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), dead by then:
   Lïzårðmâñ: 34 planned uses; on time 6, early 5 (2 s), late 8 (3 s), not cast 14, 6 of them in the last 10 s, 8 of them on cooldown, dead 1

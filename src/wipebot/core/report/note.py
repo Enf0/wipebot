@@ -44,9 +44,11 @@ SOAK_CALL_MS = 20_000
 # This few of a group's players in a hit, and under half the group, single no group out: a player or two standing in
 # another group's soak look the same.
 SOAK_FEW = 2
-OUTSIDE, UNCLEAR = "outside the note's soak times", "can't tell whose soak"  # why a hit is given to no group
+# why a hit is given to no group
+OUTSIDE, UNCLEAR, SEVERAL = "outside the note's soak times", "can't tell whose soak", "on several groups at once"
 NO_GROUP = {OUTSIDE: f"outside the note's soak times (no group called within {SOAK_CALL_MS // 1000} s of them)",
-            UNCLEAR: "where the log can't tell whose soak it was (a player or two of a group hit, or as many of two)"}
+            UNCLEAR: "where the log can't tell whose soak it was (a player or two of a group hit, or as many of two)",
+            SEVERAL: "on most of the living players of two or more groups at once, so no one group's soak"}
 SOAKS_ARE = f"given to the group called to soak within {SOAK_CALL_MS // 1000} s of it with most of its players hit"
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
 # A planned cooldown not cast this close before the wipe was decided is said to be: the raid was already falling
@@ -319,8 +321,8 @@ class SoakHit:
     size: float  # the median damage per player hit
     absent: list[tuple[str, str]]  # (player of the group not hit, their state)
     others: list[tuple[str, str | None]]  # (player hit from outside the group, their groups if any)
-    why: str = ""  # OUTSIDE or UNCLEAR
-    near: dict[str, int] = field(default_factory=dict)  # of an UNCLEAR hit: the groups called then, players hit
+    why: str = ""  # OUTSIDE, UNCLEAR or SEVERAL
+    near: dict[str, int] = field(default_factory=dict)  # of a hit given to none: the groups called then, players hit
 
 
 @dataclass
@@ -1116,19 +1118,29 @@ def _soak_calls(note: Note, groups: dict[str, list[str]], when) -> dict[str, lis
     return out
 
 
-def _whose(hit: AbstractSet[str], at: float, members: dict[str, list[str]],
-           calls: dict[str, list[float] | None]) -> tuple[str, str, dict[str, int]]:
+def _whose(hit: AbstractSet[str], at: float, members: dict[str, list[str]], calls: dict[str, list[float] | None],
+           living: Callable[[str], bool] = lambda name: True) -> tuple[str, str, dict[str, int]]:
     """The group a hit of a soak section's ability is given to, or "" with why it's given to none, and how many
     players of each group it could be given to were hit. Those are the groups the note calls to soak within
     SOAK_CALL_MS of the hit, and the ones it never times (`_soak_calls`); of them, the one with most of its players
     hit. With none called then, and no player hit of a group it never times, the hit is OUTSIDE the note's soak
-    times. UNCLEAR is a hit that singles none out: no player of theirs hit, as many of two groups', or of the one
-    with most only SOAK_FEW or fewer and under half of it. Two labels for the same players (the first soak and the
-    third) are one group, under the first."""
+    times. A hit on most of the `living` players of two or more of them, more than SOAK_FEW of each, is on SEVERAL
+    groups at once (the whole raid hit as a pull falls apart): a group's players are here the ones it shares with
+    no other group called then, so a hit on one of two groups that share players isn't one. UNCLEAR is a hit that
+    singles none out: no player of theirs hit, as many of two groups', or of the one with most only SOAK_FEW or
+    fewer and under half of it. Two labels for the same players (the first soak and the third) are one group, under
+    the first."""
     near = {label: len(hit & set(members[label])) for label, times in calls.items()
             if times is None or any(abs(t - at) <= SOAK_CALL_MS for t in times)}
     if not any(n or calls[label] is not None for label, n in near.items()):
         return "", OUTSIDE, {}
+    whole = set()
+    for label in near:
+        own = set(members[label]).difference(*(members[g] for g in near if set(members[g]) != set(members[label])))
+        if SOAK_FEW < len(hit & own) and 2 * len(hit & own) > sum(n in hit or living(n) for n in own):
+            whole.add(frozenset(own))
+    if len(whole) > 1:
+        return "", SEVERAL, near
     label, most = max(near.items(), key=lambda kv: kv[1])
     tied = len({frozenset(members[g]) for g, n in near.items() if n == most}) > 1
     if not most or tied or (most <= SOAK_FEW and 2 * most < len(members[label])):
@@ -1176,13 +1188,18 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
             at = burst[0]["timestamp"] - t0
             hit = {rep.actor(e["targetID"]) for e in burst}
             size = sorted(e.get("amount", 0) + e.get("absorbed", 0) for e in burst)[len(burst) // 2]
-            label, why, near = _whose(hit, at, members, calls)
-            group = members[label] if label else []
-            section.hits.append(SoakHit(
-                at, label, group, hit, size, [(n, state(n, at)) for n in group if n not in hit],
-                [(n, "/".join(owner[n]) or None) for n in sorted(hit - set(group))] if label else [], why, near))
+            label, why, near = _whose(hit, at, members, calls, lambda n, at=at: state(n, at) == "alive")
+            section.hits.append(_given(SoakHit(at, "", [], hit, size, [], [], why, near), label, members, owner, state))
         out.append(section)
     return out
+
+
+def _given(h: SoakHit, label: str, members: dict[str, list[str]], owner: Mapping[str, list[str]], state) -> SoakHit:
+    """The hit given to the group `label` ("" for none): who of the group it missed, and who else it hit."""
+    h.label, h.group = label, members[label] if label else []
+    h.absent = [(n, state(n, h.at)) for n in h.group if n not in h.hit]
+    h.others = [(n, "/".join(owner[n]) or None) for n in sorted(h.hit - set(h.group))] if label else []
+    return h
 
 
 async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,  # noqa: PLR0913
@@ -1721,9 +1738,10 @@ def _no_soaks(hits: list[SoakHit]) -> str:
     given = sum(bool(h.label) for h in timed)
     if len(timed) < FEW_SOAKS_MIN or given >= FEW_SOAKS * len(timed):
         return ""
+    rest = "on a player or two of each" + (" or on several at once" if any(h.why == SEVERAL for h in timed) else "")
     return (f"but only {given} of the {len(timed)} in the note's soak times landed on a group (under a fifth; the "
-            "rest on a player or two of each): likely not soak groups (an ability to avoid, or groups for another "
-            "job), so no one is counted as missing it")
+            f"rest {rest}): likely not soak groups (an ability to avoid, or groups for another job), so no one is "
+            "counted as missing it")
 
 
 def _few(took: Counter, alive: Counter) -> list:

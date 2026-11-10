@@ -5,7 +5,7 @@ Assignments in the note's text, Enfo's: Ravenous Feast and Tainted Blood Groups:
 Ravenous Feast and Tainted Blood Groups: 176 hits of Ravenous Feast [1290662] over 35 pulls (2 more after the wipes were decided), each given to the group called to soak within 20 s of it with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them and which they missed:
   Missed none while alive: Enfo (Right) 57 of 57
   The raid, for scale: 11 of the 19 players of the groups missed a soak while alive, the most 14
-  Hit by another group's soak too: Enfo 2
+  Counted for no one: 2 hits on most of the living players of two or more groups at once, so no one group's soak: p5 2:02, p21 2:04
   Counted for no one: 2 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p27 2:02, p33 2:02
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls; of them, how many were planned in the last 10 s before the wipe was decided or the pull ended, and at how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), dead by then:
   Enfo: 77 planned uses; on time 52, early 2 (1 s), late 12 (3 s), not cast 9, 2 of them in the last 10 s, dead 2
