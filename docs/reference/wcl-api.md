@@ -45,10 +45,10 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   night (`Report.resurrects`).
 - A `resurrect` event is logged when the res is cast, not when the player takes it, and nothing logs the taking.
   One nobody took leaves the player dead (8TcXMAP2gHQGr9pW, The Coiled Altar pull 1: a res at 4:21 on a player
-  with no cast and no second death in the three minutes after it). Over nine recorded reports, 27 of 123 res had no later death of
-  the player; the ones taken show a cast of the player's within seconds (1.6 s and 8.4 s on two checked). So
-  Wipebot counts a res once the player dies again or casts after it (`Report._taken`): one more query a night,
-  only for the pulls with a res that no later death proves.
+  with no cast and no second death in the three minutes after it). Over nine recorded reports, 31 of 123
+  `resurrect` events had no later death of the player; the ones taken show a cast of the player's within seconds
+  (1.6 s and 8.4 s on two checked). So Wipebot counts a res once the player dies again or casts after it
+  (`Report._taken`): one more query a night, only for the pulls with a res that no later death proves.
 - In a filter expression `timestamp` counts ms from the fight's start (`timestamp > 45043` on KBYT4xXn7VNjDgh8
   fight 27 kept the casts after a death 45.0 s in; verified 2026-10-21), and `source.name` matches accented names
   as written (`"Lïzårðmâñ"`). A `type = "cast"` filter on Casts keeps `fake` casts.
