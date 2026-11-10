@@ -15,7 +15,7 @@ from wipebot.core import server, viewhost, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report.base import JOBS_NOT_LOGGED
 from wipebot.discord import bot as wipebot
-from wipebot.discord import commands, host, keys, messages
+from wipebot.discord import commands, host, keys, messages, texts
 from wipebot.discord.host import Answer, Context, Session, ToolCall
 from wipebot.discord.posts import Following
 from wipebot.discord.store import LoginGuild, ServerSettings
@@ -304,12 +304,12 @@ async def test_a_report_warcraft_logs_wont_show_is_said_as_that_not_as_an_outage
     assert told == ("Warcraft Logs won't show me report PrivateReport001: it's private, was deleted, or the code is "
                     "wrong, so asking again won't help. If it's a private report you can open on Warcraft Logs, "
                     "`/login private:True` lets me read it for your questions; then ask again.")
-    assert await answered(member(7, "Rowan")) == wipebot.UNREADABLE.format(code=PRIVATE)  # already lets it: no hint
+    assert await answered(member(7, "Rowan")) == texts.UNREADABLE.to("en", code=PRIVATE)  # already lets it: no hint
 
     async def down(key, code, question, ctx, earlier=None, message_id=None, timeout=None):
         raise wcl.WCLError("502")
     monkeypatch.setattr(bot.conversations, "ask", down)
-    assert await answered(member(8, "Brann")) == wipebot.WCL_DOWN
+    assert await answered(member(8, "Brann")) == texts.WCL_DOWN.en
 
 
 class Click:

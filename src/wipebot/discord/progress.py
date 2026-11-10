@@ -1,5 +1,6 @@
 """The line under a question while its answer is written: what the answer has looked at, what it's looking at now,
-and how long it has taken; and the steps an answer went through, kept under it where a server wants them."""
+and how long it has taken; and the steps an answer went through, kept under it where a server wants them. In the
+question's language, English or Norwegian (texts.py has the words)."""
 import asyncio
 import logging
 import re
@@ -11,6 +12,8 @@ import discord
 
 from wipebot.core import server
 
+from . import texts
+
 log = logging.getLogger(__name__)
 
 PROGRESS_AFTER_S = 5.0  # an answer's progress line shows once it has taken this long
@@ -20,46 +23,35 @@ SHOWN_DONE = 8  # tools done the line names, the latest
 SHOWN_NOW = 3  # tools under way it names
 FALLBACK_SPINNER = "⏳"
 
-# What a tool under way does, for the people waiting: a tool missing here shows its title
-DOING = {
-    "find_reports": "Finding reports", "roster": "Checking the roster", "pull_summary": "Summing up the pull",
-    "pull_timeline": "Reading the timeline", "death_recap": "Reading death recaps",
-    "mechanic_hits": "Counting mechanic hits", "pull_map": "Drawing the map", "tank_swaps": "Checking tank swaps",
-    "compare_pulls": "Comparing pulls", "enemies": "Checking the adds", "raid_note": "Reading the raid note",
-    "raid_plan": "Reading the raid plan", "raid_prep": "Checking flasks, food and gear",
-    "progress": "Going through the night", "player_pull": "Reading a player's pull",
-    "compare_with_top": "Comparing with top players", "player_night": "Reading a player's night",
-    "player_history": "Reading a player's past weeks", "defensives": "Checking defensives",
-    "healing": "Reading the healing", "buff_at_casts": "Checking buffs at casts", "breakdown": "Breaking it down",
-    "wcl_query": "Querying Warcraft Logs", "spell_info": "Looking up a spell", "boss_guide": "Reading the boss guide",
-    "web_lookup": "Looking it up on the web", "spec_guide": "Reading the spec guide",
-    "hotfixes": "Checking hotfixes", "follow_pulls": "Setting up posts after wipes", "remember": "Taking a note",
-    "answer_in_dm": "Taking it to DMs",
-}
-PULLS = {"kill": "the kill", "best wipe": "the best wipe", "last wipe": "the last wipe", "first": "the first pull",
-         "last": "the last pull"}
-
 
 def _clean(value: object) -> str:
     """An argument as plain text for the line: no markdown, mentions or links, and short."""
     return " ".join(re.sub(r"[^\w' ,.-]", " ", str(value)).split())[:40]
 
 
-def doing(name: str, args: dict) -> str:
-    """What a call does, with the boss, pull and spec it's about: never a player."""
+def doing(name: str, args: dict, lang: str = "en") -> str:
+    """What a call does, in `lang`, with the boss, pull and spec it's about: never a player."""
     pull = args.get("pull")
-    pull = ("every pull" if args.get("all_pulls") else None) or (
-        PULLS.get(str(pull).lower(), f"pull {_clean(pull)}") if pull not in (None, "") else None)
+    named = texts.PULLS.get(str(pull).lower())
+    pull = (texts.EVERY_PULL.to(lang) if args.get("all_pulls") else None) or (
+        (named.to(lang) if named else texts.PULL.to(lang, n=_clean(pull))) if pull not in (None, "") else None)
     about = [s for s in (_clean(args.get("boss") or ""), pull, _clean(args.get("spec") or "")) if s]
-    return DOING.get(name, server.title(name)) + (f" ({', '.join(about)})" if about else "")
+    what = texts.DOING[name].to(lang) if name in texts.DOING else step(name, lang)
+    return what + (f" ({', '.join(about)})" if about else "")
 
 
-def steps(calls: Sequence[tuple[str, bool]]) -> str:
-    """The small line of the steps an answer went through, from its tool calls (name, failed) in order: each tool
-    once, with how often it ran when more than once, ✗ when every call of it failed; none without a step."""
+def step(name: str, lang: str = "en") -> str:
+    """A step an answer went through, in `lang`: its tool's title, or what a Norwegian raider would call it."""
+    return (texts.STEPS_NO.get(name) if lang == "no" else None) or server.title(name)
+
+
+def steps(calls: Sequence[tuple[str, bool]], lang: str = "en") -> str:
+    """The small line of the steps an answer went through, in `lang`, from its tool calls (name, failed) in order:
+    each tool once, with how often it ran when more than once, ✗ when every call of it failed; none without a
+    step."""
     runs: Counter[str] = Counter(name for name, _ in calls if name not in NOT_SHOWN)
     worked = {name for name, failed in calls if not failed}
-    return ("-# " + " · ".join(f"{'✓' if name in worked else '✗'} {server.title(name)}"
+    return ("-# " + " · ".join(f"{'✓' if name in worked else '✗'} {step(name, lang)}"
                                + (f" ×{n}" if n > 1 else "") for name, n in runs.items())) if runs else ""
 
 
@@ -68,10 +60,11 @@ class Progress:
     finish (at most every PROGRESS_EDIT_S, Discord limits edits) and deleted once the answer is posted. One line
     names the tools done, the other what it does now with a spinner, and since when (a Discord timestamp, which
     counts up by itself). It's sent silently and the answer as a new message, so the asker is notified of the answer.
-    It names the boss, pull and spec a call is about, never a player, so no player is named in a channel."""
+    It names the boss, pull and spec a call is about, never a player, so no player is named in a channel, and
+    speaks `lang`: the question's language."""
 
-    def __init__(self, message: discord.Message, spinner: str = FALLBACK_SPINNER):
-        self._message, self._spinner = message, spinner
+    def __init__(self, message: discord.Message, spinner: str = FALLBACK_SPINNER, lang: str = "en"):
+        self._message, self._spinner, self._lang = message, spinner, lang
         self._since = int(message.created_at.timestamp())
         self._calls: dict[tuple[str, str], None] = {}  # (tool, what it does), in the order called
         self._started: Counter[tuple[str, str]] = Counter()
@@ -93,7 +86,7 @@ class Progress:
     def _count(self, counts: Counter, name: str, args: dict) -> None:
         if name in NOT_SHOWN:
             return
-        key = (name, doing(name, args))
+        key = (name, doing(name, args, self._lang))
         self._calls.setdefault(key)
         counts[key] += 1
         if self._task.done() and not self._closed:
@@ -102,14 +95,16 @@ class Progress:
     def _text(self) -> str:
         now = [k for k in self._calls if self._started[k] > self._finished[k]]
         busy = {name for name, _ in now}
-        done = list(dict.fromkeys(server.title(k[0]) for k in self._calls if self._finished[k] and k[0] not in busy))
+        lang = self._lang
+        done = list(dict.fromkeys(step(k[0], lang) for k in self._calls if self._finished[k] and k[0] not in busy))
         lines = []
         if done:
             lines.append("-# " + ("… · " if len(done) > SHOWN_DONE else "")
                          + " · ".join(f"✓ {title}" for title in done[-SHOWN_DONE:]))
-        doing_now = [f"{self._spinner} {what}" for _, what in now[:SHOWN_NOW]] or [f"{self._spinner} Thinking"]
-        more = f" · +{len(now) - SHOWN_NOW} more" if len(now) > SHOWN_NOW else ""
-        lines.append(f"-# {' · '.join(doing_now)}{more} · started <t:{self._since}:R>")
+        doing_now = [f"{self._spinner} {what}" for _, what in now[:SHOWN_NOW]] or [
+            f"{self._spinner} {texts.THINKING.to(lang)}"]
+        more = f" · {texts.MORE.to(lang, n=len(now) - SHOWN_NOW)}" if len(now) > SHOWN_NOW else ""
+        lines.append(f"-# {' · '.join(doing_now)}{more} · {texts.STARTED.to(lang)} <t:{self._since}:R>")
         return "\n".join(lines)
 
     async def _show(self) -> None:

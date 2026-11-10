@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Agent` **Save a raid plan by its link.** Where the host has a raidstrats.gg key, an officer pastes the plan's link instead of its export: in Viserio's assignment note, right-click the raidstrats.gg badge on a section's raid plan and Copy Link. Wipebot fetches the plan, Viserio's default plans included, and puts the night's raiders from the link on their spots, with their full names.
 
+### Changed
+
+- `Discord` **Wipebot's own messages are in Norwegian when your question is.** The answers already followed the question's language; now so do the line under your question while the answer is written, the steps under an answer, the buttons and menus, and what Wipebot says when it can't answer (no AI key on the server yet, Warcraft Logs not answering, a question that took too long). A question too short to tell gets the server's language (`/wipebot setup language:`), and the Norwegian keeps the game's words as raiders write them ("pullet", "deaths", "adds").
+
 ### Fixed
 
 - `Discord` **What your guild saved stays in your own server.** On a bot many servers share, such as the public Wipebot, a guild's raid notes and plans are read and saved only in a server whose admin has shown the guild is theirs: one who has a character in it among those they claimed on Warcraft Logs signs in with `/login` and runs `/wipebot setup`, which says so until then. A server set up before does this once; answers about the logs and posts after wipes work meanwhile, and a host's own bot works as before.

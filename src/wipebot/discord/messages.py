@@ -11,7 +11,8 @@ messages still work after a restart (discord.py's DynamicItem, registered in Wip
 The follow-ups an answer offers are buttons too (FollowUp), then the cost line under a thin line: a click asks it in
 the asker's conversation, as if they had typed it, and only the asker's click does.
 
-The buttons and menus speak the answer's language (`language`; a click's reply, the clicker's Discord's)."""
+The buttons and menus speak the answer's language (texts.language; a click's reply, the clicker's Discord's): their
+words are in texts.py."""
 import io
 import logging
 import re
@@ -26,8 +27,9 @@ from wipebot.core.pulls import is_reset, wipe_pct, wipe_text
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import host, logincmd
+from . import host, logincmd, texts
 from .host import Context, ToolCall
+from .texts import language, locale_language  # noqa: F401 (language: the bot's and the tests')
 
 log = logging.getLogger(__name__)
 
@@ -36,20 +38,6 @@ GUILD_BEST = "**new guild best!**"  # pull_summary's post marks a wipe that beat
 SEP = "|"  # between the parts of a custom_id; no report code, boss or character name has one
 ID_CHARS = 100  # Discord's limit for a custom_id
 CHOICES = 25  # Discord's limit for a menu's options
-# Words far more common in one language than the other, to tell which the answer is in (the model answers in the
-# question's): Norwegian, else English
-NORWEGIAN = re.compile(r"(?i)(?<!\w)(?:og|ikke|det|er|på|du|som|med|til|av|har|var|den|jeg|dere|hvor|hva|også)(?!\w)")
-ENGLISH = re.compile(r"(?i)(?<!\w)(?:and|not|the|is|on|you|with|to|of|has|was|it|are|what|also|your)(?!\w)")
-
-
-def language(text: str) -> str:
-    """'no' for an answer in Norwegian, else 'en': the language of its buttons."""
-    return "no" if len(NORWEGIAN.findall(text)) > len(ENGLISH.findall(text)) else "en"
-
-
-def locale_language(locale: object) -> str:
-    """'no' for a Discord client in Norwegian, else 'en'."""
-    return "no" if str(locale).startswith(("no", "nb", "nn")) else "en"
 
 
 @dataclass(frozen=True)
@@ -107,7 +95,7 @@ def _boxed(p: Picture, used: set[str]) -> discord.ui.Container:
     """A picture whole in a gallery of its own, boxed with its buttons and menus (those in `used` left out, and the
     rest added to it), edged gold for a new guild best."""
     items: list[discord.ui.Item] = [discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{p.name}"))]
-    buttons: list[discord.ui.Item] = [discord.ui.Button(label=OPEN[p.lang], url=p.link)] \
+    buttons: list[discord.ui.Item] = [discord.ui.Button(label=texts.OPEN.to(p.lang), url=p.link)] \
         if p.link else []
     acts = [a for a in p.actions if a.item.custom_id not in used]
     used.update(a.item.custom_id for a in acts if a.item.custom_id)
@@ -118,11 +106,11 @@ def _boxed(p: Picture, used: set[str]) -> discord.ui.Container:
     return discord.ui.Container(*items, accent_colour=discord.Colour.gold() if p.best else None)
 
 
-def label(template: str, boss: str = "", pull: str | int = "", player: str = "", limit: int = 80) -> str:
-    """A button's or menu's label from its template, cut to Discord's `limit` (80 for a button, 150 for a menu's
+def label(text: texts.Text, lang: str, boss: str = "", pull: str | int = "", player: str = "", limit: int = 80) -> str:
+    """A button's or menu's label in `lang`, cut to Discord's `limit` (80 for a button, 150 for a menu's
     placeholder): a long boss name goes first."""
-    text = template.format(boss=boss, pull=pull, player=player)
-    return text if len(text) <= limit else text[:limit - 1] + "…"
+    said = text.to(lang, boss=boss, pull=pull, player=player)
+    return said if len(said) <= limit else said[:limit - 1] + "…"
 
 
 def _id(prefix: str, *parts: object) -> str | None:
@@ -133,24 +121,16 @@ def _id(prefix: str, *parts: object) -> str | None:
 
 
 _FIELDS = r"(?P<what>[a-z]+)\|(?P<report>[^|]*)\|(?P<boss>[^|]*)\|(?P<pull>[^|]*)\|(?P<player>[^|]*)"
-# What each button opens, named so a raider sees where it goes ({boss}, {pull} and {player}: what it acts on)
-LABELS = {"en": {"death": "First death: {player}", "top": "{player} against top players",
-                 "night": "{player}'s night", "ppull": "{player}'s pull", "mynight": "My night on {boss}",
-                 "mypull": "How did I do?", "hits": "{player} hits pull by pull"},
-          "no": {"death": "Første død: {player}", "top": "{player} mot toppene", "night": "Kvelden til {player}",
-                 "ppull": "Pullen til {player}", "mynight": "Min kveld på {boss}",
-                 "mypull": "Hvordan gikk det for meg?", "hits": "{player}-treff per pull"}}
-OPEN = {"en": "Open in Warcraft Logs", "no": "Åpne i Warcraft Logs"}
 MINE = {"mynight", "mypull"}  # actions on the clicker's own character
 
 
 class Act(discord.ui.DynamicItem[discord.ui.Button], template=r"wb\|" + _FIELDS):
-    """A button: what it does (LABELS, in `lang`) and what to: the report, boss, pull and player."""
+    """A button: what it does (texts.BUTTONS, in `lang`) and what to: the report, boss, pull and player."""
 
     def __init__(self, what: str, report: str, boss: str = "", pull: str | int = "", player: str = "",
                  lang: str = "en") -> None:
         self.what, self.report, self.boss, self.pull, self.player = what, report, boss, str(pull), player
-        super().__init__(discord.ui.Button(label=label(LABELS[lang][what], boss, pull, player),
+        super().__init__(discord.ui.Button(label=label(texts.BUTTONS[what], lang, boss, pull, player),
                                            style=discord.ButtonStyle.secondary,
                                            custom_id=_id("wb", what, report, boss, pull, player) or "wb|none"))
 
@@ -165,19 +145,14 @@ class Act(discord.ui.DynamicItem[discord.ui.Button], template=r"wb\|" + _FIELDS)
 
 class Pick(discord.ui.DynamicItem[discord.ui.Select], template=r"wbs\|" + _FIELDS):
     """A menu: what a choice opens ("player": that player's pull, "ppull": the player's card on that pull, "pull": that
-    pull), the report, boss, pull and player it's about, and its choices as (label, value)."""
-
-    PLACEHOLDERS = {"en": {"player": "Open a player's card on this pull…",
-                           "ppull": "Open {player}'s card on a pull…", "pull": "Open a pull on {boss}…"},
-                    "no": {"player": "Åpne en spillers kort på denne pullen…",
-                           "ppull": "Åpne kortet til {player} på en pull…", "pull": "Åpne en pull på {boss}…"}}
+    pull; texts.MENUS), the report, boss, pull and player it's about, and its choices as (label, value)."""
 
     def __init__(self, what: str, report: str, boss: str = "", pull: str | int = "", player: str = "",
                  choices: Sequence[tuple[str, str]] = (), lang: str = "en") -> None:
         self.what, self.report, self.boss, self.pull, self.player = what, report, boss, str(pull), player
         super().__init__(discord.ui.Select(
             custom_id=_id("wbs", what, report, boss, pull, player) or "wbs|none",
-            placeholder=label(self.PLACEHOLDERS[lang][what], boss, pull, player, 150),
+            placeholder=label(texts.MENUS[what], lang, boss, pull, player, 150),
             options=[discord.SelectOption(label=label[:100], value=value) for label, value in choices[:CHOICES]]
             or [discord.SelectOption(label="none", value="")]))
 
@@ -212,14 +187,15 @@ class FollowUp(discord.ui.DynamicItem[discord.ui.Button], template=r"wbf\|(?P<as
         return cls(int(match["asker"]), int(match["n"]), getattr(item, "label", None) or "")
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        lang = locale_language(interaction.locale)
         if interaction.user.id != self.asker:
             await interaction.response.send_message(
-                f"That's <@{self.asker}>'s follow-up. Ask me yourself: mention me with your question.", ephemeral=True,
+                texts.NOT_YOURS.to(lang, asker=self.asker), ephemeral=True,
                 allowed_mentions=discord.AllowedMentions.none())
             return
         follow_up = getattr(interaction.client, "follow_up", None)
         if follow_up is None or not self.question:
-            await interaction.response.send_message("I can't ask that one: ask me in a message.", ephemeral=True)
+            await interaction.response.send_message(texts.CANT_ASK.to(lang), ephemeral=True)
             return
         await follow_up(interaction, self.question)
 
@@ -287,14 +263,13 @@ async def act(interaction: discord.Interaction, what: str, report: str, boss: st
 async def _act(interaction: discord.Interaction, what: str, report: str, boss: str, pull: str, player: str) -> None:
     store = getattr(interaction.client, "store", None)
     mine = (store.raider(interaction.user.id).character if store else None) or ""
+    lang = locale_language(interaction.locale)
     if what in MINE:
         player = mine
         if not player:
-            await interaction.response.send_message(
-                "I don't know which character is yours yet. Tell me in a message (\"my character is ...\") and I'll "
-                "remember it.", ephemeral=True)
+            await interaction.response.send_message(texts.WHICH_CHARACTER.to(lang), ephemeral=True)
             return
-        if what == "mypull" and (missing := await _not_in_pull(report, boss, pull, player)):
+        if what == "mypull" and (missing := await _not_in_pull(report, boss, pull, player, lang)):
             await interaction.response.send_message(missing, ephemeral=True)
             return
     await interaction.response.defer(ephemeral=True, thinking=True)
@@ -304,16 +279,15 @@ async def _act(interaction: discord.Interaction, what: str, report: str, boss: s
     if what == "hits":  # the meter's hits pull by pull, not the meter again
         images = [i for i in images if getattr(i, "name", "") == host.BY_PULL]
     if not images:
-        await interaction.followup.send("I couldn't draw that one.", ephemeral=True)
+        await interaction.followup.send(texts.CANT_DRAW.to(lang), ephemeral=True)
         return
-    pictures = await pictures_for([(i, tool, args) for i in images], lang=locale_language(interaction.locale),
-                                  mine=mine)
+    pictures = await pictures_for([(i, tool, args) for i in images], lang=lang, mine=mine)
     files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
     await interaction.followup.send(view=answer_layout("", pictures), files=files, ephemeral=True)
 
 
-async def _not_in_pull(report: str, boss: str, pull: str, player: str) -> str | None:
-    """Why `player` has no card on the pull, when they weren't in it (an alt, a night on the bench)."""
+async def _not_in_pull(report: str, boss: str, pull: str, player: str, lang: str = "en") -> str | None:
+    """Why `player` has no card on the pull, when they weren't in it (an alt, a night on the bench), in `lang`."""
     try:
         rep = await server.lib().report(report)
         f = rep.fight(int(pull) if pull else None, boss or None)
@@ -321,10 +295,9 @@ async def _not_in_pull(report: str, boss: str, pull: str, player: str) -> str | 
         return str(e)
     except WCLError as e:
         log.warning("couldn't read report %s for a click: %s", report, e)
-        return "I couldn't read that report on Warcraft Logs."
+        return texts.CANT_READ.to(lang)
     if rep.find_player(player, rep.pull_players(f).values()) is None:
-        return (f"{player}, the character I have for you, wasn't in {rep.label(f)}. If you play another one, tell me "
-                "in a message (\"my character is ...\").")
+        return texts.NOT_IN_PULL.to(lang, player=player, pull=rep.label(f))
     return None
 
 

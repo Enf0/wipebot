@@ -15,13 +15,9 @@ from tests.support.messages import shown
 from wipebot.core import server
 from wipebot.core.wcl import WCLError
 from wipebot.discord import bot as wipebot
-from wipebot.discord import config, keys, progress
+from wipebot.discord import config, keys, progress, texts
 from wipebot.discord.bot import (
     MODEL_ERRORS,
-    SLOW_START,
-    TOO_SLOW,
-    WCL_DOWN,
-    WENT_WRONG,
     WipeBot,
     answering,
     for_someone_else,
@@ -351,6 +347,14 @@ async def test_messages_the_bot_doesnt_answer(bot, message, asked, settings, fol
     assert said == [] if reply is None else (len(said) == 1 and said[0].startswith(reply))
 
 
+async def test_a_server_without_a_key_is_told_so_in_the_questions_language(bot, message, asked):
+    bot.own_keys = True
+    msg = message("<@99> hvorfor wipet vi?")
+    await bot.on_message(msg)
+    assert msg.replies == ["Denne serveren har ikke lagt inn en AI-nøkkel for svarene mine ennå: en admin legger inn "
+                           "en med `/wipebot setup` (OpenRouter eller Anthropic)."] and not asked
+
+
 async def test_a_server_with_its_own_key_is_answered_on_a_copy_that_needs_one(bot, message, asked):
     bot.own_keys = True
     bot.store.save_server_key(1001, keys.ServerKey("openrouter", "sk-or-v1-abc"), added_by=7)
@@ -359,12 +363,12 @@ async def test_a_server_with_its_own_key_is_answered_on_a_copy_that_needs_one(bo
 
 
 @pytest.mark.parametrize("error, told, why", [
-    (TimeoutError(), TOO_SLOW, "timeout after 360 s"),
-    (SlowStart("opening a conversation took over 60 s"), SLOW_START, "opening a conversation took over 60 s"),
+    (TimeoutError(), texts.TOO_SLOW, "timeout after 360 s"),
+    (SlowStart("opening a conversation took over 60 s"), texts.SLOW_START, "opening a conversation took over 60 s"),
     (ModelError("billing_error"), MODEL_ERRORS["billing_error"], "model: billing_error"),
     (ModelError("overloaded"), MODEL_ERRORS["other"], "model: overloaded"),
-    (RuntimeError("boom"), WENT_WRONG, "RuntimeError('boom')"),
-    (WCLError("timed out"), WCL_DOWN, "wcl: timed out"),  # loading the report failed
+    (RuntimeError("boom"), texts.WENT_WRONG, "RuntimeError('boom')"),
+    (WCLError("timed out"), texts.WCL_DOWN, "wcl: timed out"),  # loading the report failed
     (ModelError("error_max_budget_usd"), MODEL_ERRORS["error_max_budget_usd"], "model: error_max_budget_usd"),
 ])
 async def test_a_question_without_an_answer_is_recorded_and_the_asker_told(bot, message, asked, monkeypatch, error,
@@ -373,11 +377,28 @@ async def test_a_question_without_an_answer_is_recorded_and_the_asker_told(bot, 
     asked.answers.append(error)
     msg = message()
     await bot.on_message(msg)
-    assert msg.replies == [told]
+    assert msg.replies == [told.en]
     assert recorded(bot.store) == [("chat", "Rowan", "why did we wipe?", None, why, None)]
 
 
-@pytest.mark.parametrize("remaining, told", [(0.0, MODEL_ERRORS["billing_error"]), (5.0, MODEL_ERRORS["other"])])
+@pytest.mark.parametrize("question, server, told", [
+    ("INGEN som brukte slows på siste pullet??", None, texts.TOO_SLOW.no),  # a Norwegian question, wherever it's asked
+    ("hæ?", "Norsk", texts.TOO_SLOW.no),  # too short to tell: the server's language, as its admin wrote it
+    ("hæ?", None, texts.TOO_SLOW.en),
+    ("why did we wipe?", "Norwegian", texts.TOO_SLOW.en),  # an English question in a Norwegian server
+])
+async def test_what_the_bot_says_itself_is_in_the_questions_language(bot, message, asked, question, server, told):
+    """The answers follow the question's language; so does what the bot says when there is none."""
+    if server:
+        bot.store.set_language(1001, server)
+    asked.answers.append(TimeoutError())
+    msg = message(f"<@99> {question}")
+    await bot.on_message(msg)
+    assert msg.replies == [told] and "tok for lang tid" in texts.TOO_SLOW.no
+
+
+@pytest.mark.parametrize("remaining, told", [(0.0, MODEL_ERRORS["billing_error"].en),
+                                             (5.0, MODEL_ERRORS["other"].en)])
 async def test_a_key_out_of_credit_says_so(bot, message, asked, monkeypatch, remaining, told):
     # OpenRouter refuses a key past its limit with a 403, which Claude Code calls authentication_failed
     from wipebot.discord import budget
@@ -407,7 +428,7 @@ async def test_a_raider_has_a_few_questions_answered_at_once_in_channels_and_dms
             await asyncio.sleep(0)
     one_more = message("and how did I do?", dm=True)
     await asyncio.wait_for(bot.on_message(one_more), 1)
-    assert one_more.channel.sent == [wipebot.STILL_ANSWERING]
+    assert one_more.channel.sent == ["I'm still answering 3 of your questions: ask again when one is done."]
     go_on.set()
     await asyncio.wait_for(asyncio.gather(*going), 1)
     again = message("and how did I do?", dm=True)
@@ -424,7 +445,8 @@ async def test_a_raider_gets_so_many_answers_an_hour_and_the_posts_they_asked_fo
     last, over = message(), message("<@99> and the pull before?")
     await bot.on_message(last)
     await bot.on_message(over)
-    assert last.replies == ["**Wiped.**"] and over.replies == [wipebot.ASKED_A_LOT] and len(asked) == 1
+    assert last.replies == ["**Wiped.**"] and len(asked) == 1
+    assert over.replies == ["That's 30 answers for you this hour, which is all one person gets: ask again in a while."]
     await bot._post(settings, Following(member(7, "Rowan"), "Rowan", None, "LIVE1", channel, "who messed up"),
                     Pull("LIVE1", 30, "Sszorak", 12, 0.0))
     assert channel.sent == ["**Wiped.**"]  # what they asked for after each pull still comes
@@ -450,13 +472,13 @@ async def test_when_warcraft_logs_is_down_the_asker_is_told(bot, message, asked,
     bot.library.wcl = SimpleNamespace(guild_reports=down)
     msg = message()
     await bot.on_message(msg)
-    assert msg.replies == [WCL_DOWN] and not asked
+    assert msg.replies == [texts.WCL_DOWN.en] and not asked
     follower.code = "LIVE1"
     bot.store.remember_message(500, "LIVE1", 31)
     monkeypatch.setattr(bot.library, "report", down)  # a reply to a post after a wipe loads the report
     reply = message("why?", reply_to=500)
     await bot.on_message(reply)
-    assert reply.replies == [WCL_DOWN] and not asked
+    assert reply.replies == [texts.WCL_DOWN.en] and not asked
 
 
 async def test_the_background_loops_outlive_a_failure(bot, monkeypatch):
@@ -556,14 +578,15 @@ async def test_a_poll_posts_after_wipes_and_marks_every_pull_handled(bot, settin
 async def test_the_poll_after_the_raid_ends_posts_the_night_once(bot, settings, follower, member, monkeypatch):
     nights = []
 
-    async def night_post(f):
-        nights.append(f.key)
+    async def night_post(f, lang):
+        nights.append((f.key, lang))
     monkeypatch.setattr(bot, "_night_post", night_post)
+    bot.store.set_language(1001, "Norwegian")
     bot.posts.add(1001, Following(member(7, "Rowan"), "Rowan", "Torvek", "LIVE1"))
     follower.code = None  # the report stopped being logged
     await bot._new_pulls(settings)
     await asyncio.sleep(0)
-    assert nights == [7] and not bot.posts.by_server[1001]
+    assert nights == [(7, "no")] and not bot.posts.by_server[1001]  # in the server's language
 
 
 async def test_nothing_polls_the_live_report_while_nobody_asked_for_posts(bot, settings, follower):
@@ -611,7 +634,7 @@ async def test_when_the_raid_ends_each_place_gets_its_night_without_the_model(bo
         drawn.append((tool, args))
         return [b"WEBP"]
 
-    async def no_actions(drawn, results=()):
+    async def no_actions(drawn, results=(), lang="en"):
         return [Picture(f"wipebot-{n + 1}.webp") for n in range(len(drawn))]
     monkeypatch.setattr(wipebot.host, "picture", picture)
     monkeypatch.setattr(wipebot, "pictures_for", no_actions)
@@ -625,6 +648,8 @@ async def test_when_the_raid_ends_each_place_gets_its_night_without_the_model(bo
     assert channel.sent[0].startswith("**That's the raid.** The night on the last boss") and channel.files == [
         ["wipebot-1.webp"]]
     assert asked == []  # no model turn
+    await bot._night_post(Following(rowan, "Rowan", "Torvek", "LIVE1"), "no")
+    assert dm.sent[-1].startswith("**Det var raidet.** Kvelden til Torvek:")
 
 
 async def test_a_post_nothing_called_for_isnt_sent(bot, settings, asked, member, channel):
@@ -703,6 +728,7 @@ class Click:
 
     def __init__(self, channel, member, user_id: int = 7):
         self.user, self.channel, self.guild_id = member(user_id, "Rowan"), channel, 1001
+        self.locale = discord.Locale.american_english
         self.message = None  # the answer clicked (the follow-up clicked is taken off it: without_follow_ups)
         self.client: Any = None
         self.said: list[tuple[str | None, dict]] = []
@@ -767,6 +793,8 @@ async def test_a_long_answer_is_cut_after_four_messages(channel):
     assert len(await WipeBot._send(channel, Answer("x " * 10000))) == 4
     assert all(len(m) <= wipebot.TEXT_LIMIT for m in channel.sent)
     assert channel.sent[-1].endswith(" …\n-# The answer was cut here: it ran past four messages.")
+    await WipeBot._send(channel, Answer("og det er ikke " * 1000))  # a Norwegian answer is told so in Norwegian
+    assert channel.sent[-1].endswith(" …\n-# Svaret ble kuttet her: det ble lengre enn fire meldinger.")
 
 
 async def test_pictures_go_whole_with_the_last_message_of_their_answer(channel):
@@ -999,6 +1027,38 @@ async def test_a_long_answer_shows_what_it_looks_at_until_it_is_posted(bot, mess
                                  f"-# <a:wipebot_spinner:5> Thinking · started <t:{since}:R>")
     assert not any("Torvek" in c for c in line.contents)
     assert line.kwargs == {"silent": True, "mention_author": False} and line.deleted
+
+
+async def test_the_line_under_a_norwegian_question_is_norwegian(bot, message, monkeypatch):
+    """The words a raider reads most are the progress line's, shown for about half a minute under nearly every
+    question, and the steps under the answer."""
+    monkeypatch.setattr("wipebot.discord.progress.PROGRESS_AFTER_S", 0)
+    monkeypatch.setattr("wipebot.discord.progress.PROGRESS_EDIT_S", 0)
+    msg = message("<@99> hvorfor wipet vi på siste pullet?")
+    since = int(msg.created_at.timestamp())
+    lines: list[str | None] = []
+
+    async def reply(content=None, **kwargs):
+        if kwargs.get("silent"):
+            lines.append(content)
+            return SimpleNamespace(edit=lambda content: asyncio.sleep(0, lines.append(content)),
+                                   delete=lambda: asyncio.sleep(0))
+        msg.replies.append(shown(content, kwargs.get("view")))
+        return SimpleNamespace(id=200 + len(msg.replies))
+    msg.reply = reply
+
+    async def answering(key, code, question, ctx, *args, **kwargs):
+        ctx.on_tool("pull_summary", {"boss": "Sszorak", "pull": "last wipe"})
+        await asyncio.sleep(0.01)
+        ctx.on_done("pull_summary", {"boss": "Sszorak", "pull": "last wipe"})
+        await asyncio.sleep(0.01)
+        return Answer("**Dere wipet på enrage, og det var ikke nok dps.**",
+                      calls=[ToolCall("pull_summary", {}, "", False), ToolCall("pull_timeline", {}, "", False)])
+    monkeypatch.setattr(bot.conversations, "ask", answering)
+    await bot.on_message(msg)
+    assert lines == [f"-# ⏳ Oppsummerer pullet (Sszorak, siste wipe) · startet <t:{since}:R>",
+                     f"-# ✓ Pullet\n-# ⏳ Tenker · startet <t:{since}:R>"]
+    assert msg.replies == ["**Dere wipet på enrage, og det var ikke nok dps.**\n-# ✓ Pullet · ✓ Tidslinja"]
 
 
 async def test_a_quick_answer_shows_no_progress_line(bot, message, monkeypatch):

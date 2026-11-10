@@ -53,11 +53,10 @@ async def test_each_view_gets_its_actions_on_its_last_picture(recorded):
 
 
 def test_the_buttons_speak_the_answers_language():
-    assert messages.language("**Cooldownene dine sitter der toppene har dem, bortsett fra Vanish.** Du brukte den "
-                             "1 gang.") == "no"
-    assert messages.language("**Your cooldowns line up with the top players' but for Vanish.**") == "en"
-    assert messages.locale_language(discord.Locale.norwegian) == "no"
-    assert messages.locale_language(discord.Locale.american_english) == "en"
+    assert Act("ppull", "R", "Sszorak", 13, "Torvek").item.label == "Torvek's pull"
+    assert Act("ppull", "R", "Sszorak", 13, "Torvek", lang="no").item.label == "Pullet til Torvek"
+    assert Pick("pull", "R", "Sszorak", lang="no").item.placeholder == "Åpne et pull på Sszorak…"
+    assert messages.language("**Cooldownene dine sitter der toppene har dem.** Du brukte den 1 gang.") == "no"
 
 
 def test_the_footer_goes_last_under_a_thin_line():

@@ -26,7 +26,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import allowance, budget, commands, config, emojis, host, logincmd, news, progress
+from . import allowance, budget, commands, config, emojis, host, logincmd, news, progress, texts
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .follower import Follower, Pull
@@ -38,7 +38,6 @@ from .messages import (  # noqa: F401 (Picture: the tests')
     Picture,
     answer_layout,
     asker_of,
-    language,
     pictures_for,
     without_follow_ups,
 )
@@ -74,40 +73,20 @@ LINKED_TOTAL = 12_000  # all of a question's linked text, cut to this many chara
 # A server's or the bot's own emoji as a message writes it, with the space after it
 CUSTOM_EMOJI = re.compile(r"<a?:(\w+):\d+>( ?)")
 QUESTION_CHARS = 2000  # a longer question isn't answered (Discord's limit for a message, without Nitro)
-# What a raider is told when there's no answer: Claude's API refused the question (host.ModelError's kind), it took
-# too long, or something else went wrong.
-MODEL_ERRORS = {
-    "billing_error": "I'm out of credit for answering, so I can't answer for now. `/usage` shows the budget.",
-    "rate_limit": "Too many questions at once; try again in a minute.",
-    "other": "I can't reach Claude right now; try again in a few minutes.",
-    **dict.fromkeys(CAPPED, "That needed more digging than I do for one answer, sorry. Try asking something "
-                            "narrower."),
-}
+# What a raider is told when there's no answer, by why Claude's API refused the question (host.ModelError's kind);
+# these and the other things the bot says itself are in texts.py, in English and Norwegian.
+MODEL_ERRORS = {"billing_error": texts.OUT_OF_CREDIT, "rate_limit": texts.RATE_LIMIT, "other": texts.NO_MODEL,
+                **dict.fromkeys(CAPPED, texts.TOO_MUCH)}
 GUILD_COMMANDS_CLEARED = "guild commands cleared"  # bot_state: earlier versions' per-server commands are gone
-TOO_SLOW = "That took too long, sorry. Try asking something narrower."
-SLOW_START = "Loading the report took too long; try again in a minute."
-NEEDS_KEY = ("This server hasn't added an AI key for my answers yet: an admin adds one with `/wipebot setup` "
-             "(OpenRouter or Anthropic).")
-WENT_WRONG = "Something went wrong while answering that; try again in a moment."
-WCL_DOWN = "Warcraft Logs isn't answering, so I can't look at the logs; try again in a few minutes."
-# A report Warcraft Logs won't show the asker (wcl.Unreadable), and how they'd let the bot read a private one
-UNREADABLE = ("Warcraft Logs won't show me report {code}: it's private, was deleted, or the code is wrong, so asking "
-              "again won't help.")
-PRIVATE_LOGIN = (" If it's a private report you can open on Warcraft Logs, `/login private:True` lets me read it for "
-                 "your questions; then ask again.")
 # One raider's own questions, in channels and DMs alike (a DM spends their server's key where no admin sees it): this
 # many answered at once, and this many answers in an hour. The posts after wipes they asked for don't count.
 USER_AT_ONCE = 3
 USER_ANSWERS_AN_HOUR = 30
-STILL_ANSWERING = f"I'm still answering {USER_AT_ONCE} of your questions: ask again when one is done."
-ASKED_A_LOT = (f"That's {USER_ANSWERS_AN_HOUR} answers for you this hour, which is all one person gets: ask again in "
-               "a while.")
 MENTION = re.compile(r"<@[!&]?\d+>|<#\d+>")
 # Replies need Read Message History; threads, for when someone mentions the bot inside one; maps, Attach Files.
 INVITE_PERMISSIONS = discord.Permissions(view_channel=True, send_messages=True, read_message_history=True,
                                          send_messages_in_threads=True, attach_files=True)
-MAX_MESSAGES = 4  # an answer is cut after this many Discord messages
-CUT = "-# The answer was cut here: it ran past four messages."
+MAX_MESSAGES = 4  # an answer is cut after this many Discord messages (texts.CUT says so)
 # An answer with pictures is Components V2: up to this many characters of text in it (a plain message holds 2000)
 TEXT_LIMIT = 4000
 
@@ -155,6 +134,12 @@ def for_someone_else(text: str, bot_id: int) -> bool:
     makes it a question for the bot."""
     return (bool(re.search(r"<@[!&]?\d+>", text)) and not re.search(rf"<@!?{bot_id}>", text)
             and "?" not in MENTION.sub("", text))
+
+
+def asked_in(question: str, server_language: str | None) -> str:
+    """The language the bot's own words to a question are in ('no' or 'en', texts.py): the question's, or when that
+    doesn't show (a short one, a bare link), the server's, as its admin set it."""
+    return texts.language(question, texts.named(server_language))
 
 
 def where_asked(is_dm: bool, channel_name: str, mentioned: bool) -> str | None:
@@ -675,7 +660,7 @@ class WipeBot(discord.Client):
             for f, pull in due:
                 asyncio.create_task(self._post(s, f, pull))
             for f in self.posts.finished(s.discord_guild_id):
-                asyncio.create_task(self._night_post(f))
+                asyncio.create_task(self._night_post(f, texts.named(self.store.language(s.discord_guild_id))))
 
     @answering
     async def _post(self, s: ServerSettings, f: Following, pull: Pull) -> None:
@@ -717,10 +702,11 @@ class WipeBot(discord.Client):
                            channel_id=getattr(f.channel, "id", None))
 
     @answering
-    async def _night_post(self, f: Following) -> None:
+    async def _night_post(self, f: Following, lang: str = "en") -> None:
         """The last post of a request, once its report ended: in a raider's DMs their own night card (on the night's
         last boss), in a channel the raid's night, where each raider opens their own (My night). Pictures only, drawn
-        from the tools without the model; none when nothing can be drawn (no Chromium, no boss pulled)."""
+        from the tools without the model, under a line in `lang` (the server's language); none when nothing can be
+        drawn (no Chromium, no boss pulled)."""
         if f.code is None:
             return
         tool, args = (("player_night", {"report": f.code, "player": f.character}) if f.character
@@ -730,10 +716,9 @@ class WipeBot(discord.Client):
             if not images:
                 log.info("no night's post for %s: nothing drawn for report %s", self._shown(f.name), f.code)
                 return
-            pictures = await pictures_for([(i, tool, args) for i in images])
+            pictures = await pictures_for([(i, tool, args) for i in images], lang=lang)
         files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
-        text = (f"**That's the raid.** {f.character}'s night:" if f.character
-                else "**That's the raid.** The night on the last boss; the button under it shows yours, only to you.")
+        text = (texts.NIGHT_MINE.to(lang, character=f.character) if f.character else texts.NIGHT_RAID.to(lang))
         try:
             await (f.channel or await f.user.create_dm()).send(view=answer_layout(text, pictures), files=files)
         except discord.HTTPException as e:
@@ -764,14 +749,15 @@ class WipeBot(discord.Client):
         question = strip_mention(message.content, self.user.id)
         if only_mentions(question) or (not is_dm and for_someone_else(message.content, self.user.id)):
             return
+        lang = asked_in(question, self.store.language(settings.discord_guild_id))
         if commands.asks_for_help(question):  # /help's text, without the model
             admin = not is_dm and getattr(getattr(message.author, "guild_permissions", None), "manage_guild", False)
             await respond(message, commands.help_text(settings, admin, is_dm))
             return
         if len(question) > QUESTION_CHARS:
-            await respond(message, f"That's a long one: ask me in at most {QUESTION_CHARS} characters.")
+            await respond(message, texts.TOO_LONG.to(lang, chars=QUESTION_CHARS))
             return
-        if refusal := await self._refusal(message, settings, is_dm):
+        if refusal := await self._refusal(message, settings, is_dm, lang):
             await respond(message, refusal)
             return
         key = ("dm", message.author.id) if is_dm else (message.channel.id, message.author.id)
@@ -779,7 +765,7 @@ class WipeBot(discord.Client):
             code = await self._report_for(settings, key, question)
         except Exception:
             log.exception("finding the report to answer about failed")
-            await respond(message, WCL_DOWN)
+            await respond(message, texts.WCL_DOWN.to(lang))
             return
         await self._chat(message, settings, code or "", question, where, is_dm)  # "": about the game
 
@@ -788,8 +774,7 @@ class WipeBot(discord.Client):
         when there's none."""
         if is_dm:
             if (settings := await self._settings_for_dm(message.author)) is None:
-                await respond(message, "I can only chat with members of a server where wipebot is set up "
-                                       "(with the role it asks for, if any).")
+                await respond(message, texts.MEMBERS_ONLY.to(texts.language(message.content)))
             return settings
         if message.guild is None:
             return None
@@ -799,15 +784,15 @@ class WipeBot(discord.Client):
             return LoginGuild(message.guild.id, *own)
         return ServerSettings.unset(message.guild.id)
 
-    async def _refusal(self, message: discord.Message, s: ServerSettings, is_dm: bool) -> str | None:
-        """Why a question for the bot won't be answered, if it won't: the asker lacks the chat role, or the bot is
-        restarting."""
+    async def _refusal(self, message: discord.Message, s: ServerSettings, is_dm: bool, lang: str) -> str | None:
+        """Why a question for the bot won't be answered, if it won't, in `lang`: the asker lacks the chat role, the
+        bot is restarting, or the server has no AI key where it needs its own."""
         if not is_dm and not may_chat(s, [r.id for r in getattr(message.author, "roles", [])]):
-            return f"Chatting with wipebot needs the <@&{s.required_role_id}> role."
+            return texts.NEEDS_ROLE.to(lang, role=s.required_role_id)
         if self.stopping:
-            return "I'm restarting; ask again in a minute."
+            return texts.RESTARTING.to(lang)
         if self.own_keys and self.store.server_key(s.discord_guild_id) is None:
-            return NEEDS_KEY
+            return texts.NEEDS_KEY.to(lang)
         return None
 
     async def _chat(self, message: discord.Message, s: ServerSettings, code: str, question: str, where: str,
@@ -819,6 +804,7 @@ class WipeBot(discord.Client):
         guild = self.get_guild(s.discord_guild_id) if is_dm else None
         name = display((guild.get_member(author.id) if guild else None) or author)
         ctx = self._context(s, author, name, code, where, None if is_dm else message.channel)
+        lang = asked_in(question, ctx.language)
         ctx.images, unread = await images_of(message)
         if unread:
             question += f" [{unread}]"
@@ -830,7 +816,7 @@ class WipeBot(discord.Client):
                     await self._about_pull(ctx, code, *posted)
             except Exception:
                 log.exception("loading report %s failed", code)
-                await respond(message, WCL_DOWN)
+                await respond(message, texts.WCL_DOWN.to(lang))
                 return
         key = ("dm", author.id) if is_dm else (message.channel.id, author.id)
         if self.record_answers:
@@ -841,7 +827,7 @@ class WipeBot(discord.Client):
         async def send(answer: Answer) -> list[int]:
             return await self._send(message.channel, answer, reply_to=None if is_dm else message, asker=author.id,
                                     mine=self._character(author.id))
-        progress = Progress(message, self.icons.get(emojis.SPINNER, FALLBACK_SPINNER))
+        progress = Progress(message, self.icons.get(emojis.SPINNER, FALLBACK_SPINNER), lang)
         ctx.on_tool, ctx.on_done = progress.tool, progress.done
         async with message.channel.typing():
             try:
@@ -919,12 +905,13 @@ class WipeBot(discord.Client):
         is_dm = isinstance(channel, discord.DMChannel)
         s = (await self._settings_for_dm(cast(discord.abc.User, user)) if is_dm
              else self.store.settings(interaction.guild_id or 0) or ServerSettings.unset(interaction.guild_id or 0))
-        refusal = ("I can only chat with members of a server where wipebot is set up." if s is None
-                   else "I'm restarting; ask again in a minute." if self.stopping
+        mine = texts.locale_language(interaction.locale)  # what only the one who clicked reads: their Discord's
+        refusal = (texts.MEMBERS_ONLY.to(mine) if s is None
+                   else texts.RESTARTING.to(mine) if self.stopping
                    else None if is_dm or may_chat(s, [r.id for r in getattr(user, "roles", [])])
-                   else f"Chatting with wipebot needs the <@&{s.required_role_id}> role.")
+                   else texts.NEEDS_ROLE.to(mine, role=s.required_role_id))
         if refusal or s is None or channel is None:
-            await interaction.response.send_message(refusal or "I can't answer here.", ephemeral=True)
+            await interaction.response.send_message(refusal or texts.NOT_HERE.to(mine), ephemeral=True)
             return
         channel = cast(discord.abc.Messageable, channel)  # the channel of a message with buttons
         code = await self._report_for(s, ("dm", user.id) if is_dm else (getattr(channel, "id", 0), user.id),
@@ -932,7 +919,8 @@ class WipeBot(discord.Client):
         code = code or ""  # no report: about the game
         guild = self.get_guild(s.discord_guild_id) if is_dm else None
         name = display((guild.get_member(user.id) if guild else None) or user)
-        await interaction.response.send_message(f"-# {name} asked: {question}",
+        lang = asked_in(question, self.store.language(s.discord_guild_id))
+        await interaction.response.send_message(texts.ASKED.to(lang, name=name, question=question),
                                                 allowed_mentions=discord.AllowedMentions.none())
         asked = await interaction.original_response()
         clicked = str((getattr(interaction, "data", None) or {}).get("custom_id", ""))
@@ -965,14 +953,14 @@ class WipeBot(discord.Client):
         if failed:
             await channel.send(failed)
 
-    def _too_many(self, user_id: int) -> str | None:
-        """Why a raider's next question isn't answered now, if it isn't: USER_AT_ONCE of theirs are being answered,
-        or they got USER_ANSWERS_AN_HOUR answers this hour (counted from what each answer cost, which the store keeps:
-        a restart doesn't start the hour over)."""
+    def _too_many(self, user_id: int, lang: str) -> str | None:
+        """Why a raider's next question isn't answered now, if it isn't, in `lang`: USER_AT_ONCE of theirs are being
+        answered, or they got USER_ANSWERS_AN_HOUR answers this hour (counted from what each answer cost, which the
+        store keeps: a restart doesn't start the hour over)."""
         if self._asking[user_id] >= USER_AT_ONCE:
-            return STILL_ANSWERING
+            return texts.STILL_ANSWERING.to(lang, n=USER_AT_ONCE)
         if self.store.spent(time.time() - 3600, user_id=user_id, kind="chat")[0] >= USER_ANSWERS_AN_HOUR:
-            return ASKED_A_LOT
+            return texts.ASKED_A_LOT.to(lang, n=USER_ANSWERS_AN_HOUR)
         return None
 
     async def _answer(self, kind: str, key: Hashable, code: str, question: str, ctx: Context, who: str,
@@ -980,22 +968,24 @@ class WipeBot(discord.Client):
                       fight: int | None = None, channel_id: int | None = None) -> str | None:
         """Ask in the conversation at `key`, post the answer with `send`, and record it. When there's no answer
         (it took too long, Claude's API refused, something failed), that's recorded and logged instead, and the
-        return value is what to tell the asker. `message` is the question's, None for a post after a wipe. A raider
-        with too many questions of their own going (`_too_many`) is told so instead."""
+        return value is what to tell the asker, in the question's language (`asked_in`). `message` is the question's,
+        None for a post after a wipe. A raider with too many questions of their own going (`_too_many`) is told so
+        instead."""
         asker = ctx.user_id if kind == "chat" else 0
-        if asker and (held := self._too_many(asker)):
+        lang = asked_in(question, ctx.language)
+        if asker and (held := self._too_many(asker, lang)):
             log.info("chat answer to %s held back: too many of their questions at once or this hour",
                      self._shown(who))
             return held
         self._asking[asker] += 1
         try:
-            return await self._answered(kind, key, code, question, ctx, who, send, message, fight, channel_id)
+            return await self._answered(kind, key, code, question, ctx, who, send, message, fight, channel_id, lang)
         finally:
             self._asking[asker] -= 1
 
     async def _answered(self, kind: str, key: Hashable, code: str, question: str, ctx: Context, who: str,
                         send: Callable[[Answer], Awaitable[list[int]]], message: discord.Message | None,
-                        fight: int | None, channel_id: int | None) -> str | None:
+                        fight: int | None, channel_id: int | None, lang: str) -> str | None:
         started = time.monotonic()
         timeout = CHAT_TIMEOUT_S if kind == "chat" else POST_TIMEOUT_S
 
@@ -1006,7 +996,7 @@ class WipeBot(discord.Client):
         if self.own_keys and ctx.env is None:  # the key was removed since, or a post after a wipe
             log.info("%s answer to %s refused: the server has no key of its own", kind, shown)
             record(error="no key")
-            return NEEDS_KEY
+            return texts.NEEDS_KEY.to(lang)
         earlier = (lambda after, seen: self._earlier(message, after, seen)) if message else None
         try:  # the timeout counts from the question's turn in its conversation, not while it waits behind another
             with ctx.reading():  # as the asker: the session's report as it opens, the answer's pictures as it's sent
@@ -1016,31 +1006,31 @@ class WipeBot(discord.Client):
         except SlowStart as e:
             log.warning("%s answer to %s failed: %s", kind, shown, e)
             record(error=str(e))
-            return SLOW_START
+            return texts.SLOW_START.to(lang)
         except TimeoutError:  # its conversation was closed: its session may still be answering
             log.warning("%s answer to %s took over %d s; gave up", kind, shown, timeout)
             record(error=f"timeout after {timeout} s")
-            return TOO_SLOW
+            return texts.TOO_SLOW.to(lang)
         except ModelError as e:
             log.error("%s answer to %s failed: Claude's API refused (%s)", kind, shown, e.kind)
             record(error=f"model: {e.kind}", answer=e.answer)  # what it cost, when it hit a cap
             self._spent(kind, ctx, e.answer)
             if e.kind not in MODEL_ERRORS and await budget_used_up(
                     ctx.env.get("ANTHROPIC_AUTH_TOKEN") if ctx.env else config.openrouter_key()):
-                return MODEL_ERRORS["billing_error"]
-            return MODEL_ERRORS.get(e.kind, MODEL_ERRORS["other"])
+                return MODEL_ERRORS["billing_error"].to(lang)
+            return MODEL_ERRORS.get(e.kind, MODEL_ERRORS["other"]).to(lang)
         except wcl.Unreadable as e:  # the report linked isn't one Warcraft Logs shows the asker
             log.info("%s answer to %s: Warcraft Logs won't show the report", kind, shown)
             record(error=f"wcl: {e}")
-            return UNREADABLE.format(code=e.code) + (PRIVATE_LOGIN if ctx.tokens()[2] else "")
+            return texts.UNREADABLE.to(lang, code=e.code) + (texts.PRIVATE_LOGIN.to(lang) if ctx.tokens()[2] else "")
         except WCLError as e:  # loading the report, before the model got the question
             log.error("%s answer to %s failed: Warcraft Logs didn't answer (%s)", kind, shown, e)
             record(error=f"wcl: {e}")
-            return WCL_DOWN
+            return texts.WCL_DOWN.to(lang)
         except Exception as e:
             log.exception("%s answer to %s failed", kind, shown)
             record(error=repr(e))  # a broken session's conversation was closed: the next question starts over
-            return WENT_WRONG
+            return texts.WENT_WRONG.to(lang)
         self.conversations.saw(key, sent)
         self._spent(kind, ctx, answer)
         interaction = record(answer=answer, sent=sent)
@@ -1051,13 +1041,15 @@ class WipeBot(discord.Client):
         return None
 
     async def _with_footer(self, kind: str, ctx: Context, answer: Answer) -> Answer:
-        """A chat answer with its small lines under it, where the server has them on: the steps it went through
-        (/wipebot setup steps:, on by default), and what it cost (/wipebot setup footer:, off by default)."""
+        """A chat answer with its small lines under it, where the server has them on: the steps it went through, in
+        the answer's language (/wipebot setup steps:, on by default), and what it cost (/wipebot setup footer:, off by
+        default)."""
         if kind != "chat" or not answer.text:
             return answer
         lines = []
         if ctx.server_id and self.store.steps(ctx.server_id):
-            lines.append(progress.steps([(c.name, c.failed) for c in answer.calls]))
+            lines.append(progress.steps([(c.name, c.failed) for c in answer.calls],
+                                        asked_in(answer.text, ctx.language)))
         if ctx.server_id and self.store.footer(ctx.server_id):
             try:
                 points = answer.wcl_points()
@@ -1295,18 +1287,20 @@ class WipeBot(discord.Client):
         """An answer, as a reply to `reply_to` or else a plain send, in at most MAX_MESSAGES messages, without link
         previews, with `footer` (else the answer's) in a small line at the end, `actions` under its text unless a
         picture has the same one, and the follow-ups it offers as buttons for `asker` (none without), the buttons in
-        the answer's language. With pictures (maps, views), Components V2 messages (`answer_layout`), the pictures on
-        the last, each whole and where the answer placed it, a player's card of `mine` (the asker's character) with
-        their own night, and the footer last; without, plain messages, whose text a notification shows (a V2 message
-        has none to show), the footer above the buttons. Returns the ids of the messages sent."""
+        the answer's language (texts.py). With pictures (maps, views), Components V2 messages (`answer_layout`), the
+        pictures on the last, each whole and where the answer placed it, a player's card of `mine` (the asker's
+        character) with their own night, and the footer last; without, plain messages, whose text a notification
+        shows (a V2 message has none to show), the footer above the buttons. Returns the ids of the messages sent."""
         pictured = bool(answer.pictures)
+        lang = texts.language(answer.text)
         limit = TEXT_LIMIT if pictured else DISCORD_LIMIT
         tail = f"-# {footer}" if footer else answer.footer
         # in a V2 message the footer is a text of its own, and counts towards the message's
         chunks = split_message(answer.text, limit - len(tail) - 1 if pictured and tail else limit)
         if len(chunks) > MAX_MESSAGES:
             chunks = chunks[:MAX_MESSAGES]
-            chunks[-1] = chunks[-1][:limit - len(CUT) - 3].rstrip() + " …\n" + CUT
+            cut = texts.CUT.to(lang)
+            chunks[-1] = chunks[-1][:limit - len(cut) - 3].rstrip() + " …\n" + cut
         if tail and not pictured:
             if chunks and len(chunks[-1]) + len(tail) + 1 <= limit:
                 chunks[-1] += "\n" + tail
@@ -1330,7 +1324,7 @@ class WipeBot(discord.Client):
             last = i == len(chunks) - 1
             drawn = answer.pictures if last else []
             pictures = await pictures_for([(image, c.name, c.args) for image, c in drawn], [c.result for _, c in drawn],
-                                          language(answer.text), mine)
+                                          lang, mine)
             if len(chunks) == 1:  # where the answer placed them, its text whole in one message
                 pictures = [replace(p, at=answer.place(c)) for p, (_, c) in zip(pictures, drawn, strict=True)]
             files = [discord.File(io.BytesIO(image), filename=p.name) for p, (image, _) in zip(pictures, drawn,
