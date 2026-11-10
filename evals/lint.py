@@ -136,18 +136,18 @@ async def lint(cases: list[dict], results: Path) -> Linted:
         found = await asyncio.gather(*(run(n, a) for n, a in calls))
         replayed = "\n".join(t for t in found if t is not None and not failure(t))
         lacking = [t for t in found if failure(t) and any(w in str(t) for w in NO_DATA)]
-        if lacking and (not replayed or stale(case, replayed)):  # a number not found may be in the output not read
-            print(f"{case['id']}: not checked: {len(lacking)} of its {len(calls)} calls need data the frozen file "
-                  f"lacks and Warcraft Logs didn't give ({next(w for w in NO_DATA if w in str(lacking[0]))})")
-            no_data += 1
-            continue
-        for (n, a), t in zip(calls, found, strict=True):
+        for (n, a), t in zip(calls, found, strict=True):  # first: a call that fails now, whatever else the case lacks
             if failure(t) and t not in lacking and json.dumps([n, a], sort_keys=True) in now:
                 if any(w in str(t) for w in ASKED_WRONG):
                     asked_wrong += 1
                 else:
                     print(f"{case['id']}: {t}")
                     failed += 1
+        if lacking and (not replayed or stale(case, replayed)):  # a number not found may be in the output not read
+            print(f"{case['id']}: not checked: {len(lacking)} of its {len(calls)} calls need data the frozen file "
+                  f"lacks and Warcraft Logs didn't give ({next(w for w in NO_DATA if w in str(lacking[0]))})")
+            no_data += 1
+            continue
         texts = [t for t in found if t is not None and not failure(t)]
         if not texts:
             if any(failure(t) for t in found):
