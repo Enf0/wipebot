@@ -165,7 +165,7 @@ def test_a_note_for_another_difficulty_than_the_pull_says_so():
     word under a header naming Mythic."""
     mythic = note.Note(3418, "Mythic", "Vashnik")
     assert note._other_difficulty(mythic, [{"difficulty": 4}]) == (
-        " The note is for Mythic and this pull is Heroic: its times and jobs may not fit them.")
+        " The note is for Mythic and this pull is Heroic: its times and jobs may not fit it.")
     assert note._other_difficulty(mythic, [{"difficulty": 5}, {"difficulty": 5}]) == ""
     assert note._other_difficulty(note.Note(3418, "", "Vashnik"), [{"difficulty": 4}]) == ""
     assert note._other_difficulty(mythic, [{}]) == ""  # the log doesn't say
@@ -179,7 +179,16 @@ async def test_the_recorded_mythic_pulls_checked_against_a_heroic_note_say_so_in
         " The note is for Heroic and these pulls are Mythic: its times and jobs may not fit them.")
     [head, *_] = await _pull_42(("Difficulty:Mythic", "Difficulty:Heroic"))
     assert head.startswith("The raid note for Sszorak (Heroic), checked against Sszorak pull 42 (")
-    assert head.endswith(" The note is for Heroic and this pull is Mythic: its times and jobs may not fit them.")
+    assert head.endswith(" The note is for Heroic and this pull is Mythic: its times and jobs may not fit it.")
+
+
+async def test_a_cooldown_planned_at_the_moment_the_wipe_was_decided_doesnt_say_0_s_before_it(recorded):
+    """The wipe of pull 42 was decided at 4:08: a use planned then and not cast read "0 s before the wipe was
+    decided"."""
+    spiral = "time:237;ph:1;tag:Dragepie;spellid:374968;"
+    new = await _pull_42((spiral, spiral.replace("237", "248")))
+    assert new == ["  4:08 Dragepie Time Spiral [374968]: not cast within 30s (alive; cast at 1:46; as the wipe was "
+                   "decided)"]
 
 
 def test_a_raid_note_saved_in_versions_is_read_per_version():

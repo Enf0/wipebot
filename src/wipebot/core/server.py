@@ -1164,13 +1164,13 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     as counts.
     Reading it: each section's first line says how it counts. A soak hit at no group's time, or on too few players
     to tell whose it was, counts for no one. A planned cooldown "not cast" says when the spell was on cooldown from
-    their own earlier cast and when it was planned in the pull's last seconds. At a callout for personals only a
-    defensive or tank cooldown (Lorrgs' tags) counts as pressed; "already running" is one pressed earlier and still
-    up, not counted as a miss; "ready" lists only what the player cast at least once that night; an untagged spell
-    may be a defensive Lorrgs doesn't tag. Other callouts, spreads, the interrupt order and lines to a role or a
-    group are listed, not checked (raid_plan checks positions). Asked about a boss the report has no pull on, or
-    with `upcoming`, it gives the newest note saved for it, as it is: a pull is checked against the note of its
-    own night."""
+    their own earlier cast and when it was planned in the last seconds before the wipe was decided. At a callout
+    for personals only a defensive or tank cooldown (Lorrgs' tags) counts as pressed; "already running" is one
+    pressed earlier and still up, not counted as a miss; "ready" lists only what the player cast at least once that
+    night; an untagged spell may be a defensive Lorrgs doesn't tag. Other callouts, spreads, the interrupt order and
+    lines to a role or a group are listed, not checked (raid_plan checks positions). Asked about a boss the report
+    has no pull on, or with `upcoming`, it gives the newest note saved for it, as it is (with `player`, their part
+    of it): a pull is checked against the note of its own night."""
     rep, source = await lib().report(report), ""
     if not note and (upcoming or (boss and not pulled(rep, boss))):
         shown = await _unpulled_note(rep, boss or rep.boss_key(rep.fight(None, None)), upcoming)

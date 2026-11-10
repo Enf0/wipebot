@@ -587,9 +587,9 @@ def _other_difficulty(note: Note, fights: list[dict]) -> str:
     theirs = {DIFFICULTIES.get(f.get("difficulty") or 0, "") for f in fights} - {""}
     if not note.difficulty or not theirs or note.difficulty.lower() in {d.lower() for d in theirs}:
         return ""
-    what = "this pull is" if len(fights) == 1 else "these pulls are"
+    what, them = ("this pull is", "it") if len(fights) == 1 else ("these pulls are", "them")
     return (f" The note is for {note.difficulty} and {what} {' and '.join(sorted(theirs))}: its times and jobs may "
-            "not fit them.")
+            f"not fit {them}.")
 
 
 def _assignments(rep: Report, note: Note, asked: Asked | None = None) -> list[str]:
@@ -652,8 +652,9 @@ def _not_checked(note: Note, stray: Mapping[str, tuple[int, int]]) -> list[str]:
                          f"{tag} (" + ", ".join(plural(n, what) for n, what in ((cds, "cooldown"), (calls, "callout"))
                                                  if n) + ")" for tag, (cds, calls) in sorted(stray.items())))
     if unread := not_understood(note):
-        lines.append(f"Lines of the note {unread} (a timed line has a time in seconds, a whole phase, a tag, and a "
-                     "spell or a text; an assignment is a heading with \"Label: players\" lines under it)")
+        lines.append(f"Lines of the note {unread} (a timed line has a time in seconds, a phase that is a whole "
+                     "number, a tag, and a spell or a text; an assignment is a heading with \"Label: players\" lines "
+                     "under it)")
     return lines
 
 
@@ -732,7 +733,8 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
                         f"{cooldown:.0f} s by their closest two casts of it on the night (Lorrgs' base cooldown: "
                         f"{base:g} s)")
                 if u.state == "alive" and c.until - u.at <= NEAR_END_MS:
-                    line += f"; {(c.until - u.at) / 1000:.0f} s before " + (
+                    left = round((c.until - u.at) / 1000)
+                    line += (f"; {left} s before " if left else "; as ") + (
                         "the wipe was decided" if c.until < end else "the pull ended")
                 line += ")"
             lines.append(line)
@@ -1589,7 +1591,7 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
             parts.append(f"not cast {len(not_cast)}" + (
                 " (" + ", ".join(f"p{rep.pull_no(f)}" for f, _ in not_cast[:LISTED])
                 + (f" and {len(not_cast) - LISTED} more" if len(not_cast) > LISTED else "") + ")" if which else "")
-                + (f", {near} of them in the pull's last {NEAR_END_MS // 1000} s" if near else "")
+                + (f", {near} of them in the last {NEAR_END_MS // 1000} s" if near else "")
                 + (f", {cooling} of them on cooldown" if cooling else ""))
         if dead:
             parts.append(f"dead {dead}")

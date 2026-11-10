@@ -168,7 +168,7 @@ def test_a_night_counts_the_planned_uses_not_cast_near_the_end_and_on_cooldown()
         return SimpleNamespace(f={"id": i}, until=until, planned=note.Planned([use], [], 0))
     lines = note._night_cooldowns(cast(Any, rep), [check(1, 300_000, None), check(2, 64_000, None),
                                                    check(3, 61_000, (23_000, 120, 120))])
-    counts = "2 of them in the pull's last 10 s, 1 of them on cooldown"
+    counts = "2 of them in the last 10 s, 1 of them on cooldown"
     assert lines[1] == f"  Zebinomage: 3 planned uses; not cast 3, {counts}"
     assert lines[2] == f"    0:58 Spell [55342], 3 pulls: not cast 3 (p1, p2, p3), {counts}"
 
@@ -182,7 +182,7 @@ async def test_the_recorded_night_says_who_had_one_running_who_died_and_what_was
     plan = NOTE.read_text(encoding="utf-8")
     night = await note.note_check(rep, plan, None, "Sszorak", all_pulls=True)  # first: it reads every pull's deaths
     assert ("    2:23 Divine Hymn [64843], 8 pulls: late 3 (9 s), not cast 5 (p4, p7, p23, p27, p32), 5 of them in the "
-            "pull's last 10 s, 2 of them on cooldown") in night
+            "last 10 s, 2 of them on cooldown") in night
     assert "not counted at 10 (one already running 10)" in night
     assert ("  2:23 Miralupa Divine Hymn [64843]: not cast within 30s (alive; cast at 0:35; on cooldown from the 0:35 "
             "cast, 124 s by their closest two casts of it on the night (Lorrgs' base cooldown: 180 s); 9 s before the "
