@@ -3,7 +3,7 @@ beside the judge's two and the required calls, with no model."""
 import pytest
 
 from evals.checks import coded, coded_keys, states
-from evals.run import FIRST_PARTS, Trial, case_hash, compare, judged_by, settle, tally_of
+from evals.run import FIRST_PARTS, PARTS, Trial, case_hash, compare, compared, judged_by, settle, tally_of
 
 CASE = {"id": "a", "report": "R", "kind": "wipe", "question": "Why did we wipe?", "wrong": ["a reset"],
         "expect": "The boss enraged at 2:32 with 16 of 20 alive, after 163.64k of healing."}
@@ -79,6 +79,46 @@ def test_a_code_check_is_a_named_part_of_a_pass(capsys):
     # against a baseline from before the check, the answer counts as it would have then
     old = {"model": "opus", "commit": "abc", "trials": 2, "judge": judged_by("sonnet"), "errors": {},
            "case_hashes": {"a": case_hash(case)}, "passed": {"a": 2}}
-    text = "\n".join(compare(old, now | {"model": "opus", "commit": "def", "judge": judged_by("sonnet")}))
-    assert "scored by the baseline's checks (expect, wrong, calls): this run's numbers is left out" in text
+    about = {"model": "opus", "commit": "def", "judge": judged_by("sonnet")}
+    text = "\n".join(compare(old, now | about))
+    assert ("scored by the baseline's checks (expect, wrong, calls): this run's numbers is left out here, until a "
+            "baseline has it") in text
     assert "total 2 of 2" in text
+    both = tally_of([case | {"form": {"bullets": 3}}], {"a": [right, off]}) | about  # a full run as the bot has both
+    assert ("this run's numbers and form are left out here, until a baseline has them"
+            in "\n".join(compare(old, both)))
+
+
+def test_a_run_of_cases_that_ask_for_no_code_check_compares_with_a_baseline_that_counts_them():
+    """A -k run of cases with no `numbers` and no `form`, against a baseline saved from the whole suite, which counts
+    both: no case here asks for one, so no answer passed one unseen and the comparison still tells."""
+    about = {"model": "opus", "judge": judged_by("sonnet")}
+    ids = [f"c{n}" for n in range(60)]  # enough answers for the total to tell
+    no = {"ok": False, "reason": ""}
+    answers = {c: [settle(Trial(answer="It enraged.", expect=OK if i else no, wrong=OK), CASE, "bot")
+                   for i in range(3)] for c in ids}  # each case failed one answer of three, on expect
+    now = tally_of([CASE | {"id": c} for c in ids], answers, commit="def", **about)
+    assert now["parts"] == list(FIRST_PARTS) and now["passed"]["c0"] == 2
+    whole = {**about, "commit": "abc", "trials": 3, "errors": {}, "parts": list(PARTS), "passed": dict.fromkeys(ids, 2),
+             "failed": {c: [["expect"]] for c in ids}, "case_hashes": now["case_hashes"]}
+    found = compared(whole, now)
+    assert not [line for line in found.lines if "never made" in line or "left out" in line]
+    assert any(line.startswith("  total 120 of 180, each case weighed as in the baseline, whose total was 120:")
+               for line in found.lines)
+    assert found.verdict == "no change shown"
+    # a check that isn't code's, kept by a baseline this run's code never made, is still unseen
+    found = compared(whole | {"parts": [*PARTS, "tone"]}, now)
+    assert found.verdict == "cannot tell" and "a check this run never made (tone)" in found.lines[-1]
+
+
+def test_a_code_check_kept_with_a_saved_answer_does_not_outlive_its_cases_key():
+    """A saved run is read by today's rule: the code checks are made anew, so one its case no longer asks for (the
+    key was dropped, or the run is read as a client's) no longer fails the answer."""
+    asked = CASE | {"numbers": ["2:32"], "form": {"bullets": 1}}
+    saved = settle(Trial(answer="It enraged at 2:35.\n- one\n- two", expect=OK, wrong=OK), asked, "bot")
+    assert not saved.passed and saved.checks["numbers"] is False and saved.checks["form"] is False
+    again = settle(Trial(answer=saved.answer, expect=OK, wrong=OK, checks=dict(saved.checks)), CASE, "bot")
+    assert again.passed and again.checks == {"expect": True, "wrong": True, "calls": True} and again.coded == {}
+    fixed = asked | {"expect": "The boss enraged at 2:35.", "numbers": ["2:35"]}  # as a client: no form to keep
+    client = settle(Trial(answer=saved.answer, expect=OK, wrong=OK, checks=dict(saved.checks)), fixed, "plugin")
+    assert client.passed and client.checks == {"expect": True, "wrong": True, "calls": True, "numbers": True}

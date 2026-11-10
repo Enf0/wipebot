@@ -151,12 +151,15 @@ def test_a_run_is_scored_by_the_checks_its_baseline_made():
     text = "\n".join(compare(old, with_form | {"model": "opus", "commit": "abc", "judge": judged_by("sonnet")}))
     assert "scored by the baseline's checks (expect, wrong, calls): this run's form is left out" in text
     assert "total 2 of 4" in text
-    # the other way round, a run from before the check against a baseline that counts it: nothing there failed it
+    # the other way round, a run from before a check against a baseline that counts it: nothing there failed it
     before = old | {"model": "opus", "commit": "abc", "judge": judged_by("sonnet")}
-    found = run.compared(with_form | {"model": "opus", "judge": judged_by("sonnet")}, before)
-    unmade = "the baseline counts a check this run never made (form)"
+    with_tone = with_form | {"parts": [*now["parts"], "tone"], "model": "opus", "judge": judged_by("sonnet")}
+    found = run.compared(with_tone, before)
+    unmade = "the baseline counts a check this run never made (tone)"
     assert f"  {unmade}: every answer here passes it unseen" in found.lines
     assert found.verdict == "cannot tell" and unmade in found.lines[-1]
+    # a check by code is never one: it is made of every answer each time a run is read (test_code_checks.py)
+    assert "never made" not in "\n".join(compare(with_form | {"model": "opus", "judge": judged_by("sonnet")}, before))
 
 
 def test_only_unchanged_cases_are_compared():

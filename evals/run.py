@@ -156,6 +156,7 @@ DOWN = "upstream_error"
 # 10 November names none: it is read as these three.
 PARTS = ("expect", "wrong", "calls", "numbers", "form")  # the last two by code, for the cases that ask (checks.coded)
 FIRST_PARTS = PARTS[:3]  # what a tally from before the checks were named was scored by
+BY_CODE = PARTS[3:]  # made anew whenever a trial is settled: one kept with a saved trial doesn't outlive its key
 
 
 def settle(t: Trial, case: dict, mode: str) -> Trial:
@@ -168,9 +169,10 @@ def settle(t: Trial, case: dict, mode: str) -> Trial:
     - else passed when it passed every named check (PARTS): the judge's two, and no required call missing."""
     # the session raised, so nothing was judged: its error, or in a trial settled before (a saved run's), the cap
     session = "" if t.expect else t.error or t.broke
-    if t.expect:  # judged; a check a later step added to the trial stays
+    if t.expect:  # judged; a check a later step added to the trial stays, code's own are made anew
         t.coded = coded(case, t.answer, mode)
-        t.checks = {**t.checks, "expect": t.expect.get("ok") is True, "wrong": t.wrong.get("ok") is True,
+        kept = {part: ok for part, ok in t.checks.items() if part not in BY_CODE}
+        t.checks = {**kept, "expect": t.expect.get("ok") is True, "wrong": t.wrong.get("ok") is True,
                     "calls": not t.uncalled, **{part: not why for part, why in t.coded.items()}}
     judged_ok = bool(t.checks) and all(t.checks.get(part, True) for part in PARTS)
     failed = [c for c in t.calls if c.get("failed")]
@@ -1197,9 +1199,12 @@ def compared(base: dict, now: dict) -> Comparison:
     lines.append("  " + errors_line(now))
     parts, mine = base.get("parts", FIRST_PARTS), now.get("parts", FIRST_PARTS)
     if added := [part for part in mine if part not in parts]:
-        lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {', '.join(added)} "
-                     "is left out here, until a baseline has it")
-    if unmade := [part for part in parts if part not in mine]:  # a run from before the check: none of it failed it
+        lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {' and '.join(added)} "
+                     + ("is left out here, until a baseline has it" if len(added) == 1 else
+                        "are left out here, until a baseline has them"))
+    # a run from before the check: none of it failed it. Never one by code: those are made of every answer each time
+    # it is read, so a run that names none had no case that asks for one (a -k run against the whole suite's baseline)
+    if unmade := [part for part in parts if part not in mine and part not in BY_CODE]:
         lines.append(f"  the baseline counts a check this run never made ({', '.join(unmade)}): every answer here "
                      "passes it unseen")
     now = scored(now, parts)
