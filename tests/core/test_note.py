@@ -62,6 +62,23 @@ def test_a_heading_or_a_label_written_twice_keeps_both():
     assert plan.unread == []
 
 
+def test_the_interrupt_order_between_intstart_and_intend_is_read_and_shown_as_written():
+    """NSRT's interrupt block has no colon and no time, so its lines were taken for headings and shown nowhere: a
+    raider third on its first line was told the note has no kick order. Which add a line is for is the addon's rule
+    for the boss, so the lines are numbered and said to be unchecked."""
+    [plan] = note.parse("EncounterID:3418;Name:Vashnik\n\nintstart\nTorvek Mirelle-Kazzak Halvard\n\n"
+                        "Rowan Brightleaf Rowan\nintend\n\nOrbs\nred orb: Rowan\n")
+    assert plan.interrupts == [["Torvek", "Mirelle", "Halvard"], ["Rowan", "Brightleaf", "Rowan"]]
+    assert plan.groups == {"Orbs": {"red orb": ["Rowan"]}} and plan.unread == []
+    assert note.receipt(plan) == "0 timed cooldowns, 0 callouts, an interrupt order of 2 lines"
+    assert note._assignments(cast(Any, None), plan)[-1] == (
+        "Interrupt order (the note's intstart block, each line in the addon's order; not checked against the log): "
+        "line 1: Torvek Mirelle Halvard; line 2: Rowan Brightleaf Rowan")
+    [open_] = note.parse("EncounterID:3418;Name:Vashnik\n\nintstart\nTorvek Mirelle\n\nOrbs\nred orb: Rowan\n")
+    assert open_.interrupts == [] and open_.groups == {"Orbs": {"red orb": ["Rowan"]}}  # never closed: no block
+    assert open_.unread == ["intstart", "Torvek Mirelle"]
+
+
 def test_what_the_note_says_that_isnt_understood_is_kept_and_said():
     """A line the reading can't take was dropped without a word: a time as 1:03, a phase that's no whole number, a
     line with no tag, words under no heading's label. NSRT reads a line's fields wherever they stand, so a line
@@ -84,14 +101,14 @@ def test_what_the_note_says_that_isnt_understood_is_kept_and_said():
 
 
 def test_saving_a_note_says_what_was_read_and_what_wasnt():
-    """The officer who pastes a note hears at once what of it was read: the reminders counted, and the lines not
-    understood with the first of them."""
+    """The officer who pastes a note hears at once what of it was read: the reminders and the interrupt order
+    counted, and the lines not understood with the first of them."""
     pasted = ("EncounterID:3418;Difficulty:Mythic;Name:Vashnik\n"
               "time:30;ph:1;tag:Torvek;spellid:98008;\ntime:1:03;ph:1;tag:Torvek;spellid:98008;\n"
-              "time:40;ph:1;tag:everyone;spellid:98008;\n\nOrbs\nred orb: Rowan\n")
+              "time:40;ph:1;tag:everyone;spellid:98008;\n\nintstart\nTorvek Mirelle\nintend\n\nOrbs\nred orb: Rowan\n")
     said = server.save_pasted(Notebook(":memory:"), 14169, pasted, "Rowan", at=1000.0)
     assert said.splitlines()[-1] == (
-        "- **Vashnik** (Mythic): 1 timed cooldown, 0 callouts, 1 reminder to everyone; "
+        "- **Vashnik** (Mythic): 1 timed cooldown, 0 callouts, 1 reminder to everyone, an interrupt order of 1 line; "
         'Orbs (red orb); not understood: 1 line, the first "time:1:03;ph:1;tag:Torvek;spellid:98008;"')
 
 

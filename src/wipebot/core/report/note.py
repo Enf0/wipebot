@@ -7,6 +7,7 @@ A note holds, per boss under an `EncounterID:3420;Difficulty:Mythic;Name:Sszorak
 - timed reminders, a spell line to everyone (`time:7;ph:2;tag:everyone;spellid:1285643;text:Go to diamond;`): the
   boss's cast or a move shown with an icon, which no one presses;
 - the assignments as text: a heading naming the mechanic ("Mutilate Soaks"), then `Label: players` lines;
+- the interrupt order, the lines of names between `intstart` and `intend`;
 - an `invitelist:`.
 A tag is a player's name (NSRT also takes a nickname, a role, a group, melee or ranged, a class or spec id), with or
 without the realm. What isn't one of these lines is kept as not understood (`Note.unread`) and said.
@@ -119,12 +120,14 @@ class Note:
     groups: dict[str, dict[str, list[str]]] = field(default_factory=dict)  # heading -> label -> players
     text: str = ""  # this boss's part of the note, as pasted
     reminders: list[Reminder] = field(default_factory=list)
+    interrupts: list[list[str]] = field(default_factory=list)  # the intstart block: each line's players, in order
     invited: list[str] = field(default_factory=list)  # the invitelist's names, without their realms
     unread: list[str] = field(default_factory=list)  # the lines that weren't understood, as written
 
 
 HEADER = re.compile(r"^\s*EncounterID:\s*(\d+)\s*;", re.I | re.M)
 TIMED = re.compile(r"(?:^|;)\s*time:", re.I)  # a timed line: NSRT reads a line's fields wherever they stand
+INT_START, INT_END = "intstart", "intend"
 # The tags NSRT takes that are no player's name (its Reminders.lua: a role, the raid group, melee or ranged, a class
 # or spec id): the log can't say whom the addon showed such a line to.
 NOT_A_NAME = re.compile(r"tank|healer|damager|melee|ranged|group\d|\d+", re.I)
@@ -160,16 +163,26 @@ def _parse_one(text: str) -> Note:
     head = _fields(lines[0])
     note = Note(int(head["encounterid"]), head.get("difficulty", ""), head.get("name", ""), text=text)
     heading: str | None = None
+    kicks = False  # inside the intstart block
+    ends = max((i for i, line in enumerate(lines) if line.strip().lower() == INT_END), default=0)
 
     def close() -> None:
         """A heading with no line under it is words of the note that nothing reads."""
         if heading is not None and heading not in note.groups:
             note.unread.append(heading)
-    for raw in lines[1:]:
+    for i, raw in enumerate(lines[1:], 1):
         line = raw.strip()
-        if not line:
+        if kicks:  # as NSRT reads it: every line up to intend is a line of names, an empty one skipped
+            if line.lower() == INT_END:
+                kicks = False
+            elif line:
+                note.interrupts.append([_bare(n) for n in line.split()])
+        elif not line:
             close()
             heading = None
+        elif line.lower() == INT_START and i < ends:  # one never closed isn't a block: its lines stay what they are
+            close()
+            heading, kicks = None, True
         elif TIMED.search(line):
             if not _timed(note, _fields(line)):
                 note.unread.append(line)
@@ -419,8 +432,9 @@ async def _check(rep: Report, f: dict, note: Note) -> PullCheck:
 
 
 def _named(note: Note) -> set[str]:
-    return {c.player for c in note.cooldowns} | {n for c in note.callouts for n in c.players} | {
-        n for g in note.groups.values() for ns in g.values() for n in ns}
+    return ({c.player for c in note.cooldowns} | {n for c in note.callouts for n in c.players}
+            | {n for g in note.groups.values() for ns in g.values() for n in ns}
+            | {n for line in note.interrupts for n in line})
 
 
 def _players(rep: Report, note: Note) -> dict[str, Player]:
@@ -451,11 +465,11 @@ def _stray(note: Note, players: Mapping[str, Player]) -> dict[str, tuple[int, in
 
 
 def _people(note: Note, players: Mapping[str, Player]) -> set[str]:
-    """The names the note gives a job: the tags of its timed lines, and the words of its assignment lines, of a
-    line at least half of whose words are someone's name (`_known`). Another line is the note's words ("Swap: at 2
-    stacks, Torvek first"), not a list of players."""
+    """The names the note gives a job: the tags of its timed lines, and the words of its assignment lines and
+    interrupt order, of a line at least half of whose words are someone's name (`_known`). Another line is the
+    note's words ("Swap: at 2 stacks, Torvek first"), not a list of players."""
     known = _known(note, players)
-    listed = [ns for g in note.groups.values() for ns in g.values()]
+    listed = [ns for g in note.groups.values() for ns in g.values()] + note.interrupts
     return ({c.player for c in note.cooldowns} | {n for c in note.callouts for n in c.players}
             | {n for ns in listed if 2 * sum(map(known, ns)) >= len(ns) for n in ns})
 
@@ -465,12 +479,17 @@ def _head(note: Note) -> str:
 
 
 def _assignments(rep: Report, note: Note) -> list[str]:
-    """What the note says besides its checked lines, as written: the assignments and the reminders to everyone."""
+    """What the note says besides its checked lines, as written: the assignments, the interrupt order and the
+    reminders to everyone."""
     lines = []
     if note.groups:
         lines = ["Assignments in the note's text:"] + [
             f"  {heading}: " + "; ".join(f"{label}: {' '.join(ns)}" for label, ns in groups.items())
             for heading, groups in note.groups.items()]
+    if note.interrupts:  # which add a line is for is the addon's rule for the boss: the lines are numbered, no more
+        lines.append("Interrupt order (the note's intstart block, each line in the addon's order; not checked against "
+                     "the log): " + "; ".join(f"line {i}: {' '.join(names)}"
+                                              for i, names in enumerate(note.interrupts, 1)))
     if note.reminders:
         said = Counter(f'"{r.text}"' if r.text else rep.ability_ref(r.spell) for r in note.reminders)
         lines.append(f"Reminders to everyone ({plural(len(note.reminders), 'timed line')} with a spell and no player "
@@ -485,7 +504,8 @@ UNREAD_SHOWN = 100  # characters of the first line not understood that are shown
 def receipt(note: Note) -> str:
     """What was read from a boss's note, for the officer who saved it: '59 timed cooldowns, 28 callouts'."""
     return (f"{plural(len(note.cooldowns), 'timed cooldown')}, {plural(len(note.callouts), 'callout')}"
-            + (f", {plural(len(note.reminders), 'reminder')} to everyone" if note.reminders else ""))
+            + (f", {plural(len(note.reminders), 'reminder')} to everyone" if note.reminders else "")
+            + (f", an interrupt order of {plural(len(note.interrupts), 'line')}" if note.interrupts else ""))
 
 
 def not_understood(note: Note) -> str:
