@@ -63,14 +63,33 @@ def test_the_summary_marks_flaky_cases_and_leaves_errors_out():
     assert lines[1].split() == ["a", "3/3"]
     assert lines[2].split() == ["b", "1/3", "flaky"]
     assert lines[3].split() == ["c", "0/2", "(1", "errored)"]
-    assert lines[-2].startswith("4/8 answers passed, ±") and "1 flaky; 1 errored" in lines[-2]
+    assert lines[-2].startswith("The main point got across in 4/8 answers, ±") and "1 flaky; 1 errored" in lines[-2]
     assert lines[-1] == "1/3 cases right on every trial"
+
+
+def test_a_summary_says_what_the_comparison_skips_and_what_the_baseline_already_failed():
+    """In place of a hand-kept hard set: the baseline's own results, as three groups and its known failures."""
+    base = tally({"a": 3, "b": 2, "c": 1, "d": 0, "e": 3}, hashes={c: "h" for c in "abcd"} | {"e": "old"})
+    lines = summary(tally({"a": 3, "b": 3, "c": 0, "d": 1, "e": 0, "f": 3}), base)
+    assert lines[:2] == ["No answer errored.", "4 of 6 cases are compared with the baseline; skipped: 1 changed "
+                                               "since the baseline; 1 not in it"]
+    assert [line.split() for line in lines[2:8]] == [
+        ["a", "3/3"], ["b", "3/3", "(baseline", "2/3)"], ["c", "0/3", "(known", "failure:", "baseline", "1/3)"],
+        ["d", "1/3", "flaky", "(known", "failure:", "baseline", "0/3)"],
+        ["e", "0/3"], ["f", "3/3"]]  # a changed or new case has no baseline to show
+    assert lines[8].startswith("The main point got across in 10/18 answers") and lines[9].startswith("3/6 cases")
+    assert lines[10:] == [
+        "  where the baseline always passed (1 case): 3/3", "  where the baseline passed sometimes (2 cases): 3/6",
+        "  where the baseline never passed (1 case): 1/3",
+        "Known failures, which the baseline fails more than once in three: c 0/3 (baseline 1/3), d 1/3 "
+        "(baseline 0/3)"]
 
 
 def test_a_run_in_which_every_answer_errored_still_has_a_total_line():
     lines = summary(tally({"a": 0, "b": 0}, trials=1, errors={"a": 1, "b": 1}))
     assert lines[0] == "ERRORS: 2 answers errored and are in no count below: a (1), b (1)"
-    assert lines[-1] == "0/0 answers passed, ±0.0 from run to run; 0 flaky; 2 errored, not counted"
+    assert lines[-1] == ("The main point got across in 0/0 answers, ±0.0 from run to run; 0 flaky; 2 errored, not "
+                         "counted")
     assert summary(tally({"a": 1}, trials=1))[0] == "No answer errored."
 
 
@@ -456,3 +475,86 @@ async def test_an_errored_answer_is_asked_again_once_when_a_case_is_confirmed():
     await ask_all(cases, base, 3, "sonnet", one, so_far)
     run = so_far()
     assert run["trials"]["s0"] == 7 and run["errors"] == {"s0": 1} and run["passed"]["s0"] == 0  # six judged
+
+
+# ---- a saved run read again, and a run kept as the baseline ----
+
+@pytest.fixture
+def suite_on_disk(tmp_path, monkeypatch):
+    """The made-up suite as the cases, with its baseline in a file; returns a run's tally with the cases' hashes."""
+    from evals import run
+    cases = [{**CASE, "id": c, "kind": "wipe"} for c in suite()[0]["passed"]]
+    hashes = {c["id"]: case_hash(c) for c in cases}
+    monkeypatch.setattr(run, "load_cases", lambda: cases)
+    monkeypatch.setattr(run, "baseline", lambda mode: tmp_path / f"baseline-{mode}.json")
+    (tmp_path / "baseline-bot.json").write_text(json.dumps(suite()[0] | {"case_hashes": hashes}))
+
+    def a_run(now: dict | None = None, **changed) -> dict:
+        return suite(now)[1] | {"case_hashes": hashes, "commit": "def"} | changed
+    return tmp_path / "baseline-bot.json", a_run
+
+
+def test_a_run_like_the_baseline_replaces_it_and_keeps_what_it_replaced(suite_on_disk, capsys):
+    from evals.run import save_baseline
+    path, a_run = suite_on_disk
+    save_baseline(a_run({"s0": 2}), "bot")
+    kept = json.loads(path.read_text())
+    assert kept["commit"] == "def" and "accepted" not in kept
+    assert kept["replaced"]["commit"] == "abc" and kept["replaced"]["passed"] == [247, 279]
+    assert kept["replaced"]["like_for_like"].startswith("total 246 of 279, each case weighed as in the baseline")
+    assert kept["replaced"]["verdict"].startswith("VERDICT: no change shown")
+    assert "Against the baseline it replaces:" in capsys.readouterr().out
+
+
+def test_a_baseline_is_not_saved_over_a_drop_errors_or_a_filter_without_a_reason(suite_on_disk):
+    from evals.run import save_baseline
+    path, a_run = suite_on_disk
+    before = path.read_text()
+    low = a_run({f"s{i}": 2 for i in range(8)})  # one spread below: the next run would be measured against a dip
+    with pytest.raises(SystemExit, match="1.4 spreads below the baseline it replaces.*--accept"):
+        save_baseline(low, "bot")
+    with pytest.raises(SystemExit, match="2 answers errored"):
+        save_baseline(a_run(errors={"s0": 2}, trials={c: 5 if c == "s0" else 3 for c in a_run()["passed"]}), "bot")
+    with pytest.raises(SystemExit, match="doesn't cover every case as it is today \\(-k wipe: 0 missing"):
+        save_baseline(a_run(), "bot", filtered="wipe")
+    partial = a_run()
+    partial = partial | {"passed": {c: n for c, n in partial["passed"].items() if c != "s0"},
+                         "case_hashes": partial["case_hashes"] | {"s1": "older"}}
+    with pytest.raises(SystemExit, match="2 missing or changed since: s0, s1"):
+        save_baseline(partial, "bot")
+    with pytest.raises(SystemExit, match="not a baseline: 72 cases have fewer than 3 judged answers"):
+        save_baseline(a_run(trials={c: 2 if c.startswith("s") else 3 for c in a_run()["passed"]}), "bot",
+                      accept="no reason makes two answers three")
+    assert path.read_text() == before
+    save_baseline(low, "bot", accept="the judge got stricter on naming players")
+    kept = json.loads(path.read_text())
+    assert kept["accepted"] == {"reason": "the judge got stricter on naming players",
+                                "despite": ["it is 1.4 spreads below the baseline it replaces on the cases unchanged "
+                                            "since"]}
+    assert kept["replaced"]["like_for_like"].startswith("total 239 of 279")
+
+
+def test_a_saved_run_is_read_by_todays_rule_and_can_become_the_baseline(suite_on_disk, tmp_path, capsys):
+    """A file from before 10 November: no named checks, and a crashed tool kept as an error."""
+    from evals.run import read_run, save_baseline, show_run
+    path, a_run = suite_on_disk
+    ok, crash = {"ok": True, "reason": ""}, {"name": "progress", "failed": True,
+                                             "result": "progress failed with an unexpected error: TypeError"}
+    answer = {"answer": "The enrage.", "passed": True, "errored": False, "expect": ok, "wrong": ok, "calls": []}
+    wrong = answer | {"passed": False, "wrong": {"ok": False, "reason": "blames the tank"}}
+    crashed = answer | {"passed": False, "errored": True, "error": "progress: failed", "calls": [crash]}
+    trials = {c: [answer] * n + [wrong] * (3 - n) for c, n in a_run()["passed"].items()} | {"s0": [crashed] * 3}
+    saved = tmp_path / "run.json"
+    saved.write_text(json.dumps({"model": "opus", "mode": "bot", "judge_model": "sonnet", "trials": 3,
+                                 "commit": "def", "judge": judged_by("sonnet"),
+                                 "case_hashes": a_run()["case_hashes"], "cases": trials}))
+    run, results, tally = read_run(saved)
+    assert tally["errors"] == {} and tally["passed"]["s0"] == 0 and tally["failed"]["s0"] == [["broke"]] * 3
+    assert results["f0"][2].checks == {"expect": True, "wrong": False, "calls": True}
+    assert show_run(saved) == 0  # none of three: listed, and for a run to ask again
+    out = capsys.readouterr().out
+    assert out.startswith("No answer errored.\n0 of 279 answers asked Warcraft Logs live, for data the frozen file "
+                          "didn't hold.\n93 of 93 cases are compared with the baseline\n")
+    assert "\n    s0 0/3 (baseline 3/3), by chance 1 in 20\n" in out and "(run.json: opus, bot, commit def)" in out
+    save_baseline(tally, run["mode"], filtered=run.get("filter", ""))
+    assert json.loads(path.read_text())["passed"]["s0"] == 0

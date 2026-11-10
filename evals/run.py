@@ -5,6 +5,8 @@
     just evals --bot --trials auto    # twice where the baseline was sure, three times elsewhere (the full suite)
     just evals --model opus           # another model; the cases that differ from the baseline are listed
     just evals --save-baseline        # keep this run as its mode's baseline, to compare later runs with
+    just evals --save-baseline evals/results/X.json   # a saved three-trial run as the baseline (no model)
+    just evals --summary evals/results/X.json         # a saved run's summary and comparison again (no model)
     just evals --connector-only       # as a client with only the connector: no skill, no instructions (own baseline)
     just evals --bot                  # as the Discord bot: its prompt with the skill (own baseline)
     just evals --label evals/results/X.json   # mark a run's answers pass or fail yourself (evals/labels.jsonl)
@@ -54,7 +56,7 @@ import tempfile
 import time
 import tomllib
 from collections.abc import Awaitable, Callable, Iterable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -526,30 +528,98 @@ async def run(args) -> int:
     tally = so_far()
     asked_trials = tally["trials"]
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
-    mode = f", {args.mode}"
-    print("\n" + "\n".join(summary(tally)) + f"\n({shown}{mode}, judge {args.judge_model}, ${cost:.2f})")
-    print(how_answered(tally, tally["passed"]))
-    print("\n".join(built_summary((t.form, t.slips) for ts in results.values() for t in ts if not t.errored)))
-    if args.mode == "plugin":
-        print(skill_use(results))
-    found = compared(base, tally) if base else None
-    if found:
-        print("\n" + "\n".join(found.lines))
-
+    lines, found = report(tally, results, base, args.mode,
+                          f"({shown}, {args.mode}, judge {args.judge_model}, ${cost:.2f})")
+    print("\n" + "\n".join(lines))
     stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
     out = HERE / "results" / f"{stamp}.json"
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({"model": shown, "mode": args.mode, "connector_only": args.mode == "connector",
-                               "judge_model": args.judge_model,
+                               "judge_model": args.judge_model, "filter": args.filter,
                                "billed_to": args.billed_to, "trials": asked_trials, "commit": tally["commit"],
                                "judge": tally["judge"], "case_hashes": tally["case_hashes"],
                                "cases": {c: [asdict(t) for t in ts] for c, ts in results.items()}},
                               indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"saved {out.relative_to(HERE.parent)}")
-    if args.save_baseline:
-        baseline(args.mode).write_text(json.dumps(tally, indent=1) + "\n", encoding="utf-8")
-        print(f"saved {baseline(args.mode).relative_to(HERE.parent)}")
+    if args.save_baseline is not None:
+        save_baseline(tally, args.mode, args.accept, args.filter)
     return 1 if tally["errors"] or (found and found.verdict == "a drop shown") else 0
+
+
+def read_run(path: Path) -> tuple[dict, dict[str, list[Trial]], dict]:
+    """A saved run: the file, its trials per case as today's rule reads them (settle), and its tally, with the cases'
+    hashes as the run asked them."""
+    run = json.loads(path.read_text(encoding="utf-8"))
+    run["mode"] = run.get("mode") or ("connector" if run.get("connector_only") else "plugin")
+    known = {c["id"]: c for c in load_cases()}
+    kept = {f.name for f in fields(Trial)}
+    results = {c: [settle(Trial(**{k: v for k, v in t.items() if k in kept}),
+                          known.get(c, {"id": c, "question": ""}), run["mode"]) for t in ts]
+               for c, ts in run["cases"].items()}
+    tally = tally_of([known.get(c, {"id": c}) for c in results], results, model=run.get("model", "?"),
+                     commit=run.get("commit", "?"), judge=run.get("judge") or judged_by(run.get("judge_model", "")))
+    return run, results, tally | {"case_hashes": run.get("case_hashes") or tally["case_hashes"]}
+
+
+def report(tally: dict, results: dict[str, list[Trial]], base: dict | None, mode: str,
+           about: str) -> tuple[list[str], Comparison | None]:
+    """What a run prints once it's asked, and a saved one with --summary: its summary, how its answers were made
+    and built, and the comparison with its mode's baseline."""
+    lines = [*summary(tally, base), about, how_answered(tally, tally["passed"]),
+             *built_summary((t.form, t.slips) for ts in results.values() for t in ts if not t.errored)]
+    if mode == "plugin":
+        lines.append(skill_use(results))
+    found = compared(base, tally) if base else None
+    return lines + (["", *found.lines] if found else []), found
+
+
+def show_run(path: Path) -> int:
+    """A saved run's summary and comparison again, by today's rules (no model); 1 as a run exits 1."""
+    run, results, tally = read_run(path)
+    base = json.loads(baseline(run["mode"]).read_text()) if baseline(run["mode"]).exists() else None
+    lines, found = report(tally, results, base, run["mode"],
+                          f"({path.name}: {tally['model']}, {run['mode']}, commit {tally['commit']})")
+    print("\n".join(lines))
+    return 1 if tally["errors"] or (found and found.verdict == "a drop shown") else 0
+
+
+def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") -> None:
+    """Keep a run as its mode's baseline, after printing the comparison with the one it replaces. A run with a case
+    asked fewer than UNSETTLED_TRIALS times is never one. A run that errored, doesn't cover every case of its mode
+    as it is today, or is below the baseline it replaces by LOOK spreads or more is refused, unless `accept` says
+    why: the reason is kept in the file, with what it replaced and the like-for-like total on the unchanged cases."""
+    path = baseline(mode)
+    old = json.loads(path.read_text()) if path.exists() else None
+    if thin := [c for c in tally["passed"] if judged(tally, c) < UNSETTLED_TRIALS]:
+        raise SystemExit(f"not a baseline: {len(thin)} cases have fewer than {UNSETTLED_TRIALS} judged answers "
+                         f"({', '.join(thin[:5])}{', ...' if len(thin) > 5 else ''}): a baseline asks every case as "
+                         "often, to judge the next run (--trials 3)")
+    against = [c for c in load_cases() if c["kind"] != "heldout" and not c.get(
+        "client_only" if mode == "bot" else "bot_only")]
+    stale = [c["id"] for c in against
+             if c["id"] not in tally["passed"] or tally["case_hashes"].get(c["id"]) != case_hash(c)]
+    doubts = [f"{sum(tally['errors'].values())} answers errored"] if tally["errors"] else []
+    if filtered or stale:
+        doubts.append(f"it doesn't cover every case as it is today ({filtered and f'-k {filtered}: '}{len(stale)} "
+                      f"missing or changed since{': ' + ', '.join(stale[:5]) if stale else ''})")
+    replaced = {}
+    if old:
+        found = compared(old, tally)
+        print("Against the baseline it replaces:\n" + "\n".join(found.lines[1:]) + "\n")
+        if found.verdict == "a drop shown" or found.low >= LOOK:
+            doubts.append(f"it is {found.low:.1f} spreads below the baseline it replaces on the cases unchanged "
+                          "since")
+        like = next((line.strip() for line in found.lines if line.startswith("  total ")), "")
+        replaced = {"commit": old.get("commit", "?"), "trials": trials_of(old),
+                    "passed": [sum(old["passed"].values()), sum(judged(old, c) for c in old["passed"])],
+                    "like_for_like": like, "verdict": found.lines[-1]}
+    if doubts and not accept:
+        raise SystemExit(f"not saved as the baseline: {'; '.join(doubts)}. To keep it all the same, say why: "
+                         '--accept "<reason>" (kept in the file).')
+    kept = tally | ({"replaced": replaced} if replaced else {}) | (
+        {"accepted": {"reason": accept, "despite": doubts}} if doubts else {})
+    path.write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"saved evals/{path.name}" + (f" (accepted despite: {'; '.join(doubts)})" if doubts else ""))
 
 
 def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dict:
@@ -720,36 +790,56 @@ def errors_line(tally: dict) -> str:
             + ", ".join(f"{c} ({n})" for c, n in errors.items()))
 
 
-def summary(tally: dict) -> list[str]:
-    """The answers that errored and those that asked Warcraft Logs live, then each case's passes over its judged
-    trials, flaky when it both passed and failed, then the total and its spread, and with several trials how many
-    cases were right on every one: the regular cases, then the hard set (cases the bot still gets wrong, apart so
-    the total shows a regression and the hard set an improvement)."""
-    errors, hard = tally.get("errors", {}), set(tally.get("hard", []))
-    lines, rates, trials = [errors_line(tally)], {}, {}
+def known_failure(passed: int, of: int) -> bool:
+    """Whether a baseline fails a case more than once in three: a failure of it now is no news."""
+    return of - passed > of / 3
+
+
+def summary(tally: dict, base: dict | None = None) -> list[str]:
+    """What a run found, first what could flatter it: the answers that errored, those that asked Warcraft Logs live,
+    and with a baseline how many cases the comparison skips and why. Then each case's passes over its judged trials
+    (flaky when it both passed and failed, with the baseline's result where that wasn't a pass on every trial), the
+    total and its spread, how many cases were right on every trial, and from the baseline: the totals where it
+    always, sometimes and never passed, and its known failures."""
+    errors = tally.get("errors", {})
+    lines = [errors_line(tally)]
     if "live" in tally:  # a run's; a baseline from before 10 November has no count
         asked = sum(judged(tally, c) + errors.get(c, 0) for c in tally["passed"])
         lines.append(f"{sum(tally['live'].values())} of {asked} answers asked Warcraft Logs live, for data the "
                      "frozen file didn't hold.")
+    same, skipped = unchanged(base, tally) if base else ([], {})
+    if base:
+        why = "; ".join(f"{len(cs)} {reason}" for reason, cs in skipped.items())
+        lines.append(f"{len(same)} of {len(tally['passed'])} cases are compared with the baseline"
+                     + (f"; skipped: {why}" if why else ""))
+    was = {c: (base["passed"][c], judged(base, c)) for c in same} if base else {}
+    rates, trials = {}, {}
     for c, n in tally["passed"].items():
-        of = judged(tally, c)
-        lines.append(f"  {c:34} {n}/{of}" + ("  flaky" if 0 < n < of else "") + ("  (hard)" if c in hard else "")
+        of, (b, b_of) = judged(tally, c), was.get(c, (1, 1))
+        lines.append(f"  {c:34} {n}/{of}" + ("  flaky" if 0 < n < of else "")
+                     + ("" if b == b_of else f"  ({'known failure: ' if known_failure(b, b_of) else ''}"
+                                             f"baseline {b}/{b_of})")
                      + (f"  ({errors[c]} errored)" if errors.get(c) else ""))
         if of:
             rates[c], trials[c] = n / of, of
-    for name, part in (("", [c for c in trials if c not in hard]), ("hard set: ", [c for c in trials if c in hard])):
-        errored = sum(errors.get(c, 0) for c in tally["passed"] if (c in hard) == bool(name))
-        if not part and (name or not errored):  # with every answer errored there is still a total line to read
-            continue
-        flaky = sum(0 < tally["passed"][c] < trials[c] for c in part)
-        lines.append(f"{name}{sum(tally['passed'][c] for c in part)}/{sum(trials[c] for c in part)} answers passed, "
-                     f"±{spread({c: rates[c] for c in part}, {c: trials[c] for c in part}):.1f} from run to run; "
-                     f"{flaky} flaky" + (f"; {errored} errored, not counted" if errored else ""))
-        if any(trials[c] > 1 for c in part):  # what a raider meets: a case right only sometimes isn't right
-            every = [c for c in part if tally["passed"][c] == trials[c]]
-            lines.append(f"{name}{len(every)}/{len(part)} cases right on every trial")
-            if name and every:
-                lines.append("  right on every trial now, to move to the regular cases: " + ", ".join(every))
+
+    def got(cases: Iterable[str]) -> str:
+        cases = [c for c in cases if c in trials]
+        return f"{sum(tally['passed'][c] for c in cases)}/{sum(trials[c] for c in cases)}"
+    flaky, errored = sum(0 < tally["passed"][c] < trials[c] for c in trials), sum(errors.values())
+    lines.append(f"The main point got across in {got(trials)} answers, ±{spread(rates, trials):.1f} from run to run; "
+                 f"{flaky} flaky" + (f"; {errored} errored, not counted" if errored else ""))
+    if any(t > 1 for t in trials.values()):  # what a raider meets: a case right only sometimes isn't right
+        lines.append(f"{sum(tally['passed'][c] == trials[c] for c in trials)}/{len(trials)} cases right on every "
+                     "trial")
+    for name, cases in (("always passed", [c for c in same if was[c][0] == was[c][1]]),
+                        ("passed sometimes", [c for c in same if 0 < was[c][0] < was[c][1]]),
+                        ("never passed", [c for c in same if not was[c][0]])):
+        if cases:
+            lines.append(f"  where the baseline {name} ({len(cases)} case{'s' * (len(cases) > 1)}): {got(cases)}")
+    if known := [f"{c} {tally['passed'][c]}/{judged(tally, c)} (baseline {b}/{b_of})"
+                 for c, (b, b_of) in was.items() if known_failure(b, b_of)]:
+        lines.append("Known failures, which the baseline fails more than once in three: " + ", ".join(known))
     return lines
 
 
@@ -1119,7 +1209,13 @@ def main() -> None:
                        help="answer with only the connector: no skill, no instructions (ChatGPT, Claude without it)")
     modes.add_argument("--bot", dest="mode", action="store_const", const="bot",
                        help="answer as the Discord bot: its prompt with the skill")
-    parser.add_argument("--save-baseline", action="store_true", help="keep this run as its mode's baseline")
+    parser.add_argument("--save-baseline", nargs="?", const="", metavar="RESULTS",
+                        help="keep this run as its mode's baseline, or a saved run (no model); refused when it "
+                             "errored, was filtered or is below the baseline it replaces, unless --accept")
+    parser.add_argument("--accept", default="", metavar="REASON",
+                        help="with --save-baseline: why a run it would refuse is the baseline all the same")
+    parser.add_argument("--summary", metavar="RESULTS",
+                        help="a saved run's summary and comparison again, by today's rules (no model)")
     parser.add_argument("--held-out", action="store_true",
                         help="only the held-out cases (cases/heldout.toml), at a milestone: never while tuning")
     parser.add_argument("--label", metavar="RESULTS", help="mark a run's answers yourself")
@@ -1138,10 +1234,15 @@ def main() -> None:
     parser.add_argument("--api-key", action="store_true",
                         help="bill the answers and the judge to ANTHROPIC_API_KEY (default: your Claude Code login)")
     args = parser.parse_args()
-    if args.trials == "auto" and args.save_baseline:
+    if args.trials == "auto" and args.save_baseline == "":
         parser.error("--trials auto with --save-baseline: a baseline asks every case as often, to judge the next run")
-    if args.held_out and args.save_baseline:
+    if args.held_out and args.save_baseline is not None:
         parser.error("--held-out with --save-baseline: a baseline is the regular cases'")
+    if args.summary:
+        sys.exit(show_run(Path(args.summary)))
+    if args.save_baseline:  # a saved run's file: no model
+        run, _, tally = read_run(Path(args.save_baseline))
+        return save_baseline(tally, run["mode"], args.accept, run.get("filter", ""))
     args.billed_to = billed_to(args.api_key)
     if args.label:
         label(Path(args.label))
