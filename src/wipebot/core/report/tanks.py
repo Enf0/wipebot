@@ -154,7 +154,7 @@ async def aggro_history(reports: list[Report], tanks: list[str], weeks: int) -> 
                     seen = took[who].setdefault(how, [0, None])
                     seen[0] += 1
                     seen[1] = (rep.start_ms + at, rep.label(f))
-    nights = len({date(r.start_ms) for r in reports})
+    nights = len({date(r.start_ms, with_time=False) for r in reports})
     parts = []
     for tank, spells in took.items():
         listed = ", ".join(f"{spell} {n} (last {label}, {day(when)})"

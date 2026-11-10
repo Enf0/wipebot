@@ -58,9 +58,9 @@ async def test_a_boss_night_counts_its_pulls_once_with_the_kill_the_best_wipe_an
 
 
 def test_weeks_read_night_by_night_with_the_best_wipe_trend():
-    nights = [night.BossNight(1_760_000_000_000, 33, None, (34.1, 42), (("the boss gaining X and keeping it to the "
+    nights = [night.BossNight(1_760_040_000_000, 33, None, (34.1, 42), (("the boss gaining X and keeping it to the "
                                                                           "end", 20), ("Mutilate killing many", 8))),
-              night.BossNight(1_760_600_000_000, 14, 14, (2.0, 12), (("a kill", 1), ("deaths one after another", 9)))]
+              night.BossNight(1_760_640_000_000, 14, 14, (2.0, 12), (("a kill", 1), ("deaths one after another", 9)))]
     text = night.weeks_text("Sszorak", 2, nights)
     assert text.splitlines()[1:] == [
         "  Thu 2025-10-09: 33 pulls, no kill, best wipe 34.1% (pull 42); ended by the boss gaining X and keeping it "
@@ -72,26 +72,26 @@ def test_weeks_read_night_by_night_with_the_best_wipe_trend():
 
 
 def test_weeks_name_a_best_wipe_by_its_phase_where_phases_have_their_own_health():
-    altar = night.BossNight(1_760_000_000_000, 21, None, (70.5, 16), (("Venom Rupture killing many", 12),), "abc",
+    altar = night.BossNight(1_760_040_000_000, 21, None, (70.5, 16), (("Venom Rupture killing many", 12),), "abc",
                             "P2", 68.3)
     text = night.weeks_text("The Coiled Altar", 1, [altar])
     assert "best wipe P2 68.3% (WCL 70.5%) (pull 16)" in text
     assert text.endswith("Best wipe night by night (WCL %): 70.5")
-    assert views.weeks_row(altar) == {"day": "Thu 9 Oct", "start_ms": 1_760_000_000_000, "report": "abc",
+    assert views.weeks_row(altar) == {"day": "Thu 9 Oct", "start_ms": 1_760_040_000_000, "report": "abc",
                                       "pulls": 21, "kill": None, "pct": 70.5, "pull": 16, "phase": "P2",
                                       "health": 68.3, "ended": ["Venom Rupture killing many", 12]}
 
 
 def test_progress_says_whether_the_night_beat_the_guild_best():
     """A lower % got further: "P2 64.0%" against "P2 68.3%" read backwards once, so code says which won."""
-    before = GuildBest(62.6, "abc", 21, 13, 1_760_000_000_000)
+    before = GuildBest(62.6, "abc", 21, 13, 1_760_040_000_000)
     pulls = [{"id": 1, "kill": False, "fightPercentage": 70.0, "startTime": 0, "endTime": 120_000},
              {"id": 2, "kill": False, "fightPercentage": 65.0, "startTime": 0, "endTime": 150_000}]
     marks, best = night._marks(pulls, before)
     assert marks == {1: " best of the night until then", 2: " best of the night until then"}
     assert night._record(before, pulls, best, False) == (
         " Tonight's best wipe, 65.0% on pull 2, didn't get as far: the guild's best stands.")
-    marks, best = night._marks(pulls, GuildBest(68.0, "abc", 21, 13, 1_760_000_000_000))
+    marks, best = night._marks(pulls, GuildBest(68.0, "abc", 21, 13, 1_760_040_000_000))
     assert marks[2] == " best of the night until then, new guild best"
 
 

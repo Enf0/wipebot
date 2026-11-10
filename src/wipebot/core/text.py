@@ -17,16 +17,30 @@ def parse_clock(text: str) -> float | None:
     return (int(m.group(1) or 0) * 60 + float(m.group(2))) * 1000 if m else None
 
 
-def day(ms: float, with_time: bool = False) -> str:
-    """'Mon 5 Oct', or 'Mon 5 Oct 19:30 UTC': a moment this season."""
+EVENING_BEFORE_H = 10  # before this hour UTC it is still the evening before somewhere in the Americas
+
+
+def _time_utc(d: datetime, with_time: bool | None) -> str:
+    """' 19:30 UTC' for a moment, when asked for or, left open (None), when its date alone can mislead. Dates are
+    UTC: no report says where its raiders are (Warcraft Logs' US region holds the Oceanic realms too, so a region
+    is no time zone). An evening raid in the Americas starts after midnight UTC, and its UTC weekday alone would read
+    a day late there; with the time and "UTC" beside it the reader can tell."""
+    if with_time is None:
+        with_time = d.hour < EVENING_BEFORE_H
+    return f" {d:%H:%M} UTC" if with_time else ""
+
+
+def day(ms: float, with_time: bool | None = None) -> str:
+    """'Mon 5 Oct', or 'Mon 5 Oct 19:30 UTC': a moment this season. The time is there when asked for, and unasked
+    when the date alone can mislead (`_time_utc`); never with `with_time` False."""
     d = datetime.fromtimestamp(ms / 1000, UTC)
-    return f"{d:%a} {d.day} {d:%b}" + (f" {d:%H:%M} UTC" if with_time else "")
+    return f"{d:%a} {d.day} {d:%b}" + _time_utc(d, with_time)
 
 
-def date(ms: float, with_time: bool = False) -> str:
-    """'Mon 2026-10-12', or 'Mon 2026-10-12 19:30 UTC': a raid night in a list of them."""
-    return f"{datetime.fromtimestamp(ms / 1000, UTC):%a %Y-%m-%d}" + (
-        f" {datetime.fromtimestamp(ms / 1000, UTC):%H:%M} UTC" if with_time else "")
+def date(ms: float, with_time: bool | None = None) -> str:
+    """'Mon 2026-10-12', or 'Mon 2026-10-12 19:30 UTC': a raid night in a list of them. The time as in `day`."""
+    d = datetime.fromtimestamp(ms / 1000, UTC)
+    return f"{d:%a %Y-%m-%d}" + _time_utc(d, with_time)
 
 
 def fight_url(code: str, fight_id: int) -> str:

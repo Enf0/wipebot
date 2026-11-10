@@ -15,3 +15,16 @@ def test_lists_of_numbers_and_moments_are_grouped():
     assert [text.ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 112)] == \
         ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "112th"]
     assert (text.short(1_234_567), text.short(999)) == ("1.23M", "999")
+
+
+def test_a_date_that_is_the_evening_before_in_the_americas_carries_its_time_in_utc():
+    from datetime import UTC, datetime
+    evening = datetime(2026, 10, 14, 18, 56, tzinfo=UTC).timestamp() * 1000  # a European raid night's start
+    night = datetime(2026, 10, 14, 4, 5, tzinfo=UTC).timestamp() * 1000  # Tuesday 21:05 Pacific, Wednesday in UTC
+    # No report says where its raiders are (Warcraft Logs' US region holds the Oceanic realms too), so dates stay
+    # UTC. "Wed 14 Oct" alone read a day late for a Tuesday raid in the Americas: there the time and "UTC" go with it.
+    assert text.day(evening) == "Wed 14 Oct" and text.date(evening) == "Wed 2026-10-14"
+    assert text.day(night) == "Wed 14 Oct 04:05 UTC" and text.date(night) == "Wed 2026-10-14 04:05 UTC"
+    assert text.day(evening, with_time=True) == "Wed 14 Oct 18:56 UTC"
+    # A date to count nights by stays a date.
+    assert text.day(night, with_time=False) == "Wed 14 Oct" and text.date(night, with_time=False) == "Wed 2026-10-14"
