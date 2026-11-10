@@ -20,6 +20,7 @@ from wipebot.core.pulls import (
     attempt,
     format_summary,
     mass_hits,
+    phase_label,
     summarize,
 )
 from wipebot.core.report import Report, coaching, mechanics, night, ranks
@@ -57,6 +58,8 @@ class Recorded:
     night: list[coaching.NightPull] = field(default_factory=list)  # Enfo's Sszorak night (local)
     percentiles: list[float] = field(default_factory=list)  # Warcraft Logs' percentiles of the night's kills (local)
     spread: ranks.Spread | None = None  # Draiman's spec's kills of Sszorak (local)
+    # each pull with phases: its label, the fight, the last phase it entered as labelled, its Phases line
+    phases: list[tuple[str, dict, str, str]] = field(default_factory=list)
 
 
 async def _pulls(rep: Report, fights: list[dict]) -> list[Pull]:
@@ -81,6 +84,8 @@ async def _load() -> Recorded:
     out = Recorded()
     for code in REPORTS:
         rep = await server.lib().report(code)
+        out.phases += [(f"{code} {rep.label(f)}", f, rep.phase(f, entered[-1]["id"]), rep.phases(f))
+                       for f in rep.fights if (entered := f.get("phaseTransitions"))]
         for fights in rep.by_boss.values():
             pulls = await _pulls(rep, fights)
             out.pulls += pulls
@@ -133,6 +138,18 @@ async def test_enough_pulls_are_recorded(recorded):
     assert len(recorded.pulls) >= MIN_PULLS
     assert sum(p.decided is not None for p in recorded.pulls) >= MIN_PULLS // 2
     assert len(recorded.killers) >= 3 and len(recorded.hits) >= 2
+
+
+async def test_a_phase_has_one_label_wherever_it_is_printed(recorded):
+    """The phase a pull ended in (the summary's 'wipe in P3') is the last phase its Phases line lists, under the same
+    label, on every recorded pull: a boss with an intermission among them, where Warcraft Logs' own numbers differ."""
+    behind_an_intermission = 0  # pulls that ended in a stage Warcraft Logs numbers higher than raiders do
+    for label, f, last_entered, phases in recorded.phases:
+        ended_in = (phase_label(f) or "").split(" (")[0]
+        assert last_entered == ended_in, label
+        assert phases.split(" → ")[-1].startswith(ended_in + " "), label
+        behind_an_intermission += ended_in != f"P{f['phaseTransitions'][-1]['id']}"
+    assert behind_an_intermission >= 5
 
 
 async def test_a_kill_has_no_decided_moment_and_no_fallout(recorded):

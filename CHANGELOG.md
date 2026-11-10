@@ -67,6 +67,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Discord` **A meter's mark keeps off its numbers, and two healers of one class are told apart.** Against another night, the mark for that night could sit on a player's amount: the bars and the marks now end where the amounts begin, and a mark is a notch above and below the row, clear of the names too. In the healers' mana each line ends in its healer's name, and where two healers share a class the second line is dashed and the third dotted. A picture of one part of a view, such as a player's night pull by pull, has the margin a whole one has, and a long name beside a grid by pull is cut at its end.
 
   ![Axegrinder's damage per player on two nights: each bar ends before the column of amounts, and the other night's amount is a small notch above and below each row](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-meter-against-marks.webp)
+- `Agent` **A phase has one number everywhere.** A wipe "in P3" listed its phases as "P3 Intermission → P4 Stage Three" two lines further down, so P3 meant the intermission or the third stage depending on the line. Phases are now counted the way raiders count them wherever one is named: stages P1, P2, P3 and intermissions I1, I2.
 
 ## [0.41.1] - 2026-11-09
 

@@ -191,7 +191,7 @@ async def _run(source, what: str, rep: Report, f: dict) -> Found:
 
 
 async def _phases(rep: Report, f: dict) -> Found:
-    return Found([(t["startTime"], f"phase {t['id']}" + (f" ({name})" if (name := rep.phase_names.get(
+    return Found([(t["startTime"], f"phase {rep.phase(f, t['id'])}" + (f" ({name})" if (name := rep.phase_names.get(
         (f["encounterID"], t["id"]))) else "")) for t in f.get("phaseTransitions") or []])
 
 

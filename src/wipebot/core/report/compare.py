@@ -61,8 +61,9 @@ async def compare_with_kill(rep: Report, pull: PullRef = None, boss: str | None 
         for i, ((ph, at), (_, kat)) in enumerate(zip(ours_ph, kill_ph, strict=False)):
             took = (ours_ph[i + 1][1] if i + 1 < len(ours_ph) else ours_end) - at
             kill_took = (kill_ph[i + 1][1] if i + 1 < len(kill_ph) else kill_end) - kat
-            lines.append(f"  {i + 1}. P{ph}: {clock(at)}/{clock(kat)}; health {_at(ours.get('health'), at)}"
-                         f"/{_at(theirs.get('health'), kat)}; lasted {clock(took)}/{clock(kill_took)}"
+            lines.append(f"  {i + 1}. {rep.phase(f, ph)}: {clock(at)}/{clock(kat)}; health "
+                         f"{_at(ours.get('health'), at)}/{_at(theirs.get('health'), kat)}; lasted "
+                         f"{clock(took)}/{clock(kill_took)}"
                          + (" (ours ended in it)" if i + 1 == len(ours_ph) and not f["kill"] else ""))
         lines.append("When a phase starts at another time, the rows below compare different phases after it.")
     lines.append(await _pace(rep, f, k, code, fight_id, ours, theirs))

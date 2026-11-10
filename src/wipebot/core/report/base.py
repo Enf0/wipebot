@@ -30,6 +30,7 @@ from ..pulls import (
     is_reset,
     lost_buffs,
     mass_hits,
+    phase_labels,
     summarize,
     wipe_pct,
 )
@@ -246,6 +247,8 @@ class Report(Fetched):
         actors, table, details = self._names = names
         self.phase_names = {(enc["encounterID"], ph["id"]): ph["name"]
                             for enc in report.get("phases") or [] for ph in enc.get("phases") or []}
+        self.phase_labels = {(enc["encounterID"], i): label for enc in report.get("phases") or []
+                             for i, label in phase_labels(enc.get("phases") or []).items()}
         self.title = report["title"]
         self.guild_name = (report.get("guild") or {}).get("name") or ""  # empty for personal logs
         self.guild_id = (report.get("guild") or {}).get("id")
@@ -879,13 +882,21 @@ class Report(Fetched):
                  and (b := (r.get("best_wipes") or {}).get(key)) for pct, fight_id, pull_no, ended in [b]]
         return min(found, key=lambda g: g.pct) if found else None
 
+    def phase(self, fight: dict, phase_id: int, encounter: int | None = None) -> str:
+        """A phase of a fight as raiders count it, from Warcraft Logs' id for it (pulls.phase_labels): 'P3' for the
+        Coiled Altar's third stage, which is Warcraft Logs' phase 4 behind an intermission ('I1'). A fight from
+        another report gives its `encounter`, and is counted by this report's phases. A phase the report doesn't
+        list keeps Warcraft Logs' number."""
+        return self.phase_labels.get((encounter or fight["encounterID"], phase_id), f"P{phase_id}")
+
     def phases(self, fight: dict, encounter: int | None = None) -> str:
         """'P1 Sszorak 0:00 → P2 Howling Maelstrom 1:40 → P1 Sszorak 2:05', or '' for a boss without phases. A fight
         from another report gives its `encounter`, and is named by this report's phase names."""
         out = []
         for t in fight.get("phaseTransitions") or []:
             name = self.phase_names.get((encounter or fight["encounterID"], t["id"]))
-            out.append(f"P{t['id']}{' ' + name if name else ''} {clock(t['startTime'] - fight['startTime'])}")
+            out.append(f"{self.phase(fight, t['id'], encounter)}{' ' + name if name else ''} "
+                       f"{clock(t['startTime'] - fight['startTime'])}")
         return " → ".join(out)
 
     async def lusts(self, f: dict) -> list[tuple[float, str, int]]:

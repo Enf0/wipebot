@@ -144,7 +144,7 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         "ranking": (await kill_rankings(rep)).get(f["id"]) if f["kill"] else None,
         "ended": _ended(await pull_ending(rep, f)),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
-        "phases": [{"ms": round(t["startTime"] - t0), "id": t["id"],
+        "phases": [{"ms": round(t["startTime"] - t0), "id": t["id"], "label": rep.phase(f, t["id"]),
                     "name": rep.phase_names.get((f["encounterID"], t["id"]), "")}
                    for t in f.get("phaseTransitions") or []],
         "health": health,

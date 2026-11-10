@@ -1,5 +1,5 @@
 Sszorak pull 13 timeline (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.
-0:00 phase 1 (Sszorak); Serpent's Fury on Martin
+0:00 phase P1 (Sszorak); Serpent's Fury on Martin
 0:02 Corroding Venom on Wutroll; Bloodlust (Temporal Displacement on 20 players); healing cooldown: Stasis (Store) (Lïzårðmâñ)
 0:03 healing cooldown: Avenging Wrath (Cptola)
 0:08 boss casts Ravage (2 abilities); Ravage on Wutroll
@@ -48,14 +48,14 @@ Sszorak pull 13 timeline (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#
 1:33 Corroding Venom on Deathadim
 1:34 Turbulent Gusts on 8 players
 1:35 Caustic Residue on Krøpling
-1:39 boss casts Dig In ◆; phase 2 (Howling Maelstrom); boss gains Dig In
+1:39 boss casts Dig In ◆; phase P2 (Howling Maelstrom); boss gains Dig In
 1:40 Caustic Residue on 11 players
 1:43 Viscous Cyst on 16 players
 1:51 Viscous Cyst on 16 players
 1:52 Caustic Residue on 7 players
 2:00 Viscous Cyst on 16 players
 2:03 healing cooldown: Avenging Wrath (Cptola)
-2:05 phase 1 (Sszorak); boss loses Dig In; Corroding Venom on Deathadim
+2:05 phase P1 (Sszorak); boss loses Dig In; Corroding Venom on Deathadim
 2:06 Viscous Cyst on 16 players
 2:07 Caustic Residue on 5 players
 2:13 healing cooldown: Stasis (Store) (Lïzårðmâñ)

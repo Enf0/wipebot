@@ -11,6 +11,7 @@ from wipebot.core.pulls import (
     lost_buffs,
     pct_text,
     phase_label,
+    phase_labels,
     summarize,
     wipe_pct,
     wipe_pcts,
@@ -125,6 +126,26 @@ def test_phase_label_counts_returns():
     assert phase_label({"lastPhase": 2, "phaseTransitions": [{"id": 1}, {"id": 2}]}) == "P2"
     assert phase_label({"lastPhase": 1, "phaseTransitions": [{"id": 1}, {"id": 2}, {"id": 1}]}) == "P1 (2nd time)"
     assert phase_label({"lastPhase": 2, "lastPhaseIsIntermission": True}) == "I2"
+
+
+def test_a_phase_is_counted_as_raiders_count_it_stages_and_intermissions_each_on_their_own():
+    """Warcraft Logs numbers every phase of an encounter in one row; the phase a fight ended in it counts per kind.
+    One label for both, so the Coiled Altar's third stage is P3 on every line, not P4 behind the intermission."""
+    altar = [{"id": 1, "isIntermission": False}, {"id": 2, "isIntermission": False},
+             {"id": 3, "isIntermission": True}, {"id": 4, "isIntermission": False}]
+    assert phase_labels(altar) == {1: "P1", 2: "P2", 3: "I1", 4: "P3"}
+    assert phase_labels([{"id": 2, "isIntermission": True}, {"id": 1}]) == {1: "P1", 2: "I1"}  # whatever the order
+    assert phase_labels([]) == {}
+    stage_three = {"lastPhase": 3, "phaseTransitions": [{"id": i} for i in (1, 2, 3, 4)]}
+    assert phase_label(stage_three) == phase_labels(altar)[4] == "P3"
+
+
+def test_a_return_to_a_phase_is_counted_by_the_phase_entered_not_by_its_number_among_its_kind():
+    """An intermission entered twice is 'I1 (2nd time)': Warcraft Logs' phase 3 came twice, its phase 1 once."""
+    back = {"lastPhase": 1, "lastPhaseIsIntermission": True, "phaseTransitions": [{"id": i} for i in (1, 2, 3, 4, 3)]}
+    assert phase_label(back) == "I1 (2nd time)"
+    once = {"lastPhase": 3, "phaseTransitions": [{"id": i} for i in (1, 2, 3, 4)]}
+    assert phase_label(once) == "P3"  # the third stage, entered once; Warcraft Logs' phase 3 is the intermission
 
 
 def test_a_boss_whose_phases_start_a_new_health_bar_is_counted_by_phase():

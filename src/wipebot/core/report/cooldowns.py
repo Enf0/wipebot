@@ -92,8 +92,8 @@ def _phase_at(rep: Report, f: dict, at_ms: float) -> str:
             break
         seen[t["id"]] += 1
         name = rep.phase_names.get((f["encounterID"], t["id"]))
-        label = f"P{t['id']}" + (f" {name}" if name else "") + (f" ({ordinal(seen[t['id']])} time)"
-                                                                  if seen[t["id"]] > 1 else "")
+        label = rep.phase(f, t["id"]) + (f" {name}" if name else "") + (f" ({ordinal(seen[t['id']])} time)"
+                                                                          if seen[t["id"]] > 1 else "")
     return label
 
 

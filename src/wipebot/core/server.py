@@ -456,10 +456,11 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
     says. A pull that ended with the raid alive names the boss's cast that landed on the living as it ended, when
     the log has one; otherwise the log doesn't say why it ended.
-    Deaths after the wipe was decided are marked as fallout of it. "P1 (2nd time)" is a phase the fight went back
-    to after an intermission. The post compares the wipe with this log's earlier pulls and with the guild's best
-    in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded" means the log names no
-    killing hit (death_recap shows the damage before it and where the player was last)."""
+    Deaths after the wipe was decided are marked as fallout of it. Phases are numbered as raiders count them, in
+    every tool: stages P1, P2, P3 and intermissions I1, I2; "P1 (2nd time)" is a phase the fight went back to. The
+    post compares the wipe with this log's earlier pulls and with the guild's best in its earlier logs: only "new
+    guild best" is a best ever. "No killing blow recorded" means the log names no killing hit (death_recap shows
+    the damage before it and where the player was last)."""
     text = await fight.pull_summary(await lib().report(report), pull, boss)
     return await _shown("pull_summary", {"pull": pull, "boss": boss, "report": report}, text, ctx)
 

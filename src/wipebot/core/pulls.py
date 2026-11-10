@@ -226,13 +226,30 @@ def wipe_text(fight: dict, wcl: bool = True) -> str:
     return f"{phase_label(fight)} {health:.1f}%" + (f" (WCL {wipe_pct(fight):.1f}%)" if wcl else "")
 
 
+def phase_labels(phases: Iterable[dict]) -> dict[int, str]:
+    """An encounter's phases as raiders count them, by Warcraft Logs' id for each: stages 'P1', 'P2', 'P3' and
+    intermissions 'I1', 'I2', each kind numbered on its own (the Coiled Altar: {1: 'P1', 2: 'P2', 3: 'I1', 4: 'P3'}).
+    `phases` are the report's phases of the encounter ({id, isIntermission}). Warcraft Logs' ids number every phase in
+    one row (the Altar's third stage is 4), while the phase it says a fight ended in (phase_label) is numbered this
+    way: every phase printed goes through one of the two, so a pull's "P3" is the same phase on every line."""
+    out: dict[int, str] = {}
+    seen: Counter = Counter()
+    for ph in sorted(phases, key=lambda ph: ph["id"]):
+        kind = "I" if ph.get("isIntermission") else "P"
+        seen[kind] += 1
+        out[ph["id"]] = f"{kind}{seen[kind]}"
+    return out
+
+
 def phase_label(fight: dict) -> str | None:
-    """'P2', 'I1', or 'P1 (2nd time)' when the fight went back to a phase (e.g. after an intermission)."""
+    """The phase a fight ended in as raiders count it (phase_labels): 'P2', 'I1', or 'P1 (2nd time)' when the fight
+    went back to that phase (e.g. after an intermission)."""
     n = fight.get("lastPhase")
     if not n:
         return None
     label = f"I{n}" if fight.get("lastPhaseIsIntermission") else f"P{n}"
-    times = sum(1 for t in fight.get("phaseTransitions") or [] if t.get("id") == n)
+    entered = [t.get("id") for t in fight.get("phaseTransitions") or []]  # the last one entered is where it ended
+    times = entered.count(entered[-1]) if entered else 1
     return f"{label} ({ordinal(times)} time)" if times > 1 else label
 
 

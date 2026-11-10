@@ -17,9 +17,9 @@
 "ended": {"text": "the boss gaining Unbound Ferocity", "ms": 152966},
 "decided": {"ms": 152966, "why": "the boss gained Unbound Ferocity"},
 "phases": [
-  {"ms": 0, "id": 1, "name": "Sszorak"},
-  {"ms": 99990, "id": 2, "name": "Howling Maelstrom"},
-  {"ms": 125000, "id": 1, "name": "Sszorak"},
+  {"ms": 0, "id": 1, "label": "P1", "name": "Sszorak"},
+  {"ms": 99990, "id": 2, "label": "P2", "name": "Howling Maelstrom"},
+  {"ms": 125000, "id": 1, "label": "P1", "name": "Sszorak"},
 ],
 "health": [
   [9, 100],

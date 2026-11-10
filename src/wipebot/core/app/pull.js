@@ -95,7 +95,7 @@ views.pull = (() => {
     return D.phases.map((p, i) => {
       const end = i + 1 < D.phases.length ? D.phases[i + 1].ms : D.duration_ms;
       const again = seen.has(p.id); seen.add(p.id);
-      return { from: p.ms, to: end, label: `P${p.id}${again ? " (2nd time)" : ""}`, name: p.name,
+      return { from: p.ms, to: end, label: `${p.label || `P${p.id}`}${again ? " (2nd time)" : ""}`, name: p.name,
                fill: again ? "var(--gold)" : i === 0 ? "var(--line)" : "var(--p2)", opacity: again ? 0.55 : i === 0 ? 1 : 0.6 };
     });
   }
@@ -119,7 +119,7 @@ views.pull = (() => {
       for (const b of phaseBands()) {
         o += `<rect x="${x(b.from)}" y="${y}" width="${Math.max(1, x(b.to) - x(b.from) - 1)}" height="13" rx="3" fill="${b.fill}" opacity="${b.opacity}"/>`;
         const room = x(b.to) - x(b.from) - 8;
-        const s = [lanes && b.name ? `${b.label} ${b.name}` : null, b.label, `P${b.label.slice(1, 2)}`]
+        const s = [lanes && b.name ? `${b.label} ${b.name}` : null, b.label, b.label.split(" ")[0]]
           .find((t) => t && kit.width(t) < room);
         if (s) o += kit.text(x(b.from) + 5, y + 10, s, "t", 'font-weight="600"');
       }
