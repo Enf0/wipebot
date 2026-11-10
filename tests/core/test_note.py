@@ -2,12 +2,15 @@
 cases (test_tools.py)."""
 from collections import Counter
 from collections.abc import Mapping
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
 
 from tests.support import NOTE
+from tests.support.recorded import TOOLS, Replay, serve_from
+from wipebot.core import server
 from wipebot.core.report import FactError, Player, Report, note
 
 VASHNIK = "EncounterID:3418;Difficulty:Mythic;Name:Vashnik\ntime:30;ph:2;tag:Torvek;spellid:98008;\n"
@@ -85,6 +88,86 @@ def test_a_player_kicking_a_cast_not_theirs_pull_after_pull_is_a_mistake_and_not
     sniped = {"Kick #1 left": "Dragepie", "Kick #2 left": None}
     late = {"Kick #1 left": "Sonyosh", "Kick #2 left": "Dragepie"}
     assert note._order_change(_kicks_by(sniped, sniped, sniped, sniped, late, late, late, late)) is None
+
+
+KICK_ORDER = {"Kick #1 left": "Torvek", "Kick #2 left": "Mirelle", "Kick #3 left": "Halvard", "Kick #4 left": "Rowan"}
+
+
+async def _wave(monkeypatch, *casts: tuple[float, str | None], until: float = 600_000) -> list[note.KickCheck]:
+    """The kick check of a pull whose note calls Kick #1 to #4 left at 1:40, 1:42, 1:44 and 1:46 (KICK_ORDER) and
+    whose adds began these casts, (second, who kicked it or None when it went through)."""
+    plan = note.Note(3418, "Mythic", "Vashnik", callouts=[
+        note.Callout(100 + 2 * i, 1, (name,), text) for i, (text, name) in enumerate(KICK_ORDER.items())])
+
+    async def kickable(rep, f):
+        return {1}
+
+    async def begun(rep, f):
+        return {("Broodling", "Burst"): [(at * 1000, "kicked" if by else "went through", by, 1) for at, by in casts]}
+    monkeypatch.setattr(note, "kicked_tonight", kickable)
+    monkeypatch.setattr(note, "interruptible_casts", begun)
+    players = cast(Any, {n: SimpleNamespace(name=n) for n in KICK_ORDER.values()})
+    return await note._kicks(cast(Any, None), {"id": 1, "startTime": 0}, plan, players, lambda name, at: "alive",
+                             lambda c: c.at * 1000, until)
+
+
+async def test_a_player_whose_cast_went_through_and_who_kicked_the_next_one_didnt_make_no_kick(monkeypatch):
+    """Mirelle's cast, the second of the wave, went through and she kicked the third, Halvard's; Rowan kicked
+    nothing. "No kick (alive)" was said of both, and an answer named the first as not having kicked. Her cast still
+    went through, so it stays hers and counts as not kicked; the line says which cast she kicked."""
+    kicks = await _wave(monkeypatch, (100, "Torvek"), (102, None), (104, "Mirelle"), (106, None), (140, "Rowan"))
+    assert [(k.player, k.kicked, k.cast[1:], k.other) for k in kicks] == [
+        ("Torvek", True, ("kicked", "Torvek"), None), ("Mirelle", False, ("went through", None), 104_000),
+        ("Halvard", False, ("kicked", "Mirelle"), None),
+        ("Rowan", False, ("went through", None), None)]  # the cast Rowan kicked at 2:20 is past this wave
+    assert [note._kick_line(k) for k in kicks] == [
+        "kicked the cast begun at 1:40",
+        "their cast, begun at 1:42, went through; they kicked the cast begun at 1:44",
+        "covered: their cast, begun at 1:44, was kicked by Mirelle (alive)",
+        "no kick (alive); their cast, begun at 1:46, went through"]
+    dead = replace(kicks[1], state="dead since 1:41", other=100_000)  # she kicked the first cast, then died
+    assert note._kick_line(dead) == "no kick (dead since 1:41); their cast, begun at 1:42, went through"
+
+
+async def test_a_kick_on_a_players_other_assignment_of_the_wave_isnt_a_kick_on_another_cast(monkeypatch):
+    """A player the note gives two kicks of a wave who made one of them kicked their own cast, not another."""
+    monkeypatch.setitem(KICK_ORDER, "Kick #3 left", "Torvek")
+    kicks = await _wave(monkeypatch, (100, None), (102, "Mirelle"), (104, "Torvek"), (106, "Rowan"))
+    assert [(k.player, k.kicked, k.other) for k in kicks if k.player == "Torvek"] == [("Torvek", False, None),
+                                                                                    ("Torvek", True, None)]
+
+
+async def test_a_night_counts_the_casts_let_through_while_kicking_another_beside_those_not_kicked(monkeypatch):
+    """Over three pulls Mirelle's cast went through each time and she kicked the next one on two: all three are
+    still her casts that weren't kicked, with the two named apart and each with the cast she kicked."""
+    late = ((100, "Torvek"), (102, None), (104, "Mirelle"), (106, "Rowan"))
+    none = ((100, "Torvek"), (102, None), (104, "Halvard"), (106, "Rowan"))
+    checks = [SimpleNamespace(f={"id": i}, decided=None, kicks=await _wave(monkeypatch, *casts))
+              for i, casts in enumerate((late, none, late), 1)]
+    lines = note._night_kicks(cast(Any, SimpleNamespace(pull_no=lambda f: f["id"])), cast(Any, checks))
+    assert ("and the casts of theirs that weren't kicked (they went through unless it says otherwise; with the cast of "
+            "the wave they kicked instead, if any); dead for how many more:") in lines[0]
+    assert lines[1] == ("  Mirelle (Kick #2 left): kicked 0 of 3; not kicked 3, kicked another cast on 2: p1 1:42 "
+                        "(kicked the 1:44 cast), p2 1:42, p3 1:42 (kicked the 1:44 cast)")
+    assert "  Halvard (Kick #3 left): kicked 1 of 3; covered 2 (Mirelle 2)" in lines
+    assert "  Their casts that went through, per assignment: \"Kick #2 left\" 3" in lines
+
+
+async def test_the_recorded_kicks_one_cast_late_are_said_and_still_count_as_their_cast_going_through(monkeypatch):
+    """The night of p7jRwgv8b1rY6LBd: on pulls 18 and 34 the cast of Kick #4 left went through and its player kicked
+    the next one 2 s later, on pull 19 the same for Kick #3 left, on pull 28 the player of Kick #4 right kicked a
+    cast 5 s after theirs. Each read "no kick (alive)", and they were named as not having kicked."""
+    serve_from(monkeypatch, Replay())
+    text = (TOOLS.parent / "notes" / "twin-fangs-2026-10-21.txt").read_text(encoding="utf-8")
+    rep = await server.lib().report("p7jRwgv8b1rY6LBd")
+    night = await note.check_night(rep, text, "Twin Fangs")
+    late = {(rep.pull_no(c.f), k.player, k.callout.text): (round(k.cast[0] / 1000, 1), round(k.other / 1000, 1))
+            for c in night.checks for k in c.kicks if k.other is not None and rep.pull_no(c.f) in (18, 19, 28, 34)}
+    assert late == {(18, "Dscopi", "Kick #4 left"): (104.5, 106.5), (19, "Algmor", "Kick #3 left"): (102.5, 104.5),
+                    (28, "Peggerino", "Kick #4 right"): (104.5, 109.5), (34, "Dscopi", "Kick #4 left"): (104.5, 106.5)}
+    through = [k for c in night.checks for k in c.kicks if k.cast[1] == "went through"]
+    assert all(not k.kicked for k in through) and all(k.other is None for c in night.checks for k in c.kicks
+                                                      if k.cast[1] == "kicked")
 
 
 def test_pulls_checked_against_a_note_saved_after_they_began_are_named():

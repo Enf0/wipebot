@@ -246,6 +246,7 @@ class KickCheck:
     cast: tuple[float, str, str | None]  # the cast that was theirs: (ms it began, how it ended, who kicked it)
     kicked: bool
     state: str  # the player's, at the callout
+    other: float | None = None  # their cast wasn't kicked and they kicked another of the wave: the ms that one began
 
 
 @dataclass
@@ -449,14 +450,7 @@ def _pull_text(rep: Report, c: PullCheck, source: str) -> str:  # noqa: C901, PL
         lines.append(KICKS_ARE + ", each with the cast that was theirs and what became of it (covered: another "
                      "player kicked it first, so it was handled and was no one's miss):")
     for k in c.kicks:
-        line = f"  {clock(k.at)} {k.player} \"{k.callout.text}\": "
-        if k.kicked:
-            line += f"kicked the cast begun at {clock(k.cast[0])}"
-        elif k.cast[1] == "kicked":
-            line += f"covered: their cast, begun at {clock(k.cast[0])}, was kicked by {k.cast[2]} ({k.state})"
-        else:
-            line += f"no kick ({k.state}); their cast, begun at {clock(k.cast[0])}, {_cast_end(k.cast)}"
-        lines.append(line)
+        lines.append(f"  {clock(k.at)} {k.player} \"{k.callout.text}\": {_kick_line(k)}")
     if before := through_before(c):
         lines.append(f"  Went through in the {LOST_AFTER_MS // 1000} s before the wipe was decided at "
                      f"{clock(c.until)}: " + ", ".join(_through(k) for k in before))
@@ -758,7 +752,9 @@ async def _kicks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
     other: of each wave's assignments, taken in pairs (left and right), the casts are read as noted or with each
     pair's swapped, whichever has more players kicking their own. A player who kicked another cast begun within
     KICK_SLOT_MS still kicked theirs; one who didn't kick gets their cast in that reading, so a cast that went
-    through is on them and not on their pair."""
+    through is on them and not on their pair; if they kicked another cast of the wave (from KICK_SLOT_MS before its
+    first callout to KICK_WAVE_GAP_MS after its last) that isn't an assignment of their own, the check says which
+    (`other`): their cast still wasn't kicked, but they didn't stand idle."""
     calls = [(at, c) for c in note.callouts if _kick_call(c) and (at := when(c)) is not None and at <= until]
     if not calls:
         return []
@@ -796,12 +792,51 @@ async def _kicks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
     for s, (_, _, _, near) in enumerate(slots):
         if s not in taken:
             taken[s] = next((i for i in [*expected[s], *near] if i not in taken.values()), near[0])
+    own: dict[str, set[int]] = defaultdict(set)  # player -> the casts of their assignments
+    for s, i in taken.items():
+        own[slots[s][2]].add(i)
+    span = {s: (slots[w[0]][0] - KICK_SLOT_MS, slots[w[-1]][0] + KICK_WAVE_GAP_MS) for w in waves for s in w}
+
+    def other(s: int) -> float | None:
+        name, theirs, (since, to) = slots[s][2], casts[taken[s]], span[s]
+        if theirs[1] == "kicked":
+            return None
+        return min((x[0] for i, x in enumerate(casts) if x[1:] == ("kicked", name) and since <= x[0] <= to
+                    and i not in own[name]), key=lambda at: abs(at - theirs[0]), default=None)
     return [KickCheck(at, c, name, casts[taken[s]], casts[taken[s]][1:] == ("kicked", name),
-                      state(c.players[0], at)) for s, (at, c, name, _) in enumerate(slots)]
+                      state(c.players[0], at), other(s)) for s, (at, c, name, _) in enumerate(slots)]
 
 
 def _cast_end(cast: tuple[float, str, str | None]) -> str:
     return f"kicked by {cast[2]}" if cast[1] == "kicked" else cast[1]
+
+
+def _kick_line(k: KickCheck) -> str:
+    """What became of a kick assignment on one pull, after its time, player and words. A player dead at their callout
+    made no kick, whatever they kicked earlier in the wave."""
+    if k.kicked:
+        return f"kicked the cast begun at {clock(k.cast[0])}"
+    if k.cast[1] == "kicked":
+        return f"covered: their cast, begun at {clock(k.cast[0])}, was kicked by {k.cast[2]} ({k.state})"
+    theirs = f"their cast, begun at {clock(k.cast[0])}, {_cast_end(k.cast)}"
+    if k.other is not None and k.state == "alive":
+        return f"{theirs}; they kicked the cast begun at {clock(k.other)}"
+    return f"no kick ({k.state}); {theirs}"
+
+
+def _not_kicked(rep: Report, missed: list[tuple[dict, KickCheck]]) -> str:
+    """'not kicked 3, kicked another cast on 1: p18 1:44 (kicked the 1:46 cast), p21 1:44, p24 3:18 (ended otherwise)':
+    a player's casts that weren't kicked over the night, by their callout's time; one that went through says so by
+    saying nothing more (the header's words), and one whose player kicked another cast of the wave says which."""
+    instead = sum(k.other is not None for _, k in missed)
+
+    def one(f: dict, k: KickCheck) -> str:
+        said = ([] if k.cast[1] == "went through" else [_cast_end(k.cast)]) + (
+            [f"kicked the {clock(k.other)} cast"] if k.other is not None else [])
+        return f"p{rep.pull_no(f)} {clock(k.at)}" + (f" ({'; '.join(said)})" if said else "")
+    return (f"not kicked {len(missed)}" + (f", kicked another cast on {instead}" if instead else "") + ": "
+            + ", ".join(one(f, k) for f, k in missed[:LISTED])
+            + (f" and {len(missed) - LISTED} more" if len(missed) > LISTED else ""))
 
 
 # ---------- every pull on the boss ----------
@@ -1215,7 +1250,8 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
         return []
     out = [KICKS_ARE + ". Over the pulls, per player, most casts that went through first: of their kicks while alive, "
            "how many they made, how many another player covered (kicked their cast first: handled, no one's miss; by "
-           "whom), and the casts of theirs that weren't kicked, with what became of them; dead for how many more:"]
+           "whom), and the casts of theirs that weren't kicked (they went through unless it says otherwise; with the "
+           "cast of the wave they kicked instead, if any); dead for how many more:"]
     alive: Counter = Counter()
     made: Counter = Counter()
     covered: dict[str, Counter] = defaultdict(Counter)
@@ -1241,10 +1277,7 @@ def _night_kicks(rep: Report, checks: list[PullCheck]) -> list[str]:
             line += f"; covered {sum(covered[n].values())} (" + ", ".join(
                 f"{by} {k}" for by, k in _by_count(covered[n])) + ")"
         if missed[n]:
-            line += f"; not kicked {len(missed[n])}: " + ", ".join(
-                f"p{rep.pull_no(f)} {clock(k.at)} ({_cast_end(k.cast)})" for f, k in missed[n][:LISTED])
-            if len(missed[n]) > LISTED:
-                line += f" and {len(missed[n]) - LISTED} more"
+            line += "; " + _not_kicked(rep, missed[n])
         if dead[n]:
             line += f"; dead for {dead[n]} more"
         out.append(line)
