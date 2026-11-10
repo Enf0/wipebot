@@ -9,6 +9,9 @@
   // the tool runs and for a call without a view: no placeholder, and no line saying there is nothing.
   const SOMETIMES = new Set(["breakdown", "mechanic_hits"]);
   const tool = () => app.context().toolInfo?.tool?.name;
+  // A host need not say which tool the page is for (hostContext.toolInfo is optional): then it may be one of these,
+  // and the page draws only what a result's key names.
+  const sometimes = () => !tool() || SOMETIMES.has(tool());
   // The page takes no room (page.css: the root's data-empty) until the host has said which tool it is for, and for
   // good where there is nothing to draw
   const empty = (yes) => document.documentElement.toggleAttribute("data-empty", yes);
@@ -89,7 +92,7 @@
       if (args && view) key = { view, report: args.report, pull: args.pull, boss: args.boss,
                                 player: args.player, death: args.death, weeks: args.weeks };
     }
-    if (!key && SOMETIMES.has(tool())) { nothing(); return; }  // a call without a view, or one that failed
+    if (!key && sometimes()) { nothing(); return; }  // a call without a view, or one that failed
     empty(false);
     if (!key) { fail(result && result.isError ? "The tool failed: nothing to show." : "Nothing to show here: ask again to see it."); return; }
     const view = key.view || (key.at_ms !== undefined ? "replay" : "pull");  // a stored result from before views
@@ -104,14 +107,14 @@
 
   app.on("input", (a) => { args = a; });
   app.on("result", start);
-  app.on("cancelled", () => { if (current) return; if (SOMETIMES.has(tool())) nothing(); else fail("The tool call was cancelled."); });
+  app.on("cancelled", () => { if (current) return; if (sometimes()) nothing(); else fail("The tool call was cancelled."); });
   app.on("context", () => { if (current && current.relayout) current.relayout(); });
   app.on("teardown", () => { if (current && current.stop) current.stop(); });
   // Once the host has said which tool this is: the placeholder in its view's shape, or for a tool only some of
-  // whose calls have a view, nothing until its result says so
+  // whose calls have a view (and where the host didn't say), nothing until its result says so
   const known = () => {
     if (started) return;
-    empty(SOMETIMES.has(tool()));
+    empty(sometimes());
     waiting({ ...BY_TOOL, pull_map: "replay" }[tool()]);
   };
   app.connect({ name: "Wipebot", version: "2" }).then(known, known);

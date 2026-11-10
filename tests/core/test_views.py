@@ -2421,6 +2421,40 @@ async def test_a_call_without_a_view_takes_no_room(recorded):
         assert await page.evaluate(frame) > 300 and not errors
 
 
+async def test_a_call_without_a_view_takes_no_room_in_a_host_that_names_no_tool_either(recorded):
+    """Which tool a page is for is the host's to say or not (hostContext.toolInfo is optional), and the page knew
+    breakdown and mechanic_hits only by it: in a host that left it out, a call that ranks nobody got the card's
+    placeholder and then "Nothing to show here: ask again to see it", and a failed one "The tool failed". A page
+    that isn't told its tool now draws nothing until a result names a view, and then draws it as anywhere."""
+    from wipebot.core import viewhost
+    case = CASES["damage-taken"]  # by ability: a table, no ranking of players
+    result = await viewhost.tool_result(case.tool, case.args)
+    assert "structuredContent" not in result
+    frame = "document.querySelector('iframe').getBoundingClientRect().height"
+    async with chromium() as browser:
+        for setup in (host_setup(case.tool, case.args, None, running=True, unnamed=True),
+                      host_setup(case.tool, case.args, result, unnamed=True),
+                      host_setup(case.tool, case.args, {"isError": True, "content": []}, unnamed=True)):
+            errors: list[str] = []
+            page = await viewhost._open(browser, setup, errors)
+            view = page.frames[-1]
+            assert "toolInfo" not in next(m["msg"]["result"]["hostContext"] for m in await page.evaluate("window.__log")
+                                          if "hostContext" in m["msg"].get("result", {}))
+            await view.locator(":root[data-empty]").wait_for(state="attached")
+            await page.wait_for_function(f"{frame} === 0")
+            assert await view.evaluate(TALL) == 0 and await view.locator("body").inner_text() == ""
+            assert not errors
+            await page.close()
+        # a ranking there is drawn from its result's key, and a pull's card too
+        meter, pull = CASES["mechanic-hits"], PULL_CASE
+        for tool, args, drawn_as in ((meter.tool, meter.args, ".meter-rows"), (pull.tool, pull.args, "#card-open")):
+            page = await viewhost._open(browser, host_setup(tool, args, await viewhost.tool_result(tool, args),
+                                                            unnamed=True), errors)
+            await page.frames[-1].locator(drawn_as).first.wait_for()
+            assert await page.evaluate(frame) > 300 and not errors
+            await page.close()
+
+
 async def test_a_later_ranking_of_an_answer_is_one_line_that_opens(recorded):
     """The second ranking or trend of an answer comes folded (server._fold): one line saying what it ranks, which
     opens the card. A still picture and fullscreen draw it whole."""
