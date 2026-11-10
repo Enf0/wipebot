@@ -27,14 +27,14 @@ NO_CASE_YET = {
 }
 
 
-# How raiders really ask, which the cases' own spread is read beside (as_asked): shares of the bot's answers in the
-# maintainers' guild over four weeks of autumn 2026, counted when the evals were reviewed on 10 November.
+# How raiders really ask, which the cases' own spread is read beside (as_asked): rounded shares of a month of the
+# bot's answers in the maintainers' guild, counted when the evals were reviewed in November 2026.
 REAL_USE = {
-    "language": "85% of the questions in chat are in Norwegian, 95% of those the owner didn't ask",
-    "turn": "68% are a second or later question of a conversation, 37% a fourth or later, 22% a sixth or later",
-    "place": "58% in a DM, 42% in a channel",
-    "note": "17% of the answers read a saved raid note or plan",
-    "boss": "The Coiled Altar 28%, Sszorak 23%, The Twin Fangs 15%",
+    "language": "about five in six questions in chat are in Norwegian",
+    "turn": "about two in three are a second or later question of a conversation, one in three a fourth or later",
+    "place": "more than half in a DM",
+    "note": "about one answer in six reads a saved raid note or plan",
+    "boss": "The Coiled Altar, Sszorak and The Twin Fangs, together about two in three",
 }
 LANGUAGES = {"en": "English", "no": "Norwegian", "": "not told"}
 

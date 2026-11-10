@@ -17,11 +17,11 @@ def test_the_cases_are_counted_as_they_are_asked_beside_how_raiders_ask():
     ]
     title, language, turn, place, note, boss = as_asked(cases)
     assert title == "How the cases are asked, beside how raiders ask:"
-    assert language.startswith("  language of the question: English 3, Norwegian 1 (real: 85%")
+    assert language.startswith("  language of the question: English 3, Norwegian 1 (real: about five in six")
     assert turn.startswith("  the judged question in its conversation: the first 2, the second or third 1, "
-                           "the fourth or later 1 (real: 68%")
-    assert place.startswith("  place: in a channel 3, in a DM 2 (real: 58% in a DM")
-    assert note.startswith("  with a saved raid note, as the bot: 1 of 5 cases (real: 17%")
+                           "the fourth or later 1 (real: about two in three")
+    assert place.startswith("  place: in a channel 3, in a DM 2 (real: more than half in a DM")
+    assert note.startswith("  with a saved raid note, as the bot: 1 of 5 cases (real: about one answer in six")
     assert boss.startswith("  the boss named: The Coiled Altar 40%, Sszorak 20% of the cases (real: The Coiled Altar")
     assert all(line.endswith(f"(real: {REAL_USE[key]})")
                for line, key in zip((language, turn, place, note, boss), REAL_USE, strict=True))
