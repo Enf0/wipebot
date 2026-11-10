@@ -2,8 +2,10 @@
 Wowhead; the abilities Lorrgs tracks."""
 import asyncio
 import html
+import logging
 import re
-from dataclasses import dataclass
+from collections.abc import Iterable
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 
 from ..text import fold
@@ -25,6 +27,15 @@ HOTFIX_DAYS = 365  # Blizzard's hotfixes read for a boss; the running posts reac
 MECHANIC_AFTER = 2  # a long paragraph naming a mechanic: the sentences after each naming it, kept with it
 PARAGRAPH_CHARS = 600  # a paragraph longer than this is cut to its sentences about the mechanic
 WOWHEAD_BOSS_SKIP = re.compile(r"rewards|^gear$|^more rewards$", re.I)  # loot sections of Wowhead's boss pages
+NAMING_S = 12  # looking for a mechanic under the other bosses gives up after this: the answer mustn't wait for it
+TOOLTIPS_NAMED = 4  # of the spells sharing a mechanic's name, those whose tooltips are read (two are printed)
+_DIFFICULTY = "Normal|Heroic|Mythic|Raid Finder"
+# What Wowhead's journal ends an entry with that is on some difficulties only: "(Mythic)", "(Normal, Raid Finder)"
+_ON_DIFFICULTIES = rf"\((?:{_DIFFICULTY})(?:, (?:{_DIFFICULTY}))*\)"
+JOURNAL_NOTE = ("The dungeon journal's damage and healing amounts are left out: Wowhead's page gives most of them "
+                "unscaled. boss_guide with topic tooltips, or spell_info, has them.")
+
+log = logging.getLogger(__name__)
 
 
 async def _wowhead_boss_listing(boss: str) -> dict:
@@ -51,6 +62,21 @@ def _linked(page: dict, kind: str) -> dict[int, str]:
     """id -> name of the spells or items a Wowhead page links."""
     return {e["id"]: e.get("name") for e in (page.get("linked_entities") or {}).get("items") or []
             if e.get("entity_type") == kind and e.get("name")}
+
+
+async def _linked_spells(boss: str) -> dict[int, str]:
+    """id -> name of the spells the boss's Wowhead guide links: its abilities by name, with no tooltip read. None
+    when Wowhead has no guide for it."""
+    try:
+        return _linked((await _wowhead_boss_page(boss))[1], "spell")
+    except KnowledgeError:
+        return {}
+
+
+async def _tooltips(ids: Iterable[int]) -> list[Spell]:
+    """Wowhead's tooltips of these spells, those it gives with text."""
+    found = await asyncio.gather(*(tooltip(i) for i in ids), return_exceptions=True)
+    return [s for s in found if isinstance(s, Spell) and s.text]
 
 
 # ---------- tooltips ----------
@@ -129,7 +155,14 @@ async def boss_guide_text(boss: str, raid: str, difficulty: str = "mythic") -> s
     (guides, missing), fixes = await asyncio.gather(boss_guides(boss, raid, difficulty), _hotfixes(boss))
     texts = [_repeats_out(strategy_text(g)) for g in guides]
     cuts = [_cut(g, text, chars) for g, text, chars in zip(guides, texts, _budgets(guides, texts), strict=True)]
-    return "\n\n".join([hotfixes_after(boss, guides, fixes), *cuts, *(f"(Not available: {e})" for e in missing)])
+    return _tight("\n\n".join([hotfixes_after(boss, guides, fixes), *cuts,
+                               *(f"(Not available: {e})" for e in missing)]))
+
+
+def _tight(text: str) -> str:
+    """The guides' text with a list's items on consecutive lines: Wowhead's journal comes with a blank line
+    before each, which the paragraphs are told apart by until here."""
+    return re.sub(r"\n\n+(?=- )", "\n", text)
 
 
 def _budgets(guides: list[Guide], texts: list[str]) -> list[int]:
@@ -145,10 +178,10 @@ def _budgets(guides: list[Guide], texts: list[str]) -> list[int]:
 
 def _repeats_out(text: str) -> str:
     """A guide without the paragraphs it repeats word for word (Wowhead's journal lists a boss's abilities again in
-    each phase that has them): an ability's line keeps its name."""
+    each phase that has them, there with or without the difficulties it's on): an ability's line keeps its name."""
     seen, out = set(), []
     for para in re.split(r"\n\s*\n", text):
-        key = " ".join(para.split())
+        key = re.sub(rf"\s*{_ON_DIFFICULTIES}$", "", " ".join(para.split()))
         if len(key) >= REPEAT_CHARS and key in seen:
             if named := re.match(r"- ([^:\n]{1,60}):", para):
                 out.append(f"- {named[1]}: as above")
@@ -178,9 +211,11 @@ async def _hotfixes(boss: str) -> tuple[list[str], list[Hotfix]] | KnowledgeErro
         return e
 
 
-def hotfixes_after(boss: str, guides: list[Guide], found: tuple[list[str], list[Hotfix]] | KnowledgeError) -> str:
-    """Blizzard's hotfixes to the boss on or after a guide's last update (by day: the posts give no time), each
-    with the guides it's newer than, or that there's none."""
+def hotfixes_after(boss: str, guides: list[Guide], found: tuple[list[str], list[Hotfix]] | KnowledgeError,
+                   mechanic: str | None = None) -> str:
+    """Blizzard's hotfixes to the boss on or after a guide's last update (by day: the posts give no time), under
+    the guides each run of them is newer than and where Blizzard's post has them, or that there's none. With
+    `mechanic`, those naming it, and how many others there are."""
     if isinstance(found, KnowledgeError):
         return f"(Blizzard's hotfixes couldn't be read, so whether {boss} changed since these guides is unknown: " \
                f"{found})"
@@ -189,13 +224,28 @@ def hotfixes_after(boss: str, guides: list[Guide], found: tuple[list[str], list[
     newer = [(h, [site for site, day in days.items() if _fix_day(h) >= day]) for h in fixes]
     newer = [(h, sites) for h, sites in newer if sites]
     source = f"Source: Blizzard's hotfix posts on Wowhead's blue tracker {', '.join(urls)}"
+    since = f"since {oldest.isoformat()}" if (oldest := min(days.values(), default=None)) \
+        else "since the guides were updated"
     if not newer:
-        oldest = min(days.values(), default=None)
-        return f"# No hotfix to {boss} since {oldest.isoformat() if oldest else 'the guides were updated'}. {source}"
-    lines = [f"# Blizzard's hotfixes to {boss} on or after a guide's last update (the guide named can't have them). "
+        return f"# No hotfix to {boss} {since}. {source}"
+    others = ""
+    if mechanic:
+        named = [(h, sites) for h, sites in newer if _names(f"{h.path} {h.text}", mechanic)]
+        if rest := len(newer) - len(named):
+            others = (f"{rest} other {'hotfix' if rest == 1 else 'hotfixes'} to {boss} "
+                      f"{'doesn' if rest == 1 else 'don'}'t name it: boss_guide without `mechanic` lists them")
+        if not named:
+            return f"# No hotfix naming {mechanic} {since} ({others}). {source}"
+        newer = named
+    lines = [f"# Blizzard's hotfixes to {boss} on or after a guide's last update (the guides named can't have them). "
              + source]
-    lines += [f"- {h.date} ({', '.join(sites)}): {h.path + ': ' if h.path else ''}{h.text}" for h, sites in newer]
-    return "\n".join(lines)
+    under = None
+    for h, sites in newer:
+        if (sites, h.path) != under:
+            under = (sites, h.path)
+            lines.append(f"Newer than {', '.join(sites)}{f' ({h.path})' if h.path else ''}:")
+        lines.append(f"- {h.date}: {h.text}")
+    return "\n".join(lines + ([f"({others}.)"] if others else []))
 
 
 def _fix_day(h: Hotfix) -> date:
@@ -203,14 +253,15 @@ def _fix_day(h: Hotfix) -> date:
 
 
 async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: str) -> str:
-    """boss_guide's strategy topic for one mechanic: its Wowhead tooltip, then each guide's sections about it: a
-    section titled for it whole, of the rest the paragraphs naming it (a long one cut to the sentences naming it
-    and the few after)."""
-    (guides, missing), abilities, fixes = await asyncio.gather(boss_guides(boss, raid, difficulty), _abilities(boss),
-                                                               _hotfixes(boss))
-    tips = [s for s in abilities if _plain(s.name) == _plain(mechanic)]
+    """boss_guide's strategy topic for one mechanic: the hotfixes naming it, its Wowhead tooltip, then each guide's
+    sections about it: a section titled for it whole, of the rest the paragraphs naming it (a long one cut to the
+    sentences naming it and the few after). Of the boss's tooltips only the mechanic's are read, found by the
+    names Wowhead's guide links its spells under."""
+    (guides, missing), linked, fixes = await asyncio.gather(boss_guides(boss, raid, difficulty), _linked_spells(boss),
+                                                            _hotfixes(boss))
+    tips = await _tooltips([i for i, name in linked.items() if _plain(name) == _plain(mechanic)][:TOOLTIPS_NAMED])
     parts = [f"{mechanic} on {boss}: its tooltip, then the parts of each guide that name it (boss_guide without "
-             "`mechanic` reads the whole guides).", hotfixes_after(boss, guides, fixes)]
+             "`mechanic` reads the whole guides).", hotfixes_after(boss, guides, fixes, mechanic)]
     parts += [f"Tooltip (Wowhead, spell {s.id}): {s.text}" for s in tips[:2]]
     found = False
     for g in guides:
@@ -219,40 +270,44 @@ async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: st
         if not kept:
             parts.append(f"# {g.title}: names no {mechanic}. Source: {g.site} {g.url}")
             continue
-        parts.append(_cut(g, _repeats_out(strategy_text(Guide(g.source, g.title, g.url, g.last_updated, kept))),
-                          GUIDE_CHARS))
+        parts.append(_cut(g, _repeats_out(strategy_text(replace(g, sections=kept))), GUIDE_CHARS))
     if not (found or tips):
-        known = ", ".join(dict.fromkeys(s.name for s in abilities))
+        known = ", ".join(dict.fromkeys(linked.values()))
         raise KnowledgeError(f"no guide for {boss} names {mechanic!r}"
                              + (f"; its abilities, as Wowhead's guide links them: {known}" if known else ""))
-    return "\n\n".join(parts + [f"(Not available: {e})" for e in missing])
+    return _tight("\n\n".join(parts + [f"(Not available: {e})" for e in missing]))
+
+
+async def mechanic_tooltips_text(ids: Iterable[int]) -> str:
+    """What Wowhead's tooltips say of an ability no guide names, by the spell ids a report has it under: one line
+    per tooltip that differs, '' when Wowhead gives none."""
+    tips = {s.text: s for s in await _tooltips(list(ids)[:TOOLTIPS_NAMED])}
+    return "\n".join(f"Tooltip (Wowhead, spell {s.id}): {s.text}" for s in list(tips.values())[:2])
 
 
 async def boss_naming(mechanic: str, but: str, raid: str | None = None) -> tuple[str, str] | None:
     """(raid, boss) of the current expansion's raids, `but` aside, whose abilities (Lorrgs' and those Wowhead's
-    guide links) include `mechanic`; None when none does or the raids can't be read. The bosses of `raid` (the
+    guide links, by name: no tooltip is read) include `mechanic`; None when none does, the raids can't be read, or
+    NAMING_S passed first (what was read by then is kept, so asking again gets further). The bosses of `raid` (the
     report's) are read first, the other raids' only when none of them has it."""
+    async def names(boss: str) -> set[str]:
+        tracked, linked = await asyncio.gather(boss_spells(boss), _linked_spells(boss), return_exceptions=True)
+        listed = [s.get("name") or "" for s in tracked] if isinstance(tracked, list) else []
+        return {_plain(n) for n in listed + list(linked.values() if isinstance(linked, dict) else [])}
     try:
-        bosses = [(r, b) for r, names in await raids() for b in names if not names_boss(b, but)]
+        async with asyncio.timeout(NAMING_S):
+            bosses = [(r, b) for r, names_ in await raids() for b in names_ if not names_boss(b, but)]
+            near = [rb for rb in bosses if raid and rb[0] == raid]
+            for part in (near, [rb for rb in bosses if rb not in near]):
+                found = await asyncio.gather(*(names(b) for _, b in part))
+                if hit := next((rb for rb, known in zip(part, found, strict=True) if _plain(mechanic) in known),
+                               None):
+                    return hit
     except KnowledgeError:
         return None
-    async def names(boss: str) -> set[str]:
-        tracked = await asyncio.gather(boss_spells(boss), return_exceptions=True)
-        listed = [s.get("name") or "" for s in tracked[0]] if isinstance(tracked[0], list) else []
-        return {_plain(n) for n in listed + [s.name for s in await _abilities(boss)]}
-    near = [rb for rb in bosses if raid and rb[0] == raid]
-    for part in (near, [rb for rb in bosses if rb not in near]):
-        found = await asyncio.gather(*(names(b) for _, b in part))
-        if hit := next((rb for rb, known in zip(part, found, strict=True) if _plain(mechanic) in known), None):
-            return hit
+    except TimeoutError:
+        log.info("looking for %r under the bosses other than %s took over %s s: given up", mechanic, but, NAMING_S)
     return None
-
-
-async def _abilities(boss: str) -> list[Spell]:
-    try:
-        return (await boss_abilities(boss)).spells
-    except KnowledgeError:
-        return []
 
 
 def _plain(s: str) -> str:
@@ -265,9 +320,11 @@ SAME_MECHANIC = ({"enrage", "berserk"},)
 
 
 def _names(text: str, mechanic: str) -> bool:
+    """Whether `text` names the mechanic, as a whole name ("Searing Brand's damage" too, not "Searing Brandish")."""
     plain = _plain(mechanic)
     names = next((same for same in SAME_MECHANIC if plain in same), {plain})
-    return any(f" {name} " in f" {_plain(text)} " for name in names)
+    words = f" {_plain(text)} "
+    return any(f" {name} " in words or f" {name}'s " in words for name in names)
 
 
 def mechanic_sections(g: Guide, mechanic: str) -> list[tuple[str, str]]:
@@ -295,8 +352,9 @@ def mechanic_sections(g: Guide, mechanic: str) -> list[tuple[str, str]]:
 
 
 def strategy_text(g: Guide) -> str:
-    """One boss guide: its title, last update and URL, then its sections."""
-    return "\n\n".join([f"# {g.title}, {updated(g.last_updated)}. Source: {g.site} {g.url}"]
+    """One boss guide: its title, last update and URL (and its note), then its sections."""
+    return "\n\n".join([f"# {g.title}, {updated(g.last_updated)}. Source: {g.site} {g.url}"
+                        + (f"\n({g.note})" if g.note else "")]
                        + [f"## {title}\n{text}" for title, text in g.sections])
 
 
@@ -383,20 +441,23 @@ async def icy_veins_boss_guide(boss: str, raid: str, difficulty: str = "mythic")
 async def wowhead_boss_guide(boss: str, difficulty: str | None = None) -> Guide:
     """Wowhead's boss guide: the cheat sheet (style, lust timing, assignments per phase), the full strategy and
     the dungeon journal, rendered from the page's markup (its plain text drops the linked ability names). With a
-    difficulty, the journal's abilities on that one."""
+    difficulty, the journal's abilities on that one. The journal's damage and healing amounts are left out
+    (guides.JOURNAL_AMOUNT), which the guide's note says when it had any."""
     row, page = await _wowhead_boss_page(boss)
     names = _linked(page, "spell")
-    found = []
+    found, amounts = [], False
     for chunk in (page.get("body") or {}).get("section_chunks") or []:
         title, raw = (chunk.get("title") or "").strip(), chunk.get("content_raw") or ""
-        text = wowhead_text(journal_on(raw, difficulty) if difficulty else raw, names)
+        raw = journal_on(raw, difficulty) if difficulty else raw
+        text = wowhead_text(raw, names, amounts=False)
         if text and not WOWHEAD_BOSS_SKIP.search(title):
             found.append((title, text))
+            amounts = amounts or text != wowhead_text(raw, names)
     if not found:
         raise KnowledgeError(f"Wowhead's guide for {boss} has no strategy text")
     journal = f"the dungeon journal on {difficulty.title()}" if difficulty else "journal; difficulties as marked"
     return Guide("wowhead", f"Wowhead's guide for {boss} (cheat sheet, strategy, {journal})", row["url"],
-                 row.get("last_updated"), found)
+                 row.get("last_updated"), found, note=JOURNAL_NOTE if amounts else "")
 
 
 # A journal entry that is on some difficulties only: its <li> ends in them, "(Normal, Raid Finder)"

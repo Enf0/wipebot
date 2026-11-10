@@ -1770,18 +1770,27 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
     strategy, the usual wipe causes), Wowhead's cheat sheet (assignments per phase, the dungeon journal on the
     difficulty) and Icy Veins' (every mechanic, a quick guide, the Mythic changes). Method's and Icy Veins' come
     whole; a cut says which phases and sections it left out. With `mechanic`, for judging one mechanic: the
-    hotfixes, its tooltip and only the guides' sections and paragraphs that name it, a tenth of the whole.
+    hotfixes naming it (and how many others there are), its tooltip and only the guides' sections and paragraphs
+    that name it, a tenth of the whole; asked under the wrong boss, the guide of the boss that has it; named by no
+    guide, what its tooltip says.
     tooltips: only Wowhead's tooltip of every ability (exact damage and effects), without the strategy. loot: each
     drop's slot, stats and effect, the item level per difficulty, the other rewards; with a spec, which drops its
-    best-in-slot lists and trinket advice (Wowhead, Method, Icy Veins) name."""
+    best-in-slot lists and trinket advice (Wowhead, Method, Icy Veins) name.
+    Reading it: Wowhead's dungeon journal comes without its damage and healing amounts (its page gives most of
+    them unscaled); the tooltips have them."""
     boss = await top.boss_name(lib().wcl, boss)
+    name = await _ability_name(mechanic, report) if mechanic and topic == "strategy" else None
     try:
-        return await _boss_guide(boss, topic, difficulty, raid, spec, report, mechanic)
+        return await _boss_guide(boss, topic, difficulty, raid, spec, report, name)
     except KnowledgeError as e:  # a name no guide has: the model picks the boss from the raid's list and asks again
-        if mechanic and (found := await knowledge.boss_naming(mechanic, boss, raid or await _zone(report))):
-            other_raid, other = found
-            return (f"{mechanic} is an ability of {other} ({other_raid}), not of {boss}: {other}'s guide.\n\n"
-                    + await _boss_guide(other, topic, difficulty, other_raid, spec, report, mechanic))
+        if mechanic and name:
+            if found := await knowledge.boss_naming(name, boss, raid or await _zone(report)):
+                other_raid, other = found
+                return (f"{name} is an ability of {other} ({other_raid}), not of {boss}: {other}'s guide.\n\n"
+                        + await _boss_guide(other, topic, difficulty, other_raid, spec, report, name))
+            if tip := await knowledge.mechanic_tooltips_text(await _ability_ids(mechanic, report)):
+                told = str(e)  # no guide names it, under this boss or another: the tooltip is what there is
+                return f"{told[:1].upper()}{told[1:]}. What its tooltip says:\n{tip}"
         try:
             rep = await lib().report(report)
             if rep.zone_id is None:
@@ -1822,8 +1831,19 @@ async def _boss_guide(boss: str, topic: str, difficulty: str | None, raid: str |
             difficulty = "mythic"
     difficulty = "mythic" if difficulty.lower() == "mythic" else "heroic"
     if mechanic:
-        return await knowledge.boss_mechanic_text(boss, raid, difficulty, await _ability_name(mechanic, report))
+        return await knowledge.boss_mechanic_text(boss, raid, difficulty, mechanic)
     return await knowledge.boss_guide_text(boss, raid, difficulty)
+
+
+async def _ability_ids(ability: str, report: str | None) -> list[int]:
+    """The spell ids of an ability given by id or name: that id, else those the report has under the name (none
+    without a report, or when it has none of that name)."""
+    if ability.strip().isdigit():
+        return [int(ability)]
+    try:
+        return sorted((await lib().report(report)).ids_named([ability]))
+    except (FactError, WCLError):
+        return []
 
 
 async def _ability_name(ability: str, report: str | None) -> str:

@@ -3,6 +3,7 @@ import json
 
 import pytest
 
+from wipebot.core import cache
 from wipebot.core.knowledge import fetch
 from wipebot.core.knowledge.fetch import KnowledgeError
 
@@ -35,6 +36,45 @@ async def test_a_thing_the_source_lacks_is_not_found(monkeypatch):
     monkeypatch.setattr(fetch.asyncio, "create_subprocess_exec", fake_process(envelope))
     with pytest.raises(fetch.NotFound):
         await fetch.cli("wowhead", "entity", "spell", "999999999")
+
+
+async def test_a_not_found_is_remembered_as_a_found_answer_is(monkeypatch):
+    """Lorrgs answers "Invalid Boss" for a boss it doesn't track, each time anyone asks: asked once, like a page
+    that was found. Another failure is no answer and is asked again."""
+    ran = []
+    envelope = {"ok": False, "error": {"code": "not_found", "message": "Invalid Boss."}}
+
+    async def create_subprocess_exec(*args, **kwargs):
+        ran.append(args[3:])
+        return await fake_process(envelope)()
+    monkeypatch.setattr(fetch.asyncio, "create_subprocess_exec", create_subprocess_exec)
+    monkeypatch.setattr(cache, "_cache", cache.Cache(":memory:"))
+    for _ in range(2):
+        with pytest.raises(fetch.NotFound, match="lorrgs boss-spells: not_found: Invalid Boss."):
+            await fetch.cli("lorrgs", "boss-spells", "rotmire")
+    assert len(ran) == 1
+    envelope["error"] = {"code": "upstream_error", "message": "HTTP 503"}
+    for _ in range(2):
+        with pytest.raises(KnowledgeError, match="503"):
+            await fetch.cli("lorrgs", "boss-spells", "sszorak")
+    assert len(ran) == 3
+
+
+async def test_a_tooltip_gives_up_sooner_than_a_page(monkeypatch):
+    """A boss has dozens of tooltips, read a few at a time: one that hangs mustn't hold the others' answer long."""
+    waited = []
+
+    async def wait_for(reading, timeout):
+        reading.close()
+        waited.append(timeout)
+        raise TimeoutError
+    monkeypatch.setattr(fetch.asyncio, "create_subprocess_exec", fake_process({"ok": True, "data": {}}))
+    monkeypatch.setattr(fetch.asyncio, "wait_for", wait_for)
+    with pytest.raises(KnowledgeError, match=r"wowhead entity gave no answer in 20 s"):
+        await fetch.cli("wowhead", "entity", "spell", "1")
+    with pytest.raises(KnowledgeError, match=r"method guide-full gave no answer in 60 s"):
+        await fetch.cli("method", "guide-full", "https://www.method.gg/guides/x")
+    assert waited == [20, 60]
 
 
 async def test_a_crashed_command_is_logged_and_told_without_its_output(monkeypatch, caplog):
@@ -77,6 +117,7 @@ async def test_a_hung_command_gives_up(monkeypatch):
         return Process()
 
     monkeypatch.setattr(fetch.asyncio, "create_subprocess_exec", create_subprocess_exec)
+    monkeypatch.setattr(fetch, "TIMEOUT_S", {})
     monkeypatch.setattr(fetch, "CLI_TIMEOUT_S", 0.01)
     with pytest.raises(KnowledgeError, match="gave no answer"):
         await fetch.cli("wowhead", "entity", "spell", "1")

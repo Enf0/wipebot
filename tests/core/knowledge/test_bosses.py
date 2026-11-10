@@ -1,5 +1,8 @@
+import asyncio
 import datetime
 import json
+
+import pytest
 
 from tests.support import FIXTURES
 from wipebot.core.knowledge import bosses, fetch, news
@@ -49,8 +52,8 @@ async def test_boss_guide_reads_method_wowhead_and_icy_veins(monkeypatch):
     assert "last updated 2026-08-13" in text
     # Wowhead's cheat sheet, with the linked names the markup carries, and no loot
     assert "# Wowhead's guide for Sszorak" in text and "last updated 2026-08-26" in text
-    assert "Save cooldowns for Dig In.\n\n### Boss Cheat Sheet\nBloodlust Timing: Pull\n\n- Dig In - The boss takes " \
-           "30% increased damage." in text
+    assert "Save cooldowns for Dig In.\n\n### Boss Cheat Sheet\nBloodlust Timing: Pull\n- Dig In - The boss takes " \
+           "30% increased damage." in text  # a list's items come on consecutive lines
     assert "builds to a massive Howling Maelstrom that pushes players." in text and "Loot" not in text
     mythic = await bosses.boss_guide_text("Sszorak", "The Venomous Abyss", "mythic")
     assert "## Notable Changes on Mythic Difficulty: Main Phase\nSerpent's Fury: 14 players." in mythic
@@ -219,6 +222,8 @@ def test_a_cut_guide_names_what_was_cut_and_a_repeated_ability_keeps_its_name():
     text = bosses._repeats_out("# Guide\n\n## Phase 1\n" + "x" * 300 + "\n\n- Deluge: " + "venom " * 20
                                + "\n\n## Phase 3\n- Stage Three: Union\n\n- Deluge: " + "venom " * 20)
     assert text.endswith("- Stage Three: Union\n\n- Deluge: as above")
+    again = bosses._repeats_out("- Deluge: " + "venom " * 20 + "\n\n- Deluge: " + "venom " * 20 + "(Heroic, Mythic)")
+    assert again.endswith("\n\n- Deluge: as above")  # the same entry with the difficulties it's on
     cut = bosses._cut(Guide("method", "M", "https://m", None, []), text, 200)
     assert cut.endswith("(Cut here: Phase 3, Stage Three: Union and the rest; web_lookup with https://m "
                         "reads the whole guide.)")
@@ -233,13 +238,92 @@ def test_hotfixes_are_listed_against_the_guides_written_before_them():
               Guide("icy-veins", "I", "https://i", "2026-08-13T12:30:00+00:00", [])]
     text = bosses.hotfixes_after("The Coiled Altar", guides, (["https://post"], [fix(13, "Orbs reduced to 4."),
                                                                                   fix(2, "Old.")]))
-    assert text.splitlines()[1:] == [
-        "- October 13, 2026 (Method, Icy Veins): The Venomous Abyss › The Coiled Altar: Orbs reduced to 4.",
-        "- October 2, 2026 (Icy Veins): The Venomous Abyss › The Coiled Altar: Old."]
+    assert text.splitlines()[1:] == [  # which guides a run of them is newer than, and where the post has them, once
+        "Newer than Method, Icy Veins (The Venomous Abyss › The Coiled Altar):",
+        "- October 13, 2026: Orbs reduced to 4.",
+        "Newer than Icy Veins (The Venomous Abyss › The Coiled Altar):",
+        "- October 2, 2026: Old."]
     newest = [Guide("method", "M", "https://m", "2026-10-14", [])]
     assert bosses.hotfixes_after("The Coiled Altar", newest, (["https://post"], [fix(13, "x")])).startswith(
         "# No hotfix to The Coiled Altar since 2026-10-14.")
     assert "unknown" in bosses.hotfixes_after("The Coiled Altar", newest, KnowledgeError("down"))
+
+
+def test_one_mechanic_gets_the_hotfixes_naming_it_and_a_count_of_the_rest():
+    """The view of one mechanic is short: the boss's other hotfixes are a line saying where they are."""
+    def fix(day, text):
+        return news.Hotfix(f"October {day}, 2026", "The Venomous Abyss › The Coiled Altar", text,
+                           datetime.datetime(2026, 10, day, tzinfo=datetime.UTC).timestamp())
+    guides = [Guide("icy-veins", "I", "https://i", "2026-08-13T12:30:00+00:00", [])]
+    fixes = (["https://post"], [fix(13, "Orbs reduced to 4."), fix(13, "Gravebound's fragments last 2 sec longer."),
+                                fix(2, "Dreadmarch targets 3 players.")])
+    text = bosses.hotfixes_after("The Coiled Altar", guides, fixes, "gravebound")
+    assert text.splitlines()[1:] == [
+        "Newer than Icy Veins (The Venomous Abyss › The Coiled Altar):",
+        "- October 13, 2026: Gravebound's fragments last 2 sec longer.",
+        "(2 other hotfixes to The Coiled Altar don't name it: boss_guide without `mechanic` lists them.)"]
+    assert bosses.hotfixes_after("The Coiled Altar", guides, fixes, "Guillotine").startswith(
+        "# No hotfix naming Guillotine since 2026-08-13 (3 other hotfixes to The Coiled Altar don't name it: "
+        "boss_guide without `mechanic` lists them). Source:")
+    assert "other" not in bosses.hotfixes_after("The Coiled Altar", guides, (["https://post"], fixes[1][1:2]),
+                                                "Gravebound")
+
+
+def wowhead_boss(page: dict, asked: list):
+    """warcraft_cli answering as Wowhead alone has a guide for the boss: `page`, and a tooltip for any spell. `asked`
+    gets the ids of the tooltips read."""
+    async def fake_cli(tool, *args):
+        args = fetch._key_args(args)
+        if tool != "wowhead":
+            raise KnowledgeError(f"no {tool} guide")
+        if args[0] == "guides":
+            return {"results": [{"title": "The Coiled Altar Raid Boss Guide", "url": "https://wh/altar",
+                                 "last_updated": "2026-10-01"}]}
+        if args[0] == "entity":
+            asked.append(int(args[2]))
+            return {"entity": {"name": f"spell {args[2]}"}, "tooltip": {"html": f"What spell {args[2]} does."}}
+        if args[0] == "guide-full":
+            return page
+        raise KnowledgeError("no hotfix post")
+    return fake_cli
+
+
+ALTAR = {"linked_entities": {"items": [{"entity_type": "spell", "id": i, "name": name} for i, name in (
+            (1, "Guillotine"), (2, "Gravebound"), (3, "Gravebound"), *((i, f"Ability {i}") for i in range(4, 60)))]},
+         "body": {"section_chunks": [{"title": "Strategy", "content_raw": "Soak [spell=1] in a group."}]}}
+
+
+async def test_one_mechanic_reads_its_own_tooltips_not_the_boss_s_sixty(monkeypatch):
+    """Wowhead's guide links the boss's spells by name: the tooltips read are those named as the mechanic, where
+    every one of the boss's was read (a process each) to print one or two."""
+    asked = []
+    monkeypatch.setattr(fetch, "cli", wowhead_boss(ALTAR, asked))
+    text = await bosses.boss_mechanic_text("The Coiled Altar", "The Venomous Abyss", "mythic", "gravebound")
+    assert asked == [2, 3]
+    assert "Tooltip (Wowhead, spell 2): What spell 2 does.\n\nTooltip (Wowhead, spell 3): What spell 3 does." in text
+    assert "Wowhead's guide for The Coiled Altar (cheat sheet, strategy, the dungeon journal on Mythic): names no " \
+           "gravebound." in text
+    asked.clear()
+    with pytest.raises(KnowledgeError) as none:  # no guide names it: the abilities by name, with no tooltip read
+        await bosses.boss_mechanic_text("The Coiled Altar", "The Venomous Abyss", "mythic", "March of the Damned")
+    assert str(none.value).startswith("no guide for The Coiled Altar names 'March of the Damned'; its abilities, as "
+                                      "Wowhead's guide links them: Guillotine, Gravebound, Ability 4, ")
+    assert asked == []
+    assert await bosses.mechanic_tooltips_text([7, 8, 7]) == (
+        "Tooltip (Wowhead, spell 7): What spell 7 does.\nTooltip (Wowhead, spell 8): What spell 8 does.")
+
+
+async def test_wowheads_journal_comes_without_its_amounts_and_says_so_once(monkeypatch):
+    journal = ("[tabs][tab name=\"Abilities\"][html]<ul><li><div><span><b> Gloom Aura</b></span>: The boss glows, "
+               "inflicting <!--pts1:0:0:12-->5<!----> Shadow damage every 2 sec.</div></li></ul>[/html][/tab][/tabs]")
+    page = {**ALTAR, "body": {"section_chunks": [{"title": "Strategy", "content_raw": journal}]}}
+    monkeypatch.setattr(fetch, "cli", wowhead_boss(page, []))
+    text = await bosses.boss_guide_text("The Coiled Altar", "The Venomous Abyss", "mythic")
+    assert "inflicting Shadow damage every 2 sec." in text
+    assert text.count("(The dungeon journal's damage and healing amounts are left out: Wowhead's page gives most of "
+                      "them unscaled. boss_guide with topic tooltips, or spell_info, has them.)") == 1
+    monkeypatch.setattr(fetch, "cli", wowhead_boss(ALTAR, []))  # a page without amounts has nothing to say
+    assert "left out" not in await bosses.boss_guide_text("The Coiled Altar", "The Venomous Abyss", "mythic")
 
 
 async def test_a_mechanic_on_the_wrong_boss_is_found_on_its_own(monkeypatch):
@@ -249,11 +333,16 @@ async def test_a_mechanic_on_the_wrong_boss_is_found_on_its_own(monkeypatch):
     async def boss_spells(boss):
         return [{"name": "Axegrinder"}] if boss == "The Coiled Altar" else [{"name": "Shell Spin"}]
 
-    async def no_abilities(boss):
-        return []
+    async def linked(boss):  # the names Wowhead's guide links, which Lorrgs may not track
+        return {5: "Gravebound"} if boss == "The Coiled Altar" else {}
+
+    async def no_tooltip(spell_id):
+        raise AssertionError("looking for a name reads no tooltip")
     monkeypatch.setattr(bosses, "raids", raids)
     monkeypatch.setattr(bosses, "boss_spells", boss_spells)
-    monkeypatch.setattr(bosses, "_abilities", no_abilities)
+    monkeypatch.setattr(bosses, "_linked_spells", linked)
+    monkeypatch.setattr(bosses, "tooltip", no_tooltip)
+    assert await bosses.boss_naming("gravebound", "Rotmire") == ("The Venomous Abyss", "The Coiled Altar")
     assert await bosses.boss_naming("axegrinder", "The Lost Explorers") == ("The Venomous Abyss", "The Coiled Altar")
     assert await bosses.boss_naming("Axegrinder", "The Coiled Altar") is None
     assert await bosses.boss_naming("Shell Spin", "Rotmire") == ("The Venomous Abyss", "The Lost Explorers")
@@ -266,3 +355,10 @@ async def test_a_mechanic_on_the_wrong_boss_is_found_on_its_own(monkeypatch):
     assert await bosses.boss_naming("Axegrinder", "The Lost Explorers", "The Venomous Abyss") == (
         "The Venomous Abyss", "The Coiled Altar")
     assert read == ["The Coiled Altar"]  # found in the report's raid: the other raids aren't read
+
+    async def slow(boss):
+        await asyncio.sleep(1)
+        return []
+    monkeypatch.setattr(bosses, "boss_spells", slow)
+    monkeypatch.setattr(bosses, "NAMING_S", 0.01)  # the sites answer slowly: the answer doesn't wait for the search
+    assert await bosses.boss_naming("Axegrinder", "The Lost Explorers") is None

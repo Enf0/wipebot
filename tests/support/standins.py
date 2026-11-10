@@ -11,6 +11,8 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from wipebot.core.knowledge.fetch import NOT_FOUND
+
 
 def number(*seed: object) -> float:
     """A number in [0, 1) from a hash of `seed`: made up, and the same every time."""
@@ -87,6 +89,8 @@ def guide(key: str, value: Any, builds: dict[int, list[str]], spec_of: Callable[
     """A guide site's answer with its writing made up (see above). `builds`: the test guild's raiders' talent
     strings by spec id; `spec_of`: a talent string's spec id."""
     parts = json.loads(key)
+    if NOT_FOUND in value:  # the source's "not found", kept as an answer: ours to keep as it is
+        return value
     if parts[1] == "wowhead" and parts[2] == "entity":
         entity, tip = value.get("entity") or {}, value.get("tooltip") or {}
         from wipebot.core.knowledge.spells import tooltip_text

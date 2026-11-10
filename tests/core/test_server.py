@@ -156,6 +156,30 @@ async def test_missing_report_is_a_readable_tool_error(monkeypatch):
         await server.mcp.call_tool("progress", {})
 
 
+async def test_a_mechanic_no_guide_names_is_answered_from_its_tooltip(monkeypatch, rep, patch_wcl, fake_knowledge):
+    """An ability asked for by its name in the log, which no guide has under this boss or another: what its tooltip
+    says, by the ids the report has it under, where the call used to end in an error after a long search."""
+    monkeypatch.setattr(server.DEFAULT, "library", server.Library(CODE, wcl=rep.wcl))
+    patch_wcl(rep, all_encounters=[], zone_encounters=("The Venomous Abyss", [{"name": "Sszorak"}]))
+    spell, name = next((i, n) for i, n in rep.abilities.items() if list(rep.abilities.values()).count(n) == 1)
+    asked = []
+
+    async def none_names(boss, raid, difficulty, mechanic):
+        raise server.KnowledgeError(f"no guide for {boss} names {mechanic!r}")
+
+    async def tooltips(ids):
+        asked.append(list(ids))
+        return f"Tooltip (Wowhead, spell {spell}): It hurts." if ids else ""
+    fake_knowledge(boss_mechanic_text=none_names, boss_naming=None, mechanic_tooltips_text=tooltips)
+    told = f"No guide for Sszorak names {name!r}. What its tooltip says:\nTooltip (Wowhead, spell {spell}): It hurts."
+    assert await server.call("boss_guide", {"boss": "Sszorak", "mechanic": name.upper()}) == (
+        told.replace(repr(name), repr(name.upper())), False)
+    assert await server.call("boss_guide", {"boss": "Sszorak", "mechanic": str(spell)}) == (told, False)
+    assert asked == [[spell], [spell]]
+    with pytest.raises(ToolError, match="no guide for Sszorak names 'Made Up'"):  # nothing of that name in the log
+        await server.call("boss_guide", {"boss": "Sszorak", "mechanic": "Made Up"})
+
+
 async def test_a_players_deaths_over_the_weeks_are_refused_when_points_run_low(monkeypatch, rep, patch_wcl):
     library = server.Library(CODE, wcl=rep.wcl)
     rep = await library.report()

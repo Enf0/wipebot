@@ -42,6 +42,9 @@ STOPGAPS = {"lorrgs": "from wipebot.core.knowledge.lorrgs_routes import patch; p
             "wowhead": "from wipebot.core.knowledge.wowhead_bonus import patch; patch(); "}
 CLI_CONCURRENCY = 6
 CLI_TIMEOUT_S = 60  # a hung command (a site that stops answering) gives up rather than holding an answer forever
+# ...and sooner for a tooltip: a boss has dozens, read CLI_CONCURRENCY at a time, so one that hangs holds the rest
+TIMEOUT_S = {("wowhead", "entity"): 20}
+NOT_FOUND = "wipebot_not_found"  # the key a source's "not found" is kept under, with NotFound's message
 
 # How long a command's answer is fresh. Older answers are still served at once while a new one is fetched in the
 # background (cache.Cache.fetch): guides change a few times a week, Blizzard's running hotfix post daily.
@@ -81,11 +84,24 @@ _limits: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore]
 
 async def cli(tool: str, *args: str) -> dict:
     """Run one warcraft_cli command and return its `data`, or raise KnowledgeError with its error. Answers are
-    kept in the cache on disk; a failure isn't. A command nobody waits for any more is killed. Arguments a model's
-    words fill (a search, a page's address) come last, after `--`, so they're never read as an option."""
-    return await cache().fetch(cache_key("cli", tool, *_key_args(args)),
-                               MAX_AGE_S.get((tool, args[0]), DEFAULT_MAX_AGE_S), lambda: _run(tool, *args),
-                               cancel=True)
+    kept in the cache on disk, a source's "not found" (NotFound) for as long as a found one; another failure
+    isn't. A command nobody waits for any more is killed. Arguments a model's words fill (a search, a page's
+    address) come last, after `--`, so they're never read as an option."""
+    found = await cache().fetch(cache_key("cli", tool, *_key_args(args)),
+                                MAX_AGE_S.get((tool, args[0]), DEFAULT_MAX_AGE_S), lambda: _answer(tool, *args),
+                                cancel=True)
+    if NOT_FOUND in found:
+        raise NotFound(found[NOT_FOUND])
+    return found
+
+
+async def _answer(tool: str, *args: str) -> dict:
+    """What the command answers, a "not found" as a value: it is the source's answer (Lorrgs for a boss it doesn't
+    track, Method for a guide it hasn't written), kept like any other instead of asked for on every call."""
+    try:
+        return await _run(tool, *args)
+    except NotFound as e:
+        return {NOT_FOUND: str(e)}
 
 
 def _key_args(args: tuple[str, ...]) -> tuple[str, ...]:
@@ -112,10 +128,12 @@ async def _run(tool: str, *args: str) -> dict:
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "-c", (STOPGAPS.get(tool, "") + f"from {MODULES[tool]}.main import run; run()"), *args,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        timeout_s = TIMEOUT_S.get((tool, args[0]), CLI_TIMEOUT_S)
         try:
-            out, err = await asyncio.wait_for(proc.communicate(), CLI_TIMEOUT_S)
+            out, err = await asyncio.wait_for(proc.communicate(), timeout_s)
         except TimeoutError:
-            raise KnowledgeError(f"{tool} {args[0]} gave no answer in {CLI_TIMEOUT_S} s") from None
+            log.warning("%s %s gave no answer in %s s", tool, " ".join(args), timeout_s)
+            raise KnowledgeError(f"{tool} {args[0]} gave no answer in {timeout_s} s") from None
         finally:
             if proc.returncode is None:  # timed out, or the answer it was for was cancelled
                 proc.kill()

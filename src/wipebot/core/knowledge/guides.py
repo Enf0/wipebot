@@ -25,6 +25,7 @@ class Guide:
     last_updated: str | None
     sections: list[tuple[str, str]]  # (title, text)
     pages: list[tuple[str, str]] = field(default_factory=list)  # the guide's other pages: (title, url)
+    note: str = ""  # what was left out of the sections and where it is instead, told once under the title
 
     @property
     def site(self) -> str:
@@ -61,19 +62,31 @@ def subpages(source: str, data: dict) -> list[tuple[str, str]]:
     return [(t, "https://www.wowhead.com/" + u) for u, t in re.findall(r"\[url=(guide/[^\]]+)\]([^\[]+)\[/url\]", raw)]
 
 
-def wowhead_text(raw: str, names: dict[int, str] | None = None) -> str:
+# A damage or healing amount in the dungeon journal of a Wowhead boss guide: the number before "Nature damage",
+# "damage as", "Fire or Frost damage", "Nature and 617939 Physical damage", "healing absorb", "(5 * 8) healing". The
+# page gives most of them unscaled ("5 Shadow damage every 2 sec" for 192,517; docs/reference/sources.md), and
+# nothing in it tells those from the right ones. Seconds, yards, counts and percentages aren't amounts.
+JOURNAL_AMOUNT = re.compile(r"(?:\(\d[\d,.]* [*/] \d+\)|\b\d[\d,.]*) +"
+                            r"(?=(?:(?:[A-Z][a-z]+|and|or|to|incoming|bleeding|\d[\d,.]*) +){0,4}(?:damage|healing)\b)")
+
+
+def wowhead_text(raw: str, names: dict[int, str] | None = None, amounts: bool = True) -> str:
     """Wowhead guide markup (bbcode with [html] islands) as plain text: list items as lines, tabs as headings,
-    [spell=id] and the journal's linked [Names] as names."""
+    [spell=id] and the journal's linked [Names] as names; two alternatives the journal leaves side by side
+    ("[multiple][2]") as "multiple or 2". Without `amounts`, the islands (a boss guide's dungeon journal) lose
+    their damage and healing amounts (JOURNAL_AMOUNT)."""
     names = names or {}
     raw = re.sub(r"\[spell=(\d+)[^\]]*\]", lambda m: names.get(int(m[1]), f"spell {m[1]}"), raw)
 
     def html_block(m: re.Match) -> str:
         h = re.sub(r"<!--.*?-->", "", m[1], flags=re.S)
+        h = re.sub(r"\[([^\[\]<>\n]+)\]\[([^\[\]<>\n]+)\]", r"\1 or \2", h)
         h = re.sub(r"<(?:p|h\d|ul|ol|tr)[^>]*>", "\n", h)
         h = re.sub(r"<li[^>]*>", "\n- ", h)
         h = re.sub(r"<br\s*/?>", "\n", h)
         h = re.sub(r"<[^>]+>", "", h)
-        return re.sub(r"\[([^\[\]\n]+)\]", r"\1", html.unescape(h))
+        h = re.sub(r"\[([^\[\]\n]+)\]", r"\1", html.unescape(h))
+        return h if amounts else JOURNAL_AMOUNT.sub("", h)
 
     text = re.sub(r"\[html\](.*?)\[/html\]", html_block, raw, flags=re.S)
     text = re.sub(r"\[tab name=\"?([^\]\"]+)\"?\]", r"\n### \1\n", text)

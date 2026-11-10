@@ -131,6 +131,20 @@ API: `wcl-api.md`.
   names. `wowhead entity spell <id>` gives clean tooltip text, but `tooltip.text` drops a spec's own clause
   (Death Grip's "[Blood: and forcing the enemy to attack you]", verified 2026-10-15), so `knowledge` reads
   `tooltip.html`.
+- The dungeon journal in that page (the `[html]` islands) marks each number of a spell's effects,
+  `<!--pts1:0:0:<spell id>-->5<!---->`, and as fetched most damage and healing amounts are unscaled: "inflicting 5
+  Shadow damage every 2 sec" where the tooltip says 192,517 (16 of about 32 amounts under 1,000 for the Coiled
+  Altar, 23 of 25 for Sszorak); a few come as a formula, "(5 * 8) healing". Percentages, seconds, yards and counts
+  carry the same marker and are right, so nothing tells a wrong amount from a right one: for a boss guide
+  `wowhead_text(amounts=False)` leaves every damage and healing amount of the journal out (556 over the 18 boss
+  pages of Midnight's raids as fetched in October 2026, none left), and the tooltips have them. Two alternatives
+  the journal leaves unresolved come side by side in brackets, "[multiple][2] Manifestations of Dread", rendered
+  "multiple or 2". `<!--difficulty:16-->...<!--difficulty-->` (15 by the "On Heroic difficulty" lines it wraps,
+  16 Mythic) wraps parts of a sentence, not whole alternatives ("inflicting [16: 41670 Nature damage every 2 sec
+  to all players for][15: 10 sec]"), so every part is kept.
+- A source's "not found" is an answer (Lorrgs `boss-spells` for a boss it doesn't track: 404 "Invalid Boss";
+  Method for a guide it hasn't written) and is kept as long as a found one (`knowledge.fetch.cli`), so it isn't
+  asked again on every call.
 - The same Wowhead boss guide holds the loot: a section titled "Gear" (Sszorak, Nek'zali, The Twin Fangs) or "Gear
   Drop Information for ..." (Kith'ix) with a `[table]` of `[item=id bonus=...]` and slot ("Leather Chest", "Mail
   Tier Set Token - Legs") and a table of item level per difficulty ("Raid FInder" or "LFR" 285 ... Mythic 324);
