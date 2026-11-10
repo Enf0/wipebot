@@ -59,3 +59,36 @@ and `connector.toml` the connector's own (an officer saving a pasted note, a rai
 and only at milestones (a release), never while changing the method: a gap between them and the regular cases is the
 method fitted to its own cases.
 Every file's cases share one id space (`-k` picks by id) and `[defaults]`.
+
+## What a Discord message carries
+
+A raider's question reaches the bot with more than its text: the conversation before it, the server's saved raid
+note, what the bot remembers of the asker, the server's language and today's date. A case sets them with the keys
+below, or its file's `[defaults]` does for all of its cases (`report`, `set_up`, `language`, `today` and `where` may
+stand there). A case with none of them is asked as it always was (`evals/asked.py`).
+
+  set_up    true: asked from the guild's own Discord server, as `/wipebot setup` leaves it. With `--bot` the
+            question's Context is then made by the bot's own code, so its first lines hold the guild, the server's
+            language, what the bot remembers of the asker and the bosses with a saved note, and `remember` and
+            `answer_in_dm` are the bot's own tools. The keys below but `today` need it
+  earlier   what was said in the place before the first question: `[who, text]` pairs, oldest first, handed over as
+            the bot hands over a place's earlier messages. "Wipebot" is the bot, answering whoever wrote before it.
+            A conversation asked for real, question by question, is a list in `question`, as before
+  note      a raid note an officer pasted before the night's first pull: a file under `tests/fixtures/real/notes/`.
+            `raid_note` finds it as in a real server, and the other tools say that one is saved
+  notes     what the bot remembers of the asker: a list of lines, as the `remember` tool keeps them
+  language  the server's language, as its admin set it ("Norwegian")
+  today     the day the question is asked, in quotes ("2026-10-22"): the date in the question's first line and the
+            tools' clock, at noon UTC. Without it the day is the recorded data's, 13 October 2026. In every mode
+
+A case with `earlier`, `note` or `notes` is asked only with `--bot`: a client has none of them, so there it would be
+another question. `set_up` and `language` alone leave a case in every mode, where the clients ignore them.
+
+- Give a case on a night after 13 October its `today`, the day after its log, so that "last night" and the report's
+  "yesterday" are true. A `today` later than the day the frozen data was last added to (`tested`'s `data`) finds no
+  later night: the lists of reports were fetched then.
+- `just evals --lint` replays a case's recorded calls on the recorded data's day and with no note saved, so it checks
+  the numbers of a `today` or `note` case only where the call doesn't turn on either.
+- Questions are in English or Norwegian, as raiders ask: Norwegian bokmål with the game's words in English (pull,
+  wipe, soak, kick). They are written for the case, never copied from a raider. `expect`, `facts` and `wrong` stay
+  in English: the judge reads the answer in either language.

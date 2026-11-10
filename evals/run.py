@@ -74,6 +74,7 @@ from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 
+from evals.asked import DEFAULTS, MESSAGE, contexts, discord_only, per_case, problem, said_before
 from evals.checks import (
     EXPECT,
     FACTS,
@@ -268,21 +269,31 @@ CASES = HERE / "cases"
 
 
 def load_cases(folder: Path = CASES) -> list[dict]:
-    """Every case in the folder's files (each with its `[defaults]`); a case in bot.toml is `bot_only`, one in
-    connector.toml `client_only`. A post's case (posts.toml) is `bot_only` too, and its question is the one the bot
-    asks itself after the wipe: the asker's own feedback, or what they asked for (`request`)."""
+    """Every case in the folder's files (each with its `[defaults]`: the report, and what a Discord message carries
+    for every case of the file, asked.DEFAULTS); a case in bot.toml is `bot_only`, one in connector.toml
+    `client_only`. A post's case (posts.toml) is `bot_only` too, and its question is the one the bot asks itself
+    after the wipe: the asker's own feedback, or what they asked for (`request`). So is a case that only Discord can
+    ask (asked.discord_only: earlier messages, a saved note, remembered notes)."""
     cases = []
     for path in sorted(folder.glob("*.toml")):
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
+        if unknown := set(spec["defaults"]) - set(DEFAULTS):
+            raise SystemExit(f"{path.name}: unknown keys in [defaults]: {', '.join(sorted(unknown))}")
         for case in spec["case"]:
             if unknown := set(case) - {"id", "question", "expect", "facts", "wrong", "derived",
                                        "drifts", "report", "tools", "calls", "asks_first", "cause", "request",
-                                       "numbers", "form", *CONTEXT}:
+                                       "numbers", "form", *CONTEXT, *MESSAGE}:
                 raise SystemExit(f"case {case.get('id')} ({path.name}): unknown keys {', '.join(sorted(unknown))}")
             if wrong := coded_keys(case):
                 raise SystemExit(f"case {case.get('id')} ({path.name}): {wrong}")
+            case = {k: v for k, v in spec["defaults"].items() if k != "report"} | case
             only = {"bot": {"bot_only": True}, "posts": {"bot_only": True},
                     "connector": {"client_only": True}}.get(path.stem, {})
+            if wrong := problem(case) or ("only the bot gets earlier, note or notes: not a case of connector.toml"
+                                          if discord_only(case) and only.get("client_only") else ""):
+                raise SystemExit(f"case {case.get('id')} ({path.name}): {wrong}")
+            if discord_only(case):
+                only = {"bot_only": True}
             if path.stem == "posts":
                 name = case.get("discord_name") or case.get("asker") or "a raider"
                 case = case | {"question": post_question(case["boss"], case["pull"], name, case.get("asker"),
@@ -347,12 +358,13 @@ def where(case: dict, client: bool = False) -> str:
 
 def asked(case: dict, client: bool = False) -> str:
     """The question as the judge and the labeller see it: who asked it and where (the cases' rules on naming players
-    turn on both), whether the raid was going on, and a follow-up after the ones before it."""
+    turn on both), whether the raid was going on, a follow-up after the ones before it, and after what the case says
+    was said there before (`earlier`)."""
     *before, last = questions(case)
     who = case.get("asker") or (f"{case['discord_name']} (their Discord name)" if case.get("discord_name") else "")
     live = ", while the raid is going on" if case.get("live") and not client else ""
     head = "Asked" + (f" by {who}," if who else "") + f" {where(case, client)}{live}: "
-    return head + "".join(f"{q}\n(then, in the same conversation) " for q in before) + last
+    return said_before(case) + head + "".join(f"{q}\n(then, in the same conversation) " for q in before) + last
 
 
 async def trial(case: dict, library: server.Library, model: str, judge_model: str, jobs: asyncio.Semaphore,
@@ -374,6 +386,9 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
             if case["kind"] == "posts":  # as the bot asks for a post: with the tool it starts from already run
                 ctx.prefetch = await post_prefetch(await library.report(case["report"]), case["boss"], case["pull"],
                                                    case.get("asker"), case.get("request", ""))
+            # what a Discord message carries, where the case sets it (asked.py): each question's own Context, the
+            # bot's own for a set-up server; `ctx` itself for a case that sets none of it
+            turns = await contexts(case, ctx, library, mode, RECORDED_AT)
             # None: the bot's own, with the skill
             prompt = {"plugin": PLUGIN, "connector": CONNECTOR_ONLY, "bot": None}[mode]
 
@@ -388,7 +403,7 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
                                plugin=plugin_folder() if mode == "plugin" else None) as session:
                 for turn, question in enumerate(questions(case)):  # follow-ups in one conversation; the last
                     try:                                           # answer is judged
-                        answer = await session.ask(question, ctx)
+                        answer = await session.ask(question, turns(turn))
                     except ModelError as e:  # a cap: what it got to is kept, for the record
                         if e.answer:
                             keep(e.answer, turn)
@@ -835,15 +850,18 @@ def tested_alike(base: dict, now: dict) -> str:
 def freeze_today() -> None:
     """The date in each question's first line as of the recorded data's "now", like the tools' clock: the bot's
     prompt takes the real date, so a run asked about the same report as "yesterday's" one day and as weeks old the
-    next. Wraps prompt.message, which the session calls for every question."""
+    next. Wraps prompt.message, which the session calls for every question. A case's own day (`today`, on its
+    question's Context) is that date instead, and the tools' clock while they run for it (asked.per_case)."""
     real = prompt.message
     if real.__module__ == __name__:  # frozen already
         return
 
     def message(*args, **kwargs) -> str:
-        kwargs.setdefault("now", datetime.fromtimestamp(RECORDED_AT).astimezone())
+        ctx = args[1] if len(args) > 1 else kwargs.get("ctx")
+        kwargs.setdefault("now", datetime.fromtimestamp(getattr(ctx, "today", None) or RECORDED_AT).astimezone())
         return real(*args, **kwargs)
     setattr(prompt, "message", message)  # noqa: B010  the module's own function, replaced for this process
+    per_case()
 
 
 def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dict:
