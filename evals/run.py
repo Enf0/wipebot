@@ -1382,13 +1382,13 @@ def main() -> None:
     elif args.agreement:
         asyncio.run(agreement(args.judge_model))
     elif args.lint:
-        asyncio.run(_lint_then_drain(args.filter))
+        sys.exit(asyncio.run(_lint_then_drain(args.filter)))
     elif args.recheck:
         asyncio.run(recheck(Path(args.recheck), args.judge_model, args.filter))
     elif args.form:
         print("\n".join(form(Path(args.form), args.filter)))
     elif args.endings:
-        asyncio.run(_endings_then_drain())
+        sys.exit(asyncio.run(_endings_then_drain()))
     elif args.coverage:
         from evals.coverage import report
         print("\n".join(report(load_cases(), HERE / "results")))
@@ -1411,35 +1411,53 @@ def frozen() -> None:
     cache().recorded_at(first=RECORDED_AT)  # kept in the file: "now" for the tools
 
 
-async def _lint_then_drain(only: str) -> None:
+async def _lint_then_drain(only: str, results: Path | None = None) -> int:
+    """The lint's findings printed; 0 only when it checked cases and found nothing: a stale number, a replayed call
+    that fails, a case it couldn't check for lack of data and a run with nothing to replay are all 1."""
     from evals.lint import lint
-    if not any((HERE / "results").glob("*.json")):  # before frozen(), which would make an empty cache
-        raise SystemExit(f"nothing to check: no run in {HERE / 'results'} yet (`just evals` makes one)")
+    results = results or HERE / "results"
+    if not any(results.glob("*.json")):  # before frozen(), which would make an empty cache
+        print(f"checked nothing: no run in {results} to replay the calls of (`just evals` makes one)")
+        return 1
     frozen()
     as_connector()  # the calls of the connector's own cases replay too
     try:
         cases = [c for c in load_cases() if picked(c, only)]
-        flagged, checked = await lint(cases, HERE / "results")
+        found = await lint(cases, results)
     finally:
         await cache().drain()
-    if not checked:
-        raise SystemExit(f"none of the {len(cases)} cases checked: no run in {HERE / 'results'} has calls to replay "
-                         "yet (`just evals` makes one)")
-    print(f"{checked} of {len(cases)} cases checked: " + (
-        f"{flagged} numbers no tool prints now" if flagged else "every number is in its tools' output"))
-    if flagged:
-        raise SystemExit(1)
+    print(lint_line(found, len(cases)))
+    return 1 if found.flagged or found.failed or found.no_data or not found.checked else 0
 
 
-async def _endings_then_drain() -> None:
-    from evals.endings import endings
+def lint_line(found, cases: int) -> str:
+    """The lint's last line: what it checked, and each thing that keeps it from passing."""
+    said = [f"{found.checked} of {cases} cases checked: " + (
+        f"{found.flagged} numbers no tool prints now" if found.flagged else
+        "every number is in its tools' output" if found.checked else "no run has calls of theirs to replay")]
+    if found.failed:
+        said.append(f"{found.failed} replayed calls fail now")
+    if found.no_data:
+        said.append(f"{found.no_data} cases NOT checked for lack of data: the frozen file doesn't hold what their "
+                    "calls read today and Warcraft Logs didn't give it (its keys: .env.example), which says nothing "
+                    "about their numbers")
+    return "; ".join(said)
+
+
+async def _endings_then_drain() -> int:
+    """The endings printed; 1 below the agreed count or with a pull that couldn't be read."""
+    from evals.endings import AGREED, endings
     frozen()
     try:
         cases = [c for c in load_cases() if c.get("cause")]
-        agree, lines = await endings(cases)
+        agree, lines, no_data = await endings(cases)
     finally:
         await cache().drain()
-    print("\n".join(lines) + f"\nThe engine leads with the expert's cause on {agree} of {len(cases)} pulls.")
+    print("\n".join(lines) + f"\nThe engine leads with the expert's cause, and its \"Ended by\" line names it "
+          f"first, on {agree} of {len(cases)} pulls (agreed: at least {AGREED})."
+          + (f" {no_data} NOT read for lack of data: the frozen file doesn't hold what the engine reads today and "
+             "Warcraft Logs didn't give it." if no_data else ""))
+    return 1 if agree < AGREED or no_data else 0
 
 
 async def _run_then_drain(args) -> int:

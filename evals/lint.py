@@ -6,11 +6,16 @@ So every number in them is looked for in the output of the calls its answers mad
 with today's code on the frozen data. A number no output has is
 either stale (fix the case) or worked out by the case's writer (a gap between two times, a sum): such a number goes
 in the case's `derived`, which says so and keeps it from being flagged.
+
+A replayed call that fails now is a failure of the lint, like a stale number. One that fails for lack of data (the
+frozen file doesn't hold what the call reads today and Warcraft Logs didn't give it) says nothing about the case:
+its case is left unchecked and said so, with none of its numbers flagged, and the lint doesn't pass.
 """
 import asyncio
 import json
 import re
 from pathlib import Path
+from typing import NamedTuple
 
 TIME = re.compile(r"(?<![\d:])\d{1,2}:\d{2}(?![\d:])")
 AMOUNT = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s?([kKM])\b")
@@ -22,6 +27,8 @@ SAVED_ARGS = {"raid_note": "note", "raid_plan": "plan"}  # the bot fills these f
 # A replayed call failing on what the model asked (a player not in the report, find_reports without a guild): the
 # answer's own slip, counted, not a finding about the tools.
 ASKED_WRONG = ("no single player matching", "give a guild, with its server and region")
+# A replay that needed data the frozen file lacks and this machine couldn't fetch (refused keys, Warcraft Logs down)
+NO_DATA = ("auth_failed", "upstream_error")
 AMOUNT_TOLERANCE = 0.03  # "about 210k" for 210.05k, "164k" for 163.64k
 PERCENT_TOLERANCE = 0.51  # "34%" for 34.1%
 
@@ -79,9 +86,20 @@ def drifted(case: dict, output: str) -> list[str]:
     return [n for d in case.get("drifts", []) for n in numbers(d) if n not in derived and not in_output(n, output)]
 
 
-async def lint(cases: list[dict], results: Path) -> tuple[int, int]:
-    """Print each case's numbers its tools no longer state, and the tools that fail now; (numbers flagged, cases
-    checked: those with a recorded call to replay)."""
+class Linted(NamedTuple):
+    flagged: int  # numbers no tool prints now
+    checked: int  # cases whose numbers were looked for: those with a recorded call that replays
+    failed: int = 0  # replayed calls that fail now, though they worked in a run of today's case
+    no_data: int = 0  # cases left unchecked: a replay needed data this machine couldn't read
+
+
+def failure(output: str | None) -> bool:
+    return output is not None and output.startswith("<") and " failed: " in output
+
+
+async def lint(cases: list[dict], results: Path) -> Linted:
+    """Print each case's numbers its tools no longer state, the tools that fail now, and the cases that couldn't be
+    checked for lack of data; what it counted."""
     import inspect
 
     from wipebot.core import server
@@ -92,20 +110,22 @@ async def lint(cases: list[dict], results: Path) -> tuple[int, int]:
     jobs = asyncio.Semaphore(4)
 
     async def run(name: str, args: dict) -> str | None:
-        """The tool's output now; None for arguments it no longer takes (an older run's)."""
+        """The tool's output now, "<tool failed: why>" when it fails, None for arguments it no longer takes (an
+        older run's)."""
         key = json.dumps([name, args], sort_keys=True)
         if key not in outputs:
             async with jobs:
                 try:
-                    outputs[key] = (await server.call(name, args))[0]
+                    text, failed = await server.call(name, args)
                 except Exception as e:  # noqa: BLE001  a tool that fails now is a finding, not a crash
-                    # arguments an older version of the case or the tool took (another report, since private)
-                    old = any(w in str(e) for w in ("validation error", "Unknown tool", "won't show report"))
-                    outputs[key] = None if old else f"<{name} failed: {type(e).__name__}: {str(e)[:200]}>"
+                    text, failed = f"{type(e).__name__}: {e}", True
+                # arguments an older version of the case or the tool took (another report, since private)
+                old = failed and any(w in text for w in ("validation error", "Unknown tool", "won't show report"))
+                outputs[key] = None if old else f"<{name} failed: {text[:200]}>" if failed else text
         return outputs[key]
 
     from evals.run import case_hash
-    flagged = checked = asked_wrong = 0
+    flagged = checked = failed = no_data = asked_wrong = 0
     for case in cases:
         # a call with an argument its tool no longer takes ran another way then (compare_pulls' old pull_a)
         calls = [(n, a) for n, a in recorded_calls(runs, case["id"]) if set(a) <= takes.get(n, set(a))]
@@ -113,18 +133,26 @@ async def lint(cases: list[dict], results: Path) -> tuple[int, int]:
         now = {json.dumps([n, a], sort_keys=True) for n, a in recorded_calls(
             [r for r in runs if (r.get("case_hashes") or {}).get(case["id"]) == case_hash(case)], case["id"])}
         found = await asyncio.gather(*(run(n, a) for n, a in calls))
-        texts = [t for t in found if t is not None and not (t.startswith("<") and " failed: " in t)]
-        if not texts:
-            if runs:
-                print(f"{case['id']}: no recorded call to replay (run the case once)")
+        if lacking := [t for t in found if failure(t) and any(w in str(t) for w in NO_DATA)]:
+            print(f"{case['id']}: not checked: {len(lacking)} of its {len(calls)} calls need data the frozen file "
+                  f"lacks and Warcraft Logs didn't give ({next(w for w in NO_DATA if w in str(lacking[0]))})")
+            no_data += 1
             continue
-        checked += 1
         for (n, a), t in zip(calls, found, strict=True):
-            if t and t.startswith("<") and " failed: " in t and json.dumps([n, a], sort_keys=True) in now:
-                if any(w in t for w in ASKED_WRONG):
+            if failure(t) and json.dumps([n, a], sort_keys=True) in now:
+                if any(w in str(t) for w in ASKED_WRONG):
                     asked_wrong += 1
                 else:
                     print(f"{case['id']}: {t}")
+                    failed += 1
+        texts = [t for t in found if t is not None and not failure(t)]
+        if not texts:
+            if any(failure(t) for t in found):
+                print(f"{case['id']}: every call of its answers fails now: its numbers aren't checked")
+            elif runs:
+                print(f"{case['id']}: no recorded call to replay (run the case once)")
+            continue
+        checked += 1
         for where, n in stale(case, "\n".join(texts)):
             print(f"{case['id']}: {where} states {n}, which no call of its answers prints now")
             flagged += 1
@@ -133,4 +161,4 @@ async def lint(cases: list[dict], results: Path) -> tuple[int, int]:
     if asked_wrong:
         print(f"{asked_wrong} replayed calls failed on what the answer asked (a player not in the report, "
               "find_reports without a guild): the model's slip, not the tools'")
-    return flagged, checked
+    return Linted(flagged, checked, failed, no_data)
