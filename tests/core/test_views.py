@@ -368,6 +368,34 @@ async def test_a_mechanics_trend_counts_the_raids_hits_per_pull_as_its_tool_does
     assert any(v is None for v in sat_out) and any(v for v in sat_out)  # not in every pull
 
 
+async def test_the_askers_row_has_none_for_a_pull_they_were_in_and_no_row_for_a_pull_they_sat_out(recorded):
+    """breakdown's table for a pull lists only the players with some of the amount, so a player in the pull without
+    any had no row there, and the asker's row said "not in it" of a pull they were in (and left it out of their
+    thirds): Miralupa cast no Flash Heal in pull 26, and Namsus, a healer, did no damage in pull 12 before its wipe
+    was decided. Such a pull is theirs with none; only a pull they sat out has no amount. One with none of it all
+    night, or not in the report, has no row at all."""
+    rep = await server.lib().report(REPORT)
+    in_pull = {rep.pull_no(f): {p.name for p in rep.pull_players(f).values()} for f in rep.by_boss["Sszorak"]}
+    args = {"data_type": "Casts", "ability": "Flash Heal", "boss": "Sszorak", "group_by": "pull"}
+
+    async def own(mark: str) -> dict:
+        result = await server.view_data("trend", report=REPORT, tool="breakdown", args=args, player=mark)
+        assert result.structured_content is not None
+        return result.structured_content
+    data = await own("Miralupa")
+    for r in data["pulls"]:
+        assert (r["mine"] is None) == ("Miralupa" not in in_pull[r["pull"]]), r["pull"]
+    assert next(r for r in data["pulls"] if r["pull"] == 26)["mine"] == 0
+    assert 26 in {n for t in data["mine"]["thirds"] for n in t["pulls"]}
+    assert (await own("Enfo"))["mine"] is None and "Enfo" in in_pull[26]  # a shaman: no Flash Heal all night
+    assert (await own("Nobodyhere"))["mine"] is None
+    # the raid's own numbers are as they were: a player with none adds nothing and is not among a pull's top
+    assert all(v for r in data["pulls"] for _, v in r["top"])
+    two = await trend_data("damage-by-pull", mark="namsus")
+    assert two["mine"]["name"] == "Namsus" and {"Namsus"} <= in_pull[12] & in_pull[13]
+    assert [r["mine"] == 0 for r in two["pulls"]] == [True, False] and two["pulls"][1]["mine"] > 0
+
+
 def test_a_trends_thirds_leave_resets_out_and_need_six_counted_pulls():
     """As player_night's trend (coaching.night_trend): the pulls in thirds, the middle one taking the rest, each
     third's median the upper of two middle pulls, resets not counted, and no thirds for fewer than six."""

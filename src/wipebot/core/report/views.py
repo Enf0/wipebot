@@ -958,7 +958,8 @@ class Trend:
     fights: list[dict]
     amounts: list[float]  # each pull's
     seconds: list[float]  # each pull's counted time
-    rows: list[dict[str, float]]  # each pull's amount by name: the players', or one player's abilities
+    # each pull's amount by name: every player's in the pull (0 without any), or one player's abilities
+    rows: list[dict[str, float]]
     player: Player | None = None  # one player's trend, else the raid's
     ability: int | None = None  # the ability's id, for its icon
 
@@ -990,7 +991,8 @@ async def _table_asked(rep: Report, a: dict) -> tables.Asked:
 
 async def _table_trend(rep: Report, a: dict) -> Trend | None:
     """breakdown grouped by pull: each pull's rows, total and counted time, read and summed as the tool's text does
-    (tables._by_pull, whose lines a test holds these to)."""
+    (tables._by_pull, whose lines a test holds these to). A table lists only the players with some of the amount: the
+    others in the pull get a row of none, so that none is told from not being there."""
     q = await _table_asked(rep, a)
     if len(q.fights) < TREND_MIN_PULLS:
         return None
@@ -1003,7 +1005,8 @@ async def _table_trend(rep: Report, a: dict) -> Trend | None:
         end, start = q.ends.get(f["id"], f["endTime"]), q.starts.get(f["id"], f["startTime"])
         seconds.append((total_time if q.cutoff and total_time else end - start) / 1000)  # WCL's time is cut too
         amounts.append(sum(v for _, v, _ in merged))
-        rows.append({name: v for name, v, _ in merged})
+        here = {} if q.player else {p.name: 0.0 for p in rep.pull_players(f).values()}
+        rows.append(here | {name: v for name, v, _ in merged})
     what = TREND_TYPES[q.data_type]
     subject = (what if not q.ability else f"{what} from {q.ability}" if q.data_type == "DamageTaken"
                else f"{q.ability} {what}") + (f" on {q.target}" if q.target else "")
@@ -1063,7 +1066,8 @@ async def trend_view(rep: Report, tool: str, args: dict, mark: str | None = None
     """A tool's amount pull by pull (trend_of): each pull's total, its counted time, the amount per second or minute
     of it, how the pull ended and its biggest rows; the pulls in thirds with each third's median, and the trend in
     one sentence (the card's headline). With `mark` (the player asking) on the raid's trend, their own amounts pull
-    by pull beside it."""
+    by pull beside it when they have any: none in a pull they were in without any, no amount for a pull they sat
+    out."""
     t = await trend_of(rep, tool, args)
     if t is None:
         raise ValueError(f"{tool} states nothing pull by pull here")
@@ -1072,7 +1076,7 @@ async def trend_view(rep: Report, tool: str, args: dict, mark: str | None = None
     thirds = trend_thirds(rates, resets)
     counted = sorted(r for r, reset in zip(rates, resets, strict=True) if not reset)
     mine = rep.players.get((mark or "").lower()) if not t.player else None
-    if mine and not any(mine.name in row for row in t.rows):
+    if mine and not any(row.get(mine.name) for row in t.rows):  # none of it all night: nothing to draw
         mine = None
     own = [t.rate(row[mine.name], s) if mine.name in row else None
            for row, s in zip(t.rows, t.seconds, strict=True)] if mine else []
