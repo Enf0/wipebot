@@ -148,7 +148,7 @@ numbers = ["7:00", "7:13"]  # by code: the tank's death and the Stone Breaker se
 facts = ["the tanks alternated Caustic Deluge as on the kill (5:48 on one, 6:56 on the other)",
          "the tank who died had Envenomed x9 and Stone Breaker x3, with Fortifying Brew used at 6:02",
          "the other tank took Vexhul at 7:03; no tank got Stone Breaker from the 7:13 set",
-         "the first death, the same tank at 2:51, was battle-ressed at 2:56"]
+         "the first death, the same tank at 2:51, was battle-ressed"]
 wrong = ["says the tank's first death at 2:51 lost the pull",
          "says the tanks didn't swap Caustic Deluge",
          "says the players who died to Stone Breaker stood in it, or blames the DPS for those deaths",

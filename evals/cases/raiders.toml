@@ -30,10 +30,11 @@ where = "in a DM"
 question = "who gets hit by tornadoes the most?"
 asker = "Enfo"
 expect = """Over the night's Sszorak pulls, the tank Deathadim took by far the most Tempest (tornado) hits;
-of the others, Peggerino and Sonyosh took the most."""
+of the others Peggerino took the most. Sonyosh next by count, or Draiman by hits per minute of the 14 pulls they were
+in, is as right."""
 facts = ["counted until each wipe was decided",
-         "Deathadim 165 hits, Peggerino 85, Sonyosh 78",
-         "Tempest was the night's killer, 58 deaths",
+         "Deathadim 165 hits, Peggerino 86, Sonyosh 78; Draiman 32 in 14 pulls",
+         "Tempest was the killing blow of 62 deaths over the night",
          "hits within a second of each other may be one tornado hitting twice; the log can't tell"]
 wrong = ["names someone other than Deathadim as hit most",
          "states as fact that hits within a second of each other were separate tornadoes"]
@@ -288,11 +289,11 @@ question = """Vinne var nok et dårlig ord, er mest interessert i å optimaliser
 grave litt mer i ovwrhealingproblematikken, kan du sammenligne rå healing inkludert overheal for alle healerne for \
 alle coiled altar trøyene, og sammenligne opp mot top logs?"""
 asker = "Miralupa"
-expect = """Gives the healers' healing with overheal over the Coiled Altar pulls (the priests about 730-750k/s with
-it, 405-415k/s without) and puts their higher overheal down to five healers sharing the same damage, not to how the
-priests heal."""
+expect = """Gives the healers' healing with overheal over the Coiled Altar pulls (the priests about 732k/s and 755k/s
+with it, 409k/s and 417k/s without) and puts their higher overheal down to five healers sharing the same damage, not
+to how the priests heal."""
 drifts = ["754", "726", "664", "725", "735"]
-facts = ["Namsus 414.50k/s, overheal 45%; Miralupa 406.57k/s, overheal 44%",
+facts = ["Namsus 416.63k/s, overheal 45%; Miralupa 408.84k/s, overheal 44%",
          "the raid healed 2.14M/s",
          "the top Holy Priests overhealed about 25-31% in raids of 4 healers",
          "no healer ran short of mana",
