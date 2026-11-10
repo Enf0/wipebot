@@ -250,7 +250,7 @@ async def test_every_question_of_a_conversation_gets_its_own_context_from_the_bo
 
 
 def test_a_file_from_before_the_checks_were_named_is_read_as_the_first_three():
-    assert run.PARTS == ("expect", "wrong", "calls", "language") and run.FIRST_PARTS == ("expect", "wrong", "calls")
+    assert run.PARTS[-1] == "language" and run.FIRST_PARTS == ("expect", "wrong", "calls")
     old = {"passed": {"a": 1}, "trials": 2, "failed": {"a": [["language"]]}}  # names no parts
     assert run.scored(old, run.FIRST_PARTS) is old
 

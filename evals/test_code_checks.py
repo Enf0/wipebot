@@ -73,19 +73,20 @@ def test_a_code_check_is_a_named_part_of_a_pass(capsys):
     unjudged = settle(Trial(answer="It enraged at 2:35.", error="RuntimeError: a usage limit"), case, "plugin")
     assert unjudged.errored and unjudged.checks == {}  # an answer the judge never saw is in no count
     now = tally_of([case], {"a": [right, off]})
-    assert now["parts"] == [*FIRST_PARTS, "numbers"] and now["passed"] == {"a": 1} and now["failed"] == {
-        "a": [["numbers"]]}
-    assert tally_of([CASE], {"a": [right]})["parts"] == list(FIRST_PARTS)  # no case asks: no such check was made
+    assert now["parts"] == [*FIRST_PARTS, "numbers", "language"] and now["passed"] == {"a": 1}
+    assert now["failed"] == {"a": [["numbers"]]}
+    # no case asks: no such check was made (the language's is made of every answer)
+    assert tally_of([CASE], {"a": [right]})["parts"] == [*FIRST_PARTS, "language"]
     # against a baseline from before the check, the answer counts as it would have then
     old = {"model": "opus", "commit": "abc", "trials": 2, "judge": judged_by("sonnet"), "errors": {},
            "case_hashes": {"a": case_hash(case)}, "passed": {"a": 2}}
     about = {"model": "opus", "commit": "def", "judge": judged_by("sonnet")}
     text = "\n".join(compare(old, now | about))
-    assert ("scored by the baseline's checks (expect, wrong, calls): this run's numbers is left out here, until a "
-            "baseline has it") in text
+    assert ("scored by the baseline's checks (expect, wrong, calls): this run's numbers and language are left out "
+            "here, until a baseline has them") in text
     assert "total 2 of 2" in text
     both = tally_of([case | {"form": {"bullets": 3}}], {"a": [right, off]}) | about  # a full run as the bot has both
-    assert ("this run's numbers and form are left out here, until a baseline has them"
+    assert ("this run's numbers, form and language are left out here, until a baseline has them"
             in "\n".join(compare(old, both)))
 
 
@@ -98,7 +99,7 @@ def test_a_run_of_cases_that_ask_for_no_code_check_compares_with_a_baseline_that
     answers = {c: [settle(Trial(answer="It enraged.", expect=OK if i else no, wrong=OK), CASE, "bot")
                    for i in range(3)] for c in ids}  # each case failed one answer of three, on expect
     now = tally_of([CASE | {"id": c} for c in ids], answers, commit="def", **about)
-    assert now["parts"] == list(FIRST_PARTS) and now["passed"]["c0"] == 2
+    assert now["parts"] == [*FIRST_PARTS, "language"] and now["passed"]["c0"] == 2
     whole = {**about, "commit": "abc", "trials": 3, "errors": {}, "parts": list(PARTS), "passed": dict.fromkeys(ids, 2),
              "failed": {c: [["expect"]] for c in ids}, "case_hashes": now["case_hashes"]}
     found = compared(whole, now)

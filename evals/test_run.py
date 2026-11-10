@@ -155,7 +155,7 @@ def test_a_run_is_scored_by_the_checks_its_baseline_made():
     before = old | {"model": "opus", "commit": "abc", "judge": judged_by("sonnet")}
     with_tone = with_form | {"parts": [*now["parts"], "tone"], "model": "opus", "judge": judged_by("sonnet")}
     found = run.compared(with_tone, before)
-    unmade = "the baseline counts a check this run never made (tone)"
+    unmade = "the baseline counts a check this run never made (language, tone)"
     assert f"  {unmade}: every answer here passes it unseen" in found.lines
     assert found.verdict == "cannot tell" and unmade in found.lines[-1]
     # a check by code is never one: it is made of every answer each time a run is read (test_code_checks.py)

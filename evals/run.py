@@ -1228,7 +1228,8 @@ def compared(base: dict, now: dict) -> Comparison:
     lines.append("  " + errors_line(now))
     parts, mine = base.get("parts", FIRST_PARTS), now.get("parts", FIRST_PARTS)
     if added := [part for part in mine if part not in parts]:
-        lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {' and '.join(added)} "
+        named = added[0] if len(added) == 1 else f"{', '.join(added[:-1])} and {added[-1]}"
+        lines.append(f"  scored by the baseline's checks ({', '.join(parts)}): this run's {named} "
                      + ("is left out here, until a baseline has it" if len(added) == 1 else
                         "are left out here, until a baseline has them"))
     # a run from before the check: none of it failed it. Never one by code: those are made of every answer each time
