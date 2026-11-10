@@ -145,6 +145,14 @@ API: `wcl-api.md`.
   way and Warcraft Logs' list can't say which phase a note's `ph:2` is. Neither can it for a number the list has
   no phase for (the addon counts Nek'zali 1, 1.5, 1.75, 2; the log has Stage One, the intermission and Stage Two).
   The check counts such lines as not checked and times none of them.
+- Whether a note's order of soak callouts is the order the groups soak in depends on how far apart it calls them.
+  The two recorded Twin Fangs notes (October 2026) call their three groups 2 s apart, and of the 185 hits that who
+  was hit gave to a group over the two nights, 182 landed within 0.5 s of that group's callout; the other three
+  came as pulls fell apart (two on every living player of all three groups, one in the first group's turn on four
+  players of the other two). The Sszorak note calls its two sides at the same second or 1 s apart and the side that
+  soaks first varies: the callout nearest to a hit was the other side's on 100 of 168 hits. So the check reads a
+  turn from the note only where its groups are called 1.5 s or more apart, and only on a pull whose clear soaks
+  each landed in their group's turn.
 - `wowhead guide-full <boss guide url>` (the url from `wowhead guides raids "<boss>"`; the row's title says
   "Raid Boss Guide" or "Raid Guide ... Boss Cheat Sheet") has the boss's abilities in `linked_entities` (73 spells
   for the Coiled Altar) and the strategy in `body.section_chunks[*]` (9k chars of text for Sszorak: the cheat

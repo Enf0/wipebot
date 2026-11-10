@@ -74,9 +74,9 @@ async def test_the_recorded_twin_fangs_soaks_read_right_left_center_on_every_pul
     assert firsts == {("Right", "Left", "Center"): 35}
     labels = Counter(h.label for c in night.checks for s in c.soaks for h in s.hits)
     # 57 waves before a wipe was decided, each group in each; as wipes were decided, two hits on one player and on
-    # two of the Left group and two of the Center, two on every living player of all three groups, and one on
-    # three Center players at the Right group's time (test_note_soak_turns.py)
-    assert labels == {"Right": 57, "Left": 57, "Center": 58, "": 4}
+    # two of the Left group and two of the Center, two on every living player of all three groups, and one in the
+    # Right group's turn that none of its players stood in (test_note_soak_turns.py)
+    assert labels == {"Right": 58, "Left": 57, "Center": 57, "": 4}
 
 
 async def test_a_hit_far_from_every_soak_callout_is_no_groups_soak():

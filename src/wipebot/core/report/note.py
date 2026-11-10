@@ -49,6 +49,14 @@ OUTSIDE, UNCLEAR, SEVERAL = "outside the note's soak times", "can't tell whose s
 NO_GROUP = {OUTSIDE: f"outside the note's soak times (no group called within {SOAK_CALL_MS // 1000} s of them)",
             UNCLEAR: "where the log can't tell whose soak it was (a player or two of a group hit, or as many of two)",
             SEVERAL: "on most of the living players of two or more groups at once, so no one group's soak"}
+# Groups the note calls to soak this far apart or more soak in turn, and a hit that landed in a group's turn (nearest
+# its callout) is that group's soak. On the two recorded Twin Fangs nights the notes call their groups 2 s apart,
+# and of the 185 hits that who was hit gave to a group, 182 landed within 0.5 s of that group's callout; the other
+# three came as pulls fell apart (`SEVERAL`, `_in_turn`). Sszorak's note calls its two sides 0 or 1 s apart and the
+# side that soaks first varies (the nearest callout was the other side's on 100 of 168 hits): there only who was
+# hit says whose soak it was.
+IN_TURN_MS = 1_500
+BY_TURN = "the hit had most of no group's living players"
 SOAKS_ARE = f"given to the group called to soak within {SOAK_CALL_MS // 1000} s of it with most of its players hit"
 CALL_BEFORE_MS, CALL_AFTER_MS = 3_000, 5_000  # a callout is answered this close to its time
 # A planned cooldown not cast this close before the wipe was decided is said to be: the raid was already falling
@@ -323,6 +331,7 @@ class SoakHit:
     others: list[tuple[str, str | None]]  # (player hit from outside the group, their groups if any)
     why: str = ""  # OUTSIDE, UNCLEAR or SEVERAL
     near: dict[str, int] = field(default_factory=dict)  # of a hit given to none: the groups called then, players hit
+    by_turn: bool = False  # given to the group whose turn it landed in, not by who was hit (`_in_turn`)
 
 
 @dataclass
@@ -1035,7 +1044,8 @@ def _pull_soaks(rep: Report, soaks: list[Soaks], until: float, asked: Asked | No
             for n in h.group:
                 took[(n, h.label)] += n in h.hit
                 alive[(n, h.label)] += n in h.hit or (n, "alive") in h.absent
-            line = f"  {clock(h.at)} {h.label}: {len(h.hit & set(h.group))} of {len(h.group)} hit, {short(h.size)} each"
+            line = (f"  {clock(h.at)} {h.label}{f' (its turn in the note; {BY_TURN})' if h.by_turn else ''}: "
+                    f"{len(h.hit & set(h.group))} of {len(h.group)} hit, {short(h.size)} each")
             if asked:
                 own = ([f"not hit ({st})" for n, st in h.absent if n in asked]
                        + [f"hit, from outside the group ({g})" if g else "hit, in no group" for n, g in h.others
@@ -1190,6 +1200,8 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
             size = sorted(e.get("amount", 0) + e.get("absorbed", 0) for e in burst)[len(burst) // 2]
             label, why, near = _whose(hit, at, members, calls, lambda n, at=at: state(n, at) == "alive")
             section.hits.append(_given(SoakHit(at, "", [], hit, size, [], [], why, near), label, members, owner, state))
+        for h, turn in _in_turn(section.hits, calls):
+            _given(h, turn, members, owner, state).by_turn = True
         out.append(section)
     return out
 
@@ -1200,6 +1212,35 @@ def _given(h: SoakHit, label: str, members: dict[str, list[str]], owner: Mapping
     h.absent = [(n, state(n, h.at)) for n in h.group if n not in h.hit]
     h.others = [(n, "/".join(owner[n]) or None) for n in sorted(h.hit - set(h.group))] if label else []
     return h
+
+
+def _turn(at: float, calls: dict[str, list[float] | None]) -> str:
+    """The group whose turn a hit landed in, where the note calls the section's groups to soak in turn: of the
+    groups called within SOAK_CALL_MS of the hit, each IN_TURN_MS or more from the next, the one called nearest to
+    it. '' where the note calls them together, calls one alone, or leaves a group of the section untimed."""
+    if any(times is None for times in calls.values()):
+        return ""
+    called = {label: min(times, key=lambda t: abs(t - at)) for label, times in calls.items() if times}
+    called = {label: t for label, t in called.items() if abs(t - at) <= SOAK_CALL_MS}
+    times = sorted(called.values())
+    if len(times) < 2 or any(b - a < IN_TURN_MS for a, b in itertools.pairwise(times)):
+        return ""
+    return min(called, key=lambda label: abs(called[label] - at))
+
+
+def _in_turn(hits: list[SoakHit], calls: dict[str, list[float] | None]) -> list[tuple[SoakHit, str]]:
+    """The hits of a pull that are another group's soak than the one with most players hit, with that group: where
+    the note calls the groups in turn (`_turn`), a hit with half or fewer of that group's living players in it
+    which landed in another group's turn. Only on a pull that shows the note's turns are timed right: every hit of
+    it with most of a group's living players landed in that group's turn. So a note a turn off moves nothing."""
+    def most(h: SoakHit) -> bool:
+        got = len(h.hit & set(h.group))
+        return got > sum(st == "alive" for _, st in h.absent)
+    turns = [(h, _turn(h.at, calls)) for h in hits if h.label]
+    clear = [turn == h.label for h, turn in turns if turn and most(h)]
+    if not clear or not all(clear):
+        return []
+    return [(h, turn) for h, turn in turns if turn and turn != h.label and not most(h)]
 
 
 async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,  # noqa: PLR0913
@@ -1713,6 +1754,8 @@ def _night_soaks(rep: Report, checks: list[PullCheck],  # noqa: C901, PLR0912, P
             out.append("  Hit by another group's soak too: " + ", ".join(f"{n} {k}" for n, k in _by_count(other)))
         out += [f"  Counted for no one: {plural(len(at), 'hit')} {NO_GROUP[why]}: {_pulls(rep, at)}"
                 for why, at in no_group.items()]
+        if turned := [(c.f, h.at) for c, s in sections for h in s.hits if h.by_turn]:
+            out.append(f"  Given to the group whose turn it was in the note ({BY_TURN}): {_pulls(rep, turned)}")
         out += _untimed([s for _, s in sections])
         if line := _few_soaks(took, alive):
             out.append(line)

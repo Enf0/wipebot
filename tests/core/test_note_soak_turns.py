@@ -1,5 +1,6 @@
-"""Whose soak a hit was when who was hit doesn't say (report/note.py, `_whose`): a hit on several groups at once is
-no group's. On made-up pulls and on the recorded nights."""
+"""Whose soak a hit was when who was hit doesn't say (report/note.py, `_whose` and `_in_turn`): a hit on several
+groups at once is no group's, and where the note calls its groups in turn, a hit with most of no group's living
+players in it is the soak of the group whose turn it landed in. On made-up pulls and on the recorded nights."""
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -14,7 +15,7 @@ RIGHT, LEFT = ["Torvek", "Mirelle", "Halvard", "Rowan"], ["Brightleaf", "Stonewa
 CENTER = ["Thessaly", "Garrick", "Linnea", "Osric", "Wynne", "Aldous"]
 GROUPS = {"Right": RIGHT, "Left": LEFT, "Center": CENTER}
 REP = cast(Any, SimpleNamespace(ability_ref=lambda spell: f"Feast [{spell}]", pull_no=lambda f: f["id"]))
-FIRST_WAVE = {61_200: RIGHT, 63_200: LEFT, 64_700: CENTER}  # each group at its callout
+FIRST_WAVE = {61_200: RIGHT, 63_200: LEFT, 64_700: CENTER}  # each group in its turn, as the note calls them
 
 
 @pytest.fixture
@@ -101,6 +102,61 @@ async def test_two_groups_that_share_players_are_not_both_hit_by_a_hit_on_one():
     assert section.hits[1].absent == [] and section.hits[0].absent == []
 
 
+async def test_a_hit_in_a_groups_turn_with_most_of_no_group_in_it_is_that_groups_soak():
+    """Pull 21 of p7jRwgv8b1rY6LBd at 2:02: the note calls Right at 2:02, Left at 2:04 and Center at 2:06, and the
+    landing at 2:02.2 hit three of Center's six living players, one of Left's and none of Right's. By count it was
+    Center's: three players who stood in it were charged a miss and Right's four, who weren't there, none."""
+    plan = _note({"Right": (61, 122), "Left": (63, 124), "Center": (65, 126)})
+    dead = {"Torvek": 110_000, "Mirelle": 110_000}
+    landings = FIRST_WAVE | {122_200: ["Brightleaf", "Thessaly", "Garrick", "Linnea"]}
+    section = await _soaks(plan, landings, dead)
+    last = section.hits[-1]
+    assert (last.label, last.by_turn, last.why) == ("Right", True, "")
+    assert last.absent == [("Torvek", "dead since 1:50"), ("Mirelle", "dead since 1:50"), ("Halvard", "alive"),
+                           ("Rowan", "alive")]
+    assert last.others == [("Brightleaf", "Left"), ("Garrick", "Center"), ("Linnea", "Center"), ("Thessaly", "Center")]
+    assert not any(h.by_turn for h in section.hits[:3])
+    assert note._pull_soaks(REP, [section], 600_000)[-1] == (
+        "  2:02 Right (its turn in the note; the hit had most of no group's living players): 0 of 4 hit, 300.00k "
+        "each; not hit: Torvek (dead since 1:50), Mirelle (dead since 1:50), Halvard (alive), Rowan (alive); also "
+        "hit: Brightleaf (Left), Garrick (Center), Linnea (Center), Thessaly (Center)")
+    night = note._night_soaks(REP, cast(Any, [SimpleNamespace(f={"id": 1}, soaks=[section])]))
+    assert night[1:3] == ["  Halvard (Right): hit by 1 of 2; missed 1: p1 2:02",
+                          "  Rowan (Right): hit by 1 of 2; missed 1: p1 2:02"]
+    assert night[-1] == ("  Given to the group whose turn it was in the note (the hit had most of no group's living "
+                         "players): p1 2:02")
+    # most of Center's living players in it: theirs by who was hit, whatever the turn (they soaked early)
+    section = await _soaks(plan, FIRST_WAVE | {122_200: CENTER[:4]}, dead)
+    assert (section.hits[-1].label, section.hits[-1].by_turn) == ("Center", False)
+
+
+async def test_the_notes_turns_move_nothing_on_a_pull_that_doesnt_show_them_timed_right():
+    """The turn a hit landed in is the group called nearest to it, which holds only if the note's times are right.
+    A pull whose clear soaks each landed in their group's turn shows they are; one where a clear soak landed in
+    another group's turn (a note a turn off), or with no clear soak, leaves every hit to who was hit."""
+    half = {122_200: ["Brightleaf", "Thessaly", "Garrick", "Linnea"]}
+    late = _note({"Right": (63, 124), "Left": (65, 126), "Center": (67, 128)})  # every call one turn late
+    section = await _soaks(late, FIRST_WAVE | half)
+    assert [(h.label, h.by_turn) for h in section.hits] == [("Right", False), ("Left", False), ("Center", False),
+                                                            ("Center", False)]
+    section = await _soaks(_note({"Right": (61, 122), "Left": (63, 124), "Center": (65, 126)}), half)
+    assert [(h.label, h.by_turn) for h in section.hits] == [("Center", False)]
+
+
+async def test_groups_called_together_have_no_turns():
+    """Sszorak's note calls its two sides at the same second or a second apart, and the side that soaks first
+    varies: the group called nearest to a hit says nothing there. Half a side's living players hit is that side's
+    soak, as before, though the other side was called a second nearer to it."""
+    sides = {"Left": [*RIGHT, *LEFT], "Right": CENTER}
+    plan = _note({"Left": (11, 57), "Right": (11, 58)}, sides)
+    section = await _soaks(plan, {8_000: sides["Left"], 16_000: sides["Right"], 59_000: sides["Left"][:4]})
+    assert [(h.label, h.by_turn) for h in section.hits] == [("Left", False), ("Right", False), ("Left", False)]
+    assert note._turn(59_000, {"Left": [11_000, 57_000], "Right": [11_000, 58_000]}) == ""
+    assert note._turn(122_200, {"Right": [122_000], "Left": [124_000], "Center": [126_000]}) == "Right"
+    assert note._turn(122_200, {"Right": [122_000], "Left": [124_000], "Center": None}) == ""  # one never timed
+    assert note._turn(122_200, {"Right": [122_000], "Left": [300_000]}) == ""  # one called alone
+
+
 async def test_the_recorded_nights_hits_as_their_wipes_were_decided(recorded):
     """The three hits of p7jRwgv8b1rY6LBd that were given to Center, the largest group, as pulls fell apart, and
     the one of fvkH4hGZwDRVnyXJ on all 18 players of the groups, which read "can't tell whose soak"."""
@@ -109,20 +165,33 @@ async def test_the_recorded_nights_hits_as_their_wipes_were_decided(recorded):
     night = await note.check_night(rep, text, "Twin Fangs")
     hits = {(rep.pull_no(c.f), h.at // 1000): h for c in night.checks for s in c.soaks for h in s.hits}
     assert {k: len(h.hit) for k, h in hits.items() if h.why == note.SEVERAL} == {(5, 122): 11, (21, 124): 14}
+    assert [k for k, h in hits.items() if h.by_turn] == [(21, 122)]
+    turned = hits[(21, 122)]
+    assert turned.label == "Right" and not turned.hit & set(turned.group)
+    assert sorted(n for n, st in turned.absent if st == "alive") == ["Cptola", "Enfo", "Krøpling", "Namsus"]
+    assert turned.others == [("Attractîv", "Left"), ("Draiman", "Center"), ("Nexsozz", "Center"),
+                             ("Slushmania", "Center")]
+    # every other hit given to a group landed in that group's turn, within half a second of its callout
+    calls = {"Right": (61, 122, 216, 277, 371, 432), "Left": (63, 124, 218, 279, 373, 434),
+             "Center": (65, 126, 220, 281, 375, 436)}
+    given = [h for h in hits.values() if h.label and not h.by_turn]
+    assert len(given) == 171
+    assert all(min(abs(h.at / 1000 - t) for t in calls[h.label]) < 0.5 for h in given)
     earlier = (TOOLS.parent / "notes" / "twin-fangs-2026-10-19.txt").read_text(encoding="utf-8")
     rep = await server.lib().report("fvkH4hGZwDRVnyXJ")
     night = await note.check_night(rep, earlier, "Twin Fangs")
     hits = {(rep.pull_no(c.f), h.at // 1000): h for c in night.checks for s in c.soaks for h in s.hits}
     assert {k: h.near for k, h in hits.items() if h.why == note.SEVERAL} == {
         (6, 65): {"Left": 6, "Right": 6, "Center": 6}}
+    assert not any(h.by_turn for h in hits.values())
 
 
 async def test_the_recorded_sszorak_and_coiled_altar_nights_have_no_such_hit(recorded):
     """Sszorak's note calls its sides together and the Coiled Altar's one group at a time: no hit of either night
-    is on several groups at once."""
+    is on several groups at once or given by a turn."""
     for code, boss, name in (("vjt3KLbN8g62J1H9", "Sszorak", "sszorak-2026-10-12"),
                              ("fk2z6bCw4xRLNvht", "Coiled Altar", "coiled-altar-2026-11-02")):
         text = (TOOLS.parent / "notes" / f"{name}.txt").read_text(encoding="utf-8")
         night = await note.check_night(await server.lib().report(code), text, boss)
         hits = [h for c in night.checks for s in c.soaks for h in s.hits]
-        assert hits and not any(h.why == note.SEVERAL for h in hits)
+        assert hits and not any(h.by_turn or h.why == note.SEVERAL for h in hits)
