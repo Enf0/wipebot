@@ -28,6 +28,8 @@ vashnik-summary = { tool = "pull_summary", report = "kTMfFRQ324Hvx6G7", boss = "
 altar-summary = { tool = "pull_summary", report = "8TcXMAP2gHQGr9pW", boss = "The Coiled Altar", pull = 1 }
 timeline = { tool = "pull_timeline", report = "KBYT4xXn7VNjDgh8", pull = 13 }
 timeline-window = { tool = "pull_timeline", report = "KBYT4xXn7VNjDgh8", pull = 13, start = "2:25", end = "2:40" }
+# only one player's casts in a window, a row each to the millisecond
+timeline-player = { tool = "pull_timeline", report = "KBYT4xXn7VNjDgh8", pull = 13, player = "Scopidruid", start = "0:30", end = "0:50" }
 death-recap = { tool = "death_recap", report = "KBYT4xXn7VNjDgh8", player = "Scopidruid", pull = 13 }
 # no killing blow: thrown off the platform, by where they were last logged
 death-recap-thrown = { tool = "death_recap", report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13 }

@@ -10,6 +10,7 @@ from ..knowledge import KnowledgeError
 from ..pulls import DIFFICULTIES, is_reset, phase_health, phase_label
 from ..text import clock, ids_line, ordinal, parse_clock, plural, ranges, short
 from ..wcl import WCL, WCLError
+from . import rows
 from .adds import ADD_GROUP_MS, add_wave, boss_units, interruptible_casts
 from .base import (
     PARTNER_DEATH_MS,
@@ -156,15 +157,19 @@ class Found:
 
 
 async def pull_timeline(rep: Report, pull: PullRef = None, boss: str | None = None, start: str | None = None,
-                        end: str | None = None) -> str:
+                        end: str | None = None, ability: str | None = None, player: str | None = None) -> str:
     """One pull in time order: phases, the boss's casts and buffs, its debuffs on players (how many each time),
-    deaths with players alive, Bloodlust, battle res and raid cooldowns, and raid damage taken over time."""
+    deaths with players alive, Bloodlust, battle res and raid cooldowns, and raid damage taken over time. With
+    `ability` or `player`, only that ability's events or that player's casts, a row each (`_only`)."""
     f = rep.fight(pull, boss)
     t0 = f["startTime"]
     lo = t0 + (_at_time(start) if start else 0)
     hi = min(f["endTime"], t0 + _at_time(end)) if end else f["endTime"]
     if hi <= lo:
         raise FactError("the window's end must be after its start")
+    window = f", {clock(lo - t0)}-{clock(hi - t0)}" if start or end else ""
+    if ability or player:
+        return await _only(rep, f, lo, hi, window, ability, player)
     # Every source at once: what several read (the enemies' casts, the deaths) is fetched once.
     found, resources, damage = await asyncio.gather(
         asyncio.gather(*(_run(source, what, rep, f) for source, what in TIMELINE_SOURCES)),
@@ -175,18 +180,65 @@ async def pull_timeline(rep: Report, pull: PullRef = None, boss: str | None = No
     for at, _, _, text in events:
         if lo <= at <= hi:
             by_second[int((at - t0) // 1000)].append(text)
-    window = f", {clock(lo - t0)}-{clock(hi - t0)}" if start or end else ""
-    lines = [f"{rep.label(f)} timeline{window} ({rep.url(f)}). Ended at {clock(f['endTime'] - t0)} with "
-             f"{boss_left(f)}." + (" KILL." if f["kill"] else "")]
-    rows = [f"{clock(sec * 1000)} " + "; ".join(texts) for sec, texts in sorted(by_second.items())]
-    if len(rows) > TIMELINE_MAX_LINES:
-        rows = rows[:TIMELINE_MAX_LINES] + [f"... {len(rows) - TIMELINE_MAX_LINES} more lines: ask for a "
-                                            "narrower window with start and end"]
+    seconds = [f"{clock(sec * 1000)} " + "; ".join(texts) for sec, texts in sorted(by_second.items())]
+    if len(seconds) > TIMELINE_MAX_LINES:
+        seconds = seconds[:TIMELINE_MAX_LINES] + [f"... {len(seconds) - TIMELINE_MAX_LINES} more lines: ask for a "
+                                                  "narrower window with start and end"]
     ids: dict[str, int] = {}
     for part in found:
         for name, i in part.ids.items():
             ids.setdefault(name, i)
-    return "\n".join([*lines, *rows, *(n for part in found for n in part.notes), *resources, damage, ids_line(ids)])
+    return "\n".join([_timeline_head(rep, f, window), *seconds, *(n for part in found for n in part.notes),
+                      *resources, damage, ids_line(ids)])
+
+
+def _timeline_head(rep: Report, f: dict, of: str) -> str:
+    """'Sszorak pull 13 timeline, 2:25-2:40 (link). Ended at 2:42 with the boss at 62.59% health.'; `of` is the
+    window and what the timeline is narrowed to."""
+    return (f"{rep.label(f)} timeline{of} ({rep.url(f)}). Ended at {clock(f['endTime'] - f['startTime'])} with "
+            f"{boss_left(f)}." + (" KILL." if f["kill"] else ""))
+
+
+async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability: str | None,
+                player: str | None) -> str:
+    """A pull's timeline narrowed to one ability, to one player's casts, or to one ability by or on one player:
+    each logged event a row with its time to the millisecond (rows.py), counted, the first TIMELINE_MAX_LINES of
+    them. Of an ability: its casts (the enemies' and the players'), its hits on players and their pets, its debuff
+    going on and off players, its buff on the boss, and the deaths it dealt. Of a player: every cast they and their
+    pets began or finished. What the plain timeline reads is in hand after it; an ability's hits are one more
+    request for each of its ids."""
+    p = rep.player(player) if player else None
+    if p:
+        rep.require_in(f, p)
+    ids = sorted(rep.ability_ids(ability)) if ability else []
+    fid = f["id"]
+    if ability:
+        *logged, deaths = await asyncio.gather(
+            rep.events(fid, "Casts", hostilityType="Enemies"), rep.events(fid, "Casts"),
+            rep.events(fid, "Debuffs", hostilityType="Friendlies"), rep.boss_buffs(f),
+            *(rep.events(fid, "DamageTaken", hostilityType="Friendlies", abilityID=i) for i in ids), rep.deaths(f))
+        events = [e for part in logged for e in part if e.get("abilityGameID") in ids]
+        events += [d for d in deaths if d.get("killingAbilityGameID") in ids]
+        name = " and ".join(sorted({rep.ability(i) for i in ids}))
+        if p:
+            events = [e for e in events if p.id in (rep.owner(e.get("sourceID", 0)), rep.owner(e.get("targetID", 0)))]
+        only = f"{name} by or on {p.name}" if p else name
+        what = (f"What the log has of {only} (its casts, its hits on players and their pets, its debuff going on "
+                "and off players, its buff on the boss, the deaths it dealt)")
+        nothing = f"Nothing of {only} is logged"
+    else:
+        assert p is not None
+        events = [e for e in await rep.events(fid, "Casts") if rep.owner(e.get("sourceID", 0)) == p.id]
+        only = f"{p.name}'s casts"
+        what = f"Every cast {p.name} and their pets began or finished"
+        nothing = f"No cast of {p.name}'s is logged"
+    events = sorted((e for e in events if lo <= e["timestamp"] <= hi), key=lambda e: e["timestamp"])
+    head = _timeline_head(rep, f, f"{window}, only {only}")
+    if not events:
+        return f"{head}\n{nothing} in this {'window' if window else 'pull'}."
+    listed = rows.listed(rep, events, rows.in_short, most=TIMELINE_MAX_LINES)
+    more = ["For the rows left out, ask for a narrower window with start and end."] if listed.left_out else []
+    return "\n".join([head, f"{what}: {plural(len(events), 'event')}{listed.where}.", *listed.lines, *more])
 
 
 async def _run(source, what: str, rep: Report, f: dict) -> Found:

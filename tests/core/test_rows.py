@@ -34,6 +34,15 @@ def test_a_row_names_the_moment_the_kind_and_who_did_what_to_whom(rep):
     assert death == "0:19.000 death: Nalaxd; killer Boss, killingAbility Tempest"
 
 
+def test_a_row_in_short_holds_what_a_raider_reads_off_an_event(rep):
+    cast, hit, tick, stack, _, death = (rows.row(rep, e, T0, rows.in_short) for e in _events())
+    assert cast == "0:15.250 cast: Boss → Tempest"
+    assert hit == "0:16.498 damage: Boss → Tempest → Nalaxd; 104.70k (1.06k absorbed, overkill 12.72k)"
+    assert tick == "0:17.498 damage: Boss → Tempest → Pomaa; 20.30k (a tick)"
+    assert stack == "0:18.000 applydebuffstack: Boss → Virulence → Pomaa; stack 3"
+    assert death == "0:19.000 death: Nalaxd; killing blow Tempest"
+
+
 def test_an_ability_logged_under_several_ids_is_told_apart_by_its_id(rep):
     """One cast logged under two ids of one name read as the same event twice."""
     events = _events()
@@ -50,6 +59,9 @@ def test_events_are_counted_by_code_and_a_list_cut_to_its_first_rows_says_what_w
     assert rows.counted(rep, events) == ("Counted: 2 damage, 1 cast, 1 applydebuffstack, 1 applydebuff, 1 death; "
                                          "by ability: Tempest 3, Virulence 2; from: Boss 5; on: Pomaa 3, Nalaxd 2.")
     assert not rows.listed(rep, events).lines[0].startswith("Counted")  # few enough to count by eye
+    # of each count the most common are named, the rest summed
+    on_nine = [{**events[1], "targetID": player} for player in list(rep.names)[:9]]
+    assert rows.counted(rep, on_nine).endswith(" and 1 more (1 event).")
     cut = rows.listed(rep, events, most=4)
     assert cut.left_out == 2 and cut.lines[0].startswith("Counted: 2 damage, ") and len(cut.lines) == 7
     assert cut.lines[-2] == "… 2 more events left out, the last at 0:19.000: the counts above are of all 6."

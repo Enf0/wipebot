@@ -1,14 +1,14 @@
-"""Logged events as rows, for the tools that list events one by one (wcl_query's event lists): when in the pull,
-what kind of event, who, which ability and on whom, by name; then whatever else the event holds. Counting them is
-code's too (`counted`), so nobody adds rows up by eye, and a list too long to show is cut and says how much of it
-was left out (`listed`)."""
+"""Logged events as rows, for the tools that list events one by one (pull_timeline for one ability or player,
+wcl_query's event lists): when in the pull, what kind of event, who, which ability and on whom, by name; then
+whatever else the event holds. Counting them is code's too (`counted`), so nobody adds rows up by eye, and a list
+too long to show is cut and says how much of it was left out (`listed`)."""
 import json
 import math
 from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-from ..text import exact
+from ..text import exact, plural, short
 from .base import Report
 
 # What a row's head already says of an event.
@@ -75,9 +75,30 @@ def as_logged(rep: Report, e: dict) -> str:
     return ", ".join(out)
 
 
+def in_short(rep: Report, e: dict) -> str:
+    """What a raider reads off an event beyond its head: the amount ('104.70k (1.06k absorbed, overkill 12.72k)',
+    'a tick' for a periodic one), a stack count, and for a death what dealt the killing blow."""
+    out = []
+    if "amount" in e:
+        notes = [f"{short(e['absorbed'])} absorbed"] if e.get("absorbed") else []
+        notes += [f"overkill {short(e['overkill'])}"] if e.get("overkill") else []
+        notes += [f"{short(e['overheal'])} overhealing"] if e.get("overheal") else []
+        notes += ["a tick"] if e.get("tick") else []
+        out.append(short(e["amount"]) + (f" ({', '.join(notes)})" if notes else ""))
+    if e.get("stack"):
+        out.append(f"stack {e['stack']}")
+    if e.get("type") == "death":
+        blow = e.get("killingAbilityGameID")
+        out.append(f"killing blow {rep.ability(blow)}" if blow else rep.ability(blow))
+    if e.get("extraAbilityGameID"):
+        out.append(f"on {rep.ability(e['extraAbilityGameID'])}")
+    return ", ".join(out)
+
+
 def row(rep: Report, e: dict, t0: float, rest: Callable[[Report, dict], str] = as_logged,
         with_id: frozenset[str] = frozenset()) -> str:
-    """An event as one row: its head, then `rest` of it after a semicolon (`as_logged`: everything the log has)."""
+    """An event as one row: its head, then `rest` of it after a semicolon (`as_logged` for everything the log has,
+    `in_short` for what a raider reads)."""
     more = rest(rep, e)
     return head(rep, e, t0, with_id) + (f"; {more}" if more else "")
 
@@ -87,7 +108,7 @@ def _top(counts: Counter) -> str:
     shown = counts.most_common(COUNTED_TOP)
     rest = sum(counts.values()) - sum(n for _, n in shown)
     return ", ".join(f"{name} {n}" for name, n in shown) + (
-        f" and {len(counts) - len(shown)} more ({rest} events)" if rest else "")
+        f" and {len(counts) - len(shown)} more ({plural(rest, 'event')})" if rest else "")
 
 
 def counted(rep: Report, events: Iterable[dict]) -> str:

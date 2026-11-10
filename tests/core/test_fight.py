@@ -383,3 +383,15 @@ def test_the_boss_health_follows_the_boss_of_the_next_phase():
     assert track == [(0, 100), (160_000, 50), (167_000, 0), (175_000, 100), (230_000, 81)]
     assert fight._taken_over({121: [(0, 100), (240_000, 40)], 124: [(0, 100), (240_000, 60)]}, 121,
                              Counter({121: 9})) == [(0, 100), (240_000, 40)]  # a boss alive to the end stays
+
+
+async def test_the_deaths_an_ability_dealt_are_among_its_events_in_a_timeline_of_it(rep):
+    """The captured night has its deaths and no casts or hits: of an ability, the deaths it dealt are what is left."""
+    text = await fight.pull_timeline(rep, 13, "Sszorak", end="1:00", ability="Ula'tek's Presence")
+    lines = text.splitlines()
+    assert lines[0].startswith("Sszorak pull 13 timeline, 0:00-1:00, only Ula'tek's Presence (")
+    assert ": 1 event in Sszorak pull 13, times from the pull's start." in lines[1]
+    assert lines[2:] == ["0:48.031 death: Scopidruid; killing blow Ula'tek's Presence",
+                         "Ability ids: Ula'tek's Presence [1285965]"]
+    with pytest.raises(fight.FactError, match="the window's end must be after its start"):
+        await fight.pull_timeline(rep, 13, "Sszorak", start="1:00", end="0:30", ability="Tempest")

@@ -1,0 +1,41 @@
+Sszorak pull 13 timeline, 0:30-0:50, only Scopidruid's casts (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.
+Every cast Scopidruid and their pets began or finished: 37 events in Sszorak pull 13, times from the pull's start.
+Counted: 24 cast, 13 begincast; by ability: Wrath 25, Starsurge 4, Moonfire 2, Barkskin 1, Starfall 1, Solar Eclipse 1, Empowering Venom 1, Incarnation: Chosen of Elune 1 and 1 more (1 event); from: Scopidruid 37; on: Sszorak 19.
+0:30.196 cast: Scopidruid → Barkskin
+0:30.532 begincast: Scopidruid → Wrath
+0:30.905 begincast: Scopidruid → Wrath
+0:31.785 cast: Scopidruid → Wrath → Sszorak
+0:31.785 begincast: Scopidruid → Wrath
+0:32.675 cast: Scopidruid → Wrath → Sszorak
+0:32.809 cast: Scopidruid → Starfall
+0:33.855 cast: Scopidruid → Solar Eclipse
+0:34.368 cast: Scopidruid → Empowering Venom
+0:34.368 cast: Scopidruid → Incarnation: Chosen of Elune
+0:34.960 begincast: Scopidruid → Wrath
+0:34.960 cast: Scopidruid → Wrath → Sszorak
+0:35.704 begincast: Scopidruid → Wrath
+0:36.376 cast: Scopidruid → Wrath → Sszorak
+0:36.453 begincast: Scopidruid → Wrath
+0:37.134 cast: Scopidruid → Wrath → Sszorak
+0:37.202 cast: Scopidruid → Moonfire → Sszorak
+0:37.950 cast: Scopidruid → Sunfire → Sszorak
+0:38.723 begincast: Scopidruid → Wrath
+0:39.385 cast: Scopidruid → Wrath → Sszorak
+0:39.456 cast: Scopidruid → Starsurge → Sszorak
+0:40.229 cast: Scopidruid → Starsurge → Sszorak
+0:40.968 cast: Scopidruid → Starsurge → Sszorak
+0:41.710 begincast: Scopidruid → Wrath
+0:42.350 cast: Scopidruid → Wrath → Sszorak
+0:42.460 begincast: Scopidruid → Wrath
+0:43.290 cast: Scopidruid → Wrath → Sszorak
+0:43.290 begincast: Scopidruid → Wrath
+0:44.101 cast: Scopidruid → Wrath → Sszorak
+0:44.101 begincast: Scopidruid → Wrath
+0:44.946 cast: Scopidruid → Wrath → Sszorak
+0:44.946 cast: Scopidruid → Starsurge → Sszorak
+0:45.768 begincast: Scopidruid → Wrath
+0:46.601 cast: Scopidruid → Wrath → Sszorak
+0:46.602 begincast: Scopidruid → Wrath
+0:47.434 cast: Scopidruid → Wrath → Sszorak
+0:47.434 cast: Scopidruid → Moonfire → Sszorak
+Ability ids: Barkskin [22812], Empowering Venom [1293316], Incarnation: Chosen of Elune [102560], Moonfire [8921], Solar Eclipse [1233346], Starfall [191034], Starsurge [78674], Sunfire [93402], Wrath [190984]

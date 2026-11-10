@@ -599,6 +599,11 @@ async def pull_timeline(pull: Pull = None, boss: Boss = None,
                         start: Annotated[str | None, Field(description="window start, m:ss; omit for the pull "
                                                                        "start")] = None,
                         end: Annotated[str | None, Field(description="window end, m:ss; omit for the pull end")] = None,
+                        ability: Annotated[str | None, Field(description=(
+                            "only this ability, by its name or id: each logged event of it, a row each"))] = None,
+                        player: Annotated[str | None, Field(description=(
+                            "only this player's casts, a row each (character name as in the log); with `ability`, "
+                            "that ability by or on them"))] = None,
                         report: Report_ = None) -> str:
     """For "what happened at 2:31?", "when did we lust?", "where did the raid cooldowns go?" (start/end for a
     window).
@@ -607,8 +612,16 @@ async def pull_timeline(pull: Pull = None, boss: Boss = None,
     players and how many got each (per hit when one cast lands on several groups), a stacking debuff reaching its
     highest stacks, deaths with players alive, Bloodlust, battle res and self-res, raid cooldowns; then the boss's
     health and power bar (energy, rage) and raid damage taken over time. Shows what the boss did and what state it
-    was in, which deaths alone don't."""
-    return await fight.pull_timeline(await lib().report(report), pull, boss, start, end)
+    was in, which deaths alone don't.
+    With `ability` or `player`, the log's own events instead, a row each ("when exactly was X hit by Y?", "when
+    was Z cast, and on whom?", "what did X press between 2:10 and 2:25?"; in any log, a top player's by its link):
+    the time into the pull as m:ss.mmm, the kind (cast, begincast for the start of a cast bar, damage,
+    applydebuff, removedebuff, death), source → ability → target, a hit's amount; counted by kind, ability, source
+    and target, and the first 150 rows (start/end for the rest). Of an ability: its casts by enemies or players,
+    its hits on players, its debuff going on and off players, its buff on the boss, and the deaths it dealt. Of a
+    player: every cast they and their pets began or finished.
+    Not for who a mechanic hit most over a night (mechanic_hits) or a player's casts per spell (player_pull)."""
+    return await fight.pull_timeline(await lib().report(report), pull, boss, start, end, ability, player)
 
 
 @_tool
@@ -1877,7 +1890,8 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
     """Ask Warcraft Logs anything its API answers that no other tool shows: a ranking by item level bracket or past
     its first page, the players in one fight of another log, events of one kind through a filter expression, a
     character's or guild's data. The other tools are faster and know how to read a wipe; this is for the rest, and
-    spends the hour's Warcraft Logs points that every tool shares.
+    spends the hour's Warcraft Logs points that every tool shares. Not for one ability's events or one player's
+    casts in a pull (pull_timeline).
     With `query`: the answer with what it cost and the hour's points left, in parts when long; kept for 10 minutes,
     so its parts and a repeat cost nothing. With `schema_type`: that type's fields, their arguments and types, to
     write a query from. The roots: reportData { report(code) { fights, playerDetails, events, table, rankings,

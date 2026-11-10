@@ -27,7 +27,7 @@ from tests.support.recorded import (
     serve_from,
 )
 from wipebot.core import server
-from wipebot.core.report import maps
+from wipebot.core.report import fight, maps
 from wipebot.core.report import note as notes
 from wipebot.core.text import clock
 
@@ -217,3 +217,63 @@ async def test_breakdown_takes_a_pull_by_name_as_the_other_tools_do(recorded):
     text, failed = await server.call("breakdown", {"report": "KBYT4xXn7VNjDgh8", "data_type": "DamageTaken",
                                                     "group_by": "ability", "pulls": ["best wipe"]})
     assert not failed and text.startswith("Damage taken on Sszorak pull 13")
+
+
+async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_millisecond(recorded, monkeypatch):
+    """When an ability was cast, whom it hit and for how much, which the model wrote raw queries for and converted
+    by hand. A pull's hits of an ability are recorded for the night's pulls at once (the mechanic-hits case), so
+    this pull's are read out of those."""
+    rep = await server.lib().report("KBYT4xXn7VNjDgh8")
+    night = [f["id"] for f in rep.by_boss["Sszorak"]]
+    table = await rep.table(21, "DamageTaken", hostilityType="Friendlies", viewBy="Ability")
+    damaging = {e["guid"] for e in table["entries"]}
+    asked = rep.events
+
+    async def events(fight_id, data_type, **filters):
+        if data_type != "DamageTaken" or "abilityID" not in filters:
+            return await asked(fight_id, data_type, **filters)
+        if filters["abilityID"] not in damaging:  # the id of the cast: the pull's table has no damage under it
+            return []
+        return [e for e in await asked(night, data_type, **filters) if e["fight"] == fight_id]
+    monkeypatch.setattr(rep, "events", events)
+    lines = (await fight.pull_timeline(rep, 13, "Sszorak", end="0:40", ability="tempest")).splitlines()
+    assert lines[0] == ("Sszorak pull 13 timeline, 0:00-0:40, only Tempest (https://www.warcraftlogs.com/reports/"
+                        "KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.")
+    assert lines[1] == ("What the log has of Tempest (its casts, its hits on players and their pets, its debuff going "
+                        "on and off players, its buff on the boss, the deaths it dealt): 26 events in Sszorak pull 13, "
+                        "times from the pull's start.")
+    assert lines[2] == ("Counted: 14 damage, 4 applydebuff, 4 removedebuff, 2 applydebuffstack, 1 begincast, 1 cast; "
+                        "by ability: Tempest 26; from: Sszorak 26; on: Sveini 8, Krøpling 6, Cptola 5, Dragepie 3, "
+                        "Deathadim 2.")
+    # the cast and its damage are logged under two ids of the one name, so each row says which
+    assert lines[3:6] == ["0:13.004 begincast: Sszorak → Tempest [1287072]",
+                          "0:15.341 applydebuff: Sszorak → Tempest [1287083] → Dragepie",
+                          "0:15.342 damage: Sszorak → Tempest [1287083] → Dragepie; 0 (334.76k absorbed)"]
+    assert "0:16.980 damage: Sszorak → Tempest [1287083] → Sveini; 258.01k (35.23k absorbed, a tick)" in lines
+    assert lines[-1] == "Ability ids: Tempest [1287072, 1287083]" and len(lines) == 3 + 26 + 1
+    # by or on one player; and a window with nothing of it
+    on_one = (await fight.pull_timeline(rep, 13, "Sszorak", end="0:40", ability="Tempest",
+                                        player="sveini")).splitlines()
+    assert on_one[0].startswith("Sszorak pull 13 timeline, 0:00-0:40, only Tempest by or on Sveini (")
+    assert ": 8 events in Sszorak pull 13" in on_one[1] and all(" → Sveini" in row for row in on_one[2:-1])
+    nothing = await fight.pull_timeline(rep, 13, "Sszorak", start="0:40", end="0:45", ability="Tempest")
+    assert nothing.splitlines()[1:] == ["Nothing of Tempest is logged in this window."]
+
+
+async def test_a_timeline_of_one_players_casts_is_cut_to_its_first_rows_and_counted_in_full(recorded):
+    text, failed = await server.call("pull_timeline", {"report": "KBYT4xXn7VNjDgh8", "pull": 13, "player": "Sveini"})
+    assert not failed
+    lines = text.splitlines()
+    events = re.search(r": (\d+) events in Sszorak pull 13, times from the pull's start\.$", lines[1])
+    total = int(events[1]) if events else 0
+    assert total > 150 and sum(" → " in line and line[0].isdigit() for line in lines) == 150
+    assert lines[2].startswith("Counted: ") and f"; from: Sveini {total}" in lines[2]
+    assert re.fullmatch(rf"… {total - 150} more events left out, the last at \d:\d\d\.\d{{3}}: the counts above are of "
+                        rf"all {total}\.", lines[-3])
+    assert lines[-2].startswith("Ability ids: ")
+    assert lines[-1] == "For the rows left out, ask for a narrower window with start and end."
+    # a player who wasn't in the pull, and an ability the report doesn't have, are refused with what there is
+    for args, error in (({"player": "Nobodyhere"}, "no single player matching"),
+                        ({"ability": "Tempst"}, "closest names: Tempest")):
+        with pytest.raises(ToolError, match=error):
+            await server.call("pull_timeline", {"report": "KBYT4xXn7VNjDgh8", "pull": 13, **args})
