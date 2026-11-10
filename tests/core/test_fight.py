@@ -11,6 +11,8 @@ from wipebot.core import server
 from wipebot.core.pulls import Decided, mass_hits
 from wipebot.core.report import fight
 from wipebot.core.report.ending import (
+    Ending,
+    MassDeath,
     card_text,
     ending,
     ending_ability,
@@ -312,6 +314,22 @@ async def test_what_lands_on_the_raid_as_a_pull_begins_did_not_end_a_pull_second
     assert (kind_of_end(e), lead(e)) == ("no death, the raid alive", "alive")
     assert ending_text(e) == ("Ended by: no death. The pull ended at 0:08 with 20 of 20 alive and nothing in the log "
                               "decided it: called off or reset, the log doesn't say which.")
+
+
+async def test_a_pull_gets_past_what_ended_earlier_pulls_not_past_pulls_nothing_ended(rep, monkeypatch):
+    # Three of the four pulls before this one ended with the raid alive: nothing in the log ended them, so a wipe
+    # to a hit didn't "get past" them. The same ending is still said of a pull that ended alive too.
+    f = rep.fight(5, "Sszorak")
+    alive = Ending("alive", 20, 120_000, alive_at_end=18)
+    earlier = [alive, alive, Ending("cascade", 20, 120_000, first_death_ms=30_000, half_dead_ms=90_000), alive]
+
+    async def endings(_, fights):
+        return earlier[:len(fights)]
+    monkeypatch.setattr(fight, "pull_endings", endings)
+    hit = Ending("moments", 20, 120_000, (MassDeath(60_000, "Venom Burst", (901,), 4, 1),))
+    assert await fight._same_ending(rep, f, hit) is None
+    assert await fight._same_ending(rep, f, alive) == (
+        "This pull ended the way 3 earlier pulls on Sszorak in this log did (pulls 1-2, 4): no death, the raid alive.")
 
 
 def test_a_cascade_starts_at_the_first_death_that_stayed(rep, deaths):

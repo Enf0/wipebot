@@ -23,7 +23,7 @@ from .base import (
     half_dead,
     unavailable,
 )
-from .ending import Ending, ending_text, kind_of_end, pull_ending, pull_endings, ruled_out
+from .ending import ALIVE, Ending, ending_text, kind_of_end, pull_ending, pull_endings, ruled_out
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -127,8 +127,9 @@ async def _same_ending(rep: Report, f: dict, ended: Ending | None) -> str | None
              for x, e in zip(earlier, await pull_endings(rep, earlier), strict=True)}
     this = kind_of_end(ended)
     same = [n for n, k in kinds.items() if k == this]
-    common, most = Counter(k for k in kinds.values() if k not in ("a reset", "a kill")).most_common(1)[0] \
-        if any(k not in ("a reset", "a kill") for k in kinds.values()) else ("", 0)
+    nothing = ("a reset", "a kill", ALIVE)  # no pull gets past these: nothing in the log ended them
+    common, most = Counter(k for k in kinds.values() if k not in nothing).most_common(1)[0] \
+        if any(k not in nothing for k in kinds.values()) else ("", 0)
     parts = []
     if same:
         parts.append(f"ended the way {plural(len(same), 'earlier pull')} on {f['name']} in this log did (pull"
