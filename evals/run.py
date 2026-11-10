@@ -237,6 +237,9 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
             client = mode != "bot"
             # the bot's own place for a channel ("in #raid"), or in a client, the asker's chat
             ctx = Context(where=IN_CLAUDE if client else case.get("where", "in #raid"), **given)
+            # asked from the report's own guild (its server in Discord, a member in a client): the tools read what
+            # that guild saved, which here is nothing
+            ctx.guild_id = (await library.report(case["report"])).guild_id or 0
             if case["kind"] == "posts":  # as the bot asks for a post: with the tool it starts from already run
                 ctx.prefetch = await post_prefetch(await library.report(case["report"]), case["boss"], case["pull"],
                                                    case.get("asker"), case.get("request", ""))

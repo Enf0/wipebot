@@ -34,6 +34,10 @@ class ServerSettings:
     wcl_region: str
     required_role_id: int | None = None  # role needed to chat with wipebot; None for anyone
     officer_role_id: int | None = None  # the officers' role (bot.is_officer); None: who can manage the server
+    # Whether the guild is this server's own: an admin who has a character in it among those they claimed on Warcraft
+    # Logs said so (/wipebot setup, signed in with /login). Their Discord id and when; None until one has.
+    verified_by: int | None = None
+    verified_at: float | None = None
 
     @classmethod
     def unset(cls, discord_guild_id: int) -> ServerSettings:
@@ -42,13 +46,23 @@ class ServerSettings:
 
     @property
     def set_up(self) -> bool:
-        """Whether it follows a guild on Warcraft Logs: its latest night, posts after wipes, raid notes."""
+        """Whether it follows a guild on Warcraft Logs: its latest night and posts after wipes."""
         return bool(self.wcl_guild_id)
+
+    def keeps_notes(self, shared: bool) -> bool:
+        """Whether what the guild keeps (raid notes and plans) is this server's to read and save: on a bot `shared`
+        by servers that don't know each other, only once the guild is verified as the server's own; on a host's own
+        bot, once it's set up."""
+        return self.set_up and (not shared or self.verified_at is not None)
 
 
 class LoginGuild(ServerSettings):
     """A server nobody set up, for a question from a raider signed in with /login: their guild stands in for setup,
     so its latest night is found by itself. Not saved, and it posts nothing after wipes (no server follows it)."""
+
+    def keeps_notes(self, shared: bool) -> bool:
+        """Never: a guild's notes are read and saved where it's set up."""
+        return False
 
 
 @dataclass
@@ -111,7 +125,8 @@ ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "offi
                  ("interactions", "wcl_points", "TEXT"), ("logins", "private_sealed", "TEXT"),
                  ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
                  ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
-                 ("logins", "guild", "TEXT")]
+                 ("logins", "guild", "TEXT"), ("server_settings", "verified_by", "INTEGER"),
+                 ("server_settings", "verified_at", "REAL")]
 
 
 class Store:
@@ -150,7 +165,9 @@ class Store:
                 wcl_server TEXT NOT NULL,
                 wcl_region TEXT NOT NULL,
                 required_role_id INTEGER,
-                officer_role_id INTEGER
+                officer_role_id INTEGER,
+                verified_by INTEGER,     -- the admin with a character in the guild who ran /wipebot setup signed in,
+                verified_at REAL         -- and when; NULL until one has (ServerSettings.verified_at)
             );
             CREATE TABLE IF NOT EXISTS interactions (
                 id INTEGER PRIMARY KEY,

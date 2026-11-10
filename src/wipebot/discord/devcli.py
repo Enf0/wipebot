@@ -47,7 +47,8 @@ async def chat(code: str, asker: str | None, pull: int | None, boss: str | None,
     library = server.configure(server.report_code(code))
     show_tools = True
     report = await library.report()
-    ctx = Context(asker=asker, pull=pull, boss=boss)
+    # the developer's own copy: asked as from a server of the report's guild, which reads what that guild saved
+    ctx = Context(asker=asker, pull=pull, boss=boss, guild_id=report.guild_id or 0)
     ctx.images = [(mimetypes.guess_type(f)[0] or "image/png", Path(f).read_bytes()) for f in images or []]
 
     async def remember(args: dict) -> str:  # for this run only: the bot keeps it in its database
@@ -67,12 +68,12 @@ async def chat(code: str, asker: str | None, pull: int | None, boss: str | None,
     if note:
         parsed = raid_notes.parse(Path(note).read_text(encoding="utf-8"))
         for n in parsed:
-            book.save_note(0, n.encounter_id, n.boss, n.text, note, at)
+            book.save_note(ctx.guild_id, n.encounter_id, n.boss, n.text, note, at)
         ctx.noted = [n.boss for n in parsed]
     if plan:
         given = raid_plans.parse(Path(plan).read_text(encoding="utf-8"))
         for p in given:
-            book.save_plan(0, p.boss, p.plan_id, p.name, p.export, plan, at)
+            book.save_plan(ctx.guild_id, p.boss, p.plan_id, p.name, p.export, plan, at)
         ctx.planned = list(dict.fromkeys(p.boss for p in given))
     if note or plan:
         ctx.notebook = book

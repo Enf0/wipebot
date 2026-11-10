@@ -453,6 +453,9 @@ class WipeBot(discord.Client):
     # ---------- starting and stopping ----------
 
     async def setup_hook(self) -> None:
+        # From here on, whatever the bot runs outside an asker's own scope (Context.reading) reads no guild's raid
+        # notes, plans or nights to come: every task it starts takes this with it.
+        server.reading_guilds(frozenset()).__enter__()
         self._syncing = asyncio.create_task(emojis.sync(self, self.icons))  # the first time, a minute
         self.add_dynamic_items(Act, Pick, FollowUp)  # the pictures' buttons and menus and the follow-ups, also old
         if not self.trying:
@@ -1117,6 +1120,9 @@ class WipeBot(discord.Client):
         if not member or not is_officer(s, member):
             await respond(message, f"Only officers save the raid note or plan: {officers(s)}.")
             return
+        if s.set_up and not s.keeps_notes(self.own_keys):  # the guild isn't shown to be this server's own
+            await respond(message, f"I didn't save that. {commands.notes_off(s)}")
+            return
         since = None
         if counts := commands.from_pull(message.content):
             pull, code = counts
@@ -1146,10 +1152,13 @@ class WipeBot(discord.Client):
         return getattr(getattr(self.get_channel(place), "guild", None), "id", None) == discord_guild_id
 
     def _raid_notes(self, s: ServerSettings) -> dict:
-        """Context's raid note and plan fields for a server: what its guild saved (an officer's paste)."""
+        """Context's raid note and plan fields for a server: what its guild saved (an officer's paste), where that's
+        the server's to read (ServerSettings.keeps_notes: a raider's own guild's are saved where it's set up, and on
+        a bot many servers share, a guild's only in a server verified as its own)."""
         book, guild = self.store.notebook, s.wcl_guild_id
-        if not s.set_up or isinstance(s, LoginGuild):  # a raider's own guild: its notes are saved where it's set up
-            return {"notebook": None, "guild_id": 0, "noted": [], "planned": []}
+        if not s.keeps_notes(self.own_keys):
+            off = commands.notes_off(s) if s.set_up and not isinstance(s, LoginGuild) else ""
+            return {"notebook": None, "guild_id": 0, "noted": [], "planned": [], "notes_off": off}
         return {"notebook": book, "guild_id": guild, "noted": [n.boss for n in book.latest_notes(guild)],
                 "planned": list(dict.fromkeys(p.boss for p in book.latest_plans(guild)))}
 

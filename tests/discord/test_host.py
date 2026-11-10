@@ -58,10 +58,10 @@ async def test_a_signed_in_askers_calls_read_warcraft_logs_with_their_token(monk
         read_as.append((wcl._user.get(), wcl.private_token()))
         return "ok", False, [], None
     monkeypatch.setattr(host, "tool_call", call)
-    tokens = (None, None, None)
-    tools = {t.name: t for t in await sdk_tools("R", wcl_token=lambda: tokens)}
+    asker = Context()
+    tools = {t.name: t for t in await sdk_tools("R", reading=lambda: asker.reading())}
     await tools["pull_summary"].handler({"pull": 13})
-    tokens = ("token-abc", "private-abc", None)
+    asker = Context(wcl_token="token-abc", wcl_private="private-abc")
     await tools["pull_summary"].handler({"pull": 13})
     assert read_as == [(None, None), ("token-abc", "private-abc")] and wcl._user.get() is None
     assert wcl.private_token() is None
@@ -469,7 +469,7 @@ async def test_with_only_the_connector_raid_notes_are_the_cores(monkeypatch):
         async def connect(self):
             pass
 
-    async def tools(code, on_result, guild, note, plan, wcl_token, asker):
+    async def tools(code, on_result, guild, note, plan, reading, asker):
         finders.append((note, plan))
         return []
 

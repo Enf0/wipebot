@@ -10,7 +10,9 @@ Only members with Manage Server see /wipebot (Discord enforces this), and server
 Server Settings > Integrations.
 """
 import datetime
+import logging
 import re
+import time
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -18,7 +20,7 @@ import discord
 import httpx
 from discord import app_commands
 
-from wipebot.core import server
+from wipebot.core import accounts, server
 from wipebot.core.accounts import parse_guild_link
 from wipebot.core.report import FactError
 from wipebot.core.report import note as notes
@@ -31,6 +33,7 @@ from .store import ServerSettings, Store
 if TYPE_CHECKING:
     from .bot import WipeBot
 
+log = logging.getLogger(__name__)
 MAX_NOTE_BYTES = 200_000  # a whole raid's note is some tens of kB; a plan's export a few
 # A paste the officer says counts from a pull ("from pull 7", Norwegian "fra pull 7"), and the report it's in.
 FROM_PULL = re.compile(r"\b(?:from|fra)\s+pull\s*#?(\d+)\b", re.I)
@@ -63,6 +66,47 @@ def save_pasted(store: Store, discord_guild_id: int, text: str, saved_by: str, a
     """A pasted raid plan or raid note saved for the server's guild (server.save_pasted); what was saved, for the
     officer. A paste that's neither, or a server not set up, raises FactError."""
     return server.save_pasted(store.notebook, _guild(store, discord_guild_id), text, saved_by, at, from_pull)
+
+
+# On a bot many servers share (config.own_keys), a server reads and saves what its guild keeps (raid notes and plans)
+# only once an admin has shown the guild is the server's own (`verify`). Until then, what it's told:
+NOTES_OFF = ("Raid notes and plans are off here until an admin shows that **{guild}** is this server's guild: one who "
+             "has a character in it among those they claimed on Warcraft Logs signs in with `/login`, then runs "
+             "`/wipebot setup`. Everything else works already.")
+NO_SIGN_IN = ("Raid notes and plans are off here: showing that **{guild}** is this server's guild takes a Warcraft "
+              "Logs sign-in, which whoever runs this bot hasn't set up. Everything else works already.")
+NOTES_ON = "Raid notes and plans are on here: one of the characters you claimed on Warcraft Logs is in **{guild}**."
+
+
+def notes_off(s: ServerSettings) -> str:
+    """Why a server on a shared bot keeps no raid notes or plans yet, and what turns them on."""
+    return (NOTES_OFF if logincmd.callback_url() else NO_SIGN_IN).format(guild=s.wcl_guild)
+
+
+async def verify(bot: WipeBot, s: ServerSettings, user_id: int) -> tuple[ServerSettings, str]:
+    """/wipebot setup on a bot many servers share: whether the admin who ran it shows the guild is the server's own.
+    They do when they're signed in with Warcraft Logs (/login) and one of the characters they claimed there is in the
+    guild, asked of Warcraft Logs now with their own token. The settings, verified and saved when so, and what to tell
+    the admin about raid notes and plans ("" where nothing changed: a host's own bot, or a server verified before)."""
+    if not bot.own_keys or not s.set_up or s.verified_at is not None:
+        return s, ""
+    if not logincmd.callback_url():
+        return s, notes_off(s)
+    if not (signed := bot.store.login(user_id)):
+        return s, notes_off(s) + " You aren't signed in yet."
+    try:
+        member = s.wcl_guild_id in await accounts.claimed_guilds(signed[1])
+    except accounts.AccountError as e:
+        log.warning("Warcraft Logs didn't say which guilds an admin's characters are in: %s", e)
+        return s, notes_off(s) + (" You're signed in, but Warcraft Logs didn't say which guilds your characters are "
+                                  "in: run `/wipebot setup` again in a few minutes.")
+    if not member:
+        return s, notes_off(s) + (" You're signed in, but none of the characters you claimed on Warcraft Logs is in "
+                                  "it.")
+    s = replace(s, verified_by=user_id, verified_at=time.time())
+    bot.store.save_settings(s)
+    log.info("server %s verified as its guild's own (Warcraft Logs guild %s)", s.discord_guild_id, s.wcl_guild_id)
+    return s, NOTES_ON.format(guild=s.wcl_guild)
 
 
 def describe_notes(store: Store, discord_guild_id: int) -> str:
@@ -107,10 +151,12 @@ async def find_wcl_guild(bot: WipeBot, link: str) -> tuple[dict | None, str]:
 def updated_settings(existing: ServerSettings | None, discord_guild_id: int, found: dict | None,
                      role_id: int | None, officer_role_id: int | None = None) -> ServerSettings:
     """A server's settings after /wipebot setup: what was given (`found`: the guild on Warcraft Logs) replaces
-    what's set, and the rest stays."""
+    what's set, and the rest stays. A link to another guild is no longer verified as the server's own."""
     if found:
         wcl = ServerSettings(discord_guild_id, found["id"], found["name"], found["server"]["slug"],
                              found["server"]["region"]["slug"].lower())
+        if existing and existing.wcl_guild_id == wcl.wcl_guild_id:  # the same guild, linked again
+            wcl = replace(wcl, verified_by=existing.verified_by, verified_at=existing.verified_at)
     elif existing:
         wcl = existing
     else:
@@ -305,8 +351,11 @@ def build(bot: WipeBot) -> app_commands.Group:
         gid = guild.id
         if not (link or role or officers or news or news_stop) and footer is None and steps is None \
                 and language is None:
-            await interaction.followup.send(overview(bot, gid), view=keycmd.KeyButtons(bot.store, gid, bot.own_keys),
-                                            ephemeral=True)
+            notes = ""
+            if (s := bot.store.settings(gid)) is not None:  # run again by a signed-in member: the guild is its own
+                _, notes = await verify(bot, s, interaction.user.id)
+            await interaction.followup.send(overview(bot, gid, notes),
+                                            view=keycmd.KeyButtons(bot.store, gid, bot.own_keys), ephemeral=True)
             return
         if language is not None and not server_language(language):
             await interaction.followup.send(NO_LANGUAGE, ephemeral=True)
@@ -331,7 +380,8 @@ def build(bot: WipeBot) -> app_commands.Group:
                 return
             bot.store.save_settings(settings)
             bot.settings_changed(gid)
-            told.append("wipebot is set up:\n" + describe(settings))
+            settings, notes = await verify(bot, settings, interaction.user.id)
+            told.append("wipebot is set up:\n" + describe(settings) + (f"\n{notes}" if notes else ""))
         told += server_options(bot.store, gid, footer, language, steps)
         preview = None
         if news or news_stop:
@@ -364,11 +414,14 @@ def news_channel(bot: WipeBot, guild: discord.Guild, channel: discord.TextChanne
         news.Post.from_json(saved).layout(bot.name) if saved else None)
 
 
-def overview(bot: WipeBot, discord_guild_id: int) -> str:
-    """/wipebot setup alone: what's left to do first, then how the server is set up."""
+def overview(bot: WipeBot, discord_guild_id: int, notes: str = "") -> str:
+    """/wipebot setup alone: what's left to do first, then how the server is set up. `notes`: what `verify` just
+    said about the server's raid notes and plans, when it said something. A server whose guild isn't verified as its
+    own is shown none of what the guild saved."""
     store, gid = bot.store, discord_guild_id
     s = store.settings(gid)
     connected = s is not None and s.set_up
+    keeps = s is not None and s.keeps_notes(bot.own_keys)
     todo = []
     if bot.own_keys and store.server_key_info(gid) is None:
         todo.append("Add an AI key with the button below: I answer only on a server's own key.")
@@ -376,9 +429,12 @@ def overview(bot: WipeBot, discord_guild_id: int) -> str:
         todo.append("Connect the guild: `/wipebot setup link:` with its page on warcraftlogs.com (open the guild "
                     "there and copy the address). Then I look at its latest raid by myself, post after wipes and "
                     "keep raid notes.")
+    elif s is not None and not keeps:
+        todo.append(notes or notes_off(s))
     parts = ["**To do:**\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(todo, 1))] if todo else []
     if s is not None and connected:
-        parts.append(describe(s) + "\n\n" + describe_notes(store, gid))
+        parts.append(describe(s) + ("\n\n" + (f"{notes}\n" if notes else "") + describe_notes(store, gid)
+                                    if keeps else ""))
     name = bot.user.name if bot.user else "the bot"
     parts.append("**AI key:** " + keycmd.status(store, gid, name, bot.own_keys))
     channel, language = store.news_channel(gid), store.language(gid)

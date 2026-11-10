@@ -15,7 +15,8 @@ import tempfile
 import time
 import warnings
 from collections import Counter
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Generator, Mapping, Sequence
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 
 from claude_agent_sdk import (
@@ -104,9 +105,12 @@ class Context:
     # pull_summary, which it would call first anyway), saving the model a turn
     prefetch: list[tuple[str, dict]] = field(default_factory=list)
     # raid_note and raid_plan: where the server's raid notes and plans are saved, and its guild's Warcraft Logs id
-    # they're saved under; None where none are kept (they take no note or plan from the model)
+    # they're saved under; None where none are kept (they take no note or plan from the model), with why when
+    # there's more to say than that this isn't Discord (`notes_off`: a server whose guild isn't verified as its own).
+    # The guild is also the one whose saved things the core's tools read for this asker (`reading`); 0: no guild's.
     notebook: Notebook | None = None
     guild_id: int = 0
+    notes_off: str = ""
     server_id: int = 0  # the Discord server whose settings it answers under, and who asked: what an answer cost
     user_id: int = 0  # is kept under them (store.spend); 0 for none
     env: dict | None = None  # what the session runs on when the server brought its own key (keys.ServerKey.env)
@@ -120,6 +124,18 @@ class Context:
     def tokens(self) -> tuple[str | None, str | None, str | None]:
         """What the asker's tool calls read with (wcl.reading_as) and the hint for a report they can't read."""
         return self.wcl_token, self.wcl_private, None if self.wcl_private else self.private_hint
+
+    @contextmanager
+    def reading(self) -> Generator[None]:
+        """Within it, the core's tools run as this asker and nobody else: Warcraft Logs is read with their own tokens
+        (signed in or not), a report they can't read is told with how they'd let Wipebot read it, and of what guilds
+        keep (raid notes, plans, the nights to come) only their server's guild's is read, or no guild's
+        (server.reading_guilds). Everything the bot does for one asker runs inside theirs: the tool calls, the
+        pictures and the buttons under them."""
+        token, private, hint = self.tokens()
+        guilds = frozenset({self.guild_id}) if self.guild_id else frozenset()
+        with wcl.reading_as(token, private), server.telling_unreadable(hint), server.reading_guilds(guilds):
+            yield
 
 
 SERVER = "wipebot"  # the tools' MCP server: the model calls mcp__wipebot__<tool>
@@ -339,7 +355,7 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                     guild: Callable[[], str | None] | None = None,
                     note: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
                     plan: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
-                    wcl_token: Callable[[], tuple[str | None, str | None, str | None]] | None = None,
+                    reading: Callable[[], AbstractContextManager[None]] | None = None,
                     asker: Callable[[], str | None] | None = None) -> list:
     """The core's MCP tools, wrapped for the Agent SDK's in-process server. Tools that take a report get `code`
     when the model names none, so sessions about different servers' reports don't mix. `on_result` gets every
@@ -347,8 +363,9 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
     guild, or for that guild by name alone, gets the guild's name, realm and region. With `note`, raid_note
     takes no note from the model: `note` finds the saved one for the call's pull, (note, where it's from), or says
     why there's none. `plan` does the same for raid_plan (where it's from may be "": the plan's text says).
-    `wcl_token` gives the asker's Warcraft Logs token, which a call reads with, so their own points pay first, their
-    token that reads their private reports, and how they'd let Wipebot read them (server.telling_unreadable).
+    `reading` gives what a call runs inside (Context.reading: the asker's Warcraft Logs tokens, so their own points
+    pay first and their private reports are read, and the guild whose saved things they read); without it, a call
+    runs as an asker who isn't signed in and reads no guild's.
     `asker` gives the asker's character, whose row a picture rings."""
     saved_args = {"raid_note": ("note", note), "raid_plan": ("plan", plan)}
 
@@ -368,9 +385,8 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                 args = with_own_guild(args, own)
             started = time.monotonic()
             drawing = None
-            token, private, hint = wcl_token() if wcl_token else (None, None, None)
             mark = asker() if asker else None
-            with wcl.reading_as(token, private), server.telling_unreadable(hint), wcl.counting_points() as points:
+            with (reading or Context().reading)(), wcl.counting_points() as points:
                 try:
                     found = await find(args) if find else None
                     if isinstance(found, str):
@@ -570,7 +586,8 @@ class Session:
     async def _saved_note(self, args: dict) -> tuple[str, str] | str:
         """raid_note: the server's note (Context.notebook) for the boss of the pull the call is about."""
         if not (self._ctx and self._ctx.notebook):
-            return "Raid notes are only kept in Discord: there's none here."
+            off = self._ctx.notes_off if self._ctx else ""
+            return off or "Raid notes are only kept in Discord: there's none here."
         if not (code := args.get("report") or self.code):
             return NO_REPORT
         report = await self.library.report(code)
@@ -591,7 +608,8 @@ class Session:
         fetching them from raidstrats.gg when the guild has a login there; the tool checks each pull against the
         version it was planned with."""
         if not (self._ctx and self._ctx.notebook):
-            return "Raid plans are only kept in Discord: there's none here."
+            off = self._ctx.notes_off if self._ctx else ""
+            return off or "Raid plans are only kept in Discord: there's none here."
         book, guild = self._ctx.notebook, self._ctx.guild_id
         if not (code := args.get("report") or self.code):
             return NO_REPORT
@@ -610,16 +628,22 @@ class Session:
                     "plan's export from raidstrats.gg (the planner's Export button) to the bot." + server.NO_JOBS)
         return "\n".join(found), source
 
-    async def __aenter__(self) -> Session:
-        # without a report (code ""), it answers about the game, or asks for a report link
-        self.report = await self.library.report(self.code) if self.code else None
+    async def _tools(self) -> list:
+        """The session's tools: the core's, each call run as the current question's asker (Context.reading), and
+        with the bot's prompt its own too."""
         bot = self.system_prompt is None  # else a client with only the connector: the core's raid_note and raid_plan
         tools = await sdk_tools(self.code, self._returned, lambda: self._ctx.guild if self._ctx else None,
                                 self._saved_note if bot else None, self._saved_plan if bot else None,
-                                lambda: self._ctx.tokens() if self._ctx else (None, None, None),
+                                lambda: (self._ctx or Context()).reading(),
                                 lambda: self._ctx.asker if self._ctx else None)
         if bot:
             tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
+        return tools
+
+    async def __aenter__(self) -> Session:
+        # without a report (code ""), it answers about the game, or asks for a report link
+        self.report = await self.library.report(self.code) if self.code else None
+        tools = await self._tools()
         options = ClaudeAgentOptions(
             system_prompt=(prompt.system_prompt(self.name, server.skill())
                            if self.system_prompt is None else self.system_prompt),
@@ -684,7 +708,7 @@ class Session:
         if self.code:
             # read again for every question, so a pull that just ended is in it: the tools then reuse this read
             self.report = await self.library.report(self.code, max_age_s=0)
-        ran = [await self._prefetched(name, args, ctx.tokens()) for name, args in ctx.prefetch]
+        ran = [await self._prefetched(name, args, ctx) for name, args in ctx.prefetch]
         question += "".join(prompt.PREFETCHED.format(tool=c.name, result=c.result) for c in ran if not c.failed)
         report = self.report
         text = no_paths(prompt.message(question, ctx, report, await report.guild_run_doubt() if report else "",
@@ -750,13 +774,11 @@ class Session:
             log.info("no roster from Viserio for the icons: %s", e)
             return {}
 
-    async def _prefetched(self, name: str, args: dict,
-                          tokens: tuple[str | None, str | None, str | None] = (None, None, None)) -> ToolCall:
+    async def _prefetched(self, name: str, args: dict, ctx: Context) -> ToolCall:
         """One of a question's `prefetch` tools, run as the model's own call would be, on the session's report."""
         args = {"report": self.code, **args} if self.code else args
         started, drawing = time.monotonic(), None
-        with wcl.reading_as(tokens[0], tokens[1]), server.telling_unreadable(tokens[2]), \
-                wcl.counting_points() as points:
+        with ctx.reading(), wcl.counting_points() as points:
             try:
                 text, failed, images, drawing = await tool_call(name, args)
             except (ToolError, FactError) as e:

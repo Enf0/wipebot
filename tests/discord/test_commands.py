@@ -1,5 +1,6 @@
 """The admins' slash commands: /wipebot setup and the raid note or plan they save."""
 import re
+import time
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,6 +47,11 @@ def test_setup_changes_only_the_options_given(settings):
     officers = updated_settings(first, 1001, None, None, 222)
     assert officers == replace(first, officer_role_id=222)
     assert updated_settings(officers, 1001, moved, 333).officer_role_id == 222  # kept
+    verified = replace(first, verified_by=7, verified_at=1000.0)  # the guild is the server's own
+    assert updated_settings(verified, 1001, GUILD, 333) == replace(verified, required_role_id=333)  # linked again
+    assert updated_settings(verified, 1001, None, None, 222).verified_at == 1000.0
+    relinked = updated_settings(verified, 1001, moved, None)  # another guild: no longer verified
+    assert (relinked.wcl_guild_id, relinked.verified_by, relinked.verified_at) == (555, None, None)
 
 
 class FakeInteraction:
@@ -56,7 +62,7 @@ class FakeInteraction:
         self.views: list[Any] = []
         raiders = SimpleNamespace(id=111, mention="@Raider")
         self.guild = SimpleNamespace(id=1001, get_role=lambda i: raiders if i == 111 else None)
-        self.user = SimpleNamespace(display_name="Rowan")
+        self.user = SimpleNamespace(id=7, display_name="Rowan")
         self.response = SimpleNamespace(defer=self._nothing, send_message=self._say)
         self.followup = SimpleNamespace(send=self._say)
 
@@ -100,6 +106,69 @@ async def test_setup_connects_the_server_to_its_guild(bot, setup):
     assert ("**Officers** (save the raid note or plan by pasting it to wipebot, and change or stop anyone's posts "
             "after wipes): <@&222>") in told
     assert (s := bot.store.settings(1001)) and (s.required_role_id, s.officer_role_id) == (111, 222)
+
+
+async def test_on_a_shared_bot_a_guild_is_a_servers_own_once_an_admin_with_a_character_in_it_signed_in(
+        bot, setup, monkeypatch):
+    """A link alone says nothing about whose guild it is: the server's raid notes and plans turn on when an admin who
+    ran /wipebot setup is signed in with Warcraft Logs and has a character in the guild, asked of Warcraft Logs then."""
+    monkeypatch.setenv("WIPEBOT_WCL_CALLBACK", "https://example.org/signed-in")
+    bot.own_keys = True
+    bot.store._db.execute("DELETE FROM server_settings")
+    asked_with: list[str] = []
+    guilds: set[int] | Exception = {555}
+
+    async def claimed_guilds(token):
+        asked_with.append(token)
+        if isinstance(guilds, Exception):
+            raise guilds
+        return guilds
+    monkeypatch.setattr(commands.accounts, "claimed_guilds", claimed_guilds)
+    link = "https://www.warcraftlogs.com/guild/id/14169"
+    told = await setup(link=link)  # not signed in: the link is saved, the notes stay off
+    assert told.startswith("wipebot is set up:") and told.endswith("You aren't signed in yet.")
+    assert ("Raid notes and plans are off here until an admin shows that **The Copper Lanterns** is this server's "
+            "guild: one who has a character in it among those they claimed on Warcraft Logs signs in with `/login`, "
+            "then runs `/wipebot setup`. Everything else works already.") in told
+    assert (s := bot.store.settings(1001)) and s.set_up and s.verified_at is None and not asked_with
+    bot.store.save_login(7, 42, "Rowan#1", "rowan's token", time.time() + 3600)
+    told = await setup()  # signed in, with characters in another guild only
+    assert "but none of the characters you claimed on Warcraft Logs is in it." in told
+    assert asked_with == ["rowan's token"] and bot.store.settings(1001).verified_at is None
+    guilds = commands.accounts.AccountError("Warcraft Logs currentUser: 502")
+    assert "Warcraft Logs didn't say which guilds your characters are in" in await setup()
+    assert bot.store.settings(1001).verified_at is None
+    guilds = {555, 14169}
+    told = await setup()  # run again by a member: verified
+    assert ("Raid notes and plans are on here: one of the characters you claimed on Warcraft Logs is in **The Copper "
+            "Lanterns**.\nNo raid note or plan saved yet") in told and "are off here" not in told
+    assert (s := bot.store.settings(1001)) and s.verified_by == 7 and s.verified_at
+    asked_with.clear()
+    told = await setup(link=link, role=SimpleNamespace(id=111))  # the same guild again: still its own, not asked
+    assert "Raid notes" not in told and bot.store.settings(1001) == replace(s, required_role_id=111)
+    assert "are off here" not in await setup() and not asked_with
+    bot.store._db.execute("DELETE FROM server_settings")
+    told = await setup(link=link)  # signed in and a member: verified at once
+    assert told.endswith("Raid notes and plans are on here: one of the characters you claimed on Warcraft Logs is in "
+                         "**The Copper Lanterns**.")
+    assert (s := bot.store.settings(1001)) and s.verified_by == 7
+
+
+async def test_a_shared_bot_without_sign_in_says_so_and_a_hosts_own_bot_asks_for_no_proof(bot, setup, monkeypatch):
+    async def claimed_guilds(token):
+        raise AssertionError("not asked")
+    monkeypatch.setattr(commands.accounts, "claimed_guilds", claimed_guilds)
+    monkeypatch.delenv("WIPEBOT_WCL_CALLBACK", raising=False)
+    link = "https://www.warcraftlogs.com/guild/id/14169"
+    told = await setup(link=link)  # the host's own bot: its servers' guilds are theirs
+    assert told.startswith("wipebot is set up:") and "Raid notes" not in told
+    assert "No raid note or plan saved yet" in await setup()
+    bot.own_keys = True
+    told = await setup(link=link)
+    assert told.endswith("Raid notes and plans are off here: showing that **The Copper Lanterns** is this server's "
+                         "guild takes a Warcraft Logs sign-in, which whoever runs this bot hasn't set up. Everything "
+                         "else works already.")
+    assert "No raid note or plan saved yet" not in await setup()
 
 
 def test_the_experimental_sources_are_connected_on_the_command_line_only(bot, monkeypatch):

@@ -181,13 +181,31 @@ async def login(client_id: str, secret: str, code: str, verifier: str, redirect_
                 raise AccountError(f"Warcraft Logs token: {r.status_code}")
             granted = r.json()
             token, expires = str(granted["access_token"]), time.time() + float(granted.get("expires_in") or 0)
-            r = await http.post(USER_API, json={"query": ME}, headers={"Authorization": f"Bearer {token}"})
-            if r.status_code != 200:
-                raise AccountError(f"Warcraft Logs currentUser: {r.status_code}")
-            user = r.json()["data"]["userData"]["currentUser"]
+            user = await _current_user(http, token)
         return Account(int(user["id"]), str(user.get("name") or ""), list(user.get("characters") or []), token,
                        expires)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
+        raise AccountError(f"Warcraft Logs sign-in: {e!r}") from e
+
+
+async def _current_user(http: httpx.AsyncClient, token: str) -> dict:
+    """Who a user's token is for, as Warcraft Logs says now (ME)."""
+    r = await http.post(USER_API, json={"query": ME}, headers={"Authorization": f"Bearer {token}"})
+    if r.status_code != 200:
+        raise AccountError(f"Warcraft Logs currentUser: {r.status_code}")
+    return r.json()["data"]["userData"]["currentUser"]
+
+
+async def claimed_guilds(token: str) -> set[int]:
+    """The Warcraft Logs ids of every guild a signed-in user has a claimed character in, asked with their own token:
+    as it is now, not as it was when they signed in. AccountError when Warcraft Logs won't say (the token lapsed or
+    was revoked, or it doesn't answer)."""
+    try:
+        async with httpx.AsyncClient(timeout=15) as http:
+            user = await _current_user(http, token)
+        return {g["id"] for c in user.get("characters") or [] for g in c.get("guilds") or []
+                if isinstance(g.get("id"), int)}
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as e:
         raise AccountError(f"Warcraft Logs sign-in: {e!r}") from e
 
 

@@ -882,22 +882,42 @@ async def _upcoming(rep: Report, boss: str | None) -> str:
     """roster's `upcoming`: the report's guild's nights to come, from Viserio with the key its officers gave."""
     if not rep.guild_id:
         raise FactError("this report is a personal log, not a guild's: the nights to come are a guild's")
-    found = notebook.Notebook(readonly=True).viserio_key(rep.guild_id)
-    if not found or not _a_member(rep.guild_id):
-        raise viserio.no_key(rep.guild_name) if not found else FactError(
-            f"{rep.guild_name}'s raid nights are for its members only")
+    if not _a_member(rep.guild_id):  # before the key is looked for: whether a guild gave one is its members' too
+        raise FactError(f"{rep.guild_name}'s raid nights are for its members only")
+    if not (found := notebook.Notebook(readonly=True).viserio_key(rep.guild_id)):
+        raise viserio.no_key(rep.guild_name)
     try:
         return viserio.nights_text(*await viserio.upcoming(found[0]), boss=boss)
     except viserio.ViserioError as e:
         raise FactError(f"{rep.guild_name}'s raid nights can't be read from Viserio Cooldowns: {e}") from e
 
 
+# Whose saved things (raid notes, plans, the nights to come) a tool call may read where nobody signs in to the tools
+# themselves: None on a single user's own copy (the stdio server), which reads every guild's; a set in a host app
+# that answers many people (`reading_guilds`), which reads only those guilds'.
+_guilds: ContextVar[frozenset[int] | None] = ContextVar("reading_guilds", default=None)
+
+
+@contextmanager
+def reading_guilds(ids: frozenset[int] | None) -> Generator[None]:
+    """Within it, the tools read what these guilds keep and no other guild's. A host app that runs the tools
+    in-process for many people (the Discord bot) enters it around each asker's calls, with the guilds the place they
+    ask from may read: an empty set reads no guild's. The remote server needs none: it asks each signed-in user's
+    guilds (Remote.guild_ids)."""
+    reset = _guilds.set(ids)
+    try:
+        yield
+    finally:
+        _guilds.reset(reset)
+
+
 def _a_member(guild_id: int) -> bool:
-    """Whether the user may read what the guild keeps: on the remote server, a member signed in; anywhere else, yes
-    (the host serves its own guilds)."""
+    """Whether the user may read what the guild keeps: on the remote server, a member signed in; in a host app, when
+    the guild is one it said its asker reads (`reading_guilds`); on a single user's own copy, yes."""
     remote = setup().remote
     if not remote:
-        return True
+        allowed = _guilds.get()
+        return allowed is None or guild_id in allowed
     from mcp.server.auth.middleware.auth_context import get_access_token
 
     token = get_access_token()

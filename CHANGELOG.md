@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Discord` **What your guild saved stays in your own server.** On a bot many servers share, such as the public Wipebot, a guild's raid notes and plans are read and saved only in a server whose admin has shown the guild is theirs: one who has a character in it among those they claimed on Warcraft Logs signs in with `/login` and runs `/wipebot setup`, which says so until then. A server set up before does this once; answers about the logs and posts after wipes work meanwhile, and a host's own bot works as before.
+
 ## [0.41.1] - 2026-11-09
 
 ### Fixed
