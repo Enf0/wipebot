@@ -77,7 +77,7 @@ views.night = (() => {
     if (line.length > 1) o += `<path d="${line.map(([px, py], i) => `${i ? "L" : "M"}${px} ${py}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.6" pointer-events="none"/>`;
     // the night's best wipe, named: a bar near 0% is too short to see
     const top = D.pulls.reduce((b, r, i) => (!r.kill && !r.reset && !r.live && r.pct != null && (b < 0 || r.pct < D.pulls[b].pct) ? i : b), -1);
-    if (top >= 0 && !D.pulls.some((r) => r.kill)) o += kit.text(x(top) + band / 2, y(D.pulls[top].pct) - 6, said(D.pulls[top]), "t", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
+    if (top >= 0 && !D.pulls.some((r) => r.kill)) o += kit.text(x(top) + band / 2, y(D.pulls[top].pct) - 6, said(D.pulls[top]), "t over", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
     if (D.guild_best) {
       const gy = y(D.guild_best.pct);
       o += kit.line(L, gy, W - R, gy, "var(--gold)", 'stroke-width="1.4" stroke-dasharray="5 4" pointer-events="none"');
@@ -86,7 +86,7 @@ views.night = (() => {
       o += kit.text(left ? L + 4 : W - R, gy - 5, `guild best before: ${said(D.guild_best)}`, "tg", `text-anchor="${left ? "start" : "end"}" font-weight="600"`);
     }
     const every = Math.max(1, Math.ceil(24 / band));
-    D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle"'); });
+    D.pulls.forEach((r, i) => { if (kit.numbered(i, n, every)) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle"'); });
     // the legend, only where the list of how the pulls ended isn't drawn under it (that list is the legend): the
     // coloured endings by how many pulls, the rest as one "other", then the line
     const other = D.ends.filter(([w]) => !QUIET.has(w) && !color.hued(w)).reduce((n, [, k]) => n + k, 0);
@@ -134,12 +134,12 @@ views.night = (() => {
         + (r.ended ? `\nEnded most pulls: ${r.ended[0]} (${r.ended[1]})` : "");
       if (r.kill) o += `<path d="M${cx} ${y(0) - 14} l5 10 l-10 0z" fill="var(--gold)"/>`;
       else if (r.pct != null) o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="3" fill="${phaseColor(r.phase, top)}"/>`;
-      o += kit.text(cx, (r.kill ? y(0) - 14 : y(v)) - 5, best(r), r.kill ? "tg" : "t", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
+      o += kit.text(cx, (r.kill ? y(0) - 14 : y(v)) - 5, best(r), r.kill ? "tg" : "t over", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
       o += `<rect x="${x(i)}" y="0" width="${band}" height="${plotH + T + 34}" fill="transparent" data-night="${kit.esc(r.report)}"${r.report !== D.report ? kit.opens("that night") : ""}${kit.tip(tip)}/>`;
     });
     const every = Math.max(1, Math.ceil(70 / band));
     W.forEach((r, i) => {
-      if (i % every && i !== n - 1) return;
+      if (!kit.numbered(i, n, every)) return;
       o += kit.text(x(i) + band / 2, T + plotH + 14, r.day, "tm", 'text-anchor="middle"');
       o += kit.text(x(i) + band / 2, T + plotH + 27, kit.plural(r.pulls, "pull"), "tm", 'text-anchor="middle"');
     });

@@ -107,6 +107,10 @@ views.pull = (() => {
   const HEALER_MARK = (cx, cy) => `<path d="M${cx - 4} ${cy}h8M${cx} ${cy - 4}v8" stroke="var(--green)" stroke-width="2.4" fill="none"/>`;
 
   function chart({ W, L, R, plotH, lanes }) {
+    // raid damage taken per second, on the left axis, whose top label the left margin makes room for
+    const per = D.damage.per_s, step = D.damage.step_ms, peaks = per.length ? D.damage.peaks || [] : [];
+    const max = per.length ? niceMax(Math.max(...per.map((q) => q[1]))) : 1, most = `${kit.short(max)}/s`;
+    L = Math.max(L, Math.ceil(kit.width(most)) + 8);
     const x = (ms) => L + ms / D.duration_ms * (W - L - R);
     let y = 4, o = "";
     const label = (s, yy) => lanes ? kit.text(6, yy, s) : "";
@@ -172,9 +176,6 @@ views.pull = (() => {
     const boxes = [];
     const free = (x0, x1, y0, y1) => !boxes.some((q) => x0 < q[1] && q[0] < x1 && y0 < q[3] && q[2] < y1);
     const dx = D.decided ? x(D.decided.ms) : null;
-    // raid damage taken per second, on the left axis
-    const per = D.damage.per_s, step = D.damage.step_ms, peaks = per.length ? D.damage.peaks || [] : [];
-    const max = per.length ? niceMax(Math.max(...per.map((q) => q[1]))) : 1;
     const yD = (v) => bottom - v / max * plotH;
     if (per.length) {
       // the peaks (twice the pull's median or more): a band behind, the healer cooldowns near it in its tooltip
@@ -188,7 +189,7 @@ views.pull = (() => {
       const pts = per.map(([ms, v]) => [Math.min(ms + step / 2, D.duration_ms), v]);
       o += `<path d="M${x(pts[0][0])} ${bottom} ${pts.map(([ms, v]) => `L${x(ms)} ${yD(v)}`).join(" ")} L${x(pts[pts.length - 1][0])} ${bottom}Z" fill="var(--blue)" opacity=".18"/>`;
       o += `<path d="${pts.map(([ms, v], i) => `${i ? "L" : "M"}${x(ms)} ${yD(v)}`).join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.2" opacity=".8"/>`;
-      o += kit.text(L - 6, top + 8, `${kit.short(max)}/s`, "tm", 'text-anchor="end"');
+      o += kit.text(L - 6, top + 8, most, "tm", 'text-anchor="end"');
       o += kit.text(L - 6, bottom, "0", "tm", 'text-anchor="end"');
     }
     // boss health, on the right axis: 0 to 100% on every pull, so the lines of two pulls compare, the axis and the

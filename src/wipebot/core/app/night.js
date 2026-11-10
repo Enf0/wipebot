@@ -146,13 +146,13 @@ views.player_night = (() => {
       o += kit.line(a + 2, y, b - 2, y, "var(--ink)", 'stroke-width="1.4" stroke-dasharray="5 3" opacity=".75"');
       const label = `${["first", "middle", "last"][k]} third: median ${kit.short(t.rate)}, died ${t.died} of ${t.pulls.length}`;
       o += kit.hit(a, y - 6, b - a, 12, label);
-      if (lanes) o += kit.text(a + 4, y - 5, label, "t");
+      if (lanes) o += kit.text(a + 4, y - 5, label, "t over");
     });
     // a column per pull: its tooltip, and a click opens that pull
     D.pulls.forEach((r, i) => { o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 24}" fill="transparent" data-pull-col="${r.pull}"${kit.opens("this pull")}${kit.tip(tipOf(r))}/>`; });
     // pull numbers, as many as fit
     const every = Math.max(1, Math.ceil(26 / band));
-    D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 36, r.pull, "tm", 'text-anchor="middle"'); });
+    D.pulls.forEach((r, i) => { if (kit.numbered(i, n, every)) o += kit.text(x(i) + band / 2, T + plotH + 36, r.pull, "tm", 'text-anchor="middle"'); });
     // the legend, wrapping on a narrow card
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="10" height="8" rx="2" ${kit.cls(D.player.color, "cb")} opacity=".75"/>`, `${D.what} per s alive`],
       [(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--gold)" stroke-width="1.6"/>`, "boss left at the end"],

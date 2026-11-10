@@ -772,8 +772,10 @@ CHART = """() => {
     const across = a.box[0] < b.box[1] - 1 && b.box[0] < a.box[1] - 1;
     if (across && a.box[2] < b.box[3] - 3 && b.box[2] < a.box[3] - 3) over.push([a.said, b.said]);
   }));
+  const frame = document.querySelector("#pv-chart svg").getBoundingClientRect();
+  const cut = texts.filter((t) => t.box[0] < frame.left - 0.5 || t.box[1] > frame.right + 0.5).map((t) => t.said);
   const count = (sel) => document.querySelectorAll(`#pv-chart svg ${sel}`).length;
-  return { texts, over, raid: count('circle[fill="var(--blue)"]'), healers: count('path[stroke="var(--green)"]') };
+  return { texts, over, cut, raid: count('circle[fill="var(--blue)"]'), healers: count('path[stroke="var(--green)"]') };
 }"""
 
 
@@ -781,10 +783,11 @@ CHART = """() => {
 @pytest.mark.parametrize("width", [320, 760])
 async def test_nothing_written_in_the_pull_chart_runs_into_anything_else(recorded, case, width):
     """At a phone's width too: the moment the wipe was decided, a damage peak's height and the two axes' labels each
-    keep their own place (they once ran across each other and the health line on a narrow card)."""
+    keep their own place (they once ran across each other and the health line on a narrow card), and none is cut at
+    the chart's edge (a damage scale of "5.0M/s" once lost its first figure there)."""
     async with drawn("pull_summary", CASES[case].args, width=width) as (view, errors):
         chart = await view.evaluate(CHART)
-    assert not errors and chart["over"] == []
+    assert not errors and chart["over"] == [] and chart["cut"] == []
 
 
 async def test_the_pull_chart_names_both_axes_and_draws_the_cooldowns_its_tool_promises(recorded):
@@ -917,6 +920,22 @@ async def test_the_keyboard_steps_through_a_charts_marks_and_opens_what_a_click_
         await keys.press("Enter")
         await view.locator("h1", has_text="Sszorak pull 13").wait_for()
         assert not errors
+
+
+LONG_NIGHT = {"report": CASES["first-hits"].args["report"], "boss": "Sszorak"}  # 42 pulls on the boss
+NUMBERS = """() => [...document.querySelectorAll('#app svg text.tm[text-anchor="middle"]')].map((t) => {
+  const r = t.getBoundingClientRect();
+  return { said: t.textContent, left: r.left, right: r.right };
+})"""
+
+
+async def test_the_pull_numbers_under_a_long_nights_bars_keep_apart(recorded):
+    """A night's bars are numbered as many as fit, the last pull's always: the number before it gives way where the
+    two would touch (on a phone "41" and "42" once ran into one another under a night of 42 pulls)."""
+    async with drawn("progress", LONG_NIGHT, width=360) as (view, errors):
+        numbers = await view.evaluate(NUMBERS)
+    assert not errors and numbers[0]["said"] == "1" and numbers[-1]["said"] == "42" and len(numbers) > 8
+    assert all(a["right"] + 3 <= b["left"] for a, b in itertools.pairwise(numbers)), [n["said"] for n in numbers]
 
 
 async def test_the_keyboard_reaches_a_tables_rows_and_a_marks_tooltip_where_nothing_opens(recorded):

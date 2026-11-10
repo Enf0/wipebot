@@ -8,6 +8,9 @@ const kit = (() => {
   const ordinal = (n) => { const r = n % 100, t = n % 10; return `${n}${r >= 11 && r <= 13 ? "th" : ["th", "st", "nd", "rd"][t] || "th"}`; };
   // 1 pull, 2 pulls: a count with its noun
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  // Which of n marks in a row are numbered when only one in `every` has room: each `every`th, and the last always,
+  // the one before it giving way where the two would touch
+  const numbered = (i, n, every) => i === n - 1 || (i % every === 0 && n - 1 - i >= every);
   const svg = (w, h, body, label) => `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">${body}</svg>`;
   // Chart text comes in three sizes, chosen once: a label (axes, legends, captions: the card's smallest text, as
   // its stats' headings), a value (what names data: a line's end, a best, a name) and a number inside a mark. The
@@ -190,6 +193,6 @@ const kit = (() => {
   });
   document.addEventListener("focusout", hide);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit };
+  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open), drawn into root
