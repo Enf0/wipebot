@@ -19,11 +19,18 @@ const kit = (() => {
   const line = (x1, y1, x2, y2, stroke, attrs = "") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" ${attrs}/>`;
   // A text's width in the page's font, for keeping labels apart; about, where the page can't measure it
   const ctx = document.createElement("canvas").getContext("2d");
-  function width(s, size = SIZE.label) {
+  function width(s, size = SIZE.label, weight = 400) {
     const font = getComputedStyle(document.documentElement).getPropertyValue("--font").trim();
     if (!ctx || !font) return String(s).length * size * 0.56;
-    ctx.font = `${size}px ${font}`;
+    ctx.font = `${weight} ${size}px ${font}`;
     return ctx.measureText(String(s)).width;
+  }
+  // A text cut at its end to fit a width, with an ellipsis for what was cut
+  function fit(s, most, size = SIZE.label, weight = 400) {
+    let out = String(s);
+    if (width(out, size, weight) <= most) return out;
+    while (out.length > 1 && width(`${out}…`, size, weight) > most) out = out.slice(0, -1);
+    return `${out}…`;
   }
   const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
   // The axis's top: the value rounded up to 1, 2, 2.5 or 5 of its power of ten
@@ -183,6 +190,6 @@ const kit = (() => {
   });
   document.addEventListener("focusout", hide);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens };
+  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open), drawn into root

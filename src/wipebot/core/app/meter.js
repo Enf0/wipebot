@@ -49,13 +49,14 @@ views.meter = (() => {
   }
 
   function bar(m, b, i, max) {
-    const w = Math.max(0.5, b.value / max * 100), then = m.then;
+    // the bar's length as a share of the track: the row, less the amounts' column against another night (page.css)
+    const w = Math.max(0.005, b.value / max), then = m.then, along = (f) => `calc(${f.toFixed(4)} * (100% - var(--amounts, 0px)))`;
     const per = m.unit === "amount" && m.seconds ? ` (${kit.short(b.value / m.seconds)}/s)` : "";
     const pct = m.total ? 100 * b.value / m.total : 0, share = pct && pct < 0.5 ? "<1%" : m.total ? `${Math.round(pct)}%` : "";
     const was = then && b.was != null ? `${kit.short(b.was)} on ${then.was_day} (${kit.ordinal(b.was_rank)})` : then ? `not there on ${then.was_day}` : "";
     const tip = [`${b.name}${b.spec ? ` (${b.spec})` : ""}: ${amount(m, b.value)}${m.unit === "amount" ? "" : ` ${m.unit}`}${per}`, was, b.note,
                  b.died_after || b.killed_by ? `${kit.plural(b.died_after, "death")} within a few seconds of a hit, ${b.killed_by} by it` : ""].filter(Boolean).join("\n");
-    const tick = then && b.was != null ? `<span class="was" style="left:${Math.min(100, b.was / max * 100).toFixed(2)}%"></span>` : "";
+    const tick = then && b.was != null ? `<span class="was" style="left:${along(Math.min(1, b.was / max))}"></span>` : "";
     const last = then ? (b.was != null ? `<span class="dl ${b.value < b.was ? "good" : b.value > b.was ? "bad" : ""}">${change(b.value, b.was)}</span>` : '<span class="dl">new</span>')
       : `<span class="pc">${share}</span>`;
     const row = `<span class="rk">${i + 1}</span><span class="nm">${kit.esc(b.name)}${b.role === "tank" ? '<small class="role">tank</small>' : ""}`
@@ -63,7 +64,7 @@ views.meter = (() => {
       + `<span class="dd">${b.died_after ? `${SKULL}${b.died_after}` : ""}</span>`
       + `<span class="val">${then && b.was != null ? `<small class="old">${kit.short(b.was)} →</small>` : ""}${amount(m, b.value)}<small>${kit.esc(per)}</small></span>${last}`;
     // the row twice: in the page's colours, and over it in the text colour for the bar, cut to the bar's length
-    return `<li class="${marked(b) ? "ringed" : ""}" style="--c:${kit.esc(b.color)};--w:${w.toFixed(2)}%"${kit.tip(tip)}><span class="fill cb"></span>`
+    return `<li class="${marked(b) ? "ringed" : ""}" style="--c:${kit.esc(b.color)};--w:${along(w)}"${kit.tip(tip)}><span class="fill cb"></span>`
       + `<div class="row">${row}</div><div class="row on" aria-hidden="true">${row}</div>${tick}</li>`;
   }
 
@@ -95,7 +96,10 @@ views.meter = (() => {
   // Over several pulls, a mechanic's hits per player per pull: a row per player (most hit first), a column per
   // pull, darker for more; a red mark where it set up their death; the raid's total per pull under it
   function grid(m) {
-    const n = m.pulls.length, left = 96, top = 18, row = 14, sq = Math.max(6, Math.min(12, Math.floor(560 / n) - 2));
+    const NAME = { weight: 600, most: 130 };  // a name's column: as wide as the longest, a longer one cut at its end
+    const named = m.bars.map((b) => kit.width(b.name, kit.SIZE.label, NAME.weight));
+    const left = Math.ceil(Math.max(60, Math.min(NAME.most, Math.max(...named) + 10)));
+    const n = m.pulls.length, top = 18, row = 14, sq = Math.max(6, Math.min(12, Math.floor(560 / n) - 2));
     const total = (b) => b.per_pull.reduce((s, v) => s + (v || 0), 0);
     const col = sq + 2, rows = [...m.bars].sort((a, b) => total(b) - total(a)), w = left + n * col + 40, base = top + rows.length * row + 34;
     const max = Math.max(1, ...rows.flatMap((b) => b.per_pull.filter((v) => v !== null)));
@@ -105,7 +109,7 @@ views.meter = (() => {
     m.pulls.forEach((p, i) => { if (i === 0 || p % 5 === 0) body += kit.text(left + i * col + sq / 2, 11, String(p), "tm", 'text-anchor="middle"'); });
     rows.forEach((b, r) => {
       const y = top + r * row;
-      body += kit.text(left - 6, y + sq - 1, b.name, "cls", `font-weight="600" text-anchor="end" style="--c:${kit.esc(b.color)}"`);
+      body += kit.text(left - 6, y + sq - 1, kit.fit(b.name, left - 10, kit.SIZE.label, NAME.weight), "cls", `font-weight="${NAME.weight}" text-anchor="end" style="--c:${kit.esc(b.color)}"`);
       b.per_pull.forEach((v, i) => {
         if (v === null) return;
         const x = left + i * col, share = v ? 35 + 65 * v / max : 0;

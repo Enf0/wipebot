@@ -1,9 +1,23 @@
 // ---- the healers' mana on a pull (healing with mana): a line per healer in their class colour until the wipe was
-// decided, the low line dashed, each Innervate a gold diamond on the line of the healer it went to; under it a lane
-// per druid with their casts and, hatched red, the stretches it sat ready while a healer was low. One panel ----
+// decided, named at its end (two healers of one class: the second's line dashed, the third's dotted, and a piece
+// of each one's line before its name), the low line dashed, each Innervate a gold diamond on the line of the healer
+// it went to; under it a lane per druid with their casts and, hatched red, the stretches it sat ready while a healer
+// was low. One panel ----
 views.mana = (() => {
   let D = null, root = null;
-  const W = 680, LEFT = 34, RIGHT = 12, CH = 190, LANE = 22;
+  const W = 680, LEFT = 34, CH = 190, LANE = 22;
+  const DASH = ["", "7 3", "2 3"];  // a class's first healer, its second, its third and later
+  const SAMPLE = 20;  // a piece of a healer's line before their name, where another healer has its colour
+  // each healer's line: its dash among the healers of its class, and whether the class has more than one
+  const lines = () => {
+    const seen = {}, of = {};
+    for (const hl of D.healers) of[hl.color] = (of[hl.color] || 0) + 1;
+    return new Map(D.healers.map((hl) => {
+      seen[hl.color] = (seen[hl.color] || 0) + 1;
+      return [hl.name, { dash: DASH[Math.min(seen[hl.color], DASH.length) - 1], shared: of[hl.color] > 1 }];
+    }));
+  };
+  const stroke = (dash) => dash ? ` stroke-dasharray="${dash}"` : "";
 
   async function show(into, key) {
     root = into;
@@ -12,8 +26,20 @@ views.mana = (() => {
   }
 
   function chart() {
+    const line = lines();
+    // A healer's name, in their class's ink, from x; before it a piece of their line where the colour alone doesn't
+    // say whose it is. The markup, and how wide it is
+    const name = (hl, x0, y0, cls = "cls") => {
+      const { dash, shared } = line.get(hl.name), lead = shared ? SAMPLE + 4 : 0;
+      return (shared ? `<path d="M${x0} ${y0 - 4}h${SAMPLE}" fill="none" ${kit.cls(hl.color, "cl")} stroke-width="2"${stroke(dash)}/>` : "")
+        + kit.text(x0 + lead, y0, hl.name, cls, `font-weight="600" style="--c:${kit.esc(hl.color)}"`);
+    };
+    const wide = (hl) => kit.width(hl.name, kit.SIZE.label, 600) + (line.get(hl.name).shared ? SAMPLE + 4 : 0);
+    // the names at the lines' ends take a margin on the right as wide as the longest
+    const RIGHT = Math.ceil(Math.max(12, ...D.healers.filter((hl) => hl.points.length).map((hl) => wide(hl) + 10)));
     const x = (ms) => LEFT + ms / Math.max(D.until_ms, 1) * (W - LEFT - RIGHT), y = (v) => 10 + (100 - v) / 100 * CH;
     const lanes = D.innervates.length, h = 10 + CH + 24 + lanes * LANE + 4;
+    const ends = [];  // [the y a line ends at, its healer]: who lived to the end, named in the margin
     let body = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
       + `<rect width="2" height="5" fill="var(--dead)" opacity="0.55"/></pattern></defs>`;
     for (const v of [0, 50, 100]) {
@@ -31,9 +57,21 @@ views.mana = (() => {
       const path = pts.map(([t, v], i) => `${i ? "L" : "M"}${x(t).toFixed(1)} ${y(v).toFixed(1)}`).join("");
       const tip = `${hl.name} (${hl.spec})` + (hl.lowest ? `: lowest ${hl.lowest[1]}% at ${kit.clock(hl.lowest[0])}` : "")
         + (hl.low.length ? `; under ${D.low}% ${hl.low.map(([a, b]) => `${kit.clock(a)}-${kit.clock(b)}`).join(", ")}` : "");
-      body += `<path d="${path}" fill="none" ${kit.cls(hl.color, "cl")} stroke-width="2" stroke-linejoin="round"${kit.tip(tip)}/>`;
+      body += `<path d="${path}" fill="none" ${kit.cls(hl.color, "cl")} stroke-width="2" stroke-linejoin="round"${stroke(line.get(hl.name).dash)}${kit.tip(tip)}/>`;
       const [lt, lv] = pts[pts.length - 1] || hl.points[0];
-      if (hl.dead_ms != null) body += kit.text(x(lt), y(lv) + 4, "✕", "td", `text-anchor="middle"${kit.tip(`${hl.name} died at ${kit.clock(hl.dead_ms)}`)}`, kit.SIZE.value);
+      if (hl.dead_ms == null) { ends.push([y(lv), hl]); continue; }
+      // who died: the cross where their line stops, and their name beside it, on the side with room
+      const left = x(lt) + 8 + wide(hl) > W - RIGHT;
+      body += kit.text(x(lt), y(lv) + 4, "✕", "td", `text-anchor="middle"${kit.tip(`${hl.name} died at ${kit.clock(hl.dead_ms)}`)}`, kit.SIZE.value);
+      body += name(hl, left ? x(lt) - 8 - wide(hl) : x(lt) + 8, y(lv) + 4, "cls over");
+    }
+    // the names in the margin, top to bottom, each at its line's end or just under the name above it
+    ends.sort((a, b) => a[0] - b[0]);
+    let under = -Infinity;
+    for (const [at, hl] of ends) {
+      const ly = Math.max(at + 4, under + 12);
+      body += name(hl, W - RIGHT + 6, ly);
+      under = ly;
     }
     const at = (name, ms) => {  // a healer's mana at a moment, for the diamond on their line
       const hl = D.healers.find((q) => q.name === name);
@@ -71,7 +109,7 @@ views.mana = (() => {
       ["Innervates", String(casts), "", D.innervates.length ? `from ${D.innervates.map((i) => i.druid).join(", ")}` : "no druid had one"],
       D.innervates.length ? ["Ready while a healer was low", `${Math.round(idle)} s`, idle ? "dead" : "", D.cooldown_s ? `its cooldown ${D.cooldown_s / 60} min, ready at the pull` : ""] : null,
     ]);
-    const names = `<div class="legend">${D.healers.map((hl) => `<span><i class="cl" style="--c:${kit.esc(hl.color)};background:var(--ci)"></i>${kit.esc(hl.name)}</span>`).join("")}`
+    const names = `<div class="legend">`  // the healers' names are at their lines
       + `<span><i style="background:var(--gold);transform:rotate(45deg) scale(.8)"></i>Innervate</span>`
       + `<span><i style="background:repeating-linear-gradient(45deg,var(--dead) 0 2px,transparent 2px 5px)"></i>ready while a healer was low</span></div>`;
     const head = `<div class="head"><h1>Healers' mana</h1><span class="sub">${kit.esc(D.boss)} pull ${D.pull}`

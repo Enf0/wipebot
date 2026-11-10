@@ -289,6 +289,14 @@ def _stamp(folder: Path) -> tuple:
     return tuple(sorted((p.name, p.stat().st_mtime_ns) for p in folder.iterdir()))
 
 
+# Leaves one of a view's panels on the page, the others out of the layout: its picture is then the page with its
+# margin, as wide as a whole view's (a panel shot by itself was 36 px narrower and had no margin)
+ALONE = """(i) => document.querySelectorAll("[data-panel]").forEach((p, j) => {
+  p.style.display = j === i ? "" : "none";
+  p.style.marginTop = "0";
+})"""
+
+
 class Painter:
     """Still pictures of views, for an app without MCP Apps (the Discord bot): the card as Claude and ChatGPT show
     it inline, dark, without its buttons, as WebP. One headless browser is kept open between pictures (a launch
@@ -339,10 +347,14 @@ class Painter:
             await page.frames[-1].evaluate("document.fonts.ready.then(() => true)")
             if errors:
                 raise RuntimeError("; ".join(errors))
-            panels = page.frames[-1].locator("[data-panel]")
-            shots = ([(await panels.nth(i).get_attribute("data-panel") or "",
-                       await panels.nth(i).screenshot(type="png")) for i in range(await panels.count())]
-                     or [("", await page.locator("iframe").screenshot(type="png"))])
+            view = page.frames[-1]
+            panels = view.locator("[data-panel]")
+            shots = []
+            for i in range(await panels.count()):  # each alone on the page, inside the margin a whole view has
+                await view.evaluate(ALONE, i)
+                shots.append((await panels.nth(i).get_attribute("data-panel") or "",
+                              await view.locator("#app").screenshot(type="png")))
+            shots = shots or [("", await page.locator("iframe").screenshot(type="png"))]
         finally:
             await context.close()
         return [Panel(await asyncio.to_thread(_webp, png), name) for name, png in shots]

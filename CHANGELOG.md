@@ -57,6 +57,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `MCP` **The replay opens in fullscreen from its own button, and its controls stay in sight there.** A replay shown for a map had no way to fullscreen, and in fullscreen play and the timeline sat under the bottom of the window. The room now takes the height the window has left above them, and every view keeps clear of what Claude or ChatGPT say their own controls cover.
 
   ![The replay of Sszorak pull 13 in fullscreen: the room with everyone's position, and under it, in the same window, play, the timeline with its deaths and the speed](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/replay-fullscreen-fit.webp)
+- `Discord` **A meter's mark keeps off its numbers, and two healers of one class are told apart.** Against another night, the mark for that night could sit on a player's amount: the bars and the marks now end where the amounts begin, and a mark is a notch above and below the row, clear of the names too. In the healers' mana each line ends in its healer's name, and where two healers share a class the second line is dashed and the third dotted. A picture of one part of a view, such as a player's night pull by pull, has the margin a whole one has, and a long name beside a grid by pull is cut at its end.
+
+  ![Axegrinder's damage per player on two nights: each bar ends before the column of amounts, and the other night's amount is a small notch above and below each row](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/discord-meter-against-marks.webp)
 
 ## [0.41.1] - 2026-11-09
 

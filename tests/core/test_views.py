@@ -12,6 +12,7 @@ import shutil
 import subprocess
 from importlib import resources
 from pathlib import Path
+from typing import cast
 
 import pytest
 from mcp.types import CallToolResult, TextContent
@@ -412,6 +413,77 @@ async def test_the_mana_view_states_what_healing_with_mana_states(recorded, tmp_
     [s] = await shots(tmp_path, MANA_CASE.tool, MANA_CASE.args)
     assert not s.errors, s.errors
     assert "Healers' mana" in s.text and data["healers"][0]["name"] in s.text and s.path.name.startswith("discord-")
+
+
+async def test_two_healers_of_one_class_have_lines_told_apart_and_every_line_its_name(monkeypatch):
+    """Made up: three priests and a druid. A line took only its class's colour, so three priests were one line
+    three times; the second is now dashed and the third dotted, and each line ends in its healer's name, a priest's
+    after a piece of their own line."""
+    def healer(name: str, color: str, ends_at: int) -> dict:
+        return {"name": name, "spec": "Holy Priest", "color": color, "dead_ms": None, "lowest": [60000, ends_at],
+                "low": [], "points": [[0, 100], [30000, 80], [60000, ends_at]]}
+    data = {"view": "mana", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "pull": 4, "until_ms": 60000,
+            "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678#fight=4", "decided": False, "low": 30,
+            "title": "Torvek's Forge pull 4: healers' mana", "cooldown_s": 180.0, "never": [], "innervates": [],
+            "healers": [healer("Mirelle", "#FFFFFF", 62), healer("Halvard", "#FFFFFF", 60),
+                        healer("Oswin", "#FFFFFF", 58), healer("Brannoch", "#FF7C0A", 40)]}
+    made_up_view(monkeypatch, {"view": "mana", "report": data["report"], "pull": 4, "boss": data["boss"]}, data)
+    from wipebot.core import viewhost
+    setup = viewhost._picture_setup("healing", {}, {"view": "mana", "report": data["report"], "pull": 4})
+    async with chromium() as browser:
+        errors: list[str] = []
+        page = await viewhost._open(browser, setup, errors)
+        await viewhost._settled(page)
+        view = page.frames[-1]
+        lines = await view.locator("svg path.cl[stroke-linejoin]").evaluate_all(
+            "els => els.map((e) => e.getAttribute('stroke-dasharray'))")
+        assert lines == [None, "7 3", "2 3", None]
+        pieces = await view.locator("svg path.cl:not([stroke-linejoin])").evaluate_all(
+            "els => els.map((e) => [e.getAttribute('stroke-dasharray'), e.nextElementSibling.textContent])")
+        assert pieces == [[None, "Mirelle"], ["7 3", "Halvard"], ["2 3", "Oswin"]]  # the druid's colour is his alone
+        names = await view.locator("svg text.cls").evaluate_all(
+            "els => els.map((e) => [e.textContent, e.getBoundingClientRect().top, e.getBoundingClientRect().left])")
+        assert sorted(n for n, _, _ in names) == ["Brannoch", "Halvard", "Mirelle", "Oswin"]
+        tops = sorted(top for _, top, _ in names)
+        assert all(b - a >= 11 for a, b in itertools.pairwise(tops))  # none on another, though three end together
+        plot_right = await view.locator("svg line").first.evaluate("(e) => e.getBoundingClientRect().right")
+        assert all(left >= plot_right for _, _, left in names)  # in the margin, past the lines' ends
+        assert not errors
+
+
+async def test_against_another_night_a_meters_marks_keep_off_its_numbers_and_long_names_are_cut_at_their_end(recorded):
+    """The other night's mark sat on the amount in a row whose earlier amount was near the top one; the bars and
+    the marks now end where the amounts begin. In the grid by pull a long name ran off the left edge."""
+    from wipebot.core import viewhost
+    case = CASES["mechanic-hits-against"]
+    key = await viewhost.picture_key(case.tool, case.args)
+    assert key and key["view"] == "meter"
+    async with chromium() as browser:
+        errors: list[str] = []
+        page = await viewhost._open(browser, viewhost._picture_setup(case.tool, case.args, key), errors)
+        await viewhost._settled(page)
+        view = page.frames[-1]
+        rows = await view.locator(".meter-rows li:has(.was)").evaluate_all("""els => els.map((li) => {
+          const right = (sel) => li.querySelector(sel).getBoundingClientRect().right;
+          const numbers = [...li.querySelectorAll(".row:not(.on) :is(.dd, .val, .dl)")].filter((e) => e.textContent);
+          const first = Math.min(...numbers.map((e) => e.getBoundingClientRect().left));
+          return [right(".was"), right(".fill"), first]; })""")
+        assert len(rows) >= 5 and all(mark <= numbers and bar <= numbers for mark, bar, numbers in rows), rows
+        cut = await view.evaluate("""() => { const s = kit.fit("Averyveryverylongname-Argentdawn", 80, 11, 600);
+          return [s, kit.width(s, 11, 600), kit.fit("Mirelle", 80, 11, 600)]; }""")
+        assert cut[0].startswith("Averyvery") and cut[0].endswith("…") and cut[1] <= 80 and cut[2] == "Mirelle"
+        assert not errors
+        # the grid by pull: the names' column is as wide as the longest of them, so the raid's own are whole
+        case = CASES["mechanic-hits"]
+        key = await viewhost.picture_key(case.tool, case.args)
+        assert key
+        page = await viewhost._open(browser, viewhost._picture_setup(case.tool, case.args, key), errors)
+        await viewhost._settled(page)
+        names = await page.frames[-1].locator('[data-panel="by_pull"] svg text.cls').evaluate_all(
+            "els => els.map((e) => [e.textContent, e.getBoundingClientRect().left"
+            " - e.ownerSVGElement.getBoundingClientRect().left])")
+        assert len(names) > 15 and not any("…" in name or left < 0 for name, left in names), names
+        assert not errors
 
 
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):
@@ -1451,3 +1523,10 @@ async def test_a_view_in_panels_is_painted_a_picture_per_panel(made_up, monkeypa
     finally:
         await painter.close()
     assert len(drawn) == 2  # what killed them; the night pull by pull: each whole in Discord
+    from PIL import Image
+    for panel in drawn:  # each as wide as a whole view's picture, with its margin (a panel was once shot bare)
+        img = Image.open(io.BytesIO(panel)).convert("RGB")
+        assert img.width == viewhost.PICTURE_WIDTH * viewhost.PICTURE_SCALE
+        # the margin: the card's colour, nothing drawn in it
+        edge = cast(tuple[tuple[int, int], ...], img.crop((0, 0, 24, img.height)).getextrema())
+        assert all(most - least <= 3 for least, most in edge), edge
