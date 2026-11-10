@@ -348,7 +348,7 @@ async def test_a_mechanics_trend_counts_the_raids_hits_per_pull_as_its_tool_does
     assert len(per_pull) == len(data["pulls"]) == 33
     for r in data["pulls"]:
         assert r["amount"] == int(per_pull[str(r["pull"])]), r["pull"]
-        assert r["rate"] == pytest.approx(60 * r["amount"] / r["seconds"], abs=0.01) if r["seconds"] else True
+        assert r["rate"] == round(60 * r["amount"] / r["seconds"], 1)  # to the one decimal a count is written with
     assert data["count"] and data["per"] == "minute" and data["subject"] == "Tempest hits" and data["icon"]
     resets = [r["pull"] for r in data["pulls"] if r["reset"]]
     thirds = data["thirds"]
@@ -394,6 +394,28 @@ async def test_the_askers_row_has_none_for_a_pull_they_were_in_and_no_row_for_a_
     two = await trend_data("damage-by-pull", mark="namsus")
     assert two["mine"]["name"] == "Namsus" and {"Namsus"} <= in_pull[12] & in_pull[13]
     assert [r["mine"] == 0 for r in two["pulls"]] == [True, False] and two["pulls"][1]["mine"] > 0
+
+
+async def test_a_counts_rate_is_handed_on_to_the_one_decimal_its_headline_writes(recorded, monkeypatch):
+    """A count per minute is written to one decimal. The page rounds what it is given, and was given two: 20.249
+    hits a minute went as 20.25, which the page wrote as 20.3 on a pull whose headline said 20.2. An amount keeps
+    two (1.53M: the page writes those too)."""
+    rep = await server.lib().report(REPORT)
+    fights = rep.by_boss["Sszorak"][:2]
+    made = views.Trend("Slag Wave by pull", "Sszorak pulls 1, 2", "Slag Wave hits", "minute", True, fights,
+                       [20.249, 7.0], [60.0, 60.0], [{"Enfo": 20.249}, {"Enfo": 7.0}])
+
+    async def trend_of(rep, tool, args):
+        return made
+    monkeypatch.setattr(views, "trend_of", trend_of)
+    data = (await server.view_data("trend", report=REPORT, tool="mechanic_hits", args={}, player="Enfo")
+            ).structured_content
+    assert data and [(r["rate"], r["mine"]) for r in data["pulls"]] == [(20.2, 20.2), (7.0, 7.0)]
+    assert data["median"] == 20.2
+    assert data["headline"]["text"] == "The raid's Slag Wave hits per minute: 20.2 on pull 1, 7.0 on pull 2."
+    made.count, made.per, made.amounts = False, "second", [1_534_567.891 * 60, 7.0]
+    data = (await server.view_data("trend", report=REPORT, tool="breakdown", args={})).structured_content
+    assert data and data["pulls"][0]["rate"] == 1_534_567.89 and "1.53M on pull 1" in data["headline"]["text"]
 
 
 def test_a_trends_thirds_leave_resets_out_and_need_six_counted_pulls():
@@ -2337,9 +2359,11 @@ def made_up_trend() -> dict:
 
 async def test_a_trend_tells_a_kill_and_a_reset_from_a_wipe_and_draws_the_askers_row(monkeypatch):
     """A kill's bar is capped in gold and a reset's is hollow, each with its key under the chart and its word in
-    the pull's tooltip and row; the one asking has their own row, which says where they weren't in a pull."""
+    the pull's tooltip and row; a wipe says how far it got as the tools write it (it once read "86.13%", and
+    "null%" for a log without one); the one asking has their own row, which says where they weren't in a pull."""
     from wipebot.core import viewhost
     trend = made_up_trend()
+    trend["pulls"][4]["pct"] = None  # Warcraft Logs gave pull 5 no percent
     key = {k: trend[k] for k in ("view", "report", "boss", "tool", "args")} | {"mark": "Mirelle"}
     made_up_view(monkeypatch, key, trend)
     tip = "(n) => document.querySelector(`[data-pull-col=\"${n}\"]`).dataset.tip"
@@ -2352,7 +2376,8 @@ async def test_a_trend_tells_a_kill_and_a_reset_from_a_wipe_and_draws_the_askers
         assert (await view.evaluate(tip, 7)).startswith("Pull 7: kill\n1.61M/s: 676M over 7:00\n")
         assert "Mirelle: 262.00k/s" in await view.evaluate(tip, 7)
         assert (await view.evaluate(tip, 2)).startswith("Pull 2: a reset, not counted\n")
-        assert (await view.evaluate(tip, 4)).startswith("Pull 4: wipe at 50%\n")
+        assert (await view.evaluate(tip, 4)).startswith("Pull 4: wipe at 50.0%\n")  # as the tools write it
+        assert (await view.evaluate(tip, 5)).startswith("Pull 5: wipe\n")  # a log without how far it got
         assert "Mirelle: not in it" in await view.evaluate(tip, 3)
         card = (await view.locator("body").inner_text()).lower()
         assert "of 6 pulls, 1 reset left out" in card and "pull 7" in card and "1.61m/s, the kill" in card
@@ -2360,7 +2385,7 @@ async def test_a_trend_tells_a_kill_and_a_reset_from_a_wipe_and_draws_the_askers
     async with drawn("breakdown", trend["args"], mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
         rows = await view.locator("table.pulls tbody tr").evaluate_all(
             "trs => trs.map((tr) => [...tr.children].map((td) => td.textContent))")
-        assert [r[1] for r in rows] == ["80%", "reset", "60%", "50%", "40%", "30%", "kill"]
+        assert [r[1] for r in rows] == ["80.0%", "reset", "60.0%", "50.0%", "–", "30.0%", "kill"]
         assert rows[2][5] == "–" and rows[6][5] == "262.00k" and not errors
 
 

@@ -15,11 +15,13 @@ views.trend = (() => {
   }
 
   const unit = () => D.per === "minute" ? "/min" : "/s";
-  const fmt = (v) => D.count ? (Math.round(v * 10) / 10).toFixed(1) : kit.exact(v);  // as the headline writes them
+  const fmt = (v) => D.count ? v.toFixed(1) : kit.exact(v);  // as the headline writes them (a count comes to its one decimal)
   const total = (v) => D.count ? String(Math.round(v)) : kit.short(v);
   const change = (now, was) => { const p = Math.round((now / was - 1) * 100); return p ? `${p > 0 ? "+" : "−"}${Math.abs(p)}%` : "the same"; };
   const counted = () => D.pulls.filter((r) => !r.reset);
-  const result = (r) => r.kill ? "kill" : r.reset ? "reset" : `${r.pct}%`;
+  // how far a wipe got, as the tools write it ("62.6%"); a log without it has none
+  const left = (r) => r.pct == null ? "" : `${r.pct.toFixed(1)}%`;
+  const result = (r) => r.kill ? "kill" : r.reset ? "reset" : left(r) || "–";
 
   function stats() {
     const n = counted(), resets = D.pulls.length - n.length, t = D.thirds, mine = D.mine;
@@ -36,7 +38,7 @@ views.trend = (() => {
   }
 
   function tipOf(r) {
-    const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset, not counted" : `wipe at ${r.pct}%`}`;
+    const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset, not counted" : left(r) ? `wipe at ${left(r)}` : "wipe"}`;
     const out = `${fmt(r.rate)}${unit()}: ${total(r.amount)} over ${kit.clock(r.seconds * 1000)}`;
     const top = r.top.length ? `most: ${r.top.map(([n, v]) => `${n} ${total(v)}`).join(", ")}` : "";
     const own = D.mine ? `${D.mine.name}: ${r.mine != null ? `${fmt(r.mine)}${unit()}` : "not in it"}` : "";

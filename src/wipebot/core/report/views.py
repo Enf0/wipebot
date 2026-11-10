@@ -1083,16 +1083,20 @@ async def trend_view(rep: Report, tool: str, args: dict, mark: str | None = None
     own_thirds = trend_thirds([r or 0.0 for r in own],  # the pulls they weren't in left out, as a reset is
                               [reset or r is None for r, reset in zip(own, resets, strict=True)]) if mine else None
     nos = [rep.pull_no(f) for f in t.fights]
+    # a count's rate to the one decimal it is written with (Trend.text), so that the page, which rounds what it is
+    # given, never writes 20.3 under a headline's 20.2 (20.249 handed on as 20.25)
+    places = 1 if t.count else 2
     pulls = [{"pull": no, "kill": bool(f["kill"]), "reset": reset, "pct": 0.0 if f["kill"] else wipe_pct(f),
-              "seconds": round(s, 3), "amount": round(v, 1), "rate": round(r, 2),
+              "seconds": round(s, 3), "amount": round(v, 1), "rate": round(r, places),
               "top": [[n, round(x, 1)] for n, x in sorted(row.items(), key=lambda kv: (-kv[1], kv[0]))[:TREND_TOP]
                       if x]}
-             | ({"mine": round(mined, 2) if (mined := own[i]) is not None else None} if mine else {})
+             | ({"mine": round(mined, places) if (mined := own[i]) is not None else None} if mine else {})
              for i, (no, f, reset, s, v, r, row) in enumerate(zip(nos, t.fights, resets, t.seconds, t.amounts, rates,
                                                                   t.rows, strict=True))]
 
     def third_rows(found: list[tuple[list[int], float]] | None) -> list[dict] | None:
-        return [{"pulls": [nos[i] for i in part], "rate": round(rate, 2)} for part, rate in found] if found else None
+        return [{"pulls": [nos[i] for i in part], "rate": round(rate, places)}
+                for part, rate in found] if found else None
 
     def who(p: Player) -> dict:
         return {"name": p.name, "color": class_hex(p.class_name), "spec": spaced(p.spec)}
@@ -1102,7 +1106,7 @@ async def trend_view(rep: Report, tool: str, args: dict, mark: str | None = None
             "url": rep.url(t.fights[0]).split("#")[0],
             "headline": trend_headline(t, nos, rates, thirds),
             "pulls": pulls, "thirds": third_rows(thirds),
-            "median": round(counted[len(counted) // 2], 2) if counted else None,
+            "median": round(counted[len(counted) // 2], places) if counted else None,
             "mine": who(mine) | {"thirds": third_rows(own_thirds)} if mine else None}
 
 
