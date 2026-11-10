@@ -172,8 +172,7 @@ async def test_a_shared_bot_without_sign_in_says_so_and_a_hosts_own_bot_asks_for
 
 
 def test_the_experimental_sources_are_connected_on_the_command_line_only(bot, monkeypatch):
-    monkeypatch.setenv("RAIDSTRATS_CLIENT_ID", "app")
-    monkeypatch.setenv("RAIDSTRATS_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("RSGG_REST_API_KEY", "key")
     group = commands.build(bot)
     assert group.get_command("raidstrats") is None and group.get_command("viserio") is None
 

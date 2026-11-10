@@ -32,6 +32,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   ![The whole night's card: a row with Vashnik the Malignant, 2 pulls, killed, and Sszorak, 33 pulls, best 63%, then Sszorak's sentence, two numbers and its 33 pulls as bars coloured by what ended them](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-card-short.webp)
 
+### Removed
+
+- `Agent` **Raid plans are no longer fetched with an officer's raidstrats.gg login.** It was an experimental setup on the host's command line, and it couldn't read the plans Viserio's assignments use by default. A guild's own plan is saved by pasting its export, and a plan in an assignment by its link. Hosts: `wipebot raidstrats-login`, `RAIDSTRATS_CLIENT_ID` and `RAIDSTRATS_CLIENT_SECRET` are gone, and the stored logins are deleted from the notebook; the plans already saved stay.
+
 ### Fixed
 
 - `Discord` **`/help` says first when a server has no AI key yet.** On a bot where each server answers on its own key, `/help` listed what to ask while every question was refused. It now opens with that an admin adds a key with `/wipebot setup`, and, where the host runs the connector too, that raiders can ask the same in Claude or ChatGPT meanwhile, which needs no key; a refused question says so as well.

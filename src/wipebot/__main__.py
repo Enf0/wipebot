@@ -10,7 +10,6 @@
     wipebot try "QUESTION" --channel ID  ask once in Discord, post the answer in that channel, exit
     wipebot ask CODE                     developer chat: ask about a report as a raider would in Discord
     wipebot note FILE --at TIME          save a raid note or plan as if an officer pasted it then (FILE - for stdin)
-    wipebot raidstrats-login --guild ID  fetch a guild's raid plans from raidstrats.gg with your login there
     wipebot viserio --guild ID           read a guild's raid nights to come from Viserio Cooldowns with its key
 """
 import argparse
@@ -145,60 +144,6 @@ def save_note(path: str, at: str | None, by: str, discord_server: int | None, st
         raise SystemExit(f"not a raid note or plan: {e}") from None
 
 
-def raidstrats_login(guild: int, by: str, disconnect: bool) -> None:
-    """A guild's raidstrats.gg login, saved in the notebook both apps read. The browser comes back to localhost:
-    here, when run on this computer; otherwise the address it couldn't open is pasted."""
-    import queue
-    import threading
-    from http.server import BaseHTTPRequestHandler, HTTPServer
-
-    from wipebot.core import raidstrats
-    from wipebot.core.notebook import Notebook
-
-    book = Notebook()
-    if disconnect:
-        book.drop_login(guild)
-        print("Disconnected: the plans are no longer fetched (the saved versions stay).")
-        return
-    try:
-        url, state = raidstrats.login_url()
-    except raidstrats.RaidstratsError as e:
-        raise SystemExit(str(e)) from None
-    pasted: queue.Queue[str] = queue.Queue()
-
-    class Callback(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"Done: you can close this tab and go back to the terminal.")
-            pasted.put("http://localhost" + self.path)
-
-        def log_message(self, format: str, *args) -> None:  # noqa: A002 (the base class names it)
-            pass
-
-    try:
-        port = int(raidstrats.REDIRECT_URL.split(":")[2].split("/")[0])
-        listener = HTTPServer(("127.0.0.1", port), Callback)
-        threading.Thread(target=listener.handle_request, daemon=True).start()
-    except OSError:  # the port is taken: pasting still works
-        pass
-    print(f"Log in on raidstrats.gg and approve Wipebot (with \"In-game import\"):\n\n  {url}\n\n"
-          "If the browser then shows a page that doesn't load, paste its address here.", flush=True)
-    threading.Thread(target=lambda: pasted.put(input("> ")), daemon=True).start()
-    try:
-        username, token = asyncio.run(raidstrats.connect(pasted.get(), state))
-    except raidstrats.RaidstratsError as e:
-        raise SystemExit(f"Not connected: {e}.") from None
-    book.save_login(guild, username, token, by)
-    asyncio.run(raidstrats.sync(book, guild))
-    login = book.login(guild)
-    if login and login.problem:
-        raise SystemExit(f"Connected as {username}, but fetching the plans failed: {login.problem}.")
-    print(f"Connected as {username}. Plans it can open:")
-    for p in book.latest_plans(guild):
-        print(f"- {p.name} ({p.boss})")
-
-
 def viserio_key(guild: int, by: str, disconnect: bool) -> None:
     """A guild's Viserio Cooldowns key (WOWUTILS_API_KEY, else typed), saved in the notebook both apps read once
     Viserio says its group is that guild's."""
@@ -264,11 +209,6 @@ def _tool_commands(sub) -> None:
     pl.add_argument("dir", help="the repository's checkout: its files are replaced")
     pl.add_argument("--repo", required=True, help="where it's pushed, owner/name on GitHub (public)")
     pl.add_argument("--name", default="Wipebot", help="the plugin's and connector's name as members see it")
-    rs = sub.add_parser("raidstrats-login", help="fetch a guild's raid plans from raidstrats.gg with your login")
-    rs.add_argument("--guild", type=int, required=True, help="the guild's id on Warcraft Logs (its page's link: "
-                                                             "warcraftlogs.com/guild/id/<id>)")
-    rs.add_argument("--by", default="the command line", help="who connected it, kept with it")
-    rs.add_argument("--disconnect", action="store_true", help="stop fetching and forget the login")
     vs = sub.add_parser("viserio", help="read a guild's raid nights to come from Viserio Cooldowns with its group's "
                                         "key (WOWUTILS_API_KEY, else asked)")
     vs.add_argument("--guild", type=int, required=True, help="the guild's id on Warcraft Logs")
@@ -363,8 +303,6 @@ def main() -> None:  # noqa: C901
         ask_main(args)
     elif args.cmd == "note":
         save_note(args.file, args.at, args.by, args.server)
-    elif args.cmd == "raidstrats-login":
-        raidstrats_login(args.guild, args.by, args.disconnect)
     elif args.cmd == "viserio":
         viserio_key(args.guild, args.by, args.disconnect)
 

@@ -138,7 +138,7 @@ async def test_pull_map_with_the_plan_serving_many_users_gives_the_viewer_the_pl
     plan = case.args["plan"]
 
     async def saved(rep, pull, boss):  # the guild's saved plan, as the notebook would give it
-        return plan, ""
+        return plan
     monkeypatch.setattr(server, "_saved_plans", saved)
     checked = await server.mcp.call_tool("raid_plan", case.args)
     assert isinstance(checked, CallToolResult) and checked.structured_content is None

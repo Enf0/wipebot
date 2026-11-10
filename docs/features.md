@@ -167,11 +167,6 @@ What can be saved:
   link instead: in Viserio's assignment note, right-click the raidstrats.gg badge at the bottom right of a section's
   raid plan, Copy Link, and paste it to Wipebot. The link names the plan and the night's raiders on their numbers.
 
-Raid plans can also be fetched from raidstrats.gg instead of pasted, where the host set it up
-([setup.md](setup.md#raid-notes-and-plans)): every plan the officer who connected can open, fetched again when
-someone asks, so an edit on raidstrats.gg counts from the next question. A pasted export with the night's raiders
-stays the one used until the plan itself changes on raidstrats.gg.
-
 The raid nights to come can be read from Viserio Cooldowns, with the key the group's admin makes there
 ([setup.md](setup.md#raid-notes-and-plans)): each night in the next eight days with its sign-ups (absent, late,
 tentative), and per boss planned in the week's setup who's in, by role, and who's out. So "am I in on Coiled Altar

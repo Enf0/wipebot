@@ -38,7 +38,7 @@ from claude_agent_sdk import (
 )
 from mcp.server.mcpserver.exceptions import ToolError
 
-from wipebot.core import raidstrats, server, viewhost, viserio, wcl
+from wipebot.core import server, viewhost, viserio, wcl
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
 
@@ -646,9 +646,8 @@ class Session:
                 "pasting the note exported from Viserio to the bot." + server.NO_JOBS)
 
     async def _saved_plan(self, args: dict) -> tuple[str, str] | str:
-        """raid_plan: every version of the server's plans (Context.notebook) for the boss of the call's pull, after
-        fetching them from raidstrats.gg when the guild has a login there; the tool checks each pull against the
-        version it was planned with."""
+        """raid_plan: every version of the server's plans (Context.notebook) for the boss of the call's pull; the
+        tool checks each pull against the version it was planned with."""
         if not (self._ctx and self._ctx.notebook):
             off = self._ctx.notes_off if self._ctx else ""
             return off or "Raid plans are only kept in Discord: there's none here."
@@ -660,15 +659,12 @@ class Session:
         # The plan as it is (`show`, or a boss not pulled yet) needs no pull: every plan, raid_plan picks the boss's
         whole = bool(args.get("show")) or bool(boss and not server.pulled(report, boss))
         f = None if whole else report.fight(args.get("pull"), boss)
-        await raidstrats.sync(book, guild)
-        login = book.login(guild)
-        source = raidstrats.source(login) if login else "saved from pastes"
         found = server.every_plan(book, guild) if f is None else server.saved_plans(book, guild, report, f)
         if not found:
             named = boss if f is None else report.boss_key(f)
             return (f"No raid plan is saved for {named} in this server. Officers save one by pasting the "
                     "plan's export from raidstrats.gg (the planner's Export button) to the bot." + server.NO_JOBS)
-        return "\n".join(found), source
+        return "\n".join(found), "saved from pastes"
 
     async def _tools(self) -> list:
         """The session's tools: the core's, each call run as the current question's asker (Context.reading), and

@@ -572,11 +572,6 @@ async def test_the_background_loops_outlive_a_failure(bot, monkeypatch):
     monkeypatch.setattr(bot.store, "all_settings", broken)
     await bot.poll.coro(bot)  # logged, not raised: discord.ext.tasks would end the loop
 
-    async def keep_alive(book):
-        raise RuntimeError("boom")
-    monkeypatch.setattr(wipebot.raidstrats, "keep_alive", keep_alive)
-    await bot.keep_logins.coro(bot)
-
 
 async def test_a_pasted_raid_note_is_saved_only_for_officers(bot, message, asked, monkeypatch, settings):
     """Officers are the members with the officer role (/wipebot setup), or with none set, who can manage the

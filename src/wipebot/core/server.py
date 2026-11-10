@@ -590,13 +590,13 @@ async def _plan_map(rep: Report, pull: PullRef, boss: str | None, at: str | None
                     all_pulls: bool, ctx: Context) -> CallToolResult:
     """pull_map with `plan`: the guild's saved plan checked against the pull, drawn; in a host that shows the replay
     viewer, the replay with the plan's spots at each moment it checked instead of the picture."""
-    text, source = await _saved_plans(rep, pull, boss)
+    text = await _saved_plans(rep, pull, boss)
     serving_many = setup().remote is not None
     viewer = serving_many and _supports_apps(ctx) and not all_pulls
     player = players[0] if players else None
     ans = await plans.plan_check(rep, text, pull, boss, all_pulls, at, player, draw=not viewer)
     content: list[TextContent | ImageContent] = [TextContent(
-        type="text", text=f"(The plans were {source}.)\n{ans.text}" if source else ans.text)] + [
+        type="text", text=ans.text)] + [
         ImageContent(type="image", data=base64.b64encode(i).decode(), mime_type="image/webp") for i in ans.images]
     if not serving_many or ans.fight is None or ans.overlay is None:
         return CallToolResult(content=content)
@@ -1117,28 +1117,14 @@ async def _saved_note(rep: Report, pull: PullRef, boss: str | None, all_pulls: b
     return found
 
 
-async def _guild_plans(rep: Report) -> tuple[notebook.Notebook, int, str, str]:
-    """The notebook with the report's guild's plans, fetched from raidstrats.gg first when the guild has a login
-    there; the guild, where the plans are from ("" without a login: each version's text says), and why that login
-    stopped working ("" when it works) for a FactError's text."""
-    guild = _saved_guild(rep, "raid plan")
-    if notebook.Notebook(readonly=True).login(guild):
-        await raidstrats.sync(notebook.Notebook(), guild)
-    book = notebook.Notebook(readonly=True)
-    login = book.login(guild)
-    source = raidstrats.source(login) if login else ""
-    # A login that stopped working is why a plan made since is missing: the officer who can fix it must hear it.
-    return book, guild, source, f" (its plans are {source})" if login and login.problem else ""
-
-
-async def _saved_plans(rep: Report, pull: PullRef, boss: str | None) -> tuple[str, str]:
-    """Every version of the plans the report's guild saved for the pull's boss, and where they're from."""
+async def _saved_plans(rep: Report, pull: PullRef, boss: str | None) -> str:
+    """Every version of the plans the report's guild saved for the pull's boss."""
     f = rep.fight(pull, boss)
-    book, guild, source, broken = await _guild_plans(rep)
-    if not (found := saved_plans(book, guild, rep, f)):
-        raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved for {rep.boss_key(f)}{broken}: "
+    guild = _saved_guild(rep, "raid plan")
+    if not (found := saved_plans(notebook.Notebook(readonly=True), guild, rep, f)):
+        raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved for {rep.boss_key(f)}: "
                         "ask the user to paste the plan's export from raidstrats.gg." + NO_JOBS)
-    return "\n".join(found), source
+    return "\n".join(found)
 
 
 def every_plan(book: notebook.Notebook, guild: int) -> list[str]:
@@ -1146,14 +1132,13 @@ def every_plan(book: notebook.Notebook, guild: int) -> list[str]:
     return [f"{saved.mark(p.saved_at, p.saved_by)} {p.plan}" for p in book.plans(guild)]
 
 
-async def _every_plan(rep: Report) -> tuple[str, str]:
-    """Every version of every plan the report's guild saved, each after its mark (saved.py), and where they're
-    from."""
-    book, guild, source, broken = await _guild_plans(rep)
-    if not (found := every_plan(book, guild)):
-        raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved{broken}: ask the user to paste "
+async def _every_plan(rep: Report) -> str:
+    """Every version of every plan the report's guild saved, each after its mark (saved.py)."""
+    guild = _saved_guild(rep, "raid plan")
+    if not (found := every_plan(notebook.Notebook(readonly=True), guild)):
+        raise FactError(f"no raid plan was given, and {rep.guild_name} has none saved: ask the user to paste "
                         "the plan's export from raidstrats.gg.")
-    return "\n".join(found), source
+    return "\n".join(found)
 
 
 @_tool
@@ -1277,23 +1262,21 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     the notes, adds, ability icons with their labels, shapes with what's in them, and arrows. Places are as the plan
     draws them, not in the room; a spot without a name is filled by the night's assignment, which the plan doesn't
     have. Asked about a boss the report has no pull on, it shows the plan."""
-    rep, source, unpulled = await lib().report(report), "", ""
+    rep, unpulled = await lib().report(report), ""
     if boss and not show and not pulled(rep, boss):  # not pulled yet: there's only the plan to show
         show, unpulled = True, f"{boss} has no pull in this report, so the plan is shown as it is.\n"
     if show:
         if not plan:
-            plan, source = await _every_plan(rep)
+            plan = await _every_plan(rep)
         text = unpulled + await plans.plan_show(rep, plan, boss, player)
-        return CallToolResult(content=[TextContent(type="text", text=f"(The plans were {source}.)\n{text}"
-                                                   if source else text)])
+        return CallToolResult(content=[TextContent(type="text", text=text)])
     if not plan:
-        plan, source = await _saved_plans(rep, pull, boss)
+        plan = await _saved_plans(rep, pull, boss)
     # A host that shows the replay viewer gets the pull against the plan from pull_map with `plan` (the viewer is
     # pull_map's: a host shows a tool's viewer on every call, and most of raid_plan's answers have no pull to play).
     draw = not (setup().remote is not None and _supports_apps(ctx))
     ans = await plans.plan_check(rep, plan, pull, boss, all_pulls, at, player, draw=draw, latest=latest)
-    text = f"(The plans were {source}.)\n{ans.text}" if source else ans.text
-    return CallToolResult(content=[TextContent(type="text", text=text)] + [
+    return CallToolResult(content=[TextContent(type="text", text=ans.text)] + [
         ImageContent(type="image", data=base64.b64encode(i).decode(), mime_type="image/webp") for i in ans.images])
 
 

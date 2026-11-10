@@ -157,34 +157,19 @@ Warcraft Logs id, with the key in `WOWUTILS_API_KEY` or typed). Both apps then a
 the next boss?" and "who's coming Monday?" from the calendar's sign-ups and the week's setups. The key is used only
 for the guild its group names, and what it reads is kept in memory for two minutes, never on disk.
 
-**Fetching plans from raidstrats.gg** instead of pasting them, optional: create an app on
-[raidstrats.gg/developers](https://raidstrats.gg/developers) with the data Plans and In-game import and the redirect
-URL `http://localhost:8765/callback`, and set `RAIDSTRATS_CLIENT_ID` and `RAIDSTRATS_CLIENT_SECRET` in `.env`. Then
-`wipebot raidstrats-login --guild <id>` logs in once, with a raidstrats.gg account that can open the guild's plans,
-and the guild's plans are fetched whenever an answer needs one. For the connector to fetch them
-too, pass both settings to it in a `compose.override.yml`:
+**Saving a plan by its link**, optional: with a key to raidstrats.gg's plan REST API (asked for on raidstrats.gg's
+Discord) in `RSGG_REST_API_KEY`, an officer saves a plan by pasting its link instead of its export. The link Viserio's
+assignment note embeds (in a section's raid plan, right-click the raidstrats.gg badge at the bottom right and Copy
+Link) names the plan and the night's raiders by their numbers, so Wipebot fetches the plan and writes the raiders on
+their spots, Viserio's default plans included. The key reads no guild's own plans: those are saved by pasting their
+export. The bot reads the key from `.env`; for the connector, pass it in a `compose.override.yml`:
 
 ```yaml
 services:
   wipebot-mcp:
     environment:
-      RAIDSTRATS_CLIENT_ID: ${RAIDSTRATS_CLIENT_ID}
-      RAIDSTRATS_CLIENT_SECRET: ${RAIDSTRATS_CLIENT_SECRET}
+      RSGG_REST_API_KEY: ${RSGG_REST_API_KEY}
 ```
-
-**Saving a plan by its link**, optional: with a key to raidstrats.gg's plan REST API (asked for on raidstrats.gg's
-Discord) in `RSGG_REST_API_KEY`, an officer saves a plan by pasting its link instead of its export. The link Viserio's
-assignment note embeds (in a section's raid plan, right-click the raidstrats.gg badge at the bottom right and Copy
-Link) names the plan and the night's raiders by their numbers, so Wipebot fetches the plan and writes the raiders on
-their spots, Viserio's default plans included. The key reads no guild's own plans: those take the login above or
-their export. The bot reads the key from `.env`; for the connector, pass `RSGG_REST_API_KEY` to it the same way as
-the two settings above.
-
-The fetch reads the plans the officer's account can open: their own and the guild's. A plan Viserio's assignment
-note links by default belongs to its author: duplicate it on raidstrats.gg and save the copy once (raidstrats.gg makes
-its export on save), or paste it. Pasting Viserio's export of a section (its RSGG Addon button) also brings the
-night's raiders on their numbers. If the app's secret is changed on raidstrats.gg, set the new one in `.env`: the
-officer's login is kept and works again.
 
 ## Officers and admins
 

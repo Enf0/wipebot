@@ -86,24 +86,8 @@ async def test_without_a_paste_a_tool_reads_what_the_reports_guild_saved(book):
     every, _ = await server._saved_note(night(), None, None, all_pulls=True)
     assert every == "[saved 1000 by Rowan]\nthe note"
     plans = await server._saved_plans(night(), None, None)
-    assert plans == ("[saved 1200 by Halvard] raidstrats-addon-x", "")  # Sszorak's only; pasted, no login
+    assert plans == "[saved 1200 by Halvard] raidstrats-addon-x"  # Sszorak's only
 
-
-
-async def test_with_none_saved_and_a_broken_login_the_tool_says_the_login_stopped_working(book, monkeypatch):
-    book.save_login(14169, "Enfo-2581", {"access_token": "a", "refresh_token": "r", "expires_in": 3600}, "Rowan")
-    book.fetched(14169, "raidstrats.gg no longer accepts the login: an officer connects again")
-    monkeypatch.setattr(server.raidstrats, "sync", lambda *a: _done())
-    assert book._db is not None
-    book._db.execute("DELETE FROM raid_plans")  # the boss's plan was made after the login broke
-    book._db.commit()
-    with pytest.raises(FactError, match="its plans are fetched from raidstrats.gg as Enfo-2581.*an officer connects "
-                                        "again"):
-        await server._saved_plans(night(), None, None)
-
-
-async def _done() -> None:
-    pass
 
 async def test_a_member_of_the_reports_guild_reads_its_notes_on_the_remote_server_and_no_one_else(book, monkeypatch):
     signed_in(monkeypatch, {14169})
@@ -298,3 +282,17 @@ async def test_a_note_for_a_boss_not_pulled_yet_is_given_as_it_is_its_spells_nam
     # for the next raid, on a boss with pulls: the newest note as it is, not the one of the pulls' night
     assert (await server._unpulled_note(night(), "Sszorak", upcoming=True)).startswith(
         "For the next raid, so here is the newest raid note")
+
+
+def test_a_notebook_from_when_plans_were_fetched_with_a_login_loses_the_logins_and_keeps_its_plans(tmp_path):
+    path = tmp_path / "notes.sqlite"
+    old = Notebook(path)
+    old.save_plan(14169, "Sszorak", "p1", "Spread", "raidstrats-addon-x", "raidstrats.gg", at=1000.0)
+    assert old._db is not None
+    old._db.execute("CREATE TABLE raidstrats_logins (wcl_guild_id INTEGER PRIMARY KEY, refresh_token TEXT)")
+    old._db.execute("INSERT INTO raidstrats_logins VALUES (14169, 'secret')")
+    old._db.commit()
+    book = Notebook(path)
+    assert book._db is not None
+    assert not book._db.execute("SELECT 1 FROM sqlite_master WHERE name = 'raidstrats_logins'").fetchall()
+    assert [p.saved_by for p in book.plans(14169)] == ["raidstrats.gg"]

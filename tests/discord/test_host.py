@@ -237,8 +237,6 @@ async def test_raid_note_gets_the_servers_saved_note_and_over_all_pulls_every_ve
 
 
 async def test_raid_plan_gets_every_version_the_server_saved_for_the_pulls_boss(monkeypatch):
-    for name in ("RAIDSTRATS_CLIENT_ID", "RAIDSTRATS_CLIENT_SECRET"):  # a developer's .env may set them
-        monkeypatch.delenv(name, raising=False)
     def boss(name):
         if name != "Sszorak":
             raise FactError(f"no boss matching {name!r}")

@@ -460,7 +460,6 @@ class WipeBot(discord.Client):
         self.add_dynamic_items(Act, Pick, FollowUp)  # the pictures' buttons and menus and the follow-ups, also old
         if not self.trying:
             self.poll.start()
-            self.keep_logins.start()
         try:
             asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, self._on_sigterm)
         except NotImplementedError:  # Windows: SIGTERM stops the bot at once, as before
@@ -471,7 +470,6 @@ class WipeBot(discord.Client):
             return
         self.stopping = True
         self.poll.cancel()  # unhandled pulls stay unhandled: the next start picks them up
-        self.keep_logins.cancel()
         log.info("stopping: finishing %d answers in progress first (up to %d s)", self._answering, DRAIN_S)
         self._drain_task = asyncio.get_running_loop().create_task(self._drain())
 
@@ -644,14 +642,6 @@ class WipeBot(discord.Client):
     @poll.before_loop
     async def _wait_ready(self) -> None:
         await self.wait_until_ready()
-
-    @tasks.loop(hours=6)
-    async def keep_logins(self) -> None:
-        """The guilds' raidstrats.gg logins refreshed weekly, so one nobody used for 30 days doesn't lapse."""
-        try:  # an exception would end the loop for good
-            await raidstrats.keep_alive(self.store.notebook)
-        except Exception:
-            log.exception("refreshing the raidstrats.gg logins failed")
 
     async def _new_pulls(self, s: ServerSettings) -> None:
         """Every pull that finished since the last poll; after a wipe, the post each person asked for. Only while

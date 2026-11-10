@@ -81,7 +81,8 @@ API: `wcl-api.md`.
   (Wipebot counts only the entries with no number). The plan REST API, 10 November 2026: works again with the key
   and the User-Agent `Wipebot`, from a cloud host too. A Wowutils default plan fetched by its Viserio link (one
   batch call, 0.6 s) got the link's 12 raiders on the right spots in the room and the side panel.
-- raidstrats.gg's API (`/api/oauth/v1`, its developers page) reads only as a person who logged in and approved the
+- raidstrats.gg's API (`/api/oauth/v1`, its developers page; Wipebot used it until November 2026 and no longer
+  does: a plan is saved by its export or its link) reads only as a person who logged in and approved the
   app: the authorization code flow, no `client_credentials` (`unsupported_grant_type`, 19 October 2026). Access
   tokens last an hour; the refresh token 30 days, replaced on each refresh. `/plans` lists `plans` (theirs) and
   `guildPlans` (each with an `embedUrl`), with `createdAt` and no time last saved. With the scope `addon`,
