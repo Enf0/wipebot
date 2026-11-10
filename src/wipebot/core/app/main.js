@@ -4,6 +4,15 @@
   // A host that hands back a stored result without its structuredContent (Claude Desktop on reopening a chat) still
   // has the tool's name and arguments: these views can be drawn again from them.
   const BY_TOOL = { pull_summary: "pull", player_pull: "player", player_night: "player_night", death_recap: "death", progress: "night" };
+  // The tools only some of whose calls have a view (a ranking of players, a trend by pull: the server says which,
+  // by the result's key). A host draws the page for every call, so for these it stays empty, at no height, while
+  // the tool runs and for a call without a view: no placeholder, and no line saying there is nothing.
+  const SOMETIMES = new Set(["breakdown", "mechanic_hits"]);
+  const tool = () => app.context().toolInfo?.tool?.name;
+  // The page takes no room (page.css: the root's data-empty) until the host has said which tool it is for, and for
+  // good where there is nothing to draw
+  const empty = (yes) => document.documentElement.toggleAttribute("data-empty", yes);
+  const nothing = () => { empty(true); root.replaceChildren(); };
   // While a view loads, a placeholder in its shape (page.css: the replay's stage, else the card every view draws
   // inline). The view is known from the result's key, and while the tool still runs from the tool the host names.
   const SKELETON = document.getElementById("status").outerHTML;
@@ -63,14 +72,25 @@
 
   function open(view, key) { stack.push({ view, key }); go(view, key); }
 
+  // A ranking or trend after the first of an answer (the server's `folded`: server._fold): one line saying what it
+  // is, which opens it. Each call's card is a page of its own, so a card can't know of the others.
+  function fold(view, key) {
+    const line = kit.el('<div class="folded"><span class="what"></span><button class="primary">Show</button></div>');
+    line.firstChild.textContent = key.label || "A ranking";
+    line.lastChild.onclick = () => go(view, key);
+    root.replaceChildren(line);
+  }
+
   function start(result) {
     const sc = result && result.structuredContent;
     let key = sc && sc.report ? sc : null;
     if (!key && !(result && result.isError)) {  // a tool that failed has nothing to draw, from its arguments either
-      const tool = app.context().toolInfo?.tool?.name;
-      if (args && BY_TOOL[tool]) key = { view: BY_TOOL[tool], report: args.report, pull: args.pull, boss: args.boss,
-                                         player: args.player, death: args.death, weeks: args.weeks };
+      const view = BY_TOOL[tool()];
+      if (args && view) key = { view, report: args.report, pull: args.pull, boss: args.boss,
+                                player: args.player, death: args.death, weeks: args.weeks };
     }
+    if (!key && SOMETIMES.has(tool())) { nothing(); return; }  // a call without a view, or one that failed
+    empty(false);
     if (!key) { fail(result && result.isError ? "The tool failed: nothing to show." : "Nothing to show here: ask again to see it."); return; }
     const view = key.view || (key.at_ms !== undefined ? "replay" : "pull");  // a stored result from before views
     const asked = JSON.stringify(key);
@@ -78,15 +98,21 @@
     started = asked;
     told = false;
     stack = [{ view, key }];
-    go(view, key);
+    if (key.folded && !app.picture() && app.context().displayMode !== "fullscreen") fold(view, key);
+    else go(view, key);
   }
 
   app.on("input", (a) => { args = a; });
   app.on("result", start);
-  app.on("cancelled", () => { if (!current) fail("The tool call was cancelled."); });
+  app.on("cancelled", () => { if (current) return; if (SOMETIMES.has(tool())) nothing(); else fail("The tool call was cancelled."); });
   app.on("context", () => { if (current && current.relayout) current.relayout(); });
   app.on("teardown", () => { if (current && current.stop) current.stop(); });
-  app.connect({ name: "Wipebot", version: "2" }).then(() => {
-    if (!started) waiting({ ...BY_TOOL, pull_map: "replay" }[app.context().toolInfo?.tool?.name]);
-  });
+  // Once the host has said which tool this is: the placeholder in its view's shape, or for a tool only some of
+  // whose calls have a view, nothing until its result says so
+  const known = () => {
+    if (started) return;
+    empty(SOMETIMES.has(tool()));
+    waiting({ ...BY_TOOL, pull_map: "replay" }[tool()]);
+  };
+  app.connect({ name: "Wipebot", version: "2" }).then(known, known);
 })();

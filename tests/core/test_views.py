@@ -184,17 +184,23 @@ async def test_the_raid_night_view_draws_and_a_pulls_bar_opens_that_pull(recorde
     assert "Sszorak pull 13" in opened.text  # that pull's card
 
 
-# ---- the meter: a ranking of players from breakdown, mechanic_hits and enemies, in the bot only ----
+# ---- the meter: a ranking of players from breakdown and mechanic_hits (a card in Claude and ChatGPT, a picture in
+# the bot) and from enemies (the bot's picture only) ----
 
 METER_CASES = ["mechanic-hits", "damage-taken-ability", "interrupts", "dispels", "nekzali-enemies-night",
                "vashnik-enemies", "damage-least"]
+
+
+def asked(key: dict) -> dict:
+    """What the page asks view_data with a key: all of it but what the page itself reads (a folded card's label)."""
+    return {k: v for k, v in key.items() if k not in ("label", "folded")}
 
 
 async def meter_data(case: str) -> dict:
     c = CASES[case]
     key = await server.view_key(c.tool, c.args)
     assert key is not None and key["view"] == "meter" and key["tool"] == c.tool, case
-    result = await server.view_data(**key)
+    result = await server.view_data(**asked(key))
     assert result.structured_content is not None
     return result.structured_content
 
@@ -248,16 +254,44 @@ async def test_a_meter_of_the_least_ranks_the_damage_dealers_and_is_drawn_from_t
     data = await meter_data("damage-least")
     [m] = data["meters"]
     assert m.get("least") and {b["role"] for b in m["bars"]} == {"dps"} and "damage dealers only" in m["scope"]
-    [s] = await shots(tmp_path, "breakdown", CASES["damage-least"].args)
-    assert not s.errors and "least" in s.text.lower()
+    [s] = await shots(tmp_path, "breakdown", CASES["damage-least"].args, as_picture=True)
     least, top = m["bars"][-1]["name"], m["bars"][0]["name"]
-    assert s.text.index(least) < s.text.index(top)
+    said = m["headline"]["text"]
+    assert not s.errors and said.startswith(f"{least} is last with ") and said in s.text
+    rows = s.text.split(said)[1]
+    assert rows.index(least) < rows.index(top)
 
 
-@pytest.mark.parametrize("case", ["damage-taken", "mechanic-outliers", "buffs", "damage-by-pull", "breakdown-casts",
-                                  "healing-by-ability"])
+@pytest.mark.parametrize("case", ["damage-taken", "mechanic-outliers", "buffs", "debuffs-by-pull", "interrupts-by-pull",
+                                  "breakdown-casts", "healing-by-ability"])
 async def test_a_call_that_ranks_no_players_has_no_meter(recorded, case):
+    """Nor a trend: by pull only an amount is one (damage, healing, damage taken, casts), not an aura's uptimes or
+    the kicks' counts by cast."""
     assert await server.view_key(CASES[case].tool, CASES[case].args) is None
+
+
+def test_a_meters_headline_says_who_is_first_and_how_that_stands_against_the_median():
+    """The ranking in one sentence, from the meter's own rows: who is first with how much and how many times the
+    median that is; with `least`, who is last and at what share of it; a count in its unit; against another night,
+    the raid's per minute both nights and the change."""
+    from wipebot.core.report.meter import Bar, Meter, Then
+    bars = [Bar("Mirelle", 54_000_000), Bar("Rowan", 27_000_000), Bar("Tamsin", 20_000_000), Bar("Corin", 5_000_000)]
+    assert views.meter_headline(Meter("Damage taken", "Torvek pull 3", bars)) == {
+        "text": "Mirelle is first with 54.00M, 2.3 times the median of the 4 players ranked.", "kind": ""}
+    assert views.meter_headline(Meter("Damage done", "Torvek pull 3, damage dealers only", bars, least=True))[
+        "text"] == "Corin is last with 5.00M, 21% of the median of the 4 players ranked."
+    kicks = [Bar("Mirelle", 6), Bar("Rowan", 2), Bar("Tamsin", 1)]
+    assert views.meter_headline(Meter("Kicks", "Torvek pull 3", kicks, "kicks"))["text"] == (
+        "Mirelle is first with 6 kicks, 3.0 times the median of the 3 players ranked.")
+    none = [Bar("Mirelle", 2), Bar("Rowan", 0), Bar("Tamsin", 0)]
+    assert views.meter_headline(Meter("Dispels", "Torvek pull 3", none, "dispels"))["text"] == (
+        "Mirelle is first of the 3 players ranked with 2 dispels.")
+    then = Then("Mon 1 Jan", "Thu 4 Jan", 1_200_000, 1_500_000, 3, 5, 40, 50, 20)
+    against = Meter("Slag Wave", "damage taken per minute in the pulls, 9 and 12 Torvek pulls, each until its wipe "
+                    "was decided", bars, "per minute", then=then)
+    assert views.meter_headline(against)["text"] == (
+        "The raid's damage taken from Slag Wave per minute of its pulls: 1.50M on Mon 1 Jan, 1.20M on Thu 4 Jan "
+        "(-20%).")
 
 
 async def test_the_meter_draws_a_panel_per_meter_without_errors(recorded, tmp_path):
@@ -267,6 +301,160 @@ async def test_the_meter_draws_a_panel_per_meter_without_errors(recorded, tmp_pa
     assert s.height > 100 and s.path.name == "discord-dark-680-inline.png"  # as the bot posts it: no card in a host
     for m in data["meters"]:
         assert m["title"] in s.text and m["bars"][0]["name"] in s.text
+
+
+# ---- the trend: an amount pull by pull, from breakdown grouped by pull and mechanic_hits over every pull ----
+
+async def trend_data(case: str, mark: str | None = None) -> dict:
+    c = CASES[case]
+    result = await server.view_data("trend", report=c.args["report"], tool=c.tool, player=mark,
+                                    args={k: v for k, v in c.args.items() if k != "report"})
+    assert result.structured_content is not None
+    return result.structured_content
+
+
+async def test_the_trend_view_matches_its_snapshot(recorded):
+    assert_snapshot(REAL / "views" / "trend.txt", readable(await trend_data("mechanic-hits")))
+
+
+async def test_a_trend_states_each_pulls_amount_as_breakdown_by_pull_does(recorded):
+    """The trend reads breakdown's tables itself (tables' own helpers): each pull's total, its amount per second,
+    its counted time and its top three are the ones the tool's line for that pull states."""
+    case = CASES["damage-by-pull"]
+    key = await server.view_key(case.tool, case.args)
+    assert key == {"view": "trend", "report": case.args["report"], "boss": "Sszorak", "tool": "breakdown",
+                   "args": {"data_type": "DamageDone", "group_by": "pull", "pulls": [12, 13]},
+                   "label": "Damage done by pull, Sszorak pulls 12, 13, each until its wipe was decided"}
+    data = await trend_data("damage-by-pull")
+    text, failed = await server.call(case.tool, case.args)
+    assert not failed and [r["pull"] for r in data["pulls"]] == [12, 13] and data["per"] == "second"
+    for r in data["pulls"]:
+        top = ", ".join(f"{name} {short(v)} ({short(v / r['seconds'])}/s)" for name, v in r["top"])
+        line = (f"  Sszorak pull {r['pull']} ({clock(r['seconds'] * 1000)}): {short(r['amount'])} "
+                f"({short(r['rate'])}/s); top {top}")
+        assert line in text, line
+    assert data["thirds"] is None and data["mine"] is None and data["who"] is None
+    assert data["headline"] == {"kind": "", "text": "The raid's damage per second: " + ", ".join(
+        f"{short(r['rate'])} on pull {r['pull']}" for r in data["pulls"]) + "."}
+
+
+async def test_a_mechanics_trend_counts_the_raids_hits_per_pull_as_its_tool_does(recorded):
+    """mechanic_hits over every pull states the raid's hits pull by pull; the trend has the same counts, over each
+    pull's minutes until its wipe was decided, the medians of the night's thirds with the reset left out, and the
+    asker's own hits in the pulls they were in."""
+    data = await trend_data("mechanic-hits", mark="enfo")
+    text, _ = await server.call("mechanic_hits", CASES["mechanic-hits"].args)
+    per_pull = dict(re.findall(r"(?:: |; )(\d+): (\d+)(?: \(\+\d+\))?, ", text.split("The raid's per pull")[1]))
+    assert len(per_pull) == len(data["pulls"]) == 33
+    for r in data["pulls"]:
+        assert r["amount"] == int(per_pull[str(r["pull"])]), r["pull"]
+        assert r["rate"] == pytest.approx(60 * r["amount"] / r["seconds"], abs=0.01) if r["seconds"] else True
+    assert data["count"] and data["per"] == "minute" and data["subject"] == "Tempest hits" and data["icon"]
+    resets = [r["pull"] for r in data["pulls"] if r["reset"]]
+    thirds = data["thirds"]
+    assert resets and [len(t["pulls"]) for t in thirds] == [10, 12, 10]
+    assert not set(resets) & {p for t in thirds for p in t["pulls"]}
+    rates = {r["pull"]: r["rate"] for r in data["pulls"]}
+    for t in thirds:
+        found = sorted(rates[p] for p in t["pulls"])
+        assert t["rate"] == found[len(found) // 2]
+    a, b, c = (f"{t['rate']:.1f}" for t in thirds)
+    assert data["headline"]["text"] == (f"The raid's Tempest hits per minute: {a} in the first third of the 32 "
+                                        f"pulls, {b} in the middle and {c} in the last (each third's median pull).")
+    assert data["mine"]["name"] == "Enfo" and len(data["mine"]["thirds"]) == 3
+    own = [r["mine"] for r in data["pulls"]]
+    assert any(v == 0 for v in own) and any(v for v in own)  # in the pull and never hit, hit
+    sat_out = [r["mine"] for r in (await trend_data("mechanic-hits", mark="Miralupa"))["pulls"]]
+    assert any(v is None for v in sat_out) and any(v for v in sat_out)  # not in every pull
+
+
+def test_a_trends_thirds_leave_resets_out_and_need_six_counted_pulls():
+    """As player_night's trend (coaching.night_trend): the pulls in thirds, the middle one taking the rest, each
+    third's median the upper of two middle pulls, resets not counted, and no thirds for fewer than six."""
+    rates = [10.0, 30.0, 0.0, 20.0, 40.0, 50.0, 70.0, 60.0]
+    resets = [False, False, True, False, False, False, False, False]
+    assert views.trend_thirds(rates, resets) == [([0, 1], 30.0), ([3, 4, 5], 40.0), ([6, 7], 70.0)]
+    assert views.trend_thirds(rates[:6], resets[:6]) is None  # five counted
+    assert views.trend_thirds(rates[:5] + [1.0, 2.0], resets[:5] + [False, False]) is not None
+
+
+async def test_only_an_amount_by_pull_is_a_trend(recorded):
+    rep = await server.lib().report(REPORT)
+    assert await views.trend_of(rep, "breakdown", {"data_type": "Debuffs", "group_by": "pull"}) is None
+    assert await views.trend_of(rep, "breakdown", {"data_type": "DamageDone", "pulls": [13]}) is None  # by player
+    assert await views.trend_of(rep, "breakdown", {"data_type": "DamageDone", "group_by": "pull",
+                                                   "pulls": [13]}) is None  # one pull
+    assert await views.trend_of(rep, "mechanic_hits", {"ability": "Tempest", "pull": 13}) is None
+    with pytest.raises(server.FactError, match="states nothing pull by pull"):
+        await server.view_data("trend", report=REPORT, tool="breakdown", args={"data_type": "DamageDone"})
+
+
+async def test_a_ranking_over_several_pulls_names_the_call_whose_trend_shows_it_pull_by_pull(recorded):
+    """The meter's second button: mechanic_hits over every pull as it was called; breakdown by player over several
+    pulls grouped by pull instead (without `least`, which ranks players). None for one pull, or a table no trend
+    draws."""
+    assert (await meter_data("mechanic-hits"))["by_pull"] == {
+        "tool": "mechanic_hits", "args": {"ability": "Tempest", "all_pulls": True}}
+    assert "by_pull" not in await meter_data("damage-taken-ability")  # one pull
+    assert "by_pull" not in await meter_data("damage-least")  # two pulls, one of which got to its window
+    assert "by_pull" not in await meter_data("interrupts")  # kicks: no amount by pull
+    rep = await server.lib().report(CASES["damage-by-pull"].args["report"])
+    ranked = {"data_type": "DamageDone", "pulls": [12, 13], "least": True}
+    assert await views._by_pull_call(rep, "breakdown", ranked) == {
+        "tool": "breakdown", "args": {"data_type": "DamageDone", "pulls": [12, 13], "group_by": "pull"}}
+
+
+async def test_the_whole_nights_healing_by_pull_is_a_trend_in_thirds(local):
+    """A night of 33 pulls, the call the log shows most: the thirds' medians in the headline, and the asker's own
+    healing pull by pull beside the raid's."""
+    args = {"data_type": "Healing", "group_by": "pull", "whole_pull": True}
+    result = await server.view_data("trend", report=REPORT, tool="breakdown", args=args, player="Enfo")
+    data = result.structured_content
+    assert data and len(data["pulls"]) == 33 and data["title"] == "Healing by pull" and data["scope"] == (
+        "all 33 Sszorak pulls")
+    a, b, c = (short(t["rate"]) for t in data["thirds"])
+    assert data["headline"]["text"] == (f"The raid's healing per second: {a} in the first third of the 32 pulls, {b} "
+                                        f"in the middle and {c} in the last (each third's median pull).")
+    assert data["mine"]["name"] == "Enfo" and all(r["mine"] is not None for r in data["pulls"])
+    text, _ = await server.call("breakdown", {"report": REPORT} | args)
+    for r in data["pulls"]:
+        assert f"({clock(r['seconds'] * 1000)}): {short(r['amount'])} ({short(r['rate'])}/s)" in text, r["pull"]
+
+
+async def test_breakdown_gives_a_views_key_only_for_a_ranking_or_a_trend(recorded, monkeypatch):
+    """breakdown and mechanic_hits carry a key only on the calls that rank players or state an amount pull by pull,
+    and only for a client that shows MCP Apps: every other call is its text alone, and the page draws nothing."""
+    monkeypatch.setattr(server, "_supports_apps", lambda ctx: True)
+    monkeypatch.setattr(server, "_last_ranking", {})
+
+    async def key_of(case: str) -> dict | None:
+        result = await server.mcp.call_tool(CASES[case].tool, CASES[case].args)
+        assert isinstance(result, CallToolResult) and not result.is_error
+        return result.structured_content
+    meter = await key_of("mechanic-hits")
+    assert meter and meter["view"] == "meter" and "folded" not in meter
+    assert meter["label"] == "Tempest, all 33 Sszorak pulls, each until its wipe was decided"
+    assert await key_of("damage-taken") is None and await key_of("mechanic-outliers") is None
+    trend = await key_of("damage-by-pull")
+    assert trend and trend["view"] == "trend" and trend["folded"] is True  # the second of the same answer
+    monkeypatch.setattr(server.DEFAULT, "remote", None)  # in-process (the bot, `wipebot call`): the text alone
+    assert await key_of("damage-by-pull") is None
+
+
+def test_only_the_first_ranking_of_an_answer_comes_open():
+    """A host draws a card for every call of a tool with a view, and an answer ranks several things: the first
+    ranking or trend handed to a user comes open, the ones within a minute of the last folded (one line that opens),
+    and a minute later the next is open again. The other views are never folded."""
+    server._last_ranking.clear()
+    try:
+        meter, trend = {"view": "meter", "label": "Healing"}, {"view": "trend", "label": "Healing by pull"}
+        assert server._fold(dict(meter), now=100.0) == meter
+        assert server._fold(dict(trend), now=130.0) == trend | {"folded": True}
+        assert server._fold(dict(meter), now=185.0) == meter | {"folded": True}  # a minute from the last, not the first
+        assert server._fold(dict(meter), now=185.0 + server.FOLD_S) == meter
+        assert server._fold({"view": "pull"}, now=186.0 + server.FOLD_S) == {"view": "pull"}
+    finally:
+        server._last_ranking.clear()
 
 
 # ---- the raid note against every pull on a boss: kicks and planned cooldowns pull by pull, in the bot only ----
@@ -465,7 +653,7 @@ async def test_against_another_night_a_meters_marks_keep_off_its_numbers_and_lon
     the marks now end where the amounts begin. In the grid by pull a long name ran off the left edge."""
     from wipebot.core import viewhost
     case = CASES["mechanic-hits-against"]
-    key = await viewhost.picture_key(case.tool, case.args)
+    key = await server.view_key(case.tool, case.args)
     assert key and key["view"] == "meter"
     async with chromium() as browser:
         errors: list[str] = []
@@ -484,7 +672,7 @@ async def test_against_another_night_a_meters_marks_keep_off_its_numbers_and_lon
         assert not errors
         # the grid by pull: the names' column is as wide as the longest of them, so the raid's own are whole
         case = CASES["mechanic-hits"]
-        key = await viewhost.picture_key(case.tool, case.args)
+        key = await server.view_key(case.tool, case.args)
         assert key
         page = await viewhost._open(browser, viewhost._picture_setup(case.tool, case.args, key), errors)
         await viewhost._settled(page)
@@ -521,20 +709,32 @@ def test_the_tools_with_a_card_are_the_ones_whose_result_carries_its_key():
     listed = re.search(r"server\.register\(mcp, setup, meta=\{(.*?)\}", remote, re.DOTALL)
     assert listed and set(re.findall(r'"(\w+)": shown', listed[1])) == keyed | {"pull_map"}
     assert keyed == viewhost.SHOWN and keyed < set(server.VIEW_TOOLS)
+    # and in the page: the tools only some of whose calls have a view (it draws nothing for the others), and the
+    # rest, whose view it can draw again from the tool's arguments
+    main = resources.files("wipebot.core").joinpath("app", "main.js").read_text(encoding="utf-8")
+    sometimes = re.search(r"const SOMETIMES = new Set\(\[(.*?)\]\)", main)
+    always = re.search(r"const BY_TOOL = \{(.*?)\}", main)
+    assert sometimes and always
+    ranked = {tool for tool in keyed if server.VIEW_TOOLS[tool] == "meter"}
+    assert set(re.findall(r'"(\w+)"', sometimes[1])) == ranked == {"breakdown", "mechanic_hits"}
+    assert dict(re.findall(r'(\w+): "(\w+)"', always[1])) == {t: server.VIEW_TOOLS[t] for t in keyed - ranked}
 
 
 async def test_the_mock_host_draws_what_the_server_sends(recorded, tmp_path):
     """A tool whose drawing only the Discord bot posts gets no key and no card in the mock host, as in Claude and
     ChatGPT (it once got both, and a meter shot there was published as Claude's): it is shot as the picture the bot
-    posts, and named so."""
+    posts, and named so. A ranking by breakdown or mechanic_hits is a card there now, as the server sends it."""
     from wipebot.core import viewhost
-    meter = CASES["mechanic-hits"]
-    assert await server.view_key(meter.tool, meter.args)  # a drawing there is
-    assert "structuredContent" not in await viewhost.tool_result(meter.tool, meter.args)
-    assert (await viewhost.picture_key(meter.tool, meter.args) or {}).get("view") == "meter"
+    adds = CASES["nekzali-enemies-night"]
+    assert await server.view_key(adds.tool, adds.args)  # a drawing there is
+    assert "structuredContent" not in await viewhost.tool_result(adds.tool, adds.args)
+    assert (await viewhost.picture_key(adds.tool, adds.args) or {}).get("view") == "meter"
     assert (await viewhost.tool_result("pull_summary", PULL_CASE.args))["structuredContent"]["view"] == "pull"
     assert await viewhost.picture_key("pull_summary", PULL_CASE.args) is None
-    [s] = await shots(tmp_path, meter.tool, meter.args, themes=("dark", "light"), widths=(320, 760))
+    meter = CASES["mechanic-hits"]
+    assert (await viewhost.tool_result(meter.tool, meter.args))["structuredContent"]["view"] == "meter"
+    assert await viewhost.picture_key(meter.tool, meter.args) is None
+    [s] = await shots(tmp_path, adds.tool, adds.args, themes=("dark", "light"), widths=(320, 760))
     assert s.path.name == "discord-dark-680-inline.png" and (s.theme, s.width) == ("dark", 680) and not s.errors
     host = next(m["msg"]["result"]["hostInfo"]["name"] for m in s.messages if "hostInfo" in m["msg"].get("result", {}))
     assert host == "wipebot-picture"
@@ -558,19 +758,21 @@ def test_the_page_is_one_file_with_a_hashed_address():
 
 
 def test_the_page_claude_and_chatgpt_load_holds_only_the_views_they_show():
-    """A meter, a note's board, two raid mates and the healers' mana are drawn only as the Discord bot's pictures: in
-    Claude and ChatGPT no tool's result names them and no view opens them. Their script, a quarter of the page's, was
-    sent there all the same; it is now in the Painter's page alone, and the address is the page those hosts load."""
+    """A note's board, two raid mates and the healers' mana are drawn only as the Discord bot's pictures: in Claude
+    and ChatGPT no tool's result names them and no view opens them. Their script, a fifth of the page's, was sent
+    there all the same; it is in the Painter's page alone, and the address is the page those hosts load. The meter
+    and the trend are in both: breakdown's and mechanic_hits' results name them."""
     from wipebot.core import viewhost
     hosted, painted = views.page(), views.page(pictures=True)
 
     def defined(page: str) -> set[str]:
         return set(re.findall(r"^views\.(\w+) = ", page, re.MULTILINE))
-    shown = {server.VIEW_TOOLS[tool] for tool in viewhost.SHOWN} | {"replay"}  # pull_map's result is its replay
+    # pull_map's result is its replay; breakdown grouped by pull is a trend (server.view_key)
+    shown = {server.VIEW_TOOLS[tool] for tool in viewhost.SHOWN} | {"replay", "trend"}
     assert defined(hosted) == shown and set(re.findall(r'\bopen\("(\w+)"', hosted)) <= shown
-    assert defined(painted) - defined(hosted) == {"meter", "note", "versus", "mana"}
+    assert defined(painted) - defined(hosted) == {"note", "versus", "mana"}
     assert all(name in views.SCRIPTS for name in views.PICTURES_ONLY)
-    assert len(hosted) < 0.8 * len(painted)
+    assert len(hosted) < 0.87 * len(painted)
     assert views.page_uri().endswith(f"-{hashlib.sha256(hosted.encode()).hexdigest()[:10]}.html")
 
 
@@ -614,9 +816,9 @@ def host_setup(tool: str, args: dict, result: dict | None, **setup) -> dict:
 @contextlib.asynccontextmanager
 async def drawn(tool: str, args: dict, touch: bool = False, **setup):
     """The tool's view drawn in the mock host, to ask the page about: its frame, and the errors so far. `touch`:
-    as on a phone, where a finger is the pointer."""
+    as on a phone, where a finger is the pointer; `result` in `setup`: handed to the page in place of the tool's."""
     from wipebot.core import viewhost
-    setup = host_setup(tool, args, await viewhost.tool_result(tool, args), **setup)
+    setup = host_setup(tool, args, setup.pop("result", None) or await viewhost.tool_result(tool, args), **setup)
     async with chromium() as browser:
         errors: list[str] = []
         if touch:
@@ -2045,6 +2247,93 @@ async def test_every_card_is_a_headline_four_stats_one_chart_and_two_buttons(rec
     async with drawn(night.tool, night.args, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
         full = await view.evaluate(CARD)
     assert not errors and full["order"] == ["table", "ul", "ul"] and "Open night" not in full["buttons"]
+
+
+@pytest.mark.parametrize("width", [380, 760])
+async def test_a_ranking_and_a_trend_are_the_card_too(recorded, width):
+    """breakdown's and mechanic_hits' ranking in Claude and ChatGPT: the card, with the top players' bars for its
+    chart and the rest a click away ("Open ranking": everyone's, and a mechanic's hits per player per pull). "By
+    pull" opens the trend of a ranking over several pulls: the card again, a bar per pull."""
+    from wipebot.core import viewhost
+    case = CASES["mechanic-hits"]
+    rows = "document.querySelectorAll('.meter-rows li:not(.gap)').length"
+    async with drawn(case.tool, case.args, width=width) as (view, errors):
+        card = await view.evaluate(CARD)
+        assert card["lead"] == ["Deathadim is first with 53.54M, 2.6 times the median of the 22 players ranked."]
+        assert 1 <= card["stats"] <= 4 and card["buttons"] == ["Open ranking", "By pull"] and card["tables"] == 0
+        assert await view.evaluate(rows) == 8 and "14 more players" in await view.locator("body").inner_text()
+        assert await view.locator('[data-panel="by_pull"]').count() == 0
+        assert card["tall"] <= (570 if width < 500 else 450)
+        await view.get_by_role("button", name="By pull").click()
+        await view.locator("[data-pull-col]").first.wait_for()
+        trend = await view.evaluate(CARD)
+        assert trend["lead"][0].startswith("The raid's Tempest hits per minute: ") and trend["charts"] == 1
+        assert 1 <= trend["stats"] <= 4 and trend["buttons"] == ["Open trend"] and trend["tables"] == 0
+        assert await view.locator("[data-pull-col]").count() == 33 and trend["tall"] <= (560 if width < 500 else 450)
+        assert await view.locator("button.back").inner_text() == "← Tempest"
+        assert not errors
+    async with drawn(case.tool, case.args, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        assert await view.evaluate(rows) == 22 and await view.locator('[data-panel="by_pull"] svg').count() == 1
+        assert await view.get_by_role("button", name="Open ranking").count() == 0 and not errors
+    two = CASES["damage-by-pull"]
+    async with drawn(two.tool, two.args, width=width) as (view, errors):
+        card = await view.evaluate(CARD)
+        assert card["lead"] == ["The raid's damage per second: 2.57M on pull 12, 2.55M on pull 13."]
+        assert card["charts"] == 1 and card["buttons"] == ["Open trend"]
+        assert card["tall"] <= (480 if width < 500 else 380)
+        await view.locator('[data-pull-col="13"]').click()  # a pull's column opens that pull
+        await view.get_by_role("button", name="Open pull").wait_for()
+        assert await view.locator("button.back").inner_text() == "← Damage done by pull" and not errors
+
+
+async def test_a_call_without_a_view_takes_no_room(recorded):
+    """A host draws the page on every call of a tool with a view, and most calls of breakdown and mechanic_hits rank
+    nobody: for those the page stays empty at no height, while the tool runs too. It once would have shown the
+    placeholder and then "Nothing to show here", 585 px of it."""
+    from wipebot.core import viewhost
+    case = CASES["damage-taken"]  # by ability: a table, no ranking of players
+    result = await viewhost.tool_result(case.tool, case.args)
+    assert "structuredContent" not in result
+    frame = "document.querySelector('iframe').getBoundingClientRect().height"
+    async with chromium() as browser:
+        for setup in (host_setup(case.tool, case.args, None, running=True), host_setup(case.tool, case.args, result),
+                      host_setup(case.tool, case.args, {"isError": True, "content": []})):
+            errors: list[str] = []
+            page = await viewhost._open(browser, setup, errors)
+            view = page.frames[-1]
+            await view.locator(":root[data-empty]").wait_for(state="attached")
+            await page.wait_for_function(f"{frame} === 0")
+            assert await view.evaluate(TALL) == 0 and await view.locator("body").inner_text() == ""
+            assert (await page.evaluate(HEARD, "ui/notifications/size-changed"))[-1]["height"] == 0
+            assert not errors
+            await page.close()
+        # the running tool's result then names a view: the card, as for any other
+        meter = CASES["mechanic-hits"]
+        page = await viewhost._open(browser, host_setup(meter.tool, meter.args, None, running=True), errors)
+        await page.wait_for_function(f"{frame} === 0")
+        await page.evaluate("""(result) => { S.running = false;
+            send({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: result }); }""",
+                            await viewhost.tool_result(meter.tool, meter.args))
+        await page.frames[-1].locator(".meter-rows").wait_for()
+        assert await page.evaluate(frame) > 300 and not errors
+
+
+async def test_a_later_ranking_of_an_answer_is_one_line_that_opens(recorded):
+    """The second ranking or trend of an answer comes folded (server._fold): one line saying what it ranks, which
+    opens the card. A still picture and fullscreen draw it whole."""
+    from wipebot.core import viewhost
+    case = CASES["mechanic-hits"]
+    result = await viewhost.tool_result(case.tool, case.args)
+    result["structuredContent"]["folded"] = True
+    async with drawn(case.tool, case.args, result=result) as (view, errors):
+        line = view.locator(".folded")
+        assert await line.inner_text() == "Tempest, all 33 Sszorak pulls, each until its wipe was decided\nShow"
+        assert await view.evaluate(TALL) <= 56 and await view.locator(".meter-rows").count() == 0
+        await view.get_by_role("button", name="Show").click()
+        await view.locator(".meter-rows").wait_for()
+        assert await view.locator(".folded").count() == 0 and not errors
+    async with drawn(case.tool, case.args, result=result, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, _):
+        assert await view.locator(".folded").count() == 0 and await view.locator(".meter-rows").count() == 1
 
 
 async def test_the_player_cards_are_the_same_card_and_a_wipes_standing_is_fullscreens_with_why(made_up, monkeypatch):

@@ -5,9 +5,9 @@ viewer_log) with the tools in-process. Everything is served from memory: the bro
 `watch` opens it in a window to work on a view (`wipebot view`), reloading the page when app/ changes; `shoot` takes
 screenshots per theme, width and mode, with the console's errors and every bridge message (`wipebot view --shot`, the
 tests). Both draw what the server sends: a card for the tools whose result carries a view's key in Claude and
-ChatGPT (SHOWN, and pull_map's replay), and for a tool whose drawing only the Discord bot posts, that picture as the
-Painter draws it, its shots named `discord-`. Needs Playwright and its Chromium (`uv run python -m playwright install
-chromium-headless-shell`).
+ChatGPT (SHOWN, and pull_map's replay), nothing for a call of one of those without a view (the page takes no room),
+and for a tool whose drawing only the Discord bot posts, that picture as the Painter draws it, its shots named
+`discord-`. Needs Playwright and its Chromium (`uv run python -m playwright install chromium-headless-shell`).
 """
 import asyncio
 import io
@@ -39,14 +39,15 @@ PICTURE_SCALE = 2  # drawn at twice that, for a sharp picture on any screen
 # The tools whose result carries their view's key for a client that shows MCP Apps (server._shown; pull_map gives its
 # replay's key itself). A test holds this to the server's tools and to the list remote.py gives the views' page to.
 # Every other tool with a drawing (server.VIEW_TOOLS) is drawn only as a picture, for the Discord bot.
-SHOWN = frozenset({"pull_summary", "player_pull", "player_night", "death_recap", "progress"})
+SHOWN = frozenset({"pull_summary", "player_pull", "player_night", "death_recap", "progress", "breakdown",
+                   "mechanic_hits"})
 log = logging.getLogger(__name__)
 
 
 @dataclass
 class Shot:
     """One screenshot of a view, and what the page said and did on the way."""
-    path: Path
+    path: Path  # no file where the page drew nothing and took no room (a call without a view: height 0)
     theme: str
     width: int
     mode: str
@@ -74,8 +75,9 @@ async def tool_result(tool: str, args: dict) -> dict:
 
 
 async def picture_key(tool: str, args: dict) -> dict | None:
-    """The key of a drawing only the Discord bot posts (a meter, a note's board, two raid mates, the healers' mana,
-    a player against the top): None for a tool whose view Claude and ChatGPT show, or with nothing to draw."""
+    """The key of a drawing only the Discord bot posts (the adds' meter, a note's board, two raid mates, the
+    healers' mana, a player against the top): None for a tool whose view Claude and ChatGPT show, or with nothing to
+    draw."""
     return None if tool in SHOWN or tool == "pull_map" else await server.view_key(tool, args)
 
 
@@ -179,15 +181,20 @@ async def _settled(page: Any, timeout_ms: float = 60_000) -> None:
 
 async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("dark", "light"),
                 widths: tuple[int, ...] = (430, 760), modes: tuple[str, ...] = ("inline",),
-                clicks: tuple[str, ...] = (), tokens: str = "none") -> list[Shot]:
+                clicks: tuple[str, ...] = (), tokens: str = "none", as_picture: bool = False,
+                mark: str | None = None) -> list[Shot]:
     """Screenshots of the tool's view in each theme, width and mode, after clicking each of `clicks` (a button's
     text, or "css:" and a selector) in turn: <out>/<theme>-<width>-<mode>[-<n>].png. A drawing only the Discord bot
-    posts is shot once, as its picture: <out>/discord-dark-<PICTURE_WIDTH>-inline.png."""
+    posts is shot once, as its picture: <out>/discord-dark-<PICTURE_WIDTH>-inline.png; with `as_picture`, so is a
+    view Claude and ChatGPT show too (a meter, a trend), `mark`'s row ringed (the player asking)."""
     from playwright.async_api import async_playwright
 
     out.mkdir(parents=True, exist_ok=True)
     result = await tool_result(tool, args)
-    picture = None if result.get("structuredContent") else await picture_key(tool, args)
+    picture = (await server.view_key(tool, args) if as_picture
+               else None if result.get("structuredContent") else await picture_key(tool, args))
+    if picture and mark:
+        picture["mark"] = mark
     if picture:
         themes, widths, modes, clicks = ("dark",), (PICTURE_WIDTH,), ("inline",), ()
     shots = []
@@ -215,11 +222,11 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
                             except Exception as e:  # noqa: BLE001 (what didn't draw is in the shot and the errors)
                                 errors.append(f"not drawn: {e}")
                             name = ("discord-" if picture else "") + f"{theme}-{width}-{mode}" + (f"-{n}" if n else "")
-                            frame = page.locator("iframe")
-                            await frame.screenshot(path=out / f"{name}.png")
                             messages = await page.evaluate("window.__log")
                             heights = [m["msg"]["params"]["height"] for m in messages
                                        if m["msg"].get("method") == "ui/notifications/size-changed"]
+                            if not heights or heights[-1] or mode != "inline":  # a page with nothing to draw takes
+                                await page.locator("iframe").screenshot(path=out / f"{name}.png")  # no room: no shot
                             text = await page.frame_locator("iframe").locator("body").inner_text()
                             shots.append(Shot(out / f"{name}.png", theme, width, mode, round(heights[-1]) if heights
                                               else 0, text, list(errors), messages))

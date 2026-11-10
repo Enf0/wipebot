@@ -30,7 +30,7 @@ from ..pulls import (
 from ..text import clock, day, ordinal, plural, short
 from . import adds, mana, mechanics, tables, versus
 from . import note as notes
-from .base import ROLE_NAMES, PullRef, Report, alive_after
+from .base import ROLE_NAMES, Player, PullRef, Report, alive_after, pull_window
 from .build import hero_of
 from .casting import alive, cast_counts, casting, raid_pauses, without
 from .coaching import (
@@ -56,14 +56,16 @@ from .top import cast_comparison
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
 SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "meter.js",
-           "replay.js", "note.js", "versus.js", "mana.js", "main.js"]
+           "trend.js", "replay.js", "note.js", "versus.js", "mana.js", "main.js"]
 # The drawings only the Discord bot posts, as pictures (viewhost's Painter): in Claude and ChatGPT no tool's result
-# names them and no view opens them, so the page those load leaves their script out (a quarter of it)
-PICTURES_ONLY = frozenset({"meter.js", "note.js", "versus.js", "mana.js"})
+# names them and no view opens them, so the page those load leaves their script out (a fifth of it)
+PICTURES_ONLY = frozenset({"note.js", "versus.js", "mana.js"})
 HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
 # what view_data draws (the replay: maps.replay)
-VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "note", "versus", "mana")
-METER_TOOLS = ("breakdown", "mechanic_hits", "enemies")  # the tools whose rows a meter draws (meters_of)
+VIEWS = ("pull", "player", "player_night", "death", "night", "meter", "trend", "note", "versus", "mana")
+# The tools whose rows a meter draws (meters_of); breakdown grouped by pull is a trend instead (trend_of), which
+# mechanic_hits over every pull has too, a click away from its meter
+METER_TOOLS = ("breakdown", "mechanic_hits", "enemies")
 
 
 @functools.cache
@@ -90,10 +92,11 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
     """The data `view` draws, for the pull a tool was asked about (`pull` and `boss` resolve as the tool's did); the
     player view's `player`, and with `top` their casts against top players of their spec (compare_with_top's); the
     player's night view's `player` on `boss`; the death view's `player` and which of their deaths (`death`); the
-    meter's `tool` and the `args` it was called with (against the `other` night's report, its `against`); the night
-    view with the boss on each raid night (`nights`, progress's `weeks`); the raid note's view with the `note`
-    checked against every pull on `boss` (raid_note's `args` with all_pulls), else the note as it is (where it came
-    from, `source`)."""
+    meter's `tool` and the `args` it was called with (against the `other` night's report, its `against`); the
+    trend's `tool` and `args` too, with the `player` whose own row it adds (the one asking); the night view with the
+    boss on each raid night (`nights`, progress's `weeks`); the raid note's view with the `note` checked against
+    every pull on `boss` (raid_note's `args` with all_pulls), else the note as it is (where it came from,
+    `source`)."""
     if view not in VIEWS:
         raise ValueError(f"no view {view!r}")
     if view == "note":  # over every pull on a boss; else, for a boss not pulled yet or the next raid, as it is
@@ -102,6 +105,8 @@ async def view_data(rep: Report, view: str, pull: PullRef = None, boss: str | No
         return await note_plan_view(rep, note, boss or "", source)
     if view == "meter":
         return await meter_view(rep, tool or "", args or {}, other)
+    if view == "trend":
+        return await trend_view(rep, tool or "", args or {}, player)
     if view == "mana":
         return await mana_view(rep, pull, boss)
     if view == "versus":
@@ -863,7 +868,9 @@ async def meters_of(rep: Report, tool: str, args: dict, other: Report | None = N
 
 async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = None) -> dict:
     """A tool's ranking of players as in-game damage meters draw it (meters_of): per meter each player's amount, its
-    share of the top's, per second over the combat time, and their class colour, spec and role."""
+    share of the top's, per second over the combat time, and their class colour, spec and role; the ranking in one
+    sentence (the card's headline); and, for one over several pulls that its tool also states pull by pull, the call
+    whose trend shows it (`by_pull`: the trend view's tool and args)."""
     found = await meters_of(rep, tool, args, other)
     if not found:
         raise ValueError(f"{tool} ranks no players here")
@@ -877,13 +884,243 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
                     {"per_pull": b.per_pull, "died_in": b.died_in} if b.per_pull else {}) | (
                     {"was": b.was, "was_rank": b.was_rank} if b.was is not None else {})
     meters = [{"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 1),
-               "icon": icon(m.ability), "note": m.note, "others": m.others,
+               "icon": icon(m.ability), "note": m.note, "others": m.others, "headline": meter_headline(m),
                "total": sum(b.value for b in m.bars), "median": statistics.median(b.value for b in m.bars),
                "bars": [bar(b) for b in m.bars]} | ({"pulls": m.pulls, "per_pull": m.per_pull} if m.pulls else {})
               | ({"then": dataclasses.asdict(m.then)} if m.then else {}) | ({"least": True} if m.least else {})
               for m in found]
-    return {"view": "meter", "report": rep.code, "tool": tool, "args": args, "title": found[0].title,
-            "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0], "meters": meters}
+    by_pull = await _by_pull_call(rep, tool, args)
+    return {"view": "meter", "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": args,
+            "title": found[0].title,
+            "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0], "meters": meters} | (
+                {"by_pull": by_pull} if by_pull else {})
+
+
+async def _by_pull_call(rep: Report, tool: str, args: dict) -> dict | None:
+    """The call whose trend shows a ranking pull by pull, when its tool states one over these pulls (trend_of):
+    mechanic_hits over every pull as it was called; breakdown by player grouped by pull instead (without `least`,
+    which ranks players). None for one pull, or a table no trend draws."""
+    if tool == "mechanic_hits" and args.get("ability") and args.get("all_pulls") and not args.get("against"):
+        return {"tool": tool, "args": args}
+    if tool != "breakdown" or args.get("data_type") not in TREND_TYPES:
+        return None
+    by_pull = {k: v for k, v in args.items() if k != "least"} | {"group_by": "pull"}
+    pulls = (await _table_asked(rep, by_pull)).fights
+    return {"tool": tool, "args": by_pull} if len(pulls) >= TREND_MIN_PULLS else None
+
+
+def meter_headline(m: Meter) -> dict:
+    """A ranking in one sentence of its tool's rows: who is first (with `least`, last), with how much, and how that
+    stands against the median of the players ranked; against another night, the raid's per minute both nights and
+    the change."""
+    def amount(v: float) -> str:
+        if m.unit == "amount":
+            return short(v)
+        if m.unit == "per minute":  # against another night: damage, or a debuff's applications (a few a minute)
+            return f"{v:.2f}" if m.scope.startswith("debuff") else short(v)
+        return f"{v:.0f} {m.unit}"
+    if m.then:
+        t = m.then
+        pct = round((t.raid / t.raid_was - 1) * 100) if t.raid_was else None
+        change = "new" if pct is None else f"{pct:+d}%" if pct else "the same"
+        return _headline(f"The raid's {m.scope.split(' per minute')[0]} from {m.title} per minute of its pulls: "
+                         f"{amount(t.raid_was)} on {t.was_day}, {amount(t.raid)} on {t.day} ({change}).")
+    b = m.bars[-1 if m.least else 0]
+    median = statistics.median(x.value for x in m.bars)
+    place = "last" if m.least else "first"
+    if not median:
+        return _headline(f"{b.name} is {place} of the {len(m.bars)} players ranked with {amount(b.value)}.")
+    against = f"{100 * b.value / median:.0f}% of" if m.least else f"{b.value / median:.1f} times"
+    return _headline(f"{b.name} is {place} with {amount(b.value)}, {against} the median of the {len(m.bars)} players "
+                     "ranked.")
+
+
+# ---- a trend by pull: one amount pull by pull over a night ----
+
+# The tables breakdown states by pull that a trend draws, and what each sums in the headline's words. The others
+# have no amount per pull to compare: an aura's uptimes, a kick's counts by cast.
+TREND_TYPES = {"DamageDone": "damage", "Healing": "healing", "DamageTaken": "damage taken", "Casts": "casts"}
+TREND_TITLES = {"Casts": "Casts"}  # a table's title where the meters (tables.METERS) have none
+TREND_MIN_PULLS = 2  # one pull is no trend
+THIRDS_MIN = 6  # fewer counted pulls have no thirds, as player_night's and progress's (coaching.night_trend)
+TREND_TOP = 3  # each pull's biggest rows named, as breakdown by pull names them
+
+
+@dataclasses.dataclass
+class Trend:
+    """One amount pull by pull, as its tool states it: breakdown grouped by pull (each pull's total over its counted
+    time), or mechanic_hits over every pull (the raid's hits or debuff applications in each)."""
+    title: str  # "Healing by pull", "Tempest by pull"
+    scope: str  # the pulls: "all 33 Sszorak pulls, each until its wipe was decided"
+    subject: str  # what a pull's amount is, in a sentence: "healing", "Tempest hits"
+    per: str  # what a pull's amount is divided by to compare pulls of different lengths: "second" or "minute"
+    count: bool  # a count (casts, hits), not an amount
+    fights: list[dict]
+    amounts: list[float]  # each pull's
+    seconds: list[float]  # each pull's counted time
+    rows: list[dict[str, float]]  # each pull's amount by name: the players', or one player's abilities
+    player: Player | None = None  # one player's trend, else the raid's
+    ability: int | None = None  # the ability's id, for its icon
+
+    def rate(self, amount: float, seconds: float) -> float:
+        return amount / seconds * (60 if self.per == "minute" else 1) if seconds else 0.0
+
+    def text(self, rate: float) -> str:
+        return f"{rate:.1f}" if self.count else short(rate)
+
+
+async def trend_of(rep: Report, tool: str, args: dict) -> Trend | None:
+    """The trend a tool's answer states pull by pull: breakdown grouped by pull for damage, healing, damage taken
+    and casts (TREND_TYPES), mechanic_hits for one ability over every pull. None for another call, or fewer than
+    TREND_MIN_PULLS pulls."""
+    if tool == "breakdown" and args.get("group_by") == "pull" and args.get("data_type") in TREND_TYPES:
+        return await _table_trend(rep, args)
+    if tool == "mechanic_hits" and args.get("ability") and args.get("all_pulls") and not args.get("against"):
+        return await _mechanic_trend(rep, args)
+    return None
+
+
+async def _table_asked(rep: Report, a: dict) -> tables.Asked:
+    """What breakdown grouped by pull is over, for its arguments: the pulls (those that got to its window), the
+    table and its filters."""
+    return await tables._asked(rep, a["data_type"], "pull", a.get("pulls"), a.get("boss"), a.get("player"),
+                               a.get("ability"), a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"),
+                               a.get("end"), a.get("target"))
+
+
+async def _table_trend(rep: Report, a: dict) -> Trend | None:
+    """breakdown grouped by pull: each pull's rows, total and counted time, read and summed as the tool's text does
+    (tables._by_pull, whose lines a test holds these to)."""
+    q = await _table_asked(rep, a)
+    if len(q.fights) < TREND_MIN_PULLS:
+        return None
+    per_pull = await tables._per_pull_tables(rep, q.fights, q.data_type, q.filters, q.ids, q.ends, q.starts)
+    amounts, seconds, rows = [], [], []
+    for f, found in zip(q.fights, per_pull, strict=True):
+        merged, total_time, _ = tables._merged_rows(found, q.data_type, "ability" if q.player else "player",
+                                                    q.ids != [None])
+        merged = tables._without_moved(merged, q.data_type)[0]
+        end, start = q.ends.get(f["id"], f["endTime"]), q.starts.get(f["id"], f["startTime"])
+        seconds.append((total_time if q.cutoff and total_time else end - start) / 1000)  # WCL's time is cut too
+        amounts.append(sum(v for _, v, _ in merged))
+        rows.append({name: v for name, v, _ in merged})
+    what = TREND_TYPES[q.data_type]
+    subject = (what if not q.ability else f"{what} from {q.ability}" if q.data_type == "DamageTaken"
+               else f"{q.ability} {what}") + (f" on {q.target}" if q.target else "")
+    title = ((tables.METERS.get(q.data_type) or TREND_TITLES[q.data_type]) + (f": {q.ability}" if q.ability else "")
+             + (f" on {q.target}" if q.target else "") + " by pull")
+    scope = q.scope + q.window + (", each until its wipe was decided" if q.cut else "") + (
+        f", each until its {ordinal(q.cutoff)} death" if q.cutoff else "")
+    return Trend(title, scope, subject, "minute" if q.data_type == "Casts" else "second", q.data_type == "Casts",
+                 q.fights, amounts, seconds, rows, q.player, q.ids[0] if q.ability else None)
+
+
+async def _mechanic_trend(rep: Report, a: dict) -> Trend | None:
+    """mechanic_hits over every pull: the raid's hits in each pull (its debuff's applications, for one that lands
+    more often than it deals damage), as the tool's per-pull line counts them, over each pull's time until its wipe
+    was decided (mechanics.night_of's minutes), and each player's."""
+    night = await mechanics.night_of(rep, a["ability"], a.get("boss"), bool(a.get("whole_pull")), a.get("start"),
+                                     a.get("end"))
+    h, fights = night.h, night.fights
+    if len(fights) < TREND_MIN_PULLS or not (h.hits or h.debuffs):
+        return None
+    cut = {} if a.get("whole_pull") else await rep.decided_cuts(fights)
+    window = pull_window(a.get("start"), a.get("end"))
+    per = h.pull_debuffs if h.by_debuff else h.pull_hits
+    seconds, rows = [], []
+    for f in fights:
+        span = min(cut.get(f["id"], f["endTime"]), f["endTime"]) - f["startTime"]
+        if window:
+            span = max(0.0, min(span, window[1]) - window[0])
+        seconds.append(span / 1000)
+        rows.append({p.name: 0.0 for p in rep.pull_players(f).values()}  # in the pull and never hit: none
+                    | {rep.names[who]: float(k) for (fid, who), k in per.items() if fid == f["id"]})
+    name = h.name or a["ability"]
+    scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}"
+    if window:
+        scope += f", {clock(window[0])}-{clock(window[1]) if window[1] < float('inf') else 'end'} of each"
+    return Trend(f"{name} by pull", scope + (", each until its wipe was decided" if cut else ""),
+                 f"{name} {'debuff applications' if h.by_debuff else 'hits'}", "minute", True, fights,
+                 [sum(r.values()) for r in rows], seconds, rows, ability=h.ability_id)
+
+
+def trend_thirds(rates: list[float], resets: list[bool]) -> list[tuple[list[int], float]] | None:
+    """The pulls in thirds, first, middle and last, each with its median rate: (the third's pulls, as indexes; the
+    median). Resets are left out, and fewer than THIRDS_MIN counted pulls have none, as in player_night's trend
+    (coaching.night_trend), whose median this is too: the upper of two middle ones."""
+    counted = [i for i, reset in enumerate(resets) if not reset]
+    if len(counted) < THIRDS_MIN:
+        return None
+    third = len(counted) // 3
+    out = []
+    for part in (counted[:third], counted[third:-third], counted[-third:]):
+        found = sorted(rates[i] for i in part)
+        out.append((part, found[len(found) // 2]))
+    return out
+
+
+async def trend_view(rep: Report, tool: str, args: dict, mark: str | None = None) -> dict:
+    """A tool's amount pull by pull (trend_of): each pull's total, its counted time, the amount per second or minute
+    of it, how the pull ended and its biggest rows; the pulls in thirds with each third's median, and the trend in
+    one sentence (the card's headline). With `mark` (the player asking) on the raid's trend, their own amounts pull
+    by pull beside it."""
+    t = await trend_of(rep, tool, args)
+    if t is None:
+        raise ValueError(f"{tool} states nothing pull by pull here")
+    rates = [t.rate(v, s) for v, s in zip(t.amounts, t.seconds, strict=True)]
+    resets = [is_reset(f) for f in t.fights]
+    thirds = trend_thirds(rates, resets)
+    counted = sorted(r for r, reset in zip(rates, resets, strict=True) if not reset)
+    mine = rep.players.get((mark or "").lower()) if not t.player else None
+    if mine and not any(mine.name in row for row in t.rows):
+        mine = None
+    own = [t.rate(row[mine.name], s) if mine.name in row else None
+           for row, s in zip(t.rows, t.seconds, strict=True)] if mine else []
+    own_thirds = trend_thirds([r or 0.0 for r in own],  # the pulls they weren't in left out, as a reset is
+                              [reset or r is None for r, reset in zip(own, resets, strict=True)]) if mine else None
+    nos = [rep.pull_no(f) for f in t.fights]
+    pulls = [{"pull": no, "kill": bool(f["kill"]), "reset": reset, "pct": 0.0 if f["kill"] else wipe_pct(f),
+              "seconds": round(s, 3), "amount": round(v, 1), "rate": round(r, 2),
+              "top": [[n, round(x, 1)] for n, x in sorted(row.items(), key=lambda kv: (-kv[1], kv[0]))[:TREND_TOP]
+                      if x]}
+             | ({"mine": round(mined, 2) if (mined := own[i]) is not None else None} if mine else {})
+             for i, (no, f, reset, s, v, r, row) in enumerate(zip(nos, t.fights, resets, t.seconds, t.amounts, rates,
+                                                                  t.rows, strict=True))]
+
+    def third_rows(found: list[tuple[list[int], float]] | None) -> list[dict] | None:
+        return [{"pulls": [nos[i] for i in part], "rate": round(rate, 2)} for part, rate in found] if found else None
+
+    def who(p: Player) -> dict:
+        return {"name": p.name, "color": class_hex(p.class_name), "spec": spaced(p.spec)}
+    return {"view": "trend", "report": rep.code, "boss": rep.boss_key(t.fights[0]), "tool": tool, "args": args,
+            "title": t.title, "scope": t.scope, "subject": t.subject, "per": t.per, "count": t.count,
+            "who": who(t.player) if t.player else None, "icon": icon(t.ability),
+            "url": rep.url(t.fights[0]).split("#")[0],
+            "headline": trend_headline(t, nos, rates, thirds),
+            "pulls": pulls, "thirds": third_rows(thirds),
+            "median": round(counted[len(counted) // 2], 2) if counted else None,
+            "mine": who(mine) | {"thirds": third_rows(own_thirds)} if mine else None}
+
+
+TREND_LISTED = 5  # a trend over this many pulls or fewer has its headline name each pull's
+
+
+def trend_headline(t: Trend, nos: list[int], rates: list[float],
+                   thirds: list[tuple[list[int], float]] | None) -> dict:
+    """A trend in one sentence of its tool's numbers: the median pull of each third of the night, first, middle and
+    last (trend_thirds); over fewer pulls, each pull's own. A plain fact: whether more is better depends on what is
+    counted."""
+    head = f"{t.player.name if t.player else 'The raid'}'s {t.subject} per {t.per}"
+    if thirds:
+        a, b, c = (t.text(rate) for _, rate in thirds)
+        n = sum(len(part) for part, _ in thirds)
+        return _headline(f"{head}: {a} in the first third of the {n} pulls, {b} in the middle and {c} in the last "
+                         "(each third's median pull).")
+    if len(nos) <= TREND_LISTED:
+        return _headline(f"{head}: " + ", ".join(f"{t.text(r)} on pull {no}" for no, r in zip(nos, rates, strict=True))
+                         + ".")
+    found = sorted(rates)
+    return _headline(f"{head}: {t.text(found[len(found) // 2])} on the median of the {len(nos)} pulls.")
 
 
 def icon(spell_id: int | str | None) -> str | None:

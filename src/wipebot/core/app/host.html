@@ -109,7 +109,8 @@ window.addEventListener("message", async (event) => {
       if (!S.running) send({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: S.result });
       return;
     case "ui/notifications/size-changed":
-      if ($("mode").value !== "fullscreen" && m.params.height) frame.style.height = Math.ceil(m.params.height) + "px";
+      // 0 too: a page with nothing to draw (a tool only some of whose calls have a view) takes no room
+      if ($("mode").value !== "fullscreen" && m.params.height >= 0) frame.style.height = Math.ceil(m.params.height) + "px";
       return;
     case "tools/call":
       try { return reply(await window.wipebotCall(m.params.name, m.params.arguments || {})); }

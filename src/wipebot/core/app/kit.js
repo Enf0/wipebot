@@ -4,6 +4,8 @@ const kit = (() => {
   const clock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
   // 1.5B, 1.53M, 860k: as the tools' text writes amounts
   const short = (v) => v >= 1e9 ? `${(v / 1e9).toFixed(v >= 1e10 ? 0 : 1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}k` : `${Math.round(v)}`;
+  // 1.53M, 860.25k: to the tools' two decimals, where pulls a few percent apart are told apart (a trend)
+  const exact = (v) => v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(2)}k` : `${Math.round(v)}`;
   // 1st, 2nd, 3rd, 11th, 21st: as the tools' text writes ranks and percentiles
   const ordinal = (n) => { const r = n % 100, t = n % 10; return `${n}${r >= 11 && r <= 13 ? "th" : ["th", "st", "nd", "rd"][t] || "th"}`; };
   // 1 pull, 2 pulls: a count with its noun
@@ -67,10 +69,10 @@ const kit = (() => {
       css: (n) => hue.has(n) ? `background:${hue.get(n)}` : "background:none;box-shadow:inset 0 0 0 1.2px var(--muted)",
     };
   }
-  // A card's head: its title (a player's name in their class's ink) and the line beside it, which `more` (markup)
-  // ends
-  const head = (title, sub, color, more = "") =>
-    `<div class="head"><h1${color ? ` ${cls(color)}` : ""}>${esc(title)}</h1><span class="sub">${esc(sub)}${more && sub ? " · " : ""}${more}</span></div>`;
+  // A card's head: its title (a player's name in their class's ink, after `icon`, an ability's as markup) and the
+  // line beside it, which `more` (markup) ends
+  const head = (title, sub, color, more = "", icon = "") =>
+    `<div class="head"><h1${color ? ` ${cls(color)}` : ""}>${icon}${esc(title)}</h1><span class="sub">${esc(sub)}${more && sub ? " · " : ""}${more}</span></div>`;
   // The card's few numbers: [label, value, class of the value, a note under it]; `cols`: in columns of one width,
   // as many as fit (a card's: its notes then wrap in their column)
   const stats = (items, cols = false) => `<div class="stats${cols ? " cols" : ""}">${items.filter(Boolean).map(([k, v, cls, note]) =>
@@ -104,12 +106,12 @@ const kit = (() => {
   const CARD = { stats: 4, chart: 220, buttons: 2 };
   const lead = (h) => !h || !h.text ? "" : `<p class="lead ${h.kind || ""}">${h.kind ? `<span class="mk">${MARK[h.kind]}</span>` : ""}${esc(h.text)}</p>`;
   const OUT = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 1.5h5v5M8.5 1.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
-  function card({ title, sub, color, headline, stats: items = [], chart = "", open = "", buttons = [], url = "" }) {
+  function card({ title, sub, color, icon = "", headline, stats: items = [], chart = "", open = "", buttons = [], url = "" }) {
     const inline = app.context().displayMode !== "fullscreen";
     const all = app.picture() ? [] : [inline && open && app.canGoFullscreen() && ["card-open", open, true], ...buttons].filter(Boolean);
     const out = app.picture() || !/^https:\/\//.test(url) ? ""
       : `<a class="out" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Warcraft Logs${OUT}</a>`;
-    return head(title, sub, color, inline ? "" : out) + lead(headline) + stats(items.filter(Boolean).slice(0, CARD.stats), true) + chart
+    return head(title, sub, color, inline ? "" : out, icon) + lead(headline) + stats(items.filter(Boolean).slice(0, CARD.stats), true) + chart
       + (all.length || (inline && out) ? `<div class="actions">${all.slice(0, CARD.buttons).map(([id, label, primary]) =>
         `<button id="${id}"${primary ? ' class="primary"' : ""}>${esc(label)}</button>`).join("")}${inline ? out : ""}</div>` : "");
   }
@@ -246,7 +248,7 @@ const kit = (() => {
   });
   document.addEventListener("focusout", hide);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered,
+  return { esc, clock, short, exact, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered,
            CARD, card, press, frame, watch, looking, step, hatch };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open, asked), drawn into root

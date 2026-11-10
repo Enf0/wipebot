@@ -37,6 +37,8 @@ html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4
 :root:not([data-mode="fullscreen"]), :root:not([data-mode="fullscreen"]) body { overflow: hidden; }
 /* --safe-*: what the host says its own controls or a phone's edges cover (bridge.js), kept clear in every view */
 #app { padding: calc(10px + var(--safe-top, 0px)) var(--safe-right, 0px) calc(4px + var(--safe-bottom, 0px)) var(--safe-left, 0px); }
+/* nothing to draw (main.js: before the host says which tool this is, and for a call without a view): no height */
+:root[data-empty] #app { display: none; }
 /* fullscreen and a picture have no host's margin around them (inline, the chat's column gives it) */
 :root[data-mode="fullscreen"] #app { padding: calc(18px + var(--safe-top, 0px)) max(20px, 3vw, var(--safe-right, 0px))
                                               calc(20px + var(--safe-bottom, 0px)) max(20px, 3vw, var(--safe-left, 0px));
@@ -263,7 +265,11 @@ table.pulls td.fallout { color: var(--muted); }
 .meter-rows .median span { position: absolute; top: 0; left: 4px; font-size: 10px; color: var(--ink); line-height: 12px; }
 .meter { padding-top: 2px; }
 .meter .stats { padding-bottom: 18px; }
-.meter .head h1 .ic { width: 18px; height: 18px; vertical-align: -4px; }
+.head h1 .ic { width: 18px; height: 18px; vertical-align: -4px; }
+/* a ranking or trend after the first of an answer: one line that opens it (main.js's fold) */
+.folded { display: flex; align-items: center; gap: 12px; padding: 0 2px 6px; }
+.folded .what { flex: 1 1 auto; min-width: 0; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trend-chart { margin: 2px 0 0; }
 svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2px; margin-right: 3px; color: var(--dead-ink); }
 /* against another night: a mark at that night's amount, a notch at the row's top and one at its foot so that it
    crosses neither a name nor a number; the change last; the one asking ringed */

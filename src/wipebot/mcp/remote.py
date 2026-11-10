@@ -15,9 +15,10 @@ its private reports to everyone, so the server won't start with one, nor read wi
   Officer ranks), as Warcraft Logs had them at sign-in or the last membership check (within the hour).
 - The views, an MCP App (core/report/views.py, the page in core/app/): `pull_summary` draws the pull, `player_pull`
   the player and `player_night` the player's night, asking the app-only `view_data` for what to draw (the player's
-  casts against top players on a click); `pull_map` opens the replay, which asks the app-only `pull_replay` for the
-  whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets). `pull_map` with `plan`
-  on one pull opens it with the plan's spots at each moment it checked.
+  casts against top players on a click); `breakdown` and `mechanic_hits` draw a ranking of players as a meter and an
+  amount pull by pull as a trend, for the calls that state one; `pull_map` opens the replay, which asks the app-only
+  `pull_replay` for the whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets).
+  `pull_map` with `plan` on one pull opens it with the plan's spots at each moment it checked.
 - The connector and the skill as a Claude plugin to download, at /plugin.zip (plugin.py).
 - Its logo at /icon.png, named as the server's icon for the hosts that show one: Wipebot's, or the website's own.
 - For whoever serves it: a website (`site`'s routes) at /, which may sign visitors in with Warcraft Logs too
@@ -91,10 +92,23 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
         auth_server_provider=signin, extensions=[_views_app(public, setup)])
     shown = {"ui": {"resourceUri": VIEWS_APP}, "openai/outputTemplate": VIEWS_APP}
     # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull, and
-    # compare_with_top no player: the player view asks for its comparison itself).
+    # compare_with_top no player: the player view asks for its comparison itself), and the two that rank players:
+    # breakdown and mechanic_hits, whose calls without a ranking or a trend draw nothing (the page's frame stays
+    # empty, app/main.js). An answer calls those several times, so only its first card comes open (server._fold).
+    ranks = ("In Claude and ChatGPT, {what}. Every such call draws a card: the first of an answer open, the later "
+             "ones as a line the user opens.")
     server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
-                                       "player_night": shown, "death_recap": shown, "progress": shown},
-                    notes={"pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
+                                       "player_night": shown, "death_recap": shown, "progress": shown,
+                                       "breakdown": shown, "mechanic_hits": shown},
+                    notes={"breakdown": ranks.format(what=(
+                               "the user also sees a ranking by player drawn as a damage meter (damage, healing, "
+                               "damage taken, kicks, dispels), and damage, healing, damage taken or casts grouped by "
+                               "pull as a trend: a bar per pull, kills and resets marked, the median of each third "
+                               "of the night")),
+                           "mechanic_hits": ranks.format(what=(
+                               "the user also sees one ability's hits drawn as a meter of the players, with its "
+                               "trend pull by pull a click away over every pull")),
+                           "pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
                                        "(not with all_pulls); with plan, the plan's spots on it and a button per "
                                        "moment.",
                            "pull_summary": "In Claude and ChatGPT, the user also sees the pull drawn: boss health "
@@ -350,12 +364,16 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
     @apps.tool(resource_uri=VIEWS_APP, visibility=["app"], structured_output=False, name="view_data",
                annotations=server.READ_ONLY)
     @functools.partial(server.guarded, setup=setup)
-    async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night or death")],
+    async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night, death, "
+                                                                 "night, meter or trend")],
                         pull: server.Pull = None, boss: server.Boss = None, report: server.Report_ = None,
                         player: str | None = None, top: bool = False, death: int = 1,
+                        tool: Annotated[Literal["breakdown", "mechanic_hits"] | None, Field(
+                            description="the meter's or the trend's tool")] = None,
+                        args: Annotated[dict | None, Field(description="what that tool was called with")] = None,
                         weeks: Annotated[int | None, Field(ge=1, le=12)] = None) -> CallToolResult:
         """What a view draws, for the pull (and player) its tool was asked about."""
-        result = await server.view_data(view, pull, boss, report, player, top, death, weeks=weeks)
+        result = await server.view_data(view, pull, boss, report, player, top, death, tool, args, weeks)
         if (data := result.structured_content) is not None:
             data["img_base"] = public_url + "/img/"  # its spells' icons (views.icon), served once it named them
             _handed_out.update(views.icons(data))

@@ -644,7 +644,7 @@ async def mechanic_hits(ability: Annotated[str | None, Field(description=(
                             "with `ability`: another night's report code or URL (find_reports) to compare every pull "
                             "on the boss with, per minute of the pulls (\"did we get better at it than last week?\")"
                         ))] = None,
-                        report: Report_ = None) -> str:
+                        report: Report_ = None, *, ctx: Context) -> str | CallToolResult:
     """For "who stood in it?", "who missed the soak?", "who keeps getting hit by X?".
     Who got hit by a boss ability or its debuff: for one pull or every pull on the boss, each until its wipe was
     decided.
@@ -659,12 +659,16 @@ async def mechanic_hits(ability: Annotated[str | None, Field(description=(
     Not for the raid's damage taken in totals by ability (breakdown), nor whose job a soak was (raid_note).
     Example: ability="Tempest", all_pulls=true."""
     rep = await lib().report(report)
-    if ability and against:
-        return await mechanics.against(rep, await lib().report(against), ability, boss, whole_pull, start, end)
-    if ability:
-        return await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull, start, end,
+    if not ability:
+        return await mechanics.mechanic_outliers(rep, pull, boss, all_pulls)
+    if against:
+        text = await mechanics.against(rep, await lib().report(against), ability, boss, whole_pull, start, end)
+    else:
+        text = await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull, start, end,
                                              jobs=await _jobs(rep, pull, boss, all_pulls))
-    return await mechanics.mechanic_outliers(rep, pull, boss, all_pulls)
+    return await _shown("mechanic_hits", _given(ability=ability, pull=pull, boss=boss, all_pulls=all_pulls,
+                                                whole_pull=whole_pull, start=start, end=end, against=against,
+                                                report=report), text, ctx)
 
 
 @_tool
@@ -747,8 +751,9 @@ def _supports_apps(ctx: Context) -> bool:
 
 # The tools a view draws (the replay is pull_map's own: its picture is maps'); compare_with_top's is the player view
 # with their casts against top players, for one player's casts. A meter draws the ranking of players breakdown,
-# mechanic_hits and enemies state, raid_note's, compare_with_top's two raid mates and healing's mana, in the bot
-# only: in Claude and ChatGPT each tool with a view costs tokens.
+# mechanic_hits and enemies state, and a trend what breakdown states pull by pull (view_key says which a call
+# gets, if any). Enemies' meter, raid_note's board, compare_with_top's two raid mates and healing's mana are drawn
+# in the bot only: in Claude and ChatGPT each tool with a view costs tokens, and draws a frame on every call.
 VIEW_TOOLS = {"pull_summary": "pull", "player_pull": "player", "compare_with_top": "player",
               "player_night": "player_night", "death_recap": "death", "progress": "night", "raid_note": "note",
               "healing": "mana", **dict.fromkeys(views.METER_TOOLS, "meter")}
@@ -787,6 +792,26 @@ async def _other(args: dict) -> Report | None:
     return await lib().report(args["against"]) if args.get("against") else None
 
 
+async def _ranking_key(rep: Report, tool: str, args: dict) -> dict | None:
+    """A meter's key, only when the call ranks players, or a trend's, when it states an amount pull by pull
+    (breakdown grouped by pull); with what a folded card says it is (`label`: _fold)."""
+    asked = {k: v for k, v in args.items() if v is not None and k != "report"}
+    if tool == "breakdown" and asked.get("group_by") == "pull":
+        if (trend := await views.trend_of(rep, tool, asked)) is None:
+            return None
+        return {"view": "trend", "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool,
+                "args": asked, "label": f"{trend.title}, {trend.scope}"}
+    if not (found := await views.meters_of(rep, tool, asked, await _other(asked))):
+        return None
+    key = {"view": "meter", "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked,
+           "label": f"{found[0].title}, {found[0].scope}"}
+    pulls = ((args.get("pulls") or []) if tool == "breakdown" else [] if args.get("all_pulls")
+             else [args.get("pull")])
+    if len(pulls) == 1:  # one pull: its link on Warcraft Logs
+        key["pull"] = rep.pull_no(rep.fight(pulls[0], args.get("boss")))
+    return key
+
+
 async def view_key(tool: str, args: dict) -> dict | None:
     """What a view needs to draw a tool's answer: the view, and the pull and player the call was about, resolved
     (the latest pull, a report's code, the player's name as logged), as a host reads it from the result's
@@ -800,16 +825,8 @@ async def view_key(tool: str, args: dict) -> dict | None:
     rep = await lib().report(args.get("report"))
     if view == "note":
         return _note_key(rep, args)
-    if view == "meter":  # only when the call ranks players
-        asked = {k: v for k, v in args.items() if v is not None and k != "report"}
-        if not await views.meters_of(rep, tool, asked, await _other(asked)):
-            return None
-        key = {"view": view, "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked}
-        pulls = ((args.get("pulls") or []) if tool == "breakdown" else [] if args.get("all_pulls")
-                 else [args.get("pull")])
-        if len(pulls) == 1:  # one pull: its link on Warcraft Logs
-            key["pull"] = rep.pull_no(rep.fight(pulls[0], args.get("boss")))
-        return key
+    if view == "meter":
+        return await _ranking_key(rep, tool, args)
     if view == "mana":  # only the healers' mana on one pull
         if not args.get("mana") or args.get("all_pulls"):
             return None
@@ -839,19 +856,49 @@ async def _shown(tool: str, args: dict, text: str, ctx: Context) -> str | CallTo
     tool's arguments (app/main.js)."""
     if setup().remote is None or not _supports_apps(ctx) or (key := await view_key(tool, args)) is None:
         return text
-    return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=key)
+    return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=_fold(key))
+
+
+def _given(**args) -> dict:
+    """A tool's arguments as a caller would give them: without the ones left at None or False."""
+    return {k: v for k, v in args.items() if v is not None and v is not False}
+
+
+FOLDED = ("meter", "trend")  # the views of tools that are called several times in one answer
+FOLD_S = 60  # a ranking or trend handed to the same user this soon after their last one comes folded
+_last_ranking: dict[str | None, float] = {}  # a signed-in user (the token's subject) -> when they were handed one
+
+
+def _fold(key: dict, now: float | None = None) -> dict:
+    """A ranking's or a trend's key, marked `folded` when the same user was handed one less than FOLD_S ago. A host
+    draws a card for every call of a tool with a view and gives the cards nothing to share, so an answer that ranks
+    three things would stack three: the first comes open, the later ones as one line that opens on a click
+    (app/main.js). Calls a minute apart are another question's."""
+    if key.get("view") not in FOLDED:
+        return key
+    from mcp.server.auth.middleware.auth_context import get_access_token
+
+    token = get_access_token()
+    who = token.subject if token else None
+    now = time.monotonic() if now is None else now
+    for user in [u for u, at in _last_ranking.items() if now - at >= FOLD_S]:
+        del _last_ranking[user]
+    folded = who in _last_ranking
+    _last_ranking[who] = now
+    return key | {"folded": True} if folded else key
 
 
 async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night, death, night, "
-                                                             "meter, note, versus or mana")],
+                                                             "meter, trend, note, versus or mana")],
                     pull: Pull = None, boss: Boss = None, report: Report_ = None,
-                    player: Annotated[str | None, Field(description="the player or versus view's player")] = None,
+                    player: Annotated[str | None, Field(description=(
+                        "the player or versus view's player; the trend's, whose own row it adds"))] = None,
                     top: Annotated[bool, Field(description="the player view with their casts against top players "
                                                            "(slower: reads the top parses)")] = False,
                     death: Annotated[int, Field(description="the death view's death of the player in the pull")] = 1,
                     tool: Annotated[str | None, Field(description=(
-                        "the meter's, the note's or the versus view's tool"))] = None,
-                    args: Annotated[dict | None, Field(description="the meter's or the note's tool's "
+                        "the meter's, the trend's, the note's or the versus view's tool"))] = None,
+                    args: Annotated[dict | None, Field(description="the meter's, the trend's or the note's tool's "
                                                                   "arguments")] = None,
                     weeks: Annotated[int | None, Field(description="the night view with the boss's best pull on "
                                                                    "each raid night over this many weeks back",
@@ -1767,7 +1814,8 @@ async def breakdown(
         "DamageDone on one enemy only, by its name (an add, a boss of a council), for \"who did the most damage "
         "to it?\", with start and end for a window"))] = None,
     report: Report_ = None,
-) -> str:
+    *, ctx: Context,
+) -> str | CallToolResult:
     """For "who did the most or the least damage?", "what hurt us most?", "who kicked or dispelled?", "who played
     well on the kill?", "what was our raid DPS at 2:15?".
     Damage, healing, damage taken, casts, buffs, debuffs, interrupts and dispels: any Warcraft Logs table over
@@ -1785,8 +1833,12 @@ async def breakdown(
     Not for who stood in one mechanic (mechanic_hits), the damage spikes and the healing cooldowns in them
     (healing), or who had a kick ready for a cast that went through (enemies).
     Example: data_type="DamageTaken", group_by="ability", pulls=[13]."""
-    return await tables.breakdown(await lib().report(report), data_type, group_by, pulls, boss, player, ability, cutoff,
+    text = await tables.breakdown(await lib().report(report), data_type, group_by, pulls, boss, player, ability, cutoff,
                                   whole_pull, start, end, least, target)
+    return await _shown("breakdown", _given(data_type=data_type, group_by=group_by, pulls=pulls, boss=boss,
+                                            player=player, ability=ability, cutoff=cutoff, whole_pull=whole_pull,
+                                            start=start, end=end, least=least, target=target, report=report),
+                        text, ctx)
 
 
 @_tool

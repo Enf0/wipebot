@@ -1,20 +1,24 @@
 // ---- a ranking of players as in-game damage meters draw it: a bar per player in their class colour, scaled to the
 // top, with the amount, per second and share, the tool's few words of each, and the deaths a mechanic set up
-// (breakdown by player, mechanic_hits for one ability, enemies' damage on adds). A panel (data-panel) per meter,
-// each its own picture in Discord, where a picture of a whole raid's bars fills a phone's screen: the top players
-// get a bar, the rest a line with their amounts. Against another night (mechanic_hits' against), each bar per minute
-// with a tick at the other night's and the change. The player the picture is for (key.mark, the one asking) is ringed,
-// and their bar shown under the top ones when it's further down. For "who did the least?" (breakdown's least) it's
-// drawn from the bottom, least first, the top players in the line ----
+// (breakdown by player, mechanic_hits for one ability, enemies' damage on adds). The card (kit.card): the ranking in
+// one sentence (views.meter_headline), its few numbers and the top players' bars; "Open ranking" draws every player's
+// in fullscreen, with a mechanic's hits per player per pull under them, and "By pull" opens the trend of a ranking
+// over several pulls. A panel (data-panel) per meter, each its own picture in Discord, where a picture of a whole
+// raid's bars fills a phone's screen: the top players get a bar, the rest a line with their amounts. Against another
+// night (mechanic_hits' against), each bar per minute with a tick at the other night's and the change. The player
+// the picture is for (key.mark, the one asking) is ringed, and their bar shown under the top ones when it's further
+// down. For "who did the least?" (breakdown's least) it's drawn from the bottom, least first, the top players in
+// the line ----
 views.meter = (() => {
-  let D = null, root = null, SHOWN = 10, LISTED = Infinity, MARK = "";  // rows drawn (a raid is 20-30), and the line with the rest up to
+  const INLINE = 8;  // the bars of a card in a host, where the rest are a click away
+  let D = null, root = null, open = null, ROWS = 0, SHOWN = 10, LISTED = Infinity, MARK = "", ASKER = "";  // rows drawn (a raid is 20-30), and the line with the rest up to
   const SKULL = '<svg class="skull" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1C3.2 1 1.5 2.9 1.5 5.3c0 1.5.7 2.6 1.8 3.2V10c0 .5.4 1 1 1h3.4c.6 0 1-.5 1-1V8.5c1.1-.6 1.8-1.7 1.8-3.2C10.5 2.9 8.8 1 6 1Zm-2 6a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 4 7Zm4 0a1.2 1.2 0 1 1 0-2.4A1.2 1.2 0 0 1 8 7Z" fill="currentColor"/></svg>';
 
-  async function show(into, key) {
-    root = into;
-    // fewer where a picture shares the answer with another meter (the Discord bot's), its line the next few
-    [SHOWN, LISTED] = key.rows ? [key.rows, 2 * key.rows] : [10, Infinity];
-    MARK = (key.mark || "").toLowerCase();
+  async function show(into, key, opener) {
+    root = into; open = opener;
+    ROWS = key.rows || 0;  // fewer where a picture shares the answer with another meter (the Discord bot's)
+    ASKER = key.mark || "";
+    MARK = ASKER.toLowerCase();
     D = await app.callTool("view_data", { view: "meter", report: key.report, tool: key.tool, args: key.args });
     render();
   }
@@ -26,26 +30,28 @@ views.meter = (() => {
   // Against another night: the raid's per minute both nights, the deaths it set up, and the ringed player's
   function thenStats(m) {
     const t = m.then, mine = m.bars.findIndex(marked), b = m.bars[mine];
-    return kit.stats([
+    return [
       ["Raid, per minute", `${kit.short(t.raid_was)} → ${kit.short(t.raid)}`, t.raid > t.raid_was * 1.05 ? "dead" : t.raid < t.raid_was * 0.95 ? "good" : "",
        `${change(t.raid, t.raid_was)} · ${Math.round(t.minutes_was)} → ${Math.round(t.minutes)} min of pulls`],
       ["Deaths it set up", `${t.deaths_was} → ${t.deaths}`, "",
        `${(t.deaths_was / Math.max(t.minutes_was, 1e-9)).toFixed(2)} → ${(t.deaths / Math.max(t.minutes, 1e-9)).toFixed(2)} per minute`],
       b && b.was != null ? [b.name, `${kit.short(b.was)} → ${kit.short(b.value)}`, b.value < b.was ? "good" : b.value > b.was ? "dead" : "",
                             `${kit.ordinal(b.was_rank)} → ${kit.ordinal(mine + 1)} of ${m.bars.length}`] : null,
-    ]);
+    ];
   }
 
+  // The card's numbers; who is first and by how much is its headline
   function stats(m) {
     if (m.then) return thenStats(m);
-    const top = m.bars[m.least ? m.bars.length - 1 : 0], hit = m.bars.reduce((n, b) => n + b.died_after, 0), killed = m.bars.reduce((n, b) => n + b.killed_by, 0);
-    return kit.stats([
+    const hit = m.bars.reduce((n, b) => n + b.died_after, 0), killed = m.bars.reduce((n, b) => n + b.killed_by, 0);
+    const mine = m.bars.findIndex(marked), b = m.bars[mine];
+    return [
       m.unit === "amount" ? ["Total", kit.short(m.total), "", m.seconds ? `${kit.short(m.total / m.seconds)}/s over ${kit.clock(m.seconds * 1000)}` : ""]
         : ["Total", `${Math.round(m.total)} ${m.unit}`, "", ""],
-      [m.least ? "Least" : "Most", top.name, "", `${amount(m, top.value)}, ${(top.value / Math.max(m.median, 1)).toFixed(1)}× the median`],
       ["Median", amount(m, m.median), "", `of ${m.bars.length} players`],
       hit || killed ? ["Deaths", `${hit} set up`, "dead", `${killed} by it as the killing blow`] : null,
-    ]);
+      b ? [b.name, amount(m, b.value), "", `${kit.ordinal(mine + 1)} of ${m.bars.length}`] : null,
+    ];
   }
 
   function bar(m, b, i, max) {
@@ -77,20 +83,28 @@ views.meter = (() => {
       + (below ? `<li class="gap" aria-hidden="true">⋮</li>${bar(m, m.bars[ranks[mine]], ranks[mine], top)}` : "");
     const rest = ranks.slice(SHOWN, LISTED).filter((i) => !marked(m.bars[i])).map((i) =>
       `<span style="white-space:nowrap">${i + 1} ${kit.esc(m.bars[i].name)} ${amount(m, m.bars[i].value)}</span>`);
-    if (m.bars.length > LISTED) rest.push(`${m.bars.length - LISTED} more`);
+    if (m.bars.length > LISTED) rest.push(`${m.bars.length - LISTED} more${LISTED === SHOWN ? " players" : ""}`);
     const more = rest.length ? `<div class="note">${rest.join(" · ")}</div>` : "";
     const keys = m.then ? `<div class="legend"><span><i class="tick"></i>${kit.esc(m.then.was_day)}</span><span>bar: ${kit.esc(m.then.day)}</span>`
       + (mine >= 0 ? "<span>ringed: the one asking</span>" : "") + "</div>" : "";
     return `<div class="meter-rows${m.then ? " then" : ""}"><ol>${shown}</ol>${m.then ? "" : `<div class="median" style="left:${med.toFixed(2)}%"><span>median</span></div>`}</div>${more}${keys}`;
   }
 
-  function panel(m) {
-    const icon = kit.iconImg(D.img_base, m.icon);
+  // A meter's card: the first of a host's, with the buttons; every one is a picture's panel
+  function card(m, first) {
+    const { full, picture } = kit.frame(root);
     const title = m.then ? `${m.title}, ${m.then.was_day} → ${m.then.day}` : m.title;
-    const head = `<div class="head"><h1>${icon}${kit.esc(title)}</h1><span class="sub">${kit.esc(m.scope)}</span></div>`;
-    const others = m.others.length ? `<div class="note">Not hit: ${kit.esc(m.others.join(", "))}</div>` : "";
-    const note = m.note ? `<div class="note">${m.bars.some((b) => b.died_after) ? SKULL : ""}${kit.esc(m.note)}</div>` : "";
-    return `<section data-panel class="meter">${head}${stats(m)}${rows(m)}${others}${note}</section>`;
+    // who it never hit: named in a picture and in fullscreen, counted on a card when many
+    const few = picture || full || m.others.length <= 6;
+    const others = !m.others.length ? "" : `<div class="note">Not hit: ${few ? kit.esc(m.others.join(", ")) : kit.plural(m.others.length, "player")}</div>`;
+    // the deaths it set up are one of a card's numbers already: their line is the picture's and fullscreen's
+    const deaths = m.bars.some((b) => b.died_after || b.killed_by);
+    const note = m.note && (picture || full || !deaths) ? `<div class="note">${deaths ? SKULL : ""}${kit.esc(m.note)}</div>` : "";
+    return `<section data-panel class="meter">${kit.card({
+      title, sub: m.scope, icon: kit.iconImg(D.img_base, m.icon), headline: m.headline, stats: stats(m), chart: rows(m) + others + note,
+      // fullscreen has more only where the card left players out, or the hits per pull are under it
+      open: first && (m.bars.length > INLINE || (m.pulls || []).length > 1 || D.meters.length > 1) ? "Open ranking" : "",
+      buttons: first && D.by_pull ? [["meter-by-pull", "By pull"]] : [], url: first ? D.url : "" })}</section>`;
   }
 
   // Over several pulls, a mechanic's hits per player per pull: a row per player (most hit first), a column per
@@ -133,8 +147,16 @@ views.meter = (() => {
 
   function render() {
     if (!D || !root) return;
-    root.innerHTML = D.meters.map((m) => panel(m) + (m.pulls && m.pulls.length > 1 ? grid(m) : "")).join("");
+    const { full, picture } = kit.frame(root);
+    // a picture: ten bars and the rest in a line (fewer when it shares an answer); a card: the top few, the rest a
+    // click away (where the host has no fullscreen, in the line); fullscreen: everyone's
+    [SHOWN, LISTED] = picture ? (ROWS ? [ROWS, 2 * ROWS] : [10, Infinity]) : full ? [Infinity, Infinity]
+      : [INLINE, app.canGoFullscreen() ? INLINE : Infinity];
+    const all = picture || full;
+    root.innerHTML = (all ? D.meters : D.meters.slice(0, 1)).map((m, i) =>
+      card(m, i === 0) + (all && m.pulls && m.pulls.length > 1 ? grid(m) : "")).join("");
+    kit.press(root, "meter-by-pull", () => open("trend", { report: D.report, boss: D.boss, tool: D.by_pull.tool, args: D.by_pull.args, mark: ASKER }));
   }
 
-  return { show, relayout: render };
+  return { show, relayout: render, seen: () => `the ranking ${D.meters[0].title} (${D.meters[0].scope})` };
 })();
