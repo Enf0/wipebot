@@ -7,7 +7,8 @@ remembers of the asker, the server's language and today's date. A case sets them
     set_up    asked from the guild's own Discord server, as `/wipebot setup` leaves it
     earlier   what was said in the place before the first question: [who, text] pairs, oldest first ("Wipebot" is
               the bot itself)
-    note      a raid note an officer pasted before the night's first pull: a file under tests/fixtures/real/notes
+    note      a raid note an officer pasted before the night's first pull: a file under tests/fixtures/real/notes,
+              or under evals/cases/notes when a case needs a note no night had
     notes     what the bot remembers of the asker (the remember tool's notes)
     language  the server's language, as its admin set it
     today     the day the question is asked ("2026-10-22"): the date in its first line and the tools' clock
@@ -43,7 +44,9 @@ from wipebot.discord.store import Raider, ServerSettings, Store
 
 MESSAGE = ("set_up", "earlier", "note", "notes", "language", "today")
 DEFAULTS = ("report", "set_up", "language", "today", "where")  # what a file's [defaults] may hold for its cases
-NOTES = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "real" / "notes"
+ROOT = Path(__file__).resolve().parent.parent
+# Where a case's `note` is looked for: the notes the guild's officers wrote, then the ones written for a case
+NOTES = (ROOT / "tests" / "fixtures" / "real" / "notes", ROOT / "evals" / "cases" / "notes")
 # The stand-in server and asker of a `set_up` case, and the realm of the one guild whose reports are cases
 # (.claude/rules/test-data.md), as `/wipebot setup` keeps it
 SERVER_ID, USER_ID, REALM = 1, 2, ("kazzak", "eu")
@@ -52,6 +55,13 @@ JUDGE_CHARS = 300  # of each earlier message, in the question as the judge sees 
 # A case's own day and its server's notebook, for the tools that read them (per_case), within its Context's reading
 TODAY: ContextVar[float | None] = ContextVar("a case's today", default=None)
 BOOK: ContextVar[Path | None] = ContextVar("a case's notebook", default=None)
+
+
+def note_file(name: object) -> Path | None:
+    """The file of a case's `note`, None when no folder of notes has it."""
+    if not (isinstance(name, str) and name.strip()):
+        return None
+    return next((folder / name for folder in NOTES if (folder / name).is_file()), None)
 
 
 def problem(case: dict) -> str:
@@ -67,8 +77,8 @@ def problem(case: dict) -> str:
         return "earlier is a list of [who, text] pairs"
     if earlier and earlier[0][0] == BOT:
         return f"earlier starts with what someone asked: {BOT} answers a message before it"
-    if "note" in case and not (isinstance(case["note"], str) and (NOTES / case["note"]).is_file()):
-        return f"note is a file under {NOTES.relative_to(NOTES.parents[3])}"
+    if "note" in case and not note_file(case["note"]):
+        return f"note is a file under {' or '.join(str(folder.relative_to(ROOT)) for folder in NOTES)}"
     if "notes" in case and not (isinstance(case["notes"], list) and all(isinstance(n, str) for n in case["notes"])):
         return "notes is a list of lines"
     if "language" in case and not isinstance(case["language"], str):
@@ -179,8 +189,8 @@ async def contexts(case: dict, plain: Context, library: server.Library, mode: st
     store.set_language(SERVER_ID, case.get("language"))
     if case.get("asker") or case.get("notes"):  # what the bot remembers of the asker: their character, their notes
         store.save_raider(USER_ID, Raider(case.get("asker"), list(case.get("notes", []))))
-    if case.get("note"):  # as an officer's paste to the bot, saved as of the night's first pull
-        commands.save_pasted(store, SERVER_ID, (NOTES / case["note"]).read_text(encoding="utf-8"), "an officer",
+    if pasted := note_file(case.get("note")):  # as an officer's paste to the bot, saved as of the night's first pull
+        commands.save_pasted(store, SERVER_ID, pasted.read_text(encoding="utf-8"), "an officer",
                              from_pull=(report, 1))
     place = plain.where
     in_dm = not place.startswith("in #")

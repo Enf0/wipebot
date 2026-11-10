@@ -1,0 +1,144 @@
+[defaults]
+report = "64hVgfmydQGNxC7A"
+set_up = true            # asked from the guild's own server, whose language an admin set
+language = "Norwegian"
+
+# ---- Asked in Norwegian, as most questions in the guild's server are: bokmål with the game's words in English.
+#      Written for these cases, never copied from a raider. `expect`, `facts` and `wrong` stay in English; an
+#      answer in English fails by the `language` check, whatever the judge made of it.
+#      None of these cases has been answered yet: no run has shown that a right answer passes them, and none has
+#      `tools`, which are tagged from the runs. Every fact is from the tools' output on the recorded data. ----
+
+[[case]]
+id = "norsk-wipe-execution"  # one ability killing everyone at once: the mechanic that failed, from the guide
+today = "2026-10-27"
+where = "in a DM"
+question = "hvorfor wipet vi på siste pull? alle bare døde samtidig"
+asker = "Sonyosh"
+pull = 21
+boss = "The Coiled Altar"
+cause = "ability: Execution"  # what an expert names first; `just evals --endings`
+expect = """Execution killed 14 players within a second at 2:13, which is what the axe does when Guillotine hits
+fewer than 5 players: the Guillotine soak was short. The fix is that soak, not more damage or healing."""
+facts = ["pull 21 ended at 2:30 with the boss at 15.9%",
+         "the only death before it was Krøpling's, to Sever at 1:00",
+         "pulls 3, 9, 11, 13 and 17 ended the same way"]
+wrong = ["names Venom Rupture as what ended this pull",
+         "calls it an enrage, or says the raid needs more damage",
+         "blames the deaths after 2:13 (Wutroll, Slushmania, Karadim)"]
+
+[[case]]
+id = "norsk-same-thing-every-pull"  # the last pull against the night's pattern, which pull_summary states
+today = "2026-10-27"
+question = "er det det samme som dreper oss hver gang på altar, eller var siste pull noe annet?"
+asker = "Nexsozz"
+pull = 21
+boss = "The Coiled Altar"
+expect = """Not the same: Venom Rupture killing many ended most of the night's pulls, 11 of the 20 before the last
+one, but the last pull (21) ended with Execution killing 14 at 2:13, as pulls 3, 9, 11, 13 and 17 did. So there are
+two things to fix: the globules that set off Venom Rupture, and the Guillotine soak."""
+facts = ["Execution comes when Guillotine hits fewer than 5 players",
+         "the pull before it, pull 20, was Venom Rupture: 8 dead at 1:06 and 6 more at 1:08",
+         "the best pull of the night was pull 16, in P2 at 68.3%"]
+wrong = ["says every pull ended the same way",
+         "names Venom Rupture as what ended the last pull",
+         "calls it an enrage, or says the raid needs more damage"]
+
+[[case]]
+id = "norsk-follow-up-same-thing"  # a follow-up that points at the next pull without naming it
+today = "2026-10-27"
+where = "in a DM"
+question = ["hva drepte oss på pull 20?", "og pullen etter, var det samme greia?"]
+asker = "Dragepie"
+boss = "The Coiled Altar"
+expect = """No: the pull after it, pull 21, ended with Execution killing 14 players within a second at 2:13, not the
+Venom Rupture that ended pull 20 (8 dead at 1:06, 6 more at 1:08)."""
+facts = ["Execution comes when Guillotine hits fewer than 5 players",
+         "pull 21 ended at 15.9%, pull 20 at 57.9%"]
+wrong = ["says pull 21 ended the same way as pull 20, with Venom Rupture",
+         "answers about pull 20 again, or about another pull than 21"]
+
+[[case]]
+id = "norsk-death-globule"  # a healer's own death: what killed them and what of their own would have saved them
+report = "p7jRwgv8b1rY6LBd"
+today = "2026-10-22"
+where = "in a DM"
+question = "hvorfor døde jeg på pull 36? kunne jeg gjort noe annerledes?"
+asker = "Cptola"
+pull = 36
+boss = "The Twin Fangs"
+expect = """Caustic Globule killed them at 1:18, three seconds after Caustic Deluge took them to 19% health at 1:15;
+they were healed back to about half, not topped. A defensive of their own at 1:15 would have kept them alive: Divine
+Shield or Divine Protection, neither used on the pull, or a healthstone."""
+facts = ["the Caustic Globule hit for 487k, 12.7k past dead",
+         "Caustic Deluge hit for 718k",
+         "no healthstone or healing potion used on the pull"]
+wrong = ["says nothing of their own could have saved them, or puts it on the other healers alone",
+         "says Divine Shield or Divine Protection was used or on cooldown",
+         "names Caustic Deluge or Toxic Fumes as the killing blow"]
+
+[[case]]
+id = "norsk-own-tempest-hits"  # a count of the asker's own hits on one pull, next to the raid's
+report = "vjt3KLbN8g62J1H9"
+where = "in a DM"
+question = "hvor mange tempest tok jeg på siste pull? føltes som jeg sto i alt"
+asker = "Agonco"
+pull = 42
+boss = "Sszorak"
+expect = """8 Tempest hits on pull 42 until the wipe was decided at 4:08 (4.16M damage, the debuff applied 6 times):
+more than anyone but the tank Deathadim (11), ahead of Enfo (6) and of Namsus, Sonyosh and Scopidruid (5 each)."""
+facts = ["2 of the 8 came within 1 s of an earlier hit: one hit or two, the log can't tell",
+         "none of them killed them before the wipe was decided; they died to Tempest at 4:42, after it"]
+wrong = ["gives the whole night's Tempest hits as the pull's",
+         "says the log can't count Tempest hits per player",
+         "says a Tempest hit killed them before 4:08"]
+
+[[case]]
+id = "norsk-note-roar-on-time"  # the asker's planned cooldown against the saved note, over the night
+report = "p7jRwgv8b1rY6LBd"
+today = "2026-10-22"
+note = "twin-fangs-2026-10-21.txt"
+where = "in a DM"
+question = "traff jeg roarene mine i går i forhold til noten?"
+asker = "Attractîv"
+boss = "The Twin Fangs"
+expect = """Mostly not: of the Stampeding Roars the saved note plans for them (0:58, 2:00, 3:35, 4:36 and 6:10), 41
+were not cast within 30 s of the planned time while they were alive; over the night one came on time, one 2 s early
+and one 29 s late."""
+facts = ["the 0:58 roar: on time once, not cast on 24 pulls",
+         "the 2:00 roar: not cast on 12 pulls",
+         "61 planned uses over the night"]
+wrong = ["says the roars were on time, or mostly on time",
+         "says no raid note is saved, or asks them to paste it",
+         "judges the roars by how often they were pressed, without the note's times"]
+
+[[case]]
+id = "norsk-guide-guillotine"  # a game rule, no log needed: the guide's number for Mythic
+today = "2026-10-27"
+calls = ["boss_guide"]  # the rule and its number come from the guide, not from memory
+question = "hvor mange må stå i guillotine på mythic altar, og hva skjer hvis vi er for få?"
+asker = "Pomaa"
+expect = """At least 5 players have to be hit by Guillotine. With fewer, the axe does an Execution instead: about
+1.67M Nature damage to every player, which wipes the raid."""
+facts = ["Guillotine's damage is split among the players within 9 yards of its target",
+         "it leaves them taking 500% more damage from Guillotine for 1.7 min, so the same players can't take the next",
+         "Grim Guillotine fails the same way, into Grim Execution (Shadow damage)",
+         "on Heroic and below the minimum is 3"]
+wrong = ["gives another minimum than 5 for Mythic",
+         "says it needs a log or a pull to answer"]
+
+[[case]]
+id = "norsk-last-night"  # the night in a few lines, in the raid's channel
+report = "vjt3KLbN8g62J1H9"
+question = "hvordan gikk det på Sszorak i går? en kort oppsummering til raidet"
+asker = "Enfo"
+boss = "Sszorak"
+expect = """42 pulls on Sszorak (Mythic) and no kill, but the last pull was the best: a wipe at 34.1%, a new guild best
+(62.6% before the night). The pulls got further as the night went on (average wipe 72.2% early, 66.6% late). What
+ended most pulls was the boss's enrage, Unbound Ferocity (11 pulls), then Mutilate killing many (8)."""
+facts = ["Tempest killed the most players: 62 deaths over 40 pulls",
+         "2 of the 42 pulls were resets",
+         "78:26 in combat"]
+wrong = ["says the boss died",
+         "says the raid got worse over the night",
+         "gives another pull than 42, or another percentage than 34.1%, as the best"]

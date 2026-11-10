@@ -1,0 +1,67 @@
+[defaults]
+report = "vjt3KLbN8g62J1H9"
+set_up = true  # asked from the guild's own server
+
+# ---- From the guild's own server: a question about another night than the one at hand, which the bot has to
+#      find among the guild's reports itself; who took the most of a mechanic, asked in the raid's channel, where
+#      the names are the answer; and a game rule that needs no log. Asked the day after the 12 October night
+#      (Tuesday 13 October), so "Wednesday" is the 7th.
+#      None of these cases has been answered yet: no run has shown that a right answer passes them, and none has
+#      `tools`, which are tagged from the runs. Every fact is from the tools' output on the recorded data. ----
+
+[[case]]
+id = "server-what-we-killed-wednesday"  # another night than the report at hand: found among the guild's reports
+calls = ["find_reports"]  # the night isn't the one it was given
+question = "what did we kill on Wednesday?"
+asker = "Enfo"
+expect = """Finds Wednesday 7 October's night itself (report 8TcXMAP2gHQGr9pW) and lists its kills, six bosses: The
+Coiled Altar, Ula'tek, Nek'zali the Soulcoiler, Entombed Sentinels, The Lost Explorers and Vashnik the Malignant."""
+facts = ["3 Heroic pulls and 16 Mythic that night",
+         "Entombed Sentinels took 6 pulls and Vashnik 8",
+         "the night is on Warcraft Logs twice: a second log, 3gBPRJMjfxbCX8K4, holds the same pulls"]
+wrong = ["answers about Monday 12 October's log, which has only Sszorak wipes",
+         "says it can only see the report it was given, or asks for a link",
+         "counts the kills twice because the night is in two logs",
+         "counts a log marked as a pug as the guild's night"]
+
+[[case]]
+id = "server-sszorak-on-the-5th"  # a date instead of a report: the night is found, then read
+where = "in a DM"
+calls = ["find_reports"]  # the night isn't the one it was given
+question = "how many pulls did we have on Sszorak on the 5th, and how far did we get?"
+asker = "Sonyosh"
+expect = """Finds Monday 5 October's night itself (report KBYT4xXn7VNjDgh8): 33 pulls on Sszorak that night, no kill,
+the best wipe at 62.6%."""
+facts = ["the best wipe was pull 13",
+         "Vashnik died in 2 pulls before the Sszorak pulls",
+         "1 of the 33 pulls was a reset"]
+wrong = ["gives the 12 October night's numbers (42 pulls, 34.1%) as the 5th's",
+         "says it can only see the report it was given, or asks for a link"]
+
+[[case]]
+id = "server-channel-names-tempest"  # in the raid's channel: who took the most hits is named there
+question = "who got hit by the most tempests last night? names, not just 'some players'"
+asker = "Karadim"
+boss = "Sszorak"
+expect = """Names them, in the channel: the tank Deathadim took the most Tempest hits over the night, 165; of the
+others Peggerino 86, Sonyosh 78 and Fappachino 68, counted until each wipe was decided."""
+facts = ["Tempest killed the most players that night: 62 deaths over 40 pulls",
+         "then Nexsozz 63, Scopidruid and Krøpling 60 each"]
+wrong = ["declines to name players in a channel, or offers the names in a DM instead",
+         "ranks them by deaths and calls it hits",
+         "says the log can't count hits per player"]
+
+[[case]]
+id = "server-guide-purple-orbs"  # a game rule, no log needed: what the guide says must never happen
+report = "64hVgfmydQGNxC7A"
+today = "2026-10-27"
+calls = ["boss_guide"]  # the rule comes from the guide, not from memory
+question = "what's the rule with the purple orbs on coiled altar? can they touch the green ones?"
+asker = "Zebinomage"
+expect = """No: a purple orb (Virulent Mutation) must never come near another purple orb or a green one. If it does it
+explodes them and sets off 20 Venom Ruptures, which wipes the raid. The players carrying purple have priority and
+need clear space; everyone else moves around them."""
+facts = ["picked up, a purple orb is Mutagenic Venom: heavy damage within 8 yards for 5 s, then a new purple orb drops",
+         "a green orb (Coalesced Venom) sets off one Venom Rupture when it is destroyed"]
+wrong = ["says purple and green orbs may touch, or should be popped together",
+         "says it needs a log or a pull to answer"]

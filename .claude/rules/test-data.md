@@ -16,4 +16,5 @@ Why: the RPGLogs API terms (§5d) and the guide sites' terms; tests/README.md, "
   our raiders (a percentile, a gap to the top), never another guild's players or reports.
 - The guide sites' writing and Warcraft Logs' images get a stand-in (`tests/support/standins.py`); game facts (spell
   ids, cooldowns, talent trees) may stay.
-- Eval cases are on that guild's reports, in English; their data stays in the untracked `evals/cache.sqlite`.
+- Eval cases are on that guild's reports, with questions in English or Norwegian, as raiders ask; their data stays
+  in the untracked `evals/cache.sqlite`.
