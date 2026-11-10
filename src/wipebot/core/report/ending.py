@@ -16,6 +16,8 @@ END_CAST_MS = 10_000  # a debuff of the boss's landing on the living this close 
 LAND_MS = 2_000  # one cast's debuff lands on everyone it reaches within this
 CAST_LEAD_MS = 5_000  # the boss's cast this soon before the debuff landed is the cast it came from
 ALIVE = "no death, the raid alive"  # kind_of_end of a pull that ended with no death deciding it
+KILL, RESET, LIVE = "a kill", "a reset", "still going"  # kind_of_end of those
+QUIET_ENDS = (RESET, KILL, LIVE, ALIVE)  # the endings no mechanic made
 
 
 @dataclass(frozen=True)
@@ -402,7 +404,7 @@ def kind_of_end(e: Ending | None) -> str:
     with. The first moment of a wipe ("Mutilate killing many"), after "deaths leading into" when those lead;
     "deaths one after another"; "the boss casting <cast>"; or "a reset", "a kill", ALIVE, "still going"."""
     if e is None:
-        return "a kill"
+        return KILL
     match e.kind:
         case "cascade":
             return "deaths one after another"
@@ -411,9 +413,9 @@ def kind_of_end(e: Ending | None) -> str:
         case "cast":
             return f"the boss casting {e.cast.name if e.cast else ''}"
         case "reset":
-            return "a reset"
+            return RESET
         case "live":
-            return "still going"
+            return LIVE
     return ("deaths leading into " if e.led_in else "") + _moment_kind(e.moments[0])
 
 

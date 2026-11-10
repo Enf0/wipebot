@@ -367,6 +367,9 @@ def _unit_waves(rep: Report, f: dict, died_events: list[dict], name: str) -> lis
     return out
 
 
+EVERY_KIND = "Damage on adds"  # the title of `meters`' first meter: every kind of add summed
+
+
 async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False) -> list[Meter]:
     """The damage on adds by player as meters, from the same tables as `enemies` (`enemies_night` with all_pulls): on
     every kind of add it names (the NIGHT_KINDS most damaged over the night) summed, then on the most damaged kind
@@ -410,7 +413,7 @@ async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all
         return [Bar(who, v) for who, v in c.most_common() if who in players and v > 0]
     out = []
     if len(dealt) > 1:
-        out.append(Meter("Damage on adds", f"{scope}: {few(list(dealt))}", bars(sum(dealt.values(), Counter()))))
+        out.append(Meter(EVERY_KIND, f"{scope}: {few(list(dealt))}", bars(sum(dealt.values(), Counter()))))
     if dealt:
         name, c = next(iter(dealt.items()))
         out.append(Meter(f"Damage on {name}", scope, bars(c)))

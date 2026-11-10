@@ -242,7 +242,7 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
             taken = sum(h.get("amount", 0) for h in covered)
             saved = taken if effect.kind == "immunity" else (effect.pct or 0) / 100 * taken
             how = f"{short(saved)} less of the {short(taken)} it covers"
-        verdict = SAVED if saved > overkill else "not enough on its own"
+        verdict = SAVED if saved > overkill else NOT_ENOUGH
         if saved > overkill and effect.sure_s:  # only a moment of it is sure (Cloak of Shadows' tooltip)
             sure = sum(h.get("amount", 0) for h in covered if h["timestamp"] <= start + 1000 * effect.sure_s)
             if sure <= overkill:
@@ -486,6 +486,7 @@ async def _kits(rep: Report, played: dict[int, dict[int, Player]]
 
 
 SAVED = "would have kept them alive"  # if_pressed's verdict for a spell that would have
+NOT_ENOUGH = "not enough on its own"  # and for one that wouldn't have
 
 
 def savers(replayed: list[str]) -> list[str]:

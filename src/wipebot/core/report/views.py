@@ -45,12 +45,33 @@ from .coaching import (
     time_lost,
 )
 from .cooldowns import DAMAGE_COOLDOWN, NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
-from .deaths import BURST_MS, RECAP_WINDOW_MS, defensive_state, if_pressed, killed_outright, replay_deaths, savers
-from .ending import ALIVE, Ending, HalfDead, KeptBuff, MassDeath, kind_of_end, mass_death_of, pull_ending, pull_endings
+from .deaths import (
+    BURST_MS,
+    NOT_ENOUGH,
+    RECAP_WINDOW_MS,
+    defensive_state,
+    if_pressed,
+    killed_outright,
+    replay_deaths,
+    savers,
+)
+from .ending import (
+    KILL,
+    QUIET_ENDS,
+    RESET,
+    Ending,
+    HalfDead,
+    KeptBuff,
+    MassDeath,
+    kind_of_end,
+    mass_death_of,
+    pull_ending,
+    pull_endings,
+)
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
 from .meter import Meter
 from .night import BossNight, kill_rankings, wipe_thirds
-from .ranks import Spread, kill_parses, kills_spread, metric_of
+from .ranks import CAPPED_HEALING, SHORT_PULL, Spread, kill_parses, kills_spread, metric_of
 from .top import cast_comparison
 
 APP = resources.files("wipebot.core").joinpath("app")
@@ -222,12 +243,6 @@ GAPS_SHARE = 0.05  # casting gaps over this share of their time until the wipe w
 STEADY_SHARE = 0.02  # under this share, worth saying they kept casting
 CAPPED_SHARE = 0.10  # their resource capped over this share of it more than top players' (when read)
 NOTES = 2  # things that went well, and things to fix, on a player's card
-
-
-# Why where a wipe's output stands among the spec's kills proves little by itself, as player_pull says under it
-# (ranks.benchmark_line): the card draws that standing only with these
-SHORT_PULL = "A short pull runs higher than a full kill: Bloodlust and every cooldown come at the start."
-CAPPED_HEALING = "Healing on a wipe is capped by damage taken: weak evidence on its own."
 
 
 def player_notes(out: dict) -> dict[str, list[str]]:
@@ -524,7 +539,7 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
 
 def weeks_row(n: BossNight) -> dict:
     """One raid night on the boss, as progress's `weeks` states it."""
-    top = next(((what, k) for what, k in n.ends if what not in ("a kill", "a reset")), None)
+    top = next(((what, k) for what, k in n.ends if what not in (KILL, RESET)), None)
     return {"day": day(n.start_ms), "start_ms": round(n.start_ms), "report": n.code, "pulls": n.pulls,
             "kill": n.kill, "pct": n.best[0] if n.best else None, "pull": n.best[1] if n.best else None,
             "phase": n.best_phase, "health": n.best_health, "ended": list(top) if top else None}
@@ -1204,9 +1219,6 @@ def pull_headline(f: dict, e: Ending | None, deaths: int) -> dict:
     return _headline(text + ".")
 
 
-NOT_ENOUGH = "not enough on its own"  # if_pressed's verdict for a spell that wouldn't have kept them alive
-
-
 def death_headline(by: str, at_ms: float, outright: bool, last_hp: int | None, replayed: list[str],
                    fallout: bool) -> dict:
     """What a death comes down to, in one sentence of death_recap's facts: that it killed outright (no defensive's
@@ -1225,9 +1237,6 @@ def death_headline(by: str, at_ms: float, outright: bool, last_hp: int | None, r
     if len(replayed) > 1 and all(line.endswith(f": {NOT_ENOUGH}") for line in replayed[1:]):
         how += ": nothing ready would have been enough on its own"
     return _headline(how + ".")
-
-
-QUIET_ENDS = ("a reset", "a kill", "still going", ALIVE)  # the endings no mechanic made (ending.kind_of_end)
 
 
 def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:

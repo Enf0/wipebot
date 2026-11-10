@@ -215,6 +215,16 @@ async def test_the_meter_view_matches_its_snapshot(recorded):
     assert_snapshot(REAL / "views" / "meter.txt", readable(await meter_data("mechanic-hits")))
 
 
+def test_the_night_cards_quiet_endings_are_the_cores():
+    """The endings the night's card draws quiet (a kill, a reset, a pull still going, a raid alive at the end) are
+    the ones the core names (ending.QUIET_ENDS), which the card's headline leaves out too: one list."""
+    from wipebot.core.report import ending
+
+    quiet = re.search(r"const QUIET = new Set\(\[(.*?)\]\)", views.APP.joinpath("raidnight.js").read_text())
+    assert quiet and json.loads(f"[{quiet.group(1)}]") == list(ending.QUIET_ENDS)
+    assert views.QUIET_ENDS is ending.QUIET_ENDS
+
+
 @pytest.mark.parametrize("case", METER_CASES)
 async def test_a_meter_ranks_the_players_its_tool_states(recorded, case):
     data = await meter_data(case)

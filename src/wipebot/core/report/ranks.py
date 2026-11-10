@@ -36,6 +36,11 @@ async def kills_spread(rep: Report, f: dict, p: Player) -> Spread | str:
     return Spread(n, exact, [(label, v) for label, v in points])
 
 
+# Why where a wipe's output stands among the spec's kills proves little by itself: said under it (benchmark_line)
+SHORT_PULL = "A short pull runs higher than a full kill: Bloodlust and every cooldown come at the start."
+CAPPED_HEALING = "Healing on a wipe is capped by damage taken: weak evidence on its own."
+
+
 def benchmark_line(f: dict, p: Player, per_s: float, spread: Spread | str) -> str | None:
     """Where a wipe's throughput per second alive falls among the spec's ranked kills of the boss (`kills_spread`)."""
     if isinstance(spread, str):
@@ -51,9 +56,7 @@ def benchmark_line(f: dict, p: Player, per_s: float, spread: Spread | str) -> st
     return (f"  against kills: {short(per_s)}/s alive is {where} of the {n if exact else f'more than {n}'} ranked "
             f"{spaced(p.spec)} {spaced(p.class_name)} kills of {f['name']} on this difficulty (each character's "
             "best; " + ", ".join(f"{label} {short(v)}/s" for label, v in points)
-            + "). A short pull runs higher than a full kill: Bloodlust and every cooldown come at the start."
-            + (" Healing on a wipe is capped by damage taken: weak evidence on its own." if p.role == "healer"
-               else ""))
+            + f"). {SHORT_PULL}" + (f" {CAPPED_HEALING}" if p.role == "healer" else ""))
 
 
 def spread_line(spread: Spread, label: str, boss: str, metric: str) -> str | None:
