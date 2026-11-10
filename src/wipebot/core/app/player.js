@@ -204,14 +204,26 @@ views.player = (() => {
     const off = (r) => /^(never cast|far )/.test(r.flag), excused = (r) => !!r.flag && !off(r);
     const gap = (r) => off(r) ? 10 : excused(r) ? 0 : Math.abs(r.mine - r.median) / Math.max(r.median, 0.5);
     const rows = (n ? counted.slice().sort((a, b) => gap(b) - gap(a)).slice(0, n) : counted);
-    const L = Math.min(170, W * 0.36), R = 86, rh = 22, T = 18;
+    const L = Math.min(170, W * 0.36), R = 86, rh = 22;
     let o = kit.text(0, 11, `Casts per minute alive against ${t.parses} top ${who()}${t.same_hero && t.hero ? ` (${t.hero})` : ""} parses`
                      + (n ? ", biggest differences" : ""));
+    // what the marks are: a picture has no tooltip to ask
+    const dot = (fill) => (lx, ly) => `<circle cx="${lx + 6}" cy="${ly - 4}" r="5" ${fill} stroke="var(--bg)" stroke-width="1.5"/>`;
+    const keys = [[dot(kit.cls(D.player.color)), D.player.name],
+      [(lx, ly) => kit.line(lx + 6, ly - 11, lx + 6, ly + 3, "var(--gold)", 'stroke-width="2.4"'), "the top players' median"],
+      [(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="8" rx="4" fill="var(--muted)" opacity=".3"/>`, "their range"]];
+    const outside = (r) => !off(r) && !excused(r) && (r.mine < r.low || r.mine > r.high);
+    if (rows.some(outside)) keys.push([dot('fill="var(--decided)"'), "outside their range"]);
+    if (rows.some(off)) keys.push([dot('fill="var(--dead)"'), "never cast or far off"]);
+    if (rows.some(excused)) keys.push([dot('fill="var(--muted)"'), "no fault: not due, not worn or cast before the pull"]);
+    const [key, ky] = kit.legend(keys, W, 30);
+    o += key;
+    const T = ky + 8;
     rows.forEach((r, i) => {
       const y = T + i * rh + 11, max = Math.max(r.high, r.mine) * 1.08 || 1, x = (v) => L + v / max * (W - L - R);
       // red where the tool flags it off, grey where it says it is no fault, orange outside the top's range
       const fill = off(r) ? 'fill="var(--dead)"' : excused(r) ? 'fill="var(--muted)"'
-        : r.mine < r.low || r.mine > r.high ? 'fill="var(--decided)"' : kit.cls(D.player.color);
+        : outside(r) ? 'fill="var(--decided)"' : kit.cls(D.player.color);
       o += kit.icon(D.img_base, r.icon, 0, y - 7, 14) + kit.text(r.icon && D.img_base ? 19 : 0, y + 4, r.name.length > 24 ? r.name.slice(0, 23) + "…" : r.name, "t");
       o += kit.line(L, y, W - R, y, "var(--line)");
       o += `<rect x="${x(r.low)}" y="${y - 4}" width="${Math.max(2, x(r.high) - x(r.low))}" height="8" rx="4" fill="var(--muted)" opacity=".3"/>`;

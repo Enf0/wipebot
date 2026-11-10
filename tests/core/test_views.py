@@ -1298,6 +1298,11 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
     for r in data["top"]["rates"]:
         if r["median"] is not None:
             assert f"{r['mine']:.1f} / {r['median']:.1f} ({r['low']:.1f}-{r['high']:.1f})" in top
+    # one spell, one rate: the card's own list of casts says what the comparison says of every spell in both (a
+    # rogue's Mutilate, logged under an id for each hand, was 53.0 a minute in the list and 27.1 in the comparison)
+    mine = {r["name"]: r["mine"] for r in data["top"]["rates"]}
+    both = {c["name"]: (c["per_min"], mine[c["name"]]) for c in data["casts"] if c["name"] in mine}
+    assert len(both) >= 8 and both["Mutilate"] == (27.1, 27.1) and all(a == b for a, b in both.values()), both
     # alive for 53 s: Ambush (3.1 a minute at the top's median) is a spell to have pressed, Sprint and Vanish aren't
     flags = {r["name"]: r["flag"] for r in data["top"]["rates"]}
     assert [n for n, flag in flags.items() if flag == "never cast"] == ["Ambush"]
