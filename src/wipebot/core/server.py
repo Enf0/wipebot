@@ -47,7 +47,13 @@ from pydantic import Field
 
 from . import clock, knowledge, notebook, raidstrats, viserio, wcl
 from .knowledge import KnowledgeError
-from .library import Library, ensure_wcl_access, latest_raid, report_code  # noqa: F401 (imported from here too)
+from .library import (  # noqa: F401 (imported from here too)
+    Library,
+    ensure_wcl_access,
+    latest_raid,
+    report_code,
+    report_link,
+)
 from .pulls import DIFFICULTIES
 from .report import (
     FactError,
@@ -79,7 +85,7 @@ from .report import mana as manas
 from .report import note as notes
 from .report import plan as plans
 from .report import query as queries
-from .report.base import JOBS_NOT_LOGGED, NOT_AN_ASSIGNMENT
+from .report.base import JOBS_NOT_LOGGED, NOT_AN_ASSIGNMENT, link_fights
 from .text import day, name_key, plural
 from .wcl import WCLError
 
@@ -291,15 +297,59 @@ def _told(e: Exception) -> str:
     return f"{e} {hint}" if hint else str(e)
 
 
+async def _link_note(kwargs: dict) -> str:
+    """For a call about pulls whose report link names a fight: which pull that fight is, since a fight's number
+    isn't its pull's number on the boss, and that another was read when the call named one. '' otherwise."""
+    report, named = kwargs.get("report"), link_fights.get()
+    if not (report and named and {"pull", "pulls", "boss"} & kwargs.keys()):
+        return ""
+    code, fight_id = report_link(report)
+    rep = await lib().report(code)
+    if (f := next((f for f in rep.fights if f["id"] == fight_id), None)) is None:
+        return ""
+    note = f"Fight {fight_id} in the link is {rep.label(f)}"
+    try:
+        asked = [rep.fight(n, kwargs.get("boss")) for n in kwargs.get("pulls") or [kwargs.get("pull")]]
+    except FactError:
+        return note + "."
+    if [a["id"] for a in asked] != [fight_id]:
+        return f"{note}; this call named another pull or boss, which was read instead."
+    return note + "."
+
+
+def _noted(result: object, note: str) -> object:
+    """A tool's result with `note` as its first line."""
+    if not note:
+        return result
+    if isinstance(result, CallToolResult):
+        if text := next((c for c in result.content if isinstance(c, TextContent)), None):
+            text.text = f"{note}\n{text.text}"
+        return result
+    return f"{note}\n{result}" if isinstance(result, str) else result
+
+
+def _unexpected(tool: str, setup: Setup, e: Exception) -> ToolError:
+    """An unexpected error as the model is told it, logged. The MCP server would hide it as "Error executing tool
+    X": the model and the records need to know what it was. Serving many users, they get only an id the log has it
+    under."""
+    if setup.remote:
+        error_id = secrets.token_hex(4)
+        _log.exception("%s failed (error id %s)", tool, error_id, exc_info=e)
+        return ToolError(f"{tool} failed with an unexpected error (error id {error_id})")
+    _log.exception("%s failed", tool, exc_info=e)
+    return ToolError(f"{tool} failed with an unexpected error: {type(e).__name__}: {e}")
+
+
 def guarded(fn, setup: Setup = DEFAULT):
     """`fn` as a tool of a server with `setup`. Bad arguments and source failures reach the model as readable tool
-    errors. A question about the pull that just ended, before the live log has it, waits for it a little. Serving
-    many users, each call is logged with its user, kept (Remote.record) and read with their Warcraft Logs token
-    (Remote.wcl_token)."""
+    errors. A question about the pull that just ended, before the live log has it, waits for it a little. A report
+    link naming a fight makes that pull the call's default, and the result's first line says which pull it is.
+    Serving many users, each call is logged with its user, kept (Remote.record) and read with their Warcraft Logs
+    token (Remote.wcl_token)."""
     async def run(*args, **kwargs):
         for waited in range(PULL_WAITS + 1):
             try:
-                return await fn(*args, **kwargs)
+                return _noted(await fn(*args, **kwargs), await _link_note(kwargs))
             except PullNotLogged as e:
                 if waited == PULL_WAITS:
                     raise ToolError(f"{e}; ask again in a minute") from e
@@ -308,14 +358,7 @@ def guarded(fn, setup: Setup = DEFAULT):
             except (FactError, KnowledgeError, WCLError) as e:
                 raise ToolError(_told(e)) from e
             except Exception as e:
-                # The MCP server would hide an unexpected error as "Error executing tool X": the model and the
-                # records need to know what it was. Serving many users, they get only an id the log has it under.
-                if setup.remote:
-                    error_id = secrets.token_hex(4)
-                    _log.exception("%s failed (error id %s)", fn.__name__, error_id)
-                    raise ToolError(f"{fn.__name__} failed with an unexpected error (error id {error_id})") from e
-                _log.exception("%s failed", fn.__name__)
-                raise ToolError(f"{fn.__name__} failed with an unexpected error: {type(e).__name__}: {e}") from e
+                raise _unexpected(fn.__name__, setup, e) from e
         raise AssertionError("unreachable")
 
     async def kept(remote: Remote, *args, **kwargs):
@@ -347,15 +390,17 @@ def guarded(fn, setup: Setup = DEFAULT):
 
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):
-        token = _current.set(setup)
+        token, linked = _current.set(setup), link_fights.set({})  # no fight another call's link named
         try:
             return await (kept(setup.remote, *args, **kwargs) if setup.remote else run(*args, **kwargs))
         finally:
+            link_fights.reset(linked)
             _current.reset(token)
     return wrapper
 
 
-Report_ = Annotated[str | None, Field(description="Warcraft Logs report code or URL; omit for the current report")]
+Report_ = Annotated[str | None, Field(description="Warcraft Logs report code or link (a link's fight=N is then the "
+                                                  "default pull); omit for the current report")]
 Pull = Annotated[int | str | None, Field(description="pull number on the boss, or kill, best wipe, last wipe, first "
                                                     "or last; omit for the latest")]
 Boss = Annotated[str | None, Field(description="boss name, or part of it; omit for the boss of the latest pull")]
@@ -1613,7 +1658,8 @@ async def buff_at_casts(player: Player,
 async def breakdown(
     data_type: Annotated[tables.BreakdownType, Field(description="the Warcraft Logs table")],
     group_by: tables.GroupBy = "player",
-    pulls: Annotated[list[int] | None, Field(description="pull numbers on the boss; omit for all")] = None,
+    pulls: Annotated[list[int | str] | None, Field(description=(
+        "pull numbers on the boss, or kill, best wipe, last wipe, first or last; omit for all"))] = None,
     boss: Boss = None,
     player: Annotated[str | None, Field(description="one player only (for Buffs/Debuffs: auras on them; for "
                                                     "EnemyDebuffs: the ones they applied)")] = None,

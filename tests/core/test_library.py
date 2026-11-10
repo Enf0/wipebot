@@ -201,3 +201,38 @@ async def test_a_live_report_warcraft_logs_stops_showing_isnt_served_as_loaded(l
     with pytest.raises(wcl.Unreadable):
         await lib.report(CODE, max_age_s=0)
     assert CODE not in lib._reports
+
+
+@pytest.mark.parametrize("given, fight", [
+    (CODE, None),
+    (f"https://www.warcraftlogs.com/reports/{CODE}", None),
+    (f"https://www.warcraftlogs.com/reports/{CODE}#fight=21", 21),
+    (f"https://www.warcraftlogs.com/reports/{CODE}?fight=4&type=healing&source=6", 4),  # the address bar's form
+    (f"https://www.warcraftlogs.com/reports/{CODE}?type=damage-done&fight=38", 38),
+    (f"https://www.warcraftlogs.com/reports/{CODE}#fight=last&type=summary", None),  # the latest, as with none
+])
+def test_a_link_to_a_fight_gives_the_code_and_the_fight(given, fight):
+    assert library.report_link(given) == (CODE, fight) and library.report_code(given) == CODE
+
+
+def test_a_link_to_several_fights_or_comparing_reports_says_so():
+    with pytest.raises(ValueError, match="names more than one fight"):
+        library.report_link(f"https://www.warcraftlogs.com/reports/{CODE}#fight=4,5,6")
+    with pytest.raises(ValueError, match="not a Warcraft Logs report code or URL"):
+        library.report_link(f"https://www.warcraftlogs.com/reports/compare/{CODE}/vjt3KLbN8g62J1H9#fight=4")
+
+
+async def test_the_fight_a_link_names_is_the_calls_default_pull_and_boss(night):
+    """What the raider pointed at, not the latest pull: fight ids aren't pull numbers on a boss."""
+    lib = library.Library(wcl=FakeWCL(night).client())
+    assert (await lib.report(CODE)).linked() is None
+    rep = await lib.report(f"https://www.warcraftlogs.com/reports/{CODE}?fight=21&type=deaths")
+    assert rep.label(rep.fight()) == "Sszorak pull 13" and rep.fight()["id"] == 21
+    assert rep.label(rep.fight(5)) == "Sszorak pull 5"  # a pull named wins
+    assert rep.fight(None, "Vashnik")["name"] == "Vashnik the Malignant"  # so does another boss: its latest pull
+    await lib.report(f"https://www.warcraftlogs.com/reports/{CODE}#fight=1")
+    assert rep.boss(None) == "Vashnik the Malignant" and rep.label(rep.fight()) == "Vashnik the Malignant pull 1"
+    assert rep.label(rep.fight("last")) == "Vashnik the Malignant pull 2"  # of the link's boss
+    await lib.report(f"https://www.warcraftlogs.com/reports/{CODE}#fight=5")
+    with pytest.raises(ValueError, match="fight 5 in the link isn't a boss pull of report"):
+        rep.fight()  # trash: the latest pull is no answer about it

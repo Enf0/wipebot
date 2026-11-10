@@ -49,7 +49,7 @@ class Asked:
                    for f in self.fights) / 1000
 
 
-async def breakdown(rep: Report, data_type: str, group_by: str = "player", pulls: list[int] | None = None,
+async def breakdown(rep: Report, data_type: str, group_by: str = "player", pulls: list[int | str] | None = None,
                     boss: str | None = None, player: str | None = None, ability: str | None = None,
                     cutoff: int | None = None, whole_pull: bool = False, start: str | None = None,
                     end: str | None = None, least: bool = False, target: str | None = None) -> str:
@@ -88,7 +88,7 @@ def _least(rep: Report, q: Asked, rows: list[tuple]) -> tuple[list[tuple], str]:
         f", {ROLE_NAMES[role]} only" + (f" ({left} left out)" if left else "")
 
 
-async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, boss: str | None = None,
+async def meter(rep: Report, data_type: str, pulls: list[int | str] | None = None, boss: str | None = None,
                 ability: str | None = None, cutoff: int | None = None, whole_pull: bool = False,
                 start: str | None = None, end: str | None = None, least: bool = False,
                 target: str | None = None) -> Meter | None:
@@ -125,7 +125,7 @@ async def meter(rep: Report, data_type: str, pulls: list[int] | None = None, bos
         if len(bars) >= MIN_BARS else None
 
 
-async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | None, boss: str | None,
+async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int | str] | None, boss: str | None,
                  player: str | None, ability: str | None, cutoff: int | None, whole_pull: bool,
                  start: str | None = None, end: str | None = None, target: str | None = None) -> Asked:
     if data_type not in BREAKDOWN_TYPES:
@@ -139,7 +139,10 @@ async def _asked(rep: Report, data_type: str, group_by: str, pulls: list[int] | 
         raise FactError(f"start and end work for {', '.join(UNTIL_DECIDED_TYPES)}; the other tables are whole pulls")
     cut = not (whole_pull or cutoff) and data_type in UNTIL_DECIDED_TYPES  # a cutoff is its own cut
     b = rep.boss(boss)
+    if not pulls and (named := rep.linked()) and rep.boss_key(named) == b:  # the pull the call's link named
+        pulls = [rep.pull_no(named)]
     fights = [rep.fight(n, b) for n in pulls] if pulls else rep.ended(rep.by_boss[b])
+    pulls = [rep.pull_no(f) for f in fights] if pulls else pulls  # by number: "kill", "best wipe" name one too
     p = rep.player(player) if player else None
     if p and pulls:
         for f in fights:

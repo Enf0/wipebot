@@ -11,6 +11,7 @@ from . import clock, wcl
 from .cache import cache
 from .pulls import DIFFICULTIES
 from .report import FactError, Report
+from .report.base import link_fights
 from .report.night import RAID_PULLS
 from .wcl import WCL
 
@@ -61,7 +62,7 @@ class Library:
         day), whose loading is kept on disk for good. When reading a live report again fails, the copy already
         loaded is served, and it's tried again `max_age_s` later. wcl.Unreadable for one Warcraft Logs won't show
         the asker, one it showed before too."""
-        code = report_code(report) if report else self.default_report
+        code = self._linked(report) if report else self.default_report
         if not code and self.latest:
             code = self._latest = await self.latest()
         if not code:
@@ -77,6 +78,17 @@ class Library:
         if wcl.is_private(code):  # however this call reads it (from memory, by another call's query): not kept
             wcl.read_private()
         return found
+
+    @staticmethod
+    def _linked(report: str) -> str:
+        """The code of a report given by code or link, the fight a link names noted as the call's default pull
+        (report.base.link_fights)."""
+        code, fight = report_link(report)
+        if fight is not None:
+            if (named := link_fights.get()) is None:
+                link_fights.set(named := {})
+            named[code] = fight
+        return code
 
     async def _report(self, key: str | tuple[str, str], code: str, max_age_s: float, settled: bool) -> Report:
         cached = self._reports.get(key)
@@ -254,6 +266,24 @@ def report_code(report: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9]{8,24}", code):
         raise FactError(f"not a Warcraft Logs report code or URL: {report!r}")
     return code
+
+
+_LINK_FIGHT = re.compile(r"[?#&]fight=([^&#\s]*)")
+
+
+def report_link(report: str) -> tuple[str, int | None]:
+    """A report given by code or link: (its code, the fight the link names). Warcraft Logs' links name a fight as
+    '#fight=21' or '?fight=21&type=damage-done&source=6' (what the address bar holds); 'fight=last' and a link
+    without one name none, which reads the latest pull. A link to several fights is an error that says so, as one
+    comparing reports is (it has no one code)."""
+    code = report_code(report)
+    named = _LINK_FIGHT.search(report)
+    if not named or named[1] in ("", "last"):
+        return code, None
+    if not named[1].isdigit():
+        raise FactError(f"the link names more than one fight (fight={named[1]}): give a link to one fight, or the "
+                        "report's code and the pull")
+    return code, int(named[1])
 
 
 def ensure_wcl_access() -> None:

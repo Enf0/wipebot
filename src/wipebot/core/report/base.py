@@ -13,6 +13,7 @@ import math
 import time
 from collections import Counter, defaultdict
 from collections.abc import Iterable
+from contextvars import ContextVar
 from dataclasses import dataclass, replace
 
 from .. import knowledge
@@ -124,6 +125,12 @@ JOBS_NOT_LOGGED = (f"Whose job it was (a soak, a kick, a spot) isn't in the log:
 # A pull by number on its boss, or by one of these names.
 PULL_ALIASES = ("kill", "best wipe", "last wipe", "first", "last")
 PullRef = int | str | None
+
+
+# The fights the report links of the tool call being run named (".../reports/<code>?fight=21"), by report code: a
+# link to a fight makes that pull, and its boss, the call's default (Report.linked). library.Library.report notes
+# each link's; a tool call starts with none (server.guarded).
+link_fights: ContextVar[dict[str, int] | None] = ContextVar("link_fights", default=None)
 
 
 class FactError(ValueError):
@@ -300,10 +307,25 @@ class Report(Fetched):
             return f"{fight['name']} ({difficulty_name(fight)})"
         return fight["name"]
 
+    def linked(self) -> dict | None:
+        """The pull the call's link to this report named (`link_fights`), None without one. A fight that isn't one
+        of the report's boss pulls (trash, a number it doesn't have) is an error: the latest pull would be an
+        answer about another fight."""
+        fight_id = (link_fights.get() or {}).get(self.code)
+        if fight_id is None:
+            return None
+        if f := next((f for f in self.fights if f["id"] == fight_id), None):
+            return f
+        counts = ", ".join(f"{b} {len(fs)}" for b, fs in self.by_boss.items())
+        raise FactError(f"fight {fight_id} in the link isn't a boss pull of report {self.code} (trash, or a fight it "
+                        f"doesn't have): name a pull, or give the report without a fight for its latest pull (pulls "
+                        f"in this report: {counts})")
+
     def boss(self, name: str | None) -> str:
-        """The boss matching a name or part of it (knowledge.matches_boss); of several, the one pulled last."""
+        """The boss matching a name or part of it (knowledge.matches_boss); of several, the one pulled last. With
+        no name, the boss of the pull the call's link named (`linked`), else of the latest pull."""
         if not name:
-            return self.boss_key(self.fights[-1])
+            return self.boss_key(self.linked() or self.fights[-1])
         matches = [b for b in self.by_boss if knowledge.matches_boss(name, b)]
         if not matches:
             raise FactError(f"no boss matching {name!r}; bosses in this report: {', '.join(self.by_boss)}")
@@ -314,14 +336,17 @@ class Report(Fetched):
         return [f["id"] for f in self.by_boss[self.boss_key(fight)]].index(fight["id"]) + 1
 
     def fight(self, pull: PullRef = None, boss: str | None = None) -> dict:
-        """The fight for 'pull N on boss', or a pull named by PULL_ALIASES. No pull means the latest finished pull on
-        that boss (one still being logged only when it's the boss's first)."""
+        """The fight for 'pull N on boss', or a pull named by PULL_ALIASES. No pull means the pull the call's link
+        named (`linked`), when it's on that boss, else the latest finished pull on that boss (one still being logged
+        only when it's the boss's first)."""
         if isinstance(pull, str):
             if not pull.strip().isdigit():
                 return self._named_pull(pull, boss)
             pull = int(pull)
         pulls = self.by_boss[self.boss(boss)]
         if pull is None:
+            if (named := self.linked()) and any(f["id"] == named["id"] for f in pulls):
+                return named
             return next((f for f in reversed(pulls) if f["id"] not in self.live), pulls[-1])
         if pull == len(pulls) + 1 and not self.final:
             raise PullNotLogged(f"{pulls[0]['name']} pull {pull} isn't in the log yet (pulls 1-{len(pulls)} so far): "

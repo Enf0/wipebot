@@ -7,6 +7,7 @@ import re
 import struct
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import CallToolResult, TextContent
 from PIL import Image
 
@@ -181,3 +182,38 @@ async def test_the_replay_of_a_pull_fits_a_tool_result(recorded):
     ox, oy = data["map"]["origin"]
     w, h = (v * maps.REPLAY_UNIT for v in data["map"]["size"])
     assert 0 < w and 0 < h and isinstance(ox, int | float) and isinstance(oy, int | float)
+
+
+LINK = "https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8"
+
+
+@pytest.mark.parametrize("fight", ["#fight=21", "?fight=21&type=damage-done&source=6"])
+async def test_a_link_to_a_fight_reads_that_pull_and_says_which_pull_it_is(recorded, fight):
+    """A raider points at a pull with the link Warcraft Logs gives them, in either form. Fight 21 is Sszorak pull
+    13, not pull 21, and not the latest pull (33), which the link was read as."""
+    note = "Fight 21 in the link is Sszorak pull 13.\n"
+    text, failed = await server.call("pull_summary", {"report": LINK + fight})
+    assert not failed and text + "\n" == note + await run(CASES["pull-summary"])
+    taken, failed = await server.call("breakdown", {"report": LINK + fight, "data_type": "DamageTaken",
+                                                     "group_by": "ability"})  # no pulls: the link's, not all 33
+    assert not failed and taken + "\n" == note + await run(CASES["damage-taken"])
+
+
+async def test_a_pull_named_beside_a_link_to_another_fight_is_read_and_the_first_line_says_so(recorded):
+    text, failed = await server.call("compare_pulls", {"report": LINK + "#fight=21", "pull": 12, "other": 13})
+    assert not failed and text + "\n" == (
+        "Fight 21 in the link is Sszorak pull 13; this call named another pull or boss, which was read instead.\n"
+        + await run(CASES["compare-pulls"]))
+    plain, failed = await server.call("compare_pulls", {"report": LINK + "#fight=last", "pull": 12, "other": 13})
+    assert not failed and plain + "\n" == await run(CASES["compare-pulls"])  # the latest: nothing to say
+
+
+async def test_a_link_to_a_fight_that_is_no_boss_pull_says_so(recorded):
+    with pytest.raises(ToolError, match="fight 5 in the link isn't a boss pull of report KBYT4xXn7VNjDgh8"):
+        await server.call("pull_summary", {"report": LINK + "#fight=5"})
+
+
+async def test_breakdown_takes_a_pull_by_name_as_the_other_tools_do(recorded):
+    text, failed = await server.call("breakdown", {"report": "KBYT4xXn7VNjDgh8", "data_type": "DamageTaken",
+                                                    "group_by": "ability", "pulls": ["best wipe"]})
+    assert not failed and text.startswith("Damage taken on Sszorak pull 13")
