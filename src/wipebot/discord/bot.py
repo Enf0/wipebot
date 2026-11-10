@@ -1100,7 +1100,8 @@ class WipeBot(discord.Client):
                          duration_s=round(time.monotonic() - started, 1), fight=fight)
         if answer:
             row.update(prompt=answer.prompt, answer=answer.full or None, model=answer.model,
-                       session_id=answer.session_id, cost_usd=answer.cost_usd, turns=answer.turns, usage=answer.usage,
+                       session_id=answer.session_id, cost_usd=answer.cost_usd, turns=answer.turns,
+                       rounds=answer.rounds or None, usage=answer.usage,
                        thinking=answer.thinking, tool_calls=answer.records(), wcl_points=answer.wcl_points() or None)
         try:
             return self.store.record_interaction(messages=sent or [], **row)

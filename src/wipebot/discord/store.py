@@ -115,7 +115,7 @@ ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "offi
                  ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
                  ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
                  ("logins", "guild", "TEXT"), ("server_settings", "verified_by", "INTEGER"),
-                 ("server_settings", "verified_at", "REAL")]
+                 ("server_settings", "verified_at", "REAL"), ("interactions", "rounds", "INTEGER")]
 
 
 class Store:
@@ -183,7 +183,9 @@ class Store:
                 duration_s REAL,
                 cost_usd REAL,           -- this answer's own (in rows of Oct 12 2026 and before: its conversation's
                                          -- total so far, as the SDK gives it)
-                turns INTEGER,
+                turns INTEGER,           -- the SDK's num_turns: the answer's tool calls plus one, not model rounds
+                rounds INTEGER,          -- the model's rounds: each message it wrote, with the tool calls it made in
+                                         -- that one go (from 10 Nov 2026)
                 usage TEXT,              -- JSON: tokens
                 thinking TEXT,           -- JSON: list of thinking blocks
                 tool_calls TEXT,         -- JSON: list of {name, args, result, failed, images, started_s, duration_s}

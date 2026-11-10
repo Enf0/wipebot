@@ -541,11 +541,13 @@ async def test_a_raider_gets_so_many_answers_an_hour_and_the_posts_they_asked_fo
 
 async def test_an_answer_that_hit_a_cap_is_recorded_with_what_it_cost(bot, message, asked):
     calls = [ToolCall("progress", {}, "...", False)]
-    asked.answers.append(ModelError("error_max_turns", Answer("", cost_usd=1.2, calls=calls, prompt="p", turns=25)))
+    asked.answers.append(ModelError("error_max_turns", Answer("", cost_usd=1.2, calls=calls, prompt="p", turns=58,
+                                                              rounds=19)))
     await bot.on_message(message())
-    cost, turns, answer, tools = bot.store._db.execute(
-        "SELECT cost_usd, turns, answer, tool_calls FROM interactions").fetchone()
-    assert (cost, turns, answer) == (1.2, 25, None) and "progress" in tools
+    cost, turns, rounds, answer, tools = bot.store._db.execute(
+        "SELECT cost_usd, turns, rounds, answer, tool_calls FROM interactions").fetchone()
+    # the SDK's turns are tool calls plus one; the model's rounds are kept beside them
+    assert (cost, turns, rounds, answer) == (1.2, 58, 19, None) and "progress" in tools
 
 
 async def test_when_warcraft_logs_is_down_the_asker_is_told(bot, message, asked, follower, monkeypatch):

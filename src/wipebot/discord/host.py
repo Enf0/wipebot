@@ -145,7 +145,9 @@ MAX_IMAGES = 4  # pictures sent with one answer (maps, views)
 # long one makes each answer slower and dearer. Past this many tokens, the session is worn out: the bot closes it
 # after the answer, and the next question starts a new one with the place's recent messages (EARLIER) instead.
 CONTEXT_LIMIT = 100_000
-MAX_TURNS = 25  # model turns per answer: the evals' longest answers make about 20 tool calls
+# The SDK's cap on one answer. It isn't a cap on tool calls: the model calls several tools in one round, and an
+# answer of 57 tool calls in 19 rounds passed under it (its num_turns, which counts tool calls plus one, was 58).
+MAX_TURNS = 25
 # What one answer may spend. Claude Code's cap (max_budget_usd) counts the whole session, not one answer, so a session
 # gets twice this and is worn out once it has spent it: every answer may spend at least this and at most twice it.
 ANSWER_BUDGET_USD = 1.0
@@ -506,7 +508,8 @@ class Answer:
     thinking: list[str] = field(default_factory=list)
     model: str = ""
     usage: dict | None = None  # tokens, from the SDK
-    turns: int | None = None
+    turns: int | None = None  # the SDK's num_turns: its tool calls plus one, not how often the model was asked
+    rounds: int = 0  # the model's rounds: each message it wrote, with the tool calls it made in that one go
     session_id: str = ""  # the Agent SDK's session, whose transcript has the same and more
     asked: float = 0.0  # time.monotonic() when the question went to the model
     # With a plugin (Session's `plugin`): each skill the model loaded ("skill:wipebot:raid-log-analysis") and file it
@@ -761,8 +764,12 @@ class Session:
         answer = Answer("", prompt=text, asked=asked)
         texts: list[str] = []
         error = None
+        round_id: str | None = None
         async for msg in self._client.receive_response():
             if isinstance(msg, AssistantMessage):
+                # one round is one message from the model, which the SDK may hand over in parts under the same id
+                answer.rounds += not msg.message_id or msg.message_id != round_id
+                round_id = msg.message_id
                 answer.model = msg.model
                 error = error or msg.error  # its text is the API's error message, not an answer
                 step = []

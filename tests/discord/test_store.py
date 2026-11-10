@@ -87,6 +87,20 @@ def test_store_remembers_which_pull_a_post_is_about(store):
     assert store.pull_for_message(1) is None
 
 
+def test_an_older_databases_answers_gain_the_models_rounds(tmp_path):
+    """Its `turns` are the SDK's (tool calls plus one); answers recorded from now on keep the model's rounds too."""
+    db = tmp_path / "old.db"
+    old = sqlite3.connect(db)
+    old.execute("CREATE TABLE interactions (id INTEGER PRIMARY KEY, at REAL NOT NULL, kind TEXT NOT NULL, "
+                "report TEXT NOT NULL, question TEXT NOT NULL, turns INTEGER)")
+    old.execute("INSERT INTO interactions (at, kind, report, question, turns) VALUES (1.0, 'chat', 'R', 'why?', 58)")
+    old.commit()
+    old.close()
+    store = Store(db)
+    store.record_interaction(kind="chat", report="R", question="and now?", turns=4, rounds=2)
+    assert store._db.execute("SELECT turns, rounds FROM interactions ORDER BY id").fetchall() == [(58, None), (4, 2)]
+
+
 def test_answers_are_recorded_with_their_reactions(store, monkeypatch):
     call = ToolCall("pull_summary", {"report": "KBYT4xXn7VNjDgh8", "pull": 13}, "Sszorak pull 13 ...", False)
     answer_id = store.record_interaction(

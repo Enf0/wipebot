@@ -347,6 +347,22 @@ def session(monkeypatch) -> Session:
     return session_on(report)
 
 
+async def test_the_models_rounds_are_counted_apart_from_the_sdks_turns(session):
+    """The SDK's num_turns is the answer's tool calls plus one. A round is one message from the model, which may
+    call several tools at once and which the SDK may hand over in parts under the same id."""
+    def part(block, message_id):
+        return AssistantMessage([block], "claude-opus-5-5", message_id=message_id)
+    calls = [ToolUseBlock(f"t{n}", "mcp__wipebot__pull_summary", {"pull": n}) for n in (11, 12, 13)]
+    called = []
+    session.on_tool = lambda name, args: called.append(args["pull"])
+    session._client = cast(ClaudeSDKClient, FakeClient(
+        [part(ThinkingBlock("Three pulls to read.", "sig"), "msg_1"), *(part(call, "msg_1") for call in calls),
+         part(TextBlock("**Wiped three times.**"), "msg_2"),
+         ResultMessage("success", 10, 10, False, 4, "s1", total_cost_usd=0.1, usage={"input_tokens": 10})]))
+    answer = await session.ask("why did we wipe on the last three?", Context())
+    assert (called, answer.turns, answer.rounds) == ([11, 12, 13], 4, 2)
+
+
 async def test_an_answer_is_the_last_text_polished_with_its_own_cost(session):
     tools_seen = []
     session.on_tool = lambda name, args: tools_seen.append(name)
@@ -360,6 +376,7 @@ async def test_an_answer_is_the_last_text_polished_with_its_own_cost(session):
     assert first.text == "**Wiped.** **Torvek** died to Tempest."  # no tool result named Tempest: not linked
     assert first.prompt == "[lines]\nwhy did we wipe?" and first.thinking == ["Check the deaths."]
     assert (first.model, first.turns, first.cost_usd) == ("claude-opus-5-5", 3, 0.25)
+    assert first.rounds == 2  # the model was asked twice: once it called a tool, once it answered
     assert tools_seen == ["pull_summary"] and session.worn_out  # 120k tokens of context
     second = await session.ask("and now?", Context())
     assert second.cost_usd == pytest.approx(0.15)  # the SDK's cost adds up over the conversation
