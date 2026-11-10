@@ -1,4 +1,5 @@
 """Queries the model writes (report/query.py): read-only, within the hour's points, in parts."""
+import asyncio
 import re
 from typing import cast
 
@@ -296,6 +297,30 @@ async def test_another_report_a_query_names_is_read_for_its_names_only_when_the_
     assert "Fights of report Other12345678901: 21 = Sszorak pull 13" in text
     assert text.endswith("Report Private123456789 couldn't be read for its names (Warcraft Logs won't show report "
                          "Private123456789): its ids and times are as logged.")
+
+
+async def test_the_reports_a_query_names_are_read_at_once_and_only_so_many_of_them(rep):
+    """Five top parses' casts in one query are five reports to read: one after the other they took their sum."""
+    events = {"data": (await rep.deaths(rep.fight(13, "Sszorak")))[:1]}
+    codes = [f"Report{n}234567890" for n in range(8)]
+    q = "{ reportData { " + " ".join(f'r{n}: report(code: "{code}") {{ events(fightIDs: [21]) {{ data }} }}'
+                                     for n, code in enumerate(codes)) + " } }"
+    answer = {"reportData": {f"r{n}": {"events": events} for n in range(8)}}
+    reading = most = 0
+
+    async def reports(code: str):
+        nonlocal reading, most
+        reading += 1
+        most = max(most, reading)
+        await asyncio.sleep(0)
+        reading -= 1
+        return rep
+
+    text = await query_text(cast(WCL, Points(100, answer)), q, None, reports=reports)
+    assert most == 6
+    assert [line for line in text.splitlines() if "wasn't read" in line] == [
+        f"Report {code} wasn't read for its names: its ids and times are as logged." for code in codes[6:]]
+    assert text.count("\nEvents ") == 6 and '"r7":{"events":{"data":[{"timestamp":' in text
 
 
 async def test_an_answer_about_no_report_is_shown_as_warcraft_logs_gave_it():

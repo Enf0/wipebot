@@ -7,6 +7,7 @@ number (`$fight(13)`, `$at(13, 2:15)`: `_pulls`); event lists come back as rows,
 and its actors and abilities named, and counted (rows.py); a report's other times read m:ss into their pull, and the
 fights named get a legend (`_Answer`). One too long to read is cut to a part, each list saying how much of it was
 left out, where it used to be refused after its points were spent."""
+import asyncio
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -409,25 +410,30 @@ async def _read(asked: _Asked, data: dict, own: Report | None, reports: Reports 
                 ) -> tuple[dict[str, Report], list[str]]:
     """The reports a query names, by code, each read once, and a note for each that wasn't: the tool's own is in
     hand; another is read only when its part of the answer has events or times (a table's rows carry their names,
-    so there is nothing to name), and NAMED_REPORTS of them at most."""
+    so there is nothing to name), NAMED_REPORTS of them at most, all at once."""
     reps: dict[str, Report] = {}
-    notes: list[str] = []
+    wanted: list[str] = []
     for path, code in asked.reports.items():
         part = _at(data, path)
-        if code in reps or part is None:
+        if part is None or code in reps or code in wanted:
             continue
         if own is not None and code == own.code:
             reps[code] = own
-        elif not _has_times(part):
-            continue
-        elif reports is None or len(reps) >= NAMED_REPORTS:
-            notes.append(f"Report {code} wasn't read for its names: its ids and times are as logged.")
+        elif _has_times(part):
+            wanted.append(code)
+    reading = wanted[:NAMED_REPORTS] if reports is not None else []
+    notes = []
+    read = await asyncio.gather(*(reports(code) for code in reading), return_exceptions=True) if reports else []
+    for code, rep in zip(reading, read, strict=True):
+        if isinstance(rep, Report):
+            reps[code] = rep
+        elif isinstance(rep, (FactError, WCLError)):
+            notes.append(f"Report {code} couldn't be read for its names ({str(rep).rstrip('.')}): its ids and times "
+                         "are as logged.")
         else:
-            try:
-                reps[code] = await reports(code)
-            except (FactError, WCLError) as e:
-                notes.append(f"Report {code} couldn't be read for its names ({str(e).rstrip('.')}): its ids and times "
-                             "are as logged.")
+            raise rep
+    notes += [f"Report {code} wasn't read for its names: its ids and times are as logged."
+              for code in wanted[len(reading):]]
     return reps, notes
 
 
