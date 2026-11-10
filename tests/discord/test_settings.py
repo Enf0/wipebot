@@ -8,7 +8,7 @@ READ = re.compile(r"""environ(?:\.get)?[(\[]\s*["']([A-Z][A-Z0-9_]+)["']|["'](WI
 SETTING = re.compile(r"\b((?:WIPEBOT|WCL|DISCORD|ANTHROPIC|OPENROUTER)_[A-Z0-9_]*[A-Z0-9])\b")
 EVALS = {"WIPEBOT_CACHE_FROZEN"}  # the evals freeze their cache with it: no host sets it
 # set up by hand where docs/setup.md says how ("Raid notes and plans"), and left out of the example
-BY_HAND = {"RAIDSTRATS_CLIENT_ID", "RAIDSTRATS_CLIENT_SECRET", "WOWUTILS_API_KEY"}
+BY_HAND = {"RAIDSTRATS_CLIENT_ID", "RAIDSTRATS_CLIENT_SECRET", "RSGG_REST_API_KEY", "WOWUTILS_API_KEY"}
 
 
 def read_by_the_code() -> set[str]:
