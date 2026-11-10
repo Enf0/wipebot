@@ -9,7 +9,6 @@ experimental, are connected by the host on the command line (__main__.py).
 Only members with Manage Server see /wipebot (Discord enforces this), and server owners can change that in
 Server Settings > Integrations.
 """
-import datetime
 import logging
 import re
 import time
@@ -27,7 +26,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
-from . import allowance, budget, config, keycmd, logincmd, news, texts
+from . import budget, config, keycmd, logincmd, news, texts
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -301,7 +300,7 @@ async def server_usage(bot: WipeBot, discord_guild_id: int, admin: bool = False)
     """/usage's line about this server: what it spent this month on its own key, for an `admin` with who it went to
     most (questions in DMs spend the key too, where nobody else sees them), or on a bot that answers only on servers'
     own keys, that it has none yet; None on a server that answers on the bot's key."""
-    since = allowance.month_start().timestamp()
+    since = budget.month_start().timestamp()
     n, spent, _ = bot.store.spent(since, discord_guild_id=discord_guild_id)
     if info := bot.store.server_key_info(discord_guild_id):
         most = bot.store.asked_most(since, discord_guild_id) if admin else []
@@ -522,8 +521,7 @@ async def budget_text(store: Store, key: str, discord_guild_id: int | None = Non
         b = await budget.fetch(key)
     except (httpx.HTTPError, KeyError, ValueError) as e:
         return f"Couldn't read the budget from OpenRouter: {e}"
-    month_start = datetime.datetime.now(datetime.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    since = budget.month_start().timestamp()
     note = None if with_bar or own else config.budget_note()  # the post leaves out how to chip in
-    costs = store.spent(month_start.timestamp(), discord_guild_id=discord_guild_id)[:2] if own else \
-        store.answer_costs(month_start.timestamp())
+    costs = store.spent(since, discord_guild_id=discord_guild_id)[:2] if own else store.answer_costs(since)
     return budget.describe(b, *costs, note, with_bar)

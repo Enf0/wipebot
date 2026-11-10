@@ -26,7 +26,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import allowance, budget, commands, config, emojis, host, logincmd, news, progress, texts
+from . import budget, commands, config, emojis, host, logincmd, news, progress, texts
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .follower import Follower, Pull
@@ -1067,7 +1067,7 @@ class WipeBot(discord.Client):
             try:
                 points = answer.wcl_points()
                 rate = await self.library.wcl.my_points() if points.get("total") else None  # fresh: its queries
-                lines.append(allowance.footer(answer.cost_usd, points, rate, wcl.on_new_point_system()))
+                lines.append(budget.footer(answer.cost_usd, points, rate, wcl.on_new_point_system()))
             except Exception:
                 log.exception("the cost line failed")
         return replace(answer, footer="\n".join(line for line in lines if line))

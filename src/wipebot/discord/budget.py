@@ -4,7 +4,11 @@ The bot answers through OpenRouter when the host sets OPENROUTER_API_KEY (config
 is the budget: the host raises it by what raiders chip in, and OpenRouter refuses the key's requests past it. An
 Anthropic key behind it (OpenRouter's BYOK) still pays Anthropic directly; its spend counts toward the limit when the
 key has "include BYOK in limit" on. `GET /api/v1/key` with the key itself reports both (OpenRouter's limits guide).
+
+Also what answers cost whatever key paid: the calendar month they're counted in (UTC), and the small line under an
+answer.
 """
+import datetime
 from dataclasses import dataclass
 
 import httpx
@@ -32,6 +36,25 @@ async def fetch(key: str) -> KeyBudget:
         limit, remaining = data.get("limit"), data.get("limit_remaining")
     return KeyBudget(limit=limit, remaining=remaining,
                      month=(data.get("usage_monthly") or 0) + (data.get("byok_usage_monthly") or 0))
+
+
+def month_start(now: datetime.datetime | None = None) -> datetime.datetime:
+    """The start of the calendar month (UTC) that answers and their cost are counted in."""
+    now = now or datetime.datetime.now(datetime.UTC)
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def footer(cost: float | None, points: dict, rate: dict | None = None, user_points: bool = False) -> str:
+    """The small line under an answer: what it cost and its Warcraft Logs points (`points`, by kind, as
+    Answer.wcl_points) with the bot's left this hour (`rate`, WCL.my_points: its share). With `user_points` (the
+    account on Warcraft Logs' new point system), points counted as the asker's are theirs."""
+    total = points.get("total", 0)
+    yours = min(points.get("user", 0), total) if user_points else 0
+    spent = f"{yours:,.0f} yours, {total - yours:,.0f} the bot's" if yours else f"{total:,.0f}"
+    if rate and isinstance(limit := rate.get("limitPerHour"), int | float):
+        spent += f" ({max(limit - rate.get('pointsSpentThisHour', 0), 0):,.0f} left this hour)"
+    parts = [f"${cost or 0:.2f}", f"Warcraft Logs points: {spent}"]
+    return "-# " + " · ".join(parts)
 
 
 def bar(limit: float | None, remaining: float | None, width: int = 20) -> str:
