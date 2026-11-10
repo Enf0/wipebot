@@ -75,12 +75,12 @@ views.death = (() => {
     const max = kit.niceMax(Math.max(1, ...D.hits.map((h) => h.amount + h.absorbed), ...heal.map(([, v]) => v)));
     const y = (v) => T + plotH - v / max * plotH, yH = (pct) => T + plotH - pct / 100 * plotH;
     let o = kit.line(L, T + plotH, W - R, T + plotH, "var(--line)");
-    o += kit.text(L - 6, T + 8, kit.short(max), "tm", 'text-anchor="end" font-size="10"') + kit.text(L - 6, T + plotH, "0", "tm", 'text-anchor="end" font-size="10"');
-    o += kit.text(W - R + 6, T + 8, "100%", "tm", 'font-size="10"') + kit.text(W - R + 6, T + plotH, "0%", "tm", 'font-size="10"');
+    o += kit.text(L - 6, T + 8, kit.short(max), "tm", 'text-anchor="end"') + kit.text(L - 6, T + plotH, "0", "tm", 'text-anchor="end"');
+    o += kit.text(W - R + 6, T + 8, "100%") + kit.text(W - R + 6, T + plotH, "0%");
     for (let s = 0; s <= D.window_ms; s += 2000) {
       const ms = from + s;
       o += kit.line(x(ms), T, x(ms), T + plotH, "var(--line)", 'opacity=".5"');
-      o += kit.text(x(ms), T + plotH + 14, kit.clock(ms), "tm", 'text-anchor="middle" font-size="10"');
+      o += kit.text(x(ms), T + plotH + 14, kit.clock(ms), "tm", 'text-anchor="middle"');
     }
     const sec = (W - L - R) / (D.window_ms / 1000);
     for (const [ms, v] of heal) {
@@ -105,7 +105,7 @@ views.death = (() => {
     const kx = x(D.at_ms);
     o += kit.line(kx, T - 6, kx, T + plotH, "var(--dead)", 'stroke-width="1.8" stroke-dasharray="4 3"');
     o += kit.icon(D.img_base, D.icon, kx - 22, T - 16, 14, D.by);
-    o += kit.text(kx - (D.icon && D.img_base ? 26 : 4), T - 5, D.outright ? `${D.by}: killed outright` : `killed by ${D.by}`, "td", 'text-anchor="end" font-size="10.5" font-weight="600"');
+    o += kit.text(kx - (D.icon && D.img_base ? 26 : 4), T - 5, D.outright ? `${D.by}: killed outright` : `killed by ${D.by}`, "td", 'text-anchor="end" font-weight="600"', kit.SIZE.value);
     // the legend: the abilities by damage, then healing and health
     const keys = order.slice(0, SHOWN).map((n) => {
       const ic = D.hits.find((h) => h.by === n)?.icon;
@@ -117,9 +117,9 @@ views.death = (() => {
     keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="2"/>`, "health after each hit"]);
     let lx = 6, ly = T + plotH + 36;
     for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name, 10) + 14;
+      const w = 18 + kit.width(name) + 14;
       if (lx > 6 && lx + w > W) { lx = 6; ly += 18; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name, "tm", 'font-size="10"');
+      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
       lx += w;
     }
     return kit.svg(W, ly + 8, o, `${D.player.name}'s death: the hits and their health in the ${D.window_ms / 1000} s before it`);

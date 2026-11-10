@@ -116,8 +116,8 @@ views.player_night = (() => {
     const rates = D.pulls.map((r) => r.per_s_alive || 0), max = kit.niceMax(Math.max(...rates, 1));
     const yR = (v) => T + plotH - v / max * plotH, yP = (pct) => T + plotH - pct / 100 * plotH;
     let o = kit.line(L, T + plotH, W - R, T + plotH, "var(--line)");
-    o += kit.text(L - 6, T + 8, `${kit.short(max)}/s`, "tm", 'text-anchor="end" font-size="10"') + kit.text(L - 6, T + plotH, "0", "tm", 'text-anchor="end" font-size="10"');
-    o += kit.text(W - R + 6, T + 8, "100%", "tm", 'font-size="10"') + kit.text(W - R + 6, T + plotH, "0%", "tm", 'font-size="10"');
+    o += kit.text(L - 6, T + 8, `${kit.short(max)}/s`, "tm", 'text-anchor="end"') + kit.text(L - 6, T + plotH, "0", "tm", 'text-anchor="end"');
+    o += kit.text(W - R + 6, T + 8, "100%") + kit.text(W - R + 6, T + plotH, "0%");
     D.pulls.forEach((r, i) => {
       const cx = x(i) + band / 2, other = r.role !== D.player.role;
       if (r.per_s_alive != null) {
@@ -129,7 +129,7 @@ views.player_night = (() => {
       if (r.death) {
         const dy = T + plotH + 14, counted = counts(r.death), rr = Math.max(1.5, Math.min(counted ? 6 : 3.5, band / 2 - 0.6));
         o += `<circle cx="${cx}" cy="${dy}" r="${rr}" fill="${counted ? "var(--dead)" : "var(--muted)"}" opacity="${counted ? 1 : 0.6}"/>`;
-        if (counted && band >= 11) o += kit.text(cx, dy + 3.5, r.death.place, "", 'text-anchor="middle" font-size="8.5" font-weight="700" fill="var(--bg)"');
+        if (counted && band >= 11) o += kit.text(cx, dy + 3.5, r.death.place, "", 'text-anchor="middle" font-weight="700" fill="var(--bg)"', kit.SIZE.mark);
       }
     });
     // the boss's health left at the end of each pull
@@ -145,13 +145,13 @@ views.player_night = (() => {
       o += kit.line(a + 2, y, b - 2, y, "var(--ink)", 'stroke-width="1.4" stroke-dasharray="5 3" opacity=".75"');
       const label = `${["first", "middle", "last"][k]} third: median ${kit.short(t.rate)}, died ${t.died} of ${t.pulls.length}`;
       o += kit.hit(a, y - 6, b - a, 12, label);
-      if (lanes) o += kit.text(a + 4, y - 5, label, "t", 'font-size="10"');
+      if (lanes) o += kit.text(a + 4, y - 5, label, "t");
     });
     // a column per pull: its tooltip, and a click opens that pull
     D.pulls.forEach((r, i) => { o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 24}" fill="transparent" data-pull-col="${r.pull}" style="cursor:pointer"${kit.tip(tipOf(r))}/>`; });
     // pull numbers, as many as fit
     const every = Math.max(1, Math.ceil(26 / band));
-    D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 36, r.pull, "tm", 'text-anchor="middle" font-size="10"'); });
+    D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 36, r.pull, "tm", 'text-anchor="middle"'); });
     // the legend, wrapping on a narrow card
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="10" height="8" rx="2" fill="${kit.esc(D.player.color)}" opacity=".75"/>`, `${D.what} per s alive`],
       [(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--gold)" stroke-width="1.6"/>`, "boss left at the end"],
@@ -160,9 +160,9 @@ views.player_night = (() => {
     if (D.thirds.length) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-dasharray="4 2"/>`, "median of a third"]);
     let lx = 6, ly = T + plotH + 56;
     for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name, 10) + 14;
+      const w = 18 + kit.width(name) + 14;
       if (lx > 6 && lx + w > W) { lx = 6; ly += 16; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name, "tm", 'font-size="10"');
+      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
       lx += w;
     }
     return kit.svg(W, ly + 6, o, `${D.player.name}'s night on ${D.boss}: output and deaths pull by pull`);

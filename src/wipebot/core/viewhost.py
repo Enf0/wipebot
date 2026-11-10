@@ -174,6 +174,7 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
                                 await page.wait_for_timeout(300)
                             try:
                                 await _settled(page)
+                                errors += await _markup_errors(page)
                             except Exception as e:  # noqa: BLE001 (what didn't draw is in the shot and the errors)
                                 errors.append(f"not drawn: {e}")
                             name = f"{theme}-{width}-{mode}" + (f"-{n}" if n else "")
@@ -189,6 +190,28 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
         finally:
             await browser.close()
     return shots
+
+
+# Draws the view again with every chart's markup read as XML, which refuses what the browser's HTML parser lets
+# through in silence: an attribute given twice (it keeps the first, so a second font-size or opacity does nothing).
+STRICT = """() => {
+  const bad = [], svg = kit.svg;
+  kit.svg = (...a) => {
+    const s = svg(...a);
+    const xml = s.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+    const doc = new DOMParser().parseFromString(xml, "image/svg+xml");
+    const e = doc.querySelector("parsererror");
+    if (e) bad.push("markup: " + e.textContent.replace(/\\s+/g, " ").slice(0, 300));
+    return s;
+  };
+  try { for (const v of Object.values(views)) if (v.relayout) v.relayout(); } finally { kit.svg = svg; }
+  return bad;
+}"""
+
+
+async def _markup_errors(page: Any) -> list[str]:
+    """What's wrong in the markup of the charts the view draws (STRICT); none for a view that hasn't drawn."""
+    return await page.frames[-1].evaluate(STRICT)
 
 
 async def _click(page: Any, what: str) -> None:

@@ -37,20 +37,20 @@ views.note = (() => {
 
   function kicks(K) {
     const waves = Math.max(1, ...K.pulls.flatMap((p) => p.cells.map((c) => c.length)));
-    const label = Math.max(...K.slots.map((s) => Math.max(kit.width(s.text.replace(/^Kick\s*/i, ""), 9.5), kit.width(s.player, 10.5))));
+    const label = Math.max(...K.slots.map((s) => Math.max(kit.width(s.text.replace(/^Kick\s*/i, "")), kit.width(s.player))));
     const colW = Math.max(waves * (SQ + GAP) + 8, 62, label + 10), left = 34, top = 34;
     // at least the grid's least width (page.css), so a note with one or two assignments isn't drawn blown up
     const w = Math.max(MIN_W, left + K.slots.length * colW + 16), h = top + K.pulls.length * ROW + 4;
     let body = "";
     K.slots.forEach((s, j) => {
       const x = left + j * colW + 2;
-      body += kit.text(x, 12, s.text.replace(/^Kick\s*/i, ""), "tm", 'font-size="9.5"');
-      body += `<text x="${x}" y="26" font-size="10.5" font-weight="600" class="cls" style="--c:${kit.esc(s.color)}">${kit.esc(s.player)}</text>`;
+      body += kit.text(x, 12, s.text.replace(/^Kick\s*/i, ""));
+      body += kit.text(x, 26, s.player, "cls", `font-weight="600" style="--c:${kit.esc(s.color)}"`);
     });
     K.pulls.forEach((p, i) => {
       const y = top + i * ROW;
       body += `<g${p.counted ? "" : ' opacity="0.35"'}>`;
-      body += kit.text(left - 8, y + SQ - 0.5, String(p.pull), p.lost && p.counted ? "td" : "tm", 'font-size="10" text-anchor="end"');
+      body += kit.text(left - 8, y + SQ - 0.5, String(p.pull), p.lost && p.counted ? "td" : "tm", 'text-anchor="end"');
       p.cells.forEach((cell, j) => cell.forEach((c, k) => {
         const [fill, word] = KICK[c.state];
         const tip = `Pull ${p.pull}, ${K.slots[j].text} at ${kit.clock(c.ms)}: ${c.player}'s cast ${word}`
@@ -93,12 +93,12 @@ views.note = (() => {
     const labelW = 230, top = 26, colW = Math.max(SQ + 3, Math.min(16, 540 / C.pulls.length)), right = 70;
     const w = labelW + C.pulls.length * colW + right, h = top + C.uses.length * ROW + 4;
     let body = "";
-    C.pulls.forEach((p, i) => { if (p.pull === 1 || p.pull % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p.pull), "tm", 'font-size="9.5" text-anchor="middle"'); });
+    C.pulls.forEach((p, i) => { if (p.pull === 1 || p.pull % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p.pull), "tm", 'text-anchor="middle"'); });
     C.uses.forEach((u, r) => {
       const y = top + r * ROW, at = `${u.phase > 1 ? `P${u.phase} ` : ""}${kit.clock(u.at_s * 1000)}`;
-      body += kit.text(0, y + SQ - 0.5, at, "tm", 'font-size="10"');
+      body += kit.text(0, y + SQ - 0.5, at);
       body += kit.icon(D.img_base, u.icon, 40, y - 1, 12, u.spell);
-      body += `<text x="${D.img_base && u.icon ? 56 : 40}" y="${y + SQ - 0.5}" font-size="10.5"><tspan font-weight="600" class="cls" style="--c:${kit.esc(u.color)}">${kit.esc(u.player)}</tspan>`
+      body += `<text x="${D.img_base && u.icon ? 56 : 40}" y="${y + SQ - 0.5}" font-size="${kit.SIZE.label}"><tspan font-weight="600" class="cls" style="--c:${kit.esc(u.color)}">${kit.esc(u.player)}</tspan>`
         + `<tspan class="tm" dx="5">${kit.esc(u.spell)}</tspan></text>`;
       let on = 0, seen = 0;
       C.pulls.forEach((p, i) => {
@@ -111,7 +111,7 @@ views.note = (() => {
         const off = c.off_s !== undefined && c.state !== "on time" ? ` by ${Math.abs(c.off_s).toFixed(0)} s` : "";
         body += square(labelW + i * colW, y, fill, `Pull ${p.pull}: ${u.player}'s ${u.spell} (note ${at}) ${word}${off}`);
       });
-      body += kit.text(w - 4, y + SQ - 0.5, `${on} of ${seen}`, "tm", 'font-size="10" text-anchor="end"');
+      body += kit.text(w - 4, y + SQ - 0.5, `${on} of ${seen}`, "tm", 'text-anchor="end"');
     });
     const head = `<div class="head"><h1>Planned cooldowns</h1><span class="sub">${kit.esc(D.boss)} · each pull until its wipe was decided</span></div>`;
     const keys = legend([[COOLDOWN["on time"][0], "on time (within 1 s)"], [NEAR, `early or late by ${NEAR_S} s at most`], [COOLDOWN.late[0], "more"],
@@ -140,12 +140,12 @@ views.note = (() => {
     const w = Math.max(MIN_W, labelW + C.pulls.length * colW + right);
     const h = top + C.callouts.reduce((a, g) => a + head + g.rows.length * ROW + 6, 0);
     let body = "", y = top;
-    C.pulls.forEach((p, i) => { if (p === C.pulls[0] || p % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p), "tm", 'font-size="9.5" text-anchor="middle"'); });
+    C.pulls.forEach((p, i) => { if (p === C.pulls[0] || p % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p), "tm", 'text-anchor="middle"'); });
     for (const g of C.callouts) {
-      body += `<text x="0" y="${y + 11}" class="t" font-size="10.5" font-weight="600">${kit.esc(`"${g.text}"`)}<tspan class="tm" font-weight="400" dx="6">${kit.esc(`to ${g.to} at ${g.times.join(", ")}`)}</tspan></text>`;
+      body += `<text x="0" y="${y + 11}" class="t" font-size="${kit.SIZE.label}" font-weight="600">${kit.esc(`"${g.text}"`)}<tspan class="tm" font-weight="400" dx="6">${kit.esc(`to ${g.to} at ${g.times.join(", ")}`)}</tspan></text>`;
       y += head;
       for (const r of g.rows) {
-        body += `<text x="0" y="${y + SQ - 0.5}" font-size="10.5" font-weight="600" class="cls" style="--c:${kit.esc(r.color)}">${kit.esc(r.player)}</text>`;
+        body += kit.text(0, y + SQ - 0.5, r.player, "cls", `font-weight="600" style="--c:${kit.esc(r.color)}"`);
         r.cells.forEach((cell, i) => {
           if (!cell.length) return;
           const alive = cell.filter((s) => s === "answered" || s === "none"), made = alive.filter((s) => s === "answered").length;
@@ -153,7 +153,7 @@ views.note = (() => {
                          `Pull ${C.pulls[i]}, "${g.text}": ${r.player} ` + (alive.length ? `pressed a defensive at ${made} of ${alive.length}`
                            : cell.includes("excused") ? "not counted: pressed the cooldown the note plans for them, or a tank kept one for just after" : "dead"));
         });
-        body += kit.text(w - 4, y + SQ - 0.5, `${r.made} of ${r.alive}`, "tm", 'font-size="10" text-anchor="end"');
+        body += kit.text(w - 4, y + SQ - 0.5, `${r.made} of ${r.alive}`, "tm", 'text-anchor="end"');
         y += ROW;
       }
       y += 6;
@@ -194,12 +194,12 @@ views.note = (() => {
     const h = top + sections.length * SECTION + P.rows.length * PLAN_ROW;
     let body = "", y = top;
     for (const [word, rows] of sections) {
-      body += kit.text(0, y + 12, word.toUpperCase(), "tm", 'font-size="9" font-weight="600" letter-spacing="0.06em"');
+      body += kit.text(0, y + 12, word.toUpperCase(), "tm", 'font-weight="600" letter-spacing="0.06em"');
       y += SECTION;
       rows.forEach((r, i) => {
         const mid = y + 11;
         if (i % 2 === 0) body += `<rect x="0" y="${y - 2}" width="${PLAN_W}" height="${PLAN_ROW}" rx="3" fill="var(--panel)"/>`;
-        body += `<text x="6" y="${mid + 4}" font-size="11.5" font-weight="600" class="cls" style="--c:${kit.esc(r.color)}">${kit.esc(r.player)}</text>`;
+        body += kit.text(6, mid + 4, r.player, "cls", `font-weight="600" style="--c:${kit.esc(r.color)}"`, kit.SIZE.value);
         for (const it of r.items) {
           const x = X(it), tip = `${r.player}, ${phaseAt(P, it)}: ${it.spell || it.text}`;
           if (it.text) body += `<rect x="${x - 2}" y="${mid - 7}" width="4" height="14" rx="2" fill="${hue(it.text)}"${kit.tip(tip)}/>`;
@@ -207,7 +207,7 @@ views.note = (() => {
           else body += `<circle cx="${x}" cy="${mid}" r="5" fill="var(--green)"${kit.tip(tip)}/>`;
         }
         const parts = [...r.callouts.map((t) => [t, hue(t)]), ...r.groups.map((g) => [group(g), ""])];
-        let room = Math.floor((right - x0) / kit.width("x", 9.5)), line = "";
+        let room = Math.floor((right - x0) / kit.width("x")), line = "";
         for (const [k, [t, fill]] of parts.entries()) {
           const said = (k ? "  ·  " : "") + t;
           if (room <= 1) break;
@@ -215,22 +215,22 @@ views.note = (() => {
           line += `<tspan${fill ? ` fill="${fill}"` : ""}>${kit.esc(cut)}</tspan>`;
           room -= said.length;
         }
-        if (line) body += `<text x="${x0}" y="${y + 26}" class="tm" font-size="9.5">${line}</text>`;
+        if (line) body += `<text x="${x0}" y="${y + 26}" class="tm" font-size="${kit.SIZE.label}">${line}</text>`;
         y += PLAN_ROW;
       });
     }
     for (const p of P.phases) {  // the minutes over the rows; a phase's name when there are several
       const x = start[p.phase], end = x + p.length_s * per;
-      if (P.phases.length > 1) body += kit.text(x, 10, `P${p.phase}`, "t", 'font-size="10" font-weight="600"');
+      if (P.phases.length > 1) body += kit.text(x, 10, `P${p.phase}`, "t", 'font-weight="600"');
       for (let s = 0; s < p.length_s; s += 60) {
         body += kit.line(x + s * per, 14, x + s * per, h, "var(--line)", s ? 'stroke-dasharray="2 4" opacity="0.8"' : "");
-        if (s || P.phases.length === 1) body += kit.text(x + s * per, 10, kit.clock(s * 1000), "tm", `font-size="9" text-anchor="${s ? "middle" : "start"}"`);
+        if (s || P.phases.length === 1) body += kit.text(x + s * per, 10, kit.clock(s * 1000), "tm", `text-anchor="${s ? "middle" : "start"}"`);
       }
       if (P.phases.length > 1) body += kit.line(end, 14, end, h, "var(--line)");
     }
     if (lane) {  // the callouts to everyone: a gold diamond each, its words where they fit
       const ly = 22 + 9;
-      body += kit.text(6, ly + 3.5, "Everyone", "t", 'font-size="11" font-weight="600"');
+      body += kit.text(6, ly + 3.5, "Everyone", "t", 'font-weight="600"');
       for (const e of P.everyone) {
         const x = X(e);
         body += `<path d="M${x} ${ly - 5}l5 5l-5 5l-5-5z" fill="var(--gold)"${kit.tip(`${phaseAt(P, e)}: ${e.text}`)}/>`;

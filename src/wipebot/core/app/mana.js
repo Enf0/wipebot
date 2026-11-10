@@ -17,13 +17,13 @@ views.mana = (() => {
     let body = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
       + `<rect width="2" height="5" fill="var(--dead)" opacity="0.55"/></pattern></defs>`;
     for (const v of [0, 50, 100]) {
-      body += kit.line(LEFT, y(v), W - RIGHT, y(v), "var(--line)") + kit.text(LEFT - 6, y(v) + 3.5, `${v}%`, "tm", 'font-size="9.5" text-anchor="end"');
+      body += kit.line(LEFT, y(v), W - RIGHT, y(v), "var(--line)") + kit.text(LEFT - 6, y(v) + 3.5, `${v}%`, "tm", 'text-anchor="end"');
     }
     body += kit.line(LEFT, y(D.low), W - RIGHT, y(D.low), "var(--dead)", 'stroke-dasharray="4 3" opacity="0.8"');
-    body += kit.text(W - RIGHT, y(D.low) - 4, `low: under ${D.low}%`, "td", 'font-size="9.5" text-anchor="end"');
+    body += kit.text(W - RIGHT, y(D.low) - 4, `low: under ${D.low}%`, "td", 'text-anchor="end"');
     for (let s = 60; s * 1000 < D.until_ms; s += 60) {
       body += kit.line(x(s * 1000), 10, x(s * 1000), 10 + CH, "var(--line)", 'stroke-dasharray="2 4" opacity="0.6"');
-      body += kit.text(x(s * 1000), 10 + CH + 14, kit.clock(s * 1000), "tm", 'font-size="9.5" text-anchor="middle"');
+      body += kit.text(x(s * 1000), 10 + CH + 14, kit.clock(s * 1000), "tm", 'text-anchor="middle"');
     }
     for (const hl of D.healers) {
       if (!hl.points.length) continue;
@@ -33,7 +33,7 @@ views.mana = (() => {
         + (hl.low.length ? `; under ${D.low}% ${hl.low.map(([a, b]) => `${kit.clock(a)}-${kit.clock(b)}`).join(", ")}` : "");
       body += `<path d="${path}" fill="none" stroke="${kit.esc(hl.color)}" stroke-width="2" stroke-linejoin="round"${kit.tip(tip)}/>`;
       const [lt, lv] = pts[pts.length - 1] || hl.points[0];
-      if (hl.dead_ms != null) body += `<text x="${x(lt)}" y="${y(lv) + 4}" font-size="12" text-anchor="middle" class="td"${kit.tip(`${hl.name} died at ${kit.clock(hl.dead_ms)}`)}>✕</text>`;
+      if (hl.dead_ms != null) body += kit.text(x(lt), y(lv) + 4, "✕", "td", `text-anchor="middle"${kit.tip(`${hl.name} died at ${kit.clock(hl.dead_ms)}`)}`, kit.SIZE.value);
     }
     const at = (name, ms) => {  // a healer's mana at a moment, for the diamond on their line
       const hl = D.healers.find((q) => q.name === name);
@@ -42,7 +42,7 @@ views.mana = (() => {
     };
     D.innervates.forEach((inv, i) => {
       const ly = 10 + CH + 24 + i * LANE + 8;
-      body += `<text x="0" y="${ly + 4}" font-size="10.5" font-weight="600" class="cls" style="--c:${kit.esc(inv.color)}">${kit.esc(inv.druid)}</text>`;
+      body += kit.text(0, ly + 4, inv.druid, "cls", `font-weight="600" style="--c:${kit.esc(inv.color)}"`);
       body += kit.line(LEFT + 40, ly, W - RIGHT, ly, "var(--line)");
       for (const r of inv.ready_low) {
         body += `<rect x="${x(r.from_ms)}" y="${ly - 6}" width="${Math.max(2, x(r.to_ms) - x(r.from_ms))}" height="12" fill="url(#hatch)" stroke="var(--dead)" stroke-width="0.8"`

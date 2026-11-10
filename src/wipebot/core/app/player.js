@@ -88,32 +88,32 @@ views.player = (() => {
     const what = D.output.what === "healing" ? "Healing" : "Damage";
     if (s.kind === "parse") {
       const x = (v) => L + v / 100 * (W - L - R);
-      let o = kit.text(L, 12, `${what} parse against ${who()} kills of ${D.boss}`, "tm", 'font-size="10.5"');
+      let o = kit.text(L, 12, `${what} parse against ${who()} kills of ${D.boss}`, "tm");
       o += `<rect x="${x(0)}" y="22" width="${x(100) - x(0)}" height="8" rx="4" fill="var(--line)"/>`;
       o += `<rect x="${x(0)}" y="22" width="${x(s.percentile) - x(0)}" height="8" rx="4" fill="var(--gold)"/>`;
       o += `<circle cx="${x(s.percentile)}" cy="26" r="7" fill="${kit.esc(D.player.color)}" stroke="var(--bg)" stroke-width="2"/>`;
-      o += kit.text(x(s.percentile), 48, `${s.percentile}th percentile`, "t", 'text-anchor="middle" font-size="11" font-weight="600"');
+      o += kit.text(x(s.percentile), 48, `${s.percentile}th percentile`, "t", 'text-anchor="middle" font-weight="600"', kit.SIZE.value);
       return kit.svg(W, 56, o, `${D.player.name}'s parse: ${s.percentile}th percentile`);
     }
     const values = [...s.points.map((p) => p[1]), s.mine], lo = Math.min(...values) * 0.92, hi = Math.max(...values) * 1.04;
     const x = (v) => L + (v - lo) / (hi - lo) * (W - L - R), y = 32;
     const caption = [`${what} per second alive among ${s.exact ? s.n : "more than " + s.n} ranked ${who()} kills of ${D.boss}`,
                      `${what}/s alive among ${s.n}${s.exact ? "" : "+"} ranked ${who()} kills`]
-      .find((c) => kit.width(c, 10.5) < W - L) || `${what}/s alive among the spec's ranked kills`;
-    let o = kit.text(L, 12, caption, "tm", 'font-size="10.5"');
+      .find((c) => kit.width(c) < W - L) || `${what}/s alive among the spec's ranked kills`;
+    let o = kit.text(L, 12, caption);
     o += `<rect x="${x(lo)}" y="${y}" width="${x(hi) - x(lo)}" height="8" rx="4" fill="var(--line)"/>`;
     const ends = [];  // labels under the scale: a second row where one would run into the one before
     for (const [label, v] of s.points.slice().sort((a, b) => a[1] - b[1])) {
       o += kit.line(x(v), y - 3, x(v), y + 11, "var(--muted)");
-      const w = Math.max(kit.width(label, 10), kit.width(kit.short(v), 9.5)), left = x(v) - w / 2;
+      const w = Math.max(kit.width(label), kit.width(kit.short(v))), left = x(v) - w / 2;
       const row = ends[0] === undefined || left > ends[0] + 4 ? 0 : 1;
       ends[row] = x(v) + w / 2;
-      o += kit.text(x(v), y + 24 + row * 22, label, "tm", 'text-anchor="middle" font-size="10"');
-      o += kit.text(x(v), y + 35 + row * 22, kit.short(v), "tm", 'text-anchor="middle" font-size="9.5"');
+      o += kit.text(x(v), y + 24 + row * 22, label, "tm", 'text-anchor="middle"');
+      o += kit.text(x(v), y + 35 + row * 22, kit.short(v), "tm", 'text-anchor="middle"');
     }
     o += `<circle cx="${x(s.mine)}" cy="${y + 4}" r="7" fill="${kit.esc(D.player.color)}" stroke="var(--bg)" stroke-width="2"/>`;
-    const mine = `${D.player.name} ${kit.short(s.mine)}`, right = x(s.mine) + kit.width(mine) + 12 > W;
-    o += kit.text(right ? x(s.mine) - 10 : x(s.mine) + 10, y - 6, mine, "t", `${right ? 'text-anchor="end"' : ""} font-size="11" font-weight="600"`);
+    const mine = `${D.player.name} ${kit.short(s.mine)}`, right = x(s.mine) + kit.width(mine, kit.SIZE.value) + 12 > W;
+    o += kit.text(right ? x(s.mine) - 10 : x(s.mine) + 10, y - 6, mine, "t", `${right ? 'text-anchor="end"' : ""} font-weight="600"`, kit.SIZE.value);
     const h = y + (ends[1] !== undefined ? 62 : 40);
     return kit.svg(W, h, o, `${D.player.name}'s ${what.toLowerCase()} per second alive against the spec's ranked kills`);
   }
@@ -124,7 +124,7 @@ views.player = (() => {
     const L = lanes ? 112 : 10, R = 14, x = (ms) => L + ms / D.duration_ms * (W - L - R);
     let y = 6, o = '<defs><pattern id="pl-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
       + '<rect width="2" height="5" fill="var(--dead)" opacity=".55"/></pattern></defs>';
-    const label = (s, yy) => lanes ? kit.text(6, yy, s, "tm", 'font-size="10.5"') : "";
+    const label = (s, yy) => lanes ? kit.text(6, yy, s) : "";
     const diamond = (cx, top, tip = "") => `<path d="M${cx} ${top} l6 6 l-6 6 l-6 -6z" fill="var(--gold)"${kit.tip(tip)}/>`;
     // cooldowns: an icon at each use, nudged up a row where it would cover another's; their names in the legend
     const uses = D.cooldowns.flatMap((c) => c.uses.map((ms) => [ms, c.name, c.icon])).sort((a, b) => a[0] - b[0]);
@@ -173,12 +173,12 @@ views.player = (() => {
       for (const c of D.tracked) {
         o += `<rect x="${x(c.ms) - 1}" y="${y}" width="2" height="8" fill="var(--gold)" opacity=".8"/>` + kit.hit(x(c.ms) - 4, y - 1, 8, 10, `${c.name} ${kit.clock(c.ms)}, one of the boss's main casts`);
       }
-      if (lanes) o += kit.labels(D.tracked.map((c) => [c.ms, c.name]), x, y + 8, "tg", D.tracked.map((c) => x(c.ms)), W, 9.5);
+      if (lanes) o += kit.labels(D.tracked.map((c) => [c.ms, c.name]), x, y + 8, "tg", D.tracked.map((c) => x(c.ms)), W);
       y += 12;
     }
     const tick = [5, 10, 15, 30, 60, 120].map((s) => s * 1000).find((s) => D.duration_ms / s <= (lanes ? 12 : 7)) || 300000;
     for (let t = 0; t <= D.duration_ms; t += tick) {
-      o += kit.text(x(t), y + 12, kit.clock(t), "tm", `text-anchor="${t || lanes ? "middle" : "start"}" font-size="10"`);
+      o += kit.text(x(t), y + 12, kit.clock(t), "tm", `text-anchor="${t || lanes ? "middle" : "start"}"`);
     }
     // the legend, wrapping on a narrow card
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="8" rx="2" fill="var(--blue)" opacity=".45"/>`, "casting"],
@@ -193,9 +193,9 @@ views.player = (() => {
                               `wipe decided ${kit.clock(D.decided.ms)}`]);
     let lx = 6, ly = y + 32;
     for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name, 10) + 14;
+      const w = 18 + kit.width(name) + 14;
       if (lx > 6 && lx + w > W) { lx = 6; ly += 16; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name, "tm", 'font-size="10"');
+      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
       lx += w;
     }
     return kit.svg(W, ly + 6, o, `${D.player.name} over the pull: casting, gaps, dead, cooldowns`);
@@ -210,20 +210,20 @@ views.player = (() => {
     const rows = (n ? counted.slice().sort((a, b) => gap(b) - gap(a)).slice(0, n) : counted);
     const L = Math.min(170, W * 0.36), R = 86, rh = 22, T = 18;
     let o = kit.text(0, 11, `Casts per minute alive against ${t.parses} top ${who()}${t.same_hero && t.hero ? ` (${t.hero})` : ""} parses`
-                     + (n ? ", biggest differences" : ""), "tm", 'font-size="10.5"');
+                     + (n ? ", biggest differences" : ""));
     rows.forEach((r, i) => {
       const y = T + i * rh + 11, max = Math.max(r.high, r.mine) * 1.08 || 1, x = (v) => L + v / max * (W - L - R);
       // red where the tool flags it off (never cast, far fewer, far more), orange outside the top's range; a spell
       // cast before the pull or an item not worn is no fault
       const off = /^(never cast|far )/.test(r.flag);
       const fill = off ? "var(--dead)" : r.mine < r.low || r.mine > r.high ? "var(--decided)" : kit.esc(D.player.color);
-      o += kit.icon(D.img_base, r.icon, 0, y - 7, 14) + kit.text(r.icon && D.img_base ? 19 : 0, y + 4, r.name.length > 24 ? r.name.slice(0, 23) + "…" : r.name, "t", 'font-size="11"');
+      o += kit.icon(D.img_base, r.icon, 0, y - 7, 14) + kit.text(r.icon && D.img_base ? 19 : 0, y + 4, r.name.length > 24 ? r.name.slice(0, 23) + "…" : r.name, "t");
       o += kit.line(L, y, W - R, y, "var(--line)");
       o += `<rect x="${x(r.low)}" y="${y - 4}" width="${Math.max(2, x(r.high) - x(r.low))}" height="8" rx="4" fill="var(--muted)" opacity=".3"/>`;
       o += kit.line(x(r.median), y - 7, x(r.median), y + 7, "var(--gold)", 'stroke-width="2.4"');
       const tip = `${r.name}: ${r.mine.toFixed(1)} a minute alive; the top ${t.parses}: ${r.low.toFixed(1)}–${r.high.toFixed(1)}, median ${r.median.toFixed(1)}` + (r.flag ? `\n${r.flag[0].toUpperCase()}${r.flag.slice(1)}` : "");
       o += `<circle cx="${x(r.mine)}" cy="${y}" r="5" fill="${fill}" stroke="var(--bg)" stroke-width="1.5"/>` + kit.hit(L, y - 9, W - R - L, 18, tip);
-      o += kit.text(W - R + 8, y + 4, `${r.mine.toFixed(1)} / ${r.median.toFixed(1)}`, off ? "td" : "t", 'font-size="10.5"');
+      o += kit.text(W - R + 8, y + 4, `${r.mine.toFixed(1)} / ${r.median.toFixed(1)}`, off ? "td" : "t");
     });
     const h = T + rows.length * rh + 4;
     return `<div class="section-title">Against top players</div>` + kit.svg(W, h, o, `${D.player.name}'s casts per minute against top players`)
@@ -239,9 +239,9 @@ views.player = (() => {
     let o = "";
     D.casts.forEach((c, i) => {
       const y = i * rh + 12;
-      o += kit.icon(D.img_base, c.icon, 0, y - 7, 14) + kit.text(c.icon && D.img_base ? 19 : 0, y + 4, c.name.length > 24 ? c.name.slice(0, 23) + "…" : c.name, "t", 'font-size="11"');
+      o += kit.icon(D.img_base, c.icon, 0, y - 7, 14) + kit.text(c.icon && D.img_base ? 19 : 0, y + 4, c.name.length > 24 ? c.name.slice(0, 23) + "…" : c.name, "t");
       o += `<rect x="${L}" y="${y - 5}" width="${Math.max(1, (W - L - 60) * c.per_min / max)}" height="10" rx="3" fill="var(--blue)" opacity=".55"/>`;
-      o += kit.text(L + (W - L - 60) * c.per_min / max + 6, y + 4, `${c.per_min.toFixed(1)}/min`, "tm", 'font-size="10.5"');
+      o += kit.text(L + (W - L - 60) * c.per_min / max + 6, y + 4, `${c.per_min.toFixed(1)}/min`);
     });
     return `<div class="section-title">Casts per minute alive</div>` + kit.svg(W, D.casts.length * rh + 6, o, `${D.player.name}'s casts per minute`)
       + `<div class="actions">${button}</div>` + (why ? `<div class="note">${kit.esc(why)}</div>` : "");

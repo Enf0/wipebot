@@ -1,6 +1,7 @@
 """The views (report/views.py, the page in app/): each view's data on a real pull, against its tool's text and its
 snapshot; the page drawn in the mock host (viewhost.py, Chromium); the replay's JavaScript against the tracks
 maps.replay packs (Node)."""
+import contextlib
 import io
 import json
 import re
@@ -458,6 +459,59 @@ async def shots(tmp_path, tool: str, args: dict, **kw):
         if "Executable doesn't exist" in str(e):
             pytest.skip("needs Playwright's Chromium (just browser)")
         raise
+
+
+@contextlib.asynccontextmanager
+async def drawn(tool: str, args: dict, **setup):
+    """The tool's view drawn in the mock host, to ask the page about: its frame, and the errors so far."""
+    pytest.importorskip("playwright")
+    from playwright.async_api import Error, async_playwright
+
+    from wipebot.core import viewhost
+    result = await viewhost.tool_result(tool, args)
+    setup = {"tool": tool, "args": args, "result": result, "theme": "dark", "width": 760, "mode": "inline",
+             "tokens": "none", "bare": True, "fullWidth": viewhost.FULL_WIDTH,
+             "fullHeight": viewhost.FULL_HEIGHT} | setup
+    async with async_playwright() as pw:
+        try:
+            browser = await pw.chromium.launch()
+        except Error as e:
+            pytest.skip(f"needs Playwright's Chromium: {e}")
+        errors: list[str] = []
+        page = await viewhost._open(browser, setup, errors)
+        await viewhost._settled(page)
+        yield page.frames[-1], errors
+        await browser.close()
+
+
+def test_a_charts_text_size_is_texts_own_parameter():
+    """kit.text writes the one font-size, from its size parameter (kit.SIZE): given again in its attributes, the
+    browser keeps the first and drops the second, which once drew every label at 11 px whatever its caller asked."""
+    for name in views.SCRIPTS:
+        script = resources.files("wipebot.core").joinpath("app", name).read_text(encoding="utf-8")
+        assert all(size.startswith("${") for size in re.findall(r'font-size="([^"]*)"', script)), name
+
+
+async def test_chart_text_is_drawn_at_the_sizes_asked_and_the_mock_host_refuses_an_attribute_given_twice(recorded):
+    from wipebot.core import viewhost
+    async with drawn("pull_summary", PULL_CASE.args) as (view, errors):
+        sizes = await view.evaluate("""() => {
+            const of = (s) => [...document.querySelectorAll("svg text")].find((t) => t.textContent === s);
+            const px = (t) => t && [t.getAttribute("font-size"), getComputedStyle(t).fontSize];
+            const inMark = document.querySelector('svg text[fill="var(--bg)"]');  // how many died at once
+            return { label: px(of("boss health")), value: px(of("decided 2:32")), mark: px(inMark), all: kit.SIZE };
+        }""")
+        assert sizes["all"] == {"label": 11, "value": 12, "mark": 9}
+        assert sizes["label"] == ["11", "11px"] and sizes["value"] == ["12", "12px"] and sizes["mark"] == ["9", "9px"]
+        assert await viewhost._markup_errors(view.page) == [] and not errors
+        twice = await view.evaluate("""() => {
+            const text = kit.text;
+            kit.text = (x, y, s, cls, attrs, size) => text(x, y, s, cls, `font-size="9" ${attrs || ""}`, size);
+            return true;
+        }""")
+        assert twice
+        [refused] = (await viewhost._markup_errors(view.page))[:1]
+        assert "Attribute 'font-size' is redefined" in refused
 
 
 async def test_the_pull_view_draws_in_a_host_without_errors(recorded, tmp_path):

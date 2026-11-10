@@ -60,8 +60,8 @@ views.night = (() => {
     const band = (W - L - R) / Math.max(n, 1), x = (i) => L + i * band, bw = Math.max(2, Math.min(20, band * 0.72));
     const y = (v) => T + plotH - v / 100 * plotH;
     let o = "";
-    for (const v of [0, 50, 100]) o += kit.line(L, y(v), W - R, y(v), "var(--line)", v ? 'opacity=".5"' : "") + kit.text(L - 6, y(v) + 4, `${v}%`, "tm", 'text-anchor="end" font-size="10"');
-    if (D.phased) o += kit.text(L - 6, y(75) + 4, "WCL", "tm", 'text-anchor="end" font-size="9"');  // the bars' %
+    for (const v of [0, 50, 100]) o += kit.line(L, y(v), W - R, y(v), "var(--line)", v ? 'opacity=".5"' : "") + kit.text(L - 6, y(v) + 4, `${v}%`, "tm", 'text-anchor="end"');
+    if (D.phased) o += kit.text(L - 6, y(75) + 4, "WCL", "tm", 'text-anchor="end"');  // the bars' %
     let best = null;
     const line = [];
     D.pulls.forEach((r, i) => {
@@ -78,16 +78,16 @@ views.night = (() => {
     if (line.length > 1) o += `<path d="${line.map(([px, py], i) => `${i ? "L" : "M"}${px} ${py}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.6" pointer-events="none"/>`;
     // the night's best wipe, named: a bar near 0% is too short to see
     const top = D.pulls.reduce((b, r, i) => (!r.kill && !r.reset && !r.live && r.pct != null && (b < 0 || r.pct < D.pulls[b].pct) ? i : b), -1);
-    if (top >= 0 && !D.pulls.some((r) => r.kill)) o += kit.text(x(top) + band / 2, y(D.pulls[top].pct) - 6, said(D.pulls[top]), "t", 'text-anchor="middle" font-size="10.5" font-weight="700"');
+    if (top >= 0 && !D.pulls.some((r) => r.kill)) o += kit.text(x(top) + band / 2, y(D.pulls[top].pct) - 6, said(D.pulls[top]), "t", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
     if (D.guild_best) {
       const gy = y(D.guild_best.pct);
       o += kit.line(L, gy, W - R, gy, "var(--gold)", 'stroke-width="1.4" stroke-dasharray="5 4" pointer-events="none"');
       // named at the end away from the night's best bar, whose own label sits just above the line when it's close
       const left = top >= 0 && top >= n / 2;
-      o += kit.text(left ? L + 4 : W - R, gy - 5, `guild best before: ${said(D.guild_best)}`, "tg", `text-anchor="${left ? "start" : "end"}" font-size="10" font-weight="600"`);
+      o += kit.text(left ? L + 4 : W - R, gy - 5, `guild best before: ${said(D.guild_best)}`, "tg", `text-anchor="${left ? "start" : "end"}" font-weight="600"`);
     }
     const every = Math.max(1, Math.ceil(24 / band));
-    D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle" font-size="10"'); });
+    D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle"'); });
     // the legend, only where the list of how the pulls ended isn't drawn under it (that list is the legend): the
     // coloured endings by how many pulls, the rest as one "other", then the line
     const hued = new Set(named().slice(0, HUES)), other = D.ends.filter(([w]) => !QUIET.has(w) && !hued.has(w)).reduce((n, [, k]) => n + k, 0);
@@ -98,9 +98,9 @@ views.night = (() => {
     keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="1.6"/>`, "best so far"]);
     let lx = 6, ly = T + plotH + 34;
     for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name, 10) + 14;
+      const w = 18 + kit.width(name) + 14;
       if (lx > 6 && lx + w > W) { lx = 6; ly += 17; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name, "tm", 'font-size="10"');
+      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
       lx += w;
     }
     return kit.svg(W, ly + 6, o, `${D.boss}: boss health left on each pull, coloured by what ended it`);
@@ -132,7 +132,7 @@ views.night = (() => {
     const band = (W0 - L - R) / Math.max(n, 1), x = (i) => L + i * band, bw = Math.max(6, Math.min(44, band * 0.6));
     const y = (v) => T + plotH - v / 100 * plotH;
     let o = "";
-    for (const v of [0, 50, 100]) o += kit.line(L, y(v), W0 - R, y(v), "var(--line)", v ? 'opacity=".5"' : "") + kit.text(L - 6, y(v) + 4, `${v}%`, "tm", 'text-anchor="end" font-size="10"');
+    for (const v of [0, 50, 100]) o += kit.line(L, y(v), W0 - R, y(v), "var(--line)", v ? 'opacity=".5"' : "") + kit.text(L - 6, y(v) + 4, `${v}%`, "tm", 'text-anchor="end"');
     W.forEach((r, i) => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
       const tip = `${r.day}: ${r.pulls} pulls, ${r.kill ? `killed on pull ${r.kill}` : r.pct == null ? "no wipe past a reset"
@@ -140,23 +140,23 @@ views.night = (() => {
         + (r.ended ? `\nEnded most pulls: ${r.ended[0]} (${r.ended[1]})` : "") + "\nClick for that night";
       if (r.kill) o += `<path d="M${cx} ${y(0) - 14} l5 10 l-10 0z" fill="var(--gold)"/>`;
       else if (r.pct != null) o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="3" fill="${phaseColor(r.phase, top)}"/>`;
-      o += kit.text(cx, (r.kill ? y(0) - 14 : y(v)) - 5, best(r), r.kill ? "tg" : "t", 'text-anchor="middle" font-size="10.5" font-weight="700"');
+      o += kit.text(cx, (r.kill ? y(0) - 14 : y(v)) - 5, best(r), r.kill ? "tg" : "t", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
       o += `<rect x="${x(i)}" y="0" width="${band}" height="${plotH + T + 34}" fill="transparent" data-night="${kit.esc(r.report)}" style="cursor:pointer"${kit.tip(tip)}/>`;
     });
     const every = Math.max(1, Math.ceil(70 / band));
     W.forEach((r, i) => {
       if (i % every && i !== n - 1) return;
-      o += kit.text(x(i) + band / 2, T + plotH + 14, r.day, "tm", 'text-anchor="middle" font-size="10"');
-      o += kit.text(x(i) + band / 2, T + plotH + 27, `${r.pulls} pulls`, "tm", 'text-anchor="middle" font-size="9.5"');
+      o += kit.text(x(i) + band / 2, T + plotH + 14, r.day, "tm", 'text-anchor="middle"');
+      o += kit.text(x(i) + band / 2, T + plotH + 27, `${r.pulls} pulls`, "tm", 'text-anchor="middle"');
     });
     let ly = T + plotH + 46;
     if (top > 1) {  // the phases' blues
       let lx = 6;
       for (let k = 1; k <= top; k++) {
-        o += `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="${phaseColor(`P${k}`, top)}"/>` + kit.text(lx + 14, ly, `P${k}`, "tm", 'font-size="10"');
+        o += `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="${phaseColor(`P${k}`, top)}"/>` + kit.text(lx + 14, ly, `P${k}`);
         lx += 44;
       }
-      if (phased) o += kit.text(lx, ly, "bar height: WCL % of the whole fight left", "tm", 'font-size="10"');
+      if (phased) o += kit.text(lx, ly, "bar height: WCL % of the whole fight left");
       ly += 6;
     }
     return kit.svg(W0, ly + 4, o, `${D.boss}: the best pull on each raid night`);

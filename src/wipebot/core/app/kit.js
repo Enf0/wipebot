@@ -7,11 +7,17 @@ const kit = (() => {
   // 1st, 2nd, 3rd, 11th, 21st: as the tools' text writes ranks and percentiles
   const ordinal = (n) => { const r = n % 100, t = n % 10; return `${n}${r >= 11 && r <= 13 ? "th" : ["th", "st", "nd", "rd"][t] || "th"}`; };
   const svg = (w, h, body, label) => `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">${body}</svg>`;
-  const text = (x, y, s, cls = "tm", attrs = "") => `<text x="${x}" y="${y}" class="${cls}" font-size="11" ${attrs}>${esc(s)}</text>`;
+  // Chart text comes in three sizes, chosen once: a label (axes, legends, captions: the card's smallest text, as
+  // its stats' headings), a value (what names data: a line's end, a best, a name) and a number inside a mark. The
+  // size is text()'s own parameter, and width() measures with the same number: never a font-size in `attrs`, where
+  // the browser keeps the first attribute of a name and drops the second.
+  const SIZE = { label: 11, value: 12, mark: 9 };
+  const text = (x, y, s, cls = "tm", attrs = "", size = SIZE.label) =>
+    `<text x="${x}" y="${y}" class="${cls}" font-size="${size}" ${attrs}>${esc(s)}</text>`;
   const line = (x1, y1, x2, y2, stroke, attrs = "") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" ${attrs}/>`;
   // A text's width in the page's font, for keeping labels apart; about, where the page can't measure it
   const ctx = document.createElement("canvas").getContext("2d");
-  function width(s, size = 11) {
+  function width(s, size = SIZE.label) {
     const font = getComputedStyle(document.documentElement).getPropertyValue("--font").trim();
     if (!ctx || !font) return String(s).length * size * 0.56;
     ctx.font = `${size}px ${font}`;
@@ -26,13 +32,12 @@ const kit = (() => {
   }
   // Labels left to right after their marks, each only where it fits before the next mark of its lane (`marks`, the
   // lane's x positions, else `right`) and after the label before it; the rest stay a mark with a tooltip.
-  function labels(items, x, y, cls, marks, right, size = 9.5, pad = 6) {
+  function labels(items, x, y, cls, marks, right, size = SIZE.label, pad = 6) {
     let end = -Infinity, out = "";
     const xs = marks.slice().sort((a, b) => a - b);
     for (const [at0, s] of items) {
-      // measured at 11, the size text() draws at: the size passed comes after its font-size, so the browser keeps 11
-      const at = x(at0) + pad, w = width(s, 11), next = xs.find((m) => m > x(at0) + 1) ?? right;
-      if (at > end && at + w < next - 6) { out += text(at, y, s, cls, `font-size="${size}"`); end = at + w + 4; }
+      const at = x(at0) + pad, w = width(s, size), next = xs.find((m) => m > x(at0) + 1) ?? right;
+      if (at > end && at + w < next - 6) { out += text(at, y, s, cls, "", size); end = at + w + 4; }
     }
     return out;
   }
@@ -76,6 +81,6 @@ const kit = (() => {
   document.addEventListener("pointerleave", hide);
   window.addEventListener("scroll", hide, true);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg };
+  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open), drawn into root

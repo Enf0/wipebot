@@ -105,15 +105,15 @@ views.pull = (() => {
   function chart({ W, L, R, plotH, lanes }) {
     const x = (ms) => L + ms / D.duration_ms * (W - L - R);
     let y = 4, o = "";
-    const label = (s, yy) => lanes ? kit.text(6, yy, s, "tm", 'font-size="10.5"') : "";
+    const label = (s, yy) => lanes ? kit.text(6, yy, s) : "";
     // phases
     if (D.phases.length > 1 || lanes) {
       for (const b of phaseBands()) {
         o += `<rect x="${x(b.from)}" y="${y}" width="${Math.max(1, x(b.to) - x(b.from) - 1)}" height="13" rx="3" fill="${b.fill}" opacity="${b.opacity}"/>`;
         const room = x(b.to) - x(b.from) - 8;
         const s = [lanes && b.name ? `${b.label} ${b.name}` : null, b.label, `P${b.label.slice(1, 2)}`]
-          .find((t) => t && kit.width(t, 9.5) < room);
-        if (s) o += kit.text(x(b.from) + 5, y + 10, s, "t", 'font-size="9.5" font-weight="600"');
+          .find((t) => t && kit.width(t) < room);
+        if (s) o += kit.text(x(b.from) + 5, y + 10, s, "t", 'font-weight="600"');
       }
       o += label("Phase", y + 10);
       y += 20;
@@ -131,7 +131,7 @@ views.pull = (() => {
         o += kit.icon(D.img_base, c.icon, x(c.ms) - 7, y + 2, 14, tip)
           || `<path d="M${x(c.ms)} ${y + 3} l5 6 l-5 6 l-5 -6z" fill="var(--gold)"${kit.tip(tip)}/>`;
       }
-      o += labels(tracked.map((c) => [c.ms, c.name]), x, y + 13, "tg", D.casts.map((c) => x(c.ms)), W, 9.5, 9);
+      o += labels(tracked.map((c) => [c.ms, c.name]), x, y + 13, "tg", D.casts.map((c) => x(c.ms)), W, kit.SIZE.label, 9);
       y += 22;
       for (const [kind, title, color] of [["raid", "Raid cooldowns", "var(--blue)"], ["healing", "Healer cooldowns", "var(--green)"]]) {
         const list = D.cooldowns.filter((c) => c.kind === kind).map((c) => [c.ms, c.name, c.player]);
@@ -167,13 +167,13 @@ views.pull = (() => {
             : `\nNo healer cooldown from ${PEAK_BEFORE_MS / 1000} s before`);
         o += `<rect x="${x(pk.from_ms)}" y="${top}" width="${Math.max(2, x(pk.to_ms) - x(pk.from_ms))}" height="${plotH}" fill="var(--dead)" opacity=".09"${kit.tip(tip)}/>`;
         const s = kit.short(pk.per_s), cx = (x(pk.from_ms) + x(pk.to_ms)) / 2;
-        o += kit.text(cx, Math.max(top + 9, yD(pk.per_s) - 5), s, "td", 'font-size="9.5" font-weight="600" text-anchor="middle" pointer-events="none"');
+        o += kit.text(cx, Math.max(top + 9, yD(pk.per_s) - 5), s, "td", 'font-weight="600" text-anchor="middle" pointer-events="none"');
       }
       const pts = per.map(([ms, v]) => [Math.min(ms + step / 2, D.duration_ms), v]);
       o += `<path d="M${x(pts[0][0])} ${bottom} ${pts.map(([ms, v]) => `L${x(ms)} ${yD(v)}`).join(" ")} L${x(pts[pts.length - 1][0])} ${bottom}Z" fill="var(--blue)" opacity=".18"/>`;
       o += `<path d="${pts.map(([ms, v], i) => `${i ? "L" : "M"}${x(ms)} ${yD(v)}`).join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.2" opacity=".8"/>`;
-      o += kit.text(L - 6, yD(max) + 8, `${kit.short(max)}/s`, "tm", 'text-anchor="end" font-size="10"');
-      o += kit.text(L - 6, bottom, "0", "tm", 'text-anchor="end" font-size="10"');
+      o += kit.text(L - 6, yD(max) + 8, `${kit.short(max)}/s`, "tm", 'text-anchor="end"');
+      o += kit.text(L - 6, bottom, "0", "tm", 'text-anchor="end"');
     }
     // boss health
     if (D.health.length) {
@@ -185,16 +185,16 @@ views.pull = (() => {
       o += `<path d="${d}" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linejoin="round"/>`;
       const [lastMs, lastPct] = D.health[D.health.length - 1];
       o += `<circle cx="${x(lastMs)}" cy="${yH(lastPct)}" r="3.5" fill="var(--gold)"/>`;
-      o += kit.text(W - R + 5, yH(lastPct) + 4, `${D.kill ? 0 : (D.boss_pct ?? lastPct)}%`, "tg", 'font-size="10.5" font-weight="600"');
-      if (Math.abs(yH(100) - yH(lastPct)) > 14) o += kit.text(W - R + 5, yH(100) + 4, "100%", "tm", 'font-size="10"');
+      o += kit.text(W - R + 5, yH(lastPct) + 4, `${D.kill ? 0 : (D.boss_pct ?? lastPct)}%`, "tg", 'font-weight="600"', kit.SIZE.value);
+      if (Math.abs(yH(100) - yH(lastPct)) > 14) o += kit.text(W - R + 5, yH(100) + 4, "100%");
     }
     // when the wipe was decided
     if (D.decided) {
       const dx = x(D.decided.ms), right = dx > (W - R) * 0.6;
       o += kit.line(dx, top - 4, dx, bottom + 28, "var(--decided)", 'stroke-width="1.6" stroke-dasharray="4 3"');
       const anchor = right ? `text-anchor="end"` : "", tx = right ? dx - 5 : dx + 5;
-      o += kit.text(tx, top + 22, `decided ${kit.clock(D.decided.ms)}`, "to", `${anchor} font-size="10.5" font-weight="600"`);
-      o += kit.text(tx, top + 35, D.decided.why, "to", `${anchor} font-size="10"`);
+      o += kit.text(tx, top + 22, `decided ${kit.clock(D.decided.ms)}`, "to", `${anchor} font-weight="600"`, kit.SIZE.value);
+      o += kit.text(tx, top + 35, D.decided.why, "to", anchor);
     }
     // deaths, those whose marks would touch as one; after the wipe was decided grey
     const dy = bottom + 16, groups = [];
@@ -214,16 +214,16 @@ views.pull = (() => {
         o += kit.icon(D.img_base, d.icon, cx - s / 2, dy - s / 2, s, tip)
           + `<rect x="${cx - s / 2 - 1}" y="${dy - s / 2 - 1}" width="${s + 2}" height="${s + 2}" rx="3" fill="none" stroke="var(--dead)" stroke-width="1.8" pointer-events="none"/>`;
         if (ds.length > 1) o += `<circle cx="${cx + s / 2}" cy="${dy - s / 2}" r="6" fill="var(--dead)" pointer-events="none"/>`
-          + kit.text(cx + s / 2, dy - s / 2 + 3.5, ds.length, "", 'text-anchor="middle" font-size="9" font-weight="700" fill="var(--bg)" pointer-events="none"');
+          + kit.text(cx + s / 2, dy - s / 2 + 3.5, ds.length, "", 'text-anchor="middle" font-weight="700" fill="var(--bg)" pointer-events="none"', kit.SIZE.mark);
         continue;
       }
       const r = ds.length > 1 ? 7 : 4.2, cx = Math.max(x(d.ms), lastEdge + r + 1);
       lastEdge = cx + r;
       o += `<circle cx="${cx}" cy="${dy}" r="${r}" fill="${d.fallout ? "var(--muted)" : "var(--dead)"}" opacity="${d.fallout ? 0.65 : 1}"${kit.tip(tip)}/>`;
-      if (ds.length > 1) o += kit.text(cx, dy + 3.5, ds.length, "", 'text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--bg)"');
+      if (ds.length > 1) o += kit.text(cx, dy + 3.5, ds.length, "", 'text-anchor="middle" font-weight="700" fill="var(--bg)"', kit.SIZE.mark);
     }
     const ay = bottom + 40;
-    for (let t = 0; t <= D.duration_ms; t += tick) o += kit.text(x(t), ay, kit.clock(t), "tm", 'text-anchor="middle" font-size="10"');
+    for (let t = 0; t <= D.duration_ms; t += tick) o += kit.text(x(t), ay, kit.clock(t), "tm", 'text-anchor="middle"');
     // the legend, under the time axis, wrapping on a narrow chart
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 6}" width="12" height="3" fill="var(--gold)"/>`, "boss health"],
       [(lx, ly) => `<rect x="${lx + 1}" y="${ly - 8}" width="10" height="8" fill="var(--blue)" opacity=".35"/>`, "raid damage taken /s"],
@@ -233,9 +233,9 @@ views.pull = (() => {
     if (D.decided) keys.push([(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--muted)" opacity=".6"/>`, "after it was decided"]);
     let lx = 6, ly = ay + 20;
     for (const [mark, name] of keys) {
-      const w = 16 + kit.width(name, 10) + 14;
+      const w = 16 + kit.width(name) + 14;
       if (lx > 6 && lx + w > W) { lx = 6; ly += 16; }
-      o += mark(lx, ly) + kit.text(lx + 16, ly, name, "tm", 'font-size="10"');
+      o += mark(lx, ly) + kit.text(lx + 16, ly, name);
       lx += w;
     }
     return kit.svg(W, ly + 6, o, `${D.title}: boss health and raid damage taken over time, phases, deaths`);

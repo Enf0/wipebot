@@ -102,10 +102,10 @@ views.meter = (() => {
     const raid = m.pulls.map((_, i) => rows.reduce((s, b) => s + (b.per_pull[i] || 0), 0)), rmax = Math.max(1, ...raid);
     const what = m.per_pull === "debuffs" ? "debuffs" : "hits";
     let body = "";
-    m.pulls.forEach((p, i) => { if (i === 0 || p % 5 === 0) body += kit.text(left + i * col + sq / 2, 11, String(p), "tm", 'font-size="9.5" text-anchor="middle"'); });
+    m.pulls.forEach((p, i) => { if (i === 0 || p % 5 === 0) body += kit.text(left + i * col + sq / 2, 11, String(p), "tm", 'text-anchor="middle"'); });
     rows.forEach((b, r) => {
       const y = top + r * row;
-      body += `<text x="${left - 6}" y="${y + sq - 1}" font-size="10.5" font-weight="600" text-anchor="end" class="cls" style="--c:${kit.esc(b.color)}">${kit.esc(b.name)}</text>`;
+      body += kit.text(left - 6, y + sq - 1, b.name, "cls", `font-weight="600" text-anchor="end" style="--c:${kit.esc(b.color)}"`);
       b.per_pull.forEach((v, i) => {
         if (v === null) return;
         const x = left + i * col, share = v ? 35 + 65 * v / max : 0;
@@ -114,10 +114,10 @@ views.meter = (() => {
           + `${kit.tip(`${b.name}, pull ${m.pulls[i]}: ${v} ${what}${died ? "\nit set up their death" : ""}`)}/>`;
         if (died) body += `<path d="M${x + 2} ${y + 2}L${x + sq - 2} ${y + sq - 2}M${x + sq - 2} ${y + 2}L${x + 2} ${y + sq - 2}" stroke="var(--dead)" stroke-width="2" pointer-events="none"/>`;
       });
-      body += kit.text(w - 4, y + sq - 1, String(total(b)), "t", 'font-size="10.5" text-anchor="end"');
+      body += kit.text(w - 4, y + sq - 1, String(total(b)), "t", 'text-anchor="end"');
     });
     const ry = top + rows.length * row + 4;
-    body += kit.text(left - 6, ry + 24, "raid", "tm", 'font-size="10" text-anchor="end"');
+    body += kit.text(left - 6, ry + 24, "raid", "tm", 'text-anchor="end"');
     raid.forEach((v, i) => { const hgt = 26 * v / rmax; body += `<rect x="${left + i * col}" y="${ry + 28 - hgt}" width="${sq}" height="${hgt}" rx="1.5" fill="var(--gold)" opacity=".7"${kit.tip(`Pull ${m.pulls[i]}: ${v} ${what}`)}/>`; });
     const icon = kit.iconImg(D.img_base, m.icon);
     const head = `<div class="head"><h1>${icon}${kit.esc(m.title)} by pull</h1><span class="sub">${what} per player per pull, each until its wipe was decided</span></div>`;
