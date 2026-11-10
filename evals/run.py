@@ -283,6 +283,12 @@ def load_cases(folder: Path = CASES) -> list[dict]:
     return cases
 
 
+def regular(mode: str) -> list[dict]:
+    """The cases a full run of a mode asks: all but the held-out ones and the other app's own."""
+    return [c for c in load_cases() if c["kind"] != "heldout"
+            and not c.get("client_only" if mode == "bot" else "bot_only")]
+
+
 def picked(case: dict, filter: str) -> bool:
     """Whether `-k` picks the case: its id contains the filter, or one of its comma-separated parts."""
     return any(f.strip() in case["id"] for f in filter.split(","))
@@ -516,7 +522,7 @@ async def keys_work(library: server.Library) -> None:
 
 
 async def run(args) -> int:
-    """Ask the cases, print and save what came of it; 1 when an answer errored, a tool crashed or the comparison
+    """Ask the cases, save and print what came of it; 1 when an answer errored, a tool crashed or the comparison
     with the baseline shows a drop (red), else 0."""
     print(f"Answers and judging on {args.billed_to}.", flush=True)
     frozen()
@@ -546,31 +552,37 @@ async def run(args) -> int:
     def so_far() -> dict:
         return tally_of(cases, results, model=shown, commit=commit(), judge=judged_by(args.judge_model))
 
-    await ask_all(cases, base, args.trials, args.judge_model, one, so_far, confirm=not args.no_confirm)
-    tally = so_far() | {"tested": tested(results)}
-    asked_trials = tally["trials"]
+    full = not (args.filter or args.held_out or args.model or args.effort)  # every case, as the mode ships
+    try:
+        await ask_all(cases, base, args.trials, args.judge_model, one, so_far, confirm=not args.no_confirm)
+    finally:  # the answers are kept before anything is made of them: no fault past here loses a paid run
+        tally = so_far() | {"tested": tested(results)}
+        if any(results.values()):
+            out = keep(HERE / "results", results, tally, mode=args.mode, connector_only=args.mode == "connector",
+                       judge_model=args.judge_model, filter=args.filter, full=full, billed_to=args.billed_to)
+            print(f"\nsaved {out.relative_to(HERE.parent)}", flush=True)
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
     lines, found = report(tally, results, base, args.mode,
                           f"({shown}, {args.mode}, judge {args.judge_model}, ${cost:.2f})")
     print("\n" + "\n".join(lines))
-    if not (args.filter or args.held_out or args.model or args.effort):  # every case, as the mode ships
+    if full:
         record_full_run(tally, args.mode, found.lines[-1] if found else "no baseline to compare with",
                         f"{datetime.now(UTC):%Y-%m-%d}")
-    stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
-    out = HERE / "results" / f"{stamp}.json"
-    out.parent.mkdir(exist_ok=True)
-    out.write_text(json.dumps({"model": shown, "mode": args.mode, "connector_only": args.mode == "connector",
-                               "judge_model": args.judge_model, "filter": args.filter,
-                               "date": f"{datetime.now(UTC):%Y-%m-%d}",
-                               "billed_to": args.billed_to, "trials": asked_trials, "commit": tally["commit"],
-                               "judge": tally["judge"], "tested": tally["tested"],
-                               "case_hashes": tally["case_hashes"],
-                               "cases": {c: [asdict(t) for t in ts] for c, ts in results.items()}},
-                              indent=1, ensure_ascii=False), encoding="utf-8")
-    print(f"saved {out.relative_to(HERE.parent)}")
     if args.save_baseline is not None:
         save_baseline(tally, args.mode, args.accept, args.filter)
     return exit_code(tally, found)
+
+
+def keep(folder: Path, results: dict[str, list[Trial]], tally: dict, **about) -> Path:
+    """A run's file: every answer with its tool calls, and what read_run needs to tally it again (`about`: its mode,
+    judge, filter, whether it was a full run, who was billed)."""
+    folder.mkdir(exist_ok=True)
+    out = folder / f"{datetime.now():%Y%m%d-%H%M%S}.json"
+    out.write_text(json.dumps({**about, "date": f"{datetime.now(UTC):%Y-%m-%d}",
+                               **{k: tally[k] for k in ("model", "trials", "commit", "judge", "tested", "case_hashes")},
+                               "cases": {c: [asdict(t) for t in ts] for c, ts in results.items()}},
+                              indent=1, ensure_ascii=False), encoding="utf-8")
+    return out
 
 
 def exit_code(tally: dict, found: Comparison | None) -> int:
@@ -618,13 +630,19 @@ def show_run(path: Path) -> int:
     return exit_code(tally, found)
 
 
-def record_full_run(tally: dict, mode: str, verdict: str, day: str) -> dict:
+def record_full_run(tally: dict, mode: str, verdict: str, day: str) -> dict | None:
     """Keep a full run as its mode's last in FULL_RUNS: its commit and day, its trials, passes of answers, errors
-    and the verdict line of its comparison. The file is tracked: commit it with the change the run covered."""
+    and the verdict line of its comparison. The file is tracked: commit it with the change the run covered. A run
+    that judged fewer than COVERED of the answers it asked is not kept: a release would count from a run that
+    evaluated little."""
+    of, errors = sum(judged(tally, c) for c in tally["passed"]), sum(tally.get("errors", {}).values())
+    if of < COVERED * (of + errors):
+        print(f"not recorded as the last full {mode} run: {errors} of its {of + errors} answers errored, so the "
+              f"mode's last full run stays the one in evals/{FULL_RUNS.name}")
+        return None
     runs = json.loads(FULL_RUNS.read_text(encoding="utf-8")) if FULL_RUNS.exists() else {}
     runs[mode] = {"commit": tally["commit"], "date": day, "trials": trials_of(tally),
-                  "passed": sum(tally["passed"].values()), "of": sum(judged(tally, c) for c in tally["passed"]),
-                  "errors": sum(tally.get("errors", {}).values()), "verdict": verdict}
+                  "passed": sum(tally["passed"].values()), "of": of, "errors": errors, "verdict": verdict}
     FULL_RUNS.write_text(json.dumps(runs, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"recorded as the last full {mode} run in evals/{FULL_RUNS.name}: commit it (scripts/release.py reads it)")
     return runs[mode]
@@ -636,6 +654,11 @@ def record_saved(path: Path) -> None:
     run, _, tally = read_run(path)
     if run.get("filter"):
         raise SystemExit(f"not a full run: it asked only the cases matching -k {run['filter']}")
+    if run.get("full") is False:
+        raise SystemExit("not a full run of what the mode ships: it was held out, or asked with --model or --effort")
+    mine = regular(run["mode"])
+    if (asked := sum(c["id"] in tally["passed"] for c in mine)) < COVERED * len(mine):  # a file older than `filter`
+        raise SystemExit(f"not a full run: it asked {asked} of the {len(mine)} cases its mode has today")
     base = json.loads(baseline(run["mode"]).read_text()) if baseline(run["mode"]).exists() else None
     named = re.search(r"(20\d\d)(\d\d)(\d\d)", path.stem)
     day = run.get("date") or ("-".join(named.groups()) if named else
@@ -656,9 +679,7 @@ def save_baseline(tally: dict, mode: str, accept: str = "", filtered: str = "") 
         raise SystemExit(f"not a baseline: {len(thin)} cases have fewer than {UNSETTLED_TRIALS} judged answers "
                          f"({', '.join(thin[:5])}{', ...' if len(thin) > 5 else ''}): a baseline asks every case as "
                          "often, to judge the next run (--trials 3)")
-    against = [c for c in load_cases() if c["kind"] != "heldout" and not c.get(
-        "client_only" if mode == "bot" else "bot_only")]
-    stale = [c["id"] for c in against
+    stale = [c["id"] for c in regular(mode)
              if c["id"] not in tally["passed"] or tally["case_hashes"].get(c["id"]) != case_hash(c)]
     doubts = red(tally, None)  # answers that errored, a tool that crashed: the next runs would be measured by them
     if filtered or stale:

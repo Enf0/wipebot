@@ -593,7 +593,28 @@ def test_a_saved_run_is_read_by_todays_rule_and_can_become_the_baseline(suite_on
     assert json.loads(path.read_text())["passed"]["s0"] == 0
 
 
-def test_a_full_run_is_kept_as_its_modes_last(suite_on_disk, tmp_path, monkeypatch):
+def test_a_runs_file_reads_back_as_the_run_was_tallied(tmp_path):
+    """Every kind of answer, kept and read again (--summary, --record, --save-baseline RESULTS): no answer changes
+    sides, a capped one least of all."""
+    from evals import run
+    ok = {"ok": True, "reason": ""}
+    crash = {"name": "progress", "failed": True, "result": "progress failed with an unexpected error: TypeError"}
+    refused = {"name": "progress", "failed": True, "result": "auth_failed: HTTP 401"}
+    case = {**CASE, "id": "made-up", "kind": "wipe"}
+    results = {"made-up": [run.settle(t, case, "bot") for t in (
+        Trial(expect=ok, wrong=ok), Trial(expect=ok, wrong={"ok": False, "reason": "x"}),
+        Trial(error="ModelError: error_max_turns"), Trial(error="ModelError: rate_limit"),
+        Trial(expect=ok, wrong=ok, calls=[crash]), Trial(expect=ok, wrong=ok, calls=[refused]))]}
+    tally = run.tally_of([case], results, model="opus", commit="abc", judge=judged_by("sonnet")) | {
+        "tested": {"answers": ["claude-opus-x"]}}
+    assert (tally["passed"], tally["errors"]) == ({"made-up": 1}, {"made-up": 2})
+    path = run.keep(tmp_path / "results", results, tally, mode="bot", judge_model="sonnet", filter="", full=True)
+    kept, again, read = run.read_run(path)
+    assert kept["full"] is True and kept["date"] and read == tally
+    assert [t.broke[:17] for t in again["made-up"]] == ["", "", "hit the bot's cap", "", "a tool crashed: p", ""]
+
+
+def test_a_full_run_is_kept_as_its_modes_last(suite_on_disk, tmp_path, monkeypatch, capsys):
     from evals import run
     _, a_run = suite_on_disk
     monkeypatch.setattr(run, "FULL_RUNS", tmp_path / "full-runs.json")
@@ -603,6 +624,11 @@ def test_a_full_run_is_kept_as_its_modes_last(suite_on_disk, tmp_path, monkeypat
     assert kept["plugin"] == {"commit": "old"}  # the other modes' stay
     assert kept["bot"] == {"commit": "def", "date": "2026-11-12", "trials": "3 trials", "passed": 247, "of": 278,
                            "errors": 1, "verdict": "VERDICT: no change shown."}
+    # a run most of whose answers errored evaluated little: a release goes on counting from the run before
+    down = a_run(errors={f"s{i}": 3 for i in range(1, 60)}, commit="down")
+    assert run.record_full_run(down, "bot", "VERDICT: cannot tell.", "2026-11-13") is None
+    assert "not recorded as the last full bot run: 177 of its 279 answers errored" in capsys.readouterr().out
+    assert json.loads((tmp_path / "full-runs.json").read_text()) == kept
     # a saved run, as the Evals workflow leaves one: recorded without a model, dated by its name
     answer = {"answer": "x", "expect": {"ok": True, "reason": ""}, "wrong": {"ok": True, "reason": ""}}
     saved = tmp_path / "bot-full-20261113.json"
@@ -616,6 +642,14 @@ def test_a_full_run_is_kept_as_its_modes_last(suite_on_disk, tmp_path, monkeypat
     saved.write_text(json.dumps(file | {"filter": "wipe"}))
     with pytest.raises(SystemExit, match="not a full run: it asked only the cases matching -k wipe"):
         run.record_saved(saved)
+    saved.write_text(json.dumps(file | {"full": False}))
+    with pytest.raises(SystemExit, match="not a full run of what the mode ships"):
+        run.record_saved(saved)
+    # a file from before the filter was kept: a handful of cases is no full run
+    saved.write_text(json.dumps(file | {"cases": {c: [answer] for c in list(a_run()["passed"])[:10]}}))
+    with pytest.raises(SystemExit, match="not a full run: it asked 10 of the 93 cases its mode has today"):
+        run.record_saved(saved)
+    assert json.loads((tmp_path / "full-runs.json").read_text())["bot"] == kept
 
 
 def test_the_tracked_record_of_full_runs_names_modes_the_release_script_knows():
