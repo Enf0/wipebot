@@ -9,7 +9,8 @@ in the case's `derived`, which says so and keeps it from being flagged.
 
 A replayed call that fails now is a failure of the lint, like a stale number. One that fails for lack of data (the
 frozen file doesn't hold what the call reads today and Warcraft Logs didn't give it) says nothing about the case:
-its case is left unchecked and said so, with none of its numbers flagged, and the lint doesn't pass.
+unless the outputs that did replay hold every number, its case is left unchecked and said so, with none of its
+numbers flagged, and the lint doesn't pass.
 """
 import asyncio
 import json
@@ -133,13 +134,15 @@ async def lint(cases: list[dict], results: Path) -> Linted:
         now = {json.dumps([n, a], sort_keys=True) for n, a in recorded_calls(
             [r for r in runs if (r.get("case_hashes") or {}).get(case["id"]) == case_hash(case)], case["id"])}
         found = await asyncio.gather(*(run(n, a) for n, a in calls))
-        if lacking := [t for t in found if failure(t) and any(w in str(t) for w in NO_DATA)]:
+        replayed = "\n".join(t for t in found if t is not None and not failure(t))
+        lacking = [t for t in found if failure(t) and any(w in str(t) for w in NO_DATA)]
+        if lacking and (not replayed or stale(case, replayed)):  # a number not found may be in the output not read
             print(f"{case['id']}: not checked: {len(lacking)} of its {len(calls)} calls need data the frozen file "
                   f"lacks and Warcraft Logs didn't give ({next(w for w in NO_DATA if w in str(lacking[0]))})")
             no_data += 1
             continue
         for (n, a), t in zip(calls, found, strict=True):
-            if failure(t) and json.dumps([n, a], sort_keys=True) in now:
+            if failure(t) and t not in lacking and json.dumps([n, a], sort_keys=True) in now:
                 if any(w in str(t) for w in ASKED_WRONG):
                     asked_wrong += 1
                 else:

@@ -67,19 +67,21 @@ async def test_a_replay_that_fails_is_a_failure_and_one_without_data_leaves_its_
     monkeypatch.setattr(server, "call", call)
     cases = [{"id": c, "report": "R", "question": "why?", "expect": "The enrage at 6:01.", "wrong": ["x"]}
              for c in ("fine", "no-data", "crash", "all-fail")]
-    pulls = {"fine": [1], "no-data": [1, 2], "crash": [1, 3], "all-fail": [3]}
+    cases.append(cases[1] | {"id": "found-anyway", "expect": "The enrage at 6:00."})  # in the output that replayed
+    pulls = {"fine": [1], "no-data": [1, 2], "crash": [1, 3], "all-fail": [3], "found-anyway": [1, 2]}
     (tmp_path / "run.json").write_text(json.dumps({
         "case_hashes": {c["id"]: case_hash(c) for c in cases},
         "cases": {c: [{"calls": [{"name": "pull_summary", "args": {"pull": n}, "failed": False} for n in ns]}]
                   for c, ns in pulls.items()}}))
     found = await lint(cases, tmp_path)
-    assert found == (2, 2, 2, 1)  # 6:01 flagged where its calls replayed; two crashes; one case without data
+    assert found == (2, 3, 2, 1)  # 6:01 flagged where its calls replayed; two crashes; one case without data
     out = capsys.readouterr().out
     assert "no-data: not checked: 1 of its 2 calls need data the frozen file lacks and Warcraft Logs didn't give " \
            "(auth_failed)" in out and "no-data: expect states" not in out
     assert "crash: <pull_summary failed: pull_summary failed with an unexpected error: TypeError>" in out
     assert "all-fail: every call of its answers fails now: its numbers aren't checked" in out
-    assert lint_line(found, 4).startswith("2 of 4 cases checked: 2 numbers no tool prints now; 2 replayed calls fail "
+    assert "found-anyway" not in out
+    assert lint_line(found, 5).startswith("3 of 5 cases checked: 2 numbers no tool prints now; 2 replayed calls fail "
                                           "now; 1 cases NOT checked for lack of data")
     assert lint_line(type(found)(0, 4), 4) == "4 of 4 cases checked: every number is in its tools' output"
 
