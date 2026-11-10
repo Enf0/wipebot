@@ -9,14 +9,17 @@
 views.note = (() => {
   let D = null, root = null;
   const ROW = 15, SQ = 10, GAP = 2;
-  const KICK = {  // a cast's state: its fill, and its word in the tooltip and the legend
+  // A cast's state: its fill, and its word in the tooltip and the legend. What was missed (a cast that went through, a
+  // cooldown not cast, no defensive) is the red square with a cross in it, so it isn't told from the green by colour alone
+  const MISS = "var(--dead)";
+  const KICK = {
     kicked: ["var(--green)", "kicked"], covered: ["var(--blue)", "covered by another"],
-    through: ["var(--dead)", "went through"], dead: ["var(--muted)", "its player dead"],
+    through: [MISS, "went through"], dead: ["var(--muted)", "its player dead"],
     absent: ["var(--line)", "its player not in the pull"],
   };
   const COOLDOWN = {
     "on time": ["var(--green)", "on time"], early: ["var(--gold)", "early"], late: ["var(--gold)", "late"],
-    "not cast": ["var(--dead)", "not cast"], dead: ["var(--muted)", "dead by then"], absent: ["var(--line)", "not in the pull"],
+    "not cast": [MISS, "not cast"], dead: ["var(--muted)", "dead by then"], absent: ["var(--line)", "not in the pull"],
   };
 
   const FEW = 3;  // a planned cooldown, kick assignment or callout fewer pulls than this reached isn't drawn (views.NOTE_FEW)
@@ -31,9 +34,13 @@ views.note = (() => {
   }
 
   const square = (x, y, fill, tip, ring) => `<rect x="${x}" y="${y}" width="${SQ}" height="${SQ}" rx="2" fill="${fill}"`
-    + (ring ? ` stroke="var(--gold)" stroke-width="2"` : "") + `${kit.tip(tip)}/>`;
-  const legend = (items) => `<div class="legend">${items.map(([fill, word, ring]) =>
-    `<span><i style="background:${fill}${ring ? ";outline:2px solid var(--gold);outline-offset:-1px" : ""}"></i>${kit.esc(word)}</span>`).join("")}</div>`;
+    + (ring ? ` stroke="var(--gold)" stroke-width="2"` : "") + `${kit.tip(tip)}/>`
+    + (fill === MISS ? `<path d="M${x + 3} ${y + 3}l4 4m0 -4l-4 4" stroke="var(--bg)" stroke-width="1.5" stroke-linecap="round" pointer-events="none"/>` : "");
+  // the legend under a grid: [a swatch's style, its word, whether it's ringed]
+  const legend = (items) => `<div class="legend">${items.map(([style, word, ring]) => {
+    const css = style === MISS ? "" : style.includes(":") ? style : `background:${style}`;
+    return `<span><i${style === MISS ? ' class="miss"' : ""} style="${css}${ring ? ";outline:2px solid var(--gold);outline-offset:-1px" : ""}"></i>${kit.esc(word)}</span>`;
+  }).join("")}</div>`;
 
   function kicks(K) {
     const waves = Math.max(1, ...K.pulls.flatMap((p) => p.cells.map((c) => c.length)));
@@ -75,8 +82,8 @@ views.note = (() => {
     ]);
     const max = Math.max(1, ...K.first.map((f) => f.count));
     const first = K.first.length ? `<div class="sec">Whose cast went through first, on the pulls the wipe followed</div><ol class="tally">`
-      + K.first.map((f) => `<li><span class="nm cls" style="--c:${kit.esc(f.color)}">${kit.esc(f.name)}</span>`
-        + `<span class="bar"><i style="width:${(100 * f.count / max).toFixed(1)}%;background:${kit.esc(f.color)}"></i></span><span class="val">${f.count}</span></li>`).join("")
+      + K.first.map((f) => `<li><span ${kit.cls(f.color, "nm cls")}>${kit.esc(f.name)}</span>`
+        + `<span class="bar"><i class="cb" style="width:${(100 * f.count / max).toFixed(1)}%;--c:${kit.esc(f.color)}"></i></span><span class="val">${f.count}</span></li>`).join("")
       + "</ol>" : "";
     const keys = legend([[KICK.kicked[0], "kicked"], [KICK.covered[0], "covered by another"], [KICK.through[0], "went through"],
                          [KICK.through[0], "first through, the wipe followed", true], [KICK.dead[0], "their player dead"]]);
@@ -123,7 +130,7 @@ views.note = (() => {
 
   const CALLOUT = {  // a player at a pull's callouts: their fill, and the word in the legend
     answered: ["var(--green)", "pressed a defensive"], some: [NEAR_GREEN, "at some of them"],
-    none: ["var(--dead)", "no defensive"], excused: ["var(--blue)", "the note's cooldown for them, or a tank's kept for after"],
+    none: [MISS, "no defensive"], excused: ["var(--blue)", "the note's cooldown for them, or a tank's kept for after"],
     dead: ["var(--muted)", "dead"],
   };
   // A player's square on a pull, where the callout may come more than once: answered every time it found them alive,
@@ -166,8 +173,7 @@ views.note = (() => {
       + `<div class="note">A defensive or tank cooldown pressed from 3 s before to 5 s after the callout answers it. Right: times they pressed one, of the times they were alive.</div></section>`;
   }
 
-  const KIND = ["var(--blue)", "#c084fc", "#2dd4bf", "#f472b6", "#fb923c"];  // a kind of callout (its first word)
-  const PLAN_W = 680, NAME_W = 112, PLAN_ROW = 32, SECTION = 18, PHASE_GAP = 10, LONG_HEADING = 18;
+  const PLAN_W = 680, NAME_W = 112, PLAN_ROW = 34, SECTION = 18, PHASE_GAP = 10, LONG_HEADING = 18;
   const ROLES = [["tank", "Tanks"], ["healer", "Healers"], ["dps", "Damage"], ["", "Not in the log"]];
   const kindOf = (text) => (text.match(/[A-Za-z]+/) || [text])[0].toLowerCase();
 
@@ -178,9 +184,9 @@ views.note = (() => {
     let at = x0;
     for (const p of P.phases) { start[p.phase] = at; at += p.length_s * per + PHASE_GAP; }
     const X = (i) => start[i.phase] + i.at_s * per;
-    const kinds = [];  // across the raid, so a colour means the same callout on every row
+    const kinds = [];  // a kind of callout (its first word), across the raid, so a hue means the same callout on every row
     for (const r of P.rows) for (const t of r.callouts) if (!kinds.includes(kindOf(t))) kinds.push(kindOf(t));
-    const hue = (t) => KIND[kinds.indexOf(kindOf(t)) % KIND.length];
+    const hues = kit.palette(kinds), tick = (x, y, h, t) => `<rect x="${x}" y="${y}" width="4" height="${h}" rx="2" ${hues.svg(kindOf(t))}`;
     const long = new Map();  // a long group heading is named once under the chart, its labels on the rows
     const group = (g) => {
       if (!g.label) return g.heading;
@@ -197,25 +203,29 @@ views.note = (() => {
       body += kit.text(0, y + 12, word.toUpperCase(), "tm", 'font-weight="600" letter-spacing="0.06em"');
       y += SECTION;
       rows.forEach((r, i) => {
-        const mid = y + 11;
+        const mid = y + 10, said = y + 29;
         if (i % 2 === 0) body += `<rect x="0" y="${y - 2}" width="${PLAN_W}" height="${PLAN_ROW}" rx="3" fill="var(--panel)"/>`;
         body += kit.text(6, mid + 4, r.player, "cls", `font-weight="600" style="--c:${kit.esc(r.color)}"`, kit.SIZE.value);
         for (const it of r.items) {
           const x = X(it), tip = `${r.player}, ${phaseAt(P, it)}: ${it.spell || it.text}`;
-          if (it.text) body += `<rect x="${x - 2}" y="${mid - 7}" width="4" height="14" rx="2" fill="${hue(it.text)}"${kit.tip(tip)}/>`;
+          if (it.text) body += `${tick(x - 2, mid - 7, 14, it.text)}${kit.tip(tip)}/>`;
           else if (D.img_base && it.icon) body += kit.icon(D.img_base, it.icon, x - 8, mid - 8, 16, tip);
           else body += `<circle cx="${x}" cy="${mid}" r="5" fill="var(--green)"${kit.tip(tip)}/>`;
         }
-        const parts = [...r.callouts.map((t) => [t, hue(t)]), ...r.groups.map((g) => [group(g), ""])];
-        let room = Math.floor((right - x0) / kit.width("x")), line = "";
-        for (const [k, [t, fill]] of parts.entries()) {
-          const said = (k ? "  ·  " : "") + t;
-          if (room <= 1) break;
-          const cut = said.length > room ? said.slice(0, Math.max(room - 1, 0)) + "…" : said;
-          line += `<tspan${fill ? ` fill="${fill}"` : ""}>${kit.esc(cut)}</tspan>`;
-          room -= said.length;
+        // under the marks: the callouts to them, each after a small mark in its kind's hue, then the groups they're in;
+        // what doesn't fit the row is cut
+        let at = x0;
+        for (const [k, [t, called]] of [...r.callouts.map((t) => [t, true]), ...r.groups.map((g) => [group(g), false])].entries()) {
+          const lead = (k ? 14 : 0) + (called ? 7 : 0);
+          let cut = t;
+          while (cut.length > 1 && at + lead + kit.width(cut) > right) cut = cut.slice(0, -2) + "…";
+          if (cut.length < 2) break;
+          if (k) body += kit.text(at + 7, said, "·", "tm", 'text-anchor="middle"');
+          if (called) body += `${tick(at + lead - 7, said - 8.5, 9, t)}/>`;
+          body += kit.text(at + lead, said, cut);
+          at += lead + kit.width(cut);
+          if (cut !== t) break;
         }
-        if (line) body += `<text x="${x0}" y="${y + 26}" class="tm" font-size="${kit.SIZE.label}">${line}</text>`;
         y += PLAN_ROW;
       });
     }
@@ -241,12 +251,12 @@ views.note = (() => {
     const head = `<div class="head"><h1>${kit.esc(D.boss)}: who does what</h1><span class="sub">${kit.esc(sub.filter(Boolean).join(" · "))}</span></div>`;
     const texts = (k) => [...new Set(P.rows.flatMap((r) => r.callouts.filter((t) => kindOf(t) === k)))];
     const keyOf = (k) => texts(k).length === 1 ? texts(k)[0] : `${k[0].toUpperCase()}${k.slice(1)} callouts`;  // its words, or its kind
-    const keys = legend([...kinds.map((k) => [KIND[kinds.indexOf(k) % KIND.length], keyOf(k)]),
+    const keys = legend([...kinds.map((k) => [hues.css(k), keyOf(k)]),
                          ...(lane ? [["var(--gold)", "callout to everyone"]] : [])])
       .replace('</div>', '<span><i style="background:none;border:1px solid var(--muted)"></i>planned cooldown: its icon</span></div>');
     const named = [...long].map(([hd, labels]) => `${kit.esc([...labels].join(", "))}: ${kit.esc(hd)}`).join("; ");
     return `<section data-panel class="note-board plan">${head}<div class="grid">${kit.svg(PLAN_W, h, body, "The raid note by player")}</div>${keys}`
-      + `<div class="note">Under each name: the callouts to them, in their colour, then the groups they're in.${named ? ` ${named}.` : ""}</div></section>`;
+      + `<div class="note">Under each name: the callouts to them, each after a mark in its colour, then the groups they're in.${named ? ` ${named}.` : ""}</div></section>`;
   }
 
   const phaseAt = (P, i) => `${P.phases.length > 1 ? `P${i.phase} ` : ""}${kit.clock(i.at_s * 1000)}`;

@@ -261,11 +261,15 @@ views.replay = (() => {
     g.restore();
   }
 
+  // A class's colour as a name on the stage, which is dark in either theme: page.css's dark ink (a death knight's red
+  // a lighter red). A browser without relative colours refuses it, and the name keeps the colour set before it.
+  const ink = (color) => `oklch(from ${color} max(l, .72) c h)`;
+
   function label(g, text, x, y, color, bold) {
     g.font = `${bold ? 700 : 600} ${bold ? 13 : 11.5}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     g.textAlign = "center"; g.textBaseline = "middle";
     g.lineWidth = 3.5; g.strokeStyle = "rgba(11, 16, 30, .85)"; g.strokeText(text, x, y);
-    g.fillStyle = color; g.fillText(text, x, y);
+    g.fillStyle = color; g.fillStyle = ink(color); g.fillText(text, x, y);
   }
 
   // ---- playing, seeking and hovering ----
@@ -302,7 +306,7 @@ views.replay = (() => {
       });
       const death = isDead(hit.i) ? R.deaths.filter((d) => d.name === p.name && d.ms <= t).pop() : null;
       const name = document.createElement("b");  // text only: names come from the log
-      name.style.color = p.color; name.textContent = p.name;
+      name.style.color = p.color; name.style.color = ink(p.color); name.textContent = p.name;
       tip.replaceChildren(name, ` · ${p.spec.replace(/([a-z])([A-Z])/g, "$1 $2")}`, document.createElement("br"),
         death ? `died at ${clock(death.ms)} (${death.by})` : near ? `${Math.round(near[0])} yd from ${near[1]}` : "");
       tip.style.display = "block";

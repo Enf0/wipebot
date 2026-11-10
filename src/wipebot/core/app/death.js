@@ -2,8 +2,6 @@
 // blow (or that it killed outright), their defensives then, and who died with them (death_recap's facts) ----
 views.death = (() => {
   let D = null, root = null, open = null, drawnWidth = 0;
-  const COLORS = ["#e07a5f", "#7fb069", "#c9b458", "#5fb3d4", "#d48ac7", "#b98cf5"];  // the abilities, most damage first
-  const SHOWN = 5;  // abilities named in the legend; the rest are "other"
 
   async function show(into, key, opener) {
     root = into; open = opener;
@@ -13,13 +11,12 @@ views.death = (() => {
     new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
   }
 
-  // Each ability's colour, by the damage it did in the window (absorbed included)
+  // Each ability's hue, by the damage it did in the window (absorbed included): the most first, the rest "other"
   function palette() {
     const total = new Map();
     for (const h of D.hits) total.set(h.by, (total.get(h.by) || 0) + h.amount + h.absorbed);
     const order = [...total.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([n]) => n);
-    const color = new Map(order.slice(0, SHOWN).map((n, i) => [n, COLORS[i]]));
-    return { order, color: (n) => color.get(n) || "var(--muted)" };
+    return { order, hues: kit.palette(order) };
   }
 
   function stats() {
@@ -54,8 +51,7 @@ views.death = (() => {
     const width = Math.max(300, drawnWidth || 640), p = D.player;
     const sub = [`${p.spec} ${p.class}`, D.title, `died ${kit.clock(D.at_ms)}`, D.fallout ? "after the wipe was decided" : null,
                  D.deaths > 1 ? `death ${D.death} of ${D.deaths}` : null].filter(Boolean).join(" · ");
-    const head = `<div class="head"><h1 style="color:${kit.esc(p.color)}">${kit.esc(p.name)}</h1><span class="sub">${kit.esc(sub)}</span></div>`;
-    const card = head + stats() + verdict() + chart(full ? Math.max(560, width) : width, full);
+    const card = kit.head(p.name, sub, p.color) + stats() + verdict() + chart(full ? Math.max(560, width) : width, full);
     if (picture) { root.innerHTML = card; return; }
     root.innerHTML = card + (full ? hitList() : "")
       + `<div class="actions">${app.canGoFullscreen() && !full ? '<button class="primary" id="dv-open">Open death</button>' : ""}`
@@ -68,7 +64,7 @@ views.death = (() => {
   // The window before the death: each hit a bar (what got through, solid; what was absorbed, light), their health
   // after it (the line), the healing they got each second (green), and the killing blow at the right edge
   function chart(W, lanes) {
-    const { order, color } = palette();
+    const { order, hues } = palette();
     const L = 44, R = 44, T = 18, plotH = lanes ? 200 : 130, from = D.at_ms - D.window_ms;
     const x = (ms) => L + (ms - from) / D.window_ms * (W - L - R);
     const heal = D.healing.filter(([ms]) => ms + 1000 > from);
@@ -89,11 +85,11 @@ views.death = (() => {
     }
     const bw = Math.max(3, Math.min(9, sec / 5));
     for (const h of D.hits) {
-      const cx = x(h.ms), c = color(h.by);
+      const cx = x(h.ms), c = hues.svg(h.by);
       const tip = `${kit.clock(h.ms)} ${h.by}: ${kit.short(h.amount)}` + (h.absorbed ? ` (${kit.short(h.absorbed)} absorbed)` : "")
         + (h.overkill ? `, overkill ${kit.short(h.overkill)}` : "") + (h.hp != null ? ` → ${h.hp}% health` : "");
-      if (h.absorbed) o += `<rect x="${cx - bw / 2}" y="${y(h.amount + h.absorbed)}" width="${bw}" height="${y(h.amount) - y(h.amount + h.absorbed)}" fill="${c}" opacity=".35"/>`;
-      if (h.amount) o += `<rect x="${cx - bw / 2}" y="${y(h.amount)}" width="${bw}" height="${T + plotH - y(h.amount)}" fill="${c}"/>`;
+      if (h.absorbed) o += `<rect x="${cx - bw / 2}" y="${y(h.amount + h.absorbed)}" width="${bw}" height="${y(h.amount) - y(h.amount + h.absorbed)}" ${c} opacity=".35"/>`;
+      if (h.amount) o += `<rect x="${cx - bw / 2}" y="${y(h.amount)}" width="${bw}" height="${T + plotH - y(h.amount)}" ${c}/>`;
       o += kit.hit(cx - 5, T, 10, plotH, tip);
     }
     // health after each hit; it drops to 0 at the death unless it killed outright (no hit: the line stops)
@@ -107,12 +103,12 @@ views.death = (() => {
     o += kit.icon(D.img_base, D.icon, kx - 22, T - 16, 14, D.by);
     o += kit.text(kx - (D.icon && D.img_base ? 26 : 4), T - 5, D.outright ? `${D.by}: killed outright` : `killed by ${D.by}`, "td", 'text-anchor="end" font-weight="600"', kit.SIZE.value);
     // the legend: the abilities by damage, then healing and health
-    const keys = order.slice(0, SHOWN).map((n) => {
+    const keys = order.filter(hues.has).map((n) => {
       const ic = D.hits.find((h) => h.by === n)?.icon;
-      return [(lx, ly) => (kit.icon(D.img_base, ic, lx, ly - 10, 12) || `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="${color(n)}"/>`)
-        + `<rect x="${lx}" y="${ly + 2}" width="12" height="2" fill="${color(n)}"/>`, n];
+      return [(lx, ly) => (kit.icon(D.img_base, ic, lx, ly - 10, 12) || `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" ${hues.svg(n)}/>`)
+        + `<rect x="${lx}" y="${ly + 2}" width="12" height="2" ${hues.svg(n)}/>`, n];
     });
-    if (order.length > SHOWN) keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="var(--muted)"/>`, "other"]);
+    if (order.some((n) => !hues.has(n))) keys.push([(lx, ly) => `<rect x="${lx + 0.5}" y="${ly - 8.5}" width="9" height="9" rx="2" ${hues.svg("")}/>`, "other"]);
     keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="var(--green)" opacity=".35"/>`, "healing received /s"]);
     keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="2"/>`, "health after each hit"]);
     let lx = 6, ly = T + plotH + 36;

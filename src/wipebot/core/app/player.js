@@ -48,8 +48,7 @@ views.player = (() => {
     const width = Math.max(300, drawnWidth || 640);
     const p = D.player;
     const sub = [who(), p.hero, p.ilvl ? `item level ${p.ilvl}` : null, D.title].filter(Boolean).join(" · ");
-    const head = `<div class="head"><h1 style="color:${kit.esc(p.color)}">${kit.esc(p.name)}</h1><span class="sub">${kit.esc(sub)}</span></div>`;
-    let html = head + stats() + standing(width) + ribbon({ W: full ? Math.max(560, width) : width, lanes: full });
+    let html = kit.head(p.name, sub, p.color) + stats() + standing(width) + ribbon({ W: full ? Math.max(560, width) : width, lanes: full });
     if (picture) {
       root.innerHTML = html + (D.top && typeof D.top === "object" ? topSection(width, TOP_ROWS) : "");
       return;
@@ -91,7 +90,7 @@ views.player = (() => {
       let o = kit.text(L, 12, `${what} parse against ${who()} kills of ${D.boss}`, "tm");
       o += `<rect x="${x(0)}" y="22" width="${x(100) - x(0)}" height="8" rx="4" fill="var(--line)"/>`;
       o += `<rect x="${x(0)}" y="22" width="${x(s.percentile) - x(0)}" height="8" rx="4" fill="var(--gold)"/>`;
-      o += `<circle cx="${x(s.percentile)}" cy="26" r="7" fill="${kit.esc(D.player.color)}" stroke="var(--bg)" stroke-width="2"/>`;
+      o += `<circle cx="${x(s.percentile)}" cy="26" r="7" ${kit.cls(D.player.color)} stroke="var(--bg)" stroke-width="2"/>`;
       o += kit.text(x(s.percentile), 48, `${s.percentile}th percentile`, "t", 'text-anchor="middle" font-weight="600"', kit.SIZE.value);
       return kit.svg(W, 56, o, `${D.player.name}'s parse: ${s.percentile}th percentile`);
     }
@@ -111,7 +110,7 @@ views.player = (() => {
       o += kit.text(x(v), y + 24 + row * 22, label, "tm", 'text-anchor="middle"');
       o += kit.text(x(v), y + 35 + row * 22, kit.short(v), "tm", 'text-anchor="middle"');
     }
-    o += `<circle cx="${x(s.mine)}" cy="${y + 4}" r="7" fill="${kit.esc(D.player.color)}" stroke="var(--bg)" stroke-width="2"/>`;
+    o += `<circle cx="${x(s.mine)}" cy="${y + 4}" r="7" ${kit.cls(D.player.color)} stroke="var(--bg)" stroke-width="2"/>`;
     const mine = `${D.player.name} ${kit.short(s.mine)}`, right = x(s.mine) + kit.width(mine, kit.SIZE.value) + 12 > W;
     o += kit.text(right ? x(s.mine) - 10 : x(s.mine) + 10, y - 6, mine, "t", `${right ? 'text-anchor="end"' : ""} font-weight="600"`, kit.SIZE.value);
     const h = y + (ends[1] !== undefined ? 62 : 40);
@@ -216,13 +215,13 @@ views.player = (() => {
       // red where the tool flags it off (never cast, far fewer, far more), orange outside the top's range; a spell
       // cast before the pull or an item not worn is no fault
       const off = /^(never cast|far )/.test(r.flag);
-      const fill = off ? "var(--dead)" : r.mine < r.low || r.mine > r.high ? "var(--decided)" : kit.esc(D.player.color);
+      const fill = off ? 'fill="var(--dead)"' : r.mine < r.low || r.mine > r.high ? 'fill="var(--decided)"' : kit.cls(D.player.color);
       o += kit.icon(D.img_base, r.icon, 0, y - 7, 14) + kit.text(r.icon && D.img_base ? 19 : 0, y + 4, r.name.length > 24 ? r.name.slice(0, 23) + "…" : r.name, "t");
       o += kit.line(L, y, W - R, y, "var(--line)");
       o += `<rect x="${x(r.low)}" y="${y - 4}" width="${Math.max(2, x(r.high) - x(r.low))}" height="8" rx="4" fill="var(--muted)" opacity=".3"/>`;
       o += kit.line(x(r.median), y - 7, x(r.median), y + 7, "var(--gold)", 'stroke-width="2.4"');
       const tip = `${r.name}: ${r.mine.toFixed(1)} a minute alive; the top ${t.parses}: ${r.low.toFixed(1)}–${r.high.toFixed(1)}, median ${r.median.toFixed(1)}` + (r.flag ? `\n${r.flag[0].toUpperCase()}${r.flag.slice(1)}` : "");
-      o += `<circle cx="${x(r.mine)}" cy="${y}" r="5" fill="${fill}" stroke="var(--bg)" stroke-width="1.5"/>` + kit.hit(L, y - 9, W - R - L, 18, tip);
+      o += `<circle cx="${x(r.mine)}" cy="${y}" r="5" ${fill} stroke="var(--bg)" stroke-width="1.5"/>` + kit.hit(L, y - 9, W - R - L, 18, tip);
       o += kit.text(W - R + 8, y + 4, `${r.mine.toFixed(1)} / ${r.median.toFixed(1)}`, off ? "td" : "t");
     });
     const h = T + rows.length * rh + 4;

@@ -82,7 +82,7 @@ views.pull = (() => {
       let cut = "";
       if (d.fallout && !cutShown && D.decided) { cut = `<li class="cut">${kit.esc(kit.clock(D.decided.ms))}: ${kit.esc(D.decided.why)}; later deaths are fallout</li>`; cutShown = true; }
       return cut + `<li class="${d.fallout ? "fallout" : ""}"><button data-ms="${d.ms}" title="Replay from just before">`
-        + `<span class="at">${kit.clock(d.ms)}</span><span><span class="who" style="color:${kit.esc(d.color)}">${kit.esc(d.name)}</span>`
+        + `<span class="at">${kit.clock(d.ms)}</span><span><span ${kit.cls(d.color, "who cls")}>${kit.esc(d.name)}</span>`
         + `<span class="by">${kit.iconImg(D.img_base, d.icon)}${kit.esc(d.by)} · ${d.alive} alive</span></span></button></li>`;
     }).join("");
     return `<div class="deaths"><h2>Deaths (${D.deaths.length})</h2><ol>${rows || '<li class="cut">none</li>'}</ol></div>`;

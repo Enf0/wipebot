@@ -33,11 +33,11 @@ views.versus = (() => {
       if (i % 2 === 0) body += `<rect x="0" y="${y - 5}" width="${W}" height="${ROW}" fill="var(--panel)" opacity="0.5"/>`;
       if (a.cpm) {
         const w = a.cpm / most * bar;
-        body += `<rect x="${left + bar - w}" y="${mid - 5}" width="${w}" height="10" rx="2" fill="${kit.esc(D.a.color)}" opacity="0.85"${kit.tip(tip(D.a.name, a))}/>`;
+        body += `<rect x="${left + bar - w}" y="${mid - 5}" width="${w}" height="10" rx="2" ${kit.cls(D.a.color, "cb")} opacity="0.85"${kit.tip(tip(D.a.name, a))}/>`;
       }
       if (b.cpm) {
         const w = b.cpm / most * bar;
-        body += `<rect x="${right}" y="${mid - 5}" width="${w}" height="10" rx="2" fill="${kit.esc(bColor)}" opacity="0.85"${kit.tip(tip(D.b.name, b))}/>`;
+        body += `<rect x="${right}" y="${mid - 5}" width="${w}" height="10" rx="2" ${kit.cls(bColor, "cb")} opacity="0.85"${kit.tip(tip(D.b.name, b))}/>`;
       }
       const cls = (w) => far(w) ? "tg" : "tm";
       if (a.cpm != null) body += kit.text(left + bar - 4 - (a.cpm / most * bar), mid + 3.5, a.cpm.toFixed(1), cls("casts"), 'text-anchor="end"');
@@ -54,7 +54,7 @@ views.versus = (() => {
 
   function render() {
     if (!D || !root) return;
-    const A = D.a, B = D.b, name = (s) => `<span class="cls" style="--c:${kit.esc(s.color)}">${kit.esc(s.name)}</span>`;
+    const A = D.a, B = D.b, name = (s) => `<span ${kit.cls(s.color)}>${kit.esc(s.name)}</span>`;
     const where = D.pull ? `${D.boss} pull ${D.pull}` : `${D.boss}, ${D.pulls} pulls both were in`;
     const head = `<div class="head"><h1>${name(A)} <span class="tm">against</span> ${name(B)}</h1>`
       + `<span class="sub">${kit.esc(A.spec === B.spec ? A.spec : `${A.spec} · ${B.spec}`)} · ${kit.esc(where)}</span></div>`;

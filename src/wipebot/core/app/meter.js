@@ -63,7 +63,7 @@ views.meter = (() => {
       + `<span class="dd">${b.died_after ? `${SKULL}${b.died_after}` : ""}</span>`
       + `<span class="val">${then && b.was != null ? `<small class="old">${kit.short(b.was)} →</small>` : ""}${amount(m, b.value)}<small>${kit.esc(per)}</small></span>${last}`;
     // the row twice: in the page's colours, and over it in the text colour for the bar, cut to the bar's length
-    return `<li class="${marked(b) ? "ringed" : ""}" style="--c:${kit.esc(b.color)};--w:${w.toFixed(2)}%"${kit.tip(tip)}><span class="fill"></span>`
+    return `<li class="${marked(b) ? "ringed" : ""}" style="--c:${kit.esc(b.color)};--w:${w.toFixed(2)}%"${kit.tip(tip)}><span class="fill cb"></span>`
       + `<div class="row">${row}</div><div class="row on" aria-hidden="true">${row}</div>${tick}</li>`;
   }
 

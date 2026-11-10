@@ -2,11 +2,21 @@
 :root {
   color-scheme: light dark;  /* the host's colors may be light-dark() pairs: the theme it names picks one */
   --fb-bg: #0b101e; --fb-panel: #131a2c; --fb-ink: #ecf0f8; --fb-muted: #9aa3b8; --fb-line: #232c44;
-  --gold: #f5c542; --dead: #ff5c5c; --decided: #f5a142; --blue: #7aa2ff; --green: #4fd18b; --p2: #6f8fd8;
+  /* What a colour says, in every view: gold the boss and a best, dead a death, decided the moment a wipe was decided
+     and what to fix, green what went well, blue the raid's own. Each is a mark (a fill, a line, a dot: 3:1 at least on
+     the card and its panels, in the hosts' greys too) and an ink (the same as text: 4.5:1). Gold, decided, dead and
+     green stay apart for red-green colour-blind readers; a test measures all of it (test_views.py). */
+  --gold: #f5c542; --gold-ink: #f5c542; --dead: #ff5c5c; --fb-dead-ink: #ff7873; --decided: #fb8e0a; --fb-decided-ink: #fb8e0a;
+  --green: #64d594; --fb-good-ink: #64d594; --blue: #7aa2ff; --p2: #6f8fd8;
+  /* What only its colour tells apart (how a night's pulls ended, the abilities in a death, a note's kinds of callout)
+     takes these four in order, the same in every view; past four it is "other", drawn hollow (kit.palette) */
+  --cat-1: #528dff; --cat-2: #b05baa; --cat-3: #89f4ed; --cat-4: #b6b4fe;
 }
 :root[data-theme="light"] {
   --fb-bg: #ffffff; --fb-panel: #f3f5f9; --fb-ink: #141a2b; --fb-muted: #586179; --fb-line: #dde2ea;
-  --gold: #a87a06; --dead: #d43c3c; --decided: #c9741f; --blue: #2f62c9; --green: #23845a; --p2: #4f72c4;
+  --gold: #b38309; --gold-ink: #856302; --dead: #ac001e; --fb-dead-ink: #ac001e; --decided: #ba4900; --fb-decided-ink: #ba4900;
+  --green: #339c6d; --fb-good-ink: #037649; --blue: #2f62c9; --p2: #4f72c4;
+  --cat-1: #2954bc; --cat-2: #86248d; --cat-3: #0389a0; --cat-4: #9379d7;
 }
 :root {
   --bg: var(--color-background-primary, var(--fb-bg));
@@ -14,6 +24,10 @@
   --ink: var(--color-text-primary, var(--fb-ink));
   --muted: var(--color-text-secondary, var(--fb-muted));
   --line: var(--color-border-secondary, var(--fb-line));
+  /* text that says a state is the host's own text for it, where it gives one; marks keep ours */
+  --dead-ink: var(--color-text-danger, var(--fb-dead-ink));
+  --decided-ink: var(--color-text-warning, var(--fb-decided-ink));
+  --good-ink: var(--color-text-success, var(--fb-good-ink));
   --sk: color-mix(in srgb, var(--ink) 8%, transparent);  /* placeholders while loading, in either theme */
   --font: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
 }
@@ -32,7 +46,19 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 svg { display: block; width: 100%; height: auto; overflow: visible; }
 svg text { font-family: var(--font); }
-.t { fill: var(--ink); } .tm { fill: var(--muted); } .tg { fill: var(--gold); } .td { fill: var(--dead); } .to { fill: var(--decided); }
+.t { fill: var(--ink); } .tm { fill: var(--muted); } .tg { fill: var(--gold-ink); } .td { fill: var(--dead-ink); } .to { fill: var(--decided-ink); }
+/* A class's colour (--c: the game's, made for a dark interface) is drawn two ways. As text or a thin line it is the
+   class's ink (--ci): its hue, with the lightness kept where it reads on the card, so a priest's white is a mid grey
+   on a light card and a death knight's red a lighter red on a dark one. As a bar it stays the true colour, its edge in
+   the ink. Where a browser has no relative colours, the ink is the colour itself. */
+.cls, .cl, .cb { --ci: var(--c); }
+@supports (color: oklch(from red min(l, .5) c h)) {
+  .cls, .cl, .cb { --ci: oklch(from var(--c) max(l, .72) c h); }
+  :root[data-theme="light"] :is(.cls, .cl, .cb) { --ci: oklch(from var(--c) min(l, .51) min(c, .16) h); }
+}
+.cls { color: var(--ci); fill: var(--ci); }
+.cl { stroke: var(--ci); }
+.cb { fill: var(--c); background: var(--c); stroke: var(--ci); stroke-width: 1px; box-shadow: inset 0 0 0 1px var(--ci); }
 #tooltip { position: fixed; z-index: 10; display: none; pointer-events: none; max-width: 280px; padding: 6px 9px;
            border-radius: 8px; font-size: 12.5px; line-height: 1.35; background: var(--panel); color: var(--ink);
            border: 1px solid var(--line); box-shadow: 0 4px 14px rgb(0 0 0 / .25); white-space: pre-line; }
@@ -66,21 +92,21 @@ svg text.to, svg text.tg { paint-order: stroke; stroke: var(--bg); stroke-width:
 .stats { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 0 2px 8px; }
 .stat .k { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .stat .v { font-weight: 600; font-variant-numeric: tabular-nums; }
-.stat .v.dead { color: var(--dead); } .stat .v.decided { color: var(--decided); } .stat .v.good { color: var(--green); }
+.stat .v.dead { color: var(--dead-ink); } .stat .v.decided { color: var(--decided-ink); } .stat .v.good { color: var(--good-ink); }
 .stat .n { font-size: 11.5px; color: var(--muted); }
 .standing { font-size: 12px; color: var(--muted); margin: -4px 2px 8px; }
-.standing .best { color: var(--gold); }
+.standing .best { color: var(--gold-ink); }
 .notes { list-style: none; margin: 0 2px 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2px 18px; font-size: 12.5px; }
 .notes li { display: flex; gap: 6px; }
 .notes .mk { font-weight: 800; font-size: 14px; line-height: 17px; width: 12px; flex: none; }
-.notes .good .mk { color: var(--green); } .notes .fix .mk { color: var(--decided); }
+.notes .good .mk { color: var(--good-ink); } .notes .fix .mk { color: var(--decided-ink); }
 .killers { list-style: none; margin: 0 2px 4px; padding: 0; display: grid; grid-template-columns: max-content auto minmax(0, 1fr); gap: 6px 10px; align-items: center; font-size: 12.5px; }
 .killers li { display: contents; }
 .killers .kn { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.killers .kc { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; color: var(--dead); }
+.killers .kc { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; color: var(--dead-ink); }
 .killers .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { min-width: 24px; height: 20px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px/18px inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
-.chip.saved { border-color: var(--green); color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+.chip.saved { border-color: var(--green); color: var(--good-ink); background: color-mix(in srgb, var(--green) 14%, transparent); }
 .chip.unknown { border-style: dashed; opacity: .7; }
 .chip.outright { text-decoration: line-through; opacity: .75; }
 .chip.sample { display: inline-block; text-align: center; cursor: default; margin-right: 4px; }
@@ -102,7 +128,7 @@ svg text.to, svg text.tg { paint-order: stroke; stroke: var(--bg); stroke-width:
 .cds li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; }
 .cds .times { grid-column: 1 / -1; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cds .count { font-variant-numeric: tabular-nums; font-weight: 600; }
-.cds .short { color: var(--decided); }
+.cds .short { color: var(--decided-ink); }
 .note { font-size: 12px; color: var(--muted); margin: 6px 2px 0; }
 table.pulls { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 table.pulls th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
@@ -110,7 +136,7 @@ table.pulls th { text-align: left; font-weight: 600; font-size: 11px; letter-spa
 table.pulls td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.pulls tbody tr { cursor: pointer; }
 table.pulls tbody tr:hover { background: var(--panel); }
-table.pulls tr.counted td:nth-child(6) { color: var(--dead); font-weight: 600; }
+table.pulls tr.counted td:nth-child(6) { color: var(--dead-ink); font-weight: 600; }
 table.pulls td.fallout { color: var(--muted); }
 .actions { display: flex; gap: 8px; padding: 10px 2px 0; flex-wrap: wrap; }
 .full { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; align-items: start; }
@@ -124,10 +150,9 @@ table.pulls td.fallout { color: var(--muted); }
 .deaths li button:hover { border-color: var(--line); background: var(--bg); }
 .deaths li .at { font-variant-numeric: tabular-nums; color: var(--muted); }
 .deaths li .who { font-weight: 600; }
-:root[data-theme="light"] .deaths li .who { filter: brightness(.72) saturate(1.3); }  /* class colors are for dark */
 .deaths li .by { display: block; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 .deaths li.fallout { opacity: .55; }
-.deaths .cut { font-size: 11.5px; color: var(--decided); margin: 6px 6px 4px; }
+.deaths .cut { font-size: 11.5px; color: var(--decided-ink); margin: 6px 6px 4px; }
 
 /* the replay */
 #rp-clock { font-variant-numeric: tabular-nums; color: var(--muted); }
@@ -149,7 +174,7 @@ table.pulls td.fallout { color: var(--muted); }
 .mark.plan { background: var(--gold); top: 11px; height: 10px; }
 #rp-moments { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 2px 0; }
 #rp-moments button { height: 28px; font-size: 12.5px; padding: 0 8px; font-variant-numeric: tabular-nums; }
-#rp-moments button.on { border-color: var(--gold); color: var(--gold); }
+#rp-moments button.on { border-color: var(--gold); color: var(--gold-ink); }
 @media (max-width: 480px) { #rp-event { margin-left: 0; width: 100%; } }
 
 /* the meter: a bar per player in their class colour, scaled to the top one, as in-game damage meters draw it */
@@ -159,11 +184,10 @@ table.pulls td.fallout { color: var(--muted); }
                  background: color-mix(in srgb, var(--line) 45%, transparent); }
 .meter-rows .row { position: absolute; inset: 0; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto 38px; gap: 8px;
                    align-items: center; padding: 0 8px 0 4px; }
-/* the fill in the class's own colour, as the game's meters draw it, and the text on it in black or white, whichever
-   reads on that colour (white on a death knight's red, a demon hunter's purple and a shaman's blue); in the light
-   theme an outline a shade darker than the fill, so a priest's white shows where it ends */
-.meter-rows .fill { position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--c); }
-:root[data-theme="light"] .meter-rows .fill { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 70%, #000); border-radius: 4px 0 0 4px; }
+/* the fill in the class's own colour, as the game's meters draw it (.cb: its edge in the class's ink, so a priest's
+   white shows where it ends on a light card), and the text on it in black or white, whichever reads on that colour
+   (white on a death knight's red, a demon hunter's purple and a shaman's blue) */
+.meter-rows .fill { position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 4px 0 0 4px; }
 .meter-rows .row:not(.on) { clip-path: inset(0 0 0 var(--w)); }
 .meter-rows .on { clip-path: inset(0 calc(100% - var(--w)) 0 0); color: #fff; color: oklch(from var(--c) clamp(0, (.58 - l) * 1000, 1) 0 0); }
 .meter-rows li .row.on * { color: inherit; }
@@ -172,7 +196,7 @@ table.pulls td.fallout { color: var(--muted); }
 .meter-rows .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meter-rows .nm small { font-weight: 400; color: var(--muted); margin-left: 6px; font-size: 11.5px; }
 .meter-rows .nm small.role { text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
-.meter-rows .dd { color: var(--dead); font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
+.meter-rows .dd { color: var(--dead-ink); font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
 .meter-rows .val { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .meter-rows .val small { font-weight: 400; color: var(--muted); margin-left: 4px; font-size: 11.5px; }
 .meter-rows .pc { color: var(--muted); font-size: 11.5px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -181,13 +205,13 @@ table.pulls td.fallout { color: var(--muted); }
 .meter { padding-top: 2px; }
 .meter .stats { padding-bottom: 18px; }
 .meter .head h1 .ic { width: 18px; height: 18px; vertical-align: -4px; }
-svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2px; margin-right: 3px; color: var(--dead); }
+svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2px; margin-right: 3px; color: var(--dead-ink); }
 /* against another night: a tick at that night's amount, the change last; the one asking ringed */
 .meter-rows li > .was { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; border-radius: 2px;
                         background: var(--ink); box-shadow: 0 0 0 1.5px var(--bg); }
 .meter-rows .val small.old { margin: 0 6px 0 0; }
 .meter-rows .dl { font-size: 11.5px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
-.meter-rows .dl.good { color: var(--green); } .meter-rows .dl.bad { color: var(--dead); }
+.meter-rows .dl.good { color: var(--good-ink); } .meter-rows .dl.bad { color: var(--dead-ink); }
 .meter-rows.then .row { grid-template-columns: 22px minmax(0, 1fr) auto auto 46px; }
 .meter-rows li.ringed { outline: 2px solid var(--gold); outline-offset: 1px; }
 .meter-rows li.gap { background: none; height: 12px; padding-left: 30px; color: var(--muted); line-height: 10px; }
@@ -200,6 +224,8 @@ svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2
 .note-board .grid svg { min-width: 520px; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--muted); margin: 4px 2px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend i.miss { background: linear-gradient(45deg, transparent 42%, var(--bg) 42% 58%, transparent 58%),
+                             linear-gradient(-45deg, transparent 42%, var(--bg) 42% 58%, transparent 58%), var(--dead); }
 .note-board .sec { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 12px 2px 4px; }
 .tally { list-style: none; margin: 0 2px; padding: 0; display: grid; gap: 3px; max-width: 420px; }
 .tally li { display: grid; grid-template-columns: 110px 1fr 24px; gap: 8px; align-items: center; font-size: 12.5px; }
@@ -207,6 +233,3 @@ svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2
 .tally .bar { height: 10px; border-radius: 3px; background: var(--panel); overflow: hidden; }
 .tally .bar i { display: block; height: 100%; opacity: .8; }
 .tally .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
-/* a name in its class colour, a step toward the ink so a priest's white still reads on a light page */
-.note-board .cls { fill: color-mix(in srgb, var(--c) 78%, var(--ink)); color: color-mix(in srgb, var(--c) 78%, var(--ink)); }
-:root[data-theme="light"] .note-board .cls { fill: color-mix(in srgb, var(--c) 62%, var(--ink)); color: color-mix(in srgb, var(--c) 62%, var(--ink)); }

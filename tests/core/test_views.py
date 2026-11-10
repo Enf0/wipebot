@@ -3,7 +3,9 @@ snapshot; the page drawn in the mock host (viewhost.py, Chromium); the replay's 
 maps.replay packs (Node)."""
 import contextlib
 import io
+import itertools
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -16,6 +18,7 @@ from tests.support import assert_snapshot
 from tests.support.paths import REAL
 from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Replay, serve_from
 from wipebot.core import server
+from wipebot.core.classes import CLASS_COLORS, WHITE
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import maps, views
 from wipebot.core.report import note as notes
@@ -512,6 +515,118 @@ async def test_chart_text_is_drawn_at_the_sizes_asked_and_the_mock_host_refuses_
         assert twice
         [refused] = (await viewhost._markup_errors(view.page))[:1]
         assert "Attribute 'font-size' is redefined" in refused
+
+
+# ---- the colours, measured: contrast on the card (WCAG 2), and how far apart two are for a red-green colour-blind
+# reader (Machado, Oliveira and Fernandes 2009, full protanopia and deuteranopia; the distance in OKLab, times 100) ----
+
+def _linear(rgb: list[int]) -> list[float]:
+    return [c / 3294.6 if c <= 10 else ((c / 255 + 0.055) / 1.055) ** 2.4 for c in rgb]
+
+
+def contrast(a: list[int], b: list[int]) -> float:
+    lighter, darker = sorted((0.2126 * r + 0.7152 * g + 0.0722 * bl + 0.05 for r, g, bl in (_linear(a), _linear(b))),
+                             reverse=True)
+    return lighter / darker
+
+
+SEEN_BY = {  # linear RGB as each sees it
+    "protan": ((0.152286, 1.052583, -0.204868), (0.114503, 0.786281, 0.099216), (-0.003882, -0.048116, 1.051998)),
+    "deutan": ((0.367322, 0.860646, -0.227968), (0.280085, 0.672501, 0.047413), (-0.011820, 0.042940, 0.968881)),
+}
+
+
+def _oklab(lin: list[float]) -> tuple[float, float, float]:
+    r, g, b = lin
+    lo, m, s = (x ** (1 / 3) for x in (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+                                       0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+                                       0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b))
+    return (0.2104542553 * lo + 0.7936177850 * m - 0.0040720468 * s,
+            1.9779984951 * lo - 2.4285922050 * m + 0.4505937099 * s,
+            0.0259040371 * lo + 0.7827717662 * m - 0.8086757660 * s)
+
+
+def apart(a: list[int], b: list[int], seen_by: str | None = None) -> float:
+    """How far apart two colours are (OKLab times 100), as everyone sees them or as `seen_by` does."""
+    def lab(rgb):
+        lin = _linear(rgb)
+        if seen_by:
+            lin = [min(1.0, max(0.0, sum(k * c for k, c in zip(row, lin, strict=True)))) for row in SEEN_BY[seen_by]]
+        return _oklab(lin)
+    return 100 * math.dist(lab(a), lab(b))
+
+
+def test_the_colour_maths_matches_known_values():
+    assert round(contrast([255, 255, 255], [0, 0, 0]), 2) == 21.0
+    assert round(contrast([118, 118, 118], [255, 255, 255]), 2) == 4.54  # the grey that just passes AA on white
+    # red and green of one lightness: far apart for most, close for a deuteranope
+    assert apart([200, 60, 50], [90, 140, 40]) > 25 and apart([200, 60, 50], [90, 140, 40], "deutan") < 12
+
+
+COLOURS = """(classes) => {
+  const c = document.createElement("canvas"); c.width = c.height = 1;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  const rgb = (color) => {
+    g.fillStyle = color; g.fillRect(0, 0, 1, 1);
+    return [...g.getImageData(0, 0, 1, 1).data].slice(0, 3);
+  };
+  const probe = document.body.appendChild(document.createElement("span"));
+  const of = (name) => { probe.style.color = `var(--${name})`; return rgb(getComputedStyle(probe).color); };
+  const all = (names) => Object.fromEntries(names.map((n) => [n, of(n)]));
+  const made = (cls, hex) => {
+    probe.className = cls; probe.style.cssText = `--c:${hex}`;
+    return getComputedStyle(probe);
+  };
+  const out = { card: all(["bg", "panel"]),
+                text: all(["ink", "muted", "gold-ink", "dead-ink", "decided-ink", "good-ink"]),
+                mark: all(["gold", "dead", "decided", "green", "blue", "p2"]),
+                hue: all(["cat-1", "cat-2", "cat-3", "cat-4"]), name: {}, bar: {} };
+  for (const [name, hex] of Object.entries(classes)) {
+    out.name[name] = rgb(made("cls", hex).color);
+    const bar = made("cb", hex);
+    out.bar[name] = [rgb(bar.backgroundColor), rgb(bar.stroke)];
+  }
+  const line = document.querySelector('svg line[stroke="var(--decided)"]');
+  const says = [...document.querySelectorAll("svg text.to")].some((t) => t.textContent.startsWith("decided "));
+  out.decided = { dashed: !!line && !!line.getAttribute("stroke-dasharray"), named: says };
+  return out;
+}"""
+
+
+@pytest.mark.parametrize("theme", ["dark", "light"])
+@pytest.mark.parametrize("tokens", ["none", "claude"])
+async def test_every_colour_reads_on_the_card_and_stays_apart_for_the_colour_blind(recorded, theme, tokens):
+    """On our own card and on a host's (the mock host's Claude-like tokens), its panel too: text at 4.5:1 (a class's
+    name in its ink, the states' inks, the host's own text), marks at 3:1; and what colour tells apart stays 8 apart
+    for a red-green colour-blind reader, the moment a wipe was decided dashed and named besides."""
+    classes = {name: "#" + rgb for name, rgb in CLASS_COLORS.items()} | {"a new class": "#" + WHITE}
+    async with drawn("pull_summary", PULL_CASE.args, theme=theme, tokens=tokens) as (view, errors):
+        seen = await view.evaluate(COLOURS, classes)
+    assert not errors
+    for where, card in seen["card"].items():
+        for name, rgb in (seen["text"] | seen["name"]).items():
+            assert contrast(rgb, card) >= 4.5, (name, where, round(contrast(rgb, card), 2))
+        for name, rgb in (seen["mark"] | seen["hue"]).items():
+            assert contrast(rgb, card) >= 3, (name, where, round(contrast(rgb, card), 2))
+    # a bar keeps the class's own colour, its edge in the ink: a priest's white bar ends where its outline does
+    for name, (fill, edge) in seen["bar"].items():
+        assert fill == [int(classes[name][i:i + 2], 16) for i in (1, 3, 5)] and edge == seen["name"][name], name
+    states = {name: seen["mark"][name] for name in ("gold", "decided", "dead", "green")}
+    for group in (states, seen["hue"]):
+        for (a, x), (b, y) in itertools.combinations(group.items(), 2):
+            for eyes in SEEN_BY:
+                assert apart(x, y, eyes) >= 8, (a, b, eyes, round(apart(x, y, eyes), 1))
+    for (a, x), (b, y) in itertools.combinations(seen["hue"].items(), 2):
+        assert apart(x, y) >= 15, (a, b, round(apart(x, y), 1))
+    assert seen["decided"] == {"dashed": True, "named": True}
+
+
+def test_the_views_colours_are_the_pages_own():
+    """No view carries a palette of its own: every colour is one of page.css's, so it follows the theme and the host
+    and is measured above. The replay's stage is dark in either theme, with its own."""
+    for name in views.SCRIPTS:
+        script = resources.files("wipebot.core").joinpath("app", name).read_text(encoding="utf-8")
+        assert name == "replay.js" or not re.findall(r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|\brgba?\(", script), name
 
 
 async def test_the_pull_view_draws_in_a_host_without_errors(recorded, tmp_path):

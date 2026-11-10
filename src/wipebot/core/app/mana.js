@@ -31,7 +31,7 @@ views.mana = (() => {
       const path = pts.map(([t, v], i) => `${i ? "L" : "M"}${x(t).toFixed(1)} ${y(v).toFixed(1)}`).join("");
       const tip = `${hl.name} (${hl.spec})` + (hl.lowest ? `: lowest ${hl.lowest[1]}% at ${kit.clock(hl.lowest[0])}` : "")
         + (hl.low.length ? `; under ${D.low}% ${hl.low.map(([a, b]) => `${kit.clock(a)}-${kit.clock(b)}`).join(", ")}` : "");
-      body += `<path d="${path}" fill="none" stroke="${kit.esc(hl.color)}" stroke-width="2" stroke-linejoin="round"${kit.tip(tip)}/>`;
+      body += `<path d="${path}" fill="none" ${kit.cls(hl.color, "cl")} stroke-width="2" stroke-linejoin="round"${kit.tip(tip)}/>`;
       const [lt, lv] = pts[pts.length - 1] || hl.points[0];
       if (hl.dead_ms != null) body += kit.text(x(lt), y(lv) + 4, "✕", "td", `text-anchor="middle"${kit.tip(`${hl.name} died at ${kit.clock(hl.dead_ms)}`)}`, kit.SIZE.value);
     }
@@ -71,7 +71,7 @@ views.mana = (() => {
       ["Innervates", String(casts), "", D.innervates.length ? `from ${D.innervates.map((i) => i.druid).join(", ")}` : "no druid had one"],
       D.innervates.length ? ["Ready while a healer was low", `${Math.round(idle)} s`, idle ? "dead" : "", D.cooldown_s ? `its cooldown ${D.cooldown_s / 60} min, ready at the pull` : ""] : null,
     ]);
-    const names = `<div class="legend">${D.healers.map((hl) => `<span><i style="background:${kit.esc(hl.color)}"></i>${kit.esc(hl.name)}</span>`).join("")}`
+    const names = `<div class="legend">${D.healers.map((hl) => `<span><i class="cl" style="--c:${kit.esc(hl.color)};background:var(--ci)"></i>${kit.esc(hl.name)}</span>`).join("")}`
       + `<span><i style="background:var(--gold);transform:rotate(45deg) scale(.8)"></i>Innervate</span>`
       + `<span><i style="background:repeating-linear-gradient(45deg,var(--dead) 0 2px,transparent 2px 5px)"></i>ready while a healer was low</span></div>`;
     const head = `<div class="head"><h1>Healers' mana</h1><span class="sub">${kit.esc(D.boss)} pull ${D.pull}`

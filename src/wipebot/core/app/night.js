@@ -64,7 +64,7 @@ views.player_night = (() => {
     const p = D.player;
     const sub = [`${p.spec} ${p.class}`, D.boss,
                  D.pulls.length === D.total_pulls ? `${D.pulls.length} pulls` : `${D.pulls.length} of ${D.total_pulls} pulls`].join(" · ");
-    return `<div class="head"><h1 style="color:${kit.esc(p.color)}">${kit.esc(p.name)}</h1><span class="sub">${kit.esc(sub)}</span></div>`;
+    return kit.head(p.name, sub, p.color);
   }
 
   function render() {
@@ -123,7 +123,7 @@ views.player_night = (() => {
       if (r.per_s_alive != null) {
         const y = yR(r.per_s_alive);
         o += r.reset ? `<rect x="${cx - bw / 2}" y="${y}" width="${bw}" height="${T + plotH - y}" fill="none" stroke="var(--muted)" stroke-dasharray="2 2"/>`
-          : `<rect x="${cx - bw / 2}" y="${y}" width="${bw}" height="${T + plotH - y}" rx="2" fill="${other ? "var(--muted)" : kit.esc(D.player.color)}" opacity="${other ? 0.5 : 0.75}"/>`;
+          : `<rect x="${cx - bw / 2}" y="${y}" width="${bw}" height="${T + plotH - y}" rx="2" ${other ? 'fill="var(--muted)" opacity=".5"' : `${kit.cls(D.player.color, "cb")} opacity=".75"`}/>`;
         if (r.kill) o += `<rect x="${cx - bw / 2 - 1}" y="${y - 3}" width="${bw + 2}" height="3" fill="var(--gold)"/>`;
       }
       if (r.death) {
@@ -153,7 +153,7 @@ views.player_night = (() => {
     const every = Math.max(1, Math.ceil(26 / band));
     D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 36, r.pull, "tm", 'text-anchor="middle"'); });
     // the legend, wrapping on a narrow card
-    const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="10" height="8" rx="2" fill="${kit.esc(D.player.color)}" opacity=".75"/>`, `${D.what} per s alive`],
+    const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="10" height="8" rx="2" ${kit.cls(D.player.color, "cb")} opacity=".75"/>`, `${D.what} per s alive`],
       [(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--gold)" stroke-width="1.6"/>`, "boss left at the end"],
       [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4.5" fill="var(--dead)"/>`, "died (place)"],
       [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="3" fill="var(--muted)" opacity=".6"/>`, "died after it was decided"]];

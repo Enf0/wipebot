@@ -41,9 +41,11 @@ const VIEW_URL = "https://wipebot.local/view.html";
 const TOKENS = {
   claude: {
     light: { "--color-background-primary": "#ffffff", "--color-background-secondary": "#f5f4ef", "--color-text-primary": "#141413",
-             "--color-text-secondary": "#5e5d59", "--color-border-secondary": "#e8e6dc", "--font-sans": "system-ui, sans-serif" },
+             "--color-text-secondary": "#5e5d59", "--color-border-secondary": "#e8e6dc", "--font-sans": "system-ui, sans-serif",
+             "--color-text-danger": "#7f2c28", "--color-text-success": "#265b19", "--color-text-warning": "#5a4815" },
     dark: { "--color-background-primary": "#30302e", "--color-background-secondary": "#262624", "--color-text-primary": "#faf9f5",
-            "--color-text-secondary": "#c2c0b6", "--color-border-secondary": "#3e3e38", "--font-sans": "system-ui, sans-serif" },
+            "--color-text-secondary": "#c2c0b6", "--color-border-secondary": "#3e3e38", "--font-sans": "system-ui, sans-serif",
+            "--color-text-danger": "#ee8884", "--color-text-success": "#7ab948", "--color-text-warning": "#d1a041" },
   },
 };
 const $ = (id) => document.getElementById(id);

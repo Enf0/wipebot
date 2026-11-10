@@ -41,6 +41,22 @@ const kit = (() => {
     }
     return out;
   }
+  // A class's colour on a mark, for page.css to draw as the class's ink ("cls": text and dots; "cl": a line) or as a
+  // bar in the true colour with its edge in the ink ("cb")
+  const cls = (color, name = "cls") => `class="${name}" style="--c:${esc(color)}"`;
+  // What only its colour tells apart: the first four names take page.css's four hues, in the order given, and every
+  // other is "other", drawn hollow. svg: a mark's fill attributes; css: the same as an HTML swatch's style
+  const HUES = [1, 2, 3, 4].map((i) => `var(--cat-${i})`);
+  function palette(names) {
+    const hue = new Map(names.slice(0, HUES.length).map((n, i) => [n, HUES[i]]));
+    return {
+      has: (n) => hue.has(n),
+      svg: (n) => hue.has(n) ? `fill="${hue.get(n)}"` : 'fill="none" stroke="var(--muted)" stroke-width="1.2"',
+      css: (n) => hue.has(n) ? `background:${hue.get(n)}` : "background:none;box-shadow:inset 0 0 0 1.2px var(--muted)",
+    };
+  }
+  // A card's head: its title (a player's name in their class's ink) and the line beside it
+  const head = (title, sub, color) => `<div class="head"><h1${color ? ` ${cls(color)}` : ""}>${esc(title)}</h1><span class="sub">${esc(sub)}</span></div>`;
   // The card's few numbers: [label, value, class of the value, a note under it]
   const stats = (items) => `<div class="stats">${items.filter(Boolean).map(([k, v, cls, note]) =>
     `<div class="stat"><div class="k">${esc(k)}</div><div class="v ${cls || ""}">${esc(v)}</div>`
@@ -81,6 +97,6 @@ const kit = (() => {
   document.addEventListener("pointerleave", hide);
   window.addEventListener("scroll", hide, true);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE };
+  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open), drawn into root

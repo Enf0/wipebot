@@ -4,7 +4,6 @@
 // Two panels (data-panel), each its own picture in Discord; a pull's bar opens that pull's view ----
 views.night = (() => {
   let D = null, root = null, open = null, drawnWidth = 0;
-  const COLORS = ["#b98cf5", "#e07a5f", "#5fb3d4", "#7fb069", "#c9b458", "#d48ac7"];  // the endings, most pulls first
   const QUIET = new Set(["a reset", "a kill", "still going", "no death, the raid alive"]);
 
   async function show(into, key, opener) {
@@ -14,13 +13,13 @@ views.night = (() => {
     new ResizeObserver(() => { if (root === into && Math.abs(into.clientWidth - drawnWidth) > 24) render(); }).observe(into);
   }
 
-  // The ways most pulls ended keep a colour each, the most common first, and the rest share grey ("other": more hues
-  // than that can't be told apart); a reset is faint and a kill gold
-  const HUES = 4;
+  // The ways most pulls ended keep a hue each, the most common first, and the rest are "other", hollow (kit.palette:
+  // more hues than its four can't be told apart); a reset is faint and a kill gold. svg: a bar's fill; css: a swatch's
   const named = () => D.ends.map(([what]) => what).filter((w) => !QUIET.has(w));
   function colorOf() {
-    const m = new Map(named().slice(0, HUES).map((w, i) => [w, COLORS[i]]));
-    return (w) => w === "a kill" ? "var(--gold)" : w === "a reset" || w === "no death, the raid alive" ? "var(--line)" : m.get(w) || "var(--muted)";
+    const hues = kit.palette(named());
+    const quiet = (w) => w === "a kill" ? "var(--gold)" : w === "a reset" || w === "no death, the raid alive" ? "var(--line)" : w === "still going" ? "var(--muted)" : "";
+    return { hued: hues.has, svg: (w) => quiet(w) ? `fill="${quiet(w)}"` : hues.svg(w), css: (w) => quiet(w) ? `background:${quiet(w)}` : hues.css(w) };
   }
 
   const pct = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
@@ -50,7 +49,7 @@ views.night = (() => {
 
   function head() {
     const sub = [D.difficulty, `${D.pulls.length} pulls`, `${Math.round(D.combat_ms / 60000)} min in combat`, D.title.split(", ").pop()].filter(Boolean).join(" · ");
-    return `<div class="head"><h1>${kit.esc(D.boss)}</h1><span class="sub">${kit.esc(sub)}</span></div>`;
+    return kit.head(D.boss, sub);
   }
 
   // Pull by pull: boss health left (lower is better) in the colour of what ended the pull, the night's best so far
@@ -70,7 +69,7 @@ views.night = (() => {
       const tip = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : r.live ? "still going" : left}, ${kit.clock(r.duration_ms)}`
         + `\nEnded by: ${r.ended}` + (r.first ? `\nFirst death: ${r.first.name} (${r.first.by}, ${kit.clock(r.first.ms)})` : "") + "\nClick for this pull";
       if (r.kill) o += `<path d="M${cx} ${y(0) - 12} l4 8 l-8 0z" fill="var(--gold)"/>`;
-      else o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="2" fill="${color(r.ended)}"${r.reset ? ' opacity=".6"' : ""}/>`;
+      else o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="2" ${color.svg(r.ended)}${r.reset ? ' opacity=".6"' : ""}/>`;
       if (!r.reset && !r.live && r.pct != null) best = best == null ? v : Math.min(best, v);
       if (best != null) line.push([cx, y(best)]);
       o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 22}" fill="transparent" data-pull-col="${r.pull}" style="cursor:pointer"${kit.tip(tip)}/>`;
@@ -90,11 +89,11 @@ views.night = (() => {
     D.pulls.forEach((r, i) => { if (i % every === 0 || i === n - 1) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle"'); });
     // the legend, only where the list of how the pulls ended isn't drawn under it (that list is the legend): the
     // coloured endings by how many pulls, the rest as one "other", then the line
-    const hued = new Set(named().slice(0, HUES)), other = D.ends.filter(([w]) => !QUIET.has(w) && !hued.has(w)).reduce((n, [, k]) => n + k, 0);
-    const keys = !legend ? [] : D.ends.filter(([w]) => w !== "still going" && (QUIET.has(w) || hued.has(w))).map(([w, k]) =>
-      [(lx, ly) => w === "a kill" ? `<path d="M${lx + 5} ${ly - 10} l4 8 l-8 0z" fill="var(--gold)"/>` : `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="${color(w)}"/>`,
+    const other = D.ends.filter(([w]) => !QUIET.has(w) && !color.hued(w)).reduce((n, [, k]) => n + k, 0);
+    const keys = !legend ? [] : D.ends.filter(([w]) => w !== "still going" && (QUIET.has(w) || color.hued(w))).map(([w, k]) =>
+      [(lx, ly) => w === "a kill" ? `<path d="M${lx + 5} ${ly - 10} l4 8 l-8 0z" fill="var(--gold)"/>` : `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" ${color.svg(w)}/>`,
        `${w.replace(/ killing many$/, "")} ${k}`]);
-    if (legend && other) keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="var(--muted)"/>`, `other ${other}`]);
+    if (legend && other) keys.push([(lx, ly) => `<rect x="${lx + 0.5}" y="${ly - 8.5}" width="9" height="9" rx="2" ${color.svg("")}/>`, `other ${other}`]);
     keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="1.6"/>`, "best so far"]);
     let lx = 6, ly = T + plotH + 34;
     for (const [mark, name] of keys) {
@@ -164,18 +163,16 @@ views.night = (() => {
 
   function weeks(width) {
     const sub = [D.difficulty, `best pull night by night, last ${D.weeks.length === 1 ? "night" : `${D.weeks.length} nights`}`].filter(Boolean).join(" · ");
-    return `<div data-panel="weeks"><div class="head"><h1>${kit.esc(D.boss)}</h1><span class="sub">${kit.esc(sub)}</span></div>`
-      + `${weeksStats()}${weeksChart(width)}</div>`;
+    return `<div data-panel="weeks">${kit.head(D.boss, sub)}${weeksStats()}${weeksChart(width)}</div>`;
   }
 
   // How the pulls ended, and what killed each pull's first deaths: two ranked lists
   function endings() {
     const color = colorOf(), counted = D.pulls.filter((r) => !r.live).length;
     const max = Math.max(1, ...D.ends.map(([, k]) => k), ...D.firsts.map(([, k]) => k));
-    const bar = (k, c) => `<span class="bar"><span style="width:${Math.round(100 * k / max)}%;background:${c}"></span></span>`;
-    const swatch = (w) => w === "a kill" ? '<i class="sw" style="background:var(--gold)"></i>' : `<i class="sw" style="background:${color(w)}"></i>`;
-    const ends = D.ends.map(([w, k]) => `<li><span>${swatch(w)}${kit.esc(w)}</span>${bar(k, color(w))}<span class="count">${k}</span></li>`).join("");
-    const firsts = D.firsts.map(([w, k]) => `<li><span>${kit.esc(w)}</span>${bar(k, "var(--dead)")}<span class="count">${k}</span></li>`).join("");
+    const bar = (k, css) => `<span class="bar"><span style="width:${Math.round(100 * k / max)}%;${css}"></span></span>`;
+    const ends = D.ends.map(([w, k]) => `<li><span><i class="sw" style="${color.css(w)}"></i>${kit.esc(w)}</span>${bar(k, color.css(w))}<span class="count">${k}</span></li>`).join("");
+    const firsts = D.firsts.map(([w, k]) => `<li><span>${kit.esc(w)}</span>${bar(k, "background:var(--dead)")}<span class="count">${k}</span></li>`).join("");
     return `<div class="section-title">How the ${counted} pulls ended</div><ul class="ranked">${ends}</ul>`
       + `<div class="section-title">What killed the first ${D.first_n} deaths of each pull</div><ul class="ranked">${firsts}</ul>`;
   }
@@ -183,7 +180,7 @@ views.night = (() => {
   function table() {
     const color = colorOf();
     const rows = D.pulls.map((r) => `<tr data-pull="${r.pull}"><td>${r.pull}</td><td>${r.kill ? "kill" : r.reset ? "reset" : r.pct != null ? pct(r.pct) : "–"}${r.best ? " ★" : ""}</td>`
-      + `<td>${r.phase || ""}</td><td>${kit.clock(r.duration_ms)}</td><td><span class="dot" style="background:${color(r.ended)}"></span>${kit.esc(r.ended)}</td>`
+      + `<td>${r.phase || ""}</td><td>${kit.clock(r.duration_ms)}</td><td><span class="dot" style="${color.css(r.ended)}"></span>${kit.esc(r.ended)}</td>`
       + `<td>${r.first ? `${kit.esc(r.first.name)} (${kit.esc(r.first.by)}, ${kit.clock(r.first.ms)})` : ""}</td></tr>`).join("");
     return `<div class="section-title">Pull by pull (click one for its view; ★ best of the night until then)</div><div class="scroll-x"><table class="pulls"><thead><tr>`
       + `<th>Pull</th><th>Boss</th><th>Phase</th><th>Length</th><th>Ended by</th><th>First death</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -194,11 +191,12 @@ views.night = (() => {
     const full = app.context().displayMode === "fullscreen", picture = app.picture();
     drawnWidth = root.clientWidth;
     const width = Math.max(300, drawnWidth || 640);
-    // Asked night by night, those come first; a picture then leaves out how tonight's pulls ended, and the chart has
-    // its own legend. A picture of two nights' best pulls says no more than the answer's text: from three
+    // Asked night by night, those come first; a picture then leaves out how tonight's pulls ended. The chart has its
+    // own legend wherever that list isn't under it: in a picture each panel is posted alone.
+    // A picture of two nights' best pulls says no more than the answer's text: from three
     const nights = D.weeks && D.weeks.length >= (picture ? 3 : 1) ? weeks(width) : "";
     const listed = !(nights && picture);
-    const tonight = `<div data-panel="pulls">${head()}${stats()}${chart(width, full, !listed)}</div>`;
+    const tonight = `<div data-panel="pulls">${head()}${stats()}${chart(width, full, picture || !listed)}</div>`;
     const panels = nights + tonight + (listed ? `<div data-panel="endings">${endings()}</div>` : "");
     if (picture) { root.innerHTML = panels; return; }
     root.innerHTML = (full ? bosses() : "") + panels + (full ? table()
