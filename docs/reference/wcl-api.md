@@ -35,6 +35,12 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   player it went on (142 casts on another player, one on the caster, whose own id it then is), and every other
   planned cooldown -1 (1,449 casts: raid cooldowns, totems, personals). A spell aimed at an enemy carries the
   enemy's id (Ascendance logged the boss). The raid note check prints "on <name>" only for a target that is a player.
+- A `damage` event that did its target nothing has `amount` 0 and no `absorbed`, with `hitType` 10 (immune) or 0 (a
+  miss): on the same nights, of the soak events on players, 40 with `hitType` 10 had Divine Shield or Blessing of
+  Protection up and 17 with `hitType` 0 Aspect of the Turtle or Cloak of Shadows. A hit that was all absorbed is
+  `hitType` 1 with `amount` 0 and `absorbed` set (107 events), so it did its damage. On the two Twin Fangs nights a
+  landing of Ravenous Feast came 72 times with a second event of `hitType` 10 on a player it also damaged, with no
+  immunity up: what a landing did is counted per player, not per event.
 - `report.playerDetails` returns `potionUse`/`healthstoneUse` 0, but `table(dataType: Summary)` →
   `playerDetails.{tanks,healers,dps}[]` has WCL's real counts (`healthstoneUse` = healthstones and healing
   potions, `potionUse` = combat potions, pre-pull ones included); pass `endTime` for "before a death".

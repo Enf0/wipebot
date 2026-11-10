@@ -82,6 +82,12 @@ UNCHECKED = ("Callouts not checked (what they ask, such as grabbing an orb or a 
 # cast ("CC Mindcontrol") isn't one.
 KICK_SLOT_MS = 1_500
 KICK_WORDS = re.compile(r"\b(?:kicks?|interrupts?)\b", re.I)
+# Such a callout with no such cast near it is a kick the log has no cast for, which is another reason than UNCHECKED's.
+NO_CAST = ("Kick callouts not checked (no add began a cast someone kicked on this boss that night within "
+           f"{KICK_SLOT_MS / 1000:g} s of them, so the log has no cast that was theirs)")
+# A soak that did a player no damage, absorbed or not, still hit them: the log has an event for it, with an immunity
+# up (hitType 10) or as a miss (hitType 0, as an immunity that deflects shows), so they stood in it.
+UNHARMED = "immune or missed in the log, and counted as hit"
 # A player hit by fewer than this share of their group's soaks while alive, over at least FEW_SOAKS_MIN of them,
 # most likely wasn't soaking with that group: a reserve, a spot changed since the note was written.
 FEW_SOAKS = 0.2
@@ -327,12 +333,13 @@ class SoakHit:
     label: str  # the group it was given to; "" for a hit given to none (`why`), which counts for no one
     group: list[str]
     hit: set[str]
-    size: float  # the median damage per player hit
+    size: float  # the median damage per player hit, absorbed included, of those it did any to (`unharmed`)
     absent: list[tuple[str, str]]  # (player of the group not hit, their state)
     others: list[tuple[str, str | None]]  # (player hit from outside the group, their groups if any)
     why: str = ""  # OUTSIDE, UNCLEAR or SEVERAL
     near: dict[str, int] = field(default_factory=dict)  # of a hit given to none: the groups called then, players hit
     by_turn: bool = False  # given to the group whose turn it landed in, not by who was hit (`_in_turn`)
+    unharmed: list[str] = field(default_factory=list)  # hit for no damage: immune, or the log has it miss them
 
 
 @dataclass
@@ -999,11 +1006,11 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
                                                                               for n, why in k.excused))
         if k.dead:
             lines.append("    dead: " + ", ".join(k.dead))
-    if c.unchecked:
-        shown = [(at, co) for at, co in c.unchecked
+    for why, these in _unchecked(c.unchecked):
+        shown = [(at, co) for at, co in these
                  if asked is None or not co.players or any(n in asked for n in co.players)]
-        rest = len(c.unchecked) - len(shown)
-        lines.append(UNCHECKED + ": " + "; ".join(
+        rest = len(these) - len(shown)
+        lines.append(why + ": " + "; ".join(
             [f"{clock(at)} {' '.join(co.players) or EVERYONE} \"{co.text}\"" for at, co in shown]
             + ([f"{rest} to other players"] if rest else [])))
     if c.kicks and asked and not any(k.player in asked for k in c.kicks):
@@ -1027,6 +1034,15 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
     return "\n".join(lines)
 
 
+def _unchecked(calls: list[tuple[float, Callout]]) -> list[tuple[str, list[tuple[float, Callout]]]]:
+    """A pull's callouts that weren't checked, by why: what they ask is no spell (UNCHECKED), or they ask for a kick
+    and no add began a cast near them (NO_CAST). A reason with no callout is left out."""
+    by: dict[str, list[tuple[float, Callout]]] = {UNCHECKED: [], NO_CAST: []}
+    for at, co in calls:
+        by[NO_CAST if _kick_call(co) else UNCHECKED].append((at, co))
+    return [(why, these) for why, these in by.items() if these]
+
+
 def _pull_soaks(rep: Report, soaks: list[Soaks], until: float, asked: Asked | None = None) -> list[str]:
     """Each soak section's hits on one pull up to `until`, in order: the group a hit was given to with who of it
     wasn't hit and who else was, or why it was given to none. For one player (`asked`): each hit's count, and what
@@ -1047,13 +1063,13 @@ def _pull_soaks(rep: Report, soaks: list[Soaks], until: float, asked: Asked | No
             if not h.label:
                 lines.append(f"  {clock(h.at)} {h.why}: {plural(len(h.hit), 'player')} hit"
                              + (" (" + ", ".join(f"{label} {n}" for label, n in h.near.items()) + ")" if h.near else "")
-                             + f", {short(h.size)} each; counted for no one")
+                             + f", {_soak_size(h)}; counted for no one")
                 continue
             for n in h.group:
                 took[(n, h.label)] += n in h.hit
                 alive[(n, h.label)] += n in h.hit or (n, "alive") in h.absent
             line = (f"  {clock(h.at)} {h.label}{f' (its turn in the note; {BY_TURN})' if h.by_turn else ''}: "
-                    f"{len(h.hit & set(h.group))} of {len(h.group)} hit, {short(h.size)} each")
+                    f"{len(h.hit & set(h.group))} of {len(h.group)} hit, {_soak_size(h)}")
             if asked:
                 own = ([f"not hit ({st})" for n, st in h.absent if n in asked]
                        + [f"hit, from outside the group ({g})" if g else "hit, in no group" for n, g in h.others
@@ -1073,6 +1089,17 @@ def _pull_soaks(rep: Report, soaks: list[Soaks], until: float, asked: Asked | No
         if s.later:
             lines.append(f"  {s.later} more after the wipe was decided at {clock(until)}")
     return lines
+
+
+def _soak_size(h: SoakHit) -> str:
+    """'453.14k each' for a soak hit, the median over the players hit. Where it did no damage to some, the median
+    over the others and who it did none to: the median over all of them read "0 each" when three of five were
+    immune."""
+    if not h.unharmed:
+        return f"{short(h.size)} each"
+    if len(h.unharmed) == len(h.hit):
+        return f"no damage to any of them ({UNHARMED})"
+    return f"{short(h.size)} each but none to {', '.join(h.unharmed)} ({UNHARMED})"
 
 
 def _of(counts: Counter, asked: Asked) -> Counter:
@@ -1204,10 +1231,14 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
                 owner[n].append(label)
         for burst in bursts:
             at = burst[0]["timestamp"] - t0
-            hit = {rep.actor(e["targetID"]) for e in burst}
-            size = sorted(e.get("amount", 0) + e.get("absorbed", 0) for e in burst)[len(burst) // 2]
-            label, why, near = _whose(hit, at, members, calls, lambda n, at=at: state(n, at) == "alive")
-            section.hits.append(_given(SoakHit(at, "", [], hit, size, [], [], why, near), label, members, owner, state))
+            took: Counter = Counter()  # per player: a hit may come with a second event that did them nothing
+            for e in burst:
+                took[rep.actor(e["targetID"])] += e.get("amount", 0) + e.get("absorbed", 0)
+            sizes = sorted(n for n in took.values() if n) or [0]
+            label, why, near = _whose(set(took), at, members, calls, lambda n, at=at: state(n, at) == "alive")
+            section.hits.append(_given(SoakHit(at, "", [], set(took), sizes[len(sizes) // 2], [], [], why, near,
+                                               unharmed=sorted(n for n in took if not took[n])),
+                                       label, members, owner, state))
         for h, turn in _in_turn(section.hits, calls):
             _given(h, turn, members, owner, state).by_turn = True
         out.append(section)
@@ -1965,21 +1996,20 @@ def _night_callouts(rep: Report, checks: list[PullCheck],  # noqa: C901
 
 
 def _night_unchecked(checks: list[PullCheck], asked: Asked | None = None) -> list[str]:
-    """The callouts the log can't check, each once with its times and how many pulls reached it; for one player,
-    those to them or to everyone."""
-    seen: dict[tuple[str, tuple[str, ...]], tuple[list[tuple[Phases, Callout]], set[int]]] = {}
+    """The callouts that weren't checked, by why (`_unchecked`), each once with its times and on how many pulls;
+    for one player, those to them or to everyone."""
+    seen: dict[str, dict[tuple[str, tuple[str, ...]], tuple[list[tuple[Phases, Callout]], set[int]]]] = {}
     for c in checks:
-        for _, co in c.unchecked:
-            if asked and co.players and not any(n in asked for n in co.players):
-                continue
-            times, pulls = seen.setdefault((co.text, co.players), ([], set()))
-            times.append((c.phases, co))
-            pulls.add(c.f["id"])
-    if not seen:
-        return []
-    return [UNCHECKED + ": " + "; ".join(
+        for why, these in _unchecked(c.unchecked):
+            for _, co in these:
+                if asked and co.players and not any(n in asked for n in co.players):
+                    continue
+                times, pulls = seen.setdefault(why, {}).setdefault((co.text, co.players), ([], set()))
+                times.append((c.phases, co))
+                pulls.add(c.f["id"])
+    return [why + ": " + "; ".join(
         f"\"{text}\" to {' '.join(named) or EVERYONE} at {_times_said(times)} ({plural(len(pulls), 'pull')})"
-        for (text, named), (times, pulls) in seen.items())]
+        for (text, named), (times, pulls) in seen[why].items()) for why in (UNCHECKED, NO_CAST) if why in seen]
 
 
 def _saved_late(rep: Report, fights: list[dict], by_pull: dict[int, Version]) -> list[str]:

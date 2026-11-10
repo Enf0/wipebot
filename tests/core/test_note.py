@@ -258,11 +258,17 @@ def test_a_player_kicking_a_cast_not_theirs_pull_after_pull_is_a_mistake_and_not
 KICK_ORDER = {"Kick #1 left": "Torvek", "Kick #2 left": "Mirelle", "Kick #3 left": "Halvard", "Kick #4 left": "Rowan"}
 
 
-async def _wave(monkeypatch, *casts: tuple[float, str | None], until: float = 600_000) -> list[note.KickCheck]:
-    """The kick check of a pull whose note calls Kick #1 to #4 left at 1:40, 1:42, 1:44 and 1:46 (KICK_ORDER) and
-    whose adds began these casts, (second, who kicked it or None when it went through)."""
-    plan = note.Note(3418, "Mythic", "Vashnik", callouts=[
-        note.Callout(100 + 2 * i, 1, (name,), text) for i, (text, name) in enumerate(KICK_ORDER.items())])
+def _kick_note(*more: note.Callout) -> note.Note:
+    """A note that calls Kick #1 to #4 left at 1:40, 1:42, 1:44 and 1:46 (KICK_ORDER), with `more` callouts."""
+    return note.Note(3418, "Mythic", "Vashnik", callouts=[
+        *(note.Callout(100 + 2 * i, 1, (name,), text) for i, (text, name) in enumerate(KICK_ORDER.items())), *more])
+
+
+async def _wave(monkeypatch, *casts: tuple[float, str | None], until: float = 600_000,
+                plan: note.Note | None = None) -> list[note.KickCheck]:
+    """The kick check of a pull whose note is `_kick_note` (or `plan`) and whose adds began these casts, (second, who
+    kicked it or None when it went through)."""
+    plan = plan or _kick_note()
 
     async def kickable(rep, f):
         return {1}
@@ -292,6 +298,31 @@ async def test_a_player_whose_cast_went_through_and_who_kicked_the_next_one_didn
         "no kick (alive); their cast, begun at 1:46, went through"]
     dead = replace(kicks[1], state="dead since 1:41", other=100_000)  # she kicked the first cast, then died
     assert note._kick_line(dead) == "no kick (dead since 1:41); their cast, begun at 1:42, went through"
+
+
+async def test_a_kick_callout_no_cast_began_near_is_listed_for_that_and_not_as_asking_for_no_spell(monkeypatch):
+    """The adds of a wave began two casts, not four, so the callouts of Kick #3 and #4 left have no cast within 1.5 s.
+    They were listed under "Callouts not checked (what they ask ... isn't a spell the log can match to them)" beside
+    "Grab red orb", which is the wrong reason for a kick: a kick is what the log can match, and no add was casting."""
+    plan = _kick_note(note.Callout(120, 1, ("Rowan",), "Grab red orb"), note.Callout(130, 1, (), "Kick the totem"))
+    kicks = await _wave(monkeypatch, (100, "Torvek"), (102, None), plan=plan)
+    assert [k.player for k in kicks] == ["Torvek", "Mirelle"]
+    _, unchecked = note._callouts_to_check(plan, lambda c: c.at * 1000, 600_000, {id(k.callout) for k in kicks})
+    assert {why: [co.text for _, co in these] for why, these in note._unchecked(unchecked)} == {
+        note.UNCHECKED: ["Grab red orb", "Kick the totem"],  # to everyone, so no one's kick assignment
+        note.NO_CAST: ["Kick #3 left", "Kick #4 left"]}
+    assert note.NO_CAST == ("Kick callouts not checked (no add began a cast someone kicked on this boss that night "
+                            "within 1.5 s of them, so the log has no cast that was theirs)")
+    phases = note.lay_phases([1], {}, [])
+    night = [SimpleNamespace(f={"id": i}, phases=phases, unchecked=unchecked if i < 3 else unchecked[:1])
+             for i in (1, 2, 3)]
+    assert note._night_unchecked(cast(Any, night)) == [
+        note.UNCHECKED + ': "Grab red orb" to Rowan at 2:00 (2 pulls); "Kick the totem" to everyone at 2:10 (2 pulls)',
+        note.NO_CAST + ': "Kick #3 left" to Halvard at 1:44 (3 pulls); "Kick #4 left" to Rowan at 1:46 (2 pulls)']
+    assert note._night_unchecked(cast(Any, night), note.Asked("Halvard", frozenset({"Halvard"}))) == [
+        note.UNCHECKED + ': "Kick the totem" to everyone at 2:10 (2 pulls)',
+        note.NO_CAST + ': "Kick #3 left" to Halvard at 1:44 (3 pulls)']
+    assert note._unchecked([]) == []  # no line for a reason with no callout
 
 
 async def test_a_kick_on_a_players_other_assignment_of_the_wave_isnt_a_kick_on_another_cast(monkeypatch):
