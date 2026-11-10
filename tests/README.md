@@ -94,9 +94,6 @@ snapshot's wording in a test: test a fact it can't hold (a made-up situation, a 
 
 A change that moves what a case asks Warcraft Logs (another cut, another set of pulls) leaves its recording
 without the answer. Mark the case `stale = "<what changed>"` in cases.toml: its test is skipped until
-`just record-tools` and `just snapshot`, and fails after them until the mark is taken off. One question is
-answered without a new recording: whether a player cast after a battle res (`Report._cast_after`), which
-`support/recorded.py` answers from the pull's recorded casts where a case read them all, and otherwise as the
-recordings had it (the res counts).
+`just record-tools` and `just snapshot`, and fails after them until the mark is taken off.
 
 `core/test_server.py` checks that every tool has a case, or says in `TESTED_ELSEWHERE` where it's tested.

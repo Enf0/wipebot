@@ -31,7 +31,7 @@ death-recap = { tool = "death_recap", report = "KBYT4xXn7VNjDgh8", player = "Sco
 death-recap-thrown = { tool = "death_recap", report = "KBYT4xXn7VNjDgh8", player = "Draiman", pull = 13 }
 mechanic-hits = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", ability = "Tempest", all_pulls = true }
 # a debuff baited onto one player: each time it went on someone else, and whether they were alive
-mechanic-hits-bait = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", ability = "Serpent's Fury", all_pulls = true, whole_pull = true, stale = "mechanic_hits leaves a reset out of the pulls it reads" }
+mechanic-hits-bait = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", ability = "Serpent's Fury", all_pulls = true, whole_pull = true }
 # one mechanic against another night: per minute of the pulls, each player's rank both nights
 mechanic-hits-against = { tool = "mechanic_hits", report = "4N9JMwBFPAjXyV3Z", boss = "The Coiled Altar", ability = "Axegrinder", all_pulls = true, against = "64hVgfmydQGNxC7A" }
 mechanic-outliers = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", pull = 13 }
@@ -70,11 +70,11 @@ progress = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
 list-pulls = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Vashnik", each_pull = true }
 first-hits = { tool = "progress", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", first_hits = true }
 roster = { tool = "roster", report = "KBYT4xXn7VNjDgh8" }
-defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", stale = "the decided moment took in the whole of a hit killing many" }
-defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid", stale = "the decided moment took in the whole of a hit killing many" }
+defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
+defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid" }
 healing = { tool = "healing", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", pull = 8 }
 # the spikes that come back at the same moment pull after pull
-healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true, stale = "the decided moment took in the whole of a hit killing many" }
+healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true }
 # healers going low late in a long pull, and the druid's Innervates: both on a healer above the low line while two
 # were under it, one after it sat ready
 healing-mana = { tool = "healing", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", pull = 25, mana = true }
@@ -180,6 +180,6 @@ find-reports-own-guild = { tool = "find_reports", report = "vjt3KLbN8g62J1H9", g
 # a raider's alt in a pug's log the guild's reports don't have
 character-reports = { tool = "find_reports", local = true, player = "Dscopi", server = "Kazzak", region = "eu", days = 14 }
 # casts of one spell by player, with the rate over the pulls' combat
-breakdown-casts = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "Casts", ability = "Flash Heal", boss = "Sszorak", stale = "the decided moment took in the whole of a hit killing many" }
+breakdown-casts = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "Casts", ability = "Flash Heal", boss = "Sszorak" }
 # a spec's top parses' major cooldowns without a player: when they pressed them, beside the boss's casts
 top-cooldowns = { tool = "compare_with_top", local = true, spec = "restoration shaman", boss = "Vashnik", difficulty = "Mythic", aspects = ["cooldowns"] }

@@ -36,7 +36,7 @@ from types import SimpleNamespace
 import pytest
 
 from wipebot.core import cache, clock, server
-from wipebot.core.report import Report, maps
+from wipebot.core.report import maps
 from wipebot.core.wcl import WCL
 
 from . import standins
@@ -175,39 +175,9 @@ def _not_ours(key: str, value: str, guilds: dict[str, int | None], ours: int | N
     return any(c not in listed and guilds.get(c) != ours for c in codes | _codes(_NAMED, value))
 
 
-def _cast_after_as_recorded(real):
-    """`Report._cast_after` (did a player cast after a battle res: the res was taken) on answers recorded before
-    Wipebot asked. Where the answer isn't recorded, it comes from the pull's casts when a case read them all, and
-    otherwise the res counts, as it did when the pull was recorded. `just record-tools` records the real answers,
-    and then this adds nothing."""
-    async def cast_after(self: Report, asked: list[tuple[dict, int, float]]) -> list[bool]:
-        try:
-            return await real(self, asked)
-        except LookupError:
-            pass
-        out = []
-        for f, who, at in asked:
-            try:
-                out.append((await real(self, [(f, who, at)]))[0])
-                continue
-            except LookupError:
-                pass
-            try:
-                casts = await self.events(f["id"], "Casts")
-            except LookupError:
-                out.append(True)
-            else:
-                out.append(any(e.get("sourceID") == who and e["type"] == "cast" and not e.get("fake")
-                               and e["timestamp"] > at for e in casts))
-        return out
-    return cast_after
-
-
 def serve_from(mp: pytest.MonkeyPatch, answers: cache.Cache) -> None:
     """The tools answer from `answers`, at NOW, with no report loaded yet."""
     mp.setattr(cache, "_cache", answers)
-    if not isinstance(answers, Recorder):  # read-only: what it lacks can't be asked
-        mp.setattr(Report, "_cast_after", _cast_after_as_recorded(Report._cast_after))
     mp.setattr(server.DEFAULT, "library", server.Library(wcl=WCL()))  # given a client: no login check
     mp.setattr(server, "time", NOW)
     mp.setattr(clock, "now", NOW.time)
