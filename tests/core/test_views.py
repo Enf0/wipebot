@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 from importlib import resources
+from pathlib import Path
 
 import pytest
 from mcp.types import CallToolResult, TextContent
@@ -237,7 +238,7 @@ async def test_a_meter_of_the_least_ranks_the_damage_dealers_and_is_drawn_from_t
     data = await meter_data("damage-least")
     [m] = data["meters"]
     assert m.get("least") and {b["role"] for b in m["bars"]} == {"dps"} and "damage dealers only" in m["scope"]
-    [s] = await shots(tmp_path, "breakdown", CASES["damage-least"].args, themes=("dark",), widths=(760,))
+    [s] = await shots(tmp_path, "breakdown", CASES["damage-least"].args)
     assert not s.errors and "least" in s.text.lower()
     least, top = m["bars"][-1]["name"], m["bars"][0]["name"]
     assert s.text.index(least) < s.text.index(top)
@@ -251,13 +252,11 @@ async def test_a_call_that_ranks_no_players_has_no_meter(recorded, case):
 
 async def test_the_meter_draws_a_panel_per_meter_without_errors(recorded, tmp_path):
     data = await meter_data("nekzali-enemies-night")
-    taken = await shots(tmp_path, "enemies", CASES["nekzali-enemies-night"].args, themes=("dark", "light"),
-                        widths=(320, 760))
-    for s in taken:
-        assert not s.errors, (s.path.name, s.errors)
-        assert s.height > 100
-        for m in data["meters"]:
-            assert m["title"] in s.text and m["bars"][0]["name"] in s.text
+    [s] = await shots(tmp_path, "enemies", CASES["nekzali-enemies-night"].args)
+    assert not s.errors, s.errors
+    assert s.height > 100 and s.path.name == "discord-dark-680-inline.png"  # as the bot posts it: no card in a host
+    for m in data["meters"]:
+        assert m["title"] in s.text and m["bars"][0]["name"] in s.text
 
 
 # ---- the raid note against every pull on a boss: kicks and planned cooldowns pull by pull, in the bot only ----
@@ -330,12 +329,10 @@ async def test_one_pulls_note_check_has_no_view(recorded, case):
 
 async def test_the_note_view_draws_a_panel_each_without_errors(recorded, tmp_path):
     data = await note_data("raid-note-order-change")
-    taken = await shots(tmp_path, "raid_note", CASES["raid-note-order-change"].args, themes=("dark", "light"),
-                        widths=(320, 760))
-    for s in taken:
-        assert not s.errors, (s.path.name, s.errors)
-        assert s.height > 300
-        assert "Kick assignments" in s.text and data["kicks"]["slots"][0]["player"] in s.text
+    [s] = await shots(tmp_path, "raid_note", CASES["raid-note-order-change"].args)
+    assert not s.errors, s.errors
+    assert s.height > 300 and s.path.name.startswith("discord-")
+    assert "Kick assignments" in s.text and data["kicks"]["slots"][0]["player"] in s.text
 
 
 async def test_the_note_for_the_next_raid_is_drawn_as_it_is_player_by_player(recorded, tmp_path, monkeypatch):
@@ -361,11 +358,9 @@ async def test_the_note_for_the_next_raid_is_drawn_as_it_is_player_by_player(rec
     monkeypatch.setenv("WIPEBOT_NOTES_DB", str(tmp_path / "notes.sqlite"))
     monkeypatch.setattr(server, "_a_member", lambda guild: True)
     Notebook().save_note(14169, 3421, "Twin Fangs", note, "Rowan", at=1000.0)
-    taken = await shots(tmp_path, "raid_note", key["args"] | {"report": report}, themes=("dark", "light"),
-                        widths=(320, 760))
-    for s in taken:
-        assert not s.errors, (s.path.name, s.errors)
-        assert "Twin Fangs: who does what" in s.text and rows[0]["player"] in s.text and "saved by Rowan" in s.text
+    [s] = await shots(tmp_path, "raid_note", key["args"] | {"report": report})
+    assert not s.errors, s.errors
+    assert "Twin Fangs: who does what" in s.text and rows[0]["player"] in s.text and "saved by Rowan" in s.text
 
 
 VERSUS_CASE = CASES["compare-raid-mates"]  # two Frost Mages over every Twin Fangs pull both were in
@@ -388,9 +383,9 @@ async def test_two_raid_mates_view_states_what_compare_with_top_states(recorded,
     assert [s["name"] for s in data["spells"]] == re.findall(r"^  (.+?): ", text, re.MULTILINE)
     assert [bool(s["far"]) for s in data["spells"]] == [
         "far apart" in line for line in text.splitlines() if line.startswith("  ")]
-    for s in await shots(tmp_path, VERSUS_CASE.tool, VERSUS_CASE.args, themes=("dark", "light"), widths=(320, 760)):
-        assert not s.errors, (s.path.name, s.errors)
-        assert "Krøpling" in s.text and "Glacial Spike" in s.text
+    [s] = await shots(tmp_path, VERSUS_CASE.tool, VERSUS_CASE.args)
+    assert not s.errors, s.errors
+    assert "Krøpling" in s.text and "Glacial Spike" in s.text and s.path.name.startswith("discord-")
 
 
 MANA_CASE = CASES["healing-mana"]  # healers low late on a Twin Fangs pull, and the druid's Innervates
@@ -414,9 +409,9 @@ async def test_the_mana_view_states_what_healing_with_mana_states(recorded, tmp_
     ready = re.findall(r"ready (\d+:\d\d)-(\d+:\d\d) while", text)
     assert [(clock(r["from_ms"]), clock(r["to_ms"])) for i in data["innervates"] for r in i["ready_low"]] == ready
     assert ready  # the case's point: it sat ready while a healer was low
-    for s in await shots(tmp_path, MANA_CASE.tool, MANA_CASE.args, themes=("dark", "light"), widths=(320, 760)):
-        assert not s.errors, (s.path.name, s.errors)
-        assert "Healers' mana" in s.text and data["healers"][0]["name"] in s.text
+    [s] = await shots(tmp_path, MANA_CASE.tool, MANA_CASE.args)
+    assert not s.errors, s.errors
+    assert "Healers' mana" in s.text and data["healers"][0]["name"] in s.text and s.path.name.startswith("discord-")
 
 
 async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps(recorded, monkeypatch):
@@ -433,6 +428,37 @@ async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps
     monkeypatch.setattr(server.DEFAULT, "remote", None)  # in-process (the bot, `wipebot call`): the text alone
     text_only = await server.mcp.call_tool("pull_summary", PULL_CASE.args)
     assert isinstance(text_only, CallToolResult) and text_only.structured_content is None
+
+
+def test_the_tools_with_a_card_are_the_ones_whose_result_carries_its_key():
+    """One list in three places, held together here: the tools the remote server gives the views' page to (a host
+    draws a card on every call of those), the tools whose result carries the view's key (server._shown, and pull_map
+    with its replay's), and the tools the mock host gives a key."""
+    from wipebot.core import viewhost
+    keyed = set(re.findall(r'await _shown\("(\w+)"', Path(server.__file__).read_text(encoding="utf-8")))
+    remote = (Path(server.__file__).parents[1] / "mcp" / "remote.py").read_text(encoding="utf-8")
+    listed = re.search(r"server\.register\(mcp, setup, meta=\{(.*?)\}", remote, re.DOTALL)
+    assert listed and set(re.findall(r'"(\w+)": shown', listed[1])) == keyed | {"pull_map"}
+    assert keyed == viewhost.SHOWN and keyed < set(server.VIEW_TOOLS)
+
+
+async def test_the_mock_host_draws_what_the_server_sends(recorded, tmp_path):
+    """A tool whose drawing only the Discord bot posts gets no key and no card in the mock host, as in Claude and
+    ChatGPT (it once got both, and a meter shot there was published as Claude's): it is shot as the picture the bot
+    posts, and named so."""
+    from wipebot.core import viewhost
+    meter = CASES["mechanic-hits"]
+    assert await server.view_key(meter.tool, meter.args)  # a drawing there is
+    assert "structuredContent" not in await viewhost.tool_result(meter.tool, meter.args)
+    assert (await viewhost.picture_key(meter.tool, meter.args) or {}).get("view") == "meter"
+    assert (await viewhost.tool_result("pull_summary", PULL_CASE.args))["structuredContent"]["view"] == "pull"
+    assert await viewhost.picture_key("pull_summary", PULL_CASE.args) is None
+    [s] = await shots(tmp_path, meter.tool, meter.args, themes=("dark", "light"), widths=(320, 760))
+    assert s.path.name == "discord-dark-680-inline.png" and (s.theme, s.width) == ("dark", 680) and not s.errors
+    host = next(m["msg"]["result"]["hostInfo"]["name"] for m in s.messages if "hostInfo" in m["msg"].get("result", {}))
+    assert host == "wipebot-picture"
+    from PIL import Image
+    assert Image.open(s.path).width == 680 * viewhost.PICTURE_SCALE
 
 
 async def test_a_view_that_does_not_exist_is_a_readable_error(recorded):

@@ -4,7 +4,10 @@ viewer_log) with the tools in-process. Everything is served from memory: the bro
 
 `watch` opens it in a window to work on a view (`wipebot view`), reloading the page when app/ changes; `shoot` takes
 screenshots per theme, width and mode, with the console's errors and every bridge message (`wipebot view --shot`, the
-tests). Needs Playwright and its Chromium (`uv run python -m playwright install chromium-headless-shell`).
+tests). Both draw what the server sends: a card for the tools whose result carries a view's key in Claude and
+ChatGPT (SHOWN, and pull_map's replay), and for a tool whose drawing only the Discord bot posts, that picture as the
+Painter draws it, its shots named `discord-`. Needs Playwright and its Chromium (`uv run python -m playwright install
+chromium-headless-shell`).
 """
 import asyncio
 import io
@@ -31,6 +34,12 @@ PICTURE_FONTS = "".join(f"@font-face {{ font-family: Inter; font-weight: {weight
                         f"src: url({ORIGIN}/fonts/{name}) format('truetype'); }}"
                         for weight, name in (("100 550", "Inter-Medium.ttf"), ("551 900", "Inter-Bold.ttf")))
 FULL_WIDTH, FULL_HEIGHT = 1100, 760  # fullscreen, as a desktop host gives it
+PICTURE_WIDTH = 680  # a view's picture, in CSS px: about what Discord shows an image at, its text readable there
+PICTURE_SCALE = 2  # drawn at twice that, for a sharp picture on any screen
+# The tools whose result carries their view's key for a client that shows MCP Apps (server._shown; pull_map gives its
+# replay's key itself). A test holds this to the server's tools and to the list remote.py gives the views' page to.
+# Every other tool with a drawing (server.VIEW_TOOLS) is drawn only as a picture, for the Discord bot.
+SHOWN = frozenset({"pull_summary", "player_pull", "player_night", "death_recap", "progress"})
 log = logging.getLogger(__name__)
 
 
@@ -49,15 +58,30 @@ class Shot:
 
 async def tool_result(tool: str, args: dict) -> dict:
     """The tool's result as a host hands it to the page: run serving many users, as remote.py runs it, with the
-    view's key a client that shows apps gets."""
+    view's key a client that shows apps gets, for the tools that give one there (SHOWN) and no other."""
     if server.DEFAULT.remote is None:
         server.DEFAULT.remote = server.Remote(guilds=list, user_name=str)
     result = await server.mcp.call_tool(tool, args)
     if not isinstance(result, CallToolResult):
         raise ToolError(f"{tool} asked for input")
-    if result.structured_content is None:  # in-process there's no client to say it shows apps: the key as served
+    if result.structured_content is None and tool in SHOWN:  # in-process no client says it shows apps: as served
         result.structured_content = await server.view_key(tool, args)
     return result.model_dump(by_alias=True, exclude_none=True, mode="json")
+
+
+async def picture_key(tool: str, args: dict) -> dict | None:
+    """The key of a drawing only the Discord bot posts (a meter, a note's board, two raid mates, the healers' mana,
+    a player against the top): None for a tool whose view Claude and ChatGPT show, or with nothing to draw."""
+    return None if tool in SHOWN or tool == "pull_map" else await server.view_key(tool, args)
+
+
+def _picture_setup(tool: str, args: dict, key: dict) -> dict:
+    """What the mock host is told for a view as the Discord bot's picture: inline, dark, PICTURE_WIDTH wide, in the
+    pictures' font, to a page that knows it is a picture (no buttons)."""
+    return {"tool": tool, "args": args, "result": {"content": [], "structuredContent": key}, "theme": "dark",
+            "width": PICTURE_WIDTH, "mode": "inline", "tokens": "none", "bare": True, "picture": True,
+            "fonts": PICTURE_FONTS, "fontFamily": "Inter, system-ui, sans-serif",
+            "fullWidth": FULL_WIDTH, "fullHeight": FULL_HEIGHT}
 
 
 async def answer(name: str, args: dict) -> dict:
@@ -108,8 +132,9 @@ async def _serve(route) -> None:
 
 
 async def _open(browser: Any, setup: dict, errors: list[str]):
-    """A page with the mock host, set up as `setup` says (host.html's window.__setup)."""
-    page = await browser.new_page(viewport={"width": max(setup["width"], FULL_WIDTH) + 40, "height": 1000})
+    """A page with the mock host, set up as `setup` says (host.html's window.__setup); a picture at its scale."""
+    page = await browser.new_page(viewport={"width": max(setup["width"], FULL_WIDTH) + 40, "height": 1000},
+                                  device_scale_factor=PICTURE_SCALE if setup.get("picture") else 1)
     await _wire(page, setup, errors)
     return page
 
@@ -151,11 +176,15 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
                 widths: tuple[int, ...] = (430, 760), modes: tuple[str, ...] = ("inline",),
                 clicks: tuple[str, ...] = (), tokens: str = "none") -> list[Shot]:
     """Screenshots of the tool's view in each theme, width and mode, after clicking each of `clicks` (a button's
-    text, or "css:" and a selector) in turn: <out>/<theme>-<width>-<mode>[-<n>].png."""
+    text, or "css:" and a selector) in turn: <out>/<theme>-<width>-<mode>[-<n>].png. A drawing only the Discord bot
+    posts is shot once, as its picture: <out>/discord-dark-<PICTURE_WIDTH>-inline.png."""
     from playwright.async_api import async_playwright
 
     out.mkdir(parents=True, exist_ok=True)
     result = await tool_result(tool, args)
+    picture = None if result.get("structuredContent") else await picture_key(tool, args)
+    if picture:
+        themes, widths, modes, clicks = ("dark",), (PICTURE_WIDTH,), ("inline",), ()
     shots = []
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
@@ -164,9 +193,10 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
                 for theme in themes:
                     for width in widths if mode == "inline" else (FULL_WIDTH,):
                         errors: list[str] = []
-                        setup = {"tool": tool, "args": args, "result": result, "theme": theme, "width": width,
-                                 "mode": mode, "tokens": tokens, "bare": True, "fullWidth": FULL_WIDTH,
-                                 "fullHeight": FULL_HEIGHT}
+                        setup = _picture_setup(tool, args, picture) if picture else {
+                            "tool": tool, "args": args, "result": result, "theme": theme, "width": width,
+                            "mode": mode, "tokens": tokens, "bare": True, "fullWidth": FULL_WIDTH,
+                            "fullHeight": FULL_HEIGHT}
                         page = await _open(browser, setup, errors)
                         for n in range(len(clicks) + 1):
                             if n:
@@ -175,9 +205,11 @@ async def shoot(tool: str, args: dict, out: Path, themes: tuple[str, ...] = ("da
                             try:
                                 await _settled(page)
                                 errors += await _markup_errors(page)
+                                if picture:
+                                    await page.frames[-1].evaluate("document.fonts.ready.then(() => true)")
                             except Exception as e:  # noqa: BLE001 (what didn't draw is in the shot and the errors)
                                 errors.append(f"not drawn: {e}")
-                            name = f"{theme}-{width}-{mode}" + (f"-{n}" if n else "")
+                            name = ("discord-" if picture else "") + f"{theme}-{width}-{mode}" + (f"-{n}" if n else "")
                             frame = page.locator("iframe")
                             await frame.screenshot(path=out / f"{name}.png")
                             messages = await page.evaluate("window.__log")
@@ -224,16 +256,19 @@ async def _click(page: Any, what: str) -> None:
 
 async def watch(tool: str, args: dict, theme: str = "dark", width: int = 430, mode: str = "inline") -> None:
     """The tool's view in a window, to work on: the toolbar switches theme, width, mode and tokens; the view reloads
-    when a file in app/ changes. Returns when the window is closed."""
+    when a file in app/ changes. A drawing only the Discord bot posts opens as its picture. Returns when the window
+    is closed."""
     from playwright.async_api import async_playwright
 
     result = await tool_result(tool, args)
+    picture = None if result.get("structuredContent") else await picture_key(tool, args)
     app = Path(str(resources.files("wipebot.core").joinpath("app")))
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=False)
         errors: list[str] = []
-        setup = {"tool": tool, "args": args, "result": result, "theme": theme, "width": width, "mode": mode,
-                 "tokens": "none", "bare": False, "fullWidth": FULL_WIDTH, "fullHeight": FULL_HEIGHT}
+        setup = _picture_setup(tool, args, picture) | {"bare": False} if picture else {
+            "tool": tool, "args": args, "result": result, "theme": theme, "width": width, "mode": mode,
+            "tokens": "none", "bare": False, "fullWidth": FULL_WIDTH, "fullHeight": FULL_HEIGHT}
         page = await _open(browser, setup, errors)
         page.on("console", lambda m: print(f"[{m.type}] {m.text}") if m.type != "log" else None)
         stamp = _stamp(app)
@@ -252,10 +287,6 @@ async def watch(tool: str, args: dict, theme: str = "dark", width: int = 430, mo
 
 def _stamp(folder: Path) -> tuple:
     return tuple(sorted((p.name, p.stat().st_mtime_ns) for p in folder.iterdir()))
-
-
-PICTURE_WIDTH = 680  # a view's picture, in CSS px: about what Discord shows an image at, its text readable there
-PICTURE_SCALE = 2  # drawn at twice that, for a sharp picture on any screen
 
 
 class Painter:
@@ -294,10 +325,7 @@ class Painter:
             key["mark"] = mark
         browser = await self._ready()
         errors: list[str] = []
-        setup = {"tool": tool, "args": args, "result": {"content": [], "structuredContent": key}, "theme": "dark",
-                 "width": PICTURE_WIDTH, "mode": "inline", "tokens": "none", "bare": True, "picture": True,
-                 "fonts": PICTURE_FONTS, "fontFamily": "Inter, system-ui, sans-serif",
-                 "fullWidth": FULL_WIDTH, "fullHeight": FULL_HEIGHT}
+        setup = _picture_setup(tool, args, key)
         context = await browser.new_context(device_scale_factor=PICTURE_SCALE,
                                             viewport={"width": PICTURE_WIDTH + 40, "height": 1000})
         try:
