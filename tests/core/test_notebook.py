@@ -3,6 +3,7 @@ and raid_note and raid_plan reading them when given no paste, for the report's g
 from typing import cast
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
 from tests.support import NOTE, PLAN
 from wipebot.core import notebook as notebook_module
@@ -218,6 +219,36 @@ def test_the_remote_server_reads_what_the_bot_saves_and_reads_nothing_when_there
         ("raidstrats-addon-x", "Halvard", 1200.0)]
     Notebook(path).save_plan(14169, "Sszorak", "p1", "Spread", "raidstrats-addon-y", "Rowan", at=2200.0)
     assert [p.saved_by for p in reader.latest_plans(14169)] == ["Rowan"]  # a newer version, seen while open
+
+
+async def test_a_notebook_that_cant_be_read_says_so_instead_of_reading_as_empty(tmp_path):
+    """A file locked by a backup or made by an older version read as "nothing saved", which an officer was then
+    told. Only a file the bot hasn't made its tables in yet is empty."""
+    import sqlite3
+    path = tmp_path / "notes.sqlite"
+    sqlite3.connect(path).close()  # a file without the tables: nothing saved
+    for book, saved in ((Notebook(path, readonly=True), []), (Notebook(path), ["a note"])):
+        if saved:
+            book.save_note(14169, 3420, "Sszorak", "a note", "Rowan", at=1000.0)
+        assert [n.note for n in book.notes(14169, 3420)] == saved and book._db is not None
+        book._db.close()
+    holder = sqlite3.connect(path, isolation_level=None)  # a backup, a VACUUM
+    holder.execute("PRAGMA locking_mode=EXCLUSIVE")
+    holder.execute("BEGIN EXCLUSIVE")
+    holder.execute("DELETE FROM raid_notes WHERE wcl_guild_id = 0")
+    reader = Notebook(path, readonly=True)
+    assert reader._db is not None
+    reader._db.execute("PRAGMA busy_timeout=50")
+    with pytest.raises(notebook_module.Unreadable, match="can't be read right now.*locked"):
+        reader.notes(14169, 3420)
+
+    async def tool() -> str:  # a tool is told so in words, not as an unexpected error
+        return str(reader.latest_notes(14169))
+    with pytest.raises(ToolError, match="the saved raid notes and plans can't be read right now"):
+        await server.guarded(tool)()
+    holder.execute("ROLLBACK")
+    holder.close()
+    assert [n.note for n in reader.notes(14169, 3420)] == ["a note"]
 
 
 def test_a_pasted_note_or_plan_is_saved_for_the_guild_and_says_what_was_saved():

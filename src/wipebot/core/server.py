@@ -398,7 +398,7 @@ async def _answered(fn, setup: Setup, args: tuple, kwargs: dict) -> object:
             with waiting_for("the live log to have the pull"):
                 await asyncio.sleep(PULL_WAIT_S)
             await e.report.refresh()
-        except (FactError, KnowledgeError, WCLError) as e:
+        except (FactError, KnowledgeError, WCLError, notebook.Unreadable) as e:
             raise ToolError(_told(e)) from e
         except Exception as e:
             raise _unexpected(fn.__name__, setup, e) from e
@@ -443,7 +443,8 @@ def guarded(fn, setup: Setup = DEFAULT):
             return result
         except ToolError as e:
             cause = e.__cause__
-            unexpected = cause and not isinstance(cause, (PullNotLogged, FactError, KnowledgeError, WCLError))
+            unexpected = cause and not isinstance(cause, (PullNotLogged, FactError, KnowledgeError, WCLError,
+                                                          notebook.Unreadable))
             out = f"{e}: {type(cause).__name__}: {cause}" if unexpected else str(e)  # the records keep what it was
             raise
         except asyncio.CancelledError:  # the client gave up on the call (Claude and ChatGPT do at 60 s)

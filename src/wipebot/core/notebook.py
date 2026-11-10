@@ -83,6 +83,11 @@ SCHEMA = """
 """
 
 
+class Unreadable(Exception):
+    """The file is there and can't be read now (locked by another process, damaged, or of another version's
+    making); the message is shown to the model. Not "nothing saved": only a missing file or table is that."""
+
+
 class Notebook:
     """The saved notes and plans. `readonly` opens an existing file for reading only (the remote server); a
     missing one then reads as empty."""
@@ -107,8 +112,11 @@ class Notebook:
             return []
         try:
             return self._db.execute(query, args).fetchall()
-        except sqlite3.OperationalError:  # read-only, before the bot made the tables
-            return []
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):  # read-only, before the bot made the tables
+                return []
+            raise Unreadable(f"the saved raid notes and plans can't be read right now ({e}); that doesn't mean "
+                             "none is saved: ask again in a moment") from e
 
     def _keep_newest(self, table: str, guild_id: int) -> None:
         """Only a guild's MAX_VERSIONS newest rows of `table`."""
