@@ -641,6 +641,13 @@ class Points:
                 if isinstance(points, int | float):
                     self.spent[kind] += points
 
+    def take(self, part: Points) -> None:
+        """Add what a count inside this one counted (`counting_points`, nested)."""
+        with self._lock:
+            self.queries += part.queries
+            self.spent.update(part.spent)
+            self.private = self.private or part.private
+
     def record(self) -> dict:
         """{"total": ..., "database": ..., "queries": n} for a record, rounded, with "private": true when the call
         read a report that isn't public; {} when nothing was asked."""
@@ -657,13 +664,16 @@ _points: ContextVar[Points | None] = ContextVar("wcl_points", default=None)
 @contextmanager
 def counting_points() -> Generator[Points]:
     """Within it, each query also asks what it cost and adds it to the Points it yields: a tool call's Warcraft Logs
-    points, for the records. warcraft_cli's own guild and character lookups aren't counted."""
-    points = Points()
+    points, for the records. warcraft_cli's own guild and character lookups aren't counted. Inside another count
+    (one query's cost within a tool call's), the outer one gets these points too."""
+    points, outer = Points(), _points.get()
     reset = _points.set(points)
     try:
         yield points
     finally:
         _points.reset(reset)
+        if outer is not None:
+            outer.take(points)
 
 
 def read_private() -> None:

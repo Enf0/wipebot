@@ -5,7 +5,7 @@ import json
 import re
 
 from ..cache import DAY, cache, cache_key
-from ..wcl import WCL, WCLError
+from ..wcl import WCL, WCLError, counting_points
 from .base import FactError
 
 RESERVE_POINTS = 600  # of the hour's points, kept for the other tools: a query is refused past the rest
@@ -16,7 +16,6 @@ EMPTY_FILTERED = ("\n(Empty with a filterExpression: Warcraft Logs answers one i
                   "counts ms from each fight's start; pulls go in fightIDs. Ask once without it to tell them apart.)")
 KEEP_S = 10 * 60  # an answer is kept this long, so its parts and a repeat cost no points
 ROOTS = ("reportData", "worldData", "characterData", "guildData", "progressRaceData", "rateLimitData")
-RATE = "rateLimitData { limitPerHour pointsSpentThisHour pointsResetIn }"
 TYPE_REF = "name kind ofType { name kind ofType { name kind ofType { name } } }"
 SCHEMA = (f"query($name: String!) {{ __type(name: $name) {{ name kind description "
           f"fields {{ name description args {{ name description type {{ {TYPE_REF} }} }} type {{ {TYPE_REF} }} }} "
@@ -36,10 +35,6 @@ def _checked(query: str, code: str | None) -> str:
             raise FactError("$code needs a report: give `report`")
         q = q.replace('"$code"', "$code").replace("$code", json.dumps(code))  # written quoted or not
     return q
-
-
-async def _rate(wcl: WCL) -> dict:
-    return (await wcl.query(f"query {{ {RATE} }}"))["rateLimitData"]
 
 
 def _type(t: dict | None) -> str:
@@ -79,21 +74,23 @@ async def query_text(wcl: WCL, query: str, code: str | None, part: int = 1) -> s
     kept = None if cache().frozen else cache().get(cache_key("wcl", q, {}))
     if kept and kept[1] <= KEEP_S:  # asked moments ago (its next part, or again): no points, so no checks of them
         return _parts(kept[0], f"Warcraft Logs' answer (kept from {kept[1] / 60:.0f} min ago: no points)", part, q)
-    before = await _rate(wcl)
-    left = before["limitPerHour"] - RESERVE_POINTS - before["pointsSpentThisHour"]
-    if left <= 0:
+    # The hour's points come with every query's answer (WCL.points asks only when none came in the last minute), and
+    # the query's cost with its own: asked for apart, before and after, they were two more requests, and the cost
+    # the difference of the account's points, other calls' spending in it.
+    before = await wcl.points()
+    if before and before["limitPerHour"] - RESERVE_POINTS - before["pointsSpentThisHour"] <= 0:
         raise FactError(f"this hour's Warcraft Logs points for such queries are spent "
                         f"({before['pointsSpentThisHour']:.0f} of {before['limitPerHour']}, {RESERVE_POINTS} kept for "
                         f"the other tools); they come back in {before['pointsResetIn'] // 60} min")
     try:
-        data = await wcl.query(q, KEEP_S)
+        with counting_points() as asked:
+            data = await wcl.query(q, KEEP_S)
     except WCLError as e:
         raise FactError(f"Warcraft Logs refused the query: {e}") from None
-    after = await _rate(wcl)
-    cost = max(0.0, after["pointsSpentThisHour"] - before["pointsSpentThisHour"])
-    return _parts(data, f"Warcraft Logs' answer ({cost:.0f} points; {after['pointsSpentThisHour']:.0f} of "
-                        f"{after['limitPerHour']} spent this hour, {RESERVE_POINTS} of them kept for the other tools)",
-                  part, q)
+    cost, after = asked.record().get("total", 0), await wcl.points()
+    hour = (f"; {after['pointsSpentThisHour']:.0f} of {after['limitPerHour']} spent this hour, {RESERVE_POINTS} of "
+            "them kept for the other tools") if after else ""
+    return _parts(data, f"Warcraft Logs' answer ({cost:.0f} points{hour})", part, q)
 
 
 def _parts(data: dict, head: str, part: int, query: str) -> str:

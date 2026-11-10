@@ -3,6 +3,7 @@ from typing import cast
 
 import pytest
 
+from wipebot.core import wcl as wcl_module
 from wipebot.core.cache import Cache, cache_key
 from wipebot.core.report import FactError
 from wipebot.core.report import query as query_module
@@ -11,17 +12,23 @@ from wipebot.core.wcl import WCL
 
 
 class Points:
-    """A Warcraft Logs that spends `cost` points on each query and answers `answer`."""
-    def __init__(self, spent: float, answer: dict, cost: float = 5):
-        self.spent, self.answer, self.cost, self.asked = spent, answer, cost, []
+    """A Warcraft Logs that spends `cost` points on each query and answers `answer`, while other calls spend
+    `others` of the account's points."""
+    def __init__(self, spent: float, answer: dict, cost: float = 5, others: float = 0):
+        self.spent, self.answer, self.cost, self.others, self.asked = spent, answer, cost, others, []
         self.rate_checks = 0
+
+    async def points(self) -> dict:  # as the latest answer gave them: no query of its own
+        return {"limitPerHour": 3600, "pointsSpentThisHour": self.spent, "pointsResetIn": 1800}
 
     async def query(self, query: str, cache_for: float | None = None, **variables) -> dict:
         if "rateLimitData" in query:
             self.rate_checks += 1
-            return {"rateLimitData": {"limitPerHour": 3600, "pointsSpentThisHour": self.spent, "pointsResetIn": 1800}}
+            return {"rateLimitData": await self.points()}
         self.asked.append(query)
-        self.spent += self.cost
+        self.spent += self.cost + self.others
+        if (counted := wcl_module._points.get()) is not None:
+            counted.add({"total": self.cost})
         return self.answer
 
 
@@ -54,6 +61,17 @@ async def test_an_answer_says_what_it_cost_and_comes_in_parts():
     assert "part 1 of 2" in first and first.endswith("(Part 1 of 2: the next is part 2.)")
     second = await query_text(cast(WCL, wcl), "{ worldData { rows } }", None, part=2)
     assert "part 2 of 2" in second and len(second) < ANSWER_CHARS
+
+
+async def test_a_querys_cost_is_its_own_and_the_hours_points_are_not_asked_for_apart():
+    """The cost was the account's points after less before, two more requests, so whatever other calls spent
+    meanwhile was shown as this query's."""
+    wcl = Points(100, {"worldData": {"zone": {"name": "x"}}}, others=500)
+    with wcl_module.counting_points() as call:
+        text = await query_text(cast(WCL, wcl), "{ worldData { zone(id: 1) { name } } }", None)
+    assert text.startswith("Warcraft Logs' answer (5 points; 605 of 3600 spent this hour")
+    assert wcl.rate_checks == 0 and len(wcl.asked) == 1
+    assert call.record() == {"total": 5, "queries": 1}  # counted for the tool call's record too
 
 
 async def test_the_hours_last_points_are_kept_for_the_other_tools():
