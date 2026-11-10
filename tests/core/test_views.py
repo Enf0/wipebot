@@ -173,7 +173,7 @@ async def test_the_raid_night_view_states_what_progress_states(recorded):
     ends = ", ".join(f"{w} {n}" for w, n in data["ends"])
     assert f"(pull_summary's \"Ended by\"): {ends}." in text
     what, most = data["ends"][0]  # the card's headline: what ended the most pulls, counted over all of them
-    assert data["headline"]["text"] == f"{what[0].upper()}{what[1:]} ended {most} of the {len(data['pulls'])} pulls."
+    assert data["headline"]["text"] == f"{most} of the {len(data['pulls'])} pulls ended with {what}."
     assert "first third {:.1f}, middle {:.1f}, last third {:.1f}".format(*data["thirds"]) in text
 
 
@@ -1884,13 +1884,38 @@ def test_a_nights_headline_counts_what_ended_the_most_pulls_over_all_of_them():
     row = lambda n, **over: {"pull": n, "kill": False, "live": False, "reset": False} | over  # noqa: E731
     night = [row(1), row(2, reset=True), row(3), row(4)]
     ends = [("Mutilate killing many", 2), ("a reset", 1), ("deaths one after another", 1)]
-    assert views.night_headline(night, ends) == {"text": "Mutilate killing many ended 2 of the 4 pulls.", "kind": ""}
+    assert views.night_headline(night, ends) == {"text": "2 of the 4 pulls ended with Mutilate killing many.",
+                                                 "kind": ""}
     going = [*night, row(5, live=True)]  # a pull still going hasn't ended
-    assert views.night_headline(going, ends)["text"] == "Mutilate killing many ended 2 of the 4 pulls."
+    assert views.night_headline(going, ends)["text"] == "2 of the 4 pulls ended with Mutilate killing many."
     assert views.night_headline([*night, row(5, kill=True)], ends)["text"] == "Killed on pull 5 of 5."
     assert views.night_headline([row(1, kill=True)], [("a kill", 1)])["text"] == "Killed on the first pull."
     assert views.night_headline([row(1, reset=True), row(2, reset=True)], [("a reset", 2)])["text"] == (
         "2 pulls, none past a reset.")
+
+
+def test_a_nights_headline_reads_as_a_sentence_for_every_way_a_pull_ends():
+    """What ended the pulls is said in progress's own words for it (ending.kind_of_end), which are not all a
+    sentence's subject: "Many dying at once, no killing blow ended 3 of the 12 pulls" read as if no killing blow
+    had ended them, and the pinned night as "keeping it to the end ended 10". One pull is not "1 of the 1 pull",
+    and a pull called off went past a reset."""
+    row = lambda n, **over: {"pull": n, "kill": False, "live": False, "reset": False} | over  # noqa: E731
+    said = lambda rows, *ends: views.night_headline(rows, list(ends))["text"]  # noqa: E731
+    dozen = [row(n) for n in range(1, 13)]
+    assert said(dozen, ("many dying at once, no killing blow", 3), ("half the raid dead", 2)) == (
+        "3 of the 12 pulls ended with many dying at once, no killing blow.")
+    assert said(dozen, ("the boss gaining Unbound Ferocity and keeping it to the end", 10)) == (
+        "10 of the 12 pulls ended with the boss gaining Unbound Ferocity and keeping it to the end.")
+    assert said(dozen, ("half the raid dead", 5)) == "5 of the 12 pulls ended with half the raid dead."
+    assert said(dozen, ("deaths one after another", 7)) == "7 of the 12 pulls ended with deaths one after another."
+    assert said([row(7)], ("Mutilate killing many", 1)) == "Pull 7 ended with Mutilate killing many."
+    assert said([row(7), row(8, live=True)], ("Mutilate killing many", 1)) == (
+        "Pull 7 ended with Mutilate killing many.")
+    # no mechanic ended a pull: the counts as progress lists them, and "none past a reset" only where that is so
+    assert said([row(1), row(2), row(3, reset=True)], ("called off", 2), ("a reset", 1)) == (
+        "3 pulls: called off 2, a reset 1.")
+    assert said([row(1, reset=True), row(2, live=True)], ("a reset", 1)) == "2 pulls: a reset 1, still going 1."
+    assert said([row(4, live=True)]) == "Pull 4 is still going."
 
 
 def test_a_players_headline_is_the_weightiest_note_and_their_nights_what_would_have_kept_them_alive():
@@ -1993,7 +2018,7 @@ async def test_asked_about_the_whole_night_the_card_leads_with_its_bosses(monkey
                                               ["Torvek's Forge · 2 pulls, best 42%", "chip on"]]
         under = "document.querySelector('.chips.bosses + [data-panel] h1').textContent"  # then that boss's card
         assert await view.evaluate(under) == "Torvek's Forge"
-        assert (await view.evaluate(CARD))["lead"] == ["Slag Wave killing many ended 2 of the 2 pulls."]
+        assert (await view.evaluate(CARD))["lead"] == ["2 of the 2 pulls ended with Slag Wave killing many."]
         assert not errors
     async with drawn("progress", {"report": night["report"], "boss": "Torvek"}) as (view, errors):
         assert await view.evaluate(chips) == [] and not errors

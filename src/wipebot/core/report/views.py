@@ -987,17 +987,26 @@ QUIET_ENDS = ("a reset", "a kill", "still going", ALIVE)  # the endings no mecha
 def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
     """The raid's night on a boss in one sentence of progress's facts: the kill and on which pull, else what ended
     the most pulls (its "Ended by" counted over the pulls that ended, resets among them: the one count the card
-    states), else how far the best wipe got."""
+    states), in progress's words for it after "ended with", which every one of them reads after. Where no mechanic
+    ended a pull, the pulls as progress counts them."""
     ended = [r for r in rows if not r["live"]]
     kill = next((r for r in rows if r["kill"]), None)
     if kill:
         return _headline("Killed on the first pull." if len(rows) == 1
                          else f"Killed on pull {kill['pull']} of {len(rows)}.")
     top = next(((what, k) for what, k in ends if what not in QUIET_ENDS), None)
+    if top and len(ended) == 1:
+        return _headline(f"Pull {ended[0]['pull']} ended with {top[0]}.")
     if top:
-        what = top[0][0].upper() + top[0][1:]
-        return _headline(f"{what} ended {top[1]} of the {plural(len(ended), 'pull')}.")
-    return _headline(f"{plural(len(rows), 'pull')}, none past a reset.")
+        return _headline(f"{top[1]} of the {len(ended)} pulls ended with {top[0]}.")
+    if not ended:
+        return _headline(f"Pull {rows[-1]['pull']} is still going.")
+    if all(r["reset"] for r in rows):
+        return _headline(f"{plural(len(rows), 'pull')}, none past a reset.")
+    counts = [f"{what} {k}" for what, k in ends]
+    if live := len(rows) - len(ended):
+        counts.append(f"still going {live}")
+    return _headline(f"{plural(len(rows), 'pull')}: {', '.join(counts)}.")
 
 
 def player_headline(out: dict) -> dict:
