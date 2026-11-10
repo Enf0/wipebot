@@ -1006,7 +1006,7 @@ def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
     counts = [f"{what} {k}" for what, k in ends]
     if live := len(rows) - len(ended):
         counts.append(f"still going {live}")
-    return _headline(f"{plural(len(rows), 'pull')}: {', '.join(counts)}.")
+    return _headline(f"{plural(len(rows), 'pull')}: {'; '.join(counts)}.")  # one of them has a comma of its own
 
 
 def player_headline(out: dict) -> dict:

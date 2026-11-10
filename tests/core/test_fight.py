@@ -13,7 +13,6 @@ from wipebot.core.report import fight
 from wipebot.core.report.ending import (
     Ending,
     MassDeath,
-    card_text,
     ending,
     ending_ability,
     ending_text,
@@ -69,7 +68,6 @@ def test_a_wipe_no_death_decided_ended_with_the_raid_alive_and_one_still_going_h
         "Ended by: no death. The pull ended at 2:00 with 18 of 20 alive and nothing in the log decided it: called off "
         "or reset, the log doesn't say which.")
     assert (lead(alive), kind_of_end(alive), ending_ability(alive)) == ("alive", "no death, the raid alive", None)
-    assert card_text(alive) == ("no death, the raid alive", None)
     assert ended_by(rep, {**PULL, "inProgress": True}, died, {}, 20, [], None) == (
         "Ended by: not yet, the pull is still going (2:00 logged so far).")
     assert ended_by(rep, {**PULL, "kill": True}, died, {}, 20, [], None) is None
@@ -185,12 +183,11 @@ def test_the_deaths_leading_into_a_moment_are_named_and_lead_when_they_are_many(
         "killing many at once: find which mechanic failed).")
     assert lead(e) == "deaths from 1:10"
     assert kind_of_end(e) == "deaths leading into Venom Burst killing many"
-    assert card_text(e) == ("deaths leading into Venom Burst killing 4", 100_000)
     fewer = ending(rep, PULL, died[4:], backs, 20, [], None)  # two deaths before it: named, but don't lead
     assert fewer and fewer.lead_in and fewer.lead_in.deaths == 2 and lead(fewer) == "ability: Venom Burst"
     assert str(ending_text(fewer)).endswith("Before it, 2 deaths one after another from 1:30, none brought back: what "
                                             "each left short may be what lost it.")
-    assert (kind_of_end(fewer), card_text(fewer)) == ("Venom Burst killing many", ("Venom Burst killing 4", 100_000))
+    assert kind_of_end(fewer) == "Venom Burst killing many"
     # the mechanic a post reads up on first: the one ending it, none when the deaths before it lead
     assert ending_ability(fewer) == "Venom Burst" and ending_ability(e) is None
 
@@ -259,7 +256,6 @@ async def test_a_cast_of_the_boss_that_lands_on_the_living_as_the_pull_ends_is_w
         "moment of this pull or of the pulls before it: look the cast up, one that ends the fight is what ended this "
         "pull.")
     assert (lead(e), kind_of_end(e), ending_ability(e)) == ("cast: March", "the boss casting March", "March")
-    assert card_text(e) == ("the boss casting March", 118_000)
     # a night's pulls: the ones that ended with the raid alive are read in one query per kind
     asked.clear()
     assert [kind_of_end(x) for x in await pull_endings(rep, [f, {**f, "id": 991}])] == ["the boss casting March"] * 2

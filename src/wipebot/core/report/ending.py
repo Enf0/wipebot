@@ -424,28 +424,3 @@ def _moment_kind(m: Moment) -> str:
         case KeptBuff(name=name):
             return f"the boss gaining {name} and keeping it to the end"
     return "half the raid dead"
-
-
-def card_text(e: Ending | None) -> tuple[str, float | None] | None:
-    """How the pull ended, in a few words for a card, and when (ms from the pull): the same reading as
-    `kind_of_end`, with the count of a hit killing many. None for a kill."""
-    if e is None:
-        return None
-    match e.kind:
-        case "cascade":
-            return kind_of_end(e), e.half_dead_ms
-        case "cast":
-            return kind_of_end(e), e.cast.at_ms if e.cast else None
-        case "live" | "reset" | "alive":
-            return kind_of_end(e), None
-    m = e.moments[0]
-    match m:
-        case MassDeath(ability="", killed=n):
-            text = f"{n} dying at once"
-        case MassDeath(ability=name, killed=n):
-            text = f"{name} killing {n}"
-        case KeptBuff(name=name):
-            text = f"the boss gaining {name}"
-        case _:
-            text = "half the raid dead"
-    return ("deaths leading into " if e.led_in else "") + text, m.at_ms

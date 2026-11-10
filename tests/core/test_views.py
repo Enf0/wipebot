@@ -1952,7 +1952,7 @@ def test_a_nights_headline_reads_as_a_sentence_for_every_way_a_pull_ends():
     """What ended the pulls is said in progress's own words for it (ending.kind_of_end), which are not all a
     sentence's subject: "Many dying at once, no killing blow ended 3 of the 12 pulls" read as if no killing blow
     had ended them, and the pinned night as "keeping it to the end ended 10". One pull is not "1 of the 1 pull",
-    and a pull called off went past a reset."""
+    and a pull that ended with the raid alive went past a reset."""
     row = lambda n, **over: {"pull": n, "kill": False, "live": False, "reset": False} | over  # noqa: E731
     said = lambda rows, *ends: views.night_headline(rows, list(ends))["text"]  # noqa: E731
     dozen = [row(n) for n in range(1, 13)]
@@ -1966,9 +1966,11 @@ def test_a_nights_headline_reads_as_a_sentence_for_every_way_a_pull_ends():
     assert said([row(7), row(8, live=True)], ("Mutilate killing many", 1)) == (
         "Pull 7 ended with Mutilate killing many.")
     # no mechanic ended a pull: the counts as progress lists them, and "none past a reset" only where that is so
-    assert said([row(1), row(2), row(3, reset=True)], ("called off", 2), ("a reset", 1)) == (
-        "3 pulls: called off 2, a reset 1.")
-    assert said([row(1, reset=True), row(2, live=True)], ("a reset", 1)) == "2 pulls: a reset 1, still going 1."
+    assert said([row(1), row(2), row(3, reset=True)], ("no death, the raid alive", 2), ("a reset", 1)) == (
+        "3 pulls: no death, the raid alive 2; a reset 1.")
+    assert said([row(1, reset=True), row(2, live=True)], ("a reset", 1)) == "2 pulls: a reset 1; still going 1."
+    assert said(dozen, ("the boss casting March", 4), ("no death, the raid alive", 3)) == (
+        "4 of the 12 pulls ended with the boss casting March.")
     assert said([row(4, live=True)]) == "Pull 4 is still going."
 
 
