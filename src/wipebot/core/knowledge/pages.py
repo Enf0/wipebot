@@ -15,10 +15,16 @@ SITES = "Wowhead (news, blue posts, guides), Method, Icy Veins and Warcraft Wiki
 
 def _command(url: str) -> tuple[str, ...]:
     """The warcraft_cli command that reads a page, by its address."""
-    u = urlparse(url if "://" in url else "https://" + url)
-    host, path = u.netloc.lower().removeprefix("www."), u.path
+    try:
+        u = urlparse(url if "://" in url else "https://" + url)
+    except ValueError:  # an address that reads as none
+        raise KnowledgeError(f"can't read {url}: pages of {SITES} only (a spell's tooltip: spell_info)") from None
+    # the host alone (no login or port before or after it), spelled as a host is, over https: an address that only
+    # looks like one of the sites' is no page of theirs
+    host, path = (u.hostname or "").removeprefix("www."), u.path
     def on(site: str) -> bool:
-        return host == site or host.endswith("." + site)
+        return (u.scheme == "https" and re.fullmatch(r"[a-z0-9.-]+", host) is not None
+                and (host == site or host.endswith("." + site)))
     if on("wowhead.com"):
         if "/news/" in path:
             return ("wowhead", "news-post", "--", url)

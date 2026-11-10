@@ -22,6 +22,23 @@ def test_a_wiki_page_is_read_by_its_title():
         _command("https://notwowhead.com/news/a-post")  # only the site itself and its subdomains
 
 
+@pytest.mark.parametrize("url", [
+    "https://example.com\\.wowhead.com/news/a-post",  # a host a browser reads as example.com
+    "https://example.com/news/@wowhead.com",
+    "https://wowhead.com.example.com/news/a-post",
+    "http://www.wowhead.com/news/a-post",  # not over https
+    "ftp://www.wowhead.com/news/a-post",
+    "https://[www.wowhead.com/news/a-post",  # no address at all
+])
+def test_an_address_that_only_looks_like_a_sites_is_not_read(url):
+    with pytest.raises(KnowledgeError):
+        _command(url)
+
+
+def test_a_login_or_a_port_in_the_address_does_not_hide_the_site():
+    assert _command("https://user@www.wowhead.com:443/news/a-post")[:2] == ("wowhead", "news-post")
+
+
 def test_a_site_no_reader_has_says_which_it_can_read():
     with pytest.raises(KnowledgeError, match="Method, Icy Veins and Warcraft Wiki"):
         _command("https://example.com/twin-fangs")
