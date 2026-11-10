@@ -19,7 +19,7 @@ import weakref
 from typing import Any
 
 from ..cache import DAY, HOUR, cache, cache_key
-from ..wcl import use_wcl_env_names
+from ..wcl import cli_env, use_wcl_env_names
 
 log = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ async def _run(tool: str, *args: str) -> dict:
     async with _limit():
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "-c", (STOPGAPS.get(tool, "") + f"from {MODULES[tool]}.main import run; run()"), *args,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=cli_env())
         timeout_s = TIMEOUT_S.get((tool, args[0]), CLI_TIMEOUT_S)
         try:
             out, err = await asyncio.wait_for(proc.communicate(), timeout_s)

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 
 import pytest
 
@@ -58,6 +59,22 @@ async def test_a_not_found_is_remembered_as_a_found_answer_is(monkeypatch):
         with pytest.raises(KnowledgeError, match="503"):
             await fetch.cli("lorrgs", "boss-spells", "sszorak")
     assert len(ran) == 3
+
+
+async def test_a_command_runs_without_the_pace_set_for_warcraft_logs(monkeypatch):
+    """Warcraft Logs is asked almost without pause (wcl.pace_requests); a guide site keeps warcraft_cli's own."""
+    from wipebot.core import wcl
+    monkeypatch.delenv(wcl.PACING_ENV, raising=False)
+    monkeypatch.setattr(wcl, "_paced_here", False)
+    wcl.pace_requests()
+    given = []
+
+    async def create_subprocess_exec(*args, **kwargs):
+        given.append(kwargs["env"])
+        return await fake_process({"ok": True, "data": {}})()
+    monkeypatch.setattr(fetch.asyncio, "create_subprocess_exec", create_subprocess_exec)
+    await fetch.cli("wowhead", "guide-full", "https://www.wowhead.com/guide/x")
+    assert wcl.PACING_ENV in os.environ and wcl.PACING_ENV not in given[0] and "PATH" in given[0]
 
 
 async def test_a_tooltip_gives_up_sooner_than_a_page(monkeypatch):

@@ -261,9 +261,10 @@ query($code: String!, $fight: Int!) {
 
 
 END_OF_REPORT = 2**40  # an endTime past any report's end, in ms
-# Report fields asked for in one query, each under its own alias ("f46: table(...)"): Warcraft Logs answers a
-# client's requests one after another, so forty pulls' tables in one query come back in under a second where
-# forty queries take ten or more. It caps a query's complexity; a night's pulls fit.
+# Report fields asked for in one query, each under its own alias ("f46: table(...)"): one round trip, so forty
+# pulls' tables come back in under a second, where forty queries took ten or more (warcraft_cli started them 0.25 s
+# apart then: PACING_ENV; whether Warcraft Logs also answers a client's requests one after another isn't known). It
+# caps a query's complexity; a night's pulls fit.
 ALIASES_PER_QUERY = 40
 
 
@@ -321,6 +322,30 @@ def use_wcl_env_names() -> None:
     for ours, theirs in pairs:
         if os.environ.get(ours) and not os.environ.get(theirs):
             os.environ[theirs] = os.environ[ours]
+
+
+# warcraft_cli (since 0.6.0) starts its requests to one host this many seconds apart, 0.25 unless this variable says
+# otherwise, through one gate for the whole process: every user's Warcraft Logs queries queued four a second behind
+# it (a cold player_pull's 24 queries 3.5 s, compare_with_top's 36 queries 6.9 s, by each tool's queries at 0.4 s
+# apiece). Warcraft Logs limits points an hour, which Hour and Budget keep to, not requests a second, so the gate is
+# set nearly open for it, where the host hasn't set it. The guide sites' commands keep warcraft_cli's own pace
+# (`cli_env`).
+PACING_ENV, WCL_INTERVAL_S = "WARCRAFT_HTTP_MIN_INTERVAL_SECONDS", "0.05"
+_paced_here = False  # whether PACING_ENV is this module's setting, not the host's
+
+
+def pace_requests() -> None:
+    """Set warcraft_cli's pause between requests for Warcraft Logs (PACING_ENV), unless the host set one."""
+    global _paced_here
+    if PACING_ENV not in os.environ:
+        os.environ[PACING_ENV] = WCL_INTERVAL_S
+        _paced_here = True
+
+
+def cli_env() -> dict[str, str]:
+    """The environment a warcraft_cli command runs in as a process of its own: this one's, without the pace set
+    here for Warcraft Logs, so a guide site is still asked at warcraft_cli's."""
+    return {k: v for k, v in os.environ.items() if not (_paced_here and k == PACING_ENV)}
 
 
 def _args(**filters) -> str:
@@ -686,6 +711,7 @@ def _says_database_out(said: str) -> bool:
 class WCL:
     def __init__(self):
         use_wcl_env_names()
+        pace_requests()
         self._local = threading.local()
         self._hour = Hour()
         self._budget = Budget.from_env()

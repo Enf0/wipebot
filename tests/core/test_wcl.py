@@ -31,6 +31,24 @@ def answering(w: WCL, monkeypatch, *answers: dict) -> None:
     monkeypatch.setattr(w, "_client", lambda: Client())
 
 
+def test_warcraft_logs_is_asked_without_warcraft_clis_pause_and_the_guide_sites_with_it(monkeypatch):
+    """warcraft_cli starts its requests to one host 0.25 s apart unless told otherwise, through one gate for the
+    whole process: every user's Warcraft Logs queries queued four a second (a cold player_pull's 24 waited 3.5 s).
+    Warcraft Logs is asked almost at once; a guide site's command keeps warcraft_cli's pace; a host's own setting
+    stands for both."""
+    monkeypatch.delenv(wcl_module.PACING_ENV, raising=False)
+    monkeypatch.setattr(wcl_module, "_paced_here", False)
+    assert warcraft_api.http.DEFAULT_RATE_LIMITER.min_interval_seconds == 0.25
+    WCL()
+    assert warcraft_api.http.DEFAULT_RATE_LIMITER.min_interval_seconds == 0.05
+    assert wcl_module.PACING_ENV not in wcl_module.cli_env() and "PATH" in wcl_module.cli_env()
+    monkeypatch.setenv(wcl_module.PACING_ENV, "0.5")
+    monkeypatch.setattr(wcl_module, "_paced_here", False)
+    WCL()
+    assert warcraft_api.http.DEFAULT_RATE_LIMITER.min_interval_seconds == 0.5
+    assert wcl_module.cli_env()[wcl_module.PACING_ENV] == "0.5"
+
+
 async def test_a_hung_request_is_given_up_after_two_tries(monkeypatch):
     """On 14 Oct 2026 Warcraft Logs hung, and three tries of 20 s made one answer take over two minutes."""
     tries = []

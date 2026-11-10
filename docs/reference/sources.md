@@ -102,6 +102,11 @@ API: `wcl-api.md`.
 - Every command prints one JSON envelope (`ok`, `data`, `error`). Wipebot runs commands as
   `python -c "from <module>.main import run; run()" ...` (`wowhead_cli`, `method_cli`, `lorrgs_cli`, ...).
 - It keeps its own HTTP cache under `~/.cache/warcraft`.
+- It starts its requests to one host 0.25 s apart (`WARCRAFT_HTTP_MIN_INTERVAL_SECONDS`, since 0.6.0), within a
+  process. Each guide-site command is a process of its own and keeps that pause (`wcl.cli_env` leaves out the
+  shorter one Wipebot sets for Warcraft Logs: wcl-api.md, "Using the API efficiently"). A request answered 429,
+  500, 502, 503 or 504, or not at all, is tried again (three tries by default; Wipebot gives Warcraft Logs two,
+  `wcl.WCL_ATTEMPTS`), after the answer's `Retry-After` up to 30 s, else a backoff (`warcraft_api/http.py`).
 - Lorrgs `spec-spells <class-spec>` gives cooldowns with spell ids and tags (`defensive`, `raid_cd`, `dps`,
   `tank`, `move`); filter `spell_type` to the class and spec to drop trinkets and racials.
 - Lorrgs' `cooldown` is the spell's base cooldown and `duration` its base duration, and either may be 0 (Reincarnation

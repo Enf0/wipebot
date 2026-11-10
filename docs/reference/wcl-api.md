@@ -273,6 +273,14 @@ Every query adds to how long a raider waits in chat, and all of them spend the a
   - a past raid night read for another night's question (`settled`, a day or more old): its fight list too;
   - rankings, attendance, guild progress: an hour; guild members, zones, encounters, ranked characters, the guild's
     furthest wipes before a night: a day (the furthest wipes for good once the night's log is settled).
+- warcraft_cli (since 0.6.0) starts its requests to one host 0.25 s apart, through one gate for the whole process
+  (`warcraft_api.http.DEFAULT_RATE_LIMITER`; `WARCRAFT_HTTP_MIN_INTERVAL_SECONDS` sets the pause, read at each
+  request). Wipebot's Warcraft Logs client is warcraft_cli's, in-process, so every user's queries queued four a
+  second: by each tool's queries on the recordings at 0.4 s a query, a cold player_pull (24 queries) waited 3.5 s
+  behind the gate and compare_with_top (36) 6.9 s. `wcl.pace_requests` sets the pause to 0.05 s where the host
+  set none; Warcraft Logs limits points an hour, not requests a second. The timings below were taken with the
+  0.25 s pause and not again since (10 November 2026): the report load carries 0.5 s of it (one query, then three
+  at once).
 - Loading a report is four queries (fights, actors, abilities, player details): about 1.3 s, 0.5 s with its
   names from disk. A tool that read ten raid nights took about 90 s the first time and 12 s with the per-pull
   data on disk, against 1 s for the same tool on one pull; with past nights loading from disk, about 2 s.
