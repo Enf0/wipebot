@@ -28,8 +28,15 @@ async def test_the_verdict_is_the_last_one_the_reasoning_may_quote_others(replie
     assert v.ok is True and "FAIL" not in v.reason and v.reason.startswith("It would")
     queue.append("The point is missing.\n**FAIL**")
     assert (await checks.judge("p", "sonnet")).ok is False
-    queue.append("Can't tell from this.\nUNKNOWN")
-    assert (await checks.judge("p", "sonnet")).ok is None
+
+
+async def test_an_undecided_judge_is_asked_again_at_once(replies):
+    queue, asked = replies
+    queue.extend(["Can't tell from this.\nUNKNOWN", "It names the enrage.\nPASS"])
+    assert (await checks.judge("p", "sonnet")).ok is True and len(asked) == 2
+    queue.extend(["Can't tell from this.\nUNKNOWN"] * checks.JUDGE_TRIES)
+    v = await checks.judge("p", "sonnet")
+    assert v.ok is None and v.reason.startswith("Can't tell") and not queue  # undecided to the end: an error
 
 
 async def test_a_reply_without_a_verdict_is_asked_again_then_left_undecided(replies):
@@ -62,7 +69,7 @@ async def test_a_fail_is_judged_twice_more_and_the_majority_kept(replies):
 
 async def test_undecided_votes_leave_a_fail_standing(replies):
     queue, _ = replies
-    queue.extend(["Misses it.\nFAIL", "Hmm.\nUNKNOWN", "Hmm.\nUNKNOWN"])
+    queue.extend(["Misses it.\nFAIL", *["Hmm.\nUNKNOWN"] * 2 * checks.JUDGE_TRIES])
     assert (await checks.judge_majority("p", "sonnet")).ok is False
 
 

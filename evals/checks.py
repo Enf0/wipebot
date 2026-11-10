@@ -117,7 +117,8 @@ JUDGE_WAIT_S = 30  # before another try, times the tries so far: a usage limit o
 
 
 async def judge(prompt: str, model: str) -> Verdict:
-    """The judge's verdict; asked again when it fails or answers without one (a usage limit hit mid-run)."""
+    """The judge's verdict; asked again when it fails or answers without one (a usage limit hit mid-run), and at
+    once when it says UNKNOWN: an answer it leaves undecided to the end is an error, in no count."""
     cost = 0.0
     for tries in range(1, JUDGE_TRIES + 1):
         try:
@@ -125,10 +126,11 @@ async def judge(prompt: str, model: str) -> Verdict:
             cost += spent
         except Exception as e:  # the SDK's errors for a limit or an overload
             text = f"the judge failed: {type(e).__name__}: {e}"
-        if VERDICT.search(text) or tries == JUDGE_TRIES:
+        verdicts = VERDICT.findall(text)  # the last one: the reasoning may quote the words before it
+        if (verdicts and verdicts[-1] != "UNKNOWN") or tries == JUDGE_TRIES:
             break
-        await asyncio.sleep(JUDGE_WAIT_S * tries)
-    verdicts = VERDICT.findall(text)  # the last one: the reasoning may quote the words before it
+        if not verdicts:
+            await asyncio.sleep(JUDGE_WAIT_S * tries)
     if not verdicts:
         return Verdict(None, f"no verdict: {text[:200]}", cost)
     reason = VERDICT.sub("", text).strip(" \n*.`")

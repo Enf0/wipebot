@@ -24,6 +24,12 @@ first fetched (wipebot.core.clock). A fresh clone fetches it on its first run, w
 takes a while; its rankings and percentiles are that day's, so a few cases' numbers can differ from the owner's.
 Runs are saved, with every answer and tool call, to evals/results/.
 
+An answer fails when the judge fails it, and also when the raider would have met a failure whatever the judge made
+of the text: a tool crashed, the answer hit the bot's cap of turns or spend, or it took longer than the bot waits. An
+error is only what says nothing about the answer: a usage limit, a judge with no verdict, a service that was down,
+data this machine may not read. Errors are in no count; a summary and a comparison start with how many there were,
+and a run with one exits non-zero (settle).
+
 A run, and a baseline, keep a hash of the judge (its prompts and model) and of each case. A run is compared with the
 baseline only on the cases unchanged since, with a warning when the judge changed; a case is listed as moved only
 when its pass rate moved beyond noise (beyond_noise), and the total with its expected spread from run to run.
@@ -67,8 +73,9 @@ from evals.checks import (
 from wipebot.core import server, wcl
 from wipebot.core.cache import cache
 from wipebot.discord import config
+from wipebot.discord.bot import CHAT_TIMEOUT_S, POST_TIMEOUT_S
 from wipebot.discord.checks import warnings
-from wipebot.discord.host import Context, Session
+from wipebot.discord.host import CAPPED, Context, ModelError, Session, ToolCall
 from wipebot.discord.prompt import post_prefetch, post_question
 from wipebot.mcp import remote
 from wipebot.mcp.plugin import plugin_files
@@ -107,34 +114,99 @@ KEEP_FOR_OTHERS = 1 / 2  # of each hour's Warcraft Logs points, left to the bot 
 CONNECTOR_ONLY = ("You are Claude, an AI assistant made by Anthropic, in a chat on claude.ai. The user has connected "
                   "the Wipebot connector, World of Warcraft raid analysis from Warcraft Logs; use its tools. Each "
                   "message starts with what the app knows: the report and who is asking.")
-# A tool failure that isn't the model's doing (a bad argument is): a crash, or a report Warcraft Logs won't show.
-BROKEN_TOOL = ("failed with an unexpected error", "won't show report")
+# A tool that crashed (a bad argument is the model's doing, and no crash): the raider would have met it too, so the
+# answer fails whatever the judge makes of it.
+CRASHED = ("failed with an unexpected error",)
+# Data this machine couldn't read, which says nothing about the answer: a report Warcraft Logs won't show, or keys it
+# refused (a run checks them once at its start, keys_work).
+NO_DATA = ("won't show report", "auth_failed")
 # A service that didn't answer (warcraft_cli's network failure: Warcraft Logs down, a 503), for a call the frozen
 # cache doesn't hold: it breaks a failed trial, while an answer that got by without the call still passes.
 DOWN = "upstream_error"
 
 
-def broken(t: Trial) -> str:
-    """Why a trial says nothing about the answer, or ''."""
-    if t.error:
-        return t.error
-    if failed := next((c for c in t.calls if c.get("failed") and any(
-            b in str(c.get("result")) for b in BROKEN_TOOL + (() if t.passed else (DOWN,)))), None):
-        return f"{failed.get('name')}: {str(failed.get('result'))[:200]}"
-    for name, v in (("expect", t.expect), ("wrong", t.wrong)):
-        if v and v.get("ok") is None:
-            return f"the judge gave no verdict on {name}: {v.get('reason', '')[:200]}"
-    return ""
+def settle(t: Trial, case: dict, mode: str) -> Trial:
+    """A trial's verdict from what it recorded, by today's rule (a saved run is read with it too):
+    - a failed answer whatever the judge said (`broke`), as the raider would have met it: it hit the bot's cap of
+      turns or spend, a tool crashed, or, in the bot, it took longer than the bot waits (the wait for the next hour's
+      Warcraft Logs points left out, which is the eval's own: only where that was timed);
+    - an error, in neither passes nor trials (`error`): the session failed another way (a usage limit), this machine
+      couldn't read the data, a service was down for a call a failed answer needed, or the judge gave no verdict;
+    - else passed when the judge passed both checks and no required call is missing."""
+    session = t.error if t.error and not t.expect else ""  # the session raised: nothing was judged
+    judged_ok = t.expect.get("ok") is True and t.wrong.get("ok") is True and not t.uncalled
+    failed = [c for c in t.calls if c.get("failed")]
+
+    def said(words: tuple[str, ...]) -> str:
+        return next((f"{c.get('name')}: {str(c.get('result'))[:200]}" for c in failed
+                     if any(w in str(c.get("result")) for w in words)), "")
+    t.error = t.broke = ""
+    if cap := next((c for c in CAPPED if c in session), ""):
+        t.broke = f"hit the bot's cap ({cap}): the raider is told it needed more digging than one answer gets"
+    elif session:
+        t.error = session
+    elif crashed := said(CRASHED):
+        t.broke = f"a tool crashed: {crashed}"
+    elif mode == "bot" and t.waited_s is not None and t.seconds - t.waited_s > (limit := time_limit(case)):
+        t.broke = f"took {t.seconds - t.waited_s:.0f} s: the bot gives up after {limit} s"
+    elif unread := said(NO_DATA) or ("" if judged_ok else said((DOWN,))):
+        t.error = unread
+    else:
+        t.error = next((f"the judge gave no verdict on {name}: {v.get('reason', '')[:200]}"
+                        for name, v in (("expect", t.expect), ("wrong", t.wrong)) if v.get("ok") is None), "")
+    t.errored = bool(t.error)
+    t.passed = judged_ok and not t.errored and not t.broke
+    return t
+
+
+def time_limit(case: dict) -> int:
+    """How long the bot waits for a case's answers before it gives up: a post's or a chat answer's, for each of its
+    questions (a trial's seconds are the whole conversation's)."""
+    return (POST_TIMEOUT_S if case.get("kind") == "posts" else CHAT_TIMEOUT_S) * len(questions(case))
+
+
+# When this process waited for the next hour's Warcraft Logs points (time.monotonic(), from and to): the eval's own
+# rule (KEEP_FOR_OTHERS), so no part of an answer's time. None until time_waits: not timed.
+WAITS: list[tuple[float, float]] | None = None
+
+
+def time_waits() -> None:
+    """Time each wait for the next hour's points from now on (WAITS), around the wait wcl.py makes before a query.
+    Where that wait isn't there to wrap, answers' seconds are kept but none fails on them."""
+    global WAITS
+    wait = getattr(wcl.WCL, "_wait_for_points", None)
+    if WAITS is not None or wait is None:
+        return
+    WAITS = []
+
+    def timed(self) -> None:
+        started = time.monotonic()
+        wait(self)
+        if WAITS is not None and time.monotonic() - started >= 1:
+            WAITS.append((started, time.monotonic()))
+    wcl.WCL._wait_for_points = timed
+
+
+def waited(calls: Iterable[ToolCall]) -> float | None:
+    """How long an answer's tool calls waited for the next hour's points: of each wait, what the call it held
+    longest spent in it. None when waits aren't timed."""
+    if WAITS is None:
+        return None
+    spans = [(c.started, c.started + c.duration_s) for c in calls]
+    return round(sum(max((max(0.0, min(end, to) - max(start, since)) for start, end in spans), default=0.0)
+                     for since, to in WAITS), 1)
 
 
 @dataclass
 class Trial:
     answer: str = ""
-    error: str = ""
+    error: str = ""  # why it's an error
     seconds: float = 0.0
+    waited_s: float | None = None  # of them, waiting for the next hour's Warcraft Logs points; None: not timed
     cost_usd: float = 0.0  # the answer's and the judge's
     passed: bool = False
-    errored: bool = False  # not the answer's fault: the session or a tool broke, or the judge gave no verdict
+    errored: bool = False  # says nothing about the answer (settle): in neither passes nor trials
+    broke: str = ""  # why it's a failed answer whatever the judge said (settle)
     expect: dict = field(default_factory=dict)  # Verdict
     wrong: dict = field(default_factory=dict)
     facts: dict = field(default_factory=dict)  # Facts: how many supporting facts it states (never fails it)
@@ -252,20 +324,31 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
                                                    case.get("asker"), case.get("request", ""))
             # None: the bot's own, with the skill
             prompt = {"plugin": PLUGIN, "connector": CONNECTOR_ONLY, "bot": None}[mode]
-            calls, prompts = [], []
+            calls, prompts, ran = [], [], []
+
+            def keep(answer, turn: int) -> None:
+                """What an answer cost and called; images as a count, a follow-up's calls marked with the question
+                they answered (0 the first)."""
+                t.cost_usd += answer.cost_usd or 0.0
+                calls.extend({**c, "turn": turn} if len(questions(case)) > 1 else c for c in answer.records())
+                ran.extend(answer.calls)
             async with Session(library, case["report"], model, system_prompt=prompt,
                                plugin=plugin_folder() if mode == "plugin" else None) as session:
                 for turn, question in enumerate(questions(case)):  # follow-ups in one conversation; the last
-                    answer = await session.ask(question, ctx)      # answer is judged
-                    t.cost_usd += answer.cost_usd or 0.0
-                    # images as a count; a follow-up's calls marked with the question they answered (0 the first)
-                    calls += [{**c, "turn": turn} if len(questions(case)) > 1 else c for c in answer.records()]
+                    try:                                           # answer is judged
+                        answer = await session.ask(question, ctx)
+                    except ModelError as e:  # a cap: what it got to is kept, for the record
+                        if e.answer:
+                            keep(e.answer, turn)
+                        raise
+                    keep(answer, turn)
                     prompts.append(answer.prompt)
                     t.loaded += answer.loaded
         except Exception as e:
-            t.error, t.seconds, t.errored = f"{type(e).__name__}: {e}", time.time() - started, True
-            return t
-    t.seconds = round(time.time() - started, 1)
+            t.error, t.seconds = f"{type(e).__name__}: {e}", round(time.time() - started, 1)
+            t.calls, t.waited_s = calls, waited(ran)
+            return settle(t, case, mode)
+    t.seconds, t.waited_s = round(time.time() - started, 1), waited(ran)
     # The answer with the follow-ups it offers (the bot's buttons); every call of the conversation, as a follow-up's
     # answer builds on them
     t.answer, t.calls = answer.full, calls
@@ -275,16 +358,13 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
         facts(asked(case, client), case["facts"], t.answer, judge_model) if case.get("facts")
         else asyncio.sleep(0))
     t.uncalled = uncalled(case, calls, mode)
-    t.passed = expect.ok is True and wrong.ok is True and not t.uncalled
     t.expect, t.wrong = asdict(expect), asdict(wrong)
     t.cost_usd += expect.cost_usd + wrong.cost_usd + (stated.cost_usd if stated else 0.0)
     if stated:
         t.facts = asdict(stated)
     t.warnings = warnings(t.answer, [c["result"] for c in t.calls] + prompts)
     t.form, t.slips = built(case, t.answer, mode)
-    if why := broken(t):
-        t.errored, t.passed, t.error = True, False, why
-    return t
+    return settle(t, case, mode)
 
 
 def uncalled(case: dict, calls: list[dict], mode: str = "plugin") -> list[str]:
@@ -368,9 +448,11 @@ def skill_use(results: dict[str, list[Trial]]) -> str:
 
 def show(case_id: str, t: Trial) -> None:
     verdict = "ERROR" if t.errored else "pass" if t.passed else "FAIL"
-    lines = [f"{case_id:30} {verdict:5} ({t.seconds:.0f} s, ${t.cost_usd:.2f})"]
-    if t.error:
-        lines.append(f"error: {t.error}")
+    lines = [f"{case_id:30} {verdict:5} ({t.seconds:.0f} s" + (f", {t.waited_s:.0f} of them waiting for Warcraft "
+                                                               "Logs points" if t.waited_s else "")
+             + f", ${t.cost_usd:.2f})"]
+    if t.error or t.broke:
+        lines.append(f"error: {t.error}" if t.error else f"failed: {t.broke}")
     for name, v in (("expect", t.expect), ("wrong", t.wrong)):
         if v and v["ok"] is not True:
             lines.append(f"{name}: {v['reason'][:300]}")
@@ -383,7 +465,22 @@ def show(case_id: str, t: Trial) -> None:
     print("\n    ".join(lines), flush=True)
 
 
-async def run(args) -> None:
+async def keys_work(library: server.Library) -> None:
+    """Stop before the first answer when Warcraft Logs refuses this machine's keys: a run asks it live for what the
+    frozen data lacks (a query the model writes itself, a tool whose query changed), and an answer without its data
+    says nothing about the code."""
+    try:
+        await asyncio.to_thread(library.wcl._run, wcl.RATE, {})
+    except wcl.WCLError as e:
+        if "auth_failed" in str(e):
+            raise SystemExit(f"Warcraft Logs refused this machine's keys ({e}): set working ones (.env.example) "
+                             "before a run, which asks it for what the frozen data lacks") from e
+        print(f"note: Warcraft Logs didn't answer ({e}): an answer that needs it for what the frozen data lacks "
+              "will be an error", flush=True)
+
+
+async def run(args) -> int:
+    """Ask the cases, print and save what came of it; 1 when an answer errored, else 0."""
     print(f"Answers and judging on {args.billed_to}.", flush=True)
     frozen()
     model = args.model  # empty: the bot's own, for chat and for live answers
@@ -397,6 +494,7 @@ async def run(args) -> None:
     if args.mode != "bot":
         as_connector()
     library, jobs = server.configure(), asyncio.Semaphore(JOBS)
+    await keys_work(library)
     base = json.loads(baseline(args.mode).read_text()) if baseline(args.mode).exists() else None
     if base and (warning := judge_warning(base, {"judge": judged_by(args.judge_model)})):
         print(warning + "\n", flush=True)  # before the run too: stop it if a comparison is what you're after
@@ -420,12 +518,8 @@ async def run(args) -> None:
 
     await asyncio.gather(*(asked_enough(c) for c in cases))
 
-    passed = {case_id: sum(t.passed for t in ts) for case_id, ts in results.items()}
-    errors = {case_id: n for case_id, ts in results.items() if (n := sum(t.errored for t in ts))}
-    asked_trials = args.trials if args.trials != "auto" else {c: len(ts) for c, ts in results.items()}
-    tally = {"model": shown, "commit": commit(), "trials": asked_trials, "judge": judged_by(args.judge_model),
-             "case_hashes": {c["id"]: case_hash(c) for c in cases}, "passed": passed, "errors": errors,
-             "hard": [c["id"] for c in cases if c.get("hard")]} | answers(cases, results)
+    tally = tally_of(cases, results, model=shown, commit=commit(), judge=judged_by(args.judge_model))
+    asked_trials = tally["trials"]
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
     mode = f", {args.mode}"
     print("\n" + "\n".join(summary(tally)) + f"\n({shown}{mode}, judge {args.judge_model}, ${cost:.2f})")
@@ -450,11 +544,30 @@ async def run(args) -> None:
     if args.save_baseline:
         baseline(args.mode).write_text(json.dumps(tally, indent=1) + "\n", encoding="utf-8")
         print(f"saved {baseline(args.mode).relative_to(HERE.parent)}")
+    return 1 if tally["errors"] else 0
+
+
+def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dict:
+    """What a run found, as it's compared and as a baseline keeps it (`about`: its model, commit and judge): each
+    case's trials, passes and errors, the answers that asked Warcraft Logs live, and what the answers did besides
+    passing (answers)."""
+    asked = {c: len(ts) for c, ts in results.items()}
+    return {**about, "trials": next(iter(asked.values())) if len(set(asked.values())) == 1 else asked,
+            "case_hashes": {c["id"]: case_hash(c) for c in cases},
+            "passed": {c: sum(t.passed for t in ts) for c, ts in results.items()},
+            "errors": {c: n for c, ts in results.items() if (n := sum(t.errored for t in ts))},
+            "live": {c: n for c, ts in results.items() if (n := sum(asked_live(t) for t in ts))},
+            "hard": [c["id"] for c in cases if c.get("hard")]} | answers(cases, results)
+
+
+def asked_live(t: Trial) -> bool:
+    """Whether an answer's tool calls asked Warcraft Logs at run time: for data the frozen file didn't hold."""
+    return any(c.get("wcl_points") for c in t.calls)
 
 
 # ---- comparing runs ----
-# A run's tally and a baseline have the same keys: model, commit, trials (each case's, or {case: trials} when they
-# differ: --trials auto), judge ({prompts: hash, model}), case_hashes ({case: hash}), passed and errors
+# A run's tally (tally_of) and a baseline have the same keys: model, commit, trials (each case's, or {case: trials}
+# when they differ: --trials auto), judge ({prompts: hash, model}), case_hashes ({case: hash}), passed and errors
 # ({case: trials}). An errored trial counts in neither passes nor trials.
 UNSETTLED_TRIALS = 3  # with --trials auto: a case the baseline wasn't sure of, or one whose single answer surprised
 
@@ -520,12 +633,28 @@ def spread(rates: dict[str, float], trials: dict[str, int], base_trials: dict[st
     return math.sqrt(sum(p * (1 - p) * (trials[c] + trials[c] ** 2 / base_trials[c]) for c, p in rates.items()))
 
 
+def errors_line(tally: dict) -> str:
+    """How many answers errored, and of which cases: the first line of a summary and of a comparison, since an
+    errored answer is in no count below it."""
+    errors = tally.get("errors", {})
+    if not errors:
+        return "No answer errored."
+    n = sum(errors.values())
+    return (f"ERRORS: {n} answer{'s' if n > 1 else ''} errored and {'are' if n > 1 else 'is'} in no count below: "
+            + ", ".join(f"{c} ({n})" for c, n in errors.items()))
+
+
 def summary(tally: dict) -> list[str]:
-    """Each case's passes over its judged trials, flaky when it both passed and failed, then the total and its
-    spread, and with several trials how many cases were right on every one: the regular cases, then the hard set
-    (cases the bot still gets wrong, apart so the total shows a regression and the hard set an improvement)."""
+    """The answers that errored and those that asked Warcraft Logs live, then each case's passes over its judged
+    trials, flaky when it both passed and failed, then the total and its spread, and with several trials how many
+    cases were right on every one: the regular cases, then the hard set (cases the bot still gets wrong, apart so
+    the total shows a regression and the hard set an improvement)."""
     errors, hard = tally.get("errors", {}), set(tally.get("hard", []))
-    lines, rates, trials = [], {}, {}
+    lines, rates, trials = [errors_line(tally)], {}, {}
+    if "live" in tally:  # a run's; a baseline from before 10 November has no count
+        asked = sum(judged(tally, c) + errors.get(c, 0) for c in tally["passed"])
+        lines.append(f"{sum(tally['live'].values())} of {asked} answers asked Warcraft Logs live, for data the "
+                     "frozen file didn't hold.")
     for c, n in tally["passed"].items():
         of = judged(tally, c)
         lines.append(f"  {c:34} {n}/{of}" + ("  flaky" if 0 < n < of else "") + ("  (hard)" if c in hard else "")
@@ -533,10 +662,10 @@ def summary(tally: dict) -> list[str]:
         if of:
             rates[c], trials[c] = n / of, of
     for name, part in (("", [c for c in trials if c not in hard]), ("hard set: ", [c for c in trials if c in hard])):
-        if not part:
+        errored = sum(errors.get(c, 0) for c in tally["passed"] if (c in hard) == bool(name))
+        if not part and (name or not errored):  # with every answer errored there is still a total line to read
             continue
         flaky = sum(0 < tally["passed"][c] < trials[c] for c in part)
-        errored = sum(errors.get(c, 0) for c in tally["passed"] if (c in hard) == bool(name))
         lines.append(f"{name}{sum(tally['passed'][c] for c in part)}/{sum(trials[c] for c in part)} answers passed, "
                      f"±{spread({c: rates[c] for c in part}, {c: trials[c] for c in part}):.1f} from run to run; "
                      f"{flaky} flaky" + (f"; {errored} errored, not counted" if errored else ""))
@@ -562,6 +691,7 @@ def compare(base: dict, now: dict) -> list[str]:
     moved beyond noise one per line, the others on one line."""
     lines = [judge_warning(base, now)] if judge_warning(base, now) else []
     lines.append(f"Against the baseline ({base['model']}, {base.get('commit', '?')}, {trials_of(base)}):")
+    lines.append("  " + errors_line(now))
     hashes = base.get("case_hashes")
     if hashes is None:
         lines.append("  note: the baseline is older than case and judge hashes: every case is compared, though a "
@@ -854,7 +984,7 @@ def main() -> None:
         from evals.coverage import report
         print("\n".join(report(load_cases(), HERE / "results")))
     else:
-        asyncio.run(_run_then_drain(args))
+        sys.exit(asyncio.run(_run_then_drain(args)))
 
 
 def frozen() -> None:
@@ -866,6 +996,7 @@ def frozen() -> None:
               "kept.", flush=True)
     os.environ["WIPEBOT_CACHE"], os.environ["WIPEBOT_CACHE_FROZEN"] = str(CACHE), "1"  # read at first use
     wcl.keep_for_others(KEEP_FOR_OTHERS)
+    time_waits()
     # No saved raid notes or plans: the cases paste theirs, and this machine's own (the connector reads them) stay out.
     os.environ["WIPEBOT_NOTES_DB"] = str(Path(tempfile.mkdtemp(prefix="wipebot-evals-")) / "notes.sqlite")
     cache().recorded_at(first=RECORDED_AT)  # kept in the file: "now" for the tools
@@ -902,9 +1033,9 @@ async def _endings_then_drain() -> None:
     print("\n".join(lines) + f"\nThe engine leads with the expert's cause on {agree} of {len(cases)} pulls.")
 
 
-async def _run_then_drain(args) -> None:
+async def _run_then_drain(args) -> int:
     try:
-        await run(args)
+        return await run(args)
     finally:
         await cache().drain()  # the background guide refreshes: asyncio.run hangs on them at shutdown
 

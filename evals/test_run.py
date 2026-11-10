@@ -60,11 +60,32 @@ def test_the_spread_matches_what_runs_have_shown():
 
 def test_the_summary_marks_flaky_cases_and_leaves_errors_out():
     lines = summary(tally({"a": 3, "b": 1, "c": 0}, errors={"c": 1}))
-    assert lines[0].split() == ["a", "3/3"]
-    assert lines[1].split() == ["b", "1/3", "flaky"]
-    assert lines[2].split() == ["c", "0/2", "(1", "errored)"]
+    assert lines[0] == "ERRORS: 1 answer errored and is in no count below: c (1)"
+    assert lines[1].split() == ["a", "3/3"]
+    assert lines[2].split() == ["b", "1/3", "flaky"]
+    assert lines[3].split() == ["c", "0/2", "(1", "errored)"]
     assert lines[-2].startswith("4/8 answers passed, ±") and "1 flaky; 1 errored" in lines[-2]
     assert lines[-1] == "1/3 cases right on every trial"
+
+
+def test_a_run_in_which_every_answer_errored_still_has_a_total_line():
+    lines = summary(tally({"a": 0, "b": 0}, trials=1, errors={"a": 1, "b": 1}))
+    assert lines[0] == "ERRORS: 2 answers errored and are in no count below: a (1), b (1)"
+    assert lines[-1] == "0/0 answers passed, ±0.0 from run to run; 0 flaky; 2 errored, not counted"
+    assert summary(tally({"a": 1}, trials=1))[0] == "No answer errored."
+
+
+def test_a_tally_counts_errors_apart_and_the_answers_that_asked_warcraft_logs_live():
+    from evals.run import tally_of
+    live = {"name": "pull_summary", "args": {}, "result": "", "failed": False, "wcl_points": {"report": 12.5}}
+    frozen = {**live, "wcl_points": {}}
+    results = {"a": [Trial(passed=True, calls=[frozen]), Trial(passed=True, calls=[frozen, live]),
+                     Trial(errored=True, calls=[live])],
+               "b": [Trial(calls=[frozen])] * 3}
+    t = tally_of([{**CASE, "id": "a"}, {**CASE, "id": "b", "hard": True}], results, model="opus")
+    assert (t["trials"], t["passed"], t["errors"], t["live"]) == (3, {"a": 2, "b": 0}, {"a": 1}, {"a": 2})
+    assert t["hard"] == ["b"] and t["model"] == "opus" and set(t["case_hashes"]) == {"a", "b"}
+    assert summary(t)[1] == "2 of 6 answers asked Warcraft Logs live, for data the frozen file didn't hold."
 
 
 def test_only_unchanged_cases_are_compared():
@@ -124,7 +145,7 @@ def test_a_run_with_trials_per_case_compares_case_by_case():
     text = "\n".join(compare(tally({"a": 3, "b": 3, "c": 2}), now))
     assert "total 4/7, the baseline's 6 at these trials: -2" in text
     assert "\n    b 1/3 (baseline 3/3)" in text and "a 1/1" not in text  # a single answer like the baseline's
-    assert summary(now)[0].split() == ["a", "1/1"] and summary(now)[1].split() == ["b", "1/3", "flaky"]
+    assert summary(now)[1].split() == ["a", "1/1"] and summary(now)[2].split() == ["b", "1/3", "flaky"]
     assert "(opus, abc, 1-3 trials)" in "\n".join(compare(now, now))
 
 

@@ -11,20 +11,42 @@ def test_the_cases_load():
                                                                   "night-kicks-order-changed", "report-wrong-answer"}
 
 
-def test_a_broken_trial_is_an_error_not_a_wrong_answer():
-    from evals.run import Trial, broken
-    ok = {"ok": True, "reason": ""}
-    assert broken(Trial(expect=ok, wrong=ok, calls=[{"name": "pull_summary", "failed": True,
-                                                     "result": "give the boss's name"}])) == ""  # the model's doing
-    assert "won't show report" in broken(Trial(expect=ok, wrong=ok, calls=[
-        {"name": "pull_summary", "failed": True, "result": "Warcraft Logs won't show report X: it's private now"}]))
-    assert "unexpected error" in broken(Trial(expect=ok, wrong=ok, calls=[
-        {"name": "progress", "failed": True, "result": "progress failed with an unexpected error: TypeError"}]))
-    assert "no verdict on wrong" in broken(Trial(expect=ok, wrong={"ok": None, "reason": "no verdict: "}))
-    assert broken(Trial(error="ProcessError: limit")) == "ProcessError: limit"
+def test_what_the_raider_would_have_met_fails_and_what_says_nothing_is_an_error():
+    from evals.run import Trial, settle
+    ok, case = {"ok": True, "reason": ""}, {"id": "a", "question": "why?", "kind": "wipe"}
+
+    def settled(**trial) -> Trial:
+        return settle(Trial(**trial), case, "bot")
+    bad_argument = {"name": "pull_summary", "failed": True, "result": "give the boss's name"}  # the model's doing
+    assert settled(expect=ok, wrong=ok, calls=[bad_argument]).passed
+    crashed = settled(expect=ok, wrong=ok, calls=[
+        {"name": "progress", "failed": True, "result": "progress failed with an unexpected error: TypeError"}])
+    assert "a tool crashed: progress" in crashed.broke and not crashed.passed and not crashed.errored  # a failed answer
+    capped = settled(error="ModelError: error_max_turns")
+    assert "error_max_turns" in capped.broke and not capped.passed and not capped.errored
+    limit = settled(error="ProcessError: limit")
+    assert limit.errored and limit.error == "ProcessError: limit" and not limit.broke
+    for unread in ("Warcraft Logs won't show report X: it's private now", "auth_failed: HTTP 401"):
+        t = settled(expect=ok, wrong=ok, calls=[{"name": "pull_summary", "failed": True, "result": unread}])
+        assert t.errored and unread[:20] in t.error and not t.passed  # this machine's data, not the answer
+    undecided = settled(expect=ok, wrong={"ok": None, "reason": "no verdict: "})
+    assert undecided.errored and "no verdict on wrong" in undecided.error
     down = {"name": "pull_map", "failed": True, "result": "upstream_error: Warcraft Logs returned HTTP 503 for ..."}
-    assert "HTTP 503" in broken(Trial(expect=ok, wrong={"ok": False, "reason": ""}, calls=[down]))
-    assert broken(Trial(expect=ok, wrong=ok, passed=True, calls=[down])) == ""  # it got by without the call
+    assert "HTTP 503" in settled(expect=ok, wrong={"ok": False, "reason": ""}, calls=[down]).error
+    assert settled(expect=ok, wrong=ok, calls=[down]).passed  # it got by without the call
+
+
+def test_an_answer_slower_than_the_bot_waits_fails_on_its_own_time_only():
+    from evals.run import CHAT_TIMEOUT_S, POST_TIMEOUT_S, Trial, settle
+    ok, case = {"ok": True, "reason": ""}, {"id": "a", "question": ["why?", "and then?"], "kind": "wipe"}
+    slow = 2 * CHAT_TIMEOUT_S + 10
+    assert "the bot gives up after" in settle(Trial(expect=ok, wrong=ok, seconds=slow, waited_s=0.0), case, "bot").broke
+    # the wait for the next hour's Warcraft Logs points is the eval's own, and left out
+    assert settle(Trial(expect=ok, wrong=ok, seconds=slow + 1500, waited_s=1600.0), case, "bot").passed
+    assert settle(Trial(expect=ok, wrong=ok, seconds=slow), case, "bot").passed  # not timed (an older run): no verdict
+    assert settle(Trial(expect=ok, wrong=ok, seconds=slow, waited_s=0.0), case, "plugin").passed  # a client waits
+    post = {"id": "p", "question": "what happened?", "kind": "posts"}
+    assert settle(Trial(expect=ok, wrong=ok, seconds=POST_TIMEOUT_S + 1, waited_s=0.0), post, "bot").broke
 
 
 def test_every_tool_has_an_eval_case():
