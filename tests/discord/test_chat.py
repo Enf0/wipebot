@@ -1,6 +1,8 @@
 """Conversations: one per asker and place, follow-ups, what was said in between."""
 
 import asyncio
+import random
+import re
 
 import pytest
 
@@ -353,6 +355,36 @@ def test_a_code_block_cut_in_two_is_closed_and_opened_again():
     assert split_message(lua, limit=50) == [f"```lua\n{'y' * 30}\n```", f"```lua\n{'z' * 30}\n```"]
     inline = "a ```one``` " + "b " * 300  # a block closed on its line: the cut after it is outside one
     assert all("```" not in c for c in split_message(inline, limit=100)[1:])
+
+
+def test_a_cut_at_a_code_blocks_edge_leaves_no_empty_block():
+    """Closing a block at every cut inside one put an empty block where the cut fell right under the block's first
+    line or right above its last."""
+    y, z = "y" * 30, "z" * 30
+    opens_at_the_cut = f"{'x' * 80}\n```lua\n{y}\n{y}\n{z}\n```"  # the block's first line is the last that fits
+    assert split_message(opens_at_the_cut, limit=100) == ["x" * 80, f"```lua\n{y}\n{y}\n```", f"```lua\n{z}\n```"]
+    ends_at_the_cut = f"```lua\n{y}\n{y}\n{z}\n\n```\nDone."  # all its code fits, the blank line under it doesn't
+    assert split_message(ends_at_the_cut, limit=104) == [f"```lua\n{y}\n{y}\n{z}\n```", "Done."]
+
+    def lines(rng: random.Random) -> str:
+        return "\n".join(" " * rng.choice([0, 2]) + " ".join("ab" * rng.randint(1, 6)
+                                                              for _ in range(rng.randint(1, 12)))
+                         for _ in range(rng.randint(1, 12)))
+
+    def words(text: str) -> str:
+        return re.sub(r"```\w*|\s", "", text)
+
+    def blocks(message: str) -> list[str]:
+        """The code in each of a message's blocks, without the language it opens with."""
+        return [re.sub(r"^\w*\n", "", inside, count=1) for inside in message.split("```")[1::2]]
+    rng = random.Random(7)
+    for _ in range(300):  # and over made-up answers: every message fits, its blocks are whole and none is empty
+        parts = [f"```{rng.choice(['', 'lua'])}\n{lines(rng)}\n```" if rng.random() < 0.5 else lines(rng)
+                 for _ in range(rng.randint(2, 6))]
+        chunks = split_message("\n".join(parts), limit=200)
+        assert all(len(c) <= 200 and c.count("```") % 2 == 0 for c in chunks)
+        assert all(code.strip() for c in chunks for code in blocks(c))
+        assert words("\n".join(chunks)) == words("\n".join(parts))  # nothing lost
 
 
 async def test_a_restart_starts_every_conversation_over_with_what_was_said_before():

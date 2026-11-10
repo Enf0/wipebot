@@ -229,6 +229,8 @@ class Conversations:
 
 
 FENCE = re.compile(r"```(?:(\w+)\n)?")  # where a code block opens or closes, with the language it opens in
+FENCE_LAST = re.compile(r"```\w*\s*$")  # a fence with nothing after it: before a cut, a block with no code yet
+FENCE_NEXT = re.compile(r"\s*```")  # a fence with nothing before it: after a cut in a block, the block's end
 CLOSE = "\n```"
 
 
@@ -248,14 +250,21 @@ def _open_block(text: str) -> str | None:
 
 def split_message(text: str, limit: int = DISCORD_LIMIT) -> list[str]:
     """Split an answer into Discord-sized messages, at line breaks where possible, else at spaces. A code block cut
-    in two is closed at the cut and opened again in the next message, so both halves show as code, lined up."""
+    in two is closed at the cut and opened again in the next message, so both halves show as code, lined up; one
+    that would open right at a cut starts the next message instead, so no message ends in an empty block."""
     chunks = []
     while len(text) > limit:
         cut = _cut(text, limit)
         if _open_block(text[:cut]):  # leave room to close it
             cut = _cut(text, limit - len(CLOSE))
+            if _open_block(text[:cut]) and (opens := FENCE_LAST.search(text[:cut])):
+                # none of its code fits before the cut: the block goes to the next message, or, when it starts this
+                # one (its first line is too long to cut at a space), is cut where the message ends
+                cut = opens.start() if text[:opens.start()].strip() else limit - len(CLOSE)
         part, text = text[:cut].rstrip(), text[cut:]
-        if block := _open_block(part):
+        if (block := _open_block(part)) and (ends := FENCE_NEXT.match(text)):
+            part, text = part + CLOSE, text[ends.end():].lstrip()  # all its code fitted: its own fence closes it
+        elif block:
             # the next message opens the block again; the code keeps its indentation
             part, text = part + CLOSE, f"{block}\n{text[1:] if text[:1] in (chr(10), ' ') else text}"
         else:
