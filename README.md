@@ -1,9 +1,10 @@
 <h1><img src="docs/brand/wipebot-icon.svg" width="44" height="44" alt="" align="top"> Wipebot</h1>
 
-An AI raid analyst for World of Warcraft®. It reads [Warcraft Logs](https://www.warcraftlogs.com) reports and answers
-questions about them in Claude, ChatGPT or another assistant that takes MCP connectors, or as a Discord bot that
-answers in the guild's channels and DMs and posts after each wipe. Use the free public copy, or run your own for your
-guild.
+Wipebot answers questions about a World of Warcraft® raid from its [Warcraft Logs](https://www.warcraftlogs.com)
+report: why a pull wiped, what killed you, what to change before the next one. Code works out the numbers from the
+log, and an AI model picks what to read and explains it. Ask in Claude, ChatGPT or another assistant that takes MCP
+connectors, or in Discord, where it answers in the guild's channels and DMs and posts after each wipe. Use the free
+public copy, or run your own for your guild.
 
 ## Try it
 
@@ -16,8 +17,9 @@ A public copy runs at [wipebot.enfo.dev](https://wipebot.enfo.dev), free and bes
   mention the bot.
 
 Every guild shares the public copy, and Warcraft Logs lets it read only so much each hour: when that's used up,
-questions that need new data wait for the next hour. Signed in with Warcraft Logs, your questions use your own
-allowance first. For your guild alone, run your own copy ([Setup](#setup)).
+questions that need new data wait for the next hour. One person gets only a part of each hour's share, so a single
+long night can't use it up for everyone; past it, their own questions wait. Signed in with Warcraft Logs, your
+questions use your own allowance first. For your guild alone, run your own copy ([Setup](#setup)).
 
 ## What you can ask
 
@@ -93,7 +95,8 @@ Every setting, the Warcraft Logs quota, raid notes and plans, upgrading and trou
 ## Costs and data
 
 - The connector costs only hosting: members' answers run on their own plan. The bot's answers cost about
-  $0.15-0.25 each with Claude Opus ([docs/models.md](docs/models.md)); `/usage` shows what they've cost.
+  $0.15-0.25 each with Claude Opus ([docs/models.md](docs/models.md)), and a long one (a whole night, many pulls
+  compared) $0.40 or more; `/usage` shows what they've cost.
 - Everything Wipebot keeps stays in `./data`: who signed in, the characters and preferences raiders give the bot,
   and what each answer cost ([docs/setup.md](docs/setup.md#whats-kept)). Only what an answer needs goes to the
   model.

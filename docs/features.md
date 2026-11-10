@@ -11,14 +11,14 @@ pull.
 
 In Claude and ChatGPT, an answer about a pull, a night, a player or a death comes with that drawn under it, made by the
 tools from the log, with more a click away: the pull's replay, a player's casts against the top. In Discord the same
-comes as pictures, with buttons under them for the next thing to look at.
+comes as pictures, with buttons under them for the next thing to look at, and a ranking of players as a damage meter.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/claude-why-did-we-wipe-dark.webp">
   <img src="images/claude-why-did-we-wipe.webp" alt="Claude answering &quot;Why did we wipe on Sszorak pull 13?&quot;: the pull drawn as boss health against the raid's damage taken, with phases and deaths, and buttons to open the pull and its replay, then the answer: the enrage at 2:32 with 16 of 20 alive">
 </picture>
 
-*In Claude: the enrage ended pull 13 with 16 of 20 alive, so the answer says it's a damage check now.*
+*In Claude: pull 13 ended on the boss's enrage at 2:32 with 16 of 20 alive, and the pull is drawn with the answer.*
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/discord-wipe-post-dark.webp">
@@ -37,10 +37,11 @@ own card on that pull, which only they see.*
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/claude-damage-meter-dark.webp">
-  <img src="images/claude-damage-meter.webp" alt="Claude answering &quot;Who keeps getting hit by Virulence?&quot;: a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths it set up, then the answer">
+  <img src="images/claude-damage-meter.webp" alt="A mock of a chat answering &quot;Who keeps getting hit by Virulence?&quot;: a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths it set up, then the answer">
 </picture>
 
-*A ranking of players comes as a damage meter, here Virulence over the whole night.*
+*In Discord, a ranking of players comes as a damage meter, here Virulence over the whole night. Claude and ChatGPT
+draw a pull, a night, a player and a death, and give a ranking as text.*
 
 The pictures are real tool output from the tests' report, with made-up names; the chat around them is a mock.
 

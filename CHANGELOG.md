@@ -1,6 +1,6 @@
 # Changelog
 
-What's new in Wipebot, AI raid analysis from your guild's Warcraft Logs. Each change is tagged with where you'll notice it: `Agent` is the analysis itself, wherever you ask; `MCP` is Wipebot in Claude and ChatGPT; `Discord` is Wipebot in Discord.
+What's new in Wipebot, raid analysis from Warcraft Logs reports. Each change is tagged with where you'll notice it: `Agent` is the analysis itself, wherever you ask; `MCP` is Wipebot in Claude and ChatGPT; `Discord` is Wipebot in Discord.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Wipebot runs from its main branch: changes since the last version are under Unreleased. Versions before 0.1.0, the first public release, are one a day.
 
