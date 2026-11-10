@@ -26,8 +26,7 @@ wrong = ["answers about Monday 12 October's log, which has only Sszorak wipes",
 
 [[case]]
 id = "server-sszorak-on-the-5th"  # a date instead of a report: the night is found, then read
-where = "in a DM"
-calls = ["find_reports"]  # the night isn't the one it was given
+where = "in a DM"  # no `calls`: the night at hand's progress links that night too, so find_reports isn't the only way
 question = "how many pulls did we have on Sszorak on the 5th, and how far did we get?"
 asker = "Sonyosh"
 expect = """Finds Monday 5 October's night itself (report KBYT4xXn7VNjDgh8): 33 pulls on Sszorak that night, no kill,
