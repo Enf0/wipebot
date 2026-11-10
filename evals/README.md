@@ -43,10 +43,11 @@ has its own baseline (`baseline.json`, `baseline-connector-only.json`, `baseline
 
 `--trials auto` is the full suite's: a case its mode's baseline judged the same on every trial (most of them) is asked
 twice; a case the baseline passed only sometimes, a new or changed one, and every case after the judge changed are
-asked three times. Once the total is half a spread below the baseline's, every case gets its third answer, so a run
-that looks low is a three-trial run and reads as one. Every answer counts, and the total weighs each case as the
-baseline did, however often it was asked. On today's baselines that is 207 of the bot's 279 answers and 190 of the
-plugin's 258 (three in four) when nothing looks low, which about two unchanged runs in three do. A baseline asks
+asked three times. Once the total is half a spread below the baseline's, or two spreads above it, every case gets its
+third answer, so a run that looks low, or would show a rise, is a three-trial run and reads as one. Every answer
+counts, and the total weighs each case as the baseline did, however often it was asked. On today's baselines the plan
+is 207 of the bot's 279 answers and 190 of the plugin's 258 (three in four). About one unchanged run in three goes on
+to the third answers, so on average auto asks a little over four fifths of what three trials ask. A baseline asks
 every case three times (`--trials 3 --save-baseline`), so `--trials auto` can't save one.
 
 In any run with a baseline, a case that moved beyond noise is asked again, up to six answers, before it is printed:
@@ -67,7 +68,9 @@ two are compared, so a check added later moves no comparison until the next base
 
 An answer fails, whatever the judge made of its text, when the raider would have met a failure: a tool crashed, the
 answer hit the bot's cap of turns or spend, or (in the bot) it took longer than the bot waits. The time a tool call
-spent waiting for the next hour's Warcraft Logs points is the eval's own rule, timed apart and left out.
+spent waiting for the next hour's Warcraft Logs points is the eval's own rule, timed apart and left out. A summary
+names these answers under the errors, by why, and a run in which a tool crashed exits non-zero: that is a fault in the
+code, and a few more failed answers in the total may not show it as one.
 
 A pass does not mean the answer is right. The judge reads the question and the answer, not what the tools returned:
 a wrong number or a made-up cause no case foresaw passes, and about one wrong answer in five passes on the judge's
@@ -100,12 +103,12 @@ the API by accident; `--api-key` bills it there instead. What a run costs per mo
 
 ## Reading a run
 
-A summary starts with what could flatter it: the answers that errored, how many asked Warcraft Logs live for data
-the frozen file didn't hold, and how many cases the comparison skips and why. Its headline is the answers in which the
-main point got across (the passes), with its spread from run to run and the cases right on every trial. Under it, from
-the baseline: the totals where the baseline always, sometimes and never passed, and its known failures (cases it
-fails more than once in three), so a failure the baseline already had isn't read as news. The `hard` mark in a case
-is no longer what splits the total.
+A summary starts with what could flatter it: the answers that errored, those that failed whatever the judge said, how
+many asked Warcraft Logs live for data the frozen file didn't hold, and how many cases the comparison skips and why.
+Its headline is the answers in which the main point got across (the passes), with its spread from run to run and the
+cases right on every trial. Under it, from the baseline: the totals where the baseline always, sometimes and never
+passed, and its known failures (cases it fails more than once in three), so a failure the baseline already had isn't
+read as news. The `hard` mark in a case is no longer what splits the total.
 
 A run is compared with its baseline only on the cases unchanged since (each case and the judge carry a hash). The
 total weighs each case as the baseline did; the cases the baseline judged the same on every trial and the others are
@@ -116,11 +119,14 @@ does that. One verdict line ends the comparison:
   is one spread below the baseline's it says "look" and still exits zero: one spread is where one unchanged run in six
   lands.
 - **a drop shown**: the total is two spreads below the baseline's, or a case stayed down on six answers. The run
-  exits non-zero. On made-up unchanged runs shaped like the baselines this fires about one time in twenty; a real
-  drop of 5 points shows in about six runs of ten, one of 10 points nearly always.
+  exits non-zero. On made-up unchanged runs shaped like the baselines this fires about one time in twenty-five.
+  A real drop of 5 points shows in three to six runs of ten, and most of the others say "look"; one of 10 points
+  shows in at least eight of ten.
 - **a rise shown**: two spreads above.
 - **cannot tell**: the judge changed since the baseline, more than a tenth of the run's cases aren't compared, errors
   could have made it a drop, or the answers are too few to have shown a drop of 10 points (any `-k` run).
+
+A run that exits non-zero says why on its last line: answers errored, a tool crashed, or the comparison shows a drop.
 
 A run and a baseline also keep what was tested: the models that answered and judged by the full names the API gave
 (an alias such as `opus` moves to another model without a word), the Agent SDK and Claude Code versions, the effort,
@@ -134,16 +140,21 @@ those lines against the run before it: a rule about length that the answers don'
 rate. `just evals --form evals/results/X.json` measures a saved run again, free. Read the transcripts before trusting
 a moved number: a fail can be the judge's.
 
-`--save-baseline` prints the comparison with the baseline it replaces and refuses a run that errored, was filtered
-or doesn't cover every case as it is today, or is a spread or more below it, unless `--accept "<reason>"` says why;
+`--save-baseline` prints the comparison with the baseline it replaces and refuses a run that errored, in which a tool
+crashed, that was filtered or doesn't cover every case as it is today, or is a spread or more below it, unless
+`--accept "<reason>"` says why;
 the reason is kept in the file with what was replaced and the like-for-like total on the unchanged cases.
 `--save-baseline evals/results/X.json` makes a saved three-trial run the baseline without asking a model.
 
 A full run (no `-k`, the mode's own model and effort) is kept as its mode's last in `full-runs.json`, which is
-tracked: commit it. `just release` prints how many commits that can change an answer and how many days lie since
-each mode's last full run, writes that into the release commit, and stops past 30 such commits or 21 days unless
-`--without-evals "<reason>"`. A run made where the file can't be committed is recorded after with
-`--record evals/results/X.json`.
+tracked: commit it. A run that judged fewer than nine in ten of its answers (the rest errored) is not kept.
+`just release` prints how many commits that can change an answer and how many days lie since each mode's last full
+run, writes that into the release commit, and stops past 30 such commits or 21 days unless
+`--without-evals "<reason>"`. A commit can change a mode's answers when it touches what the mode answers with (the
+core, the mode's app, the cases), or says `full eval: pending` and touches none of that (a dependency, say). A run
+made where the file can't be committed is recorded after with `--record evals/results/X.json`, which takes only a
+full run's file: not a filtered or held-out one, one asked with another model or effort, or one with fewer than nine
+in ten of the mode's cases.
 
 The judge sees the question and the answer, not what the tools returned, so it can't catch a claim no case foresaw.
 `just evals --recheck evals/results/X.json` checks a saved run's answers again, without asking again (about $0.20 an

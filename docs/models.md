@@ -16,12 +16,14 @@ baseline is still the run of 24 October below.
 
 - The totals count every case, the hard set of that day too (8 cases in the bot, 22/24; 7 with the plugin, 19/21).
   Without it: 224/249 and 210/231 answers, 65/83 and 62/77 cases right on every trial.
-- Both are lower than the runs they replaced, like for like. On the cases unchanged between the two baselines the bot
-  passed 185 of 207 answers against 194 (69 cases: -9, 1.8 times the ±5.0 expected from run to run) and the plugin
-  161 of 174 against 168 (58 cases: -7, 1.9 times ±3.7). That is short of a drop shown (two spreads) and worth a look
-  both times, and nothing recorded it when the baselines were saved. What moved them isn't known: 18 and 15 cases
-  changed that day and the suite grew by 14 and 11, and the runs weren't repeated. A baseline saved over such a run
-  now needs a reason (`--accept`, evals/README.md), kept in its file with this like-for-like total.
+- Both are lower than the runs they replaced, like for like: the bot's of 28 October (commit 898a940, 247/270 on 90
+  cases, with no section here) and the plugin's of 24 October below. On the cases unchanged between the two baselines
+  the bot passed 185 of 207 answers against 194 (69 cases: -9, 1.8 times the ±5.0 expected from run to run) and the
+  plugin 161 of 174 against 168 (58 cases: -7, 1.9 times ±3.7). That is short of a drop shown (two spreads) and worth
+  a look both times, and nothing recorded it when the baselines were saved. What moved them isn't known: between the
+  baselines 18 and 15 cases changed and 4 and 11 were new (3 left the bot's), and the runs weren't repeated. A
+  baseline saved over such a run now needs a reason (`--accept`, evals/README.md), kept in its file with this
+  like-for-like total.
 - A pass rate near 90% is at the judge's ceiling. Its recorded score with today's prompts (17 October,
   `just evals --agreement`): it passed 92 of 101 answers labelled right and failed 27 of 33 labelled wrong. A suite of
   all-right answers would read about 91%, so these totals say little about how many answers are wrong; the cases
@@ -34,8 +36,8 @@ baseline is still the run of 24 October below.
 ## 24 October 2026
 
 The 77 cases of 24 October (73 outside the bot; all three times, 8 in the hard set), judged by Sonnet 5.5, on the
-code before that day's tank-swap fix. These runs were the baselines until 29 October; the connector-only one still
-is.
+code before that day's tank-swap fix. The plugin's run was its baseline until 29 October and the connector-only one
+still is; the bot's was replaced before then (its baseline of 28 October is named above).
 
 | Model | Run as | Passed | Cases right every trial | Median s | Slowest s | Per answer, judge included | One run |
 |---|---|---|---|---|---|---|---|
