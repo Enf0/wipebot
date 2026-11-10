@@ -19,8 +19,8 @@ views.player_night = (() => {
     return kit.stats([
       ["Died before the wipe was decided", `${D.died} of ${n}`, D.died ? "dead" : "",
        `${D.first ? `first to die ${times(D.first)}` : "never first to die"}, ${times(D.early)} among the first ${D.early_n}`],
-      L.of ? ["Could have lived", `${L.saved} of ${L.of}`, L.saved ? "good" : "",
-              [L.by.length ? L.by.slice(0, 2).map(([s, k]) => `${s} at ${k}`).join(", ") : "nothing ready would have saved them",
+      L.of ? ["Could have lived", `${L.saved} of ${L.of}`, L.saved ? "decided" : "",
+              [L.by.length ? L.by.slice(0, 2).map(([s, k], i) => `${s} on ${i ? k : kit.plural(k, "death")}`).join(", ") : "nothing ready would have saved them",
                L.outright ? `${L.outright} killed outright` : "", L.unknown ? `can't tell for ${L.unknown}` : ""].filter(Boolean).join("; ")] : null,
       ["Time dead", `${D.dead_s} s`, "", `${D.dead_pct}% of the time before each wipe was decided`],
       D.best ? ["Best pull", `${D.best.pull}: ${kit.short(D.best.per_s_alive)}`, "", `${what().toLowerCase()} per s alive`] : null,
@@ -28,13 +28,14 @@ views.player_night = (() => {
   }
 
   const KILLERS_SHOWN = 5;
-  // What killed them before each wipe was decided, the most deaths first: a chip per pull, green where a ready
-  // defensive or a healthstone would have kept them alive (the defensives tool's replay), grey where it can't tell
+  // What killed them before each wipe was decided, the most deaths first: a chip per pull, in the colour of what to
+  // do differently where a ready defensive or a healthstone would have kept them alive (the defensives tool's
+  // replay), dashed where it can't tell
   function killers() {
     if (!D.killers.length) return "";
     const shown = D.killers.slice(0, KILLERS_SHOWN), rest = D.killers.slice(KILLERS_SHOWN);
     const chip = (k, x) => {
-      const cls = x.saved === true ? "saved" : x.outright ? "outright" : x.saved === false ? "" : "unknown";
+      const cls = x.saved === true ? "fix" : x.outright ? "outright" : x.saved === false ? "" : "unknown";
       const how = x.saved === true ? "a ready defensive or a healthstone would have kept them alive"
         : x.outright ? "killed outright: no hit logged after high health, so nothing ready would have stopped it"
         : x.saved === false ? "nothing ready would have kept them alive" : "can't tell: no overkill or health logged";
@@ -43,10 +44,10 @@ views.player_night = (() => {
     const rows = shown.map((k) => `<li><span class="kn">${kit.iconImg(D.img_base, k.icon)}${kit.esc(k.by)}</span>`
       + `<span class="kc">${k.pulls.length}</span><span class="chips">${k.pulls.map((x) => chip(k, x)).join("")}</span></li>`).join("");
     const more = rest.length ? `<div class="note">and ${rest.length} other abilit${rest.length === 1 ? "y" : "ies"}, `
-      + `${rest.reduce((n, k) => n + k.pulls.length, 0)} deaths</div>` : "";
+      + `${kit.plural(rest.reduce((n, k) => n + k.pulls.length, 0), "death")}</div>` : "";
     return `<div class="section-title">What killed ${kit.esc(D.player.name)} before each wipe was decided</div>`
       + `<ul class="killers">${rows}</ul>${more}`
-      + `<div class="note"><span class="chip saved sample">12</span> a pull where a ready defensive or a healthstone would have kept them alive</div>`;
+      + `<div class="note"><span class="chip fix sample">12</span> a pull where a ready defensive or a healthstone would have kept them alive</div>`;
   }
 
   function cooldownsNote() {
@@ -63,7 +64,7 @@ views.player_night = (() => {
   function head() {
     const p = D.player;
     const sub = [`${p.spec} ${p.class}`, D.boss,
-                 D.pulls.length === D.total_pulls ? `${D.pulls.length} pulls` : `${D.pulls.length} of ${D.total_pulls} pulls`].join(" · ");
+                 D.pulls.length === D.total_pulls ? kit.plural(D.pulls.length, "pull") : `${D.pulls.length} of ${D.total_pulls} pulls`].join(" · ");
     return kit.head(p.name, sub, p.color);
   }
 
@@ -100,7 +101,7 @@ views.player_night = (() => {
 
   function tipOf(r) {
     const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : got(r)}, ${kit.clock(r.duration_ms)}`;
-    const out = r.per_s_alive != null ? `${kit.short(r.per_s_alive)}/s alive` + (r.rank ? `, rank ${r.rank} of ${r.of} ${D.role_name}` : "") : `no ${D.what}`;
+    const out = r.per_s_alive != null ? `${kit.short(r.per_s_alive)}/s alive` + (r.rank ? `, rank ${r.rank} of ${r.of} ${D.role_name} by total` : "") : `no ${D.what}`;
     const died = !r.death ? "survived"
       : `died ${kit.clock(r.death.ms)} (#${r.death.place}) to ${r.death.by}` + why(r.death);
     const cds = r.cooldowns[1] ? `cooldowns ${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
@@ -155,16 +156,11 @@ views.player_night = (() => {
     // the legend, wrapping on a narrow card
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="10" height="8" rx="2" ${kit.cls(D.player.color, "cb")} opacity=".75"/>`, `${D.what} per s alive`],
       [(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--gold)" stroke-width="1.6"/>`, "boss left at the end"],
-      [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4.5" fill="var(--dead)"/>`, "died (place)"],
+      [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4.5" fill="var(--dead)"/>`, band >= 11 ? "died, with their place in the order" : "died before it was decided"],
       [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="3" fill="var(--muted)" opacity=".6"/>`, "died after it was decided"]];
-    if (D.thirds.length) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-dasharray="4 2"/>`, "median of a third"]);
-    let lx = 6, ly = T + plotH + 56;
-    for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name) + 14;
-      if (lx > 6 && lx + w > W) { lx = 6; ly += 16; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
-      lx += w;
-    }
+    if (D.thirds.length) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-dasharray="4 2"/>`, "median of each third of the night"]);
+    const [under, ly] = kit.legend(keys, W, T + plotH + 56);
+    o += under;
     return kit.svg(W, ly + 6, o, `${D.player.name}'s night on ${D.boss}: output and deaths pull by pull`);
   }
 
@@ -186,7 +182,7 @@ views.player_night = (() => {
   function side() {
     const cds = D.cooldowns.map((c) => `<li><span>${kit.iconImg(D.img_base, c.icon)}${kit.esc(c.name)}</span>`
       + `<span class="count ${c.possible && c.used < c.possible ? "short" : ""}">${c.possible != null ? `${c.used}/${c.possible}` : c.used}</span></li>`).join("");
-    const thirds = D.thirds.map((t, k) => `<li><span>${["First", "Middle", "Last"][k]} third (${t.pulls.length} pulls)</span>`
+    const thirds = D.thirds.map((t, k) => `<li><span>${["First", "Middle", "Last"][k]} third (${kit.plural(t.pulls.length, "pull")})</span>`
       + `<span class="count">${t.rate != null ? kit.short(t.rate) + "/s" : "–"}</span><span class="times">died before the wipe was decided on ${t.died} of ${t.pulls.length}</span></li>`).join("");
     return `<div><div class="panel"><div class="section-title" style="margin-top:2px">Major cooldowns, all pulls</div><ul class="cds">${cds || "<li>none listed</li>"}</ul>`
       + (D.cooldowns_unavailable ? `<div class="note">${kit.esc(D.cooldowns_unavailable)}</div>` : "")

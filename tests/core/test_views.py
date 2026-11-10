@@ -933,7 +933,8 @@ async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_
                                 modes=("fullscreen",), clicks=('css:tr[data-pull="4"]',))
     # 2 of 5: the sixth of the made-up night's pulls is a reset, no pull of the player's night
     assert not first.errors and "2 of 5" in first.text and "first to die once" in first.text
-    assert "could have lived" in first.text.lower() and "1 of 2" in first.text and "Astral Shift at 1" in first.text
+    assert "could have lived" in first.text.lower() and "1 of 2" in first.text
+    assert "Astral Shift on 1 death" in first.text
     assert "what killed mirelle" in first.text.lower() and "Slag Wave" in first.text
     assert "6: 330k" in first.text and "pull by pull" in first.text.lower()
     calls = [m["msg"]["params"]["arguments"] for m in opened.messages if m["msg"].get("method") == "tools/call"
@@ -941,6 +942,63 @@ async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_
     assert calls[-1] == {"view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge",
                          "player": "Mirelle", "top": False}
     assert "← Mirelle" in opened.text and "rank 2 of 4 healers" in opened.text  # that pull's card, and Back
+
+
+def made_up_view(monkeypatch, key: dict, data: dict) -> None:
+    """One view drawn from made-up data: its key and its data answered without a report."""
+    from wipebot.core import viewhost
+
+    async def tool_result(tool, args):
+        return {"content": [], "structuredContent": key}
+
+    async def view_data(view, **asked):
+        return CallToolResult(content=[], structured_content=data)
+    monkeypatch.setattr(viewhost, "tool_result", tool_result)
+    monkeypatch.setattr(server, "view_data", view_data)
+
+
+async def test_a_night_of_one_pull_counts_one_pull(monkeypatch):
+    """A boss killed on the first pull, made up, as on any farm night: "1 pull", no heading over a list that isn't
+    there and no key for a line that isn't drawn."""
+    night = {"view": "night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "difficulty": "Heroic",
+             "title": "Torvek's Forge, Mon 1 Jan", "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678",
+             "combat_ms": 240000, "guild_best": None, "phased": False, "ends": [["a kill", 1]], "firsts": [],
+             "first_n": 3, "thirds": None,
+             "bosses": [{"boss": "Torvek's Forge", "pulls": 1, "kill": True, "best": None}],
+             "pulls": [{"pull": 1, "pct": 0.0, "kill": True, "reset": False, "live": False, "duration_ms": 240000,
+                        "phase": "", "health": None, "ended": "a kill", "best": False, "first": None}]}
+    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, night)
+    async with drawn("progress", {}) as (view, errors):
+        text = (await view.locator("body").inner_text()).lower()
+    assert not errors and "1 pull ·" in text and "the only pull" in text and "how the pull ended" in text
+    assert "pulls" not in text and "what killed the first" not in text and "best so far" not in text
+
+
+async def test_counts_and_ranks_are_written_as_the_tools_write_them(monkeypatch):
+    """A parse is "81st percentile", never "81th"; a count of one has no plural: the page's ordinal and plural
+    against the tools' own (core/text.py)."""
+    from wipebot.core.text import ordinal
+    parse = made_up_player(False) | {"kill": True, "standing": {"kind": "parse", "percentile": 81}}
+    made_up_view(monkeypatch, {"view": "player", "report": parse["report"], "pull": 4, "boss": parse["boss"],
+                               "player": "Mirelle"}, parse)
+    numbers = [0, 1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 81, 93, 100, 101, 111, 112]
+    async with drawn("player_pull", {"player": "Mirelle"}) as (view, errors):
+        text = await view.locator("body").inner_text()
+        said = await view.evaluate("(ns) => ns.map((n) => [kit.ordinal(n), kit.plural(n, 'pull')])", numbers)
+    assert not errors and "81st percentile" in text and "81th" not in text
+    assert said == [[ordinal(n), plural(n, "pull")] for n in numbers]
+
+
+async def test_a_missed_save_is_what_to_do_differently_and_a_death_with_no_killing_blow_says_only_that(recorded):
+    """The death view's line on what would have kept them alive is marked as a fix (it once had the plus of what
+    went well), the thing first; a death the log names no killing blow for isn't "killed by no killing blow"."""
+    notes = '() => [...document.querySelectorAll(".notes li")].map((li) => [li.className, li.textContent])'
+    async with drawn("death_recap", DEATH_CASE.args) as (view, errors):
+        assert await view.evaluate(notes) == [["fix", "−A healthstone, used in time, would have kept them alive."]]
+        assert not errors
+    async with drawn("death_recap", CASES["death-recap-thrown"].args) as (view, errors):
+        labels = await view.evaluate('() => [...document.querySelectorAll("svg text.td")].map((t) => t.textContent)')
+        assert labels == ["no killing blow recorded"] and not errors
 
 
 async def test_a_mark_shows_its_tooltip_on_hover_and_icons_draw(made_up):

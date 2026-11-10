@@ -42,6 +42,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Agent` **Class colours read on a light card.** A player's name, their line and their dot were drawn in the game's class colours, which were made for a dark screen: on a light card a priest's white, a rogue's yellow and a monk's green all but vanished, and a death knight's red was dim on a dark one. A name now keeps its class's colour at a lightness that reads on the card, in every view, and a bar keeps the true colour with an edge around it. Chart labels are also drawn at the sizes they were meant to have, not all at one.
 
   ![A rogue's pull in the light theme: the name Draiman and the dot on the scale in a dark olive instead of the class's pale yellow](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/class-colours-light.webp)
+- `Agent` **The words on the cards are put right.** A parse reads "81st percentile", not "81th". A death the log names no killing blow for is labelled "no killing blow recorded", not "killed by no killing blow recorded". A boss killed on the first pull has "1 pull", and no heading or key for what isn't there. "Could have lived" says "Astral Shift on 1 death", and the rank under "per second alive" says it is by total. On a death, what would have kept the player alive is marked as something to do differently, as it is on their night, and no longer with the plus of what went well.
+
+  ![Scopidruid's death on Sszorak pull 13: under the numbers, a minus and "A healthstone, used in time, would have kept them alive", then the hits and their health in the 10 s before the death](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/death-missed-save.webp)
 
 ## [0.41.1] - 2026-11-09
 

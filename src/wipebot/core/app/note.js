@@ -73,7 +73,7 @@ views.note = (() => {
       body += kit.line(left - 30, y, w, y, "var(--gold)", 'stroke-dasharray="3 3" opacity="0.7"');
     }
     const lead = K.first[0];
-    const head = `<div class="head"><h1>Kick assignments</h1><span class="sub">${kit.esc(D.boss)} · ${K.pulls.length} pulls`
+    const head = `<div class="head"><h1>Kick assignments</h1><span class="sub">${kit.esc(D.boss)} · ${kit.plural(K.pulls.length, "pull")}`
       + (K.from_pull ? ` · counted from pull ${K.from_pull}, when the note's order came in` : "") + "</span></div>";
     const stats = kit.stats([
       ["Kicked", `${K.made} of ${K.alive}`, "", "by their player, while alive"],
@@ -166,7 +166,7 @@ views.note = (() => {
       y += 6;
     }
     const states = new Set(C.callouts.flatMap((g) => g.rows.flatMap((r) => r.cells.filter((c) => c.length).map(pullState))));
-    const hd = `<div class="head"><h1>Personals</h1><span class="sub">${kit.esc(D.boss)} · ${C.pulls.length} pulls</span></div>`;
+    const hd = `<div class="head"><h1>Personals</h1><span class="sub">${kit.esc(D.boss)} · ${kit.plural(C.pulls.length, "pull")}</span></div>`;
     const keys = legend(Object.entries(CALLOUT).filter(([s]) => s === "answered" || s === "none" || states.has(s))
       .map(([, [fill, word]]) => [fill, word]));
     return `<section data-panel="callouts" class="note-board">${hd}<div class="grid">${kit.svg(w, h, body, "Callouts by pull")}</div>${keys}`

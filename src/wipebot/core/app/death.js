@@ -35,11 +35,11 @@ views.death = (() => {
   }
 
   function verdict() {
-    if (D.outright) return `<ul class="notes"><li class="fix"><span class="mk">!</span>${kit.esc(D.by)} killed outright at `
-      + `${kit.esc(lastHp())}% health: it wasn't damage that outpaced the healing.</li></ul>`;
+    if (D.outright) return kit.notes([["mind", `${D.by} killed outright at ${lastHp()}% health: it wasn't damage that outpaced the healing.`]]);
     if (!D.saved_by.length) return "";
-    return `<ul class="notes"><li class="good"><span class="mk">+</span>Used in time, ${kit.esc(D.saved_by.join(" or "))} `
-      + `would have kept them alive.</li></ul>`;
+    // what to do differently, as the "Ready, not used" above it: the thing first, then what it would have done
+    const by = D.saved_by.join(" or ");
+    return kit.notes([["fix", `${by[0].toUpperCase()}${by.slice(1)}, used in time, would have kept them alive.`]]);
   }
 
   const lastHp = () => { const h = D.hits.filter((x) => x.hp != null).pop(); return h ? h.hp : "?"; };
@@ -101,7 +101,7 @@ views.death = (() => {
     const kx = x(D.at_ms);
     o += kit.line(kx, T - 6, kx, T + plotH, "var(--dead)", 'stroke-width="1.8" stroke-dasharray="4 3"');
     o += kit.icon(D.img_base, D.icon, kx - 22, T - 16, 14, D.by);
-    o += kit.text(kx - (D.icon && D.img_base ? 26 : 4), T - 5, D.outright ? `${D.by}: killed outright` : `killed by ${D.by}`, "td", 'text-anchor="end" font-weight="600"', kit.SIZE.value);
+    o += kit.text(kx - (D.icon && D.img_base ? 26 : 4), T - 5, D.outright ? `${D.by}: killed outright` : D.no_blow ? D.by : `killed by ${D.by}`, "td", 'text-anchor="end" font-weight="600"', kit.SIZE.value);
     // the legend: the abilities by damage, then healing and health
     const keys = order.filter(hues.has).map((n) => {
       const ic = D.hits.find((h) => h.by === n)?.icon;
@@ -111,13 +111,8 @@ views.death = (() => {
     if (order.some((n) => !hues.has(n))) keys.push([(lx, ly) => `<rect x="${lx + 0.5}" y="${ly - 8.5}" width="9" height="9" rx="2" ${hues.svg("")}/>`, "other"]);
     keys.push([(lx, ly) => `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="var(--green)" opacity=".35"/>`, "healing received /s"]);
     keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="2"/>`, "health after each hit"]);
-    let lx = 6, ly = T + plotH + 36;
-    for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name) + 14;
-      if (lx > 6 && lx + w > W) { lx = 6; ly += 18; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
-      lx += w;
-    }
+    const [under, ly] = kit.legend(keys, W, T + plotH + 36);
+    o += under;
     return kit.svg(W, ly + 8, o, `${D.player.name}'s death: the hits and their health in the ${D.window_ms / 1000} s before it`);
   }
 

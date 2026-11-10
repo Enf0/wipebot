@@ -55,7 +55,7 @@ views.versus = (() => {
   function render() {
     if (!D || !root) return;
     const A = D.a, B = D.b, name = (s) => `<span ${kit.cls(s.color)}>${kit.esc(s.name)}</span>`;
-    const where = D.pull ? `${D.boss} pull ${D.pull}` : `${D.boss}, ${D.pulls} pulls both were in`;
+    const where = D.pull ? `${D.boss} pull ${D.pull}` : `${D.boss}, ${kit.plural(D.pulls, "pull")} both were in`;
     const head = `<div class="head"><h1>${name(A)} <span class="tm">against</span> ${name(B)}</h1>`
       + `<span class="sub">${kit.esc(A.spec === B.spec ? A.spec : `${A.spec} · ${B.spec}`)} · ${kit.esc(where)}</span></div>`;
     const stats = kit.stats([

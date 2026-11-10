@@ -33,7 +33,7 @@ views.night = (() => {
     const top = D.ends.find(([w]) => !QUIET.has(w)), counted = D.pulls.filter((r) => !r.live && !r.reset).length;
     const g = D.guild_best, beat = g && best && best.pct < g.pct;
     return kit.stats([
-      kill ? ["Killed", `pull ${kill.pull}`, "good", `after ${D.pulls.length} pulls`]
+      kill ? ["Killed", `pull ${kill.pull}`, "good", D.pulls.length > 1 ? `after ${D.pulls.length} pulls` : "the only pull"]
         : best ? ["Best wipe", said(best), "", `pull ${best.pull}`] : null,
       g ? ["Guild best before", said(g), "", beat ? "beaten tonight" : g.day] : null,
       top ? ["Ended most pulls", top[0].replace(/ killing many$/, ""), "decided", `${top[1]} of ${counted}${/killing many$/.test(top[0]) ? ", killing many" : ""}`] : null,
@@ -43,12 +43,12 @@ views.night = (() => {
 
   function bosses() {
     if (D.bosses.length < 2) return "";
-    return `<div class="chips bosses">${D.bosses.map((b) => `<button class="chip${b.boss === D.boss ? " saved" : ""}" data-boss="${kit.esc(b.boss)}">`
-      + `${kit.esc(b.boss)} · ${b.kill ? "kill" : b.best != null ? pct(b.best) : `${b.pulls} pulls`}</button>`).join("")}</div>`;
+    return `<div class="chips bosses">${D.bosses.map((b) => `<button class="chip${b.boss === D.boss ? " on" : ""}" data-boss="${kit.esc(b.boss)}">`
+      + `${kit.esc(b.boss)} · ${b.kill ? "kill" : b.best != null ? pct(b.best) : kit.plural(b.pulls, "pull")}</button>`).join("")}</div>`;
   }
 
   function head() {
-    const sub = [D.difficulty, `${D.pulls.length} pulls`, `${Math.round(D.combat_ms / 60000)} min in combat`, D.title.split(", ").pop()].filter(Boolean).join(" · ");
+    const sub = [D.difficulty, kit.plural(D.pulls.length, "pull"), `${Math.round(D.combat_ms / 60000)} min in combat`, D.title.split(", ").pop()].filter(Boolean).join(" · ");
     return kit.head(D.boss, sub);
   }
 
@@ -94,15 +94,10 @@ views.night = (() => {
       [(lx, ly) => w === "a kill" ? `<path d="M${lx + 5} ${ly - 10} l4 8 l-8 0z" fill="var(--gold)"/>` : `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" ${color.svg(w)}/>`,
        `${w.replace(/ killing many$/, "")} ${k}`]);
     if (legend && other) keys.push([(lx, ly) => `<rect x="${lx + 0.5}" y="${ly - 8.5}" width="9" height="9" rx="2" ${color.svg("")}/>`, `other ${other}`]);
-    keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="1.6"/>`, "best so far"]);
-    let lx = 6, ly = T + plotH + 34;
-    for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name) + 14;
-      if (lx > 6 && lx + w > W) { lx = 6; ly += 17; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
-      lx += w;
-    }
-    return kit.svg(W, ly + 6, o, `${D.boss}: boss health left on each pull, coloured by what ended it`);
+    if (line.length > 1) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="1.6"/>`, "best so far"]);
+    const [under, ly] = kit.legend(keys, W, T + plotH + 34);
+    o += under;
+    return kit.svg(W, keys.length ? ly + 6 : T + plotH + 22, o, `${D.boss}: boss health left on each pull, coloured by what ended it`);
   }
 
   // Night by night (progress's weeks): each raid night's best pull, as boss health left (lower is better), in a
@@ -119,7 +114,7 @@ views.night = (() => {
     const pulls = W.reduce((k, r) => k + r.pulls, 0), before = kill ? W.slice(0, W.indexOf(kill) + 1) : W;
     return kit.stats([
       ["Nights", `${W.length}`, "", W.length > 1 ? `${first.day} – ${last.day}` : first.day],
-      kill ? ["Killed", kill.day, "good", `pull ${kill.kill} that night, ${before.reduce((k, r) => k + r.pulls, 0)} pulls in all`]
+      kill ? ["Killed", kill.day, "good", `pull ${kill.kill} that night, ${kit.plural(before.reduce((k, r) => k + r.pulls, 0), "pull")} in all`]
         : ["Pulls", `${pulls}`, "", "over these nights"],
       W.length > 1 ? ["Best pull, first night → last", `${best(first)} → ${best(last)}`, "", W.some((r) => r.phase) ? "the phase and boss health in it" : "boss health left"] : null,
     ]);
@@ -134,7 +129,7 @@ views.night = (() => {
     for (const v of [0, 50, 100]) o += kit.line(L, y(v), W0 - R, y(v), "var(--line)", v ? 'opacity=".5"' : "") + kit.text(L - 6, y(v) + 4, `${v}%`, "tm", 'text-anchor="end"');
     W.forEach((r, i) => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
-      const tip = `${r.day}: ${r.pulls} pulls, ${r.kill ? `killed on pull ${r.kill}` : r.pct == null ? "no wipe past a reset"
+      const tip = `${r.day}: ${kit.plural(r.pulls, "pull")}, ${r.kill ? `killed on pull ${r.kill}` : r.pct == null ? "no wipe past a reset"
         : `best wipe ${r.health != null ? `${r.phase} at ${pct(r.health)} (WCL ${pct(r.pct)})` : `${pct(r.pct)}${r.phase ? ` (${r.phase})` : ""}`} on pull ${r.pull}`}`
         + (r.ended ? `\nEnded most pulls: ${r.ended[0]} (${r.ended[1]})` : "") + "\nClick for that night";
       if (r.kill) o += `<path d="M${cx} ${y(0) - 14} l5 10 l-10 0z" fill="var(--gold)"/>`;
@@ -146,7 +141,7 @@ views.night = (() => {
     W.forEach((r, i) => {
       if (i % every && i !== n - 1) return;
       o += kit.text(x(i) + band / 2, T + plotH + 14, r.day, "tm", 'text-anchor="middle"');
-      o += kit.text(x(i) + band / 2, T + plotH + 27, `${r.pulls} pulls`, "tm", 'text-anchor="middle"');
+      o += kit.text(x(i) + band / 2, T + plotH + 27, kit.plural(r.pulls, "pull"), "tm", 'text-anchor="middle"');
     });
     let ly = T + plotH + 46;
     if (top > 1) {  // the phases' blues
@@ -173,8 +168,9 @@ views.night = (() => {
     const bar = (k, css) => `<span class="bar"><span style="width:${Math.round(100 * k / max)}%;${css}"></span></span>`;
     const ends = D.ends.map(([w, k]) => `<li><span><i class="sw" style="${color.css(w)}"></i>${kit.esc(w)}</span>${bar(k, color.css(w))}<span class="count">${k}</span></li>`).join("");
     const firsts = D.firsts.map(([w, k]) => `<li><span>${kit.esc(w)}</span>${bar(k, "background:var(--dead)")}<span class="count">${k}</span></li>`).join("");
-    return `<div class="section-title">How the ${counted} pulls ended</div><ul class="ranked">${ends}</ul>`
-      + `<div class="section-title">What killed the first ${D.first_n} deaths of each pull</div><ul class="ranked">${firsts}</ul>`;
+    const each = counted === 1 ? "the pull" : "each pull";
+    return `<div class="section-title">${counted === 1 ? "How the pull ended" : `How the ${counted} pulls ended`}</div><ul class="ranked">${ends}</ul>`
+      + (firsts ? `<div class="section-title">What killed the first ${D.first_n === 1 ? "death" : `${D.first_n} deaths`} of ${each}</div><ul class="ranked">${firsts}</ul>` : "");
   }
 
   function table() {

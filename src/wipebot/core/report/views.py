@@ -531,7 +531,7 @@ async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
         "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
                    "color": class_hex(p.class_name), "role": p.role},
         "death": death, "deaths": len(own), "at_ms": round(at - t0), "window_ms": RECAP_WINDOW_MS,
-        "by": killer(d), "icon": icon(kid),
+        "by": killer(d), "no_blow": not kid, "icon": icon(kid),
         "fallout": bool(decided and at - t0 > decided.at_ms),
         "outright": bool(kid and killed_outright(rep, f, d, hits)),
         "hits": [{"ms": round(h["timestamp"] - t0), "by": rep.ability(h["abilityGameID"]),

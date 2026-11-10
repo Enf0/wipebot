@@ -11,6 +11,7 @@
 "at_ms": 48031,
 "window_ms": 10000,
 "by": "Ula'tek's Presence",
+"no_blow": false,
 "icon": "spells/1285965.jpg",
 "fallout": false,
 "outright": false,

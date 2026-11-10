@@ -6,6 +6,8 @@ const kit = (() => {
   const short = (v) => v >= 1e9 ? `${(v / 1e9).toFixed(v >= 1e10 ? 0 : 1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}k` : `${Math.round(v)}`;
   // 1st, 2nd, 3rd, 11th, 21st: as the tools' text writes ranks and percentiles
   const ordinal = (n) => { const r = n % 100, t = n % 10; return `${n}${r >= 11 && r <= 13 ? "th" : ["th", "st", "nd", "rd"][t] || "th"}`; };
+  // 1 pull, 2 pulls: a count with its noun
+  const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   const svg = (w, h, body, label) => `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">${body}</svg>`;
   // Chart text comes in three sizes, chosen once: a label (axes, legends, captions: the card's smallest text, as
   // its stats' headings), a value (what names data: a line's end, a best, a name) and a number inside a mark. The
@@ -61,6 +63,23 @@ const kit = (() => {
   const stats = (items) => `<div class="stats">${items.filter(Boolean).map(([k, v, cls, note]) =>
     `<div class="stat"><div class="k">${esc(k)}</div><div class="v ${cls || ""}">${esc(v)}</div>`
     + (note ? `<div class="n">${esc(note)}</div>` : "") + "</div>").join("")}</div>`;
+  // A chart's legend under it, from y: each key ([mark(x, y) => its SVG, name]) left to right, on a new row where
+  // the chart's width ends. The markup, and the last row's y
+  function legend(keys, W, y) {
+    let x = 6, out = "";
+    for (const [mark, name] of keys) {
+      const w = 18 + width(name) + 14;
+      if (x > 6 && x + w > W) { x = 6; y += 17; }
+      out += mark(x, y) + text(x + 17, y, name);
+      x += w;
+    }
+    return [out, y];
+  }
+  // A card's notes, marked the same in every view: "+" what went well, "−" what to do differently, "!" what changes
+  // how the rest reads. [[kind, text]], kind one of good, fix, mind
+  const MARK = { good: "+", fix: "−", mind: "!" };
+  const notes = (items) => !items.length ? "" : `<ul class="notes">${items.map(([kind, s]) =>
+    `<li class="${kind}"><span class="mk">${MARK[kind]}</span>${esc(s)}</li>`).join("")}</ul>`;
   // A mark's tooltip: data-tip on it, shown by the one tooltip below (hover, or a tap on a touch screen)
   const tip = (s) => s ? ` data-tip="${esc(s)}"` : "";
   // An invisible area that shows a tooltip, wider than the thin mark it's for
@@ -97,6 +116,6 @@ const kit = (() => {
   document.addEventListener("pointerleave", hide);
   window.addEventListener("scroll", hide, true);
 
-  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head };
+  return { esc, clock, short, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open), drawn into root

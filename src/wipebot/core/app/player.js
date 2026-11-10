@@ -17,7 +17,7 @@ views.player = (() => {
   function stats() {
     const o = D.output, items = [];
     if (o) items.push([`${o.what === "healing" ? "Healing" : "Damage"} per s alive`, kit.short(o.per_s_alive), "",
-                       o.rank ? `rank ${o.rank} of ${o.of} ${o.role}` : ""]);
+                       o.rank ? `rank ${o.rank} of ${o.of} ${o.role} by total` : ""]);  // views.player_view ranks by the total
     const costs = [[D.lost.dead_s, "dead"], [D.lost.gaps_s, "casting gaps"], [D.lost.capped_s, `${D.lost.resource} capped`]]
       .filter(([s]) => s >= 1).sort((a, b) => b[0] - a[0]);
     items.push([D.decided ? `Time lost before ${kit.clock(D.decided.ms)}` : "Time lost",
@@ -37,8 +37,7 @@ views.player = (() => {
   function notes() {
     const n = D.notes;
     if (!n || !(n.good.length || n.fix.length)) return "";
-    const li = (cls, mark, s) => `<li class="${cls}"><span class="mk">${mark}</span>${kit.esc(s)}</li>`;
-    return `<ul class="notes">${n.good.map((s) => li("good", "+", s)).join("")}${n.fix.map((s) => li("fix", "−", s)).join("")}</ul>`;
+    return kit.notes([...n.good.map((s) => ["good", s]), ...n.fix.map((s) => ["fix", s])]);
   }
 
   function render() {
@@ -91,8 +90,8 @@ views.player = (() => {
       o += `<rect x="${x(0)}" y="22" width="${x(100) - x(0)}" height="8" rx="4" fill="var(--line)"/>`;
       o += `<rect x="${x(0)}" y="22" width="${x(s.percentile) - x(0)}" height="8" rx="4" fill="var(--gold)"/>`;
       o += `<circle cx="${x(s.percentile)}" cy="26" r="7" ${kit.cls(D.player.color)} stroke="var(--bg)" stroke-width="2"/>`;
-      o += kit.text(x(s.percentile), 48, `${s.percentile}th percentile`, "t", 'text-anchor="middle" font-weight="600"', kit.SIZE.value);
-      return kit.svg(W, 56, o, `${D.player.name}'s parse: ${s.percentile}th percentile`);
+      o += kit.text(x(s.percentile), 48, `${kit.ordinal(s.percentile)} percentile`, "t", 'text-anchor="middle" font-weight="600"', kit.SIZE.value);
+      return kit.svg(W, 56, o, `${D.player.name}'s parse: ${kit.ordinal(s.percentile)} percentile`);
     }
     const values = [...s.points.map((p) => p[1]), s.mine], lo = Math.min(...values) * 0.92, hi = Math.max(...values) * 1.04;
     const x = (v) => L + (v - lo) / (hi - lo) * (W - L - R), y = 32;
@@ -190,13 +189,8 @@ views.player = (() => {
     // where the wipe was decided: in the legend, so its label never runs into the cooldowns' at the pull's end
     if (D.decided) keys.push([(lx, ly) => `<line x1="${lx + 6}" y1="${ly - 10}" x2="${lx + 6}" y2="${ly + 1}" stroke="var(--decided)" stroke-width="1.6" stroke-dasharray="3 3"/>`,
                               `wipe decided ${kit.clock(D.decided.ms)}`]);
-    let lx = 6, ly = y + 32;
-    for (const [mark, name] of keys) {
-      const w = 18 + kit.width(name) + 14;
-      if (lx > 6 && lx + w > W) { lx = 6; ly += 16; }
-      o += mark(lx, ly) + kit.text(lx + 17, ly, name);
-      lx += w;
-    }
+    const [under, ly] = kit.legend(keys, W, y + 32);
+    o += under;
     return kit.svg(W, ly + 6, o, `${D.player.name} over the pull: casting, gaps, dead, cooldowns`);
   }
 

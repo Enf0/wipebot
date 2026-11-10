@@ -54,7 +54,7 @@ views.meter = (() => {
     const pct = m.total ? 100 * b.value / m.total : 0, share = pct && pct < 0.5 ? "<1%" : m.total ? `${Math.round(pct)}%` : "";
     const was = then && b.was != null ? `${kit.short(b.was)} on ${then.was_day} (${kit.ordinal(b.was_rank)})` : then ? `not there on ${then.was_day}` : "";
     const tip = [`${b.name}${b.spec ? ` (${b.spec})` : ""}: ${amount(m, b.value)}${m.unit === "amount" ? "" : ` ${m.unit}`}${per}`, was, b.note,
-                 b.died_after || b.killed_by ? `${b.died_after} deaths within a few seconds of a hit, ${b.killed_by} by it` : ""].filter(Boolean).join("\n");
+                 b.died_after || b.killed_by ? `${kit.plural(b.died_after, "death")} within a few seconds of a hit, ${b.killed_by} by it` : ""].filter(Boolean).join("\n");
     const tick = then && b.was != null ? `<span class="was" style="left:${Math.min(100, b.was / max * 100).toFixed(2)}%"></span>` : "";
     const last = then ? (b.was != null ? `<span class="dl ${b.value < b.was ? "good" : b.value > b.was ? "bad" : ""}">${change(b.value, b.was)}</span>` : '<span class="dl">new</span>')
       : `<span class="pc">${share}</span>`;
@@ -100,7 +100,7 @@ views.meter = (() => {
     const col = sq + 2, rows = [...m.bars].sort((a, b) => total(b) - total(a)), w = left + n * col + 40, base = top + rows.length * row + 34;
     const max = Math.max(1, ...rows.flatMap((b) => b.per_pull.filter((v) => v !== null)));
     const raid = m.pulls.map((_, i) => rows.reduce((s, b) => s + (b.per_pull[i] || 0), 0)), rmax = Math.max(1, ...raid);
-    const what = m.per_pull === "debuffs" ? "debuffs" : "hits";
+    const what = m.per_pull === "debuffs" ? "debuffs" : "hits", count = (v) => kit.plural(v, what.slice(0, -1));
     let body = "";
     m.pulls.forEach((p, i) => { if (i === 0 || p % 5 === 0) body += kit.text(left + i * col + sq / 2, 11, String(p), "tm", 'text-anchor="middle"'); });
     rows.forEach((b, r) => {
@@ -111,14 +111,14 @@ views.meter = (() => {
         const x = left + i * col, share = v ? 35 + 65 * v / max : 0;
         const died = b.died_in.includes(i);
         body += `<rect x="${x}" y="${y}" width="${sq}" height="${sq}" rx="2" fill="${v ? `color-mix(in srgb, var(--gold) ${share.toFixed(0)}%, var(--panel))` : "var(--panel)"}"`
-          + `${kit.tip(`${b.name}, pull ${m.pulls[i]}: ${v} ${what}${died ? "\nit set up their death" : ""}`)}/>`;
+          + `${kit.tip(`${b.name}, pull ${m.pulls[i]}: ${count(v)}${died ? "\nit set up their death" : ""}`)}/>`;
         if (died) body += `<path d="M${x + 2} ${y + 2}L${x + sq - 2} ${y + sq - 2}M${x + sq - 2} ${y + 2}L${x + 2} ${y + sq - 2}" stroke="var(--dead)" stroke-width="2" pointer-events="none"/>`;
       });
       body += kit.text(w - 4, y + sq - 1, String(total(b)), "t", 'text-anchor="end"');
     });
     const ry = top + rows.length * row + 4;
     body += kit.text(left - 6, ry + 24, "raid", "tm", 'text-anchor="end"');
-    raid.forEach((v, i) => { const hgt = 26 * v / rmax; body += `<rect x="${left + i * col}" y="${ry + 28 - hgt}" width="${sq}" height="${hgt}" rx="1.5" fill="var(--gold)" opacity=".7"${kit.tip(`Pull ${m.pulls[i]}: ${v} ${what}`)}/>`; });
+    raid.forEach((v, i) => { const hgt = 26 * v / rmax; body += `<rect x="${left + i * col}" y="${ry + 28 - hgt}" width="${sq}" height="${hgt}" rx="1.5" fill="var(--gold)" opacity=".7"${kit.tip(`Pull ${m.pulls[i]}: ${count(v)}`)}/>`; });
     const icon = kit.iconImg(D.img_base, m.icon);
     const head = `<div class="head"><h1>${icon}${kit.esc(m.title)} by pull</h1><span class="sub">${what} per player per pull, each until its wipe was decided</span></div>`;
     const keys = `<div class="legend"><span><i style="background:color-mix(in srgb, var(--gold) 35%, var(--panel))"></i>1 ${what === "hits" ? "hit" : "debuff"}</span>`

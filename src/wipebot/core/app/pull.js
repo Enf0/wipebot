@@ -231,13 +231,8 @@ views.pull = (() => {
         : [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--dead)"/>`, "death"]];
     if (tracked.length) keys.splice(2, 0, [(lx, ly) => `<path d="M${lx + 5} ${ly - 9} l5 5 l-5 5 l-5 -5z" fill="var(--gold)"/>`, "the boss's main casts"]);
     if (D.decided) keys.push([(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4" fill="var(--muted)" opacity=".6"/>`, "after it was decided"]);
-    let lx = 6, ly = ay + 20;
-    for (const [mark, name] of keys) {
-      const w = 16 + kit.width(name) + 14;
-      if (lx > 6 && lx + w > W) { lx = 6; ly += 16; }
-      o += mark(lx, ly) + kit.text(lx + 16, ly, name);
-      lx += w;
-    }
+    const [under, ly] = kit.legend(keys, W, ay + 20);
+    o += under;
     return kit.svg(W, ly + 6, o, `${D.title}: boss health and raid damage taken over time, phases, deaths`);
   }
 
