@@ -40,6 +40,10 @@ def recorded(monkeypatch):
 async def test_tool_output_matches_snapshot(recorded, case: Case):
     if case.local and not LOCAL_RECORDED.exists():
         pytest.skip(NOT_LOCAL)
+    if case.stale:  # asks Warcraft Logs what its recording doesn't hold yet (cases.toml says why)
+        with pytest.raises(Exception, match="not recorded"):
+            await run(case)
+        pytest.skip(f"recorded before {case.stale}: `just record-tools`, then `just snapshot`")
     assert_snapshot(case.snapshot, await run(case))
 
 

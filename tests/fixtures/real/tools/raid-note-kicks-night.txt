@@ -2,8 +2,9 @@ The raid note for Twin Fangs (Mythic), checked against every The Twin Fangs pull
 Assignments in the note's text:
   Ravenous Feast and Tainted Blood Groups: Left: Attractîv Dragepie Martin Sonyosh Namsus Lïzårðmâñ; Right: Krøpling Zebinomage Peggerino Cptola Enfo Dscopi; Center: Draiman Slushmania Agonco Nalaxd Pomaa Nexsozz
   Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Enfo; Kick #2 left: Dragepie; Kick #2 right: Dscopi; Kick #3 left: Martin; Kick #3 right: Krøpling; Kick #4 left: Attractîv; Kick #4 right: Peggerino; Kick #5 left: Agonco; Kick #5 right: Zebinomage
-Ravenous Feast and Tainted Blood Groups: 7 hits of Ravenous Feast [1290662] over 7 pulls (4 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
+Ravenous Feast and Tainted Blood Groups: 8 hits of Ravenous Feast [1290662] over 7 pulls (3 more after the wipes were decided), each matched to the group with most of its players hit. Per player of a group, most missed first: of their group's hits while alive, how many hit them, the ones they missed, and hits of the other group that hit them too:
   Enfo (Right): hit by 2 of 3; missed 1: p10 1:03; in the other group's 1
+  Pomaa (Center): hit by 0 of 1; missed 1: p12 1:03; in the other group's 4
   Sonyosh (Left): hit by 3 of 4; missed 1: p12 1:01; in the other group's 1
   Attractîv (Left): hit by 3 of 3; dead for 1 more; in the other group's 1
   Cptola (Right): hit by 3 of 3; in the other group's 1
@@ -13,9 +14,10 @@ Ravenous Feast and Tainted Blood Groups: 7 hits of Ravenous Feast [1290662] over
   Lïzårðmâñ (Left): hit by 4 of 4; in the other group's 1
   Martin (Left): hit by 3 of 3; dead for 1 more; in the other group's 1
   Namsus (Left): hit by 4 of 4; in the other group's 1
+  Nexsozz (Center): hit by 1 of 1; in the other group's 4
   Peggerino (Right): hit by 3 of 3; in the other group's 1
   Zebinomage (Right): hit by 3 of 3; in the other group's 1
-  Hit, in no group: Karadim 5, Wutroll 5
+  Hit, in no group: Wutroll 6, Karadim 5
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
   Lïzårðmâñ: 34 planned uses; on time 6, early 5 (2 s), late 8 (3 s), not cast 14, dead 1
     0:16 Rewind [363534], 15 pulls: on time 4, late 8 (3 s), not cast 2 (p4, p13), dead 1
@@ -49,5 +51,5 @@ Kick assignments (a callout to one player when an add begins a cast someone kick
   Krøpling (Kick #3 right): kicked 11 of 15; covered 3 (Wutroll 2, Karadim 1); not kicked 1: p15 1:43 (went through)
   Dscopi (Kick #2 right): kicked 9 of 14; covered 5 (Enfo 2, Karadim 2, Dragepie 1); dead for 1 more
   Their casts that went through, per assignment: "Kick #5 left" 6, "Kick #4 left" 4, "Kick #5 right" 3, "Kick #4 right" 2, "Kick #1 left" 1, "Kick #1 right" 1, "Kick #2 left" 1, "Kick #3 left" 1, "Kick #3 right" 1
-  Pulls whose wipe was decided within 10 s after casts on assignments went through, 9 of 15 (when it was decided, then the casts, first one first): p4 0:52 ("Kick #4 left" Attractîv 0:43 (alive)); p5 0:47 ("Kick #1 right" Enfo 0:38 (alive), "Kick #5 left" Agonco 0:45 (alive)); p7 0:49 ("Kick #4 left" Attractîv 0:43 (alive), "Kick #4 right" Peggerino 0:44 (alive), "Kick #5 right" Zebinomage 0:46 (alive)); p8 0:52 ("Kick #4 left" Attractîv 0:43 (alive)); p9 0:47 ("Kick #1 left" Sonyosh 0:38 (alive), "Kick #4 right" Peggerino 0:43 (dead since 0:44), "Kick #5 left" Agonco 0:46 (alive)); p11 1:49 ("Kick #2 left" Dragepie 1:41 (alive), "Kick #4 left" Attractîv 1:45 (alive), "Kick #5 left" Agonco 1:47 (alive)); p13 0:49 ("Kick #3 left" Martin 0:42 (alive), "Kick #5 right" Zebinomage 0:45 (alive), "Kick #5 left" Agonco 0:46 (alive)); p14 0:56 ("Kick #5 left" Agonco 0:46 (alive)); p15 1:51 ("Kick #3 right" Krøpling 1:43 (alive), "Kick #5 right" Zebinomage 1:47 (alive))
-  On those pulls, per player, whose cast went through first while they were alive (the casts after it aren't counted against anyone): Attractîv 3: p4 0:43, p7 0:43, p8 0:43; Agonco 1: p14 0:46; Dragepie 1: p11 1:41; Enfo 1: p5 0:38; Krøpling 1: p15 1:43; Martin 1: p13 0:42; Sonyosh 1: p9 0:38
+  Pulls whose wipe was decided within 10 s after casts on assignments went through, 9 of 15 (when it was decided, then the casts, first one first): p4 0:52 ("Kick #4 left" Attractîv 0:43 (alive)); p5 0:49 ("Kick #5 left" Agonco 0:45 (alive)); p7 0:49 ("Kick #4 left" Attractîv 0:43 (alive), "Kick #4 right" Peggerino 0:44 (alive), "Kick #5 right" Zebinomage 0:46 (alive)); p8 0:53 ("Kick #4 left" Attractîv 0:43 (alive)); p9 0:47 ("Kick #1 left" Sonyosh 0:38 (alive), "Kick #4 right" Peggerino 0:43 (dead since 0:44), "Kick #5 left" Agonco 0:46 (alive)); p11 1:50 ("Kick #2 left" Dragepie 1:41 (alive), "Kick #4 left" Attractîv 1:45 (alive), "Kick #5 left" Agonco 1:47 (alive)); p13 0:50 ("Kick #3 left" Martin 0:42 (alive), "Kick #5 right" Zebinomage 0:45 (alive), "Kick #5 left" Agonco 0:46 (alive)); p14 0:56 ("Kick #5 left" Agonco 0:46 (alive)); p15 1:52 ("Kick #3 right" Krøpling 1:43 (alive), "Kick #5 right" Zebinomage 1:47 (alive))
+  On those pulls, per player, whose cast went through first while they were alive (the casts after it aren't counted against anyone): Attractîv 3: p4 0:43, p7 0:43, p8 0:43; Agonco 2: p5 0:45, p14 0:46; Dragepie 1: p11 1:41; Krøpling 1: p15 1:43; Martin 1: p13 0:42; Sonyosh 1: p9 0:38

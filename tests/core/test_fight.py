@@ -8,7 +8,7 @@ import pytest
 
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import server
-from wipebot.core.pulls import Decided
+from wipebot.core.pulls import Decided, mass_hits
 from wipebot.core.report import fight
 from wipebot.core.report.ending import ending, ending_ability, ending_text, lead
 
@@ -73,6 +73,39 @@ def test_one_ability_killing_in_pulses_over_a_few_seconds_is_one_moment(rep, dea
     # an unnamed killing blow isn't one ability: no pulses
     unnamed = [{**d, "killingAbilityGameID": None} for d in died]
     assert "in pulses" not in str(ended_by(rep, PULL, unnamed, {}, 20, [], Decided(47_000)))
+
+
+def test_a_hit_killing_many_counts_whole_whatever_else_kills_meanwhile(rep, deaths):
+    # Two abilities kill four each in the same two seconds: both are found, each with all its deaths, also the ones
+    # logged after half the raid was dead (the moment the caller cut at falls inside both).
+    died = deaths(*[(10.0 * n, SWIPE) for n in range(1, 6)], (60.0, VENOM), (60.1, CRASH), (60.4, VENOM),
+                  (60.5, CRASH), (60.9, VENOM), (61.2, CRASH), (61.6, VENOM), (61.9, CRASH))
+    text = ended_by(rep, PULL, died, {}, 20, [], Decided(60_900))
+    assert "Venom Burst [901] killed 4 within 2 s at 1:00" in text
+    assert "then Shadow Crash [903] killed 4 within 2 s at 1:00" in text
+    assert [(h.ability, len(h.deaths)) for h in mass_hits(died, 20, rep.ability)] == [("Venom Burst", 4),
+                                                                                       ("Shadow Crash", 4)]
+
+
+def test_a_death_just_ahead_of_a_hit_killing_many_is_a_death_of_its_own(rep, deaths):
+    # No killing blow logged: one dies 2.05 s ahead of four who die together. The four are the hit; the one isn't
+    # its first victim, and the two a little after it are too few to be another.
+    died = [{**d, "killingAbilityGameID": None} for d in deaths(
+        (30.0, 0), (32.05, 0), (32.3, 0), (32.6, 0), (33.0, 0), (34.2, 0), (34.3, 0))]
+    hits = mass_hits(died, 20, rep.ability)
+    assert [[d["timestamp"] - T0 for d in h.deaths] for h in hits] == [[32_050, 32_300, 32_600, 33_000]]
+    assert not hits[0].waves
+
+
+def test_deaths_in_pulses_that_another_abilitys_hit_follows_led_into_it(rep, deaths):
+    # Four die to one ability over 5 s, then another kills seven at once: the four led into that hit, they aren't
+    # a hit killing many of their own (pull 28 of the tests' night). With no such hit behind them, they are.
+    pulses = [(33.0, SWIPE), (36.8, SWIPE), (37.3, SWIPE), (37.5, SWIPE)]
+    died = deaths(*pulses, *[(38.2 + n / 10, VENOM) for n in range(7)])
+    assert [h.ability for h in mass_hits(died, 20, rep.ability)] == ["Venom Burst"]
+    assert lead(ending(rep, PULL, died, {}, 20, [], Decided(38_800))) == "deaths from 0:33"
+    alone = mass_hits(deaths(*pulses, (50.0, VENOM)), 20, rep.ability)
+    assert [(h.ability, h.waves) for h in alone] == [("Tail Swipe", True)]
 
 
 def test_the_deaths_leading_into_a_moment_are_named_and_lead_when_they_are_many(rep, deaths):

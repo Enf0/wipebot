@@ -96,16 +96,20 @@ async def test_one_burst_of_deaths_is_never_split_into_counted_and_fallout(rep):
     assert deaths[-1]["timestamp"] - f["startTime"] > at + 1000
 
 
-async def test_deaths_seconds_apart_after_half_the_raid_died_are_fallout_not_one_burst(rep):
-    # Pull 28: the 10th of 20 dies at 1:38 with the 11th 1 ms later; the next six die over the 3 s after it.
+async def test_a_hit_killing_many_under_way_when_half_the_raid_died_counts_whole(rep):
+    # Pull 28: the 10th of 20 dies at 1:38, the sixth of the seven one Viscous Cyst kills within 1.4 s. The hit's last
+    # death, a second later, is the moment; the five who die over the 2 s after it are fallout.
     f = rep.fight(28)
     at = (await rep.decided_at(f)).at_ms
     deaths = await rep.deaths(f)
-    assert at == deaths[10]["timestamp"] - f["startTime"]
+    assert at == deaths[11]["timestamp"] - f["startTime"]
     text = await fight.pull_summary(rep, 28)
-    assert "(10 alive)" in text and "Half the raid was dead at 1:38; later deaths" in text
-    # Pull 19: half the raid dead at 1:43, in deaths a few hundred ms apart that run to 1:44.
-    assert "Half the raid was dead at 1:43, in deaths at once that ran to 1:44;" in await fight.pull_summary(rep, 19)
+    assert "Viscous Cyst [1287205] killed 7 within 1 s at 1:38" in text and "(8 alive)" in text
+    assert "Half the raid was dead at 1:38, in one moment's deaths that ran to 1:39; later deaths" in text
+    assert text.count("after half the raid was dead") == 5
+    # Pull 19: half the raid dead at 1:43, in the middle of the ten one Viscous Cyst kills within 2 s.
+    text = await fight.pull_summary(rep, 19)
+    assert "Half the raid was dead at 1:43, in one moment's deaths that ran to 1:45;" in text
 
 
 async def test_a_councils_boss_deaths_are_read_for_every_pull_in_one_query(rep, monkeypatch):
@@ -288,9 +292,21 @@ def test_a_death_listed_twice_counts_once_and_two_players_dying_together_twice(r
 
 
 @pytest.mark.parametrize(("raid", "enrage", "deaths", "decided"), [
-    (4, None, [10_000, 10_500, 10_750, 11_000, 11_251], 11_000),  # deaths 250 ms apart are one moment; 251 aren't
+    # deaths to different abilities: 250 ms apart are one moment, 251 aren't
+    (4, None, [10_000, 10_500, 10_750, 11_000, 11_251], 11_000),
     (4, None, [10_000, 10_500, 10_700, 10_900, 11_100, 11_300, 11_500, 11_700], 11_500),  # a moment is 1 s at most
     (20, 20_000, [19_750, 20_200], 20_200),  # the enrage in a moment of deaths: from 250 ms before it
+    # a hit killing many under way when half the raid died counts whole, however its deaths are spread within it:
+    # the 10th of 20 dies at 30.6 s, the ability's last victim at 31.9 s, and the next, 2.2 s after its first, is
+    # fallout; so is a death to something else half a second after the hit
+    (20, None, [(5_000, 1), (6_000, 2), (7_000, 3), (8_000, 4), (9_000, 5), *[(at, 77) for at in (
+        30_000, 30_100, 30_200, 30_400, 30_600, 31_000, 31_500, 31_900, 32_200)], (32_400, 6)], 31_900),
+    # another ability's hit under way then counts whole too, and a death right behind its last one with it
+    (20, None, [*[(5_000 + 1000 * n, n) for n in range(7)], (20_000, 88), (20_100, 88), (20_500, 99), (20_600, 88),
+                (21_800, 88), (21_900, 7), (24_000, 88)], 21_900),
+    # deaths in pulses to one named ability are one hit as well: the moment is its last pulse
+    (20, None, [*[(5_000 + 1000 * n, n) for n in range(8)], (20_000, 88), (22_500, 88), (24_500, 88), (25_900, 88),
+                (26_500, 88)], 25_900),
 ])
 async def test_the_moment_a_wipe_was_decided_takes_in_the_deaths_of_that_moment(rep, monkeypatch, raid, enrage,
                                                                                 deaths, decided):
@@ -299,9 +315,10 @@ async def test_the_moment_a_wipe_was_decided_takes_in_the_deaths_of_that_moment(
 
     async def answer(value):
         return value
+    died = [d if isinstance(d, tuple) else (d, 1000 + i) for i, d in enumerate(deaths)]
     monkeypatch.setattr(rep, "enrages", lambda f: answer([("Frenzy", enrage)] if enrage else []))
-    monkeypatch.setattr(rep, "deaths", lambda f: answer([{"targetID": i, "timestamp": t0 + at}
-                                                         for i, at in enumerate(deaths)]))
+    died = [{"targetID": i, "timestamp": t0 + at, "killingAbilityGameID": a} for i, (at, a) in enumerate(died)]
+    monkeypatch.setattr(rep, "deaths", lambda f: answer(died))
     monkeypatch.setattr(rep, "raid_size", lambda f: answer(raid))
     monkeypatch.setattr(rep, "resurrects", lambda fs: answer({1: {}}))
     assert (await rep.decided_at(f)).at_ms == decided

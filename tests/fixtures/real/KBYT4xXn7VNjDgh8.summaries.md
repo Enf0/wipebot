@@ -52,7 +52,7 @@ Last 5: 80.9 → 80.1 → 81.3 → 66.8 → 68.1
 
 **Sszorak** (Mythic) · pull 9 · reset at **100.0%** · P1 · 0:24
 First deaths: Lïzårðmâñ (no killing blow recorded, 0:11) · Algmor (no killing blow recorded, 0:11) · Peggerino (no killing blow recorded, 0:11)
-Killed by, until the wipe was decided at 0:11 (half the raid was dead): no killing blow recorded ×11 (8 later deaths: fallout)
+Killed by, until the wipe was decided at 0:11 (half the raid was dead): no killing blow recorded ×12 (7 later deaths: fallout)
 
 **Sszorak** (Mythic) · pull 10 · wipe at **79.5%** · P1 · 1:22 · best of this log 66.8%
 Boss buffs at the end: **Unbound Ferocity** (from 1:18)
@@ -106,17 +106,17 @@ Last 5: 78.9 → 68.5 → 87.9 → 77.8 → 79.6
 
 **Sszorak** (Mythic) · pull 19 · wipe at **73.9%** · P2 · 1:50 · best of this log 62.6%
 First deaths: Sonyosh (Tempest, 0:45) · Sonyosh (Tempest, 1:15) · Attractîv (Tempest, 1:18)
-Killed by, until the wipe was decided at 1:44 (half the raid was dead): Tempest ×5 · Viscous Cyst ×5 · Ula'tek's Presence ×2 · Raging Crosswinds ×1 (7 later deaths: fallout)
+Killed by, until the wipe was decided at 1:45 (half the raid was dead): Viscous Cyst ×10 · Tempest ×5 · Ula'tek's Presence ×2 · Raging Crosswinds ×1 (2 later deaths: fallout)
 Last 5: 68.5 → 87.9 → 77.8 → 79.6 → 73.9
 
 **Sszorak** (Mythic) · pull 20 · wipe at **88.5%** · P1 · 0:39 · best of this log 62.6%
 First deaths: Deathadim (Mutilate, 0:15) · Nexsozz (Ravage, 0:16) · Pomaa (Ravage, 0:24)
-Killed by, until the wipe was decided at 0:29 (half the raid was dead): no killing blow recorded ×4 · Ravage ×3 · Melee ×2 · Mutilate ×1 (8 later deaths: fallout)
+Killed by, until the wipe was decided at 0:30 (half the raid was dead): no killing blow recorded ×5 · Ravage ×3 · Melee ×2 · Mutilate ×1 (7 later deaths: fallout)
 Last 5: 87.9 → 77.8 → 79.6 → 73.9 → 88.5
 
 **Sszorak** (Mythic) · pull 21 · wipe at **72.2%** · P2 · 2:03 · best of this log 62.6%
 First deaths: Cptola (Tempest, 1:20) · Martin (Tempest, 1:21) · Sveini (Tempest, 1:32)
-Killed by, until the wipe was decided at 1:48 (half the raid was dead): no killing blow recorded ×6 · Tempest ×4 (9 later deaths: fallout)
+Killed by, until the wipe was decided at 1:48 (half the raid was dead): no killing blow recorded ×9 · Tempest ×4 (6 later deaths: fallout)
 Last 5: 77.8 → 79.6 → 73.9 → 88.5 → 72.2
 
 **Sszorak** (Mythic) · pull 22 · wipe at **66.9%** · P1 (2nd time) · 2:32 · best of this log 62.6%
@@ -138,7 +138,7 @@ Last 5: 88.5 → 72.2 → 66.9 → 77.1 → 76.9
 
 **Sszorak** (Mythic) · pull 25 · wipe at **73.9%** · P1 (2nd time) · 2:08 · best of this log 62.6%
 First deaths: Attractîv (Virulence, 1:20) · Peggerino (Venomous Surge, 1:21) · Sveini (Virulence, 1:21)
-Killed by, until the wipe was decided at 1:47 (half the raid was dead): Virulence ×4 · no killing blow recorded ×4 · Venomous Surge ×1 · Mutilated Gash ×1 (10 later deaths: fallout)
+Killed by, until the wipe was decided at 1:48 (half the raid was dead): no killing blow recorded ×10 · Virulence ×4 · Venomous Surge ×1 · Mutilated Gash ×1 (4 later deaths: fallout)
 Last 5: 72.2 → 66.9 → 77.1 → 76.9 → 73.9
 
 **Sszorak** (Mythic) · pull 26 · wipe at **88.9%** · P1 · 0:37 · best of this log 62.6%
@@ -154,7 +154,7 @@ Last 5: 77.1 → 76.9 → 73.9 → 88.9 → 90.7
 
 **Sszorak** (Mythic) · pull 28 · wipe at **75.7%** · P2 · 1:50 · best of this log 62.6%
 First deaths: Sveini (Tempest, 0:49) · Sinnatony (Tempest, 1:33) · Enfo (Tempest, 1:36)
-Killed by, until the wipe was decided at 1:38 (half the raid was dead): Viscous Cyst ×6 · Tempest ×5 (6 later deaths: fallout)
+Killed by, until the wipe was decided at 1:39 (half the raid was dead): Viscous Cyst ×7 · Tempest ×5 (5 later deaths: fallout)
 Last 5: 76.9 → 73.9 → 88.9 → 90.7 → 75.7
 
 **Sszorak** (Mythic) · pull 29 · wipe at **80.5%** · P1 · 1:23 · best of this log 62.6%

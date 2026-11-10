@@ -1,7 +1,8 @@
 """Turn a finished boss pull into its deterministic summary (pull_summary, progress with each_pull and compare_pulls
 start from it)."""
+import math
 from collections import Counter
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 
 from .text import clock, day, fight_url, ordinal, plural
@@ -17,6 +18,9 @@ END_SLACK_MS = 1_000  # a buff removed this close to the end was still up when t
 # An enrage ends a pull within seconds (Sszorak's within 18 s); a buff the boss carries for minutes to the end
 # (Vashnik's Flame Infusion from 0:24, Nymrissa's Wavecaller's Might) is part of the fight, not what ended it.
 END_BUFF_WINDOW_MS = 30_000
+MASS_DEATH_MS = 2000  # deaths to one ability this close together are one hit killing many
+MASS_DEATH_SHARE = 5  # a fifth of the raid (at least 3) dying in one hit is a raid-wiping mechanic
+WAVE_MS = 6000  # deaths to one named ability this close together, in pulses, are one moment too (Stone Breaker's set)
 
 
 @dataclass(frozen=True)
@@ -101,6 +105,55 @@ def is_reset(fight: dict) -> bool:
 def attempt(fight: dict) -> bool:
     """A pull to count in figures over the night: ended (a pull still going has no end yet), not a reset."""
     return not fight.get("inProgress") and not is_reset(fight)
+
+
+def mass_of(raid: int) -> int:
+    """How many dying at once is a raid-wiping mechanic in a raid of this size: a fifth of it, at least 3."""
+    return max(3, math.ceil(raid / MASS_DEATH_SHARE))
+
+
+@dataclass(frozen=True)
+class Hit:
+    """Deaths to one ability that are one hit killing many (`mass_hits`), in order."""
+    deaths: tuple[dict, ...]
+    ability: str  # as the deaths name it; one with no killing blow logged has no ability id
+    waves: bool = False  # in pulses over a few seconds (WAVE_MS), not at once
+
+    @property
+    def first(self) -> float:
+        return self.deaths[0]["timestamp"]
+
+    @property
+    def last(self) -> float:
+        return self.deaths[-1]["timestamp"]
+
+
+def mass_hits(deaths: Sequence[dict], raid: int, ability: Callable[[int | None], str]) -> list[Hit]:
+    """Each hit killing many among a pull's deaths, earliest first: a fifth of the raid (at least 3) dying to one
+    ability within MASS_DEATH_MS of the first of them, or, to a named ability, in pulses within WAVE_MS. Each
+    ability is read on its own (by name: one logs under several ids), so another's deaths in between split nothing.
+    Deaths in pulses that another ability's hit at once follows within WAVE_MS are no hit: they led into it."""
+    mass, found = mass_of(raid), []
+    by_name: dict[str, list[dict]] = {}
+    for d in sorted(deaths, key=lambda d: d["timestamp"]):
+        by_name.setdefault(ability(d.get("killingAbilityGameID")), []).append(d)
+    for name, own in by_name.items():
+        def within(i: int, ms: int, own: list[dict] = own) -> list[dict]:
+            return [d for d in own[i:] if d["timestamp"] - own[i]["timestamp"] <= ms]
+
+        i = 0
+        while i < len(own):
+            hit, waves = within(i, MASS_DEATH_MS), False
+            if len(hit) < mass and own[i].get("killingAbilityGameID"):  # the same ability in pulses
+                hit, waves = within(i, WAVE_MS), True
+            if len(hit) >= mass:
+                found.append(Hit(tuple(hit), name, waves))
+                i += len(hit)
+            else:
+                i += 1
+    at_once = [h for h in found if not h.waves]
+    return sorted((h for h in found if not h.waves or not any(
+        o.ability != h.ability and h.first <= o.first <= h.first + WAVE_MS for o in at_once)), key=lambda h: h.first)
 
 
 def wipe_pcts(fights: list[dict]) -> list[float]:

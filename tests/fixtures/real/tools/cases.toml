@@ -7,6 +7,9 @@
 # kills) or a Raidbots data file, which may not be published; its answers and snapshot are in local/, untracked
 # (tests/README.md).
 #
+# `stale = "<what changed>"`: a change moved what the case asks Warcraft Logs, so its recording no longer answers it.
+# Its test is skipped until `just record-tools` and `just snapshot`, then fails until this mark is taken off.
+#
 # The reports:
 #   KBYT4xXn7VNjDgh8  Mon 5 Oct: Vashnik killed on pull 2, 33 Sszorak pulls (the captured night, ../KBYT...json)
 #   vjt3KLbN8g62J1H9  Mon 12 Oct: 42 Sszorak pulls, with that night's raid note (../notes)
@@ -67,11 +70,11 @@ progress = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
 list-pulls = { tool = "progress", report = "KBYT4xXn7VNjDgh8", boss = "Vashnik", each_pull = true }
 first-hits = { tool = "progress", report = "vjt3KLbN8g62J1H9", boss = "Sszorak", first_hits = true }
 roster = { tool = "roster", report = "KBYT4xXn7VNjDgh8" }
-defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
-defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid" }
+defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", stale = "the decided moment took in the whole of a hit killing many" }
+defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid", stale = "the decided moment took in the whole of a hit killing many" }
 healing = { tool = "healing", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", pull = 8 }
 # the spikes that come back at the same moment pull after pull
-healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true }
+healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true, stale = "the decided moment took in the whole of a hit killing many" }
 # healers going low late in a long pull, and the druid's Innervates: both on a healer above the low line while two
 # were under it, one after it sat ready
 healing-mana = { tool = "healing", report = "p7jRwgv8b1rY6LBd", boss = "Twin Fangs", pull = 25, mana = true }
@@ -177,6 +180,6 @@ find-reports-own-guild = { tool = "find_reports", report = "vjt3KLbN8g62J1H9", g
 # a raider's alt in a pug's log the guild's reports don't have
 character-reports = { tool = "find_reports", local = true, player = "Dscopi", server = "Kazzak", region = "eu", days = 14 }
 # casts of one spell by player, with the rate over the pulls' combat
-breakdown-casts = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "Casts", ability = "Flash Heal", boss = "Sszorak" }
+breakdown-casts = { tool = "breakdown", report = "KBYT4xXn7VNjDgh8", data_type = "Casts", ability = "Flash Heal", boss = "Sszorak", stale = "the decided moment took in the whole of a hit killing many" }
 # a spec's top parses' major cooldowns without a player: when they pressed them, beside the boss's casts
 top-cooldowns = { tool = "compare_with_top", local = true, spec = "restoration shaman", boss = "Vashnik", difficulty = "Mythic", aspects = ["cooldowns"] }

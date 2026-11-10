@@ -100,7 +100,7 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
                          "later death its fallout.")
     if half is not None:
         at = clock(half_dead(deaths, backs, raid) - f["startTime"])
-        ran = "" if at == clock(half) else f", in deaths at once that ran to {clock(half)}"
+        ran = "" if at == clock(half) else f", in one moment's deaths that ran to {clock(half)}"
         lines.append(f"Half the raid was dead at {at}{ran}; later deaths are fallout of the wipe.")
     if is_reset(f):
         lines.append("The boss was untouched: this was a reset, not an attempt.")

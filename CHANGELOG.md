@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Discord` **Two servers that follow the same report each get their posts after wipes.** A pull handled for one server counted as handled for all, so on a bot many servers share, only the first server following a guild's live report got its posts. Each server now has its own.
 - `Discord` **Many questions at once no longer slow the bot down for every server.** At most eight questions are answered at the same time and the next waits its turn. One raider gets three answers at once and thirty an hour, in channels and DMs together, with the posts after wipes they asked for on top. On a server with its own AI key, `/usage` shows admins who the month's answers went to most, questions in DMs included.
 - `Discord` **An answer no longer comes with a card that only says it couldn't load.** When what a picture shows couldn't be read (Warcraft Logs slow, or out of points for the hour), the bot posted the empty card with the error on it. The answer now goes without that picture.
+- `Agent` **A hit that kills many counts whole.** When one ability killed players over a second or two, the count stopped at the moment half the raid was dead: "Viscous Cyst killed 5" on a pull where it killed 10, with the other five listed as fallout. The wipe is now decided at the hit's last death, in every tool, two abilities killing at the same moment are both named, and a few deaths in pulses just before another ability's hit count as what led into it.
 
 ## [0.41.1] - 2026-11-09
 

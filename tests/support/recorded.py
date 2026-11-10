@@ -61,6 +61,9 @@ class Case:
     tool: str
     args: dict
     local: bool = False  # reads rankings or other guilds' reports: kept in LOCAL, not published
+    # Why its recording no longer answers it (a change moved what it asks Warcraft Logs): its test waits for
+    # `just record-tools`, and fails once the recording answers again, so the mark comes off with the new snapshot.
+    stale: str = ""
 
     @property
     def snapshot(self) -> Path:
@@ -76,8 +79,8 @@ def _arg(value: object) -> object:
 
 def load_cases() -> dict[str, Case]:
     raw = tomllib.loads((TOOLS / "cases.toml").read_text(encoding="utf-8"))
-    return {name: Case(name, spec.pop("tool"), {k: _arg(v) for k, v in spec.items() if k != "local"},
-                       spec.get("local", False))
+    return {name: Case(name, spec.pop("tool"), {k: _arg(v) for k, v in spec.items() if k not in ("local", "stale")},
+                       spec.get("local", False), spec.get("stale", ""))
             for name, spec in raw.items()}
 
 

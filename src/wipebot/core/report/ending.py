@@ -1,16 +1,12 @@
 """How a pull ended, from the log alone (`Ending`): one ability killing many at once, a buff the boss kept to the end,
 half the raid dead, deaths one after another, or a reset. What each mechanic is, the guide says; pull_summary writes
 it out (`ending_text`)."""
-import math
 from dataclasses import dataclass
 
-from ..pulls import NO_KILLING_BLOW, Decided, is_reset
+from ..pulls import MASS_DEATH_MS, NO_KILLING_BLOW, WAVE_MS, Decided, is_reset, mass_hits, mass_of
 from ..text import clock
 from .base import Report, alive_at, half_dead
 
-MASS_DEATH_MS = 2000  # deaths to one ability this close together are one hit killing many
-MASS_DEATH_SHARE = 5  # a fifth of the raid (at least 3) dying in one hit is a raid-wiping mechanic
-WAVE_MS = 6000  # deaths to one named ability this close together, in pulses, are one moment too (Stone Breaker's set)
 LEAD_IN_GAP_MS = 60_000  # deaths this close one after another lead into the moment that follows them
 
 
@@ -68,7 +64,7 @@ class Ending:
     @property
     def mass(self) -> int:
         """How many dying at once is a raid-wiping mechanic in this raid: a fifth of it, at least 3."""
-        return max(3, math.ceil(self.raid / MASS_DEATH_SHARE))
+        return mass_of(self.raid)
 
 
 async def pull_ending(rep: Report, f: dict) -> Ending | None:
@@ -81,7 +77,8 @@ def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float
            buffs: list[tuple[str, float]], decided: Decided | None) -> Ending | None:
     """How a wipe ended, from the log alone, earliest first: one ability killing many at once, a buff the boss kept to
     the end (`buffs`: the ones that can decide a wipe, Report.enrages), half the raid dead, or deaths one after
-    another. None for a kill."""
+    another. A hit killing many is found among all the pull's deaths and counts whole when it began before the wipe
+    was decided (Report.decided_at ends the moment on its last death). None for a kill."""
     if f["kill"]:
         return None
     t0, length = f["startTime"], f["endTime"] - f["startTime"]
@@ -92,7 +89,7 @@ def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float
     until = t0 + decided.at_ms if decided else f["endTime"]
     before = [d for d in deaths if d["timestamp"] <= until]
     half = half_dead(deaths, backs, raid) if decided and not decided.enrage else None
-    moments: list[Moment] = [*_mass_deaths(rep, before, t0, raid)]
+    moments: list[Moment] = [m for m in _mass_deaths(rep, deaths, t0, raid) if t0 + m.at_ms <= until]
     moments += [KeptBuff(gained, name, alive_at(deaths, backs, raid, t0 + gained)) for name, gained in buffs
                 if t0 + gained <= until]  # gained once the wipe was decided: fallout too
     if not moments and half is not None:  # half the raid dead, with no hit killing many and no enrage: a cascade
@@ -128,25 +125,12 @@ def _lead_in(rep: Report, deaths: list[dict], backs: dict[int, list[float]], t0:
 
 
 def _mass_deaths(rep: Report, deaths: list[dict], t0: float, raid: int) -> list[MassDeath]:
-    """Each run of deaths to one ability within MASS_DEATH_MS, or for a named ability in pulses within WAVE_MS, that
-    killed a fifth of the raid (at least 3)."""
-    found, mass, i = [], max(3, math.ceil(raid / MASS_DEATH_SHARE)), 0
-    while i < len(deaths):
-        name = rep.ability(deaths[i].get("killingAbilityGameID"))  # by name: an ability logs under several ids
-        hit = [d for d in deaths[i:] if d["timestamp"] - deaths[i]["timestamp"] <= MASS_DEATH_MS
-               and rep.ability(d.get("killingAbilityGameID")) == name]
-        waves = False
-        if len(hit) < mass and deaths[i].get("killingAbilityGameID"):  # the same ability in pulses
-            hit = [d for d in deaths[i:] if d["timestamp"] - deaths[i]["timestamp"] <= WAVE_MS
-                   and rep.ability(d.get("killingAbilityGameID")) == name]
-            waves = True
-        if len(hit) >= mass:
-            ids = tuple(sorted({gid for d in hit if (gid := d.get("killingAbilityGameID"))}))
-            span = max(1, round((hit[-1]["timestamp"] - hit[0]["timestamp"]) / 1000))
-            found.append(MassDeath(hit[0]["timestamp"] - t0, name if ids else "", ids, len(hit), span, waves))
-            i = deaths.index(hit[-1]) + 1
-        else:
-            i += 1
+    """Each hit killing many among a pull's deaths (pulls.mass_hits), as a moment."""
+    found = []
+    for h in mass_hits(deaths, raid, rep.ability):
+        ids = tuple(sorted({gid for d in h.deaths if (gid := d.get("killingAbilityGameID"))}))
+        span = max(1, round((h.last - h.first) / 1000))
+        found.append(MassDeath(h.first - t0, h.ability if ids else "", ids, len(h.deaths), span, h.waves))
     return found
 
 

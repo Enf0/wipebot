@@ -28,6 +28,7 @@ from ..pulls import (
     format_summary,
     is_reset,
     lost_buffs,
+    mass_hits,
     summarize,
     wipe_pct,
 )
@@ -38,7 +39,8 @@ from .fetch import Fetched
 SAME_DEATH_MS = 1_000  # a player's deaths this close together are one death listed twice
 # One hit's deaths are logged 0-40 ms apart, a fall's or a knockback's up to a few hundred: deaths this close one after
 # another, from the one that decided a wipe and within DEATH_BURST_MS of it, are one moment and count with it. A
-# cascade of separate deaths seconds long isn't.
+# cascade of separate deaths seconds long isn't; one ability's hit killing many is (pulls.mass_hits), however its
+# deaths are spread within it.
 DEATH_GAP_MS = 250
 DEATH_BURST_MS = 1_000
 PARTNER_DEATH_MS = 2000  # a buff gained this soon after another boss died came from that death
@@ -643,9 +645,9 @@ class Report(Fetched):
     async def decided_at(self, fight: dict) -> Decided | None:
         """When a wipe was decided, and by what: the boss gaining a buff it kept to the end (an
         enrage), or half the raid dead (a battle res brings one back), whichever came first, moved to the last death
-        of the moment it falls in (deaths DEATH_GAP_MS apart, within DEATH_BURST_MS): one hit's deaths are never
-        split into counted and fallout. Deaths up to the moment count; later ones are fallout. None for a kill or a
-        wipe with neither."""
+        of the moment it falls in (deaths DEATH_GAP_MS apart, within DEATH_BURST_MS, and the whole of a hit killing
+        many under way then): one hit's deaths are never split into counted and fallout. Deaths up to the moment
+        count; later ones are fallout. None for a kill or a wipe with neither."""
         if fight["kill"]:
             return None
         found = [(at, name) for name, at in await self.enrages(fight)]
@@ -656,12 +658,20 @@ class Report(Fetched):
         if not found:
             return None
         at, enrage = min(found)
-        end = fight["startTime"] + at
-        if any(end - DEATH_GAP_MS <= d["timestamp"] <= end for d in deaths):
-            cap = end + DEATH_BURST_MS
-            for d in deaths:
-                if end < d["timestamp"] <= min(end + DEATH_GAP_MS, cap):
-                    end = d["timestamp"]
+
+        def moment(end: float) -> float:
+            """The last death of the run of deaths DEATH_GAP_MS apart that a death at `end` begins."""
+            if any(end - DEATH_GAP_MS <= d["timestamp"] <= end for d in deaths):
+                cap = end + DEATH_BURST_MS
+                for d in deaths:
+                    if end < d["timestamp"] <= min(end + DEATH_GAP_MS, cap):
+                        end = d["timestamp"]
+            return end
+
+        end = moment(fight["startTime"] + at)
+        hits = mass_hits(deaths, raid, self.ability) if raid else []
+        while under_way := [h.last for h in hits if h.first <= end < h.last]:
+            end = moment(max(under_way))
         return Decided(end - fight["startTime"], enrage)
 
     async def _partner_died(self, fight: dict, gained: float) -> bool:

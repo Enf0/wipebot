@@ -26,9 +26,9 @@ Mutilate Soaks: 172 hits of Mutilate [1285999] over 42 pulls (10 more after the 
   Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Miralupa (1 of 88), Namsus (12 of 84)
   Hit, in no group: Wutroll 89, Sveini 46, Martin 30
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not cast within 30 s while alive (with the pulls), dead by then:
-  Enfo: 132 planned uses; on time 14, early 36 (2 s), late 28 (6 s), not cast 50, dead 4
-    1:08 Ascendance [114052], 36 pulls: on time 4, early 2 (2 s), late 19 (7 s), not cast 10 (p2, p3, p4, p5, p6, p13, p22, p29, p35, p36), dead 1
-    1:08 Poison Cleansing Totem [383013], 36 pulls: on time 3, early 14 (5 s), late 3 (3 s), not cast 16 (p2, p3, p4, p5, p6, p7, p8, p9, p11, p13, p22, p27 and 4 more)
+  Enfo: 134 planned uses; on time 14, early 36 (2 s), late 28 (6 s), not cast 50, dead 6
+    1:08 Ascendance [114052], 37 pulls: on time 4, early 2 (2 s), late 19 (7 s), not cast 10 (p2, p3, p4, p5, p6, p13, p22, p29, p35, p36), dead 2
+    1:08 Poison Cleansing Totem [383013], 37 pulls: on time 3, early 14 (5 s), late 3 (3 s), not cast 16 (p2, p3, p4, p5, p6, p7, p8, p9, p11, p13, p22, p27 and 4 more), dead 1
     1:12 Spirit Link Totem [98008], 35 pulls: on time 2, early 18 (2 s), late 5 (3 s), not cast 9 (p2, p3, p4, p5, p6, p13, p36, p39, p41), dead 1
     1:39 Wind Rush Totem [192077], 23 pulls: on time 5, early 2 (2 s), late 1 (16 s), not cast 13 (p4, p8, p14, p15, p16, p17, p25, p27, p30, p32, p37, p39 and 1 more), dead 2
     3:14 Poison Cleansing Totem [383013], 1 pull: not cast 1 (p42)
@@ -47,9 +47,9 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     3:05 Zephyr [374227], 1 pull: early 1 (5 s)
     3:44 Time Spiral [374968], 1 pull: dead 1
     3:47 Stasis (Store) [370537], 1 pull: dead 1
-  Scopidruid: 62 planned uses; on time 8, early 23 (3 s), not cast 20, dead 11
+  Scopidruid: 63 planned uses; on time 8, early 23 (3 s), not cast 20, dead 12
     0:27 Stampeding Roar [106898] for Virulence [1297707], 40 pulls: on time 8, early 23 (3 s), not cast 9 (p1, p2, p3, p4, p5, p6, p12, p22, p29)
-    1:40 Stampeding Roar [106898], 21 pulls: not cast 11 (p7, p11, p15, p16, p23, p25, p27, p32, p37, p41, p42), dead 10
+    1:40 Stampeding Roar [106898], 22 pulls: not cast 11 (p7, p11, p15, p16, p23, p25, p27, p32, p37, p41, p42), dead 11
     3:22 Stampeding Roar [106898] for Virulence [1297707], 1 pull: dead 1
   Deathadim: 35 planned uses; on time 4, early 13 (4 s), late 2 (3 s), not cast 15, dead 1
     1:11 Anti-Magic Zone [51052], 35 pulls: on time 4, early 13 (4 s), late 2 (3 s), not cast 15 (p2, p14, p15, p16, p23, p24, p26, p27, p28, p29, p31, p33 and 3 more), dead 1
@@ -70,9 +70,9 @@ Planned cooldowns over the pulls, per player and per planned use (note time and 
     3:20 Anti-Magic Zone [51052], 1 pull: not cast 1 (p42)
   Pomaa: 33 planned uses; on time 4, early 19 (3 s), late 2 (3 s), not cast 5, dead 3
     1:15 Rallying Cry [97462], 33 pulls: on time 4, early 19 (3 s), late 2 (3 s), not cast 5 (p5, p6, p28, p29, p35), dead 3
-  Sonyosh: 84 planned uses; on time 27, early 23 (2 s), late 26 (2 s), not cast 4, dead 4
+  Sonyosh: 85 planned uses; on time 27, early 23 (2 s), late 26 (2 s), not cast 4, dead 5
     0:21 Poison Cleansing Totem [383013], 40 pulls: on time 13, early 18 (3 s), late 8 (2 s), not cast 1 (p4)
-    1:08 Wind Rush Totem [192077], 36 pulls: on time 9, early 5 (2 s), late 16 (2 s), not cast 2 (p3, p38), dead 4
+    1:08 Wind Rush Totem [192077], 37 pulls: on time 9, early 5 (2 s), late 16 (2 s), not cast 2 (p3, p38), dead 5
     2:27 Poison Cleansing Totem [383013], 7 pulls: on time 4, late 2 (2 s), not cast 1 (p7)
     3:15 Wind Rush Totem [192077], 1 pull: on time 1
 Callouts for personals over the pulls, per callout and per player it names, most often pressing none first: how many of the callouts they were alive and counted for, at how many they pressed a defensive or tank cooldown from 3 s before to 5 s after it (callouts by the tag of what they pressed), the ones they pressed none at, with the tags of what was ready then (callouts with a spell of that tag ready) and of what they pressed instead (untagged: a defensive Lorrgs doesn't tag, such as Anti-Magic Shell, may be one), and those not counted against them (they pressed the cooldown the note plans for them then, or a tank kept a tank cooldown for just after):
@@ -98,4 +98,4 @@ Callouts for personals over the pulls, per callout and per player it names, most
     Pomaa: alive for 7; pressed at 1 (defensive 1); none at 6: p5 1:15, p6 1:15, p28 1:15, p29 1:15, p35 1:15, p42 3:19 (ready: untagged 6, defensive 5, raid_cd 5, dps 3); of those, pressed only others at 2 (dps 2); not counted at 24 (pressed the note's plan for them 24)
     Draiman: alive for 12; pressed at 10 (defensive 10); none at 2: p31 1:15, p39 1:15 (ready: defensive 2, untagged 2, dps 1); of those, pressed only others at 1 (dps 1)
     Sonyosh: alive for 3; pressed at 3 (defensive 3); not counted at 26 (pressed the note's plan for them 26)
-Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): "Trigger Virulence" to Martin at 0:25, 1:15, 2:32, 3:22 (40 pulls); "You are the orb popper" to Dragepie at 1:40, 3:47 (21 pulls)
+Callouts not checked (what they ask, such as grabbing an orb or a CC, isn't a spell the log can match to them; only callouts for personals are): "Trigger Virulence" to Martin at 0:25, 1:15, 2:32, 3:22 (40 pulls); "You are the orb popper" to Dragepie at 1:40, 3:47 (22 pulls)

@@ -19,6 +19,7 @@ from wipebot.core.pulls import (
     PullSummary,
     attempt,
     format_summary,
+    mass_hits,
     summarize,
 )
 from wipebot.core.report import Report, coaching, mechanics, night, ranks
@@ -38,6 +39,7 @@ class Pull:
     raid: int
     decided: Decided | None
     summary: PullSummary
+    hits: list = field(default_factory=list)  # its hits killing many (pulls.mass_hits)
 
     @property
     def wipe(self) -> bool:
@@ -70,7 +72,8 @@ async def _pulls(rep: Report, fights: list[dict]) -> list[Pull]:
             continue  # no case read this pull
         s = summarize(f, rep.by_boss[rep.boss_key(f)], deaths, rep.names, rep.abilities, buffs, routine, None,
                       decided)
-        out.append(Pull(rep.code, f"{rep.code} {rep.label(f)}", f, deaths, backs, raid, decided, s))
+        out.append(Pull(rep.code, f"{rep.code} {rep.label(f)}", f, deaths, backs, raid, decided, s,
+                        mass_hits(deaths, raid, rep.ability)))
     return out
 
 
@@ -164,6 +167,18 @@ async def test_one_moments_deaths_are_never_split_into_counted_and_fallout(recor
             assert counted[-1] - burst[0] >= DEATH_BURST_MS - DEATH_GAP_MS, p.label
 
 
+async def test_a_hit_killing_many_is_never_split_into_counted_and_fallout(recorded):
+    """A hit killing many that began before the wipe was decided ended before it too: none of its deaths is fallout,
+    whatever "Ended by", "Killed by" and a player's death say of it."""
+    straddled = 0
+    for p in recorded.pulls:
+        for h in p.hits if p.decided else ():
+            if p.at(h.deaths[0]) <= p.decided.at_ms:
+                assert p.at(h.deaths[-1]) <= p.decided.at_ms, p.label
+                straddled += h.last - h.first > DEATH_BURST_MS
+    assert straddled >= 20  # hits whose deaths ran longer than a burst of deaths: the ones once cut in two
+
+
 def _first_half_dead(p: Pull) -> float | None:
     """When ⌈n/2⌉ of the pull's n players were first dead at once, a battle res bringing one back."""
     dead: dict[int, float] = {}  # who: when they died
@@ -177,7 +192,8 @@ def _first_half_dead(p: Pull) -> float | None:
 
 async def test_half_the_raid_dead_is_a_death_with_half_the_raid_dead(recorded):
     """A wipe decided by half the raid dead is decided at a death, with at least ⌈n/2⌉ of the n players dead (a
-    battle res counted), at the first moment that was so or within the burst of deaths it fell in."""
+    battle res counted), at the first moment that was so, or within the burst of deaths or the hit killing many
+    it fell in."""
     halves = [p for p in recorded.pulls if p.decided and not p.decided.enrage]
     assert halves
     for p in halves:
@@ -185,7 +201,11 @@ async def test_half_the_raid_dead_is_a_death_with_half_the_raid_dead(recorded):
         assert any(p.at(d) == at for d in p.deaths), p.label
         assert p.raid - alive_at(p.deaths, p.backs, p.raid, t0 + at) >= math.ceil(p.raid / 2), p.label
         first = _first_half_dead(p)
-        assert first is not None and 0 <= t0 + at - first <= DEATH_BURST_MS, p.label
+        assert first is not None
+        last = first  # the last death of the hits under way then, one after another
+        while later := [h.last for h in p.hits if h.first <= last + DEATH_BURST_MS < h.last + DEATH_BURST_MS]:
+            last = max(later)
+        assert 0 <= t0 + at - first <= last - first + DEATH_BURST_MS, p.label
 
 
 async def test_every_death_is_of_a_player_in_the_raid(recorded):

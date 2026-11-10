@@ -1,9 +1,9 @@
 **The Coiled Altar** (Heroic) · pull 1 · wipe in **P3 at 0.8%** (WCL 0.3%) · 7:29 · **new guild best!** (before this log: P3 9.6% (WCL 4.1%) on Mon 31 Aug (pull 13, https://www.warcraftlogs.com/reports/WK6MapzxYjqLGPNJ#fight=24))
 Boss buffs at the end: **Soulbound** (from 7:08)
 First deaths: Sveini (Sever, 0:23) · Algmor (no killing blow recorded, 2:01) · Pwnpíe (no killing blow recorded, 2:29)
-Killed by, until the wipe was decided at 7:16 (half the raid was dead): Coalesced Venom ×4 · Death's Embrace ×4 · no killing blow recorded ×3 · Grim Guillotine ×3 · Sever ×1 · 1 other ability ×1 (9 later deaths: fallout)
+Killed by, until the wipe was decided at 7:20 (half the raid was dead): Coalesced Venom ×6 · Death's Embrace ×4 · no killing blow recorded ×3 · Grim Guillotine ×3 · Sever ×1 · 1 other ability ×1 (7 later deaths: fallout)
 Warcraft Logs: https://www.warcraftlogs.com/reports/8TcXMAP2gHQGr9pW#fight=1
-Ended by: deaths from 5:56 until half the raid was dead at 7:16, no single hit killing many: start from the first death and follow what each left short.
+Ended by (from the log, earliest first): Coalesced Venom [1282408] killed 5 in pulses within 6 s from 7:14 (one ability killing many in a few seconds: find which mechanic failed); then half the raid was dead at 7:16. Before it, 4 deaths one after another from 6:57, a tank among them, none brought back: what each left short may be what lost it.
 Not an enrage buff: no buff the boss gained near the end decided it. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
 Phases: P1 Stage One: Serpent's Bargain 0:00 → P2 Stage Two: Usurper's Reprisal 1:38 → P3 Intermission: The Claimed Vessel 3:17 → P4 Stage Three: Coiled Union 3:55
 
@@ -24,8 +24,8 @@ Raid size 23. Deaths in order (time from pull start, players alive after it, a b
 14. 7:16 Attractîv (Balance Druid) - Death's Embrace [1299396] (13 alive, after the boss gained Soulbound)
 15. 7:16 Pomaa (Fury Warrior) - Death's Embrace [1299396] (12 alive, after the boss gained Soulbound)
 16. 7:16 Draiman (Assassination Rogue) - Death's Embrace [1299396] (11 alive, after the boss gained Soulbound)
-17. 7:18 Peggerino (Demonology Warlock; also Affliction, Destruction in some pulls) - Coalesced Venom [1282408] (10 alive, after the boss gained Soulbound, after half the raid was dead)
-18. 7:20 Wutroll (Brewmaster Monk) - Coalesced Venom [1282408] (9 alive, after the boss gained Soulbound, after half the raid was dead)
+17. 7:18 Peggerino (Demonology Warlock; also Affliction, Destruction in some pulls) - Coalesced Venom [1282408] (10 alive, after the boss gained Soulbound)
+18. 7:20 Wutroll (Brewmaster Monk) - Coalesced Venom [1282408] (9 alive, after the boss gained Soulbound)
 19. 7:22 Miralupa (Holy Priest) - Coalesced Venom [1282408] (8 alive, after the boss gained Soulbound, after half the raid was dead)
 20. 7:25 Nalaxd (Retribution Paladin) - Melee [1] (7 alive, after the boss gained Soulbound, after half the raid was dead)
 21. 7:26 Lïzårðmâñ (Preservation Evoker) - Venom Rupture [1299838] (6 alive, after the boss gained Soulbound, after half the raid was dead)
@@ -34,5 +34,5 @@ Raid size 23. Deaths in order (time from pull start, players alive after it, a b
 24. 7:26 Fappachino (Havoc Demon Hunter) - Melee [1] (3 alive, after the boss gained Soulbound, after half the raid was dead)
 25. 7:28 Biblethump (Unholy Death Knight) - Melee [1] (2 alive, after the boss gained Soulbound, after half the raid was dead)
 The boss gained Soulbound at 7:08, when Hex Lord Malacrass died, and kept it to the end; 5 players had died before that. A buff gained as another boss dies comes with killing that boss, not from a timer: look it up before calling it an enrage.
-Half the raid was dead at 7:16; later deaths are fallout of the wipe.
+Half the raid was dead at 7:16, in one moment's deaths that ran to 7:20; later deaths are fallout of the wipe.
 Pull ended at 7:29 with the boss at 0.83% health in P3 (the wipe at 0.3%, phases weighed in).
