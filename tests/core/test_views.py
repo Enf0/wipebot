@@ -339,21 +339,20 @@ async def test_a_trend_states_each_pulls_amount_as_breakdown_by_pull_does(record
 
 
 async def test_a_mechanics_trend_counts_the_raids_hits_per_pull_as_its_tool_does(recorded):
-    """mechanic_hits over every pull states the raid's hits pull by pull; the trend has the same counts, over each
-    pull's minutes until its wipe was decided, the medians of the night's thirds with the reset left out, and the
-    asker's own hits in the pulls they were in."""
+    """mechanic_hits over every pull states the raid's hits pull by pull; the trend has the same counts over the same
+    pulls (the night's reset is none of them, as the tool's text says), over each pull's minutes until its wipe was
+    decided, the medians of the night's thirds, and the asker's own hits in the pulls they were in."""
     data = await trend_data("mechanic-hits", mark="enfo")
     text, _ = await server.call("mechanic_hits", CASES["mechanic-hits"].args)
     per_pull = dict(re.findall(r"(?:: |; )(\d+): (\d+)(?: \(\+\d+\))?, ", text.split("The raid's per pull")[1]))
-    assert len(per_pull) == len(data["pulls"]) == 33
+    assert len(per_pull) == len(data["pulls"]) == 32
+    assert data["scope"] == "all 32 Sszorak pulls (1 reset left out), each until its wipe was decided"
     for r in data["pulls"]:
         assert r["amount"] == int(per_pull[str(r["pull"])]), r["pull"]
         assert r["rate"] == round(60 * r["amount"] / r["seconds"], 1)  # to the one decimal a count is written with
     assert data["count"] and data["per"] == "minute" and data["subject"] == "Tempest hits" and data["icon"]
-    resets = [r["pull"] for r in data["pulls"] if r["reset"]]
     thirds = data["thirds"]
-    assert resets and [len(t["pulls"]) for t in thirds] == [10, 12, 10]
-    assert not set(resets) & {p for t in thirds for p in t["pulls"]}
+    assert not any(r["reset"] for r in data["pulls"]) and [len(t["pulls"]) for t in thirds] == [10, 12, 10]
     rates = {r["pull"]: r["rate"] for r in data["pulls"]}
     for t in thirds:
         found = sorted(rates[p] for p in t["pulls"])
@@ -483,7 +482,7 @@ async def test_breakdown_gives_a_views_key_only_for_a_ranking_or_a_trend(recorde
         return result.structured_content
     meter = await key_of("mechanic-hits")
     assert meter and meter["view"] == "meter" and "folded" not in meter
-    assert meter["label"] == "Tempest, all 33 Sszorak pulls, each until its wipe was decided"
+    assert meter["label"] == "Tempest, all 32 Sszorak pulls (1 reset left out), each until its wipe was decided"
     assert await key_of("damage-taken") is None and await key_of("mechanic-outliers") is None
     trend = await key_of("damage-by-pull")
     assert trend and trend["view"] == "trend" and trend["folded"] is True  # the second of the same answer
@@ -2337,7 +2336,7 @@ async def test_a_ranking_and_a_trend_are_the_card_too(recorded, width):
     rows = "document.querySelectorAll('.meter-rows li:not(.gap)').length"
     async with drawn(case.tool, case.args, width=width) as (view, errors):
         card = await view.evaluate(CARD)
-        assert card["lead"] == ["Deathadim is first with 53.54M, 2.6 times the median of the 22 players ranked."]
+        assert card["lead"] == ["Deathadim is first with 53.83M, 2.6 times the median of the 22 players ranked."]
         assert 1 <= card["stats"] <= 4 and card["buttons"] == ["Open ranking", "By pull"] and card["tables"] == 0
         assert await view.evaluate(rows) == 8 and "14 more players" in await view.locator("body").inner_text()
         assert await view.locator('[data-panel="by_pull"]').count() == 0
@@ -2347,7 +2346,7 @@ async def test_a_ranking_and_a_trend_are_the_card_too(recorded, width):
         trend = await view.evaluate(CARD)
         assert trend["lead"][0].startswith("The raid's Tempest hits per minute: ") and trend["charts"] == 1
         assert 1 <= trend["stats"] <= 4 and trend["buttons"] == ["Open trend"] and trend["tables"] == 0
-        assert await view.locator("[data-pull-col]").count() == 33 and trend["tall"] <= (560 if width < 500 else 450)
+        assert await view.locator("[data-pull-col]").count() == 32 and trend["tall"] <= (560 if width < 500 else 450)
         assert await view.locator("button.back").inner_text() == "← Tempest"
         assert not errors
     async with drawn(case.tool, case.args, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
@@ -2518,7 +2517,8 @@ async def test_a_later_ranking_of_an_answer_is_one_line_that_opens(recorded):
     result["structuredContent"]["folded"] = True
     async with drawn(case.tool, case.args, result=result) as (view, errors):
         line = view.locator(".folded")
-        assert await line.inner_text() == "Tempest, all 33 Sszorak pulls, each until its wipe was decided\nShow"
+        assert await line.inner_text() == ("Tempest, all 32 Sszorak pulls (1 reset left out), each until its wipe was "
+                                           "decided\nShow")
         assert await view.evaluate(TALL) <= 56 and await view.locator(".meter-rows").count() == 0
         await view.get_by_role("button", name="Show").click()
         await view.locator(".meter-rows").wait_for()

@@ -1021,7 +1021,7 @@ async def _table_trend(rep: Report, a: dict) -> Trend | None:
 async def _mechanic_trend(rep: Report, a: dict) -> Trend | None:
     """mechanic_hits over every pull: the raid's hits in each pull (its debuff's applications, for one that lands
     more often than it deals damage), as the tool's per-pull line counts them, over each pull's time until its wipe
-    was decided (mechanics.night_of's minutes), and each player's."""
+    was decided (mechanics.night_of's minutes), and each player's. The pulls are the tool's: a reset is none."""
     night = await mechanics.night_of(rep, a["ability"], a.get("boss"), bool(a.get("whole_pull")), a.get("start"),
                                      a.get("end"))
     h, fights = night.h, night.fights
@@ -1039,7 +1039,8 @@ async def _mechanic_trend(rep: Report, a: dict) -> Trend | None:
         rows.append({p.name: 0.0 for p in rep.pull_players(f).values()}  # in the pull and never hit: none
                     | {rep.names[who]: float(k) for (fid, who), k in per.items() if fid == f["id"]})
     name = h.name or a["ability"]
-    scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}"
+    left_out = rep.attempts(rep.by_boss[rep.boss(a.get("boss"))])[1]  # " (1 reset left out)", as the tool's text
+    scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}{left_out}"
     if window:
         scope += f", {clock(window[0])}-{clock(window[1]) if window[1] < float('inf') else 'end'} of each"
     return Trend(f"{name} by pull", scope + (", each until its wipe was decided" if cut else ""),
