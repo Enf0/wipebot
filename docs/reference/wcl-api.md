@@ -79,6 +79,12 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   same: it also has the raid's own deaths, players and pets (Blood Beast, Niuzao). Nymrissa pull 1 of
   GM8XdBHaqpFgxK9Q (fight 4, a wipe; checked 2026-10-21): 27 death events there, 22 players and 5 pets; no add died,
   and the Deaths query rightly has none.
+- A fight's `enemyNPCs` has only the enemies of that pull's log, so on a fight whose bosses come one after another
+  a wipe on the first boss lists that boss alone: of the 21 Mythic pulls of the Coiled Altar that ended in P1 in
+  4N9JMwBFPAjXyV3Z, 19 list Zul'jan without Hex Lord Malacrass. The later boss's health is first in the Resources
+  graph when it comes (8TcXMAP2gHQGr9pW fight 1: Malacrass from 1:46, P2 from 1:38). A boss's `gameID` is the same
+  in every report, its actor id is not, so two reports' pulls are set side by side by `gameID` (checked
+  2026-11-10).
 - `table(dataType: Survivability)` gives death stats over many pulls (we compute ours from Deaths events).
 - `events(dataType: Deaths, death: K)` is WCL's own recap of the K-th death in a fight (damage, heals, absorbs,
   hit points per event) but no fit for us: its `buffs` field holds the healer's auras on heal events and the
