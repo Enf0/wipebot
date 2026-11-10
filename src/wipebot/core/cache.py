@@ -10,6 +10,9 @@ same key at once share one fetch; it goes on when they leave (a Warcraft Logs qu
 asked to stop with the last of them (a warcraft_cli command, a process worth killing). Entries older than KEEP_DAYS
 are dropped once a day, and the oldest when the file outgrows MAX_MB (WIPEBOT_CACHE_MAX_MB).
 
+`waiting_for` names the source a tool call waits for, here because every source is read through this module's
+layer or above it: a call cut off while waiting says which.
+
 A key naming a report that isn't public (`never_keep`, wcl.mark_private) is never kept, nor its fetch shared by callers
 asking at once: only the users Warcraft Logs lets read that report may see its data. A source answering that what
 was asked for is gone (`Gone`: a report made private or deleted since) is not an outage: no older copy is served in
@@ -26,7 +29,9 @@ import os
 import sqlite3
 import time
 import zlib
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Generator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +44,24 @@ FOREVER = KEEP_DAYS * DAY  # for what never changes, such as a finished pull
 STALE_SERVED = 2  # an entry up to this many times its max age is served while a new one is fetched
 MAX_MB = 2000  # past this, the oldest entries are dropped at the daily purge
 _unkept: set[str] = set()  # words a kept key may not hold: the codes of reports that aren't public
+
+
+# The sources a tool call was waiting for when it was cut off: a set whoever runs the call gives it (server.guarded),
+# filled by `waiting_for`. None outside a call.
+cut_off: ContextVar[set[str] | None] = ContextVar("cut_off", default=None)
+
+
+@contextmanager
+def waiting_for(source: str) -> Generator[None]:
+    """Within it, the tool call being run waits for `source` (as raiders name it: "Warcraft Logs", "Wowhead"). A
+    call cut off there, its time up or its client gone, has the source noted in `cut_off`, for its message and its
+    record."""
+    try:
+        yield
+    except asyncio.CancelledError:
+        if (noted := cut_off.get()) is not None:
+            noted.add(source)
+        raise
 
 
 class Gone(Exception):

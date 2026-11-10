@@ -4,8 +4,8 @@ import asyncio
 from collections.abc import Awaitable, Callable, Hashable
 from typing import TypeVar, cast
 
-from ..cache import FOREVER, cache, cache_key
-from ..wcl import WCL
+from ..cache import FOREVER, cache, cache_key, waiting_for
+from ..wcl import SOURCE, WCL, WCLError
 
 KEPT_MAX = 500  # WCL answers remembered per report (finished pulls only)
 T = TypeVar("T")
@@ -37,7 +37,8 @@ class Fetched:
         if task is None:
             task = self._fetching[key] = asyncio.ensure_future(self._fetch_kept(key, fight_ids, fetch, persist_s))
             task.add_done_callback(lambda _: self._fetching.pop(key, None))
-        return cast(T, await asyncio.shield(task))
+        with waiting_for(SOURCE):
+            return cast(T, await asyncio.shield(task))
 
     async def _fetch_kept(self, key: tuple, fight_ids: list[int], fetch: Callable[[], Awaitable[T]],
                           persist_s: float | None) -> T:
@@ -90,21 +91,24 @@ class Fetched:
                     await self._remember(key, got[item], persist_s)
                 self._settle(key, got[item])
         for item, task in shared.items():
-            out[item] = cast(T, await asyncio.shield(task))
+            with waiting_for(SOURCE):
+                out[item] = cast(T, await asyncio.shield(task))
         return out
 
     def _settle(self, key: tuple, value: object = None, error: BaseException | None = None) -> None:
-        """The fetch of `key` keep_many started is done: whoever awaits it gets its value (or its error)."""
+        """The fetch of `key` keep_many started is done: whoever awaits it gets its value (or its error). When the
+        call that started it was cut off, a call waiting for it too gets an error to ask again by, not that call's
+        cancellation: it would end with no answer at all."""
         task = self._fetching.pop(key, None)
         if task is None or task.done():
             return
         if error is None:
             task.set_result(value)
-        elif isinstance(error, asyncio.CancelledError):
-            task.cancel()
-        else:
-            task.set_exception(error)
-            task.exception()  # retrieved here, so a fetch nobody else awaited isn't logged as never retrieved
+            return
+        if isinstance(error, asyncio.CancelledError):
+            error = WCLError("the call that was reading this from Warcraft Logs was cut off: ask again")
+        task.set_exception(error)
+        task.exception()  # retrieved here, so a fetch nobody else awaited isn't logged as never retrieved
 
     async def _remember(self, key: tuple, value: object, persist_s: float | None) -> None:
         """Keep a finished pull's value under its key, on disk too with `persist_s` (through the cache's fetch,

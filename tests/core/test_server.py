@@ -1,4 +1,5 @@
 """The tools as MCP clients see them (server.py): their list, schemas and descriptions, the skill, and errors."""
+import asyncio
 import inspect
 import json
 import re
@@ -303,6 +304,60 @@ async def test_a_signed_in_users_calls_read_warcraft_logs_with_their_own_token(m
                              if subject else None)
         assert await server.guarded(reads_as)() == token
     assert wcl._user.get() is None  # and only during the call
+
+
+async def test_a_call_out_of_time_says_what_it_was_waiting_for(monkeypatch):
+    """No tool call had a limit of its own: a source that hung held the answer until the client gave up, with
+    nothing said. The model is told which source it was, and that asking again goes on from what was read."""
+    from wipebot.core.cache import waiting_for
+
+    async def slow(pull: int) -> str:
+        with waiting_for("Warcraft Logs"):
+            await asyncio.gather(reads("Wowhead"), reads("Lorrgs"), asyncio.sleep(10))
+        return "an answer"
+
+    async def reads(source: str) -> None:
+        with waiting_for(source):
+            await asyncio.sleep(10)
+    monkeypatch.setattr(server, "DEADLINE_S", 0.01)
+    with pytest.raises(ToolError) as told:
+        await server.guarded(slow)(pull=1)
+    assert str(told.value) == (
+        "slow gave no answer in 0.01 s, still waiting for Lorrgs, Warcraft Logs and Wowhead. What it had read by "
+        "then is kept, so asking again takes less; a call about one pull or one player is quicker than one about a "
+        "whole night.")
+
+    async def quick(pull: int) -> str:
+        with waiting_for("Warcraft Logs"):
+            await asyncio.sleep(0)
+        return "an answer"
+    assert await server.guarded(quick)(pull=1) == "an answer"
+
+
+async def test_serving_many_users_a_call_out_of_time_or_left_by_its_client_is_kept_with_what_it_waited_for(
+        monkeypatch):
+    """Claude and ChatGPT give up on a call at 60 s: the server answers a little before, and the record of a call
+    its client left says so, with how long it ran, where it was kept blank."""
+    from wipebot.core.cache import waiting_for
+    kept = []
+    remote = server.Setup(remote=server.Remote(guilds=list, user_name=str, record=lambda *a: kept.append(a[6:8])))
+
+    async def slow(pull: int) -> str:
+        with waiting_for("Wowhead"):
+            await asyncio.sleep(10)
+        return "an answer"
+    assert server.REMOTE_DEADLINE_S < 60 < server.DEADLINE_S
+    monkeypatch.setattr(server, "REMOTE_DEADLINE_S", 0.01)
+    with pytest.raises(ToolError, match="slow gave no answer in 0.01 s, still waiting for Wowhead."):
+        await server.guarded(slow, remote)(pull=1)
+    monkeypatch.setattr(server, "REMOTE_DEADLINE_S", 50)
+    call = asyncio.ensure_future(server.guarded(slow, remote)(pull=1))
+    await asyncio.sleep(0.01)
+    call.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await call
+    assert kept[0][0] and kept[0][1].startswith("slow gave no answer in 0.01 s, still waiting for Wowhead.")
+    assert kept[1] == (True, "cancelled after 0 s, still waiting for Wowhead")
 
 
 async def test_an_unexpected_error_names_itself():

@@ -4,11 +4,13 @@ import asyncio
 import time
 from typing import cast
 
+import pytest
+
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.report import coaching
 from wipebot.core.report.fetch import Fetched
-from wipebot.core.wcl import WCL
+from wipebot.core.wcl import WCL, WCLError
 
 
 async def test_events_for_several_items_come_in_one_query_a_pull_twice_included(rep):
@@ -40,6 +42,29 @@ async def test_tools_side_by_side_share_a_batched_fetch_already_going():
     a, b, c = await asyncio.gather(fetched.keep_many(wanted, fetch_many), fetched.keep_many(wanted, fetch_many),
                                    fetched.keep(("k", 2), [2], fetch_one))
     assert asked == [[1, 2]] and a == b == {1: "v1", 2: "v2", 3: "v1"} and c == "v2"
+
+
+async def test_a_read_cut_off_in_one_call_ends_no_other_call_waiting_for_it():
+    """A call out of time, or left by its client, is cancelled in the middle of a batched read that another call
+    waits for too: that one is told to ask again. It was cancelled with it, and ended with no answer at all."""
+    fetched = Fetched(cast(WCL, None), CODE)
+
+    async def fetch_many(items: list[int]) -> dict[int, str]:
+        await asyncio.sleep(10)
+        return {i: f"v{i}" for i in items}
+    wanted = {1: (("k", 1), 1)}
+    first = asyncio.ensure_future(fetched.keep_many(wanted, fetch_many))
+    await asyncio.sleep(0)
+    second = asyncio.ensure_future(fetched.keep_many(wanted, fetch_many))
+    await asyncio.sleep(0)
+    first.cancel()
+    with pytest.raises(WCLError, match="was cut off: ask again"):
+        await second
+    assert first.cancelled() or isinstance(first.exception(), asyncio.CancelledError)
+
+    async def at_once(items: list[int]) -> dict[int, str]:
+        return {i: f"v{i}" for i in items}
+    assert await fetched.keep_many(wanted, at_once) == {1: "v1"}  # and asking again reads it
 
 
 async def test_a_nights_tables_and_details_come_in_one_query_each_and_are_remembered(rep):

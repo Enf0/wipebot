@@ -18,7 +18,7 @@ import time
 import weakref
 from typing import Any
 
-from ..cache import DAY, HOUR, cache, cache_key
+from ..cache import DAY, HOUR, cache, cache_key, waiting_for
 from ..wcl import cli_env, use_wcl_env_names
 
 log = logging.getLogger(__name__)
@@ -40,6 +40,9 @@ MODULES = {
 # Code run before a command, for a source that changed before warcraft_cli did (each module says when to remove it)
 STOPGAPS = {"lorrgs": "from wipebot.core.knowledge.lorrgs_routes import patch; patch(); ",
             "wowhead": "from wipebot.core.knowledge.wowhead_bonus import patch; patch(); "}
+# The sources by the names raiders know them by, for a call cut off while waiting for one (cache.waiting_for)
+SOURCES = {"wowhead": "Wowhead", "method": "Method", "icy-veins": "Icy Veins", "lorrgs": "Lorrgs",
+           "raiderio": "Raider.IO", "warcraftlogs": "Warcraft Logs", "warcraft-wiki": "Warcraft Wiki"}
 CLI_CONCURRENCY = 6
 CLI_TIMEOUT_S = 60  # a hung command (a site that stops answering) gives up rather than holding an answer forever
 # ...and sooner for a tooltip: a boss has dozens, read CLI_CONCURRENCY at a time, so one that hangs holds the rest
@@ -87,9 +90,10 @@ async def cli(tool: str, *args: str) -> dict:
     kept in the cache on disk, a source's "not found" (NotFound) for as long as a found one; another failure
     isn't. A command nobody waits for any more is killed. Arguments a model's words fill (a search, a page's
     address) come last, after `--`, so they're never read as an option."""
-    found = await cache().fetch(cache_key("cli", tool, *_key_args(args)),
-                                MAX_AGE_S.get((tool, args[0]), DEFAULT_MAX_AGE_S), lambda: _answer(tool, *args),
-                                cancel=True)
+    with waiting_for(SOURCES.get(tool) or f"warcraft_cli's {args[0]}"):
+        found = await cache().fetch(cache_key("cli", tool, *_key_args(args)),
+                                    MAX_AGE_S.get((tool, args[0]), DEFAULT_MAX_AGE_S), lambda: _answer(tool, *args),
+                                    cancel=True)
     if NOT_FOUND in found:
         raise NotFound(found[NOT_FOUND])
     return found

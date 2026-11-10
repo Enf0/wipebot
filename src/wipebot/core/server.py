@@ -46,6 +46,7 @@ from mcp.types import CallToolResult, ImageContent, TextContent, ToolAnnotations
 from pydantic import Field
 
 from . import clock, knowledge, notebook, raidstrats, viserio, wcl
+from .cache import cut_off, waiting_for
 from .knowledge import KnowledgeError
 from .library import (  # noqa: F401 (imported from here too)
     Library,
@@ -245,6 +246,11 @@ def lib() -> Library:
 
 PULL_WAIT_S = 20  # a live log uploads a pull some seconds after it ends: wait this long, then read it again,
 PULL_WAITS = 2    # this many times, before telling the model it isn't there yet
+# How long a tool call may take before the model is told so in place of an answer. Claude and ChatGPT give up on a
+# call at 60 s with nothing said (and ask again, from the start), so a server for them answers a little before;
+# in-process (the bot, `wipebot call`) nothing cuts a call, and the slowest right answers seen took 82 s (a whole
+# night's map): there the limit is for a source that hangs.
+DEADLINE_S, REMOTE_DEADLINE_S = 150, 50
 
 
 _TOOLS: list[tuple[str, Callable[..., Any]]] = []  # (name, function), in the order they're defined
@@ -328,6 +334,22 @@ def _noted(result: object, note: str) -> object:
     return f"{note}\n{result}" if isinstance(result, str) else result
 
 
+def _waited_for() -> str:
+    """", still waiting for Warcraft Logs and Wowhead": the sources the call being run was cut off waiting for
+    (cache.waiting_for), '' when it waited for none."""
+    names = sorted(cut_off.get() or ())
+    return f", still waiting for {' and '.join(filter(None, [', '.join(names[:-1]), names[-1]]))}" if names else ""
+
+
+def _out_of_time(tool: str, deadline_s: float) -> ToolError:
+    """A call that took longer than its server gives one, as the model is told it, logged."""
+    waited = _waited_for()
+    _log.warning("%s gave no answer in %s s%s", tool, deadline_s, waited)
+    return ToolError(f"{tool} gave no answer in {deadline_s:g} s{waited}. What it had read by then is kept, so "
+                     "asking again takes less; a call about one pull or one player is quicker than one about a "
+                     "whole night.")
+
+
 def _unexpected(tool: str, setup: Setup, e: Exception) -> ToolError:
     """An unexpected error as the model is told it, logged. The MCP server would hide it as "Error executing tool
     X": the model and the records need to know what it was. Serving many users, they get only an id the log has it
@@ -340,26 +362,45 @@ def _unexpected(tool: str, setup: Setup, e: Exception) -> ToolError:
     return ToolError(f"{tool} failed with an unexpected error: {type(e).__name__}: {e}")
 
 
+async def _answered(fn, setup: Setup, args: tuple, kwargs: dict) -> object:
+    """What the tool `fn` answers, its errors as the model is told them. A pull the live log hasn't yet is waited
+    for, PULL_WAITS times."""
+    for waited in range(PULL_WAITS + 1):
+        try:
+            return _noted(await fn(*args, **kwargs), await _link_note(kwargs))
+        except PullNotLogged as e:
+            if waited == PULL_WAITS:
+                raise ToolError(f"{e}; ask again in a minute") from e
+            with waiting_for("the live log to have the pull"):
+                await asyncio.sleep(PULL_WAIT_S)
+            await e.report.refresh()
+        except (FactError, KnowledgeError, WCLError) as e:
+            raise ToolError(_told(e)) from e
+        except Exception as e:
+            raise _unexpected(fn.__name__, setup, e) from e
+    raise AssertionError("unreachable")
+
+
+async def _in_time(fn, setup: Setup, args: tuple, kwargs: dict) -> object:
+    """`_answered`, or once the server's time for a call is up, an error saying which source it was waiting for."""
+    deadline_s = REMOTE_DEADLINE_S if setup.remote else DEADLINE_S
+    try:
+        async with asyncio.timeout(deadline_s):
+            return await _answered(fn, setup, args, kwargs)
+    except TimeoutError:  # the deadline's: one a tool raised is an unexpected error of `_answered` already
+        raise _out_of_time(fn.__name__, deadline_s) from None
+
+
 def guarded(fn, setup: Setup = DEFAULT):
     """`fn` as a tool of a server with `setup`. Bad arguments and source failures reach the model as readable tool
     errors. A question about the pull that just ended, before the live log has it, waits for it a little. A report
     link naming a fight makes that pull the call's default, and the result's first line says which pull it is.
-    Serving many users, each call is logged with its user, kept (Remote.record) and read with their Warcraft Logs
-    token (Remote.wcl_token)."""
+    A call that takes longer than DEADLINE_S (REMOTE_DEADLINE_S serving many users) ends with an error saying which
+    source it was waiting for. Serving many users, each call is logged with its user, kept (Remote.record; one its
+    client gave up on as cancelled, with how long it ran) and read with their Warcraft Logs token
+    (Remote.wcl_token)."""
     async def run(*args, **kwargs):
-        for waited in range(PULL_WAITS + 1):
-            try:
-                return _noted(await fn(*args, **kwargs), await _link_note(kwargs))
-            except PullNotLogged as e:
-                if waited == PULL_WAITS:
-                    raise ToolError(f"{e}; ask again in a minute") from e
-                await asyncio.sleep(PULL_WAIT_S)
-                await e.report.refresh()
-            except (FactError, KnowledgeError, WCLError) as e:
-                raise ToolError(_told(e)) from e
-            except Exception as e:
-                raise _unexpected(fn.__name__, setup, e) from e
-        raise AssertionError("unreachable")
+        return await _in_time(fn, setup, args, kwargs)
 
     async def kept(remote: Remote, *args, **kwargs):
         shown = {k: v for k, v in kwargs.items() if v is not None and k != "ctx"}
@@ -378,6 +419,10 @@ def guarded(fn, setup: Setup = DEFAULT):
             unexpected = cause and not isinstance(cause, (PullNotLogged, FactError, KnowledgeError, WCLError))
             out = f"{e}: {type(cause).__name__}: {cause}" if unexpected else str(e)  # the records keep what it was
             raise
+        except asyncio.CancelledError:  # the client gave up on the call (Claude and ChatGPT do at 60 s)
+            out = f"cancelled after {time.monotonic() - began:.0f} s{_waited_for()}"
+            log.warning("%s: %s", fn.__name__, out)
+            raise
         except Exception as e:
             out = repr(e)
             raise
@@ -391,9 +436,11 @@ def guarded(fn, setup: Setup = DEFAULT):
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):
         token, linked = _current.set(setup), link_fights.set({})  # no fight another call's link named
+        waits = cut_off.set(set())
         try:
             return await (kept(setup.remote, *args, **kwargs) if setup.remote else run(*args, **kwargs))
         finally:
+            cut_off.reset(waits)
             link_fights.reset(linked)
             _current.reset(token)
     return wrapper

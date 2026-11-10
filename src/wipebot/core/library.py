@@ -8,7 +8,7 @@ import time
 from collections.abc import Awaitable, Callable, Iterable
 
 from . import clock, wcl
-from .cache import cache
+from .cache import cache, waiting_for
 from .pulls import DIFFICULTIES
 from .report import FactError, Report
 from .report.base import link_fights
@@ -139,7 +139,8 @@ class Library:
         if task is None:
             task = self._asking[key] = asyncio.ensure_future(self._ask_shown(key, code))
             task.add_done_callback(lambda _: self._asking.pop(key, None))
-        await asyncio.shield(task)
+        with waiting_for(wcl.SOURCE):
+            await asyncio.shield(task)
 
     async def _ask_shown(self, key: str | tuple[str, str], code: str) -> None:
         try:
@@ -185,7 +186,8 @@ class Library:
                 return r
             task = self._loading[key] = asyncio.ensure_future(load())
             task.add_done_callback(lambda _: self._loading.pop(key, None))
-        return await asyncio.shield(task)
+        with waiting_for(wcl.SOURCE):
+            return await asyncio.shield(task)
 
 
 def _key(code: str) -> str | tuple[str, str]:
@@ -249,7 +251,8 @@ class LatestRaids:
         if task is None:
             task = self._looking[ids] = asyncio.ensure_future(self._look_up(ids))
             task.add_done_callback(lambda _: self._looking.pop(ids, None))
-        return await asyncio.shield(task)
+        with waiting_for(wcl.SOURCE):
+            return await asyncio.shield(task)
 
     async def _look_up(self, ids: tuple[int, ...]) -> str | None:
         since = (clock.now() - LATEST_RAID_DAYS * 86400) * 1000

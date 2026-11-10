@@ -24,7 +24,7 @@ from typing import Any
 from warcraft_core.auth import load_provider_auth_state
 from warcraftlogs_cli.client import GRAPHQL_WARNINGS_KEY, WarcraftLogsClient, WarcraftLogsClientError
 
-from .cache import DAY, FOREVER, HOUR, Gone, cache, cache_key, keep_again, never_keep
+from .cache import DAY, FOREVER, HOUR, Gone, cache, cache_key, keep_again, never_keep, waiting_for
 
 log = logging.getLogger(__name__)
 
@@ -365,6 +365,7 @@ def _args(**filters) -> str:
     return ", ".join(out)
 
 
+SOURCE = "Warcraft Logs"  # what a call cut off while waiting for it says it waited for (cache.waiting_for)
 # Each Warcraft Logs request waits this long for an answer, and is tried this often. On 14 Oct 2026 WCL hung and
 # warcraft_cli's default three tries made two calls take 62 s each, an answer 144 s; a query that needs over 20 s
 # never succeeded anyway, so a third try only adds to the wait.
@@ -791,11 +792,12 @@ class WCL:
         for data that changes slowly (rankings) or never (another guild's kill). A frozen cache (the evals) keeps
         every answer, so a run reads the same data as the last. Such an answer, or one asked `whole`, raises
         WCLError when Warcraft Logs answers only part of it."""
-        if cache_for is None and not cache().frozen:
-            data = await asyncio.to_thread(self._run, query, variables, whole)
-        else:
-            data = await cache().fetch(cache_key("wcl", query, variables), cache_for or FOREVER,
-                                       lambda: asyncio.to_thread(self._run, query, variables, True))
+        with waiting_for(SOURCE):
+            if cache_for is None and not cache().frozen:
+                data = await asyncio.to_thread(self._run, query, variables, whole)
+            else:
+                data = await cache().fetch(cache_key("wcl", query, variables), cache_for or FOREVER,
+                                           lambda: asyncio.to_thread(self._run, query, variables, True))
         found = data.get("reportData")
         if "code" in variables and isinstance(found, dict) and "report" in found and found["report"] is None:
             raise Unreadable(variables["code"])
