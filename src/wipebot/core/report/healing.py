@@ -124,13 +124,16 @@ def _points(f: dict, graph: dict | None, end: float) -> tuple[list[tuple[float, 
 
 
 def _even(f: dict, graph: dict | None, end: float) -> str:
-    """A pull without spikes: its median and peak."""
-    _, avg, typical = _points(f, graph, end)
+    """A pull without spikes: its median and peak. The peak is an average over SPIKE_AVG_MS and is named by where
+    those begin, as pull_timeline names its averages of as long: by their middle, the same seconds read 2 s later
+    here than there."""
+    points, avg, typical = _points(f, graph, end)
     if not avg:
         return "no raid damage taken recorded"
     at, peak = max(avg, key=lambda p: p[1])
+    since = min(u for u, _ in points if abs(u - at) <= SPIKE_AVG_MS / 2)
     return (f"the raid's damage taken stayed under {SPIKE_TIMES}x its median of {short(typical)}/s, highest "
-            f"{short(peak)}/s at {clock(at - f['startTime'])}")
+            f"{short(peak)}/s over the {SPIKE_AVG_MS // 1000} s from {clock(since - f['startTime'])}")
 
 
 def _spikes(f: dict, graph: dict | None, end: float) -> list[Spike]:
