@@ -22,7 +22,7 @@ id = "night-healing-cooldowns"  # from the raiders' own question (answer #265)
 tools = ["boss_guide", "healing"]
 question = "When do we take the most damage on Sszorak, and are our healing cooldowns in the right place?"
 expect = """The damage comes in waves at the same moments every pull. The healing cooldowns go mostly on the second
-wave, at 1:05-1:18 (2.4 and 1.2 per spike), and fewer on the first, at 0:21-0:31 (Virulence and Mutilated Gash, 1.1
+wave, at 1:05-1:18 (2.6 and 2.0 per spike), and fewer on the first, at 0:21-0:31 (Virulence and Mutilated Gash, 1.1
 per spike), which came in 20 pulls."""
 facts = ["in the first wave healing kept pace without cooldowns: 3.10M/s against 3.15M/s taken",
          "Venomous Surge at 0:33-0:42 got no healing cooldown in any of its 8 spikes, healing 2.33M/s against 3.14M/s",
