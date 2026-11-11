@@ -131,10 +131,11 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                                           "comes down to in a sentence, the hits and their health in the seconds "
                                           "before it, the healing they got, the killing blow, and their defensives "
                                           "then.",
-                           "progress": "In Claude and ChatGPT, the user also sees the night on the boss drawn: what "
-                                       "ended the most pulls in a sentence, each pull's boss health left, coloured "
-                                       "by what ended it, against the night's and the guild's best, with each "
-                                       "pull's own view a click away; with weeks, each raid night's best pull.",
+                           "progress": "In Claude and ChatGPT, the user also sees the night on the boss drawn: the "
+                                       "kill or, with none, what ended the most pulls in a sentence, each pull's "
+                                       "boss health left, coloured by what ended it, against the night's and the "
+                                       "guild's best, with each pull's own view a click away; with weeks, each raid "
+                                       "night's best pull.",
                            "raid_plan": "In Claude, the user sees no map from raid_plan: for the pull against the "
                                         "plan, call pull_map with plan, which shows its replay."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",
