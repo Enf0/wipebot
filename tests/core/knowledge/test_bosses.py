@@ -180,6 +180,75 @@ def test_a_mechanic_is_read_from_the_guide_sections_and_paragraphs_naming_it():
     assert "Never stack" not in found["Mythic"] and "Tanks" not in found  # another ability's name isn't this one's
 
 
+# A section of a Method boss page as warcraft_cli gives it (the shape of November 2026, the writing made up): its
+# markup, and its text as one run of words, a list's items strung behind the sentence that leads into them.
+RULES_MARKUP = (
+    '<p>During <a href="https://www.wowhead.com/spell=1/stone-count?dd=16" rel="noopener">Stone Count</a>, everyone '
+    "holds one to three stones for a moment. The answer is the same every time:</p>\n<ul>\n"
+    '<li aria-level="1"><b>Three stones:</b> stand still and mark yourself.</li>\n'
+    '<li aria-level="1"><b>One stone:</b> run to a marked player.</li>\n'
+    '<li aria-level="1"><b>Two stones:</b> meet at the door &amp; wait.</li>\n</ul>\n'
+    '<p><img alt="where the pairs meet" class="img-expandable" src="https://method/meet.jpg"/></p>\n'
+    "<p>That pairs everyone. A player left over is called by name.</p>\n<p>"
+    + "The tanks keep the bosses apart. " * 20 + "</p>")
+RULES_TEXT = ("During Stone Count , everyone holds one to three stones for a moment. The answer is the same every "
+              "time: Three stones: stand still and mark yourself. One stone: run to a marked player. Two stones: meet "
+              "at the door & wait. That pairs everyone. A player left over is called by name. "
+              + "The tanks keep the bosses apart. " * 20).strip()
+RULES = ("During Stone Count , everyone holds one to three stones for a moment. The answer is the same every time:\n"
+         "- Three stones: stand still and mark yourself.\n- One stone: run to a marked player.\n"
+         "- Two stones: meet at the door & wait.")
+
+
+async def test_a_list_in_methods_guide_is_kept_whole_for_a_mechanic(monkeypatch):
+    """Method gives the rule for a mechanic as a short list, and its page's text strings the items behind the
+    sentence before them. Cut to the sentences naming the mechanic and the two after, each item counted as one: of
+    three rules the third was lost. The page's markup says where a list is, so its items are lines again, and a
+    list the cut comes into from the sentence before it is kept whole."""
+    page = {"title": "Intermission", "text": RULES_TEXT, "html": RULES_MARKUP}
+
+    async def fake_cli(tool, *args):
+        return {"guide": {"last_updated": "2026-09-23"},
+                "pages": [{"guide": {"section_title": "Stonewarden"}, "article": {"sections": [page]}}]}
+    monkeypatch.setattr(fetch, "cli", fake_cli)
+    g = await bosses.method_boss_guide("Stonewarden", "The Deep", "mythic")
+    whole = g.sections[0][1]
+    assert whole.startswith(RULES + "\nThat pairs everyone. A player left over is called by name. The tanks keep")
+    assert " ".join(whole.replace("\n- ", " ").split()) == RULES_TEXT  # the page's words, every one
+    assert dict(bosses.mechanic_sections(g, "stone count")) == {"Intermission": RULES}
+    # markup that doesn't hold the text's words is not read: the text as the page gives it
+    page["html"] = RULES_MARKUP.replace("Two stones", "Four stones")
+    assert (await bosses.method_boss_guide("Stonewarden", "The Deep", "mythic")).sections[0][1] == RULES_TEXT
+    del page["html"]
+    assert (await bosses.method_boss_guide("Stonewarden", "The Deep", "mythic")).sections[0][1] == RULES_TEXT
+
+
+def test_a_list_is_kept_whole_only_where_the_cut_comes_into_it_from_the_sentence_before():
+    """A list of every mechanic's one tip isn't the asked mechanic's rule: an item naming it is cut as any sentence
+    is, to itself and the two after. An item starts a line, and so does what follows the list."""
+    filler = " ".join(f"Sentence {i} about the tanks." for i in range(40))
+    tips = ("Play it clean.\n- Stone Count: pair up by your stones. Marked players stand still.\n"
+            "- Tail Swipe: stay behind. It knocks back.\n- Gloom: heal through it.\n- Embers: spread out.")
+
+    def cut(text: str, mechanic: str) -> str:
+        g = Guide("method", "A guide", "https://guide", None, [("Summary", f"{filler} {text}\n{filler}")])
+        return dict(bosses.mechanic_sections(g, mechanic))["Summary"]
+    assert cut(tips, "Stone Count") == ("- Stone Count: pair up by your stones. Marked players stand still.\n"
+                                        "- Tail Swipe: stay behind.")
+    assert cut(tips + "\nThen the phase ends.", "embers") == (
+        "- Embers: spread out.\nThen the phase ends. Sentence 0 about the tanks.")
+    # the sentence before the list names the mechanic, or follows one that does: the list is its rule
+    assert cut(tips.replace("Play it clean.", "For Darkfall, four calls."), "darkfall") == (
+        "For Darkfall, four calls." + tips.removeprefix("Play it clean."))
+    assert cut("Darkfall comes twice. " + tips, "Darkfall") == "Darkfall comes twice. " + tips
+    # two sentences on, the cut ends at the sentence before the list and doesn't come into it
+    assert cut("Darkfall comes twice. Dodge the first. " + tips, "Darkfall") == (
+        "Darkfall comes twice. Dodge the first. Play it clean.")
+    # sentences left out between two that are kept are marked, on the line of what comes after them
+    assert cut("Embers open. One. Two. Three. Four. " + tips, "Embers") == (
+        "Embers open. One. Two.\n... - Embers: spread out.\nSentence 0 about the tanks. Sentence 1 about the tanks.")
+
+
 def test_an_enrage_is_found_under_either_name():
     """Guides say enrage or berserk for the same timer, and the model asks with either."""
     g = Guide("method", "A guide", "https://guide", None, [

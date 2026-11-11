@@ -238,6 +238,13 @@ API: `wcl-api.md`.
   profile's rank can lag the board by a place. Their cache TTL is 15 min.
 - Method's `guide-full` returns every page of a guide in `pages`; Wowhead's returns one page plus
   navigation markup.
+- A section of a Method or Icy Veins page comes as `text`, one run of words, and `html`, its markup. The text has
+  no trace of a list: the items of a `<ul>` follow the sentence before them like more sentences. The markup with
+  its tags taken out, entities read and spaces collapsed is the text word for word (1,441 of 1,441 sections on
+  the 36 Method pages fetched by November 2026, 380 of them with a list), so `knowledge.guides.listed` puts a
+  Method boss guide's lists back on lines and falls back to the text where the two differ. Method's boss pages
+  have two to nine short lists each; Icy Veins' pages are lists nearly throughout (about 900 items a raid
+  guide), so they are left as text.
 - Method has raid boss guides at `method.gg/guides/<raid-slug>/<boss-slug>` (Mythic) and `...-heroic`;
   warcraft_cli's `method search` doesn't index them, but `method guide-full <url>` reads them.
 - `warcraft cooldown-packet <report#fight=N> --actor-name X --phase N` compares a player's cooldowns with

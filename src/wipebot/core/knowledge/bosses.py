@@ -11,7 +11,7 @@ from datetime import UTC, date, datetime
 from ..text import fold
 from . import fetch
 from .fetch import KnowledgeError, NotFound
-from .guides import GUIDE_SOURCES, SOURCE_NAMES, Guide, cut, sections, updated, updated_on, wowhead_text
+from .guides import GUIDE_SOURCES, SOURCE_NAMES, Guide, cut, listed, sections, updated, updated_on, wowhead_text
 from .names import boss_words, fold_quotes, names_boss, slug
 from .news import Hotfix, hotfixes
 from .specs import GearPages, gear_pages
@@ -375,7 +375,7 @@ def _names(text: str, mechanic: str) -> bool:
 
 def mechanic_sections(g: Guide, mechanic: str) -> list[tuple[str, str]]:
     """A guide's sections about a mechanic: one titled for it whole; of the rest, the paragraphs naming it (each
-    once), a long one cut to the sentences naming it and the MECHANIC_AFTER after each."""
+    once), a long one cut to its sentences about the mechanic (`_about`)."""
     out = []
     for title, text in g.sections:
         if _names(title, mechanic):
@@ -385,16 +385,56 @@ def mechanic_sections(g: Guide, mechanic: str) -> list[tuple[str, str]]:
         for para in re.split(r"\n\s*\n", text):
             if not _names(para, mechanic) or para in kept:
                 continue
-            if len(para) > PARAGRAPH_CHARS:
-                sentences = re.split(r"(?<=[.!?])\s+", para)
-                keep = sorted({j for i, s in enumerate(sentences) if _names(s, mechanic)
-                               for j in range(i, min(i + 1 + MECHANIC_AFTER, len(sentences)))})
-                para = " ".join(sentences[j] if k == 0 or keep[k - 1] == j - 1 else "... " + sentences[j]
-                                for k, j in enumerate(keep))
-            kept.append(para)
+            kept.append(_about(para, mechanic) if len(para) > PARAGRAPH_CHARS else para)
         if kept:
             out.append((title, "\n\n".join(kept)))
     return out
+
+
+def _about(para: str, mechanic: str) -> str:
+    """A long paragraph cut to the sentences naming the mechanic and the MECHANIC_AFTER after each, "..." where
+    some are left out between. A list the cut comes into from the sentence leading into it is kept whole: the rule
+    for a mechanic is often three short items, each a sentence of its own. An item starts a line, as what follows
+    a list does; the paragraph's other line breaks become spaces."""
+    parts = re.split(r"(?<=[.!?])(\s+)", para)
+    sentences, gaps = parts[::2], parts[1::2]  # gaps[i] stands between sentence i and the next
+    named = [i for i, s in enumerate(sentences) if _names(s, mechanic)]
+    keep = {j for i in named for j in range(i, min(i + 1 + MECHANIC_AFTER, len(sentences)))}
+    lists = _lists(sentences, gaps)
+    for lead, words, first, last in lists:
+        if lead is not None and (_names(words, mechanic) or any(first - MECHANIC_AFTER <= i < lead for i in named)):
+            keep |= set(range(lead, last + 1))
+    listed = {i for _, _, first, last in lists for i in range(first, last + 1)}
+    out, before = "", None
+    for j in sorted(keep):
+        if before is not None:
+            line = "\n" in gaps[j - 1] and (sentences[j].startswith("- ") or j - 1 in listed)
+            out += ("\n" if line else " ") + ("" if before == j - 1 else "... ")
+        out, before = out + sentences[j], j
+    return out
+
+
+def _lists(sentences: list[str], gaps: list[str]) -> list[tuple[int | None, str, int, int]]:
+    """The lists in a paragraph cut into sentences (`_about`), a list being lines that start "- ". For each: the
+    index of the sentence leading into it with that sentence's own words (None and '' for a list the paragraph
+    starts with), and the indexes of the first and last sentence of its items. A sentence leading in with a colon
+    is cut together with the first item ("The answer is the same every time:\\n- Three stones: stand still.")."""
+    found, j = [], 0
+    while j < len(sentences):
+        lead, _, items = sentences[j].partition("\n- ")
+        if items and not lead.startswith("- "):
+            start = (j, lead, j)
+        elif sentences[j].startswith("- ") and (j == 0 or "\n" in gaps[j - 1]):
+            start = (j - 1, sentences[j - 1], j) if j else (None, "", j)
+        else:
+            j += 1
+            continue
+        last = start[2]  # an item's later sentences stand on its line; the next item starts one
+        while last + 1 < len(sentences) and ("\n" not in gaps[last] or sentences[last + 1].startswith("- ")):
+            last += 1
+        found.append((*start, last))
+        j = last + 1
+    return found
 
 
 def strategy_text(g: Guide) -> str:
@@ -405,10 +445,10 @@ def strategy_text(g: Guide) -> str:
 
 
 async def method_boss_guide(boss: str, raid: str, difficulty: str = "mythic") -> Guide:
-    """Method's strategy guide for a raid boss (setup, strategy, what wipes raids). Method writes one for Mythic and
-    one for Heroic, and sometimes only one of them (Ula'tek has only a Heroic page): then the other stands in, titled
-    so. warcraft_cli's search doesn't index these pages, so the URL is built from Method's pattern:
-    /guides/<raid>/<boss>[-heroic]."""
+    """Method's strategy guide for a raid boss (setup, strategy, what wipes raids), its lists as lines
+    (guides.listed). Method writes one for Mythic and one for Heroic, and sometimes only one of them (Ula'tek has
+    only a Heroic page): then the other stands in, titled so. warcraft_cli's search doesn't index these pages, so
+    the URL is built from Method's pattern: /guides/<raid>/<boss>[-heroic]."""
     heroic = difficulty.lower().startswith("h")
     url, other_url = (f"https://www.method.gg/guides/{slug(raid)}/{slug(boss)}" + suffix
                       for suffix in (("-heroic", "") if heroic else ("", "-heroic")))
@@ -427,7 +467,7 @@ async def method_boss_guide(boss: str, raid: str, difficulty: str = "mythic") ->
         name = s["title"].split(": ", 1)[-1] if s["title"].lower().startswith(slug(boss).replace("-", " ")) \
             or s["title"].startswith(boss) else s["title"]
         if s["text"].strip() and s["text"].strip() != "Expand for details":
-            found.append((name, s["text"].strip()))
+            found.append((name, listed(s["text"].strip(), s.get("markup") or "")))
     return Guide("method", title, url, (data.get("guide") or {}).get("last_updated"), found)
 
 

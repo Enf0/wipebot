@@ -34,7 +34,7 @@ class Guide:
 
 def sections(data: dict) -> list[dict]:
     """A guide's text sections. Method's and Icy Veins' guide-full hold every page of the guide (a section's title
-    is then prefixed with its page's); Wowhead's one page."""
+    is then prefixed with its page's, and its `markup` is the page's HTML of it); Wowhead's one page."""
     if isinstance(data.get("pages"), list):
         rows = []
         for page in data["pages"]:
@@ -42,7 +42,7 @@ def sections(data: dict) -> list[dict]:
             for s in (page.get("article") or {}).get("sections") or []:
                 title = s.get("title") or ""
                 rows.append({"title": title if page_title.lower() in title.lower() else f"{page_title}: {title}",
-                             "text": s.get("text") or ""})
+                             "text": s.get("text") or "", "markup": s.get("html") or ""})
         return [r for r in rows if r["text"].strip()]
     body = data.get("body") or {}
     for key in ("section_chunks", "sections"):
@@ -51,6 +51,21 @@ def sections(data: dict) -> list[dict]:
         if rows:
             return rows
     return []
+
+
+def listed(text: str, markup: str) -> str:
+    """A section's text with each item of a list on a line of its own ("- item") and what follows the list on the
+    next. warcraft_cli gives a section's text as one run of words, a list's items strung behind the sentence that
+    leads into them, and the page's markup beside it, which says where the lists are. The words are the text's
+    own: where the markup doesn't hold exactly them, the text comes back as it is."""
+    if "<li" not in markup:
+        return text
+    marked = re.sub(r"<li\b[^>]*>", "\x00", re.sub(r"</[uo]l\s*>", "\x01", markup))  # an item's start, a list's end
+    words = " ".join(html.unescape(re.sub(r"<!--.*?-->|<[^>]+>", " ", marked, flags=re.S)).split())
+    if re.sub(r"[\x00\x01]", " ", words).split() != text.split():
+        return text
+    lines = re.sub(r" ?\x01 ?", "\n", re.sub(r" ?\x00 ?", "\n- ", words)).split("\n")
+    return "\n".join(line for line in map(str.strip, lines) if line not in ("", "-"))
 
 
 def subpages(source: str, data: dict) -> list[tuple[str, str]]:
