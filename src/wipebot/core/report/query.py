@@ -15,7 +15,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from ..cache import DAY, cache, cache_key
-from ..text import clock, exact, parse_clock
+from ..text import clock, exact, parse_clock, plural
 from ..wcl import WCL, WCLError, counting_points
 from . import rows
 from .base import FactError, Report
@@ -44,6 +44,8 @@ TIME_KEYS = ("timestamp", "startTime", "endTime", "pointStart")
 # In an answer too long to read, the lists inside a list's items (a table row's gear and abilities) are cut first, to
 # this many items and then fewer until it fits; after the last, every list is.
 INNER_KEPT = (20, 10, 5, 3)
+LIST_ROOM = 1_500  # a list of events cut to fit takes this many characters at the least: its counts and a few rows
+LEFT_OUT = 160  # ...and the line that says which lists were left out whole
 TOKEN = re.compile(r'"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|\.\.\.|[{}()\[\]:!=@$]|[^\s{}()\[\]:!=@$",]+')
 
 Reports = Callable[[str], Awaitable[Report]]  # how a report a query names is read, by its code
@@ -522,16 +524,30 @@ class _Answer:
         """The whole answer: the legend and the notes, which say how the rest reads and so come first (in a long
         answer, in its first part), then the JSON and each events list's rows. With `room`, cut to that many
         characters: the JSON's lists to their first items (`_cut`), and each events list to the rows that fit its
-        share of what's left, both saying how much was left out."""
+        share of what's left, both saying how much was left out; of more lists than have room for their counts and
+        a few rows each (LIST_ROOM), the last are left out whole, and a line says which."""
         first = [*self.legend, *self.notes]
         if room is None:
             return "\n".join([*first, _json(self.shown), *(line for n, ev in enumerate(self.events, 1)
                                                            for line in _rows(n, ev))])
         room -= sum(len(line) + 1 for line in first)
         shown = _cut(self.shown, room if not self.events else room // 3)
-        each = (room - len(shown)) // max(len(self.events), 1)
-        return "\n".join([*first, shown, *(line for n, ev in enumerate(self.events, 1)
-                                           for line in _rows(n, ev, each))])
+        left, lines = room - len(shown) - 1 - (LEFT_OUT if len(self.events) > 1 else 0), []
+        for n, ev in enumerate(self.events, 1):  # what one list leaves of its share goes to the next
+            share = max(left // (len(self.events) - n + 1), LIST_ROOM)
+            got = _rows(n, ev, share) if share <= left else []
+            cost = sum(len(line) + 1 for line in got)
+            if not got or (cost > left and lines):  # no room for its counts and first rows (the first list has them)
+                rest = self.events[n - 1:]
+                lines.append(f"… Events {n} is left out whole ({plural(len(ev.events), 'event')}): ask for it in a "
+                             "query of its own." if len(rest) == 1 else
+                             f"… Events {n} to {len(self.events)} are left out whole ({plural(len(rest), 'list')}, "
+                             f"{sum(len(ev.events) for ev in rest):,} events together): ask for them in a query of "
+                             "their own.")
+                break
+            lines += got
+            left -= cost
+        return "\n".join([*first, shown, *lines])
 
 
 def _at(data: object, path: tuple[str, ...]) -> object:

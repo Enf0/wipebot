@@ -160,10 +160,20 @@ def _ids(rep: Report, events: Iterable[dict]) -> dict[str, set[int]]:
     """The ids of each ability a list of events names, by the ability's name."""
     ids: dict[str, set[int]] = {}
     for e in events:
-        for key in ("abilityGameID", *ABILITY_KEYS):
-            if isinstance(gid := e.get(key), int) and gid > 10:
-                ids.setdefault(rep.ability(gid), set()).add(gid)
+        _ids_added(rep, e, ids)
     return ids
+
+
+def _ids_added(rep: Report, e: dict, ids: dict[str, set[int]]) -> int:
+    """An event's abilities added to `ids`, and how much longer that makes the line of them (`ability_ids`)."""
+    added = 0
+    for key in ("abilityGameID", *ABILITY_KEYS):
+        if isinstance(gid := e.get(key), int) and gid > 10:
+            name = rep.ability(gid)
+            if gid not in ids.setdefault(name, set()):
+                added += len(str(gid)) + 2 + (len(name) + 3 if not ids[name] else 0)  # 'Name [id], ' or ', id'
+                ids[name].add(gid)
+    return added
 
 
 def several_ids(rep: Report, events: Iterable[dict]) -> frozenset[str]:
@@ -193,8 +203,8 @@ class Listed:
     """A list of events as lines. `where` says which pull they are in and what their times count from (" in Sszorak
     pull 13, times from the pull's start"), for the caller's own first line; `lines` are the counts and sums (from
     COUNTED_FROM events, or cut, or with amounts to add up), a row an event under its pull's name where there are
-    several pulls, what was left out, and the ids of the abilities named; `left_out` is how many events have no
-    row."""
+    several pulls, what was left out, and the ids of the abilities the rows name; `left_out` is how many events have
+    no row."""
     where: str
     lines: list[str]
     left_out: int = 0
@@ -215,27 +225,32 @@ def listed(rep: Report, events: list[dict], rest: Callable[[Report, dict], str] 
              else ", times from the report's start" if len(pulls) <= 1
              else f" over {len(pulls)} pulls, each time from its pull's start")
     with_id = several_ids(rep, events)
-    body: list[tuple[str, bool]] = []  # each line, and whether it is an event's row
+    body: list[tuple[str, dict | None]] = []  # each line, with its event when it is one's row
     for f, es in pulls:
         if len(pulls) > 1:
             body.append((f"{rep.label(f)}:" if f else "Outside the boss pulls (times from the report's start):",
-                         False))
-        body += [(row(rep, e, f["startTime"] if f else 0, rest, with_id), True) for e in es]
-    counts, ids = counted(rep, events), ability_ids(rep, events)
-    # What the rows have of `room`: less the counts, the ids, the caller's first line and the line on what was left out
-    left = math.inf if room is None else room - len(counts) - len(ids) - 300
+                         None))
+        body += [(row(rep, e, f["startTime"] if f else 0, rest, with_id), e) for e in es]
+    counts = counted(rep, events)
+    # What the rows have of `room`, with the ids of the abilities they name: less the counts, the caller's first line
+    # and the line on what was left out
+    left = math.inf if room is None else room - len(counts) - 300
     kept = body
-    if sum(len(line) + 1 for line, _ in body) > left or (most is not None and len(events) > most):
-        kept = []
-        for line, is_row in body:
-            shown = sum(r for _, r in kept)
-            if shown >= CUT_ROWS and (left < len(line) + 1 or (most is not None and shown >= most)):
+    whole = sum(len(line) + 1 for line, _ in body) + len(ability_ids(rep, events))
+    if whole > left or (most is not None and len(events) > most):
+        kept, shown = [], 0
+        named: dict[str, set[int]] = {}  # the abilities of the rows kept, whose ids the last line gives
+        for line, e in body:
+            cost = len(line) + 1 + (_ids_added(rep, e, named) if e else 0)
+            if shown >= CUT_ROWS and (left < cost or (most is not None and shown >= most)):
                 break
-            kept.append((line, is_row))
-            left -= len(line) + 1
-        while kept and not kept[-1][1]:  # a pull's name with none of its rows under it
+            kept.append((line, e))
+            left -= cost
+            shown += e is not None
+        while kept and kept[-1][1] is None:  # a pull's name with none of its rows under it
             kept.pop()
-    left_out = len(events) - sum(r for _, r in kept)
+    rows_of = [e for _, e in kept if e is not None]
+    left_out = len(events) - len(rows_of)
     summed = Counter(e.get("type") for e in events if _amount(e) is not None)  # two amounts of a kind: a sum to make
     lines = [counts] if left_out or len(events) >= COUNTED_FROM or max(summed.values(), default=0) > 1 else []
     lines += [line for line, _ in kept]
@@ -245,4 +260,5 @@ def listed(rep: Report, events: list[dict], rest: Callable[[Report, dict], str] 
                      f"{exact(last['timestamp'] - (f['startTime'] if f else 0))}"
                      + (f" of {rep.label(f)}" if f and len(pulls) > 1 else "")
                      + f": the counts above are of all {len(events):,}.")
+    ids = ability_ids(rep, rows_of)  # of the rows shown: a list cut to a few rows named every ability of them all
     return Listed(where, [*lines, *([ids] if ids else [])], left_out)

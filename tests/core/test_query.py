@@ -392,3 +392,31 @@ async def test_a_fights_phases_asked_for_alone_are_named_too(rep):
     assert ('"phaseTransitions":[{"id":1,"startTime":"0:00.000","phase":"P1 Sszorak"},{"id":2,"startTime":"1:39.990",'
             '"phase":"P2 Howling Maelstrom"},{"id":1,"startTime":"2:05.000","phase":"P1 Sszorak"}]') in text
     assert '{"name":"Sszorak"}' in text  # a fight the answer says nothing to place by stays as it came
+
+
+async def test_a_cut_answer_with_several_lists_of_events_is_one_part_and_says_which_lists_it_left_out(rep):
+    """Three lists of a few hundred events each came back in two parts, most of the first the ids of abilities
+    whose rows it didn't show; and 36 lists in one query (a list per pull) in parts of counts alone."""
+    events = [{"timestamp": rep.fight(13, "Sszorak")["startTime"] + n * 100, "type": "damage", "sourceID": 21,
+               "targetID": 1 + n % 20, "abilityGameID": 1_000_000 + n % 150, "amount": 1000 + n, "fight": 21}
+              for n in range(400)]
+
+    async def asked(lists: int) -> str:
+        fields = " ".join(f"e{n}: events(fightIDs: [21], dataType: DamageTaken) {{ data }}" for n in range(lists))
+        answer = {"reportData": {"report": {f"e{n}": {"data": events} for n in range(lists)}}}
+        q = f"{{ reportData {{ report(code: $code) {{ {fields} }} }} }}"
+        return await query_text(cast(WCL, Points(100, answer)), q, rep)
+
+    three = await asked(3)
+    assert "part 1 of" not in three and len(three) < ANSWER_CHARS + 200
+    shown = [int(n) for n in re.findall(r"… (\d+) more events left out", three)]
+    assert len(shown) == 3 and all(400 - left >= 20 for left in shown)  # each list gets rows, not only its counts
+    # the ids under a list are of the abilities its rows name
+    ids = [line for line in three.splitlines() if line.startswith("Ability ids: ")]
+    assert len(ids) == 3 and all(line.count("[") == 400 - left for line, left in zip(ids, shown, strict=True))
+    many = await asked(36)
+    assert "part 1 of" not in many and len(many) < ANSWER_CHARS + 200
+    last = max(int(n) for n in re.findall(r"^Events (\d+) \(", many, re.M))
+    assert 3 <= last < 36
+    assert (f"… Events {last + 1} to 36 are left out whole ({36 - last} lists, {(36 - last) * 400:,} events "
+            "together): ask for them in a query of their own.") in many

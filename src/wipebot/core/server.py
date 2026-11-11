@@ -1911,11 +1911,11 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
     is about as boss and pull number, a few with their length and how they ended. A `fights` field keeps each
     fight's own start and end in the report's ms; its phase transitions are m:ss.mmm into the pull, each with its
     `phase` as the other tools name it (P2, I1). An answer over 3 parts is cut to one: each list then ends with
-    how many items were left out, and the counts are of all its events. Events come a page at a time
-    (nextPageTimestamp, in the report's ms, is where the next starts); table and rankings are JSON inside the
-    answer. Rankings are kept per partition (a patch's), and a new one is empty for a while: an empty ranking may
-    need zone(id) { partitions } and an older `partition`; item level brackets are zone(id) { brackets }, counted
-    from its min in steps of its bucket."""
+    how many items were left out, the counts are of all its events, and lists of events with no room left are
+    named as left out whole. Events come a page at a time (nextPageTimestamp, in the report's ms, is where the
+    next starts); table and rankings are JSON inside the answer. Rankings are kept per partition (a patch's), and
+    a new one is empty for a while: an empty ranking may need zone(id) { partitions } and an older `partition`;
+    item level brackets are zone(id) { brackets }, counted from its min in steps of its bucket."""
     if schema_type:
         return await queries.schema_text(lib().wcl, schema_type)
     if not query:
