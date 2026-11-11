@@ -206,14 +206,21 @@ from a saved answer or a raider's words). Two kinds:
 
 The run asks only the judge, as a run of the cases asks it: the case's question as the judge sees it, the judge's
 own prompts and the majority rule. So the plants caught are the real pipeline's. It says how many judge calls it
-will make and about what they cost before it asks (130 plants: 130 to 390 calls, about $2.60), prints the plants
-failed per kind and then each plant the judge let through with its reason, and saves the lot as
-`results/planted-<stamp>.json`. `-k` picks the plants by their case.
+will make and about what they cost before it asks (130 plants: 130 to 390 calls, about $2.60), saves the lot as
+`results/planted-<stamp>.json`, and prints each plant the judge let through with its reason and then, last, the
+plants it failed per kind. `-k` picks the plants by their case.
 
 A plant let through is a finding to read, not a failure of the run: the case's wrong item (or its `expect`) doesn't
 hold an answer to it as the judge reads it, the judge's prompt is too lenient, or the plant is too soft. Rewrite the
 item, the prompt or the plant, and ask again with `-k`. The run exits non-zero only when a plant could not be judged
-or is stale. Quote the plants caught beside a release's pass rate: a baseline is worth what its judge catches.
+or is stale, or when `-k` picks none. Quote the plants caught beside a release's pass rate: a baseline is worth
+what its judge catches.
+
+The judge's `wrong` check sees the question and the wrong list: not the case's `expect`, and nothing a tool
+returned. So an item that leans on either ("someone outside those six", "the whole night's hits as the pull's")
+catches only an answer that says as much itself, and its plant has to say it ("that is the whole kill's damage").
+A caught plant of that kind shows the judge reads the item, not that the bot's real slip, a wrong number with no
+word on where it is from, would fail: give such an item the tempting wrong number or name itself.
 
 Run it before new baselines are saved, and after a change to the judge's prompts or to a case's `wrong` list. A
 plant names its case and item, so one whose case is gone or no longer lists that item is stale: `just evals --lint`
