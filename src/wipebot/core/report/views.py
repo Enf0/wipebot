@@ -1443,12 +1443,15 @@ def player_headline(out: dict, lost: TimeLost) -> dict:
 
 def player_night_headline(died: int, pulls: int, lived: int) -> dict:
     """A player's night on a boss in one sentence of player_night's facts: on how many pulls they died before the
-    wipe was decided, and at how many of those deaths a ready defensive or a healthstone would have kept them
-    alive (the defensives tool's replay)."""
+    wipe was decided, and how many of those deaths a ready defensive or a healthstone would have survived (the
+    defensives tool's replay). No pronoun: the one asking may be the player or someone else."""
     if not died:
         return _headline(f"Never died before a wipe was decided in {plural(pulls, 'pull')}.", "good")
     head = f"Died before the wipe was decided on {died} of {plural(pulls, 'pull')}"
     if not lived:
         return _headline(head + ".")
-    at = f" at {lived} of those {died} deaths" if died > 1 else ""
-    return _headline(f"{head}; a ready defensive or a healthstone would have kept them alive{at}.", "fix")
+    if died == 1:
+        return _headline(f"{head}, survivable with a ready defensive or a healthstone.", "fix")
+    were = "was" if lived == 1 else "were"
+    return _headline(f"{head}; {lived} of those {died} deaths {were} survivable with a ready defensive or a "
+                     "healthstone.", "fix")

@@ -13,6 +13,9 @@ views.player_night = (() => {
   }
 
   const what = () => D.what === "healing" ? "Healing" : "Damage";
+  // how many of the survivable deaths a spell would have saved: "both" or "all 3" where it is every one of them, so
+  // that two spells at the same death never read as more deaths than there are
+  const all = (k, of) => k < of || of === 1 ? String(k) : of === 2 ? "both" : `all ${of}`;
   const times = (n) => n === 0 ? "never" : n === 1 ? "once" : n === 2 ? "twice" : `${n} times`;
   // what they died to, after "died 2:01 (#5)": " to Slag Wave", or what the log says where it names no killing blow
   const to = (d) => d.no_blow ? `, ${d.by}` : ` to ${d.by}`;
@@ -20,10 +23,10 @@ views.player_night = (() => {
   function stats() {
     const n = D.pulls.filter((p) => !p.reset).length, L = D.lived;
     return [
-      ["Died before the wipe was decided", `${D.died} of ${n}`, D.died ? "dead" : "",
+      ["Deaths that count", `${D.died} of ${n}`, D.died ? "dead" : "",
        `${D.first ? `first to die ${times(D.first)}` : "never first to die"}, ${times(D.early)} among the first ${D.early_n}`],
-      L.of ? ["Could have lived", `${L.saved} of ${L.of}`, L.saved ? "decided" : "",
-              [L.by.length ? L.by.slice(0, 2).map(([s, k], i) => `${s} on ${i ? k : kit.plural(k, "death")}`).join(", ") : "nothing ready would have saved them",
+      L.of ? ["Survivable", `${L.saved} of ${L.of}`, L.saved ? "decided" : "",
+              [L.by.length ? L.by.slice(0, 2).map(([s, k]) => `${s} at ${all(k, L.saved)}`).join(", ") : "nothing ready would have helped",
                L.outright ? `${L.outright} killed outright` : "", L.unknown ? `can't tell for ${L.unknown}` : ""].filter(Boolean).join("; ")] : null,
       ["Time dead", `${D.dead_s} s`, "", `${D.dead_pct}% of the time before each wipe was decided`],
       D.best ? ["Best pull", `${D.best.pull}: ${kit.short(D.best.per_s_alive)}`, "", `${what().toLowerCase()} per s alive`] : null,
@@ -35,7 +38,7 @@ views.player_night = (() => {
   // reads that death (x.saved, views.player_night_view): in the colour of what to do differently where a ready
   // defensive or a healthstone would have kept them alive, plain where nothing ready would have, dashed where the
   // log can't tell (x.why: not replayed, or a ready spell's effect can't be told)
-  const LIVED = "a ready defensive or a healthstone would have kept them alive";
+  const LIVED = "survivable with a ready defensive or a healthstone";
   function killers() {
     if (!D.killers.length) return "";
     const shown = D.killers.slice(0, KILLERS_SHOWN), rest = D.killers.slice(KILLERS_SHOWN);
@@ -43,10 +46,10 @@ views.player_night = (() => {
       const cls = x.saved === true ? "fix" : x.outright ? "outright" : x.saved === false ? "" : "unknown";
       const how = x.saved === true ? LIVED
         : x.outright ? "killed outright: no hit logged after high health, so nothing ready would have stopped it"
-        : x.saved === false ? "nothing ready would have kept them alive" : `can't tell${x.why ? `: ${x.why}` : ""}`;
+        : x.saved === false ? "nothing ready would have helped" : `can't tell${x.why ? `: ${x.why}` : ""}`;
       return `<button class="chip ${cls}" data-pull-chip="${x.pull}"${kit.tip(`Pull ${x.pull}: died ${kit.clock(x.ms)} (#${x.place})${to(k)}; ${how}`)}>${x.pull}</button>`;
     };
-    const rows = shown.map((k) => `<li><span class="kn">${kit.iconImg(D.img_base, k.icon)}${kit.esc(k.by)}</span>`
+    const rows = shown.map((k) => `<li${k.no_blow ? ' class="no-blow"' : ""}><span class="kn">${k.no_blow ? '<i class="ic"></i>' : kit.iconImg(D.img_base, k.icon)}${kit.esc(k.by)}</span>`
       + `<span class="kc">${k.pulls.length}</span><span class="chips">${k.pulls.map((x) => chip(k, x)).join("")}</span></li>`).join("");
     const more = rest.length ? `<div class="note">and ${rest.length} other abilit${rest.length === 1 ? "y" : "ies"}, `
       + `${kit.plural(rest.reduce((n, k) => n + k.pulls.length, 0), "death")}</div>` : "";
@@ -57,10 +60,11 @@ views.player_night = (() => {
       const x = drawn.find(is);
       return x ? `<span class="key"><span class="chip ${cls} sample">${x.pull}</span>${words}</span>` : "";
     };
-    const key = sample((x) => x.saved === true, "fix", `a pull where ${LIVED}`)
-      + sample((x) => x.saved == null, "unknown", "a pull where the log can't tell");
-    return `<div class="section-title">What killed ${kit.esc(D.player.name)} before each wipe was decided</div>`
-      + `<ul class="killers">${rows}</ul>${more}` + (key ? `<div class="note keys">${key}</div>` : "");
+    const key = sample((x) => x.saved === true, "fix", LIVED)
+      + sample((x) => x.saved == null, "unknown", "the log can't tell");
+    // the key over the rows, where it is seen with them, and short enough for a phone's line
+    return `<div class="section-title">What killed ${kit.esc(D.player.name)}</div>`
+      + (key ? `<div class="note keys">${key}</div>` : "") + `<ul class="killers">${rows}</ul>${more}`;
   }
 
   // Their cooldowns over the night, each as player_night's text counts it: uses of possible uses, or, for one held

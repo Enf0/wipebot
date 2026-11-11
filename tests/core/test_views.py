@@ -2039,7 +2039,8 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     n = sum(not r["reset"] for r in data["pulls"])  # a reset is no pull of the night's, in the text and the view
     assert f"Died before the wipe was decided on {data['died']} of {n} pulls" in text
     assert data["headline"]["text"].startswith(f"Died before the wipe was decided on {data['died']} of {n} pulls; ")
-    assert data["headline"]["text"].endswith(f" alive at {data['lived']['saved']} of those {data['died']} deaths.")
+    assert data["headline"]["text"].endswith(f"; {data['lived']['saved']} of those {data['died']} deaths were "
+                                             "survivable with a ready defensive or a healthstone.")
     assert f"dead for {data['dead_s']} s of the {data['counted_s']} s" in text and f"({data['dead_pct']}%" in text
     best = f"pull {data['best']['pull']} ({kit_short(data['best']['per_s_alive'])}/s"
     assert f"Best pull by {data['what']} per second alive: {best}" in text
@@ -2325,8 +2326,8 @@ async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_
                                 modes=("fullscreen",), clicks=('css:tr[data-pull="4"]',))
     # 2 of 5: the sixth of the made-up night's pulls is a reset, no pull of the player's night
     assert not first.errors and "2 of 5" in first.text and "first to die once" in first.text
-    assert "could have lived" in first.text.lower() and "1 of 2" in first.text
-    assert "Astral Shift on 1 death" in first.text
+    assert "survivable" in first.text.lower() and "1 of 2" in first.text
+    assert "Astral Shift at 1" in first.text
     assert "what killed mirelle" in first.text.lower() and "Slag Wave" in first.text
     assert "6: 330k" in first.text and "pull by pull" in first.text.lower()
     calls = [m["msg"]["params"]["arguments"] for m in opened.messages if m["msg"].get("method") == "tools/call"
@@ -2383,8 +2384,8 @@ async def test_a_pulls_chip_is_a_fingers_target_on_a_touch_screen_and_a_small_on
     night = made_up_night()
     made_up_view(monkeypatch, {"view": "player_night", "report": "AbCdEfGh12345678", "player": "Mirelle"}, night)
     reach = """els => els.map((b) => { const r = b.getBoundingClientRect(), a = getComputedStyle(b, "::after");
-      const past = a.content === "none" ? 0 : -parseFloat(a.top);
-      return { high: r.height + 2 * past, wide: r.width + 2 * past, past, left: r.left, right: r.right,
+      const up = a.content === "none" ? 0 : -parseFloat(a.top), past = a.content === "none" ? 0 : -parseFloat(a.left);
+      return { high: r.height + 2 * up, wide: r.width + 2 * past, past, left: r.left, right: r.right,
                top: r.top }; })"""
     async with drawn("player_night", {}, touch=True, width=360) as (view, errors):
         chips = await view.locator("button.chip").evaluate_all(reach)
@@ -2532,16 +2533,16 @@ async def test_the_night_cards_key_shows_a_pull_that_is_one_and_names_no_kind_th
         made_up_view(monkeypatch, {"view": "player_night", "report": night["report"], "player": "Mirelle"}, night)
         return night
 
-    lived, cant = "a pull where a ready defensive or a healthstone would have kept them alive", "the log can't tell"
+    lived, cant = "survivable with a ready defensive or a healthstone", "the log can't tell"
     night_with((2, False), (4, None), (5, True), (6, True), (7, None))
     async with drawn("player_night", {}) as (view, errors):
         assert await view.evaluate(KEYS) == [["5", "chip fix sample", f"5{lived}"],
-                                             ["4", "chip unknown sample", f"4a pull where {cant}"]]
+                                             ["4", "chip unknown sample", f"4{cant}"]]
         tip = await view.locator('[data-pull-chip="4"]').get_attribute("data-tip")
         assert tip.endswith(f"; can't tell: {views.NOT_REPLAYED}") and not errors
     night_with((2, False), (4, None))  # no death a defensive would have stopped: that kind is not in the key
     async with drawn("player_night", {}) as (view, errors):
-        assert await view.evaluate(KEYS) == [["4", "chip unknown sample", f"4a pull where {cant}"]] and not errors
+        assert await view.evaluate(KEYS) == [["4", "chip unknown sample", f"4{cant}"]] and not errors
     night_with((2, False), (4, False))  # neither kind: no key
     async with drawn("player_night", {}) as (view, errors):
         assert await view.evaluate(KEYS) == [] and await view.locator(".note.keys").count() == 0 and not errors
@@ -3250,11 +3251,10 @@ def test_a_players_nights_headline_is_their_deaths_and_what_would_have_kept_them
     assert views.player_night_headline(8, 33, 0) == {
         "text": "Died before the wipe was decided on 8 of 33 pulls.", "kind": ""}
     assert views.player_night_headline(8, 33, 3) == {
-        "text": "Died before the wipe was decided on 8 of 33 pulls; a ready defensive or a healthstone would have "
-                "kept them alive at 3 of those 8 deaths.", "kind": "fix"}
+        "text": "Died before the wipe was decided on 8 of 33 pulls; 3 of those 8 deaths were survivable with a ready "
+                "defensive or a healthstone.", "kind": "fix"}
     assert views.player_night_headline(1, 1, 1)["text"] == (
-        "Died before the wipe was decided on 1 of 1 pull; a ready defensive or a healthstone would have kept them "
-        "alive.")
+        "Died before the wipe was decided on 1 of 1 pull, survivable with a ready defensive or a healthstone.")
 
 
 STAT_TILES = '() => [...document.querySelectorAll(".stats .stat")].map((e) => e.innerText)'
@@ -3516,8 +3516,8 @@ async def test_the_player_cards_are_the_same_card_and_a_wipes_standing_is_fullsc
     async with drawn("player_night", {}) as (view, errors):
         card = await view.evaluate(CARD)
     assert not errors and card["stats"] == 4 and card["charts"] == 0 and card["buttons"] == ["Open night"]
-    assert card["lead"] == ["−Died before the wipe was decided on 2 of 6 pulls; a ready defensive or a healthstone "
-                            "would have kept them alive at 1 of those 2 deaths."]
+    assert card["lead"] == ["−Died before the wipe was decided on 2 of 6 pulls; 1 of those 2 deaths was survivable "
+                            "with a ready defensive or a healthstone."]
 
 
 async def test_asked_about_the_whole_night_the_card_leads_with_its_bosses(monkeypatch):

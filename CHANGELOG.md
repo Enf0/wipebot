@@ -18,6 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   ![The website's "Try it": Sszorak's 33 pulls on 5 October, "10 of the 33 pulls ended with the boss gaining Unbound Ferocity and keeping it to the end.", best wipe 62.6% on pull 13, a bar per pull coloured by how it ended, and under it a box to paste your own night's link](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/website-night.webp)
 
+### Changed
+
+- `MCP` **A player's night sits in the chat on a phone.** In Claude the card no longer paints its own grey box over the chat, the pull numbers beside each cause of death are smaller chips (still a finger's tap), and their key sits above them where the scroll button can't cover it. The verdict reads "2 of those 8 deaths were survivable with a ready defensive or a healthstone", the box under it says "Astral Shift at both, a healthstone at 1" so the two never read as three deaths, and the headings are shorter ("Deaths that count", "Survivable", "What killed Enfo").
+
+  ![Enfo's night on Sszorak on a phone in Claude's dark theme: "Died before the wipe was decided on 8 of 32 pulls; 2 of those 8 deaths were survivable with a ready defensive or a healthstone", the tiles "Deaths that count 8 of 32" and "Survivable 2 of 8, Astral Shift at both, a healthstone at 1", and under "What killed Enfo" small pull chips per ability, pulls 19 and 28 in orange for Tempest](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/player-night-phone.webp)
+
 ### Fixed
 
 - `Agent` **Damage spikes are measured second by second.** The raid's damage taken came from Warcraft Logs' graph, which averages a long pull over some 20 s at a time, so short bursts were flattened: a Twin Fangs kill had no spike and showed its three busiest stretches, its highest 5 s 1.53M/s, where the log's damage taken table gives 1.9M/s. Each second's damage is now worked back out of that graph, as the table gives it: that kill shows four spikes, the biggest 6:29-6:37 at 1.82M/s with no healing cooldown in it, and an Entombed Sentinels pull that had none shows three. A pull with no spike at all shows its busiest 5 s, called so, in place of busiest stretches. The pull timeline's 5 s averages and the pull card's damage line and peaks read the same numbers, the table's: Sszorak pull 13's peak at 2:30 is 6.68M/s, where it read 5.73M/s, and a wipe's last burst stays in its last seconds instead of marking the 5 s before it.

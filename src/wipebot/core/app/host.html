@@ -130,7 +130,7 @@ window.addEventListener("message", async (event) => {
 });
 
 function changed() {
-  document.body.dataset.theme = $("theme").value;
+  document.body.dataset.theme = document.documentElement.style.colorScheme = $("theme").value;
   size();
   if (initialized) send({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params: context() });
 }
@@ -140,7 +140,9 @@ if (![...$("width").options].some((o) => o.value === String(S.width))) $("width"
 document.body.classList.toggle("bare", !!S.bare);
 for (const id of ["theme", "width", "mode", "tokens"]) $(id).onchange = changed;
 $("reload").onclick = () => window.wipebotReload ? window.wipebotReload() : location.reload();
-document.body.dataset.theme = S.theme;
+// the chat's own colour scheme, as Claude's and ChatGPT's pages set theirs: a frame in another scheme than its page
+// is drawn opaque, so a view's transparent background shows the chat behind it only when the two agree
+document.body.dataset.theme = document.documentElement.style.colorScheme = S.theme;
 load();
 </script>
 </body>

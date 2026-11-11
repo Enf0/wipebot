@@ -33,6 +33,11 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--font); }
+/* Inline in a chat the view is part of the chat's column: no card of its own behind it, the chat's own background
+   shows through (Claude's phone app paints its frame a lighter grey than the chat). Fullscreen and a picture keep
+   theirs. */
+:root:not([data-mode="fullscreen"]):not([data-picture]), :root:not([data-mode="fullscreen"]):not([data-picture]) body {
+  background: transparent; }
 /* Inline, the host sizes the frame to the page (Claude by measuring it, a few px short): it never scrolls itself */
 :root:not([data-mode="fullscreen"]), :root:not([data-mode="fullscreen"]) body { overflow: hidden; }
 /* --safe-*: what the host says its own controls or a phone's edges cover (bridge.js), kept clear in every view */
@@ -148,13 +153,16 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 .killers .kn { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .killers .kc { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; color: var(--dead-ink); }
 .killers .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.killers i.ic { display: inline-block; width: 16px; height: 16px; margin-right: 6px; flex: none; }
+.killers .no-blow .kn { color: var(--muted); font-style: italic; }  /* the log's words, not an ability */
 .chip { min-width: 24px; height: 20px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px/18px inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
 .chip.on { border-color: var(--ink); color: var(--ink); }
 .chip.fix { border-color: var(--decided); color: var(--ink); background: color-mix(in srgb, var(--decided) 14%, transparent); }
 .chip.unknown { border-style: dashed; }
 .chip.outright { text-decoration: line-through; }
 .chip.sample { display: inline-block; text-align: center; cursor: default; margin-right: 4px; }
-.note.keys .key + .key { margin-left: 12px; }
+.note.keys { margin: 0 2px 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.note.keys .key { white-space: nowrap; }
 [data-panel] + [data-panel] { margin-top: 10px; }
 .ranked { list-style: none; margin: 0 2px 8px; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) auto; gap: 4px 10px; align-items: center; font-size: 12.5px; }
 .ranked li { display: contents; }
@@ -273,9 +281,11 @@ table.pulls td.fallout { color: var(--muted); }
 @media (pointer: coarse) {
   button, .head .back, #rp-moments button { height: 44px; min-width: 44px; }
   .deaths li button { height: auto; min-height: 44px; }
-  button.chip, .chips.bosses button.chip { position: relative; height: 36px; min-width: 36px; font-size: 12px; }
-  button.chip::after { content: ""; position: absolute; inset: -4px; }
-  .killers .chips, .chips.bosses { gap: 8px; }
+  /* a chip's number is a label beside an ability, not a button: it stays small and only its reach grows */
+  button.chip, .chips.bosses button.chip { position: relative; height: 28px; min-width: 32px; font-size: 12px; line-height: 26px; }
+  button.chip::after { content: ""; position: absolute; inset: -8px -6px; }
+  .killers .chips, .chips.bosses { gap: 8px 12px; }
+  .killers { row-gap: 8px; }
   #rp-timeline { height: 44px; }
 }
 
