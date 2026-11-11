@@ -5,14 +5,14 @@ Assignments in the note's text:
   Virulence Spreads: Spread: Nexsozz Pomaa Fappachino Algmor Mizaroth Deathadim Agonco Slushmania Sonyosh Peggerino Scopidruid Zebinomage Krøpling Dragepie Draiman; Bait Serpent's Fury / Bite: Martin; Don't Stack: Enfo Namsus Miralupa Lïzårðmâñ
   Virulence trigger: Trigger: Martin
 Mutilate Soaks: each hit of Mutilate [1285999], given to the group called to soak within 20 s of it with most of its players hit (10 hits):
-  0:16 Left: 10 of 10 hit, 366.44k each
-  0:24 Right: 7 of 9 hit, 370.75k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll
-  0:55 Right: 7 of 9 hit, 375.54k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll
+  0:16 Left: 10 of 10 hit, 360.49k each
+  0:24 Right: 7 of 9 hit, 369.79k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll
+  0:55 Right: 7 of 9 hit, 369.71k each; not hit: Mizaroth (not in this pull), Miralupa (alive); also hit: Wutroll
   1:03 Left: 9 of 10 hit, 384.37k each; not hit: Namsus (alive)
   2:23 Left: 8 of 10 hit, 371.13k each; not hit: Scopidruid (alive), Namsus (alive); also hit: Fappachino (Right)
-  2:31 Right: 6 of 9 hit, 461.20k each; not hit: Mizaroth (not in this pull), Fappachino (alive), Miralupa (alive); also hit: Scopidruid (Left), Wutroll
-  3:06 Right: 3 of 9 hit, 564.44k each; not hit: Mizaroth (not in this pull), Fappachino (alive), Slushmania (alive), Peggerino (alive), Lïzårðmâñ (alive), Miralupa (alive); also hit: Enfo (Left), Scopidruid (Left), Wutroll
-  3:14 Left: 6 of 10 hit, 351.59k each; not hit: Scopidruid (alive), Draiman (dead since 3:00), Enfo (alive), Namsus (alive); also hit: Fappachino (Right), Lïzårðmâñ (Right), Peggerino (Right), Slushmania (Right)
+  2:31 Right: 6 of 9 hit, 460.10k each; not hit: Mizaroth (not in this pull), Fappachino (alive), Miralupa (alive); also hit: Scopidruid (Left), Wutroll
+  3:06 Right: 3 of 9 hit, 554.49k each; not hit: Mizaroth (not in this pull), Fappachino (alive), Slushmania (alive), Peggerino (alive), Lïzårðmâñ (alive), Miralupa (alive); also hit: Enfo (Left), Scopidruid (Left), Wutroll
+  3:14 Left: 6 of 10 hit, 335.96k each; not hit: Scopidruid (alive), Draiman (dead since 3:00), Enfo (alive), Namsus (alive); also hit: Fappachino (Right), Lïzårðmâñ (Right), Peggerino (Right), Slushmania (Right)
   Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Miralupa (0 of 4)
   2 more after the wipe was decided at 4:08
 Planned cooldowns (time in the note: what happened):

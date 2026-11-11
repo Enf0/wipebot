@@ -2,14 +2,14 @@ The raid note for Sszorak (Mythic), checked against Sszorak pull 42 (4:49, wipe,
 Printed for Enfo alone: their rows in full, the raid's as counts for scale (without `player`, every player's rows).
 Assignments in the note's text, Enfo's: Mutilate Soaks: Left (10 players); Virulence Spreads: Don't Stack (4 players)
 Mutilate Soaks: each hit of Mutilate [1285999], given to the group called to soak within 20 s of it with most of its players hit (10 hits):
-  0:16 Left: 10 of 10 hit, 366.44k each; Enfo: hit
-  0:24 Right: 7 of 9 hit, 370.75k each
-  0:55 Right: 7 of 9 hit, 375.54k each
+  0:16 Left: 10 of 10 hit, 360.49k each; Enfo: hit
+  0:24 Right: 7 of 9 hit, 369.79k each
+  0:55 Right: 7 of 9 hit, 369.71k each
   1:03 Left: 9 of 10 hit, 384.37k each; Enfo: hit
   2:23 Left: 8 of 10 hit, 371.13k each; Enfo: hit
-  2:31 Right: 6 of 9 hit, 461.20k each
-  3:06 Right: 3 of 9 hit, 564.44k each; Enfo: hit, from outside the group (Left)
-  3:14 Left: 6 of 10 hit, 351.59k each; Enfo: not hit (alive)
+  2:31 Right: 6 of 9 hit, 460.10k each
+  3:06 Right: 3 of 9 hit, 554.49k each; Enfo: hit, from outside the group (Left)
+  3:14 Left: 6 of 10 hit, 335.96k each; Enfo: not hit (alive)
   2 more after the wipe was decided at 4:08
 Planned cooldowns (time in the note: what happened), Enfo's 6 of the raid's 38 (on time 4, early 10, late 10, not cast 11, dead 3):
   1:08 Enfo Ascendance [114052]: cast at 1:16, 9 s late

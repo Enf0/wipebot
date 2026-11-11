@@ -12,7 +12,7 @@ Reminders to everyone (11 timed lines with a spell and no player to press it: th
 Orb Carriers: no ability of that name hit players on this pull
 Orb Carriers (2): no ability of that name hit players on this pull
 Guillotine Soaks: each hit of Guillotine [1283594], given to the group called to soak within 20 s of it with most of its players hit (2 hits):
-  0:48 P1 Soak 1: 4 of 6 hit, 149.54k each; not hit: Martin (not in this pull), Slushmania (not in this pull); also hit: Agonco, Algmor, Attractîv, Biblethump, Cptola (P1 Soak 2), Enfo (P3 Soak 3), Fappachino (P3 Soak 1/P3 Soak 3), Karadim (P1 Soak 2), Krøpling (P3 Soak 3), Miralupa (P3 Soak 3), Nalaxd (P1 Soak 2/P3 Soak 2), Namsus (P1 Soak 2/P3 Soak 2), Peggerino (P3 Soak 1/P3 Soak 3), Providence, Pwnpíe, Rouxao, Sveini, Zebinomage
+  0:48 P1 Soak 1: 4 of 6 hit, 147.31k each; not hit: Martin (not in this pull), Slushmania (not in this pull); also hit: Agonco, Algmor, Attractîv, Biblethump, Cptola (P1 Soak 2), Enfo (P3 Soak 3), Fappachino (P3 Soak 1/P3 Soak 3), Karadim (P1 Soak 2), Krøpling (P3 Soak 3), Miralupa (P3 Soak 3), Nalaxd (P1 Soak 2/P3 Soak 2), Namsus (P1 Soak 2/P3 Soak 2), Peggerino (P3 Soak 1/P3 Soak 3), Providence, Pwnpíe, Rouxao, Sveini, Zebinomage
   2:33 outside the note's soak times: 1 player hit, 45.45k each; counted for no one
 Planned cooldowns (time in the note: what happened):
   0:01 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 0:00, on time

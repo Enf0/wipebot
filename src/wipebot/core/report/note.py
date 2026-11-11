@@ -337,7 +337,9 @@ class SoakHit:
     label: str  # the group it was given to; "" for a hit given to none (`why`), which counts for no one
     group: list[str]
     hit: set[str]
-    size: float  # the median damage per player hit, absorbed included, of those it did any to (`unharmed`)
+    # the median damage per player hit, absorbed included, of those it did any to (`unharmed`): with an even number
+    # of them, halfway between the two middle ones (the upper one alone was what only one of two players took)
+    size: float
     absent: list[tuple[str, str]]  # (player of the group not hit, their state)
     others: list[tuple[str, str | None]]  # (player hit from outside the group, their groups if any)
     why: str = ""  # OUTSIDE, UNCLEAR, SEVERAL or UNPLACED
@@ -1269,9 +1271,9 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
             took: Counter = Counter()  # per player: a hit may come with a second event that did them nothing
             for e in burst:
                 took[rep.actor(e["targetID"])] += e.get("amount", 0) + e.get("absorbed", 0)
-            sizes = sorted(n for n in took.values() if n) or [0]
+            size = statistics.median([n for n in took.values() if n] or [0])
             label, why, near = _whose(set(took), at, members, calls, lambda n, at=at: state(n, at) == "alive")
-            section.hits.append(_given(SoakHit(at, "", [], set(took), sizes[len(sizes) // 2], [], [], why, near,
+            section.hits.append(_given(SoakHit(at, "", [], set(took), size, [], [], why, near,
                                                unharmed=sorted(n for n in took if not took[n])),
                                        label, members, owner, state))
         for h, turn in _in_turn(section.hits, calls):

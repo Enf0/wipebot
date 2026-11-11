@@ -13,7 +13,7 @@ Orb Carriers: no ability of that name hit players on this pull
 Orb Carriers (2): no ability of that name hit players on this pull
 Guillotine Soaks: each hit of Guillotine [1283594], given to the group called to soak within 20 s of it with most of its players hit (3 hits):
   0:48 P1 Soak 1: 6 of 6 hit, 453.14k each; also hit: Fappachino (P3 Soak 1/P3 Soak 3)
-  2:13 P1 Soak 2: 5 of 6 hit, 779.75k each but none to Cptola, Martin, Nalaxd (immune or missed in the log, and counted as hit); not hit: Namsus (alive)
+  2:13 P1 Soak 2: 5 of 6 hit, 731.66k each but none to Cptola, Martin, Nalaxd (immune or missed in the log, and counted as hit); not hit: Namsus (alive)
   2:46 outside the note's soak times: 1 player hit, 44.54k each; counted for no one
 Planned cooldowns (time in the note: what happened):
   0:01 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 0:00, on time

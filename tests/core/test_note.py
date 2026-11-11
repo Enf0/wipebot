@@ -446,8 +446,8 @@ async def test_a_check_asked_for_one_player_prints_their_rows_and_counts_the_rai
     assert len(own) < len(whole) / 2 and lines[0] == whole.splitlines()[0]
     assert lines[1].startswith("Printed for Enfo alone") and "Printed for" not in whole
     assert "Assignments in the note's text, Enfo's: Mutilate Soaks: Left (10 players); " in lines[2]
-    assert "  3:14 Left: 6 of 10 hit, 351.59k each; Enfo: not hit (alive)" in lines
-    assert "  0:24 Right: 7 of 9 hit, 370.75k each" in lines  # another group's soak: its count alone
+    assert "  3:14 Left: 6 of 10 hit, 335.96k each; Enfo: not hit (alive)" in lines
+    assert "  0:24 Right: 7 of 9 hit, 369.79k each" in lines  # another group's soak: its count alone
     assert ("Planned cooldowns (time in the note: what happened), Enfo's 6 of the raid's 38 (on time 4, early 10, "
             "late 10, not cast 11, dead 3):") in lines
     assert "  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, 1 s late" in lines
