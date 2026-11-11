@@ -1022,8 +1022,7 @@ def meter_headline(m: Meter, said: Stated | None = None) -> dict:
         return meter_amount(m, v) + ("" if m.unit in ("amount", "per minute") else f" {m.unit}")
     if m.then:
         t = m.then
-        pct = round((t.raid / t.raid_was - 1) * 100) if t.raid_was else None
-        change = "new" if pct is None else f"{pct:+d}%" if pct else "the same"
+        change = _change(t.raid, t.raid_was).replace("same", "the same")  # the one its tile and its text state
         return _headline(f"The raid's {m.scope.split(' per minute')[0]} from {m.title} per minute of its pulls: "
                          f"{amount(t.raid_was)} on {t.was_day}, {amount(t.raid)} on {t.day} ({change}).")
     b = m.bars[-1 if m.least else 0]

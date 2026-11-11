@@ -403,6 +403,7 @@ async def test_against_another_night_the_changes_are_the_ones_the_text_writes(re
     assert (f"per minute against {short(t['raid_was'])} ({t['change']}); deaths of any cause within {m['within_s']} s "
             f"of a hit {t['deaths_per_min'][1]} per minute against {t['deaths_per_min'][0]} ({t['deaths']} against "
             f"{t['deaths_was']})") in text
+    assert m["headline"]["text"].endswith(f" on {t['day']} ({t['change']}).")  # the sentence states the same change
     both = [b for b in m["bars"] if "was" in b]
     assert len(both) >= 15
     for b in both:
