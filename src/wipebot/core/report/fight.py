@@ -206,18 +206,19 @@ async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability
     them. Of an ability: its casts (the enemies' and the players'), its hits on players and their pets, its debuff
     going on and off players, its buff on the boss, and the deaths it dealt. Of a player: every cast they and their
     pets began or finished. What the plain timeline reads is in hand after it; an ability's hits are one more
-    request for each of its ids."""
+    request, whatever number of ids it is logged under."""
     p = rep.player(player) if player else None
     if p:
         rep.require_in(f, p)
     ids = sorted(rep.ability_ids(ability)) if ability else []
     fid = f["id"]
     if ability:
-        *logged, deaths = await asyncio.gather(
+        *logged, hits, deaths = await asyncio.gather(
             rep.events(fid, "Casts", hostilityType="Enemies"), rep.events(fid, "Casts"),
             rep.events(fid, "Debuffs", hostilityType="Friendlies"), rep.boss_buffs(f),
-            *(rep.events(fid, "DamageTaken", hostilityType="Friendlies", abilityID=i) for i in ids), rep.deaths(f))
-        events = [e for part in logged for e in part if e.get("abilityGameID") in ids]
+            rep.events_for([(fid, {"abilityID": i}) for i in ids], "DamageTaken", hostilityType="Friendlies"),
+            rep.deaths(f))
+        events = [e for part in (*logged, *hits) for e in part if e.get("abilityGameID") in ids]
         events += [d for d in deaths if d.get("killingAbilityGameID") in ids]
         name = " and ".join(sorted({rep.ability(i) for i in ids}))
         if p:

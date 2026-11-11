@@ -227,15 +227,15 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
     night = [f["id"] for f in rep.by_boss["Sszorak"]]
     table = await rep.table(21, "DamageTaken", hostilityType="Friendlies", viewBy="Ability")
     damaging = {e["guid"] for e in table["entries"]}
-    asked = rep.events
+    asked = []
 
-    async def events(fight_id, data_type, **filters):
-        if data_type != "DamageTaken" or "abilityID" not in filters:
-            return await asked(fight_id, data_type, **filters)
-        if filters["abilityID"] not in damaging:  # the id of the cast: the pull's table has no damage under it
-            return []
-        return [e for e in await asked(night, data_type, **filters) if e["fight"] == fight_id]
-    monkeypatch.setattr(rep, "events", events)
+    async def events_for(items, data_type, **filters):  # the hits of every id of the ability, in one request
+        asked.append((data_type, [extra for _, extra in items]))
+        assert data_type == "DamageTaken" and all(set(extra) == {"abilityID"} for _, extra in items)
+        return [[e for e in await rep.events(night, data_type, **filters, **extra) if e["fight"] == fight_id]
+                if extra["abilityID"] in damaging else []  # the id of the cast: the pull's table has no damage under it
+                for fight_id, extra in items]
+    monkeypatch.setattr(rep, "events_for", events_for)
     lines = (await fight.pull_timeline(rep, 13, "Sszorak", end="0:40", ability="tempest")).splitlines()
     assert lines[0] == ("Sszorak pull 13 timeline, 0:00-0:40, only Tempest (https://www.warcraftlogs.com/reports/"
                         "KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.")
@@ -251,6 +251,7 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
                           "0:15.342 damage: Sszorak → Tempest [1287083] → Dragepie; 0 (334.76k absorbed)"]
     assert "0:16.980 damage: Sszorak → Tempest [1287083] → Sveini; 258.01k (35.23k absorbed, a tick)" in lines
     assert lines[-1] == "Ability ids: Tempest [1287072, 1287083]" and len(lines) == 3 + 26 + 1
+    assert asked == [("DamageTaken", [{"abilityID": 1287072}, {"abilityID": 1287083}])]
     # by or on one player; and a window with nothing of it
     on_one = (await fight.pull_timeline(rep, 13, "Sszorak", end="0:40", ability="Tempest",
                                         player="sveini")).splitlines()
