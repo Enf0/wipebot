@@ -86,7 +86,7 @@ from .report import mana as manas
 from .report import note as notes
 from .report import plan as plans
 from .report import query as queries
-from .report.base import JOBS_NOT_LOGGED, NOT_AN_ASSIGNMENT, link_fights, read_as
+from .report.base import JOBS_NOT_LOGGED, NOT_AN_ASSIGNMENT, every_pull, link_fights, read_as
 from .text import day, name_key, plural
 from .wcl import WCLError
 
@@ -335,8 +335,9 @@ def _told(e: Exception) -> str:
 async def _link_note(kwargs: dict) -> str:
     """For a call whose report link names a fight, '' otherwise. One about pulls: which pull that fight is, since a
     fight's number isn't its pull's number on the boss, and that another was read when the call named one. One
-    about a boss's night says nothing of a pull, which it didn't read. Either, where the fight is no boss pull and
-    the call answered all the same (it named its pull, or is about the night): that the link named none."""
+    about a boss's night, or over every pull (`all_pulls`), says nothing of a pull, which it didn't read. Either,
+    where the fight is no boss pull and the call answered all the same (it named its pull, or is about the night):
+    that the link named none."""
     report, named = kwargs.get("report"), link_fights.get()
     if not (report and named and {"pull", "pulls", "boss"} & kwargs.keys()):
         return ""
@@ -345,7 +346,7 @@ async def _link_note(kwargs: dict) -> str:
     if (f := next((f for f in rep.fights if f["id"] == fight_id), None)) is None:
         return (f"Fight {fight_id} in the link isn't a boss pull of this report (trash, or a fight it doesn't have), "
                 "so the link was read as the report alone.")
-    if not {"pull", "pulls"} & kwargs.keys():
+    if not {"pull", "pulls"} & kwargs.keys() or kwargs.get("all_pulls"):
         return ""
     note = f"Fight {fight_id} in the link is {rep.label(f)}"
     try:
@@ -432,7 +433,8 @@ def guarded(fn, setup: Setup = DEFAULT):
     """`fn` as a tool of a server with `setup`. Bad arguments and source failures reach the model as readable tool
     errors. A question about the pull that just ended, before the live log has it, waits for it a little. A report
     link naming a fight makes that pull the call's default, and the result's first line says which pull it is
-    (`_link_note`), as it says which boss a name fitting several was read as (report.base.read_as).
+    (`_link_note`), as it says which boss a name fitting several was read as (report.base.read_as); over every
+    pull (`all_pulls`) the link's fight names only the boss.
     A call that takes longer than DEADLINE_S (REMOTE_DEADLINE_S serving many users) ends with an error saying which
     source it was waiting for. Serving many users, each call is logged with its user, kept (Remote.record; one its
     client gave up on as cancelled, with how long it ran) and read with their Warcraft Logs token
@@ -477,12 +479,14 @@ def guarded(fn, setup: Setup = DEFAULT):
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):
         token, linked = _current.set(setup), link_fights.set({})  # no fight another call's link named
+        night = every_pull.set(bool(kwargs.get("all_pulls")))  # its link's fight then names the boss and no pull
         waits, said = cut_off.set(set()), read_as.set([])
         try:
             return await (kept(setup.remote, *args, **kwargs) if setup.remote else run(*args, **kwargs))
         finally:
             read_as.reset(said)
             cut_off.reset(waits)
+            every_pull.reset(night)
             link_fights.reset(linked)
             _current.reset(token)
     return wrapper

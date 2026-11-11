@@ -283,6 +283,35 @@ async def test_a_link_to_a_fight_is_noted_only_where_a_pull_is_read_and_trash_is
             await a_pull(pull=None, boss=boss, report=link + "#fight=5")
 
 
+async def test_a_call_over_every_pull_reads_a_links_fight_as_its_boss_and_no_pull(monkeypatch, night):
+    """A tool asked for every pull on a boss (`all_pulls`) still looks one pull of it up, for the raid note saved
+    for the boss that night: a link to pull 13 led the night's answer with "Fight 21 in the link is Sszorak pull
+    13.", and a link to trash ended it in the error of a call that reads the link's pull."""
+    monkeypatch.setattr(server.DEFAULT, "library", server.Library(CODE, wcl=FakeWCL(night).client()))
+    link = f"https://www.warcraftlogs.com/reports/{CODE}"
+
+    async def hits(pull: int | None = None, boss: str | None = None, all_pulls: bool = False,
+                   report: str | None = None) -> str:
+        rep = await server.lib().report(report)
+        f = rep.fight(pull, boss)
+        return f"{rep.boss_key(f)}, " + ("every pull" if all_pulls else f"pull {rep.pull_no(f)}")
+    guarded = server.guarded(hits)
+
+    async def asked(report: str, boss: str | None = None, all_pulls: bool = False) -> str:
+        return await guarded(pull=None, boss=boss, all_pulls=all_pulls, report=link + report)  # as the SDK calls it
+    # the link chooses the boss, as it does for a tool about a boss's night, and no line names a pull
+    assert await asked("#fight=21", all_pulls=True) == "Sszorak, every pull"
+    assert await asked("#fight=2", all_pulls=True) == "Vashnik the Malignant, every pull"
+    assert await asked("?fight=21", boss="Vashnik", all_pulls=True) == "Vashnik the Malignant, every pull"
+    assert await asked("#fight=5", all_pulls=True) == (
+        "Fight 5 in the link isn't a boss pull of this report (trash, or a fight it doesn't have), so the link was "
+        "read as the report alone.\nSszorak, every pull")
+    # a call for one pull right after is read as one: the link's pull, and trash is its error
+    assert await asked("#fight=21") == "Fight 21 in the link is Sszorak pull 13.\nSszorak, pull 13"
+    with pytest.raises(ToolError, match="fight 5 in the link isn't a boss pull of report"):
+        await asked("#fight=5")
+
+
 async def test_a_mechanic_no_guide_names_is_answered_from_its_tooltip(monkeypatch, rep, patch_wcl, fake_knowledge):
     """An ability asked for by its name in the log, which no guide has under this boss or another: what its tooltip
     says, by the ids the report has it under, where the call used to end in an error after a long search."""

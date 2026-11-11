@@ -299,6 +299,16 @@ async def test_a_call_naming_its_pulls_takes_a_link_to_trash_and_says_it_named_n
     assert not failed and text + "\n" == TRASH + await run(CASES["compare-pulls"])
 
 
+async def test_a_call_over_every_pull_says_nothing_of_the_pull_a_link_names_and_takes_a_link_to_trash(recorded):
+    """mechanic_hits over the night read no single pull, yet led with "Fight 21 in the link is Sszorak pull 13.";
+    given a link to trash it was refused, as a call reading the link's pull is."""
+    args, night = CASES["mechanic-hits"].args, await run(CASES["mechanic-hits"])
+    text, failed = await server.call("mechanic_hits", args | {"report": LINK + "#fight=21"})
+    assert not failed and text + "\n" == night
+    text, failed = await server.call("mechanic_hits", args | {"report": LINK + "#fight=5"})
+    assert not failed and text + "\n" == TRASH + night
+
+
 async def test_breakdown_takes_a_pull_by_name_as_the_other_tools_do(recorded):
     text, failed = await server.call("breakdown", {"report": "KBYT4xXn7VNjDgh8", "data_type": "DamageTaken",
                                                     "group_by": "ability", "pulls": ["best wipe"]})
