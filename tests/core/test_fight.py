@@ -519,6 +519,21 @@ def test_the_boss_health_follows_the_boss_of_the_next_phase():
                              Counter({121: 9})) == [(0, 100), (240_000, 40)]  # a boss alive to the end stays
 
 
+async def test_a_stack_two_reach_in_one_moment_names_both(rep, monkeypatch):
+    """The timeline named whoever's event came first: "Helical Toxins reaches 14 stacks on Fappachino" where
+    Dragepie reached 14 in the same millisecond. One who reaches it seconds later is not who it "reaches" it on."""
+    f = rep.fight(13, "Sszorak")
+    a, b, c = (rep.player(name).id for name in ("Fappachino", "Dragepie", "Pomaa"))
+    rep.abilities[901] = "Helical Toxins"
+
+    async def debuffs(*_):
+        return [{"timestamp": f["startTime"] + at, "type": "applydebuffstack", "targetID": who, "abilityGameID": 901,
+                 "stack": n} for at, who, n in ((160_000, a, 13), (168_278, a, 14), (168_278, b, 14), (172_000, c, 14))]
+    monkeypatch.setattr(fight, "_boss_debuffs", debuffs)
+    assert [text for _, text in (await fight._debuff_stacks(rep, f)).events] == [
+        "Helical Toxins reaches 13 stacks on Fappachino", "Helical Toxins reaches 14 stacks on Fappachino, Dragepie"]
+
+
 async def test_the_deaths_an_ability_dealt_are_among_its_events_in_a_timeline_of_it(rep):
     """The captured night has its deaths and no casts or hits: of an ability, the deaths it dealt are what is left."""
     text = await fight.pull_timeline(rep, 13, "Sszorak", end="1:00", ability="Ula'tek's Presence")

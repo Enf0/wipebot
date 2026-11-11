@@ -463,16 +463,20 @@ async def _boss_debuffs(rep: Report, f: dict) -> list[dict]:
 
 
 async def _debuff_stacks(rep: Report, f: dict) -> Found:
-    """A stacking debuff's highest stack in the pull, and the step before it."""
-    stacks: dict[str, dict[int, dict]] = defaultdict(dict)  # debuff -> stack count -> the first event reaching it
+    """A stacking debuff's highest stack in the pull, and the step before it: when it was first reached and on whom,
+    everyone who reached it in that moment (within SAME_HIT_MS: the log orders two in one millisecond by nothing)."""
+    stacks: dict[str, dict[int, list[dict]]] = defaultdict(dict)  # debuff -> stack count -> the events reaching it
     for e in await _boss_debuffs(rep, f):
         if e["type"] == "applydebuffstack" and e.get("stack"):
-            stacks[rep.ability(e["abilityGameID"])].setdefault(e["stack"], e)
+            stacks[rep.ability(e["abilityGameID"])].setdefault(e["stack"], []).append(e)
     out = Found()
     for name, reached in stacks.items():
         if (peak := max(reached)) >= STACKS_SHOWN:
-            out.events += [(e["timestamp"], f"{name} reaches {n} stacks on {rep.names[e['targetID']]}")
-                           for n in (peak - 1, peak) if (e := reached.get(n))]
+            for first, *rest in (reached[n] for n in (peak - 1, peak) if n in reached):
+                who = list(dict.fromkeys(rep.names[e["targetID"]] for e in (first, *rest)
+                                         if e["timestamp"] - first["timestamp"] <= SAME_HIT_MS))
+                on = ", ".join(who) if len(who) <= 3 else plural(len(who), "player")
+                out.events.append((first["timestamp"], f"{name} reaches {first['stack']} stacks on {on}"))
     return out
 
 
