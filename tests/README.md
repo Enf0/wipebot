@@ -2,10 +2,11 @@
 
 One folder per layer of `src/wipebot`: `core/`, `mcp/` and `discord/` (`core/conftest.py` and
 `discord/conftest.py` have their fixtures); `fixtures/` holds the data they share. `just test` runs them all; `just
-check` adds ruff, ty and the layers' import contracts. The suite takes a few seconds and never touches the network:
-the root `conftest.py`'s `offline` fixture, on for every test here, refuses any connection but to this machine and
-any warcraft_cli command (a subprocess), so a test that would ask Warcraft Logs or a guide site fails at once instead
-of passing only with someone's login.
+check` adds ruff, ty and the layers' import contracts. The suite takes about four minutes with Playwright's Chromium,
+whose pages are its slowest tests (the tool cases alone, `just test tests/core/test_tools.py`, about twenty seconds),
+and never touches the network: the root `conftest.py`'s `offline` fixture, on for every test here, refuses any
+connection but to this machine and any warcraft_cli command (a subprocess), so a test that would ask Warcraft Logs or
+a guide site fails at once instead of passing only with someone's login.
 
 ## What each kind proves
 
@@ -83,14 +84,29 @@ Every pull's summary (`fixtures/real/<code>.summaries.md`) and each tool case (`
 After an intended change to an output, `just snapshot` rewrites them: read the diff before keeping it. Don't repeat a
 snapshot's wording in a test: test a fact it can't hold (a made-up situation, a rule) as a structured assert.
 
+## Size budgets
+
+`fixtures/real/tools/sizes.toml` holds each tool case's budget: the size of its pinned output, in characters (the
+local cases' in `local/sizes.toml`, untracked like their snapshots). The model reads a tool's whole output on every
+call, so an output that grows costs every answer that reads it, and a snapshot's diff shows changed text, not that it
+is a fifth longer. `test_no_tool_output_outgrew_its_size_budget` (`core/test_tools.py`) fails for an output past its
+budget by more than a tenth, or by more than 200 characters where that is more.
+
+`just snapshot` lowers a line when its output shrank and adds a new case's. It never raises one: where the growth is
+meant, raise the line by hand and give the reason in the commit; where it isn't, cut what repeats.
+
 ## Adding a tool's case
 
-1. Add a line to `fixtures/real/tools/cases.toml`, ideally on a boss other than Sszorak.
-2. `just record-tools` runs every case on the evals' frozen data (`evals/cache.sqlite`, if you have it) plus what
-   was recorded before (which wins), fetches only what neither has, and keeps exactly the answers the cases asked
-   for.
-3. `just test -k <name>` writes the new snapshot and fails once: read it, then run again.
-4. A case reading rankings, another guild's report or a Raidbots file: `local = true`.
+1. Add a line to `fixtures/real/tools/cases.toml`, ideally on a boss other than Sszorak. A case reading rankings,
+   another guild's report or a Raidbots file: `local = true`.
+2. `just record-tools` records again: every case, not only the new one, with each case's view data and the replay
+   viewer's. It runs them on the evals' frozen data (`evals/cache.sqlite`, if you have it) plus what was recorded
+   before (which wins), fetches only what neither has, and keeps exactly the answers the cases asked for. With
+   nothing to fetch that takes about half a minute and needs no keys; what a new case asks Warcraft Logs is fetched
+   with your keys in `.env`, for its points. `recorded.sqlite` is one binary file of some 25 MB: a recording that
+   changes an answer changes the file, a diff git can't show, and an answer no case asks any more leaves it.
+3. `just snapshot` writes the new snapshot, failing once for it, and adds the case's line to `sizes.toml`: read the
+   snapshot, then `just test`. (`just test -k <name>` writes the snapshot too, and leaves the size line out.)
 
 A change that moves what a case asks Warcraft Logs (another cut, another set of pulls) leaves its recording
 without the answer. Mark the case `stale = "<what changed>"` in cases.toml: its test is skipped until
