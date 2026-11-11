@@ -85,7 +85,6 @@ views.pull = (() => {
   }
 
   const { labels, niceMax } = kit;
-  const PEAK_BEFORE_MS = 10000;  // a healer cooldown this long before a damage peak is named with it
   // a cooldown's mark in the card's one row of them: the raid's a dot, a healer's a plus
   const RAID_MARK = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="3.2" fill="var(--blue)"/>`;
   const HEALER_MARK = (cx, cy) => `<path d="M${cx - 4} ${cy}h8M${cx} ${cy - 4}v8" stroke="var(--green)" stroke-width="2.4" fill="none"/>`;
@@ -162,12 +161,14 @@ views.pull = (() => {
     const dx = D.decided ? x(D.decided.ms) : null;
     const yD = (v) => bottom - v / max * plotH;
     if (per.length) {
-      // the peaks (twice the pull's median or more): a band behind, the healer cooldowns near it in its tooltip
+      // the peaks (twice the pull's median or more): a band behind, and in its tooltip the healer cooldowns pressed
+      // in it or shortly before, as long before as the healing answer counts a cooldown as used for a spike (lead_ms)
+      const lead = D.damage.lead_ms;
       for (const pk of peaks) {
-        const near = D.cooldowns.filter((c) => c.kind === "healing" && c.ms >= pk.from_ms - PEAK_BEFORE_MS && c.ms <= pk.to_ms);
+        const near = D.cooldowns.filter((c) => c.kind === "healing" && c.ms >= pk.from_ms - lead && c.ms <= pk.to_ms);
         const tip = `Raid damage peak ${kit.clock(pk.from_ms)}-${kit.clock(pk.to_ms)}: up to ${kit.short(pk.per_s)}/s, twice the pull's median or more`
-          + (near.length ? `\nHealer cooldowns from ${PEAK_BEFORE_MS / 1000} s before: ${near.map((c) => `${c.name}${c.player ? ` (${c.player})` : ""} ${kit.clock(c.ms)}`).join(", ")}`
-            : `\nNo healer cooldown from ${PEAK_BEFORE_MS / 1000} s before`);
+          + (near.length ? `\nHealer cooldowns from ${lead / 1000} s before: ${near.map((c) => `${c.name}${c.player ? ` (${c.player})` : ""} ${kit.clock(c.ms)}`).join(", ")}`
+            : `\nNo healer cooldown from ${lead / 1000} s before`);
         o += `<rect x="${x(pk.from_ms)}" y="${top}" width="${Math.max(2, x(pk.to_ms) - x(pk.from_ms))}" height="${plotH}" fill="var(--dead)" opacity=".09"${kit.tip(tip)}/>`;
       }
       const pts = per.map(([ms, v]) => [Math.min(ms + step / 2, D.duration_ms), v]);

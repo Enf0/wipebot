@@ -85,6 +85,7 @@ from .ending import (
     pull_endings,
 )
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
+from .healing import COOLDOWN_LEAD_MS
 from .meter import Meter
 from .night import BossNight, kill_rankings, wipe_thirds
 from .ranks import CAPPED_HEALING, SHORT_PULL, Spread, kill_parses, kills_spread, metric_of
@@ -214,8 +215,10 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
                     "name": rep.phase_names.get((f["encounterID"], t["id"]), "")}
                    for t in f.get("phaseTransitions") or []],
         "health": health,
+        # lead_ms: a healer's cooldown this soon before a peak is named with it, the band healing's text has for a
+        # cooldown used for a spike ("or up to 5 s before")
         "damage": {"step_ms": DAMAGE_BUCKET_MS, "per_s": [[b * DAMAGE_BUCKET_MS, round(v)] for b, v in damage.items()],
-                   "peaks": damage_peaks(damage)},
+                   "peaks": damage_peaks(damage), "lead_ms": COOLDOWN_LEAD_MS},
         "casts": [{"ms": round(c.at - t0), "name": c.name, "tracked": c.tracked, "icon": icon(found.ids.get(c.name))}
                   for c in casts],
         "cooldowns": [{"ms": round(at - t0), "kind": kind.split()[0], "name": name, "player": who}

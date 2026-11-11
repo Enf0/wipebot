@@ -119,6 +119,30 @@ async def test_the_pull_cards_best_wipes_are_written_as_the_text_writes_a_percen
     assert not errors and "best of this log 63.2%" in said and "41.2%\nThu 9 Oct" in said
 
 
+async def test_a_damage_peak_names_the_healer_cooldowns_as_long_before_it_as_healing_counts_one(recorded, monkeypatch):
+    """How long before a raid damage peak a healer's cooldown is named with it is the band healing's text has for a
+    cooldown used for a spike, handed to the page: the chart kept 10 s of its own beside the answer's 5 s."""
+    from wipebot.core.report.healing import COOLDOWN_LEAD_MS
+    src = resources.files("wipebot.core").joinpath("app", "pull.js").read_text(encoding="utf-8")
+    assert "PEAK_BEFORE_MS" not in src and "10000" not in src
+    data = await pull_data()
+    assert data["damage"]["lead_ms"] == COOLDOWN_LEAD_MS == 5_000
+    peak = {"from_ms": 150_000, "to_ms": 160_000, "per_s": 5_000_000}
+    pressed = [{"ms": peak["from_ms"] - COOLDOWN_LEAD_MS - 1, "kind": "healing", "name": "Too Soon", "player": "Rowan"},
+               {"ms": peak["from_ms"] - COOLDOWN_LEAD_MS, "kind": "healing", "name": "In Time", "player": "Ash"},
+               {"ms": peak["to_ms"], "kind": "healing", "name": "In It", "player": "Wren"},
+               {"ms": peak["to_ms"] - 1, "kind": "raid", "name": "The Raid's", "player": "Sage"}]
+    tips = []
+    for cooldowns in (pressed, pressed[:1]):
+        made_up_view(monkeypatch, {"view": "pull", "report": data["report"], "pull": data["pull"]}, data | {
+            "damage": data["damage"] | {"peaks": [peak]}, "cooldowns": cooldowns})
+        async with drawn("pull_summary", {}, mode="fullscreen", width=1100) as (view, errors):
+            tips.append(await view.locator('svg rect[data-tip^="Raid damage peak"]').first.get_attribute("data-tip"))
+        assert not errors, errors
+    assert tips[0].endswith("\nHealer cooldowns from 5 s before: In Time (Ash) 2:25, In It (Wren) 2:40")
+    assert tips[1].endswith("\nNo healer cooldown from 5 s before")
+
+
 def test_damage_peaks_are_the_runs_pull_timeline_marks_twice_the_median():
     damage = {0: 100.0, 1: 100.0, 2: 250.0, 3: 300.0, 4: 100.0, 5: 100.0, 6: 199.0, 7: 200.0, 8: 100.0}  # median 100
     step = views.DAMAGE_BUCKET_MS
