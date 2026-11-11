@@ -57,17 +57,16 @@ def _verdict(pressed: list[str]) -> list[str]:
     was ready (`if_pressed`'s lines, which stay below as the working). None when the death couldn't be replayed.
     It claims no more than the working does: a healthstone only if they had one, and nothing ruled out that the
     replay couldn't tell."""
-    tried = [line.strip() for line in pressed[1:] if line.startswith("  ")]
+    tried = [line for line in pressed[1:] if line.startswith("  ")]
     if not tried:
         return []
-    if saved := [A_HEALTHSTONE if line.startswith(A_HEALTHSTONE) else line.split(" (")[0]
-                 for line in tried if line.endswith(f": {SAVED}")]:  # not one that would "only if it held"
+    if saved := savers(pressed):
+        stone = A_HEALTHSTONE.split(" (")[0]
         return [f"Would have kept them alive, if pressed (replayed below; secondary to what killed them): "
-                f"{', '.join(saved)}."]
-    unsure = sum("can't" in line for line in tried)
-    if unsure:
-        return [f"Nothing that was ready is sure to have kept them alive on its own (replayed below): {unsure} of "
-                f"{len(tried)} can't be told."]
+                f"{', '.join(A_HEALTHSTONE if name == stone else name for name in saved)}."]
+    if lived(pressed) is None:
+        return [f"Nothing that was ready is sure to have kept them alive on its own (replayed below): "
+                f"{untold(pressed)} of {len(tried)} can't be told."]
     return ["Nothing that was ready would have kept them alive on its own (replayed below)."]
 
 
@@ -487,11 +486,32 @@ async def _kits(rep: Report, played: dict[int, dict[int, Player]]
 
 SAVED = "would have kept them alive"  # if_pressed's verdict for a spell that would have
 NOT_ENOUGH = "not enough on its own"  # and for one that wouldn't have
+UNTOLD = "a ready spell's effect can't be told"  # why a replayed death has no answer (`lived` is None)
 
 
 def savers(replayed: list[str]) -> list[str]:
-    """What would have kept them alive, from a death's if_pressed lines: each spell's name ("a healthstone")."""
-    return [line.strip().split(" (")[0] for line in replayed[1:] if f": {SAVED}" in line]
+    """What would have kept them alive, from a death's if_pressed lines: each spell's name ("a healthstone"). Only a
+    line that ends in that verdict: an immunity that would have "only if it held for all 5 s ... so can't be sure"
+    is no saver, in a count as in a death's recap."""
+    return [line.strip().split(" (")[0] for line in replayed[1:] if line.endswith(f": {SAVED}")]
+
+
+def untold(replayed: list[str]) -> int:
+    """How many of a death's if_pressed lines can't say what their spell would have done: a tooltip without an
+    amount, area damage the log doesn't mark, an immunity sure for a moment only."""
+    return sum("can't" in line for line in replayed[1:])
+
+
+def lived(replayed: list[str], outright: bool = False) -> bool | None:
+    """Whether something ready would have kept them alive, the one reading of a death's if_pressed lines that
+    death_recap's first line, defensives and player_night give. True: a spell would have (`savers`). False: nothing
+    ready would have, each line saying so, or the death killed `outright`. None: the log can't tell, the death not
+    replayed (no overkill or health logged) or no spell sure to have and one whose effect can't be told."""
+    if savers(replayed):
+        return True
+    if outright:
+        return False
+    return None if len(replayed) <= 1 or untold(replayed) else False
 
 
 @dataclass(frozen=True)
@@ -539,12 +559,14 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
     fights = rep.pulls_with(p, fights)
     replayed = await replay_deaths(rep, p, fights, whole_pull)
     done = [r for r in replayed if not r.mass]
-    saved = sum(bool(savers(r.more)) for r in done)
+    saved = sum(lived(r.more, r.outright) is True for r in done)
+    unsure = sum(bool(r.more) and lived(r.more, r.outright) is None for r in done)  # replayed, and it can't tell
     scope = "before each wipe was decided" if not whole_pull else "in the whole pulls"
     attempts, resets = rep.attempts(fights)
     lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, over "
              f"{plural(len(attempts), 'pull')}{resets}, each replayed with what was ready (secondary to what killed "
-             f"them): a ready defensive or a healthstone would have kept them alive at {saved} of them."]
+             f"them): a ready defensive or a healthstone would have kept them alive at {saved} of them"
+             + (f" (can't tell at {unsure} more: {UNTOLD})" if unsure else "") + "."]
     if on_reset := [f"pull {rep.pull_no(f)} {clock(d['timestamp'] - f['startTime'])}"
                     for f in fights if f not in attempts for d in await rep.deaths(f) if d["targetID"] == p.id]:
         lines.append(f"Not counted, {plural(len(on_reset), 'death')} on a reset (the boss untouched, no attempt): "

@@ -1,7 +1,7 @@
 """Deaths and defensives (report/deaths.py). How they read on real pulls is pinned by the tool cases
 (test_tools.py)."""
 from tests.support import RESTO_SPELLS
-from wipebot.core.report import deaths
+from wipebot.core.report import coaching, deaths
 from wipebot.core.report.fight import boss_left
 
 
@@ -94,3 +94,51 @@ def test_a_recaps_verdict_is_the_replays_answer_in_one_line():
         "not enough on its own", deaths.SAVED)]) == [
         "Would have kept them alive, if pressed (replayed below; secondary to what killed them): Feint."]
 
+
+HEAD = "If pressed (12.72k overkill to make up, healing as it was; ...):"
+STONE = ("  a healthstone (if they had one; none used this pull) (heals 25% of maximum health): heals 215.34k pressed "
+         "1.1 s before the killing hit: would have kept them alive")
+SHORT = "  Barkskin (20% less damage for 8 s): 30.00k less of the 150.00k it covers: not enough on its own"
+BLIND = "  Evasion: its tooltip doesn't say how much it does; can't tell"
+CLOAK = ("  Cloak of Shadows (immune to magic damage for 5 s): 80.00k less of the 80.00k it covers: would have kept "
+         "them alive only if it held for all 5 s: its tooltip promises the immunity for a moment, so can't be sure")
+
+
+def test_a_spell_that_would_only_if_it_held_is_no_saver_in_any_count():
+    """savers() took any line with "would have kept them alive" in it, so Cloak of Shadows' "only if it held for all
+    5 s ... so can't be sure" counted as a save in defensives, in player_night and on the cards, where the death's
+    own recap said nothing was sure to have."""
+    assert deaths.savers([HEAD, CLOAK]) == []
+    assert deaths.savers([HEAD, CLOAK, SHORT, STONE]) == ["a healthstone"]
+    # One reading for every count: something would have, nothing would have, or the log can't tell.
+    assert deaths.lived([HEAD, CLOAK, STONE]) is True and deaths.lived([HEAD, SHORT]) is False
+    assert deaths.lived([HEAD, CLOAK]) is None and deaths.lived([HEAD, SHORT, BLIND]) is None
+    assert deaths.lived([]) is None and deaths.lived([], outright=True) is False
+    # ... and the recap's first line is that reading.
+    assert deaths._verdict([HEAD, CLOAK])[0].startswith("Nothing that was ready is sure to have kept them alive")
+    assert deaths._verdict([HEAD, SHORT])[0].startswith("Nothing that was ready would have kept them alive")
+
+
+async def test_a_death_the_replay_cant_tell_is_counted_apart_in_defensives_and_the_players_night(rep, monkeypatch):
+    """Four of Draiman's deaths on the tests' night, with made-up replays: a healthstone would have at one, nothing
+    would have at one, Cloak of Shadows "only if it held" at one (it counted as kept alive), and one wasn't replayed."""
+    p = rep.player("Draiman")
+    pulls, *_ = await coaching.night_pulls(rep, p, rep.by_boss["Sszorak"])
+    died = [(x, x.death[1]) for x in pulls if x.counted and x.death][:4]
+    counted = [x for x, _ in died]
+    replays = [[HEAD, CLOAK, STONE], [HEAD, SHORT], [HEAD, CLOAK, SHORT], []]
+    made = [deaths.Replayed(x.f, d, more, False) for (x, d), more in zip(died, replays, strict=True)]
+    first, _, unsure, _ = (rep.pull_no(x.f) for x in counted)
+    assert coaching._night_lived(rep, counted, made) == (
+        "A ready defensive or a healthstone would have kept them alive at 1 of the 4 deaths that count (death_recap "
+        f"replays each): pull {first}; a healthstone 1; can't tell at 2 (no overkill or health logged at 1, a ready "
+        "spell's effect can't be told at 1).")
+
+    async def replay_deaths(*_):
+        return made
+    monkeypatch.setattr(deaths, "replay_deaths", replay_deaths)
+    lines = (await deaths.defensives(rep, "Sszorak", player="Draiman")).splitlines()
+    assert lines[0].endswith("a ready defensive or a healthstone would have kept them alive at 1 of them (can't tell "
+                             "at 1 more: a ready spell's effect can't be told).")
+    assert any(line.startswith(f"- pull {unsure} ") and "so can't be sure" in line for line in lines)
+    assert lines[-1].startswith("Can't tell at 1 (no overkill or health logged): ")

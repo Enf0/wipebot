@@ -16,7 +16,7 @@ from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report,
 from .build import gear_stats, hero_of, prepared
 from .casting import alive, cast_counts, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
-from .deaths import Replayed, in_mass_hits, replay_deaths, savers
+from .deaths import UNTOLD, Replayed, in_mass_hits, lived, replay_deaths, savers
 from .ending import MASS_HIT, MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
 from .tables import totals_by_name
@@ -498,34 +498,37 @@ async def player_night(rep: Report, player: str, boss: str | None = None) -> str
                        _night_lived(rep, pulls, replayed), len(in_mass_hits(replayed)))
 
 
-def night_lived(rep: Report, pulls: list[NightPull], replayed: list[Replayed]) -> list[tuple[int, dict, list[str],
-                                                                                          bool | None]]:
+def night_lived(rep: Report, pulls: list[NightPull], replayed: list[Replayed]
+                ) -> list[tuple[int, dict, list[str], bool | None, bool]]:
     """Each death of a player's night that counts (their first in a pull, before its wipe was decided, not in a hit
     killing many), replayed with what was ready: (pull, the death, what would have kept them alive, whether
-    something ready would have: None when the log can't tell, no overkill or health logged)."""
+    something ready would have (deaths.lived: None when the log can't tell), whether it was replayed at all: no
+    overkill or health logged, it wasn't)."""
     replays = {(r.f["id"], r.d["timestamp"]): r for r in replayed}
     out = []
     for x in pulls:
         if x.counted and x.death:
             r = replays.get((x.f["id"], x.death[1]["timestamp"]))
-            more = savers(r.more) if r else []
-            out.append((rep.pull_no(x.f), x.death[1], more,
-                        True if more else False if r and (r.more or r.outright) else None))
+            out.append((rep.pull_no(x.f), x.death[1], savers(r.more) if r else [],
+                        lived(r.more, r.outright) if r else None, bool(r and r.more)))
     return out
 
 
 def _night_lived(rep: Report, pulls: list[NightPull], replayed: list[Replayed]) -> str | None:
     """player_night's line on whether something ready would have kept them alive at their deaths that count."""
-    if not (lived := night_lived(rep, pulls, replayed)):
+    if not (found := night_lived(rep, pulls, replayed)):
         return None
-    saved = [(n, more) for n, _, more, ok in lived if ok]
+    saved = [(n, more) for n, _, more, ok, _ in found if ok]
     by = Counter(s for _, more in saved for s in more)
-    unknown = sum(ok is None for *_, ok in lived)
+    unknown = [replayed for *_, ok, replayed in found if ok is None]
+    unlogged, untold = unknown.count(False), unknown.count(True)
+    why = (f"no overkill or health logged at {unlogged}, {UNTOLD} at {untold}" if unlogged and untold
+           else UNTOLD if untold else "no overkill or health logged")
     return (f"A ready defensive or a healthstone would have kept them alive at {len(saved)} of the "
-            f"{plural(len(lived), 'death')} that count (death_recap replays each)"
+            f"{plural(len(found), 'death')} that count (death_recap replays each)"
             + (f": pull{'s' if len(saved) > 1 else ''} {', '.join(str(n) for n, _ in saved)}; "
                + ", ".join(f"{s} {n}" for s, n in by.most_common()) if saved else "")
-            + (f"; can't tell at {unknown} (no overkill or health logged)" if unknown else "") + ".")
+            + (f"; can't tell at {len(unknown)} ({why})" if unknown else "") + ".")
 
 
 async def _night_lost_at_cap(rep: Report, p: Player, fights: list[dict]) -> str | None:
