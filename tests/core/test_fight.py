@@ -395,3 +395,27 @@ async def test_the_deaths_an_ability_dealt_are_among_its_events_in_a_timeline_of
                          "Ability ids: Ula'tek's Presence [1285965]"]
     with pytest.raises(fight.FactError, match="the window's end must be after its start"):
         await fight.pull_timeline(rep, 13, "Sszorak", start="1:00", end="0:30", ability="Tempest")
+
+
+async def test_a_timeline_of_a_players_casts_has_their_deaths_and_says_when_they_died_before_an_empty_window(
+        rep, patch_wcl):
+    """Rows that stop, or a window with none, read as a player who stopped pressing: the log knows they had died."""
+    f = rep.fight(13, "Sszorak")
+    druid = rep.player("Scopidruid")
+    rep.abilities[190984] = "Wrath"  # the captured night has only the abilities of its deaths
+    casts = [{"timestamp": f["startTime"] + at, "type": kind, "sourceID": druid.id, "abilityGameID": 190984,
+              "fight": f["id"], **target} for at, kind, target in ((46_602, "begincast", {}),
+                                                                  (47_434, "cast", {"targetID": 21}))]
+    logged = rep.wcl.events
+
+    async def events(code, fight_id, data_type, **filters):
+        return casts if data_type == "Casts" else await logged(code, fight_id, data_type, **filters)
+    patch_wcl(rep, events=events)
+    lines = (await fight.pull_timeline(rep, 13, "Sszorak", start="0:40", player="Scopidruid")).splitlines()
+    assert lines[1] == ("Every cast Scopidruid and their pets began or finished, and their deaths: 3 events in Sszorak "
+                        "pull 13, times from the pull's start.")
+    assert lines[2:5] == ["0:46.602 begincast: Scopidruid → Wrath", "0:47.434 cast: Scopidruid → Wrath → Boss",
+                          "0:48.031 death: Scopidruid; killing blow Ula'tek's Presence"]
+    after = await fight.pull_timeline(rep, 13, "Sszorak", start="0:50", end="1:10", player="Scopidruid")
+    assert after.splitlines()[1:] == ["No cast of Scopidruid's is logged in this window: their last death before it "
+                                      "was at 0:48.031."]

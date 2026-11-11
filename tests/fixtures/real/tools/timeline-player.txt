@@ -1,6 +1,6 @@
 Sszorak pull 13 timeline, 0:30-0:50, only Scopidruid's casts (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.
-Every cast Scopidruid and their pets began or finished: 37 events in Sszorak pull 13, times from the pull's start.
-Counted: 24 cast, 13 begincast; by ability: Wrath 25, Starsurge 4, Moonfire 2, Barkskin 1, Starfall 1, Solar Eclipse 1, Empowering Venom 1, Incarnation: Chosen of Elune 1 and 1 more (1 event); from: Scopidruid 37; on: Sszorak 19.
+Every cast Scopidruid and their pets began or finished, and their deaths: 38 events in Sszorak pull 13, times from the pull's start.
+Counted: 24 cast, 13 begincast, 1 death; by ability: Wrath 25 (12 cast, 13 begincast), Starsurge 4, Moonfire 2, Barkskin 1, Starfall 1, Solar Eclipse 1, Empowering Venom 1, Incarnation: Chosen of Elune 1 and 1 more (1 event); from: Scopidruid 37; on: Sszorak 19, Scopidruid 1.
 0:30.196 cast: Scopidruid → Barkskin
 0:30.532 begincast: Scopidruid → Wrath
 0:30.905 begincast: Scopidruid → Wrath
@@ -38,4 +38,5 @@ Counted: 24 cast, 13 begincast; by ability: Wrath 25, Starsurge 4, Moonfire 2, B
 0:46.602 begincast: Scopidruid → Wrath
 0:47.434 cast: Scopidruid → Wrath → Sszorak
 0:47.434 cast: Scopidruid → Moonfire → Sszorak
-Ability ids: Barkskin [22812], Empowering Venom [1293316], Incarnation: Chosen of Elune [102560], Moonfire [8921], Solar Eclipse [1233346], Starfall [191034], Starsurge [78674], Sunfire [93402], Wrath [190984]
+0:48.031 death: Scopidruid; killing blow Ula'tek's Presence
+Ability ids: Barkskin [22812], Empowering Venom [1293316], Incarnation: Chosen of Elune [102560], Moonfire [8921], Solar Eclipse [1233346], Starfall [191034], Starsurge [78674], Sunfire [93402], Ula'tek's Presence [1285965], Wrath [190984]

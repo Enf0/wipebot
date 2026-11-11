@@ -8,7 +8,7 @@ from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError
 from ..pulls import DIFFICULTIES, is_reset, phase_health, phase_label
-from ..text import clock, ids_line, ordinal, parse_clock, plural, ranges, short
+from ..text import clock, exact, ids_line, ordinal, parse_clock, plural, ranges, short
 from ..wcl import WCL, WCLError
 from . import rows
 from .adds import ADD_GROUP_MS, add_wave, boss_units, interruptible_casts
@@ -205,13 +205,13 @@ async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability
     each logged event a row with its time to the millisecond (rows.py), counted, the first TIMELINE_MAX_LINES of
     them. Of an ability: its casts (the enemies' and the players'), its hits on players and their pets, its debuff
     going on and off players, its buff on the boss, and the deaths it dealt. Of a player: every cast they and their
-    pets began or finished. What the plain timeline reads is in hand after it; an ability's hits are one more
-    request, whatever number of ids it is logged under."""
+    pets began or finished, and their deaths, which a window with no cast after one names. What the plain timeline
+    reads is in hand after it; an ability's hits are one more request, whatever number of ids it is logged under."""
     p = rep.player(player) if player else None
     if p:
         rep.require_in(f, p)
     ids = sorted(rep.ability_ids(ability)) if ability else []
-    fid = f["id"]
+    fid, died_before = f["id"], ""
     if ability:
         *logged, hits, deaths = await asyncio.gather(
             rep.events(fid, "Casts", hostilityType="Enemies"), rep.events(fid, "Casts"),
@@ -229,14 +229,19 @@ async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability
         nothing = f"Nothing of {only} is logged"
     else:
         assert p is not None
-        events = [e for e in await rep.events(fid, "Casts") if rep.owner(e.get("sourceID", 0)) == p.id]
+        casts, deaths = await asyncio.gather(rep.events(fid, "Casts"), rep.deaths(f))
+        died = [d for d in deaths if d["targetID"] == p.id]
+        events = [e for e in casts if rep.owner(e.get("sourceID", 0)) == p.id] + died
         only = f"{p.name}'s casts"
-        what = f"Every cast {p.name} and their pets began or finished"
+        what = f"Every cast {p.name} and their pets began or finished, and their deaths"
         nothing = f"No cast of {p.name}'s is logged"
+        # rows that stop, or none at all, read as a player who stopped pressing: the log knows they had died
+        if before := [d for d in died if d["timestamp"] < lo]:
+            died_before = f": their last death before it was at {exact(before[-1]['timestamp'] - f['startTime'])}"
     events = sorted((e for e in events if lo <= e["timestamp"] <= hi), key=lambda e: e["timestamp"])
     head = _timeline_head(rep, f, f"{window}, only {only}")
     if not events:
-        return f"{head}\n{nothing} in this {'window' if window else 'pull'}."
+        return f"{head}\n{nothing} in this {'window' if window else 'pull'}{died_before}."
     listed = rows.listed(rep, events, rows.in_short, most=TIMELINE_MAX_LINES)
     more = ["For the rows left out, ask for a narrower window with start and end."] if listed.left_out else []
     return "\n".join([head, f"{what}: {plural(len(events), 'event')}{listed.where}.", *listed.lines, *more])

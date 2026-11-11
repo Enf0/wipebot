@@ -41,6 +41,11 @@ def test_a_row_in_short_holds_what_a_raider_reads_off_an_event(rep):
     assert tick == "0:17.498 damage: Boss → Tempest → Pomaa; 20.30k (a tick)"
     assert stack == "0:18.000 applydebuffstack: Boss → Virulence → Pomaa; stack 3"
     assert death == "0:19.000 death: Nalaxd; killing blow Tempest"
+    # a cast Warcraft Logs derives from a hit (`fake`) is no press of the player's: the row says so
+    derived = {"timestamp": T0 + 850, "type": "cast", "sourceID": NALAXD, "targetID": BOSS, "abilityGameID": TEMPEST,
+               "fight": 21, "fake": True}
+    assert rows.row(rep, derived, T0, rows.in_short) == ("0:00.850 cast: Nalaxd → Tempest → Boss; derived by Warcraft "
+                                                         "Logs, not a cast the log has")
 
 
 def test_an_ability_logged_under_several_ids_is_told_apart_by_its_id(rep):
@@ -58,9 +63,14 @@ def test_events_are_counted_by_code_and_a_list_cut_to_its_first_rows_says_what_w
     events = _events()
     # the amounts of each kind are added up too, a sum over rows being as much code's as a count; what shields
     # absorbed apart, since a hit's amount leaves it out and a table of damage taken counts it
+    # ...and an ability's events of several kinds are counted by kind: "Tempest 3" read as three casts, or hits
     assert rows.counted(rep, events) == ("Counted: 2 damage (125.00k together, 1.06k more absorbed), 1 cast, "
-                                         "1 applydebuffstack, 1 applydebuff, 1 death; by ability: Tempest 3, "
-                                         "Virulence 2; from: Boss 5; on: Pomaa 3, Nalaxd 2.")
+                                         "1 applydebuffstack, 1 applydebuff, 1 death; by ability: Tempest 3 (2 damage, "
+                                         "1 cast), Virulence 2 (1 applydebuffstack, 1 applydebuff); from: Boss 5; on: "
+                                         "Pomaa 3, Nalaxd 2.")
+    # of one ability alone the kinds are the list's own, said once
+    assert rows.counted(rep, events[:3]) == ("Counted: 2 damage (125.00k together, 1.06k more absorbed), 1 cast; by "
+                                             "ability: Tempest 3; from: Boss 3; on: Nalaxd 1, Pomaa 1.")
     assert rows.listed(rep, events).lines[0].startswith("Counted: 2 damage (125.00k together, 1.06k more absorbed), ")
     one_hit = [e for e in events if not e.get("tick")]
     assert not rows.listed(rep, one_hit).lines[0].startswith("Counted")  # few enough to count by eye, no sum to make

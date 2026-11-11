@@ -78,7 +78,8 @@ def as_logged(rep: Report, e: dict) -> str:
 
 def in_short(rep: Report, e: dict) -> str:
     """What a raider reads off an event beyond its head: the amount ('104.70k (1.06k absorbed, overkill 12.72k)',
-    'a tick' for a periodic one), a stack count, and for a death what dealt the killing blow."""
+    'a tick' for a periodic one), a stack count, for a death what dealt the killing blow, and that a cast is one
+    Warcraft Logs derived (`fake`)."""
     out = []
     if "amount" in e:
         notes = [f"{short(e['absorbed'])} absorbed"] if e.get("absorbed") else []
@@ -93,6 +94,8 @@ def in_short(rep: Report, e: dict) -> str:
         out.append(f"killing blow {rep.ability(blow)}" if blow else rep.ability(blow))
     if e.get("extraAbilityGameID"):
         out.append(f"on {rep.ability(e['extraAbilityGameID'])}")
+    if e.get("fake"):  # read as a press of the player's otherwise (docs/reference/wcl-api.md)
+        out.append("derived by Warcraft Logs, not a cast the log has")
     return ", ".join(out)
 
 
@@ -104,11 +107,11 @@ def row(rep: Report, e: dict, t0: float, rest: Callable[[Report, dict], str] = a
     return head(rep, e, t0, with_id) + (f"; {more}" if more else "")
 
 
-def _top(counts: Counter) -> str:
-    """'Tempest 20, Ravage 17 and 3 more (5 events)': the most common first."""
+def _top(counts: Counter, of: Callable[[str], str] = lambda name: "") -> str:
+    """'Tempest 20, Ravage 17 and 3 more (5 events)': the most common first, each with what `of` says of it."""
     shown = counts.most_common(COUNTED_TOP)
     rest = sum(counts.values()) - sum(n for _, n in shown)
-    return ", ".join(f"{name} {n}" for name, n in shown) + (
+    return ", ".join(f"{name} {n}{of(name)}" for name, n in shown) + (
         f" and {len(counts) - len(shown)} more ({plural(rest, 'event')})" if rest else "")
 
 
@@ -128,13 +131,16 @@ def _summed(n: int, amount: float | None, absorbed: float) -> str:
 
 
 def counted(rep: Report, events: Iterable[dict]) -> str:
-    """'Counted: 20 damage (3.41M together, 1.25M more absorbed), 17 cast; by ability: Tempest 20, Ravage 17; from:
-    Sszorak 37; on: Wutroll 12, ...': a list of events by kind, with the amounts of each kind added up, and by
-    ability, source and target, so a count or a sum comes from code however many rows are shown."""
+    """'Counted: 20 damage (3.41M together, 1.25M more absorbed), 17 cast; by ability: Tempest 25 (20 damage, 5
+    cast), Ravage 12; from: Sszorak 37; on: Wutroll 12, ...': a list of events by kind, with the amounts of each
+    kind added up, and by ability, source and target, so a count or a sum comes from code however many rows are
+    shown. An ability with events of several kinds says how many of each: 'Wrath 25' of a player's casts is 12
+    casts and the 13 cast bars begun, and read as 25 casts. Of one ability alone the list's kinds are its own."""
     kinds: Counter = Counter()
     amounts: dict[str, float] = {}
     absorbed: dict[str, float] = {}
     abilities: Counter = Counter()
+    of_ability: dict[str, Counter] = {}  # the kinds of each ability's events
     sources: Counter = Counter()
     targets: Counter = Counter()
     for e in events:
@@ -144,15 +150,21 @@ def counted(rep: Report, events: Iterable[dict]) -> str:
             amounts[kind] = amounts.get(kind, 0) + amount
             absorbed[kind] = absorbed.get(kind, 0) + (_amount(e, "absorbed") or 0)
         if e.get("abilityGameID"):
-            abilities[rep.ability(e["abilityGameID"])] += 1
+            abilities[name := rep.ability(e["abilityGameID"])] += 1
+            of_ability.setdefault(name, Counter())[kind] += 1
         if e.get("type") != "death" and e.get("sourceID") is not None:
             sources[unit(rep, e["sourceID"])] += 1
         if e.get("targetID") not in (None, -1):
             targets[unit(rep, e["targetID"])] += 1
     parts = [", ".join(f"{n} {kind}" + _summed(n, amounts.get(kind), absorbed.get(kind, 0))
                        for kind, n in kinds.most_common())]
-    parts += [f"{label}: {_top(c)}" for label, c in (("by ability", abilities), ("from", sources), ("on", targets))
-              if c]
+    def by_kind(ability: str) -> str:
+        of = of_ability[ability]
+        if len(of) < 2 or len(abilities) < 2:
+            return ""
+        return f" ({', '.join(f'{of[kind]} {kind}' for kind, _ in kinds.most_common() if of[kind])})"
+    parts += [f"{label}: {_top(c, of)}" for label, c, of in (
+        ("by ability", abilities, by_kind), ("from", sources, lambda _: ""), ("on", targets, lambda _: "")) if c]
     return "Counted: " + "; ".join(parts) + "."
 
 

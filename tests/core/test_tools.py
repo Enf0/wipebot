@@ -271,7 +271,9 @@ async def test_a_timeline_of_one_players_casts_is_cut_to_its_first_rows_and_coun
     events = re.search(r": (\d+) events in Sszorak pull 13, times from the pull's start\.$", lines[1])
     total = int(events[1]) if events else 0
     assert total > 150 and sum(" → " in line and line[0].isdigit() for line in lines) == 150
-    assert lines[2].startswith("Counted: ") and f"; from: Sveini {total}" in lines[2]
+    # one of the events is their death, which has no source: the rest are theirs
+    assert lines[2].startswith("Counted: ") and ", 1 death; " in lines[2] and f"; from: Sveini {total - 1}" in lines[2]
+    assert "by ability: Hand of Gul'dan 70 (33 cast, 37 begincast), " in lines[2]  # 33 casts, not 70
     assert re.fullmatch(rf"… {total - 150} more events left out, the last at \d:\d\d\.\d{{3}}: the counts above are of "
                         rf"all {total}\.", lines[-3])
     assert lines[-2].startswith("Ability ids: ")
