@@ -22,6 +22,7 @@ from ..text import clock, parse_clock, plural
 from . import draw
 from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report
 from .positions import (
+    MOMENT_GAP_MS,
     Event,
     Facts,
     Mechanic,
@@ -221,12 +222,15 @@ def _around(rep: Report, f: dict, sc: Scene, near: str | None = None) -> list[st
 
 
 def _what(rep: Report, mech: Mechanic, where: str) -> list[str]:
+    """The answer's first line: what happened and at how many moments. A moment is not a hit: mechanic_hits counts
+    each hit on a player, and the other kinds of event are counted as the log has them, so each count says which."""
     head = f"{mech.described()} on {where}"
     others = [f"{k} {n}" for k, n in mech.logged.items() if n and k != mech.event and k != "applied"]
-    note = (f" (also logged: {', '.join(others)}; `event` picks another)" if others else "")
+    note = (f" (also logged, in events: {', '.join(others)}; `event` picks another)" if others else "")
     if mech.event is None:
         raise FactError(f"{mech.name} didn't happen on {where}" + note)
-    return [head + f": {plural(len(mech.all()), 'time')}" + note + "."]
+    return [head + f": {plural(len(mech.all()), 'moment')}, what came within {MOMENT_GAP_MS / 1000:g} s of each other "
+            "counted as one" + note + "."]
 
 
 def _moment_line(rep: Report, fx: Facts) -> str:

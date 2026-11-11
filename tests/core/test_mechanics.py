@@ -55,9 +55,9 @@ async def test_one_pulls_hits_count_until_the_wipe_was_decided(rep, hits):
          [event(f, a, 85, "applydebuff"), event(f, a, 88, "removedebuff"), event(f, e, 20, "applydebuff")])
     lines = (await mechanics.mechanic_hits(rep, "toxic pool", 13)).splitlines()
     assert lines[0].startswith("Toxic Pool on Sszorak pull 13 until the wipe was decided (the boss's enrage or half "
-                               "the raid dead, 2:32; whole_pull for the rest). Per player: hits (and periodic ticks), "
-                               "damage incl. absorbed and ticks, times the debuff was applied (applications over the "
-                               "whole pull, not stacks)")
+                               "the raid dead, 2:32; whole_pull for the rest). Per player: hits on them (and periodic "
+                               "ticks), damage incl. absorbed and ticks, times the debuff was applied (applications "
+                               "over the whole pull, not stacks)")
     # The caveat on a hit with the debuff up is said once, above the rows, and a death soon after a hit is of any
     # cause: "the deaths it set up" claimed more than the log shows.
     assert lines[0].endswith("; then, if any, hits while the debuff from an earlier hit was still up: those within "
@@ -140,7 +140,7 @@ async def test_a_night_ranks_by_hits_per_minute_of_the_pulls_each_was_in(rep, hi
          + [event(f, enfo.id, 5, "damage", amount=100) for f in rep.by_boss["Sszorak"][:6]], [])
     lines = (await mechanics.mechanic_hits(rep, "toxic pool", boss="Sszorak", all_pulls=True)).splitlines()
     assert ". Per player, most hits per minute of the pulls they were in first (each until its wipe was decided; a " \
-           "player who sat out pulls is ranked by the ones they were in): hits (and periodic ticks)" in lines[0]
+           "player who sat out pulls is ranked by the ones they were in): hits on them (and periodic ticks)" in lines[0]
     assert lines[1:3] == ["  Algmor: 4 hits in 10 pulls (0.29 per minute), 400, 0 applications, 0 deaths within 6 s, "
                           "0 killing blows",
                           "  Enfo: 6 hits in 32 pulls (0.12 per minute), 600, 0 applications, 0 deaths within 6 s, 0 "

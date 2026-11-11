@@ -81,7 +81,7 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                 ", most debuff applications first" if by_debuff else "")
              + (" (it was applied more often than it dealt damage, so the applications count who it caught)"
                 if by_debuff else "")
-             + ": hits (and periodic ticks), damage incl. absorbed and ticks, "
+             + ": hits on them (and periodic ticks), damage incl. absorbed and ticks, "
              f"times the debuff was applied (applications over the whole {'night' if all_pulls else 'pull'}, not "
              f"stacks), deaths of any cause within {HIT_THEN_DEATH_MS // 1000} s after a hit or tick, deaths with "
              f"{name} itself as the killing blow (what it leaves behind, a spawn or a debuff that kills later, "

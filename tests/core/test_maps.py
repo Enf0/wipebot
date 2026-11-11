@@ -1,8 +1,9 @@
 """Positions over a pull and the replay viewer's tracks (report/positions.py, report/maps.py)."""
 import base64
 import struct
+from typing import cast
 
-from wipebot.core.report import maps, positions
+from wipebot.core.report import Report, maps, positions
 
 
 def _ints(track: str) -> tuple[int, ...]:
@@ -57,3 +58,18 @@ def test_a_cast_begun_and_never_finished_counts_from_when_it_began():
              {"timestamp": 40_000, "type": "begincast", "sourceID": 9},
              {"timestamp": 90_000, "type": "cast", "sourceID": 8}]
     assert positions._cast_times(casts) == [3_000, 40_000, 90_000]
+
+
+def test_a_mechanics_count_on_the_map_is_of_moments_and_says_so():
+    """Twelve hits on players in two volleys: pull_map said "hitting players: 2 times" where mechanic_hits counts each
+    player's hits, with no word on what either counted. A volley is one moment, and the other kinds of event are
+    counted as the log has them."""
+    f = {"id": 1, "startTime": 0, "endTime": 60_000}
+    hits = [{"timestamp": 10_000 + 400 * n, "targetID": 1 + n % 3} for n in range(6)]
+    hits += [{"timestamp": 40_000 + 400 * n, "targetID": 1 + n % 3} for n in range(6)]
+    moments = positions._moments(f, "hit", {}, [], hits, set())
+    assert [len(m.on) for m in moments] == [3, 3]
+    mech = positions.Mechanic("Splinters", [1312853], "hit", {1: moments}, {"ends": 9, "cast": 0, "hit": len(hits)})
+    assert maps._what(cast(Report, None), mech, "The Lost Explorers pull 1") == [
+        "Splinters [1312853] hitting players on The Lost Explorers pull 1: 2 moments, what came within 2 s of each "
+        "other counted as one (also logged, in events: ends 9; `event` picks another)."]
