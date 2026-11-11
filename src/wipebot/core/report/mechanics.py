@@ -248,8 +248,8 @@ async def night_of(rep: Report, ability: str, boss: str | None, whole_pull: bool
     return Night(rep, fights, h, minutes, total)
 
 
-def _change(now: float, then: float) -> str:
-    """'+26%', '-3%', 'same'; 'new' against none."""
+def change(now: float, then: float) -> str:
+    """'+26%', '-3%', 'same'; 'new' against none: a change as mechanic_hits' `against` writes it, and its cards."""
     if not then:
         return "new"
     pct = round((now / then - 1) * 100)
@@ -280,7 +280,7 @@ async def against(rep: Report, other: Report, ability: str, boss: str | None, wh
     lines = [f"{name}, this night against another, per minute of the pulls each player was in (each until its wipe "
              f"was decided), as the nights' pulls differ in number and length: {now.label} ({now.total_minutes:.0f} "
              f"min) against {then.label} ({then.total_minutes:.0f} min).",
-             f"Raid: {fmt(per_a)} {unit} per minute against {fmt(per_b)} ({_change(per_a, per_b)}); deaths of any "
+             f"Raid: {fmt(per_a)} {unit} per minute against {fmt(per_b)} ({change(per_a, per_b)}); deaths of any "
              f"cause within {soon} s of a hit {set_a / max(now.total_minutes, 1e-9):.2f} per minute "
              f"against {set_b / max(then.total_minutes, 1e-9):.2f} ({set_a} against {set_b}); {kb_a} against {kb_b} "
              f"with {name} as the killing blow.",
@@ -289,7 +289,7 @@ async def against(rep: Report, other: Report, ability: str, boss: str | None, wh
     for n in sorted(a, key=lambda n: -a[n]):
         if n in b:
             lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}) against {fmt(b[n])} "
-                         f"({ordinal(rb[n])}), {_change(a[n], b[n])}; hits {hits_a[n]} against {hits_b[n]}; deaths "
+                         f"({ordinal(rb[n])}), {change(a[n], b[n])}; hits {hits_a[n]} against {hits_b[n]}; deaths "
                          f"within {soon} s {died_a[n]} against {died_b[n]}")
         else:
             lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}), not there the other night; "

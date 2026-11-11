@@ -991,14 +991,6 @@ def _as_its_text_ranks(names: dict[int, str], m: Meter, h: mechanics.Hits,
     return dataclasses.replace(m, bars=bars, unit=counted + (PER_MINUTE_THERE if night else ""))
 
 
-def _change(now: float, was: float) -> str:
-    """'+26%', '-3%', 'same'; 'new' against none: a change as mechanic_hits' `against` writes it."""
-    if not was:
-        return "new"
-    pct = round((now / was - 1) * 100)
-    return f"{pct:+d}%" if pct else "same"
-
-
 def meter_amount(m: Meter, v: float) -> str:
     """An amount of a meter as its tool writes it: damage and healing short ("53.83M"), a count whole, a count per
     minute to two places ("2.14")."""
@@ -1039,13 +1031,13 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
                 "color": class_hex(p.class_name) if p else "#9aa3b8", "spec": spaced(p.spec) if p else "",
                 "role": p.role if p else ""} | written(m, b.value) | (
                     {"per_pull": b.per_pull, "died_in": b.died_in} if b.per_pull else {}) | (
-                    {"was": b.was, "was_rank": b.was_rank, "change": _change(b.value, b.was)}
+                    {"was": b.was, "was_rank": b.was_rank, "change": mechanics.change(b.value, b.was)}
                     | {f"was_{k}": v for k, v in written(m, b.was).items()} if b.was is not None else {})
 
     def then(t) -> dict:
         """The other night's numbers, with the raid's change and the deaths per minute as `against` writes them."""
         return dataclasses.asdict(t) | {
-            "change": _change(t.raid, t.raid_was),
+            "change": mechanics.change(t.raid, t.raid_was),
             "deaths_per_min": [f"{n / max(minutes, 1e-9):.2f}"
                                for n, minutes in ((t.deaths_was, t.minutes_was), (t.deaths, t.minutes))]}
 
@@ -1091,7 +1083,7 @@ def meter_headline(m: Meter, said: Stated | None = None) -> dict:
         return meter_amount(m, v) + ("" if m.unit in ("amount", "per minute") else f" {m.unit}")
     if m.then:
         t = m.then
-        change = _change(t.raid, t.raid_was).replace("same", "the same")  # the one its tile and its text state
+        change = mechanics.change(t.raid, t.raid_was).replace("same", "the same")  # the one its tile and its text state
         return _headline(f"The raid's {m.scope.split(' per minute')[0]} from {m.title} per minute of its pulls: "
                          f"{amount(t.raid_was)} on {t.was_day}, {amount(t.raid)} on {t.day} ({change}).")
     b = m.bars[-1 if m.least else 0]
