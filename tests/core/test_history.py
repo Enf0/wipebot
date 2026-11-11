@@ -73,8 +73,10 @@ async def test_player_history_lists_every_ranked_kill_newest_first(rep, patch_wc
     lines = (await history.ranked_kills(rep, p.name)).splitlines()
     assert asked["character"] == (p.name, "ArgentDawn", "eu")
     assert asked["rankings"] == (7, [3455, 3420]) and asked["metrics"] == {"dps", "hps"}
-    # Each kill by the spec played: healing for Restoration, damage for Elemental.
-    resto = lines.index("Vashnik the Malignant, Mythic, as Restoration (hps): 2 kills, best 27%, median 16%")
+    # Each kill by the spec played: healing for Restoration, damage for Elemental. The rows run newest first, so the
+    # line over them gives the first kill's and the newest: read upwards, a boss that fell was said to have risen.
+    resto = lines.index("Vashnik the Malignant, Mythic, as Restoration (hps): 2 kills, best 27%, median 16%, first "
+                        "27%, newest 6%")
     assert " 6% " in lines[resto + 1] and "R3#fight=2" in lines[resto + 1]  # newest first
     assert "Vashnik the Malignant, Mythic, as Elemental (dps): 1 kill, best 86%, median 86%" in lines
     # Warcraft Logs' own summary, per difficulty and spec played, each by its spec's metric

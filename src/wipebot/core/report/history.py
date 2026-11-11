@@ -222,9 +222,13 @@ async def ranked_kills(rep: Report, player: str, boss: str | None = None) -> str
                 found = True
                 kills.sort(key=lambda k: -(k.get("startTime") or 0))
                 pcts = sorted(k.get("rankPercent") or 0 for k in kills)
+                # the first kill and the newest, from the code: the rows run newest first, and read the other way
+                # round a boss that fell after its first kill was said to have risen like the rest
+                trend = (f", first {kills[-1].get('rankPercent') or 0:.0f}%, newest "
+                         f"{kills[0].get('rankPercent') or 0:.0f}%" if len(kills) > 1 else "")
                 lines.append(f"{e['name']}, {DIFFICULTIES[d]}, as {spaced(spec)} ({metric_of(kills[0])}): "
                              f"{len(kills)} kill{'s' * (len(kills) > 1)}, best {pcts[-1]:.0f}%, median "
-                             f"{statistics.median(pcts):.0f}%"
+                             f"{statistics.median(pcts):.0f}%{trend}"
                              + (f" (the newest {shown} below; ask for the boss for more)"
                                 if listed and len(kills) > shown else ""))
                 for k in kills[:shown] if listed else []:
