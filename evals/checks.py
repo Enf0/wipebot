@@ -258,10 +258,15 @@ def built_summary(trials: Iterable[tuple[dict, dict[str, str] | None]]) -> list[
     return lines
 
 
-# ---- checks by code that fail an answer: what a case's `numbers` and `form` ask for, no model ----
+# ---- checks by code that fail an answer: a case's `numbers` and `form`, and its evidence, no model ----
 
 FORM_KEYS = ("verdict_words", "bullets", "bullet_words", "bullet_sentences", "lines", "chars")  # form.Budget's
 LEADING_ZERO = re.compile(r"(?<![\d:])0(?=\d:\d\d)")  # 02:32 is 2:32
+# A case whose `expect` and `facts` state this many numbers asks an answer for at least one of them. On 11 November
+# the judge passed 5 of 20 planted answers that agreed with the case and said nothing from the log (planted.toml's
+# "vague"), and of 1,146 saved answers that passed, none stated none of its case's numbers as the case stands. Under
+# three, one number written as a word ("four healers") would fail a right answer.
+EVIDENCE_FROM = 3
 
 
 def states(wanted: str, answer: str) -> bool:
@@ -276,11 +281,29 @@ def states(wanted: str, answer: str) -> bool:
                for n in numbers(LEADING_ZERO.sub("", wanted)))
 
 
+def evidence(case: dict) -> list[str]:
+    """The numbers a case's `expect` and `facts` state, each once, when they are EVIDENCE_FROM or more; else none,
+    and the case asks no answer for one."""
+    from evals.lint import numbers
+    text = " ; ".join([" ".join(case.get("expect", "").split()), *case.get("facts", [])])
+    found = list(dict.fromkeys(numbers(LEADING_ZERO.sub("", text))))
+    return found if len(found) >= EVIDENCE_FROM else []
+
+
+def asks(case: dict) -> set[str]:
+    """The checks by code a case asks for (run.BY_CODE): `numbers` and `form` by its keys, `evidence` by the
+    numbers it states."""
+    return {key for key in ("numbers", "form") if key in case} | ({"evidence"} if evidence(case) else set())
+
+
 def coded(case: dict, answer: str, mode: str) -> dict[str, str]:
     """The checks code makes of an answer, for the cases that ask for one: each named part with why the answer fails
     it, "" when it passes. A part the case doesn't ask for is left out.
     - `numbers`: every entry is stated (states); "7:58 or 7:59" takes either. For the numbers a case's `expect`
       names as its point, which a judge told that rounded numbers and missing detail are fine lets through.
+    - `evidence`: the answer states at least one of the numbers the case's `expect` and `facts` state (evidence),
+      whichever. An answer with none of them gives the verdict and nothing from the log, which the same judge
+      lets through.
     - `form`: as the bot, the answer keeps to the bullets, sentences, words, lines and characters the case asks for
       (form.Budget's keys, measured by wipebot.discord.form; `chars` is "about" so many, as a post's). In a client
       the form is the client's own: not checked there."""
@@ -288,6 +311,8 @@ def coded(case: dict, answer: str, mode: str) -> dict[str, str]:
     if wanted := case.get("numbers"):
         missing = [w for w in wanted if not any(states(alt, answer) for alt in w.split(" or "))]
         found["numbers"] = f"doesn't state {', '.join(missing)}" if missing else ""
+    if stated := evidence(case):
+        found["evidence"] = "" if any(states(n, answer) for n in stated) else "states none of the case's numbers"
     if (asked := case.get("form")) and mode == "bot":
         limits = {key: asked.get(key) for key in FORM_KEYS} | (
             {"chars": round(asked["chars"] * form.POST_SLACK)} if "chars" in asked else {})

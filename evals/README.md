@@ -37,7 +37,9 @@ the answer, often the tempting misreading of the log), and supporting `facts` (c
 in a case comes from a tool's output. Where a case's point is a number (when the tank died, when the enrage came), it
 names it in `numbers`, and code fails an answer that doesn't state it; the few cases whose point is the form (a
 quick answer while the raid is on, a post after a wipe) set its limits in `form`, which code measures. A judge told
-that rounded numbers and missing detail are fine lets both through. Every field: `cases/README.md`.
+that rounded numbers and missing detail are fine lets both through, and an answer that agrees with the case and says
+nothing from the log: so where a case's `expect` and `facts` state three numbers or more (100 of the 116 cases),
+code fails an answer that states none of them (`evidence`; any one will do). Every field: `cases/README.md`.
 
 ## A run
 
@@ -71,7 +73,7 @@ sits at the judge's ceiling.
 
 An answer passes when the judge finds the case's main point in it (`expect`), finds nothing of its `wrong` list
 stated, the conversation made the calls the case requires (`calls`, `asks_first`), and the answer holds what the
-case has code check (`numbers`, `form`). Each trial keeps which of these named checks it passed; a baseline keeps the
+case has code check (`numbers`, `form`, and one of its numbers as `evidence`). Each trial keeps which of these named checks it passed; a baseline keeps the
 list it was scored by, and a later run is scored by that list when the two are compared, so a check added later moves
 no comparison until the next baseline.
 
@@ -202,7 +204,9 @@ from a saved answer or a raider's words). Two kinds:
 - **vague**: an answer on the case's subject with every specific taken out: no player, time, number or ability, only
   what anyone could say without reading the log. It may even be upbeat and agree with the question; it is empty,
   not wrong. The judge's `expect` check must fail it. Twenty cases have one, among them the seven the review of 10
-  November called passable by a general answer.
+  November called passable by a general answer. The judge failed 15 of the 20 on 11 November (and 109 of the 110
+  wrong ones), which is why code now asks every answer for one of its case's numbers (`evidence`, above): a test
+  holds that each vague plant of a case with three numbers fails it.
 
 The run asks only the judge, as a run of the cases asks it: the case's question as the judge sees it, the judge's
 own prompts and the majority rule. So the plants caught are the real pipeline's. It says how many judge calls it

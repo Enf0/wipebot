@@ -84,6 +84,7 @@ from evals.checks import (
     MODELS,
     RUBRIC,
     WRONG,
+    asks,
     built,
     built_summary,
     coded,
@@ -154,15 +155,16 @@ NO_DATA = ("won't show report", "auth_failed")
 # cache doesn't hold: it breaks a failed trial, while an answer that got by without the call still passes.
 DOWN = "upstream_error"
 # The named checks an answer passes by, each kept with its trial (Trial.checks): the judge's two, the case's
-# required calls, and by code the case's numbers and form (checks.coded, for the cases that ask) and that the answer
-# is in the language of its question (checks.in_language). A baseline keeps the list it was scored by (`parts`) and a
-# later run is scored by that list when the two are compared (scored), so a check added since moves no comparison
-# until the next baseline. A file from before 10 November names none: it is read as the first three (FIRST_PARTS).
-PARTS = ("expect", "wrong", "calls", "numbers", "form", "language")
+# required calls, and by code the case's numbers, form and evidence (checks.coded, for the cases that ask) and that
+# the answer is in the language of its question (checks.in_language). A baseline keeps the list it was scored by
+# (`parts`) and a later run is scored by that list when the two are compared (scored), so a check added since moves
+# no comparison until the next baseline. A file from before 10 November names none: it is read as the first three
+# (FIRST_PARTS).
+PARTS = ("expect", "wrong", "calls", "numbers", "form", "evidence", "language")
 FIRST_PARTS = PARTS[:3]  # what a tally from before the checks were named was scored by
-# The two a case's key asks for: made anew whenever a trial is settled, so one kept with a saved trial doesn't
-# outlive its key.
-BY_CODE = ("numbers", "form")
+# The three a case asks for, two by a key and one by the numbers it states (checks.asks): made anew whenever a trial
+# is settled, so one kept with a saved trial doesn't outlive its case's asking.
+BY_CODE = ("numbers", "form", "evidence")
 
 
 def settle(t: Trial, case: dict, mode: str) -> Trial:
@@ -882,7 +884,7 @@ def tally_of(cases: list[dict], results: dict[str, list[Trial]], **about) -> dic
     asked = {c: len(ts) for c, ts in results.items()}
     return {**about, "trials": next(iter(asked.values())) if len(set(asked.values())) == 1 else asked,
             "case_hashes": {c["id"]: case_hash(c) for c in cases},
-            "parts": [p for p in PARTS if p not in BY_CODE or any(p in c for c in cases)],  # those a case's key asks
+            "parts": [p for p in PARTS if p not in BY_CODE or any(p in asks(c) for c in cases)],  # those a case asks
             "passed": {c: sum(t.passed for t in ts) for c, ts in results.items()},
             "failed": {c: f for c, ts in results.items()
                        if (f := [failed_parts(t) for t in ts if not t.passed and not t.errored])},

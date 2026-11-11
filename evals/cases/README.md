@@ -11,7 +11,9 @@ answer makes, and what would make it wrong: often the tempting misreading of the
   expect    the main point a right answer gets across (a judge checks it; it fails the answer). What a right
             answer may also say goes here in plain words ("naming the few held long is fair"): the judge reads
             the expect and the wrong list, never a comment beside them
-  facts     supporting facts a full answer states (counted apart; a missing one doesn't fail it)
+  facts     supporting facts a full answer states (counted apart; a missing one doesn't fail it). Where the
+            expect and the facts state three numbers or more between them, code fails an answer that states
+            none of them, as one that says nothing from the log (`evidence`): a case with fewer asks for none
   wrong     what would make it wrong, each a claim an answer could make (a judge checks the answer states none);
             something a right answer must hold belongs in `expect`, a call it must make in `calls`.
             Each case but a held-out one has a plant in `../planted.toml`, an answer that states one of these

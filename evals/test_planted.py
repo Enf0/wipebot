@@ -353,6 +353,18 @@ def test_the_flag_asks_with_the_judges_model_and_the_cases_k_picks(monkeypatch):
     assert got == {"judge_model": "haiku", "only": "wipe,night", "billed_to": "your Claude Code login"}
 
 
+def test_code_fails_each_vague_plant_of_a_case_that_states_three_numbers():
+    """The judge let 5 of the 20 vague plants through on 11 November. Code asks an answer for one of its case's
+    numbers (checks.evidence), which a vague plant never has: whatever the judge makes of it, the answer fails."""
+    from evals.checks import coded, evidence
+    cases = {c["id"]: c for c in load_cases()}
+    vague = [p for p in load_plants() if p.kind == "vague"]
+    asked = [p for p in vague if evidence(cases[p.case])]
+    assert len(vague) == 20 and len(asked) >= 16
+    assert [p.case for p in asked if not coded(cases[p.case], p.answer, "bot")["evidence"]] == []
+    assert not evidence(cases["plan-who-stays-out"])  # one number, "4": "four healers" would fail a right answer
+
+
 def test_every_regular_case_has_its_wrong_plant():
     """A new case comes with its plant: an answer that states one item of its wrong list as true, for the judge to
     fail (`just evals --planted`). The held-out cases have none."""

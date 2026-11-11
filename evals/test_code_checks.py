@@ -1,12 +1,14 @@
-"""The checks code makes of an answer for the cases that ask (a case's `numbers` and `form`): named parts of a pass
-beside the judge's two and the required calls, with no model."""
+"""The checks code makes of an answer for the cases that ask (a case's `numbers` and `form`, and one of the numbers
+it states as evidence): named parts of a pass beside the judge's two and the required calls, with no model."""
 import pytest
 
-from evals.checks import coded, coded_keys, states
+from evals.checks import EVIDENCE_FROM, asks, coded, coded_keys, evidence, states
 from evals.run import FIRST_PARTS, PARTS, Trial, case_hash, compare, compared, judged_by, settle, tally_of
 
 CASE = {"id": "a", "report": "R", "kind": "wipe", "question": "Why did we wipe?", "wrong": ["a reset"],
-        "expect": "The boss enraged at 2:32 with 16 of 20 alive, after 163.64k of healing."}
+        "expect": "The boss enraged at 2:32 with 16 alive."}  # two numbers: too few to ask for one as evidence
+# a case as most are: numbers in its expect and its facts, any of which is the log in an answer
+FULL = CASE | {"expect": "The boss enraged at 2:32 with 16 of 20 alive.", "facts": ["163.64k of healing at 02:15"]}
 OK = {"ok": True, "reason": ""}
 SHORT = ("**The boss enraged at 2:32.**\n- **Pop the stack.** It needs 14 players.\n- **Stay alive.** Two died early.\n"
          "Follow-up: Who missed the stack at 1:17?")
@@ -29,6 +31,44 @@ def test_numbers_fail_an_answer_that_leaves_one_out_and_take_either_way_a_moment
     assert coded(case, "Enraged at 2:32 with 17 alive.", "plugin") == {"numbers": ""}
     assert coded(case, "Enraged at 2:33 with 15 alive.", "bot") == {"numbers": "doesn't state 2:32, 16 or 17"}
     assert coded(CASE, "Enraged.", "bot") == {}  # a case that doesn't ask is not checked
+
+
+def test_an_answer_with_none_of_its_cases_numbers_fails_for_evidence():
+    """The judge is told missing detail is fine, and passes an answer that agrees and says nothing from the log (5
+    of the 20 planted ones on 11 November). Code fails it: any one number of the case's expect or facts will do."""
+    assert evidence(FULL) == ["2:32", "2:15", "163.64k", "16", "20"] and asks(FULL) == {"evidence"}
+    vague = "**The boss enraged.** The stack wasn't popped, so tighten that up and the pull goes on."
+    assert coded(FULL, vague, "bot") == {"evidence": "states none of the case's numbers"}
+    assert coded(FULL, vague, "plugin") == {"evidence": "states none of the case's numbers"}  # in a client too
+    for one in ("It enraged at 2:32.", "Healing was 164k by then.", "Sixteen were up: 16 of the raid.",
+                "The Mutilate at 2:15 started it."):  # a fact's number is evidence as the expect's is
+        assert coded(FULL, vague + " " + one, "bot") == {"evidence": ""}
+    # not a number of the case's: another pull's time, a number inside another, a link's address
+    for none in ("It enraged at 2:33.", "It took 1:02:32.", "[pull 4](https://example.com/r#fight=16) was lost."):
+        assert coded(FULL, vague + " " + none, "bot")["evidence"]
+    # a case's own `numbers` are asked for beside it: all of those, and one of any
+    both = coded(FULL | {"numbers": ["2:32"]}, "Healing was 164k by then.", "bot")
+    assert both == {"numbers": "doesn't state 2:32", "evidence": ""}
+    # under EVIDENCE_FROM numbers a case asks for none: one of two written as a word would fail a right answer
+    assert EVIDENCE_FROM == 3 and evidence(CASE) == [] and asks(CASE) == set()
+    assert evidence(CASE | {"facts": ["half the raid dead at 2:40"]}) == ["2:32", "2:40", "16"]
+    assert evidence({"id": "a", "question": "why?"}) == []  # a case half written in a test
+
+
+def test_evidence_is_a_named_part_of_a_pass_and_counted_only_where_a_case_asks():
+    vague = settle(Trial(answer="The boss enraged.", expect=OK, wrong=OK), FULL, "bot")  # the judge let it through
+    right = settle(Trial(answer="The boss enraged at 2:32.", expect=OK, wrong=OK), FULL, "bot")
+    assert not vague.passed and vague.checks == {"expect": True, "wrong": True, "calls": True, "evidence": False}
+    assert right.passed and right.checks["evidence"] is True
+    now = tally_of([FULL], {"a": [right, vague]})
+    assert now["parts"] == [*FIRST_PARTS, "evidence", "language"] and now["failed"] == {"a": [["evidence"]]}
+    assert PARTS == (*FIRST_PARTS, "numbers", "form", "evidence", "language")
+    # against a baseline from before the check, the vague answer counts as it did then
+    old = {"model": "opus", "commit": "abc", "trials": 2, "judge": judged_by("sonnet"), "errors": {},
+           "case_hashes": {"a": case_hash(FULL)}, "passed": {"a": 2}}
+    text = "\n".join(compare(old, now | {"model": "opus", "commit": "def", "judge": judged_by("sonnet")}))
+    assert "this run's evidence and language are left out here, until a baseline has them" in text
+    assert "total 2 of 2" in text
 
 
 def test_form_holds_the_bots_answer_to_what_the_case_asks_and_no_clients():
