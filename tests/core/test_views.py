@@ -2982,6 +2982,7 @@ async def test_a_death_after_the_wipe_was_decided_says_so_once_on_its_card(recor
     late = data | {"fallout": True, "note": note, "saved_by": [],
                    "headline": {"text": f"Killed by {data['by']} at {clock(data['at_ms'])}, {note}.", "kind": ""}}
     key = await server.view_key("death_recap", DEATH_CASE.args)
+    assert key is not None
     made_up_view(monkeypatch, key, late)
     for width in (360, 720):
         async with drawn("death_recap", {}, width=width) as (view, errors):

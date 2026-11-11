@@ -77,9 +77,11 @@ def test_weeks_name_a_best_wipe_by_its_phase_where_phases_have_their_own_health(
     text = night.weeks_text("The Coiled Altar", 1, [altar])
     assert "best wipe P2 68.3% (WCL 70.5%) (pull 16)" in text
     assert text.endswith("Best wipe night by night (WCL %): 70.5")
+    # each % comes with how the text writes it, which the card prints (its bars are drawn from the numbers)
     assert views.weeks_row(altar) == {"day": "Thu 9 Oct", "start_ms": 1_760_040_000_000, "report": "abc",
-                                      "pulls": 21, "kill": None, "pct": 70.5, "pull": 16, "phase": "P2",
-                                      "health": 68.3, "ended": ["Venom Rupture killing many", 12]}
+                                      "pulls": 21, "kill": None, "pct": 70.5, "pct_text": "70.5%", "pull": 16,
+                                      "phase": "P2", "health": 68.3, "health_text": "68.3%",
+                                      "ended": ["Venom Rupture killing many", 12]}
 
 
 def test_progress_says_whether_the_night_beat_the_guild_best():
