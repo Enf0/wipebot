@@ -32,12 +32,14 @@ TYPE_REF = "name kind ofType { name kind ofType { name kind ofType { name } } }"
 SCHEMA = (f"query($name: String!) {{ __type(name: $name) {{ name kind description "
           f"fields {{ name description args {{ name description type {{ {TYPE_REF} }} }} type {{ {TYPE_REF} }} }} "
           f"inputFields {{ name description type {{ {TYPE_REF} }} }} enumValues {{ name description }} }} }}")
-# What stands for a pull of the tool's report in a query: $fight(13), $start(13), $end(13), $at(13, 2:15), $fights
-PULL = re.compile(r"\$(fights|fight|start|end|at)\b(?:\(([^()]*)\))?")
+# What stands for a pull of the tool's report in a query: $fight(13), $start(13), $end(13), $at(13, 2:15), $fights;
+# with the quotes around one written as a string of its own, "$start(13)"
+PULL = re.compile(r'("?)\$(fights|fight|start|end|at)\b(?:\(([^()]*)\))?\1')
 NAMED_REPORTS = 6  # of the reports a query names, this many are read for their names (a load each, when not loaded)
 LEGEND_FIGHTS = 30  # fights a legend names
 LEGEND_DETAILED = 8  # up to this many, each with its length and how it ended
-TIME_KEYS = ("timestamp", "startTime", "endTime")  # a report's ms outside its events (a table's bands, a death's row)
+# A report's ms outside its events: a table's bands, a death's row, where a graph's series starts
+TIME_KEYS = ("timestamp", "startTime", "endTime", "pointStart")
 # In an answer too long to read, the lists inside a list's items (a table row's gear and abilities) are cut first, to
 # this many items and then fewer until it fits; after the last, every list is.
 INNER_KEPT = (20, 10, 5, 3)
@@ -59,11 +61,14 @@ def _declared(query: str, name: str) -> bool:
 def _pulls(query: str, rep: Report | None, boss: str | None) -> str:
     """The query with its pulls filled in: `$fight(13)` is pull 13's fight id, `$start(13)` and `$end(13)` its
     start and end and `$at(13, 2:15)` the moment 2:15 into it, in the report's ms (what startTime and endTime
-    take); `$fights` the fight ids of every pull on the boss. A pull is a number on `boss` or a name (kill, best
-    wipe, ...: Report.fight); without one, the link's or the latest. A name the query declares as its own variable
-    is left alone."""
+    take); `$fights` the fight ids of every pull on the boss. Inside a string (a filterExpression, whose
+    `timestamp` counts from the fight's start: docs/reference/wcl-api.md) the three times count from the pull's
+    start too, where the report's ms would match nothing without an error. A pull is a number on `boss` or a name
+    (kill, best wipe, ...: Report.fight); without one, the link's or the latest. A name the query declares as its
+    own variable is left alone."""
     def filled(m: re.Match) -> str:
-        name, given = m[1], m[2]
+        name, given = m[2], m[3]
+        in_filter = not m[1] and len(re.findall(r'(?<!\\)"', query[:m.start()])) % 2 == 1
         if given is None and _declared(query, name):
             return m[0]
         if rep is None:
@@ -81,7 +86,9 @@ def _pulls(query: str, rep: Report | None, boss: str | None) -> str:
         if len(args) > 1:
             raise FactError(f"{m[0]}: ${name} takes one pull, ${name}(13)")
         f = rep.fight(args[0] if args else None, boss)
-        return f"{f['id'] if name == 'fight' else f['endTime'] if name == 'end' else f['startTime'] + after:.0f}"
+        if name == "fight":
+            return str(f["id"])
+        return f"{(f['endTime'] if name == 'end' else f['startTime'] + after) - in_filter * f['startTime']:.0f}"
     return PULL.sub(filled, query)
 
 
@@ -324,12 +331,33 @@ def _is_events(node: object) -> bool:
     return 2 * sum(isinstance(e.get("sourceID", e.get("targetID")), int) for e in node) >= len(node)
 
 
+def _is_ms(v: object) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
 def _has_times(node: object) -> bool:
     """Whether an answer's part holds anything a report's names or pulls would translate: events, or a time."""
     if isinstance(node, dict):
-        return any((k in TIME_KEYS and isinstance(v, (int, float)) and not isinstance(v, bool)) or _has_times(v)
-                   for k, v in node.items())
+        return any((k in TIME_KEYS and _is_ms(v)) or _has_times(v) for k, v in node.items())
     return isinstance(node, list) and any(_has_times(v) for v in node)
+
+
+def _phases(rep: Report, f: dict, transitions: object) -> object:
+    """A fight's phase transitions as shown: each start m:ss.mmm into the pull, and the phase named as the other
+    tools name it ('P3 Stage Three', where Warcraft Logs' id for it is 4 behind an intermission: Report.phase)."""
+    if not isinstance(transitions, list):
+        return transitions
+    shown = []
+    for t in transitions:
+        if isinstance(t, dict):
+            t = dict(t)
+            if _is_ms(t.get("startTime")):
+                t["startTime"] = exact(t["startTime"] - f["startTime"])
+            if isinstance(t.get("id"), int):
+                name = rep.phase_names.get((f["encounterID"], t["id"]))
+                t["phase"] = rep.phase(f, t["id"]) + (f" {name}" if name else "")
+        shown.append(t)
+    return shown
 
 
 @dataclass
@@ -394,10 +422,13 @@ class _Shown:
         if path in self.asked.fight_lists:  # a fight of a `fights` field: its own start and end, in the report's ms
             if isinstance(node.get("id"), int):
                 fights.add(node["id"])
-            return node
+            f = (rows.pull_at(rep, 0, node["id"]) if isinstance(node.get("id"), int)
+                 else rows.pull_at(rep, node["startTime"]) if _is_ms(node.get("startTime")) else None)
+            return {k: v if k in TIME_KEYS else _phases(rep, f, v) if k == "phaseTransitions" and f
+                    else self.of(v, (*path, k), code, of_pull) for k, v in node.items()}
         shown = {}
         for k, v in node.items():
-            if k in TIME_KEYS and isinstance(v, (int, float)) and not isinstance(v, bool) and (
+            if k in TIME_KEYS and _is_ms(v) and (
                     f := rows.pull_at(rep, v, node.get("fight") if isinstance(node.get("fight"), int) else None)):
                 fights.add(f["id"])
                 shown[k] = exact(v - f["startTime"]) + (f" of {rep.label(f)}" if of_pull else "")
@@ -441,10 +472,10 @@ async def _read(asked: _Asked, data: dict, own: Report | None, reports: Reports 
 class _Answer:
     """A Warcraft Logs answer in the tools' own terms. `shown` is the answer with each list of events swapped for
     a pointer to its rows (`events`), and a report's other times (TIME_KEYS) as m:ss into their pull, of which pull
-    where the report's part of the query isn't about one alone; a `fights` field keeps its own start and end in
-    the report's ms, which the legend's length says in the pull's. `legend` names the fights each report's part
-    names or holds (up to LEGEND_DETAILED of them with their length and ending); `notes` say which reports weren't
-    read for their names."""
+    where the report's part of the query isn't about one alone; a `fights` field keeps each fight's own start and
+    end in the report's ms, which the legend's length says in the pull's, and its phase transitions read into the
+    pull, each phase named (`_phases`). `legend` names the fights each report's part names or holds (up to
+    LEGEND_DETAILED of them with their length and ending); `notes` say which reports weren't read for their names."""
     shown: object
     events: list[_Events] = field(default_factory=list)
     legend: list[str] = field(default_factory=list)

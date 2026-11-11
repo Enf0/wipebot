@@ -1880,7 +1880,8 @@ async def breakdown(
 async def wcl_query(query: Annotated[str | None, Field(description=(
                         "a read-only GraphQL query of Warcraft Logs' API. In it $code stands for the report's code, "
                         "$fight(13) for the fight id of pull 13 on the boss, $start(13) and $end(13) for its start "
-                        "and end and $at(13, 2:15) for 2:15 into it (what startTime and endTime take), $fights for "
+                        "and end and $at(13, 2:15) for 2:15 into it (what startTime and endTime take; inside a "
+                        "filterExpression they count from the pull's start, as its `timestamp` does), $fights for "
                         "the fight ids of every pull on the boss; a pull is a number or kill, best wipe, last wipe, "
                         "first or last, and without one ($fight, $at(2:15)) the latest"))] = None,
                     schema_type: Annotated[str | None, Field(description=(
@@ -1893,7 +1894,8 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
     its first page, the players in one fight of another log, events of one kind through a filter expression, a
     character's or guild's data. The other tools are faster and know how to read a wipe; this is for the rest, and
     spends the hour's Warcraft Logs points that every tool shares. Not for one ability's events or one player's
-    casts in a pull (pull_timeline).
+    casts in a pull (pull_timeline), nor for a table of damage, healing, casts or auras over pulls, a window of
+    them, one player or one enemy (breakdown): both read any log by its link.
     With `query`: the answer with what it cost and the hour's points left, in parts when long; kept for 10 minutes,
     so its parts and a repeat cost nothing. With `schema_type`: that type's fields, their arguments and types, to
     write a query from. The roots: reportData { report(code) { fights, playerDetails, events, table, rankings,
@@ -1902,14 +1904,15 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
     Reading it: the answer is JSON, in the tools' terms where it is about a report. Each list of events is rows
     instead, under the JSON: the time m:ss.mmm into its pull, the kind, source → ability → target by name, then
     what else the event holds; a long list is counted by kind, ability, source and target. A report's other times
-    (a table's bands, a death's row) are m:ss.mmm into their pull too, and "Fights" names each fight the answer is
-    about as boss and pull number, a few with their length and how they ended; a `fights` field keeps its own
-    start and end in the report's ms. An answer over 3 parts is cut to one: each list then ends with how many
-    items were left out, and the counts are of all its events. Events come a page at a time (nextPageTimestamp,
-    in the report's ms, is where the next starts); table and rankings are JSON inside the answer. Rankings are
-    kept per partition (a patch's), and a new one is empty for a while: an empty ranking may need zone(id) {
-    partitions } and an older `partition`; item level brackets are zone(id) { brackets }, counted from its min in
-    steps of its bucket."""
+    (a table's bands, a death's row, a graph's pointStart) are m:ss.mmm into their pull too, and "Fights" names
+    each fight the answer is about as boss and pull number, a few with their length and how they ended. A `fights`
+    field keeps each fight's own start and end in the report's ms; its phase transitions are m:ss.mmm into the
+    pull, each with its `phase` as the other tools name it (P2, I1). An answer over 3 parts is cut to one: each
+    list then ends with how many items were left out, and the counts are of all its events. Events come a page at
+    a time (nextPageTimestamp, in the report's ms, is where the next starts); table and rankings are JSON inside
+    the answer. Rankings are kept per partition (a patch's), and a new one is empty for a while: an empty ranking
+    may need zone(id) { partitions } and an older `partition`; item level brackets are zone(id) { brackets },
+    counted from its min in steps of its bucket."""
     if schema_type:
         return await queries.schema_text(lib().wcl, schema_type)
     if not query:

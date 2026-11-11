@@ -72,6 +72,9 @@ What the GraphQL API does that its schema doesn't say, each checked against real
 - Boss health and power over time: `graph(dataType: Resources, hostilityType: Enemies, sourceID: <boss>,
   abilityID: 1000)` (health %) or `abilityID: 100 + power type` (the power type is in `classResources` of the
   boss's events with `includeResources: true`; Sszorak's bar is type 3, reset by each Serpent's Fury pop).
+  A graph's `series[]` each give `pointStart`, in the report's ms like the graph's `startTime` and `endTime` (the
+  fight's start for a whole fight: 6330494 on KBYT4xXn7VNjDgh8 fight 21), and `pointInterval`, the ms between
+  its `data` points (678.56 there: the fight's 162,854 ms in 240 steps).
 - `wipeCutoff: N` on table/events/graph ignores everything after the N-th death (`breakdown`'s `cutoff`; the
   table's `totalTime` is cut too). Wipebot cuts damage taken and mechanic hits at the moment a wipe was
   decided (the boss's end buff or half the raid dead) with `endTime` or by filtering events.

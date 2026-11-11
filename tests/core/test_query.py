@@ -162,6 +162,21 @@ def test_a_pull_stands_in_a_query_by_its_number(rep):
     assert _pulls(declared, rep, None) == declared  # variables the query declares itself are left alone
 
 
+def test_a_pulls_time_inside_a_filter_counts_from_the_pull_as_the_filters_timestamp_does(rep):
+    """In a filterExpression `timestamp` counts ms from the fight's start (docs/reference/wcl-api.md), and one
+    Warcraft Logs can't use is answered with nothing, no error: the report's ms there read as if nothing matched."""
+    f = rep.fight(13, "Sszorak")
+    q = ('events(fightIDs: [$fight(13)], startTime: $at(13, 2:15), endTime: "$end(13)", filterExpression: '
+         '"type = \\"cast\\" and timestamp > $at(13, 2:15) and timestamp < $end(13) and timestamp >= $start(13)")')
+    assert _pulls(q, rep, "Sszorak") == (
+        f'events(fightIDs: [{f["id"]}], startTime: {f["startTime"] + 135_000}, endTime: {f["endTime"]}, '
+        f'filterExpression: "type = \\"cast\\" and timestamp > 135000 and timestamp < '
+        f'{f["endTime"] - f["startTime"]} and timestamp >= 0")')
+    # one written in quotes, alone, is the argument itself (as "$code" is)
+    assert _pulls('fightIDs: ["$fight(13)"], startTime: "$start(13)"', rep, "Sszorak") == (
+        f'fightIDs: [{f["id"]}], startTime: {f["startTime"]}')
+
+
 @pytest.mark.parametrize("query, error", [
     ("$fight(99)", "Sszorak has pulls 1-33"),
     ("$at()", "takes a pull and a time"),
@@ -269,6 +284,26 @@ async def test_a_reports_other_times_read_into_their_pull_and_a_fights_field_kee
             '{"startTime":"0:01.000 of Sszorak pull 14","endTime":"0:05.500 of Sszorak pull 14"}') in text
     assert text.splitlines()[-1].startswith("Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% "
                                             "health); 22 = Sszorak pull 14 (")
+
+
+async def test_a_fights_phases_and_a_graphs_start_read_into_the_pull_and_a_phase_is_named_as_the_tools_name_it(rep):
+    """A fight's phase transitions were asked for with its start, to subtract one from the other by hand, and
+    Warcraft Logs' id for a phase is not always the number raiders give it (pulls.phase_labels)."""
+    f = rep.fight(13, "Sszorak")
+    assert [t["id"] for t in f["phaseTransitions"]] == [1, 2, 1]
+    series = {"name": "Scopidruid", "pointStart": f["startTime"], "pointInterval": 1000, "data": [1.5, 2.5]}
+    answer = {"reportData": {"report": {
+        "fights": [{"startTime": f["startTime"], "endTime": f["endTime"], "phaseTransitions": f["phaseTransitions"]}],
+        "graph": {"data": {"series": [series], "startTime": f["startTime"], "endTime": f["endTime"]}}}}}
+    q = ("{ reportData { report(code: $code) { fights(fightIDs: [$fight(13)]) { startTime endTime phaseTransitions "
+         "{ id startTime } } graph(fightIDs: [$fight(13)], dataType: DamageTaken) } } }")
+    text = await query_text(cast(WCL, Points(100, answer)), q, rep, boss="Sszorak")
+    assert rep.phases(f) == "P1 Sszorak 0:00 → P2 Howling Maelstrom 1:39 → P1 Sszorak 2:05"  # as pull_summary has them
+    assert ('"phaseTransitions":[{"id":1,"startTime":"0:00.000","phase":"P1 Sszorak"},{"id":2,"startTime":"1:39.990",'
+            '"phase":"P2 Howling Maelstrom"},{"id":1,"startTime":"2:05.000","phase":"P1 Sszorak"}]') in text
+    assert f'"fights":[{{"startTime":{f["startTime"]},"endTime":{f["endTime"]},' in text  # the fight's own: as asked
+    assert '"pointStart":"0:00.000","pointInterval":1000,"data":[1.5,2.5]' in text
+    assert str(f["phaseTransitions"][1]["startTime"]) not in text
 
 
 async def test_another_report_a_query_names_is_read_for_its_names_only_when_the_answer_has_times(rep):
