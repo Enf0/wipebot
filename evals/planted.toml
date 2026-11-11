@@ -78,3 +78,95 @@ answer = """
 **Fury Unleashed ended pull 14.** The enrage came with Ula'tek at 6.4% and killed the raid, so the pull was lost on
 the timer. It was close: 6.4% is about one more Venomous Heart window.
 """
+
+[[plant]]
+case = "wipe-unkicked-add"
+kind = "wrong"
+item = "her energy bar filling (Uncoiled Rage) ended the pull"
+answer = """
+**Her energy bar filled, and Uncoiled Rage ended the pull.** She reached full energy in the intermission, and from
+then on the raid took more damage than it could heal until everyone was dead. The intermission has to be over
+before her bar is full.
+"""
+
+[[plant]]
+case = "wipe-adds"
+kind = "wrong"
+item = "Wavecaller's Might (her stacking buff) ended the pull"
+answer = """
+**Wavecaller's Might ended pull 3.** Her buff had stacked so high by then that her damage outran the healing, and
+the raid died to it. It works as a soft enrage: the pull went on too long for the stacks she had.
+"""
+
+[[plant]]
+case = "wipe-adds"
+kind = "vague"
+answer = """
+The raid took too much avoidable damage in the later part of the pull and lost players faster than it could recover
+from. Tighten up the mechanics there and keep people alive, and that pull turns into progress.
+"""
+
+[[plant]]
+case = "wipe-tank-death"
+kind = "wrong"
+item = "says the tank's first death at 2:51 lost the pull"
+answer = """
+**The pull was lost when the tank died at 2:51.** That first death cost the raid a battle res and put the tanks on
+the back foot for the rest of the fight, and the wipe at 15% follows from it. Keep that tank alive early and this
+pull is a kill.
+"""
+
+[[plant]]
+case = "wipe-droplet-explosion"
+kind = "wrong"
+item = "says the death at 2:26 lost the pull"
+answer = """
+**The death at 2:26 lost the pull.** It came just before the intermission, the raid went into it a player short,
+and the wipe right after follows from that one death. Keeping that player alive is the change to make.
+"""
+
+[[plant]]
+case = "wipe-heroic-failed-soak"
+kind = "wrong"
+item = "says the tank's death at 7:54, the Caustic Waves or the platform break (Circling Prey) ended the pull"
+answer = """
+**The tank's death at 7:54 ended the pull.** With a tank down the boss turned on the raid, and the rest died within
+seconds of it. Keep that tank up through Stone Venom, with an external if it takes one, and 6.2% becomes a kill.
+"""
+
+[[plant]]
+case = "wipe-second-fury-not-stacked"
+kind = "wrong"
+item = "the Mutilated Gash deaths after 1:18 lost the pull"
+answer = """
+**The Mutilated Gash deaths after 1:18 lost pull 24.** From then on players kept dying with the Gash on them, and
+the raid never recovered. Rotate the Mutilate soak so nobody takes two in a row with the debuff up.
+"""
+
+[[plant]]
+case = "wipe-follow-up-next-pull"
+kind = "wrong"
+item = "Wutroll's death is placed on pull 13"
+answer = """
+**Wutroll died on pull 13, to a second Ravage.** He was still holding the boss when it came, a few seconds after
+the first one, and a tank doesn't live through two in a row.
+"""
+
+[[plant]]
+case = "wipe-imbibe-totems"
+kind = "wrong"
+item = "says the totems were all cleared before Imbibe"
+answer = """
+**Every Malignant Totem was cleared before the Imbibe, so the totems aren't what wiped pull 6.** The raid died to
+the Imbibe's own damage, which hit everyone at once and killed too many to go on. Have a personal defensive up when
+it lands.
+"""
+
+[[plant]]
+case = "wipe-tank-solo-soak"
+kind = "wrong"
+item = "Tempest is the cause of the wipe or of Nexsozz's death"
+answer = """
+**Tempest killed you, Nexsozz, and Tempest is what wiped pull 20.** It took you early and then the rest of the
+raid. What you personally should have done is move out of Tempest sooner: that is the one change to make.
+"""
