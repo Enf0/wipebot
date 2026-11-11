@@ -4,12 +4,12 @@
 // total, the shares and "in N of M pulls" are the tool's own, as its text states them (views.meter_view): nothing
 // here is summed over the bars. The card (kit.card): the ranking in one sentence (views.meter_headline), its few
 // numbers and the top players' bars; "Open ranking" draws every player's in fullscreen, with a mechanic's hits per
-// player per pull under them, and "By pull" opens the trend of a ranking over several pulls. A panel (data-panel) per meter, each its own picture in Discord, where a picture of a whole
-// raid's bars fills a phone's screen: the top players get a bar, the rest a line with their amounts. Against another
-// night (mechanic_hits' against), each bar per minute with a tick at the other night's and the change. The player
-// the picture is for (key.mark, the one asking) is ringed, and their bar shown under the top ones when it's further
-// down. For "who did the least?" (breakdown's least) it's drawn from the bottom, least first, the top players in
-// the line ----
+// player per pull under them, and "By pull" opens the trend of a ranking over several pulls. A panel (data-panel)
+// per meter, each its own picture in Discord, where a picture of a whole raid's bars fills a phone's screen: the top
+// players get a bar, the rest a line with their amounts. Against another night (mechanic_hits' against), each bar
+// per minute with a tick at the other night's and the change. The player the picture is for (key.mark, the one
+// asking) is ringed, and their bar shown under the top ones when it's further down. For "who did the least?"
+// (breakdown's least) it's drawn from the bottom, least first, the top players in the line ----
 views.meter = (() => {
   const INLINE = 8;  // the bars of a card in a host, where the rest are a click away
   let D = null, root = null, open = null, ROWS = 0, SHOWN = 10, LISTED = Infinity, MARK = "", ASKER = "";  // rows drawn (a raid is 20-30), and the line with the rest up to
@@ -24,7 +24,8 @@ views.meter = (() => {
     render();
   }
 
-  // An amount in the page's short form; a rate of a few a minute comes written as its tool writes it (`text`)
+  // An amount in the page's short form; a rate of a few a minute comes written as its tool writes it (`text`), and
+  // so does a median between two counts
   const amount = (m, v, text) => text || (m.unit === "amount" || m.unit === "per minute" ? kit.short(v) : String(Math.round(v)));
   const each = (m) => m.unit.includes(" per minute") ? "/min" : "";  // after a mechanic's hits per minute over a night
   const marked = (b) => MARK && b.name.toLowerCase() === MARK;

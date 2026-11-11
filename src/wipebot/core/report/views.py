@@ -954,9 +954,14 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
     players = {p.name: p for p in rep.players.values()}
 
     def written(m: Meter, v: float | None) -> dict:
-        """An amount the page's own short form would get wrong (a rate of a few a minute), as the text writes it."""
-        return {"text": meter_amount(m, v)} if v is not None and "per minute" in m.unit and (
-            m.unit != "per minute" or m.scope.startswith("debuff")) else {}
+        """An amount the page's own short form would get wrong, written here: a rate of a few a minute as the text
+        writes it, and a median that falls between two counts ("2.5" kicks), which the page would round to a count
+        the headline's "times the median" doesn't fit."""
+        if v is None or m.unit == "amount":
+            return {}
+        if "per minute" in m.unit:
+            return {"text": meter_amount(m, v)} if m.unit != "per minute" or m.scope.startswith("debuff") else {}
+        return {"text": f"{v:.1f}"} if v % 1 else {}
 
     def bar(m: Meter, said: Stated, b) -> dict:
         p = players.get(b.name)

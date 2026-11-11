@@ -499,6 +499,28 @@ def test_a_meters_headline_says_who_is_first_and_how_that_stands_against_the_med
         "(-20%).")
 
 
+async def test_a_median_between_two_counts_is_written_as_the_headline_compares_with_it(recorded, monkeypatch, tmp_path):
+    """Kicks of 6, 3, 2 and 1 have a median of 2.5, which the headline compares the first with ("2.4 times"). The
+    page rounds a count, so its tile said "3" under that sentence: a median that falls between two counts comes
+    written, and a whole one stays the page's."""
+    from wipebot.core.report.meter import Bar, Meter
+    case = CASES["interrupts"]
+    kicks = Meter("Kicks", "Torvek pull 3", [Bar("Mirelle", 6), Bar("Rowan", 3), Bar("Tamsin", 2), Bar("Corin", 1)],
+                  "kicks")
+
+    async def ranked(rep, tool, args, other=None):
+        return [(kicks, views.Stated())]
+    monkeypatch.setattr(views, "_ranked", ranked)
+    [m] = (await meter_data("interrupts"))["meters"]
+    assert m["median"] == 2.5 and m["median_text"] == "2.5" and all("text" not in b for b in m["bars"])
+    assert m["headline"]["text"] == "Mirelle is first with 6 kicks, 2.4 times the median of the 4 players ranked."
+    [s] = await shots(tmp_path, case.tool, case.args, as_picture=True)
+    assert not s.errors and "MEDIAN\n2.5\n" in s.text.upper()
+    kicks.bars.pop()
+    [m] = (await meter_data("interrupts"))["meters"]
+    assert m["median"] == 3 and "median_text" not in m
+
+
 async def test_the_meter_draws_a_panel_per_meter_without_errors(recorded, tmp_path):
     data = await meter_data("nekzali-enemies-night")
     [s] = await shots(tmp_path, "enemies", CASES["nekzali-enemies-night"].args)
