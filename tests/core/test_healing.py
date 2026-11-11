@@ -97,11 +97,26 @@ async def test_a_pull_without_spikes_shows_its_busiest_stretches_and_names_them_
                         "over the 5 s from 0:20; its 2 busiest stretches:")
     assert lines[1] == "0:21-0:29 (8 s): 0/s taken (no damage recorded); healing 0/s, - of the damage taken."
     assert lines[2].startswith("  Healers: ")
-    assert lines[3].startswith("  Healing cooldowns used (or up to 5 s before): ")
+    assert lines[3].startswith("  Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and "
+                               "lasting through half of it): ")
     assert lines[4].startswith("1:21-1:25 (4 s): ")
     assert "Each healer in the busiest stretches against the rest of the time" in text
     assert "in the busiest stretches, " in text and "healing cooldowns in a busiest stretch" in text
     assert "spike" not in "\n".join(lines)
+
+
+def test_a_cooldown_pressed_before_a_stretch_counts_while_it_lasts():
+    # On The Twin Fangs pull 7, Avenging Wrath at 3:32 lasted through 3:38-3:44, which read "Healing cooldowns used (or
+    # up to 5 s before): none", and answers said no cooldown went into the busiest stretches. Pressed earlier than 5 s
+    # before, a cooldown counts while it lasts by Lorrgs' duration through half the stretch: an opener's last second
+    # isn't the 0:20 spike's. One with no duration (an instant) counts up to 5 s before, and none counts after.
+    wrath, rewind = {"duration": 20}, {"duration": 0}
+    start, end = 218_000, 224_000
+    assert healing._up([212_000], wrath, start, end) == [212_000]
+    assert healing._up([197_000, 224_500], wrath, start, end) == []
+    assert healing._up([1_000], wrath, 20_000, 27_000) == []
+    assert healing._up([213_000], rewind, start, end) == [213_000]
+    assert healing._up([212_000], rewind, start, end) == []
 
 
 async def test_a_pull_under_the_lower_bar_says_so_in_a_line(rep, patch_wcl):

@@ -28,6 +28,8 @@ BUSY_TIMES = 1.25
 BUSIEST_SHOWN = 3  # one pull: its busiest stretches
 SAME_SPIKE_MS = 10_000  # spikes in different pulls starting this close to the first of them: the same moment
 COOLDOWN_LEAD_MS = 5_000  # a healing cooldown this soon before a spike was used for it (a totem goes down first)
+# Pressed earlier, it counts while it lasts by Lorrgs' duration through half the spike or more: Avenging Wrath at 3:32
+# lasts through 3:38-3:44, which read "none" (The Twin Fangs), but an opener's last second isn't the 0:20 spike's.
 ABILITIES_NAMED = 2  # the abilities behind each spike
 AT_DEATH_MS = 5_000  # death_recap: each healer's casts in this window before a death
 CASTS_NAMED = 4
@@ -248,7 +250,7 @@ async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict
                 if pid != p.id:
                     continue
                 theirs = [c["timestamp"] for c in own if c["type"] == "cast" and rep.is_spell(c, sp)]
-                if at := [x for x in theirs if s.start - COOLDOWN_LEAD_MS <= x <= s.end]:
+                if at := _up(theirs, sp, s.start, s.end):
                     s.cooldowns.append(f"{name} ({p.name}) at {clock(at[0] - t0)}")
                     mine.cooldowns += 1
                 elif (p.id, name) in pressed and gone is None and _ready(theirs, sp, s.start):
@@ -256,6 +258,13 @@ async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict
                     mine.ready += 1
             s.healers[p.id] = mine
     return {f["id"]: w for f, w in zip(fights, whole, strict=True)}
+
+
+def _up(times: list[float], sp: dict, start: float, end: float) -> list[float]:
+    """The casts of healing cooldown `sp` up in `start`-`end`: pressed in it or up to COOLDOWN_LEAD_MS before it, or
+    earlier and lasting, by Lorrgs' duration, through half of it."""
+    lasts, middle = 1000 * (sp.get("duration") or 0), (start + end) / 2
+    return [t for t in times if start - COOLDOWN_LEAD_MS <= t <= end or t < start and t + lasts >= middle]
 
 
 def _ready(times: list[float], sp: dict, at: float) -> bool:
@@ -294,7 +303,8 @@ def _spike_line(rep: Report, s: Spike, healers: dict[int, Player]) -> str:
     out = [f"{clock(s.start - t0)}-{clock(s.end - t0)} ({s.seconds:.0f} s): {short(s.taken / s.seconds)}/s taken "
            f"({what}); healing {short(s.healing / s.seconds)}/s, {_share(s.healing, s.taken)} of the damage taken."]
     out.append("  Healers: " + "; ".join(_in_spike(healers[pid], h, s.seconds) for pid, h in s.healers.items()))
-    out.append("  Healing cooldowns used (or up to " f"{COOLDOWN_LEAD_MS // 1000} s before): "
+    out.append(f"  Healing cooldowns up in it (pressed in it or up to {COOLDOWN_LEAD_MS // 1000} s before, or earlier "
+               "and lasting through half of it): "
                + (", ".join(s.cooldowns) or "none")
                + "; ready and unused (by healers who press them this report): " + (", ".join(s.ready) or "none"))
     if s.deaths:
