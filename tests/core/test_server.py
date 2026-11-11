@@ -13,10 +13,11 @@ from wipebot.core import notebook, server
 from wipebot.core.report import FactError, Report
 
 # The tools that don't read a report, so take none; every other tool takes `report`.
-NO_REPORT = {"spell_info", "spec_guide", "hotfixes", "web_lookup"}
+NO_REPORT = {"spell_info", "spec_guide", "hotfixes", "web_lookup", "analysis_method"}
 # The tools without a case in cases.toml, and where they're tested instead.
 TESTED_ELSEWHERE = {
     "hotfixes": "knowledge/test_news.py (a snapshot would date: it counts back from today)",
+    "analysis_method": "here (test_the_method_is_the_skill_with_its_parts_named_by_part): it is the skill's text",
 }
 
 
@@ -708,3 +709,18 @@ async def test_a_call_past_the_users_limit_is_refused_and_not_counted(monkeypatc
     with pytest.raises(ToolError, match="asked for 1 tool call in the last hour"):
         await guarded()
     assert len(limits._spent["1"]) == 1 and kept == [(False, "ok"), (True, kept[1][1])]
+
+
+@pytest.mark.parametrize("part", [None, *server.PARTS])
+def test_the_method_is_the_skill_with_its_parts_named_by_part(part):
+    """analysis_method gives the skill's steps, the asked part and the examples, and names a part by the `part`
+    that gives it, never by a file the client can't open."""
+    text = server.method(part)
+    files = {p.name for p in server.SKILL.iterdir() if p.name.endswith(".md")}
+    assert set(server.PARTS.values()) | {"SKILL.md", "examples.md"} == files  # every part has its word
+    assert not re.search(r"\]\([\w-]+\.md\)|\b[\w-]+\.md\b", text)
+    assert text.startswith("# Analysing raid logs") and "# Worked examples" in text
+    for word, file in server.PARTS.items():
+        title = server.SKILL.joinpath(file).read_text(encoding="utf-8").splitlines()[0]
+        assert (title in text) == (word == part), word
+        assert f"(part `{word}`)" in text or word == part

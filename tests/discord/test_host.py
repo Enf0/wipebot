@@ -488,7 +488,7 @@ async def test_a_session_attaches_no_file_a_prompt_names(monkeypatch):
         async def disconnect(self):
             pass
 
-    async def no_tools(*args):
+    async def no_tools(*args, **kwargs):
         return []
 
     async def report(code, max_age_s=0):
@@ -517,7 +517,7 @@ async def test_with_only_the_connector_raid_notes_are_the_cores(monkeypatch):
         async def connect(self):
             pass
 
-    async def tools(code, on_result, guild, note, plan, reading, asker):
+    async def tools(code, on_result, guild, note, plan, reading, asker, skilled=False):
         finders.append((note, plan))
         return []
 
@@ -543,7 +543,7 @@ async def test_with_a_plugin_the_model_loads_its_skills_and_reads_only_its_files
         async def connect(self):
             pass
 
-    async def no_tools(*args):
+    async def no_tools(*args, **kwargs):
         return []
 
     async def report(code, max_age_s=0):

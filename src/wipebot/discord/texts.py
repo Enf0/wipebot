@@ -149,6 +149,7 @@ DOING = {
     "web_lookup": Text("Looking it up on the web", "Slår det opp på nett"),
     "spec_guide": Text("Reading the spec guide", "Leser spec-guiden"),
     "hotfixes": Text("Checking hotfixes", "Sjekker hotfixes"),
+    "analysis_method": Text("Reading the method", "Leser metoden"),
     "follow_pulls": Text("Setting up posts after wipes", "Setter opp poster etter wipes"),
     "remember": Text("Taking a note", "Noterer"),
     "answer_in_dm": Text("Taking it to DMs", "Tar det i DM"),
@@ -169,7 +170,8 @@ STEPS_NO = {
     "player_history": "Tidligere uker", "defensives": "Defensives", "healing": "Healing",
     "buff_at_casts": "Buffs ved casts", "breakdown": "Tallene", "wcl_query": "Warcraft Logs", "spell_info": "Spell",
     "boss_guide": "Boss-guiden", "web_lookup": "Nettsøk", "spec_guide": "Spec-guiden", "hotfixes": "Hotfixes",
-    "follow_pulls": "Poster etter wipes", "remember": "Notat", "answer_in_dm": "Svar i DM",
+    "analysis_method": "Metoden", "follow_pulls": "Poster etter wipes", "remember": "Notat",
+    "answer_in_dm": "Svar i DM",
 }
 
 # ---------- buttons and menus ----------

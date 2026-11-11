@@ -21,6 +21,7 @@ Where each tool's work is done, under report/ unless another folder is named:
 - wcl_query: query.py
 - spell_info: knowledge/spells.py; boss_guide: knowledge/bosses.py; spec_guide: knowledge/specs.py;
   hotfixes: knowledge/news.py; web_lookup: knowledge/pages.py
+- analysis_method: the skill (skills/raid-log-analysis/) for a client without it, here (`method`)
 """
 import asyncio
 import base64
@@ -102,7 +103,7 @@ from .wcl import WCLError
 INSTRUCTIONS = resources.files("wipebot.core").joinpath("instructions.md").read_text(encoding="utf-8")
 SKILL = resources.files("wipebot.core").joinpath("skills/raid-log-analysis")  # how to answer: one source, see skill()
 # Titles where the tool's name doesn't read as one ("Wcl query"); the rest are its name in words.
-TITLES = {"compare_with_top": "Compare with top players",
+TITLES = {"analysis_method": "How to analyse raid logs", "compare_with_top": "Compare with top players",
           "save_note_or_plan": "Save raid note or plan",
           "wcl_query": "Warcraft Logs query"}
 
@@ -2137,6 +2138,42 @@ async def hotfixes(about: Annotated[str, Field(description="a boss, raid, class 
     return await knowledge.hotfixes_text(await top.boss_name(lib().wcl, about), days)
 
 
+# The skill's parts, by the word analysis_method takes for each
+PARTS = {"wipe": "reading-a-wipe.md", "night": "reviewing-a-night.md", "player": "judging-a-player.md",
+         "plan": "planning.md", "boss": "explaining-a-boss.md"}
+
+
+def method(part: str | None = None) -> str:
+    """The skill as analysis_method gives it: SKILL.md's steps, each part named by the `part` that gives it, then
+    `part`'s file and the worked examples."""
+    body = SKILL.joinpath("SKILL.md").read_text(encoding="utf-8").split("---", 2)[2].strip()
+    words = {file: word for word, file in PARTS.items()}
+
+    def named(m: re.Match) -> str:
+        file = m.group(2)
+        if file == "examples.md":
+            return f"{m.group(1)} (at the end)"
+        return f"{m.group(1)} ({'below' if words.get(file) == part else f'part `{words[file]}`'})"
+    body = re.sub(r"\[([^\]]+)\]\(([\w-]+\.md)\)", named, body)
+    body = body.replace("Parts are files beside this one, or sections below.",
+                        "A question's part is analysis_method with its `part`.")
+    parts = [body] + ([SKILL.joinpath(PARTS[part]).read_text(encoding="utf-8").strip()] if part else [])
+    return "\n\n".join(parts + [SKILL.joinpath("examples.md").read_text(encoding="utf-8").strip()])
+
+
+@_tool
+async def analysis_method(part: Annotated[Literal["wipe", "night", "player", "plan", "boss"] | None, Field(
+        description=("the question's: wipe (a pull, what killed a player), night (a night, what keeps wiping the "
+                     "raid, what to fix first), player (how a player did), plan (cooldowns, the raid's make-up, "
+                     "night against night), boss (how a boss works, the guild's note or plan, loot)"))] = None
+                          ) -> str:
+    """How to read these tools' output the way an experienced raid leader does, and what an answer from it holds:
+    the steps to take in order, the part for the kind of question, and worked examples. It is the
+    raid-log-analysis skill's text, so skip it where that skill is loaded. Call it once in a conversation, before
+    the first other tool, with the question's part; another part when a later question is of another kind."""
+    return method(part)
+
+
 # ---------- prompts ----------
 
 @_prompt
@@ -2159,7 +2196,7 @@ READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempot
 
 
 # The tools answers start from: Claude Code loads these up front rather than through its tool search.
-ALWAYS_LOAD = ("pull_summary", "progress", "player_pull", "player_night")
+ALWAYS_LOAD = ("analysis_method", "pull_summary", "progress", "player_pull", "player_night")
 
 
 def compact(schema: dict) -> dict:

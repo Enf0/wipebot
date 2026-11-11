@@ -24,6 +24,7 @@ CONNECTOR_TOOLS = {"my_characters", "report_answer", "save_note_or_plan"}
 NO_CASE_YET = {
     "spell_info": "the answers to the cases that could use it call it in fewer than two of three",
     "web_lookup": "no case needs a page no other tool reads yet",
+    "analysis_method": "the method itself: every case in --connector-only measures what it changes",
 }
 
 

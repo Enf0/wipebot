@@ -400,7 +400,7 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
                     note: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
                     plan: Callable[[dict], Awaitable[tuple[str, str] | str]] | None = None,
                     reading: Callable[[], AbstractContextManager[None]] | None = None,
-                    asker: Callable[[], str | None] | None = None) -> list:
+                    asker: Callable[[], str | None] | None = None, skilled: bool = False) -> list:
     """The core's MCP tools, wrapped for the Agent SDK's in-process server. Tools that take a report get `code`
     when the model names none, so sessions about different servers' reports don't mix. `on_result` gets every
     call, failed ones too. `guild` gives the server's guild as "name, realm, region": find_reports asked with no
@@ -410,7 +410,8 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
     `reading` gives what a call runs inside (Context.reading: the asker's Warcraft Logs tokens, so their own points
     pay first and their private reports are read, and the guild whose saved things they read); without it, a call
     runs as an asker who isn't signed in and reads no guild's.
-    `asker` gives the asker's character, whose row a picture rings."""
+    `asker` gives the asker's character, whose row a picture rings. `skilled`: the session's prompt holds the
+    skill, so analysis_method is left out."""
     saved_args = {"raid_note": ("note", note), "raid_plan": ("plan", plan)}
 
     def wrap(name: str, description: str, schema: dict):
@@ -451,7 +452,9 @@ async def sdk_tools(code: str | None = None, on_result: Callable[[ToolCall], Non
         # Read-only tools may run side by side: the model often asks for several at once.
         return tool(name, description, schema, annotations=ToolAnnotations(readOnlyHint=True))(handler)
 
-    return [wrap(t.name, t.description or "", t.input_schema) for t in await server.mcp.list_tools()]
+    # analysis_method is the skill, which the bot's prompt holds whole
+    return [wrap(t.name, t.description or "", t.input_schema) for t in await server.mcp.list_tools()
+            if not (skilled and t.name == "analysis_method")]
 
 
 def with_own_guild(args: dict, own: str) -> dict:
@@ -675,7 +678,7 @@ class Session:
         tools = await sdk_tools(self.code, self._returned, lambda: self._ctx.guild if self._ctx else None,
                                 self._saved_note if bot else None, self._saved_plan if bot else None,
                                 lambda: (self._ctx or Context()).reading(),
-                                lambda: self._ctx.asker if self._ctx else None)
+                                lambda: self._ctx.asker if self._ctx else None, skilled=bot)
         if bot:
             tools += [self._bot_tool(spec) for spec in prompt.BOT_TOOLS]
         return tools
