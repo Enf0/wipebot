@@ -53,17 +53,24 @@ from .coaching import (
 )
 from .cooldowns import NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
 from .deaths import (
-    BURST_MS,
-    NOT_ENOUGH,
+    CASCADE_MS,
     RECAP_WINDOW_MS,
+    SAVED,
+    Replay,
+    Standing,
     defensive_state,
     if_pressed,
     killed_outright,
+    last_seen,
+    lived,
     replay_deaths,
     savers,
+    saving,
+    standing,
 )
 from .ending import (
     KILL,
+    MASS_HIT,
     QUIET_ENDS,
     RESET,
     Ending,
@@ -418,7 +425,7 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
     killers: dict[str, dict[str, Any]] = {}
     for r in counted:
         replay = replays.get((r["pull"], r["death"]["ms"]))
-        more = replay.more if replay else []
+        more = replay.more if replay else Replay()
         saved_by.update(savers(more))
         k = killers.setdefault(r["death"]["by"], {"by": r["death"]["by"], "no_blow": r["death"]["no_blow"],
                                                   "icon": r["death"]["icon"], "pulls": []})
@@ -430,11 +437,11 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
                          sum(x.counted_s for x in pulls if not x.reset))
     eligible = {rep.pull_no(x.f) for x in best_pulls(pulls, role)}  # as the text picks it
     best = max((r for r in rows if r["pull"] in eligible), key=lambda r: r["per_s_alive"], default=None)
-    lived = sum(v is True for v in judged)
+    saved = sum(v is True for v in judged)
     return {
         "view": "player_night", "report": rep.code, "boss": boss, "title": f"{p.name} on {boss}",
         "url": rep.url(fights[0]).split("#")[0],
-        "headline": player_night_headline(len(counted), sum(not r["reset"] for r in rows), lived),
+        "headline": player_night_headline(len(counted), sum(not r["reset"] for r in rows), saved),
         "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
                    "color": class_hex(p.class_name), "role": role},
         "what": "healing" if role == "healer" else "damage", "role_name": ROLE_NAMES[role],
@@ -444,7 +451,7 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         "dead_s": round(dead_s), "counted_s": round(counted_s), "dead_pct": round(100 * dead_s / max(counted_s, 1)),
         "best": {"pull": best["pull"], "per_s_alive": best["per_s_alive"]} if best else None,
         "killers": sorted(killers.values(), key=lambda k: (k["by"] == NO_KILLING_BLOW, -len(k["pulls"]))),
-        "lived": {"saved": lived, "of": len(judged),
+        "lived": {"saved": saved, "of": len(judged),
                   "unknown": sum(v is None for v in judged), "by": saved_by.most_common(),
                   "outright": sum(x["outright"] for k in killers.values() for x in k["pulls"])},
         "cooldowns": [_night_cooldown(cds, n) | {"icon": icon(ids.get(n))} for n in cds.used],
@@ -532,8 +539,11 @@ def weeks_row(n: BossNight) -> dict:
 
 async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
     """One death, as death_recap states it, from the same answers: the hits in the window before it with their
-    health after each, the healing they received per second, the killing blow and whether it killed outright, their
-    defensives then and what a ready one or a healthstone would have changed, and who died within BURST_MS."""
+    health after each, the healing they received per second, the killing blow and whether it killed outright, where
+    they were last logged when the log names no killing blow, their defensives then, what the death was to its
+    wipe (deaths.standing: before it was decided, fallout after it, or one of a hit killing many) and, for a death
+    that was theirs, what a ready defensive or a healthstone would have changed (deaths.if_pressed's rows), and
+    the other deaths death_recap lists with it."""
     p = rep.player(player)
     rep.require_in(f, p)
     deaths = await rep.deaths(f)
@@ -545,11 +555,11 @@ async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
     p = rep.in_pull(f, p)
     d = own[death - 1]
     t0, at = f["startTime"], d["timestamp"]
-    hits, heals, casts, (stones, _), decided = await asyncio.gather(
+    hits, heals, casts, (stones, _), was, moved = await asyncio.gather(
         rep.events(f["id"], "DamageTaken", sourceID=p.id, hostilityType="Friendlies", startTime=at - RECAP_WINDOW_MS,
                    endTime=at + 1, includeResources=True),
         rep.events(f["id"], "Healing", targetID=p.id, startTime=at - RECAP_WINDOW_MS, endTime=at + 1),
-        rep.casts(f, p, until=at), rep.potions(f, p, until=at), rep.decided_at(f))
+        rep.casts(f, p, until=at), rep.potions(f, p, until=at), standing(rep, f, d), last_seen(rep, f, p, d))
     try:
         spells = await rep.defensive_spells(p)
     except KnowledgeError:
@@ -570,27 +580,35 @@ async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
     kid = d.get("killingAbilityGameID")
     killer = lambda x: rep.ability(k) if (k := x.get("killingAbilityGameID")) else NO_KILLING_BLOW  # noqa: E731
     outright = bool(kid and killed_outright(rep, f, d, hits))
-    replayed = await if_pressed(rep, f, p, d, hits)
-    fallout = bool(decided and at - t0 > decided.at_ms)
+    try:  # as death_recap: a death that wasn't theirs is not replayed, and a guide out of reach leaves the replay out
+        replay = await if_pressed(rep, f, p, d, hits) if was.theirs else Replay()
+    except KnowledgeError:
+        replay = Replay()
     last_hp = next((v for h in reversed(hits) if (v := hp(h)) is not None), None)
     return {
         "view": "death", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f), "title": rep.label(f),
-        "headline": death_headline(killer(d), at - t0, outright, last_hp, replayed, fallout),
+        "headline": death_headline(killer(d), at - t0, outright, last_hp, replay, was, moved),
         "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""), "url": rep.url(f),
         "player": {"name": p.name, "spec": spaced(p.spec), "class": spaced(p.class_name),
                    "color": class_hex(p.class_name), "role": p.role},
         "death": death, "deaths": len(own), "at_ms": round(at - t0), "window_ms": RECAP_WINDOW_MS,
         "by": killer(d), "no_blow": not kid, "icon": icon(kid),
-        "fallout": fallout, "outright": outright,
+        # what the death was to its wipe, in the text's words (its first line), and the two kinds that are no one
+        # player's to fix: `mass` in the short words the text lists such a death with
+        "note": was.note, "fallout": was.fallout,
+        "mass": MASS_HIT.format(n=was.mass.killed, at=clock(was.mass.at_ms)) if was.mass else None,
+        "outright": outright,
         "hits": [{"ms": round(h["timestamp"] - t0), "by": rep.ability(h["abilityGameID"]),
                   "icon": icon(h["abilityGameID"]), "amount": h.get("amount", 0), "absorbed": h.get("absorbed", 0),
                   "overkill": h.get("overkill", 0), "hp": hp(h)} for h in hits],
         "healing": [[ms, round(v)] for ms, v in sorted(per_s.items())],
         "defensives": defs, "stones": stones,
-        "saved_by": savers(replayed),
+        "saved_by": savers(replay),
+        # the text's "Other deaths within 15 s"
+        "with_ms": CASCADE_MS,
         "with": [{"name": rep.names.get(x["targetID"], "?"), "ms": round(x["timestamp"] - t0),
                   "by": killer(x)}
-                 for x in deaths if x is not d and abs(x["timestamp"] - at) <= BURST_MS],
+                 for x in deaths if x is not d and abs(x["timestamp"] - at) <= CASCADE_MS],
     }
 
 
@@ -1286,23 +1304,28 @@ def pull_headline(f: dict, e: Ending | None, deaths: int) -> dict:
     return _headline(text + ".")
 
 
-def death_headline(by: str, at_ms: float, outright: bool, last_hp: int | None, replayed: list[str],
-                   fallout: bool) -> dict:
-    """What a death comes down to, in one sentence of death_recap's facts: that it killed outright (no defensive's
-    to stop); that it came after the wipe was decided (fallout, nothing of theirs to fix); what was ready and would
-    have kept them alive (if_pressed's lines, `replayed`); that nothing ready would have been enough (every one of
-    those lines says so); else the killing blow and when."""
+def death_headline(by: str, at_ms: float, outright: bool, last_hp: int | None, replay: Replay, was: Standing,
+                   moved: str = "") -> dict:
+    """What a death comes down to, in one sentence of death_recap's facts: that it came after the wipe was decided
+    or was one of a hit killing many (deaths.Standing, in its note's words: nothing of theirs to fix, and nothing
+    replayed); that it killed outright (no defensive's to stop); what was ready and would have kept them alive
+    (deaths.saving, the rows the text's verdict line names, each with what it takes as given: a healthstone they
+    may not have had), which is what to do differently; that nothing ready would have been enough (deaths.lived is
+    False: every row says so, and a row that can't tell leaves it unsaid, as the text does); else the killing blow
+    and when, with the text's line on where they were last logged (`moved`) under it when the log names none."""
+    how = f"Died at {clock(at_ms)}, {by}" if by == NO_KILLING_BLOW else f"Killed by {by} at {clock(at_ms)}"
+    if not was.theirs:
+        return _headline(f"{how}, {was.note}.")
     if outright:
         return _headline(f"{by} killed them outright from {last_hp}% health: it wasn't damage that outpaced their "
                          "healing.", "mind")
-    how = f"Died at {clock(at_ms)}, {by}" if by == NO_KILLING_BLOW else f"Killed by {by} at {clock(at_ms)}"
-    if fallout:
-        return _headline(f"{how}, after the wipe was decided.")
-    if saved := savers(replayed):
-        ready = " or ".join(saved)
-        return _headline(f"{ready[0].upper()}{ready[1:]}, used in time, would have kept them alive.", "fix")
-    if len(replayed) > 1 and all(line.endswith(f": {NOT_ENOUGH}") for line in replayed[1:]):
+    if saved := saving(replay):
+        ready = " or ".join(r.label for r in saved)
+        return _headline(f"{ready[0].upper()}{ready[1:]}, used in time, {SAVED}.", "fix")
+    if lived(replay) is False:
         how += ": nothing ready would have been enough on its own"
+    if moved:  # it changes how the defensives under it read: the text gives it under its first line
+        return _headline(how + ".", "mind") | {"more": moved}
     return _headline(how + ".")
 
 

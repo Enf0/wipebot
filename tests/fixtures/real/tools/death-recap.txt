@@ -1,4 +1,4 @@
-Scopidruid (Balance Druid) died at 0:48 on Sszorak pull 13 (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Killing blow: Ula'tek's Presence [1285965].
+Scopidruid (Balance Druid) died at 0:48 on Sszorak pull 13 (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21), before the wipe was decided. Killing blow: Ula'tek's Presence [1285965].
 Damage in the 10 s before death, by ability: Raging Crosswinds 503.30k in 9 hits, Venomous Surge 282.79k in 2 hits, Ula'tek's Presence 270.07k in 5 hits; 1.06M in all. The biggest hit: Raging Crosswinds 377.69k at 0:47, to 6% health. The killing blow: Ula'tek's Presence 50.23k at 0:48.
 Would have kept them alive, if pressed (replayed below; secondary to what killed them): a healthstone (if they had one; none used this pull).
 Damage taken in the 10 s before death (time, ability, source, amount, health after):

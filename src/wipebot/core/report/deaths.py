@@ -10,12 +10,13 @@ from ..text import clock, ids_line, plural, short
 from . import healing as heals
 from . import positions
 from .base import FactError, Player, PullRef, Report, unavailable
-from .ending import MASS_HIT, MassDeath, mass_death
+from .ending import BEFORE_NOTE, FALLOUT_NOTE, MASS_HIT, MASS_NOTE, MassDeath, mass_death
 
 RECAP_WINDOW_MS = 10_000  # damage shown before a death
 OUTRIGHT_FROM_PCT = 50  # a killing blow with no hit logged, after health at least this high: it killed outright
 HEALTHSTONE_SPELL = 6262  # the Healthstone item's spell: its tooltip says what it heals
-A_HEALTHSTONE = "a healthstone (if they had one; none used this pull)"  # the log doesn't say who carries one
+A_HEALTHSTONE = "a healthstone"  # in a death's replay, with what it takes as given: the log doesn't say who carries one
+HEALTHSTONE_GIVEN = "if they had one; none used this pull"
 CASCADE_MS = 15_000       # deaths this close together are probably linked
 DEATH_STRIP_MS = 250  # a dying player's auras are removed just before the death event
 
@@ -34,16 +35,17 @@ async def death_recap(rep: Report, player: str, pull: PullRef = None, boss: str 
         raise FactError(f"{p.name} died {len(own)} time(s) on {rep.label(f)}")
     d = own[death - 1]
     t0, at = f["startTime"], d["timestamp"]
-    (hits, what, hit_lines), healing, healers, auras, defensive_lines = await asyncio.gather(
+    (hits, what, hit_lines), healing, healers, auras, defensive_lines, was = await asyncio.gather(
         _hits(rep, f, p, d), _healing_received(rep, f, p, at), heals.at_death(rep, f, p, at),
-        _aura_lines(rep, f, p, at), _defensives(rep, f, p, at))
+        _aura_lines(rep, f, p, at), _defensives(rep, f, p, at), standing(rep, f, d))
     others = [x for x in deaths if x is not d and abs(x["timestamp"] - at) <= CASCADE_MS]
     burst = [x for x in others if abs(x["timestamp"] - at) <= BURST_MS]
-    pressed, raid_cds = await asyncio.gather(_if_pressed_lines(rep, f, p, d, hits),
-                                             _raid_cooldowns_lines(rep, f, [d, *burst]))
+    (verdict, pressed), raid_cds = await asyncio.gather(_if_pressed_lines(rep, f, p, d, hits, was),
+                                                        _raid_cooldowns_lines(rep, f, [d, *burst]))
     # What killed them and whether anything ready would have changed it lead; the hits and the rest are the detail.
-    lines = [f"{p.label} died at {clock(at - t0)} on {rep.label(f)} ({rep.url(f)}). "
-             f"Killing blow: {rep.ability_ref(d.get('killingAbilityGameID'))}.", *what, *_verdict(pressed), *hit_lines,
+    lines = [f"{p.label} died at {clock(at - t0)} on {rep.label(f)} ({rep.url(f)})"
+             + (f", {was.note}" if was.note else "")
+             + f". Killing blow: {rep.ability_ref(d.get('killingAbilityGameID'))}.", *what, *verdict, *hit_lines,
              *healing, *healers, *auras, *defensive_lines]
     if others:
         lines.append(f"Other deaths within {CASCADE_MS // 1000} s: " + ", ".join(
@@ -52,22 +54,52 @@ async def death_recap(rep: Report, player: str, pull: PullRef = None, boss: str 
     return "\n".join(lines + pressed + raid_cds)
 
 
-def _verdict(pressed: list[str]) -> list[str]:
+def _verdict(replay: Replay) -> list[str]:
     """The replay's answer in one line, for the top of a death's recap: what would have kept them alive, of what
-    was ready (`if_pressed`'s lines, which stay below as the working). None when the death couldn't be replayed.
+    was ready (`if_pressed`'s rows, which stay below as the working). None when the death couldn't be replayed.
     It claims no more than the working does: a healthstone only if they had one, and nothing ruled out that the
     replay couldn't tell."""
-    tried = [line for line in pressed[1:] if line.startswith("  ")]
-    if not tried:
+    if not replay:
         return []
-    if saved := savers(pressed):
-        stone = A_HEALTHSTONE.split(" (")[0]
+    if saved := saving(replay):
         return [f"Would have kept them alive, if pressed (replayed below; secondary to what killed them): "
-                f"{', '.join(A_HEALTHSTONE if name == stone else name for name in saved)}."]
-    if lived(pressed) is None:
+                f"{', '.join(r.label for r in saved)}."]
+    if lived(replay) is None:
         return [f"Nothing that was ready is sure to have kept them alive on its own (replayed below): "
-                f"{untold(pressed)} of {len(tried)} can't be told."]
+                f"{untold(replay)} of {len(replay.rows)} can't be told."]
     return ["Nothing that was ready would have kept them alive on its own (replayed below)."]
+
+
+@dataclass(frozen=True)
+class Standing:
+    """What a death was to its wipe: `note` says it in the words player_pull's "Died" line notes a death with
+    (before the wipe was decided; after it, fallout; one of a hit killing many, ending.mass_death; "" on a kill or
+    a wipe never decided). Fallout and a death in a hit killing many are no one player's to fix."""
+    note: str
+    fallout: bool = False
+    mass: MassDeath | None = None
+
+    @property
+    def theirs(self) -> bool:
+        return not self.fallout and self.mass is None
+
+
+# Why death_recap leaves the replay with what was ready out of a death that isn't the player's to fix: the same two
+# kinds of death `defensives` and player_night leave out
+NOT_REPLAYED = "Not replayed with what was ready: "
+NOT_REPLAYED_FALLOUT = NOT_REPLAYED + "the wipe was decided by then, so nothing pressed would have changed the pull."
+NOT_REPLAYED_MASS = NOT_REPLAYED + ("a hit killing many is the raid's to stop, and a defensive would only have bought "
+                                    "seconds of a pull it lost.")
+
+
+async def standing(rep: Report, f: dict, death: dict) -> Standing:
+    """What a death was to its wipe (`Standing`), for death_recap's first line and its picture."""
+    decided = await rep.decided_at(f)
+    if decided and death["timestamp"] - f["startTime"] > decided.at_ms:
+        return Standing(FALLOUT_NOTE.format(at=clock(decided.at_ms)), fallout=True)
+    if m := await mass_death(rep, f, death):
+        return Standing(MASS_NOTE.format(n=m.killed, at=clock(m.at_ms)), mass=m)
+    return Standing(BEFORE_NOTE if decided else "")
 
 
 def damage_by_ability(rep: Report, f: dict, hits: list[dict]) -> str:
@@ -120,12 +152,20 @@ async def _hits(rep: Report, f: dict, p: Player, d: dict) -> tuple[list[dict], l
     else:
         lines.append(ids_line({rep.ability(h["abilityGameID"]): h["abilityGameID"] for h in hits}))
     what = [damage_by_ability(rep, f, hits)] if hits else []
-    if not d.get("killingAbilityGameID"):
-        if moved := await positions.last_moves(rep, f, p.id, at):
-            what.append(moved)  # the first line has said no killing blow was recorded
-    elif line := killed_outright(rep, f, d, hits):
+    if moved := await last_seen(rep, f, p, d):
+        what.append(moved)  # the first line has said no killing blow was recorded
+    elif d.get("killingAbilityGameID") and (line := killed_outright(rep, f, d, hits)):
         what.append(line)
     return hits, what, lines
+
+
+async def last_seen(rep: Report, f: dict, p: Player, d: dict) -> str:
+    """Where a player was last logged before a death the log names no killing blow for, and what that fits
+    (positions.last_moves): death_recap's line and its picture's. '' for a death with a killing blow, or without
+    positions."""
+    if d.get("killingAbilityGameID"):
+        return ""
+    return await positions.last_moves(rep, f, p.id, d["timestamp"]) or ""
 
 
 def killed_outright(rep: Report, f: dict, d: dict, hits: list[dict]) -> str:
@@ -153,11 +193,17 @@ async def _aura_lines(rep: Report, f: dict, p: Player, at: float) -> list[str]:
                 for n, (_, since, stack) in sorted(auras["debuffs"].items(), key=lambda kv: kv[1][1])) or "none")]
 
 
-async def _if_pressed_lines(rep: Report, f: dict, p: Player, d: dict, hits: list[dict]) -> list[str]:
+async def _if_pressed_lines(rep: Report, f: dict, p: Player, d: dict, hits: list[dict], was: Standing
+                            ) -> tuple[list[str], list[str]]:
+    """death_recap's replay with what was ready: its answer in one line for the top of the recap (`_verdict`; for a
+    death that wasn't theirs, the line saying why it has none), and its working for the end."""
+    if not was.theirs:
+        return [NOT_REPLAYED_FALLOUT if was.fallout else NOT_REPLAYED_MASS], []
     try:
-        return await if_pressed(rep, f, p, d, hits)
+        replay = await if_pressed(rep, f, p, d, hits)
     except KnowledgeError as e:
-        return [unavailable("If pressed (what a ready defensive would have changed)", e)]
+        return [], [unavailable("If pressed (what a ready defensive would have changed)", e)]
+    return _verdict(replay), replay.lines()
 
 
 async def _raid_cooldowns_lines(rep: Report, f: dict, deaths: list[dict]) -> list[str]:
@@ -195,39 +241,84 @@ def _ready(rep: Report, casts: list[dict], sp: dict, at: float) -> bool:
     return last is None or (at - last) / 1000 >= (sp.get("cooldown") or 0)
 
 
-async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict]) -> list[str]:
+SAVED = "would have kept them alive"  # if_pressed's verdict for a spell that would have
+NOT_ENOUGH = "not enough on its own"  # and for one that wouldn't have
+UNTOLD = "a ready spell's effect can't be told"  # why a replayed death has no answer (`lived` is None)
+
+
+@dataclass(frozen=True)
+class Pressed:
+    """One thing that was ready at a death, replayed (a row of if_pressed): its name ("Barkskin", "a healthstone"),
+    what the row takes as given that the log can't show (the healthstone's "if they had one; none used this pull"),
+    its effect from the tooltip, the arithmetic, and the verdict in words. `saves` is what the verdict comes to:
+    True (SAVED), False (NOT_ENOUGH), None where the replay can't tell or can't be sure."""
+    name: str
+    verdict: str
+    saves: bool | None = None
+    given: str = ""
+    effect: str = ""
+    how: str = ""
+
+    @property
+    def label(self) -> str:
+        """Its name with what the row takes as given: "a healthstone (if they had one; none used this pull)"."""
+        return self.name + (f" ({self.given})" if self.given else "")
+
+    def line(self) -> str:
+        head = self.label + (f" ({self.effect})" if self.effect else "")
+        return f"  {head}: " + (f"{self.how}: " if self.how else "") + self.verdict
+
+
+@dataclass(frozen=True)
+class Replay:
+    """A death replayed with what was ready (if_pressed): the line saying how, and a row per thing ready. Empty,
+    and false, when the replay can't tell: no overkill or health logged, or nothing was ready."""
+    head: str = ""
+    rows: tuple[Pressed, ...] = ()
+
+    def __bool__(self) -> bool:
+        return bool(self.rows)
+
+    def lines(self) -> list[str]:
+        return [self.head, *(r.line() for r in self.rows)] if self.rows else []
+
+
+async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict]) -> Replay:
     """Whether a ready defensive, a healthstone or a healing spell would have kept them alive: the lethal burst
     replayed with the effect from the spell's tooltip. Secondary to why they died; the arithmetic, not a verdict on
     the player."""
     hp_hits = [h for h in hits if h.get("resourceActor") == 2 and h.get("maxHitPoints")]
     overkill = next((h.get("overkill", 0) for h in reversed(hits) if h.get("overkill")), 0)
     if not hp_hits or not overkill:
-        return []
+        return Replay()
     max_hp = hp_hits[-1]["maxHitPoints"]
     above = [i for i, h in enumerate(hits) if h.get("resourceActor") == 2 and h.get("maxHitPoints")
              and 100 * h["hitPoints"] / h["maxHitPoints"] >= BURST_FROM_PCT]
     burst = hits[above[-1] + 1:] if above and above[-1] + 1 < len(hits) else hits
     start = burst[0]["timestamp"]
     t0 = f["startTime"]
-    lines = [f"If pressed ({short(overkill)} overkill to make up, healing as it was; a defensive at the start of the "
-             f"lethal burst, {clock(start - t0)}, the first hit after they were last at {BURST_FROM_PCT}%+ health; a "
-             f"heal after the last hit {REACT_MS / 1000:g} s or more before the killing hit, time to see it):"]
+    head = (f"If pressed ({short(overkill)} overkill to make up, healing as it was; a defensive at the start of the "
+            f"lethal burst, {clock(start - t0)}, the first hit after they were last at {BURST_FROM_PCT}%+ health; a "
+            f"heal after the last hit {REACT_MS / 1000:g} s or more before the killing hit, time to see it):")
     casts = await _their_casts(rep, f, p, d["timestamp"])
     spells = await rep.defensive_spells(p)
     pressed = await _used_ever(rep, p, spells)
     stones, _ = await rep.potions(f, p, until=d["timestamp"])
-    candidates = [(sp, sp["spell_id"]) for sp in spells if sp["name"] in pressed and _ready(rep, casts, sp, start)]
+    candidates = [(sp, sp["spell_id"], "") for sp in spells
+                  if sp["name"] in pressed and _ready(rep, casts, sp, start)]
     if not stones:
-        candidates.append(({"name": A_HEALTHSTONE}, HEALTHSTONE_SPELL))
-    for sp, spell_id in candidates:
+        candidates.append(({"name": A_HEALTHSTONE}, HEALTHSTONE_SPELL, HEALTHSTONE_GIVEN))
+    rows = []
+    for sp, spell_id, given in candidates:
         effect = await knowledge.defensive_effect(spell_id)
         if effect is None:
-            lines.append(f"  {sp['name']}: its tooltip doesn't say how much it does; can't tell")
+            rows.append(Pressed(sp["name"], "its tooltip doesn't say how much it does; can't tell", given=given))
             continue
         dur_ms = 1000 * (effect.duration_s or sp.get("duration") or 0)
         covered = [h for h in burst if not dur_ms or h["timestamp"] <= start + dur_ms]
         if effect.only == "aoe":
-            lines.append(f"  {sp['name']} ({effect}): the log doesn't say which hits were area damage; can't tell")
+            rows.append(Pressed(sp["name"], "the log doesn't say which hits were area damage; can't tell",
+                                given=given, effect=str(effect)))
             continue
         if effect.only == "magic":
             schools = await rep.schools()
@@ -241,16 +332,16 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
             taken = sum(h.get("amount", 0) for h in covered)
             saved = taken if effect.kind == "immunity" else (effect.pct or 0) / 100 * taken
             how = f"{short(saved)} less of the {short(taken)} it covers"
-        verdict = SAVED if saved > overkill else NOT_ENOUGH
-        if saved > overkill and effect.sure_s:  # only a moment of it is sure (Cloak of Shadows' tooltip)
+        saves: bool | None = saved > overkill
+        verdict = SAVED if saves else NOT_ENOUGH
+        if saves and effect.sure_s:  # only a moment of it is sure (Cloak of Shadows' tooltip)
             sure = sum(h.get("amount", 0) for h in covered if h["timestamp"] <= start + 1000 * effect.sure_s)
             if sure <= overkill:
-                verdict = (f"would have kept them alive only if it held for all {dur_ms // 1000:g} s: its tooltip "
+                saves = None  # not a save anyone may count: the row says so
+                verdict = (f"{SAVED} only if it held for all {dur_ms // 1000:g} s: its tooltip "
                            "promises the immunity for a moment, so can't be sure")
-        lines.append(f"  {sp['name']} ({effect}): {how}: {verdict}")
-    if len(lines) == 1:
-        return []
-    return lines
+        rows.append(Pressed(sp["name"], verdict, saves, given, str(effect), how))
+    return Replay(head, tuple(rows))
 
 
 def _heal_in_time(hp_hits: list[dict], max_hp: float, heal: float) -> tuple[float, str]:
@@ -484,43 +575,43 @@ async def _kits(rep: Report, played: dict[int, dict[int, Player]]
                 unavailable("Defensive lists", e) + " Only healthstones and potions are counted.")
 
 
-SAVED = "would have kept them alive"  # if_pressed's verdict for a spell that would have
-NOT_ENOUGH = "not enough on its own"  # and for one that wouldn't have
-UNTOLD = "a ready spell's effect can't be told"  # why a replayed death has no answer (`lived` is None)
+def saving(replay: Replay) -> list[Pressed]:
+    """The rows of a death's replay (if_pressed) that would have kept them alive. Only a row whose verdict is that
+    one: an immunity that would have "only if it held for all 5 s ... so can't be sure" is none of them, in a
+    count as in a death's recap."""
+    return [r for r in replay.rows if r.saves]
 
 
-def savers(replayed: list[str]) -> list[str]:
-    """What would have kept them alive, from a death's if_pressed lines: each spell's name ("a healthstone"). Only a
-    line that ends in that verdict: an immunity that would have "only if it held for all 5 s ... so can't be sure"
-    is no saver, in a count as in a death's recap."""
-    return [line.strip().split(" (")[0] for line in replayed[1:] if line.endswith(f": {SAVED}")]
+def savers(replay: Replay) -> list[str]:
+    """What would have kept them alive, from a death's replay: each spell's name ("a healthstone")."""
+    return [r.name for r in saving(replay)]
 
 
-def untold(replayed: list[str]) -> int:
-    """How many of a death's if_pressed lines can't say what their spell would have done: a tooltip without an
-    amount, area damage the log doesn't mark, an immunity sure for a moment only."""
-    return sum("can't" in line for line in replayed[1:])
+def untold(replay: Replay) -> int:
+    """How many rows of a death's replay can't say what their spell would have done: a tooltip without an amount,
+    area damage the log doesn't mark, an immunity sure for a moment only."""
+    return sum(r.saves is None for r in replay.rows)
 
 
-def lived(replayed: list[str], outright: bool = False) -> bool | None:
-    """Whether something ready would have kept them alive, the one reading of a death's if_pressed lines that
-    death_recap's first line, defensives and player_night give. True: a spell would have (`savers`). False: nothing
-    ready would have, each line saying so, or the death killed `outright`. None: the log can't tell, the death not
+def lived(replay: Replay, outright: bool = False) -> bool | None:
+    """Whether something ready would have kept them alive, the one reading of a death's replay that death_recap's
+    verdict line and its card, defensives and player_night give. True: a spell would have (`savers`). False: nothing
+    ready would have, each row saying so, or the death killed `outright`. None: the log can't tell, the death not
     replayed (no overkill or health logged) or no spell sure to have and one whose effect can't be told."""
-    if savers(replayed):
+    if savers(replay):
         return True
     if outright:
         return False
-    return None if len(replayed) <= 1 or untold(replayed) else False
+    return None if not replay or untold(replay) else False
 
 
 @dataclass(frozen=True)
 class Replayed:
-    """One death replayed: its pull, the death, its if_pressed lines (empty when it can't tell: no overkill or
+    """One death replayed: its pull, the death, its replay (if_pressed: empty when it can't tell, no overkill or
     health logged), and whether it killed outright (killed_outright), which nothing ready would have stopped."""
     f: dict
     d: dict
-    more: list[str]
+    more: Replay
     outright: bool
     mass: MassDeath | None = None  # the hit killing many it was one of (mass_death): no one player's to fix
 
@@ -587,7 +678,7 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
             unknown.append(at)
         else:
             lines.append(f"- {at}, {rep.ability(r.d.get('killingAbilityGameID'))}: "
-                         + "; ".join(m.strip() for m in r.more[1:]))
+                         + "; ".join(row.line().strip() for row in r.more.rows))
     if outright:
         lines.append(f"Killed outright at {len(outright)} (no hit of the killing blow logged, after high health: "
                      f"nothing ready would have stopped it): {', '.join(outright)}")

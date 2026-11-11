@@ -102,7 +102,9 @@ const kit = (() => {
   // and not a third button: inline at the end of the buttons' row, in fullscreen at the end of the head's line. The
   // host opens it where it says it opens links.
   const CARD = { stats: 4, chart: 220, buttons: 2 };
-  const lead = (h) => !h || !h.text ? "" : `<p class="lead ${h.kind || ""}">${h.kind ? `<span class="mk">${MARK[h.kind]}</span>` : ""}${esc(h.text)}</p>`;
+  // `more`: a line of the tool's own text that the headline is read with, under it in plain ink
+  const lead = (h) => !h || !h.text ? "" : `<p class="lead ${h.kind || ""}">${h.kind ? `<span class="mk">${MARK[h.kind]}</span>` : ""}${esc(h.text)}</p>`
+    + (h.more ? `<p class="lead-more">${esc(h.more)}</p>` : "");
   const OUT = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 1.5h5v5M8.5 1.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
   function card({ title, sub, color, icon = "", headline, stats: items = [], chart = "", open = "", buttons = [], url = "" }) {
     const inline = app.context().displayMode !== "fullscreen";

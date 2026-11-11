@@ -1,6 +1,6 @@
 // ---- one death: what it comes down to in one sentence (views.death_headline), the hits in the seconds before it
-// with their health after each, the healing they got, the killing blow, their defensives then, and who died with
-// them (death_recap's facts) ----
+// with their health after each, the healing they got, the killing blow, their defensives then, and the other deaths
+// death_recap lists with it (death_recap's facts) ----
 views.death = (() => {
   let D = null, root = null, open = null;
 
@@ -26,12 +26,13 @@ views.death = (() => {
     const last = D.hits.filter((h) => h.overkill).pop();
     return [
       ["Killing blow", D.by, "dead", D.outright ? "killed outright: no hit logged" : last ? `${kit.short(last.overkill)} overkill` : ""],
+      // the colour of something to do differently only on a death that was theirs (not fallout, not a hit killing many)
       D.defensives == null ? null
-        : ready.length ? ["Ready, not used", ready.map((d) => d.name).join(", "), "decided",
+        : ready.length ? ["Ready, not used", ready.map((d) => d.name).join(", "), D.fallout || D.mass ? "" : "decided",
                           ready.some((d) => d.state === "unused") ? "not used this pull: ready if talented" : "off cooldown"]
         : ["Defensives", down.length ? "on cooldown" : "none listed", "", down.map((d) => `${d.name} at ${kit.clock(d.last_ms)}`).join(", ")],
       ["Healthstones", D.stones ? `${D.stones} used` : "none used", "", "before the death"],
-      D.with.length ? ["Died with", `${D.with.length} within 3 s`, "", D.with.slice(0, 3).map((w) => w.name).join(", ")] : null,
+      D.with.length ? ["Other deaths", `${D.with.length} within ${D.with_ms / 1000} s`, "", D.with.slice(0, 3).map((w) => w.name).join(", ")] : null,
     ];
   }
 
@@ -110,7 +111,7 @@ views.death = (() => {
     return `<div class="full"><div><div class="section-title">Hits in the ${D.window_ms / 1000} s before the death</div>`
       + `<div class="scroll-x"><table class="pulls"><thead><tr><th>Time</th><th>Ability</th><th>Damage</th><th>Absorbed</th><th>Health after</th></tr></thead><tbody>${rows}</tbody></table></div></div>`
       + `<div>${defs ? `<div class="panel"><div class="section-title" style="margin-top:2px">Personal defensives</div><ul class="cds">${defs}</ul></div>` : ""}`
-      + (died ? `<div class="panel"><div class="section-title" style="margin-top:2px">Died within 3 s</div><ul class="cds">${died}</ul></div>` : "")
+      + (died ? `<div class="panel"><div class="section-title" style="margin-top:2px">Other deaths within ${D.with_ms / 1000} s</div><ul class="cds">${died}</ul></div>` : "")
       + `</div></div>`;
   }
 

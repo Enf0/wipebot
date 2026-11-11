@@ -141,8 +141,14 @@ async def test_the_death_view_states_what_death_recap_states(recorded):
         assert re.search(rf"^  {re.escape(saver)} \(.*: would have kept them alive", text, re.MULTILINE)
     assert f"Healthstones and healing potions before death: {data['stones']}" in text
     assert "Killed outright" not in text and not data["outright"]
-    assert data["saved_by"] == ["a healthstone"]  # the text's line of it is checked above: the card's headline
-    assert data["headline"] == {"text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"}
+    assert data["saved_by"] == ["a healthstone"]  # the text's line of it is checked above: the card's headline,
+    assert data["headline"] == {"kind": "fix", "text": (  # with what the text's line takes as given
+        "A healthstone (if they had one; none used this pull), used in time, would have kept them alive.")}
+    # what the death was to its wipe is the text's first line's; the other deaths are the text's list of them
+    assert data["note"] == "before the wipe was decided" and f"pull 13 ({data['url']}), {data['note']}. " in text
+    assert not data["fallout"] and data["mass"] is None
+    others = re.search(rf"^Other deaths within {data['with_ms'] // 1000} s: (.+)$", text, re.MULTILINE)
+    assert others and others[1] == ", ".join(f"{w['name']} ({w['by']}, {clock(w['ms'])})" for w in data["with"])
 
 
 async def test_the_death_view_draws_in_a_host_without_errors(recorded, tmp_path):
@@ -2205,12 +2211,20 @@ async def test_a_missed_save_is_what_to_do_differently_and_a_death_with_no_killi
     blow", in its headline or its chart."""
     lead = '() => [...document.querySelectorAll(".lead")].map((p) => [p.className, p.textContent])'
     async with drawn("death_recap", DEATH_CASE.args) as (view, errors):
-        assert await view.evaluate(lead) == [["lead fix", "−A healthstone, used in time, would have kept them alive."]]
+        assert await view.evaluate(lead) == [["lead fix", "−A healthstone (if they had one; none used this pull), "
+                                              "used in time, would have kept them alive."]]
         assert not errors
-    async with drawn("death_recap", CASES["death-recap-thrown"].args) as (view, errors):
+    thrown = CASES["death-recap-thrown"].args
+    async with drawn("death_recap", thrown) as (view, errors):
         labels = await view.evaluate('() => [...document.querySelectorAll("svg text.td")].map((t) => t.textContent)')
         assert labels == ["no killing blow recorded"] and not errors
-        assert await view.evaluate(lead) == [["lead ", "Died at 0:53, no killing blow recorded."]]
+        assert await view.evaluate(lead) == [["lead mind", "!Died at 0:53, no killing blow recorded."]]
+        # under it, the text's own line on where they were last logged and what that fits: without it the card
+        # listed five defensives "ready, not used" for a player the log last saw 113 yd from the raid
+        more = await view.locator(".lead-more").inner_text()
+    text, failed = await server.call("death_recap", thrown)
+    assert not failed and text.splitlines()[2] == more  # under what did the damage, where the verdict would stand
+    assert "113 yd from the middle of the rest of the raid" in more and "thrown or knocked off" in more
 
 
 async def test_a_night_says_a_death_with_no_killing_blow_as_the_log_does(monkeypatch):
@@ -2547,47 +2561,184 @@ def test_a_pulls_headline_is_how_it_ended_in_one_sentence():
 
 
 def test_a_deaths_headline_is_what_it_comes_down_to():
-    """What killed outright is no defensive's to stop; a death after the wipe was decided is nobody's to fix, with
-    whatever was ready; before it, what was ready and would have kept them alive is what to do differently."""
-    head = "If pressed at the start of the lethal burst (2:00):"
-    short = "  Barkskin (20% less damage taken for 8 s): 30k less of the 150k it covers: not enough on its own"
-    stone = "  a healthstone (if they had one; none used this pull) (heals 25%): 120k: would have kept them alive"
-    shift = "  Astral Shift (40% less damage taken for 12 s): 60k less of the 150k: would have kept them alive"
+    """A death after the wipe was decided, or one of a hit killing many, is nobody's to fix, whatever was ready:
+    the headline says which, in death_recap's own words for it; what killed outright is no defensive's to stop;
+    before the wipe was decided, what was ready and would have kept them alive is what to do differently, a
+    healthstone with what the replay takes as given."""
+    from wipebot.core.report.deaths import NOT_ENOUGH, SAVED, Pressed, Replay, Standing
+    short = Pressed("Barkskin", NOT_ENOUGH, False, effect="20% less damage for 8 s", how="30k less of the 150k")
+    stone = Pressed("a healthstone", SAVED, True, "if they had one; none used this pull", "heals 25%", "heals 120k")
+    shift = Pressed("Astral Shift", SAVED, True, effect="40% less damage for 12 s", how="60k less of the 150k")
+    theirs = Standing("before the wipe was decided")
     said = lambda *facts: views.death_headline("Slag Wave", 121_000, *facts)  # noqa: E731
-    assert said(False, 64, [head, short, stone], False) == {
-        "text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"}
-    assert said(False, 64, [head, shift, stone], False)["text"] == (
-        "Astral Shift or a healthstone, used in time, would have kept them alive.")
-    assert said(False, 64, [head, shift, stone], True) == {
-        "text": "Killed by Slag Wave at 2:01, after the wipe was decided.", "kind": ""}
-    assert said(True, 97, [], False) == {
+    assert said(False, 64, Replay("If pressed:", (short, stone)), theirs) == {"kind": "fix", "text": (
+        "A healthstone (if they had one; none used this pull), used in time, would have kept them alive.")}
+    assert said(False, 64, Replay("If pressed:", (shift, stone)), theirs)["text"] == (
+        "Astral Shift or a healthstone (if they had one; none used this pull), used in time, would have kept them "
+        "alive.")
+    assert said(False, 64, Replay("If pressed:", (shift,)), Standing("")) == {  # on a kill: no note, the same fix
+        "text": "Astral Shift, used in time, would have kept them alive.", "kind": "fix"}
+    late = Standing("after the wipe was decided at 1:50: fallout", fallout=True)
+    assert said(False, 64, Replay(), late) == {
+        "text": "Killed by Slag Wave at 2:01, after the wipe was decided at 1:50: fallout.", "kind": ""}
+    burst = Standing("one of 5 killed at once from 2:00, a hit killing many: the raid's to stop, not counted as "
+                     "theirs", mass=MassDeath(120_000, "Slag Wave", (1,), 5, 1))
+    for outright in (False, True):  # the hit that wiped the raid leads, however it killed this one of them
+        assert said(outright, 97, Replay(), burst) == {"kind": "", "text": (
+            "Killed by Slag Wave at 2:01, one of 5 killed at once from 2:00, a hit killing many: the raid's to stop, "
+            "not counted as theirs.")}
+    assert said(True, 97, Replay(), theirs) == {
         "text": "Slag Wave killed them outright from 97% health: it wasn't damage that outpaced their healing.",
         "kind": "mind"}
-    assert said(False, 64, [head, short], False)["text"] == (
+    assert said(False, 64, Replay("If pressed:", (short,)), theirs)["text"] == (
         "Killed by Slag Wave at 2:01: nothing ready would have been enough on its own.")
-    assert said(False, 64, [], False) == {"text": "Killed by Slag Wave at 2:01.", "kind": ""}  # can't tell: no more
-    assert views.death_headline(views.NO_KILLING_BLOW, 53_000, False, None, [], False)["text"] == (
-        "Died at 0:53, no killing blow recorded.")
+    assert said(False, 64, Replay(), theirs) == {"text": "Killed by Slag Wave at 2:01.", "kind": ""}  # can't tell
+    nowhere = views.death_headline(views.NO_KILLING_BLOW, 53_000, False, None, Replay(), theirs)
+    assert nowhere == {"text": "Died at 0:53, no killing blow recorded.", "kind": ""}
+    moved = "Last logged position at 0:51: 113 yd from the middle of the rest of the raid."
+    assert views.death_headline(views.NO_KILLING_BLOW, 53_000, False, None, Replay(), theirs, moved) == {
+        "text": "Died at 0:53, no killing blow recorded.", "kind": "mind", "more": moved}
 
 
-async def test_a_deaths_headline_reads_the_replays_own_lines(recorded):
-    """The headline reads a death's replay by its words (deaths.if_pressed: "would have kept them alive", "not
-    enough on its own"), so it is checked on recorded deaths: one where the only thing ready, a healthstone, wasn't
-    enough, and one where Barkskin wasn't and a healthstone was."""
+async def test_a_save_the_replay_cant_be_sure_of_is_not_counted_as_one(monkeypatch):
+    """Cloak of Shadows' tooltip promises its immunity for a moment. Where it covers the lethal burst only if it
+    held for all its seconds, the replay's row says "would have kept them alive only if it held ... can't be
+    sure": it was counted as a save all the same, by those first words, in the card's headline and in every count
+    of deaths a ready defensive would have saved. Made-up hits: 500 inside the sure second, 500 after it, 600
+    overkill to make up."""
+    from types import SimpleNamespace
+
+    from wipebot.core import knowledge
+    from wipebot.core.knowledge.spells import Effect
+    from wipebot.core.report import deaths
+
+    cloak = {"name": "Cloak of Shadows", "spell_id": 31224, "cooldown": 120}
+
+    class Rep:
+        async def defensive_casts(self):  # pressed on another pull: a spell they have, ready on this one
+            return [{"fight": 2, "sourceID": 7, "timestamp": 500_000, "abilityGameID": 31224}]
+
+        async def defensive_spells(self, p):
+            return [cloak]
+
+        def is_spell(self, c, sp):
+            return c["abilityGameID"] == sp["spell_id"]
+
+        async def potions(self, f, p, until):  # a healthstone used: no row for one
+            return 1, 0
+
+        async def schools(self):
+            return {9: 32}
+
+    async def effect(spell_id):
+        return Effect("immunity", only="magic", duration_s=5, sure_s=sure_s)
+    monkeypatch.setattr(knowledge, "defensive_effect", effect)
+    hit = lambda at, amount, left, **more: {"timestamp": at, "abilityGameID": 9, "amount": amount,  # noqa: E731
+                                            "hitPoints": left, "maxHitPoints": 1000, "resourceActor": 2} | more
+    hits = [hit(10_000, 100, 900), hit(12_500, 500, 400), hit(14_000, 500, 0, overkill=600)]
+    replay = lambda: deaths.if_pressed(cast("deaths.Report", Rep()), {"id": 1, "startTime": 0},  # noqa: E731
+                                       cast("deaths.Player", SimpleNamespace(id=7)), {"timestamp": 14_000}, hits)
+    sure_s = 1
+    unsure = await replay()
+    assert unsure.lines()[1] == (
+        "  Cloak of Shadows (immune to magic damage for 5 s): 1.00k less of the 1.00k it covers: would have kept them "
+        "alive only if it held for all 5 s: its tooltip promises the immunity for a moment, so can't be sure")
+    assert unsure.rows[0].saves is None and deaths.savers(unsure) == []
+    theirs = deaths.Standing("before the wipe was decided")
+    assert views.death_headline("Slag Wave", 14_000, False, 0, unsure, theirs) == {
+        "text": "Killed by Slag Wave at 0:14.", "kind": ""}  # neither a fix nor "nothing would have been enough"
+    sure_s = None  # an immunity that holds for all its seconds, by its tooltip: a save
+    sure = await replay()
+    assert sure.lines()[1].endswith(": would have kept them alive") and deaths.savers(sure) == ["Cloak of Shadows"]
+    assert views.death_headline("Slag Wave", 14_000, False, 0, sure, theirs)["kind"] == "fix"
+
+
+async def test_a_deaths_headline_reads_the_replays_own_rows(recorded):
+    """The headline reads a death's replay by its rows (deaths.if_pressed), so it is checked on recorded deaths: one
+    where the only thing ready, a healthstone, wasn't enough, one where Barkskin wasn't and a healthstone was, and
+    one of a hit killing many, which is not replayed as theirs whatever was ready."""
     from wipebot.core.report import deaths
     rep = await server.lib().report(PULL_CASE.args["report"])
     druid = rep.player("Scopidruid")
     replayed = {rep.pull_no(r.f): r for r in await deaths.replay_deaths(rep, druid, rep.by_boss["Sszorak"])}
 
-    def said(pull: int) -> dict:
+    async def said(pull: int) -> dict:
         r = replayed[pull]
-        return views.death_headline(rep.ability(r.d["killingAbilityGameID"]), r.d["timestamp"] - r.f["startTime"],
-                                    r.outright, None, r.more, False)
-    assert [line.rsplit(": ", 1)[1] for line in replayed[29].more[1:]] == [views.NOT_ENOUGH]
-    assert said(29) == {"text": "Killed by Mutilate at 1:11: nothing ready would have been enough on its own.",
-                        "kind": ""}
-    assert [line.rsplit(": ", 1)[1] for line in replayed[32].more[1:]] == [views.NOT_ENOUGH, deaths.SAVED]
-    assert said(32) == {"text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"}
+        was = await deaths.standing(rep, r.f, r.d)
+        by = rep.ability(k) if (k := r.d.get("killingAbilityGameID")) else views.NO_KILLING_BLOW
+        return views.death_headline(by, r.d["timestamp"] - r.f["startTime"], r.outright, None,
+                                    r.more if was.theirs else deaths.Replay(), was)
+    assert [(row.saves, row.verdict) for row in replayed[29].more.rows] == [(False, deaths.NOT_ENOUGH)]
+    assert await said(29) == {"text": "Killed by Mutilate at 1:11: nothing ready would have been enough on its own.",
+                              "kind": ""}
+    assert [(row.name, row.saves) for row in replayed[32].more.rows] == [("Barkskin", False), ("a healthstone", True)]
+    assert [line.rsplit(": ", 1)[1] for line in replayed[32].more.lines()[1:]] == [deaths.NOT_ENOUGH, deaths.SAVED]
+    assert await said(32) == {"kind": "fix", "text": (
+        "A healthstone (if they had one; none used this pull), used in time, would have kept them alive.")}
+    # pull 10: Virulence killed four at once from 0:30. Barkskin and a healthstone were ready and the arithmetic
+    # says either would have kept them alive, so the card once told them to press one
+    assert deaths.savers(replayed[10].more) == ["Barkskin", "a healthstone"]
+    assert await said(10) == {"kind": "", "text": (
+        "Killed by Virulence at 0:30, one of 4 killed at once from 0:30, a hit killing many: the raid's to stop, not "
+        "counted as theirs.")}
+    # and it is the text's verdict line (deaths._verdict) for every recorded death that was theirs: the same things
+    # named with what they take as given, "nothing would have" of the same deaths, and neither where the text has none
+    kinds = {"fix": 0, "nothing": 0, "neither": 0}
+    for pull, r in replayed.items():
+        if r.mass:
+            continue
+        line, head = "".join(deaths._verdict(r.more)), await said(pull)
+        if head["kind"] == "fix":
+            named = line.removeprefix("Would have kept them alive, if pressed (replayed below; secondary to what "
+                                      "killed them): ").removesuffix(".").split(", ")
+            ready = " or ".join(named)
+            assert head["text"] == f"{ready[0].upper()}{ready[1:]}, used in time, would have kept them alive."
+        elif head["text"].endswith(": nothing ready would have been enough on its own."):
+            assert line == "Nothing that was ready would have kept them alive on its own (replayed below)."
+        else:
+            assert not line or line.startswith("Nothing that was ready is sure to have kept them alive")
+        kinds["fix" if head["kind"] == "fix" else "nothing" if "nothing ready" in head["text"] else "neither"] += 1
+    assert kinds["fix"] and kinds["nothing"] and sum(kinds.values()) == sum(not r.mass for r in replayed.values())
+
+
+async def test_death_recap_notes_a_death_as_player_pull_does_and_replays_only_their_own(recorded, monkeypatch):
+    """What a death was to its wipe is one reading: death_recap's first line has the note player_pull's "Died" line
+    has, for every death of the recorded night. A death after the wipe was decided or in a hit killing many gets no
+    "If pressed" replay in the text, a line saying why instead, and no "would have kept them alive" on its card."""
+    from wipebot.core.report import coaching, deaths
+    rep = await server.lib().report(PULL_CASE.args["report"])
+    fights = rep.by_boss["Sszorak"]
+    await rep.decided_cuts(fights)
+    kinds = {"before": 0, "fallout": 0, "mass": 0}
+    for f in fights:
+        for d in await rep.deaths(f):
+            was = await deaths.standing(rep, f, d)
+            assert was.note == await coaching.death_note(rep, f, d)
+            assert was.theirs == (not was.fallout and was.mass is None)
+            kinds["fallout" if was.fallout else "mass" if was.mass else "before"] += 1
+    assert kinds == {"before": 183, "fallout": 310, "mass": 129}  # every kind is there to compare
+    # the recorded death, as if it had been each kind: only what the death was to its wipe is made up
+    f = rep.fight(DEATH_CASE.args["pull"])
+    hit = MassDeath(47_000, "Ula'tek's Presence", (1285965,), 4, 2)
+    for was, why in ((deaths.Standing("after the wipe was decided at 0:40: fallout", fallout=True),
+                      deaths.NOT_REPLAYED_FALLOUT),
+                     (deaths.Standing("one of 4 killed at once from 0:47, a hit killing many: the raid's to stop, "
+                                      "not counted as theirs", mass=hit), deaths.NOT_REPLAYED_MASS)):
+        async def made_up(rep, f, death, was=was):
+            return was
+        monkeypatch.setattr(deaths, "standing", made_up)
+        monkeypatch.setattr(views, "standing", made_up)
+        text, failed = await server.call("death_recap", DEATH_CASE.args)
+        assert not failed and f"({rep.url(f)}), {was.note}. Killing blow: " in text.splitlines()[0]
+        # the line stands where the replay's verdict would, under what did the damage, and nothing is replayed below
+        assert text.splitlines()[1].startswith("Damage in the 10 s before death, by ability: ")
+        assert text.splitlines()[2] == why and text.count(deaths.NOT_REPLAYED) == 1
+        assert "If pressed" not in text and deaths.SAVED not in text and "replayed below" not in text
+        data = await death_data()
+        assert data["headline"] == {"text": f"Killed by Ula'tek's Presence at 0:48, {was.note}.", "kind": ""}
+        assert data["saved_by"] == [] and data["note"] == was.note
+        assert data["fallout"] == was.fallout
+        assert data["mass"] == ("one of 4 killed at once from 0:47" if was.mass else None)
 
 
 def test_a_nights_headline_counts_what_ended_the_most_pulls_over_all_of_them():

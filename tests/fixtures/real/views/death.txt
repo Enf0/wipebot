@@ -3,7 +3,7 @@
 "pull": 13,
 "boss": "Sszorak",
 "title": "Sszorak pull 13",
-"headline": {"text": "A healthstone, used in time, would have kept them alive.", "kind": "fix"},
+"headline": {"text": "A healthstone (if they had one; none used this pull), used in time, would have kept them alive.", "kind": "fix"},
 "difficulty": "Mythic",
 "url": "https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21",
 "player": {"name": "Scopidruid", "spec": "Balance", "class": "Druid", "color": "#FF7C0A", "role": "dps"},
@@ -14,7 +14,9 @@
 "by": "Ula'tek's Presence",
 "no_blow": false,
 "icon": "spells/1285965.jpg",
+"note": "before the wipe was decided",
 "fallout": false,
+"mass": null,
 "outright": false,
 "hits": [
   {"ms": 39994, "by": "Ula'tek's Presence", "icon": "spells/1285965.jpg", "amount": 43624, "absorbed": 440, "overkill": 0, "hp": 95},
@@ -53,4 +55,7 @@
 "saved_by": [
   "a healthstone",
 ],
-"with": [],
+"with_ms": 15000,
+"with": [
+  {"name": "Draiman", "ms": 53160, "by": "no killing blow recorded"},
+],
