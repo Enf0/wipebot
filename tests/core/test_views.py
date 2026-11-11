@@ -1766,11 +1766,25 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     if data["thirds"]:
         died = " / ".join(f"{t['died']} of {len(t['pulls'])}" for t in data["thirds"])
         assert f"deaths that count (as above) on {died};" in text
+    # each cooldown is counted as the text counts it: Enfo's two are held for a moment of the fight, so each is the
+    # pulls that got there and on how many it was used, never uses of possible uses, and no total over them (the card
+    # once said "37 of 64 uses" beside a list of 16/32 and 22/32, where the text has 16 of 18 and 18 of 18 pulls)
+    line = next(x for x in text.splitlines() if x.startswith("Major cooldowns over the night"))
+    assert len(data["cooldowns"]) == 2 and "cooldowns_total" not in data
     for c in data["cooldowns"]:
-        if c["possible"] is not None and c["used"]:
-            # The text counts a cooldown held for a moment of the fight on the pulls that got to it; the view
-            # still shows every cooldown's uses against possible uses.
-            assert f"{c['name']} {c['used']}/{c['possible']}" in text or f"{c['name']} used on " in text
+        said, _, more = c["said"].partition(" (")
+        assert f"{said} (held for then" in line and (not more or f"; {more}" in line), c
+        assert re.fullmatch(r"\d+ of \d+", c["count"]) and c["of"].startswith("pulls that got to ") and "/" not in said
+    # and each pull's are the words of its row in the text: the times, or "unused" on a pull that got to the moment
+    for r in data["pulls"]:
+        row = next(x for x in text.splitlines() if x.startswith(f"  pull {r['pull']} ("))
+        assert row.endswith("; cooldowns " + ", ".join(r["cooldowns"])) if r["cooldowns"] else "; cooldowns " not in row
+    assert any("unused" in c for r in data["pulls"] for c in r["cooldowns"])
+    # a reset's death is no death of the night's: not in the count, the killers' chips or the thirds
+    resets = [r["pull"] for r in data["pulls"] if r["reset"] and r["death"]]
+    chips = [x["pull"] for k in data["killers"] for x in k["pulls"]]
+    assert resets == [9] and not set(resets) & set(chips) and "(1 reset left out" in text
+    assert data["died"] == len(chips) == sum(t["died"] for t in data["thirds"])
 
 
 async def test_the_player_night_view_never_says_they_died_to_no_killing_blow(local):
@@ -1938,23 +1952,26 @@ def made_up_night() -> dict:
     for n, (pct, rate, death) in enumerate([(100.0, 150_000, None), (80.5, 280_000, (1, False)),
                                             (70.2, 300_000, None), (65.0, 310_000, (4, False)),
                                             (60.1, 320_000, (9, True)), (55.0, 330_000, None)], start=1):
-        pulls.append({"pull": n, "kill": False, "reset": n == 1, "wipe_pct": pct, "duration_ms": 60000 * n,
+        pulls.append({"pull": n, "kill": False, "reset": n == 1, "wipe_pct": pct, "got": f"{pct}%",
+                      "got_wcl": f"{pct}%", "duration_ms": 60000 * n,
                       "role": "healer", "spec": "Restoration", "per_s_alive": rate, "rank": 2, "of": 4,
                       "death": {"place": death[0], "ms": 30000 * n, "by": "Slag Wave", "icon": "spells/1.jpg",
                                 "fallout": death[1]} if death else None,
-                      "dead_s": 5.0 if death and not death[1] else 0.0, "counted_s": 55.0 * n, "cooldowns": [1, 2]})
+                      "dead_s": 5.0 if death and not death[1] else 0.0, "counted_s": 55.0 * n,
+                      "cooldowns": ["Ascendance 1/2 at 0:30"]})
     return {"view": "player_night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge",
             "title": "Mirelle on Torvek's Forge", "headline": views.player_night_headline(2, 6, 1),
             "player": {"name": "Mirelle", "spec": "Restoration", "class": "Shaman", "color": "#0070DD",
                        "role": "healer"},
             "what": "healing", "role_name": "healers", "pulls": pulls, "total_pulls": 6, "died": 2, "first": 1,
-            "early": 1, "early_n": 3, "dead_s": 10, "counted_s": 1155, "dead_pct": 1, "cooldowns_total": [6, 12],
+            "early": 1, "early_n": 3, "dead_s": 10, "counted_s": 1155, "dead_pct": 1,
             "best": {"pull": 6, "per_s_alive": 330_000},
             "killers": [{"by": "Slag Wave", "icon": "spells/1.jpg",
                          "pulls": [{"pull": 2, "ms": 60000, "place": 1, "saved": True},
                                    {"pull": 4, "ms": 120000, "place": 4, "saved": False}]}],
             "lived": {"saved": 1, "of": 2, "unknown": 0, "by": [["Astral Shift", 1]]},
-            "cooldowns": [{"name": "Ascendance", "used": 4, "possible": 6, "icon": "spells/114052.jpg"}],
+            "cooldowns": [{"name": "Ascendance", "count": "4/6", "of": "uses of possible", "said": "Ascendance 4/6",
+                           "icon": "spells/114052.jpg"}],
             "cooldowns_unavailable": "", "thirds": []}
 
 
@@ -2034,6 +2051,22 @@ async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_
     assert calls[-1] == {"view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge",
                          "player": "Mirelle", "top": False}
     assert "← Mirelle" in opened.text and "rank 2 of 4 healers" in opened.text  # that pull's card, and Back
+
+
+async def test_a_death_on_a_reset_is_not_drawn_as_one_of_the_nights(made_up, monkeypatch):
+    """A reset is no pull of the night's, and player_night counts no death on one: the table and the chart once
+    drew it in red, as a death before the wipe was decided, beside a count that left it out."""
+    from wipebot.core import viewhost
+    night = made_up_night()
+    assert night["pulls"][0]["reset"] and night["died"] == 2
+    night["pulls"][0]["death"] = {"place": 2, "ms": 9000, "by": "Slag Wave", "icon": "spells/1.jpg", "fallout": False}
+    made_up_view(monkeypatch, {"view": "player_night", "report": night["report"], "player": "Mirelle"}, night)
+    async with drawn("player_night", {}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        rows = '() => [...document.querySelectorAll("tr.counted")].map((tr) => +tr.dataset.pull)'
+        dots = "() => document.querySelectorAll('svg circle[fill=\"var(--dead)\"][opacity=\"1\"]').length"
+        counted, red = await view.evaluate(rows), await view.evaluate(dots)
+        tip = await view.evaluate("() => document.querySelector('tr[data-pull=\"1\"]').dataset.tip")
+    assert not errors and counted == [2, 4] and red == 2 and tip == "Slag Wave, on a reset: not counted"
 
 
 def made_up_view(monkeypatch, key: dict, data: dict) -> None:
@@ -2246,6 +2279,41 @@ def test_the_players_card_has_no_judge_of_its_own():
         assert not hasattr(views, gone), gone
     page = resources.files("wipebot.core").joinpath("app/player.js").read_text(encoding="utf-8")
     assert "D.notes" not in page and "outside their range" not in page
+
+
+def test_a_nights_cooldown_on_the_card_is_counted_as_player_nights_text_counts_it():
+    """One held for a moment of the fight has no uses against possible uses in the text: the card once gave it as
+    16/33 under the answer's "used on 16 of the 19 pulls that got to 1:11"."""
+    from collections import Counter
+
+    from wipebot.core.report import coaching
+
+    class Rep:  # the text names a cooldown's latest pull
+        def pull_no(self, f):
+            return f["no"]
+    used = {"Spirit Link Totem": 16, "Ascendance": 22, "Deathmark": 20, "Signet": 5, "Vanish": 0}
+    cds = coaching.NightCooldowns(
+        used=Counter(used),
+        possible=Counter({"Spirit Link Totem": 33, "Ascendance": 33, "Deathmark": 31, "Vanish": 30}),
+        held={"Spirit Link Totem": coaching.Held(71_000, 16, 19), "Ascendance": coaching.Held(67_000, 18, 18)},
+        unknown={"Signet"})
+    for name in used:
+        cds.first_use[name] = [({"no": 22}, 77_000.0)]
+    card = {n: views._night_cooldown(cds, n) for n in used}
+    assert card["Spirit Link Totem"] == {
+        "name": "Spirit Link Totem", "count": "16 of 19", "of": "pulls that got to 1:11",
+        "said": "Spirit Link Totem used on 16 of the 19 pulls that got to 1:11"}
+    assert card["Ascendance"]["of"] == "pulls that got to 1:07; 22 uses over the night"
+    assert card["Ascendance"]["said"] == (
+        "Ascendance used on 18 of the 18 pulls that got to 1:07 (22 uses over the night)")
+    assert (card["Deathmark"]["count"], card["Deathmark"]["of"]) == ("20/31", "uses of possible")
+    assert (card["Signet"]["count"], card["Signet"]["of"]) == ("5", "uses")
+    assert card["Vanish"] == {"name": "Vanish", "count": "0", "of": "never cast on the night",
+                              "said": "Vanish never cast"}
+    for name in ("Spirit Link Totem", "Ascendance", "Deathmark", "Signet"):  # the text's own words for each
+        text = coaching._cooldown_text(cast("coaching.Report", Rep()), cds, name)
+        said, _, more = card[name]["said"].partition(" (")
+        assert text.startswith(f"{said} (") and (not more or f"; {more}" in text), text
 
 
 def _died(ms: int, by: str = "Toxic Fumes", note: str = "", fallout: bool = False, mass: bool = False) -> dict:

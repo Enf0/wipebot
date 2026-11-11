@@ -1,7 +1,7 @@
 // ---- the player's night on a boss: the night in one sentence (views.player_night_headline), then what killed them,
 // ranked, and whether a ready defensive or a healthstone would have kept them alive: the card (kit.card). Fullscreen
-// adds their output and death pull by pull, the trend in thirds and their cooldowns summed. In Discord two panels
-// (data-panel), each its own picture; a pull's chip or column opens that pull's player view ----
+// adds their output and death pull by pull, the trend in thirds and their cooldowns as the text counts each. In
+// Discord two panels (data-panel), each its own picture; a pull's chip or column opens that pull's player view ----
 views.player_night = (() => {
   let D = null, root = null, open = null;
 
@@ -53,9 +53,12 @@ views.player_night = (() => {
       + `<div class="note"><span class="chip fix sample">12</span> a pull where a ready defensive or a healthstone would have kept them alive</div>`;
   }
 
+  // Their cooldowns over the night, each as player_night's text counts it: uses of possible uses, or, for one held
+  // for a moment of the fight, the pulls that got there and on how many it was used. No total over them: the text
+  // states none
+  const HOW = "Uses / possible if pressed on cooldown until they died or the wipe was decided; one held for a moment of the fight is counted on the pulls that got there.";
   function cooldownsNote() {
-    const [used, possible] = D.cooldowns_total;
-    return possible ? `<div class="note">Major cooldowns: ${used} of ${possible} uses if pressed each time they were ready, all pulls (until they died or the wipe was decided).</div>` : "";
+    return D.cooldowns.length ? `<div class="note">Major cooldowns over the night: ${kit.esc(D.cooldowns.map((c) => c.said).join("; "))}. ${HOW}</div>` : "";
   }
 
   // Who they are, their night in one sentence and what killed them: the card, and the first of Discord's panels
@@ -87,25 +90,30 @@ views.player_night = (() => {
     open("player", { report: D.report, pull, boss: D.boss, player: D.player.name });
   }
 
-  // a death that counts: before the wipe was decided, and not one of a hit killing many (the raid's to stop)
-  function counts(d) { return d && !d.fallout && !d.mass; }
-  function why(d) { return d.fallout ? ", after the wipe was decided" : d.mass ? ", in a hit killing many" : ""; }
+  // a pull's death that counts, as player_night counts them: before the wipe was decided, not one of a hit killing
+  // many (the raid's to stop), and not on a reset, which is no pull of the night's
+  function counts(r) { return !!r.death && !r.reset && !r.death.fallout && !r.death.mass; }
+  function why(r) {
+    const d = r.death;
+    return d.fallout ? ", after the wipe was decided" : d.mass ? ", in a hit killing many" : r.reset ? ", on a reset: not counted" : "";
+  }
 
-  // how far a wipe got as raiders say it: the phase and the boss's health in it on a boss counted by phase, with
-  // Warcraft Logs' % of the whole fight (what the line stands on); else the boss's %
-  const got = (r) => r.health != null ? `${r.phase.split(" ")[0]} ${r.health}% (WCL ${r.wipe_pct}%)` : `${r.wipe_pct}%`;
+  // how far a wipe got in the words of the pull's row in the text (pulls.wipe_text): the phase and the boss's health
+  // in it on a boss counted by phase, with Warcraft Logs' % of the whole fight (what the line stands on); else the
+  // boss's %
+  const got = (r) => r.got_wcl;
 
   function tipOf(r) {
     const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : got(r)}, ${kit.clock(r.duration_ms)}`;
     const out = r.per_s_alive != null ? `${kit.short(r.per_s_alive)}/s alive` + (r.rank ? `, rank ${r.rank} of ${r.of} ${D.role_name} by total` : "") : `no ${D.what}`;
     const died = !r.death ? "survived"
-      : `died ${kit.clock(r.death.ms)} (#${r.death.place})${to(r.death)}` + why(r.death);
-    const cds = r.cooldowns[1] ? `cooldowns ${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
+      : `died ${kit.clock(r.death.ms)} (#${r.death.place})${to(r.death)}` + why(r);
+    const cds = r.cooldowns.length ? `cooldowns ${r.cooldowns.join(", ")}` : "";  // the words of the pull's row in the text
     return [head, out, died, cds].filter(Boolean).join("\n");
   }
 
   // Pull by pull: their output per second alive (a bar), the boss's health left at the end (the gold line), their
-  // death under it (red before the wipe was decided, with its place among the pull's deaths; grey after), and each
+  // death under it (red where it counts, with its place among the pull's deaths; grey where it doesn't), and each
   // third's median output (dashed).
   function chart(W, lanes) {
     const n = D.pulls.length, L = 44, R = 40, T = 10, plotH = lanes ? 190 : 120;
@@ -124,7 +132,7 @@ views.player_night = (() => {
         if (r.kill) o += `<rect x="${cx - bw / 2 - 1}" y="${y - 3}" width="${bw + 2}" height="3" fill="var(--gold)"/>`;
       }
       if (r.death) {
-        const dy = T + plotH + 14, counted = counts(r.death), rr = Math.max(1.5, Math.min(counted ? 6 : 3.5, band / 2 - 0.6));
+        const dy = T + plotH + 14, counted = counts(r), rr = Math.max(1.5, Math.min(counted ? 6 : 3.5, band / 2 - 0.6));
         o += `<circle cx="${cx}" cy="${dy}" r="${rr}" fill="${counted ? "var(--dead)" : "var(--muted)"}" opacity="${counted ? 1 : 0.6}"/>`;
         if (counted && band >= 11) o += kit.text(cx, dy + 3.5, r.death.place, "tb", 'text-anchor="middle" font-weight="700"', kit.SIZE.mark);
       }
@@ -153,7 +161,7 @@ views.player_night = (() => {
     const keys = [[(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="10" height="8" rx="2" ${kit.cls(D.player.color, "cb")} opacity=".75"/>`, `${D.what} per s alive`],
       [(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--gold)" stroke-width="1.6"/>`, "boss left at the end"],
       [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="4.5" fill="var(--dead)"/>`, band >= 11 ? "died, with their place in the order" : "died before it was decided"],
-      [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="3" fill="var(--muted)" opacity=".6"/>`, "died after it was decided"]];
+      [(lx, ly) => `<circle cx="${lx + 5}" cy="${ly - 4}" r="3" fill="var(--muted)" opacity=".6"/>`, "died, not counted (fallout, a hit killing many, a reset)"]];
     if (D.thirds.length) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-dasharray="4 2"/>`, "median of each third of the night"]);
     const [under, ly] = kit.legend(keys, W, T + plotH + 56);
     o += under;
@@ -162,14 +170,14 @@ views.player_night = (() => {
 
   function table() {
     const rows = D.pulls.map((r) => {
-      const result = r.kill ? "kill" : r.reset ? "reset" : r.health != null ? `${r.phase.split(" ")[0]} ${r.health}%` : `${r.wipe_pct}%`;
+      const result = r.kill ? "kill" : r.reset ? "reset" : r.got;
       const out = r.per_s_alive != null ? kit.short(r.per_s_alive) : "–";
       const rank = r.rank ? `${r.rank}/${r.of}` : "";
       const died = !r.death ? "" : `${kit.iconImg(D.img_base, r.death.icon)}${kit.clock(r.death.ms)} #${r.death.place}`;
-      const cds = r.cooldowns[1] ? `${r.cooldowns[0]}/${r.cooldowns[1]}` : "";
-      return `<tr data-pull="${r.pull}"${kit.opens()} class="${counts(r.death) ? "counted" : ""}"${kit.tip(r.death ? `${r.death.by}${why(r.death)}` : "")}>`
+      const cds = kit.esc(r.cooldowns.join(", "));
+      return `<tr data-pull="${r.pull}"${kit.opens()} class="${counts(r) ? "counted" : ""}"${kit.tip(r.death ? `${r.death.by}${why(r)}` : "")}>`
         + `<td>${r.pull}</td><td>${result}</td><td>${kit.clock(r.duration_ms)}</td><td>${out}</td><td>${rank}</td>`
-        + `<td class="${r.death && !counts(r.death) ? "fallout" : ""}">${died}</td><td>${cds}</td></tr>`;
+        + `<td class="${r.death && !counts(r) ? "fallout" : ""}">${died}</td><td>${cds}</td></tr>`;
     }).join("");
     return `<div class="section-title">Pull by pull (click one for its view)</div><div class="scroll-x"><table class="pulls"><thead><tr>`
       + `<th>Pull</th><th>Boss</th><th>Length</th><th>${kit.esc(what())}/s</th><th>Rank</th><th>Died</th><th>Cooldowns</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -177,12 +185,12 @@ views.player_night = (() => {
 
   function side() {
     const cds = D.cooldowns.map((c) => `<li><span>${kit.iconImg(D.img_base, c.icon)}${kit.esc(c.name)}</span>`
-      + `<span class="count">${c.possible != null ? `${c.used}/${c.possible}` : c.used}</span></li>`).join("");  // a count, no verdict
+      + `<span class="count">${kit.esc(c.count)}</span><span class="times">${kit.esc(c.of)}</span></li>`).join("");  // a count, no verdict
     const thirds = D.thirds.map((t, k) => `<li><span>${["First", "Middle", "Last"][k]} third (${kit.plural(t.pulls.length, "pull")})</span>`
       + `<span class="count">${t.rate != null ? kit.short(t.rate) + "/s" : "–"}</span><span class="times">died before the wipe was decided on ${t.died} of ${t.pulls.length}</span></li>`).join("");
     return `<div><div class="panel"><div class="section-title" style="margin-top:2px">Major cooldowns, all pulls</div><ul class="cds">${cds || "<li>none listed</li>"}</ul>`
       + (D.cooldowns_unavailable ? `<div class="note">${kit.esc(D.cooldowns_unavailable)}</div>` : "")
-      + `<div class="note">Uses / possible if pressed on cooldown until they died or the wipe was decided.</div></div>`
+      + `<div class="note">${HOW}</div></div>`
       + (thirds ? `<div class="panel"><div class="section-title" style="margin-top:2px">Over the night (${kit.esc(D.what)} per s alive, median)</div><ul class="cds">${thirds}</ul></div>` : "")
       + `</div>`;
   }

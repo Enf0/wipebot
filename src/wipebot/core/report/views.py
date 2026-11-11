@@ -39,6 +39,7 @@ from .coaching import (
     BEST_MIN_S,
     LOST_MIN_S,
     OPENER_SHARE,
+    NightCooldowns,
     TimeLost,
     best_pulls,
     dead_spans,
@@ -47,6 +48,7 @@ from .coaching import (
     night_pulls,
     night_trend,
     resource_use,
+    row_cooldowns,
     time_lost,
 )
 from .cooldowns import NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
@@ -374,8 +376,10 @@ async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | s
 async def player_night_view(rep: Report, boss: str, player: str) -> dict:
     """One player across every pull on a boss, as player_night states it: per pull their output per second alive and
     rank in their role, their first death (its place among the pull's deaths, and whether it came after the wipe
-    was decided), their major cooldowns used of possible; over the night, the deaths that counted, time dead, their
-    best pull, and their cooldowns summed."""
+    was decided) and their major cooldowns in the words of the pull's row; over the night, the deaths that counted,
+    time dead, their best pull, and each cooldown as its text counts it: uses of possible uses, or, for one held for
+    a moment of the fight, the pulls that got there and on how many it was used. No total over the cooldowns: the
+    text states none."""
     p = rep.player(player)
     fights = [f for f in rep.pulls_with(p, rep.by_boss[boss]) if not f.get("inProgress")]
     if not fights:
@@ -387,8 +391,6 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
     rows: list[dict[str, Any]] = []
     for x in pulls:
         f, mine = x.f, x.mine
-        judged = [(sp, times, possible) for sp, times, possible in x.cooldowns
-                  if not NOT_ON_COOLDOWN & set(sp.get("tags") or []) and possible is not None]
         death = None
         if x.death:
             k, d, _ = x.death
@@ -398,12 +400,13 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
                      "fallout": x.fallout, "mass": x.mass}
         rows.append({
             "pull": rep.pull_no(f), "kill": bool(f["kill"]), "reset": is_reset(f), "wipe_pct": wipe_pct(f),
-            "phase": phase_label(f), "health": phase_health(f),
+            # how far the wipe got in the words of the pull's row in the text, without and with Warcraft Logs' %
+            "got": wipe_text(f, wcl=False), "got_wcl": wipe_text(f),
             "duration_ms": round(f["endTime"] - f["startTime"]), "role": x.played.role,
             "spec": spaced(x.played.spec), "per_s_alive": round(mine["total"] / max(x.alive_s, 1)) if mine else None,
             "rank": x.peers.index(mine) + 1 if mine and mine in x.peers else None, "of": len(x.peers),
             "death": death, "dead_s": round(x.dead_s, 1), "counted_s": round(x.counted_s, 1),
-            "cooldowns": [sum(min(len(t), n) for _, t, n in judged), sum(n for _, _, n in judged)],
+            "cooldowns": row_cooldowns(x, cds),
         })
     counted = [r for r in rows if r["death"] and not r["reset"] and not r["death"]["fallout"]
                and not r["death"]["mass"]]  # as NightPull.counted: a reset is no pull of the night's
@@ -439,19 +442,35 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         "died": len(counted), "first": sum(r["death"]["place"] == 1 for r in counted),
         "early": sum(r["death"]["place"] <= FIRST_DEATHS for r in counted), "early_n": FIRST_DEATHS,
         "dead_s": round(dead_s), "counted_s": round(counted_s), "dead_pct": round(100 * dead_s / max(counted_s, 1)),
-        "cooldowns_total": [sum(r["cooldowns"][0] for r in rows if not r["reset"]),
-                            sum(r["cooldowns"][1] for r in rows if not r["reset"])],
         "best": {"pull": best["pull"], "per_s_alive": best["per_s_alive"]} if best else None,
         "killers": sorted(killers.values(), key=lambda k: (k["by"] == NO_KILLING_BLOW, -len(k["pulls"]))),
         "lived": {"saved": lived, "of": len(judged),
                   "unknown": sum(v is None for v in judged), "by": saved_by.most_common(),
                   "outright": sum(x["outright"] for k in killers.values() for x in k["pulls"])},
-        "cooldowns": [{"name": n, "used": cds.used[n], "possible": cds.possible[n] if n not in cds.unknown else None,
-                       "icon": icon(ids.get(n))} for n in cds.used],
+        "cooldowns": [_night_cooldown(cds, n) | {"icon": icon(ids.get(n))} for n in cds.used],
         "cooldowns_unavailable": cds.unavailable,
         "thirds": [{"pulls": [rows[i]["pull"] for i in t.pulls], "died": t.died,
                     "rate": round(t.rate) if t.rate is not None else None} for t in night_trend(pulls, role) or []],
     }
+
+
+def _night_cooldown(cds: NightCooldowns, name: str) -> dict:
+    """A cooldown over a player's night as player_night counts it (coaching.night_cooldowns): `count` and what it
+    counts (`of`), and both in one phrase (`said`). One held for a moment of the fight (coaching.Held) has no uses
+    against possible uses: the pulls that got to the moment, and on how many of them it was used."""
+    used, held = cds.used[name], cds.held.get(name)
+    if not used:
+        return {"name": name, "count": "0", "of": "never cast on the night", "said": f"{name} never cast"}
+    if held:
+        there = f"pulls that got to {clock(held.at_ms)}"
+        more = f"{plural(used, 'use')} over the night" if used != held.used else ""
+        return {"name": name, "count": f"{held.used} of {held.reached}", "of": "; ".join(filter(None, [there, more])),
+                "said": (f"{name} used on {held.used} of the {plural(held.reached, 'pull')} that got to "
+                         f"{clock(held.at_ms)}" + (f" ({more})" if more else ""))}
+    said = cds.text(name, used, cds.possible[name])  # "Deathmark 20/31", with its note where there are more uses
+    if name in cds.unknown:  # a cooldown Lorrgs gives no length for: its uses alone
+        return {"name": name, "count": str(used), "of": "uses", "said": said}
+    return {"name": name, "count": f"{used}/{cds.possible[name]}", "of": "uses of possible", "said": said}
 
 
 async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = None) -> dict:
