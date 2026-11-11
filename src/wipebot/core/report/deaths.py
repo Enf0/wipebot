@@ -122,7 +122,7 @@ async def _hits(rep: Report, f: dict, p: Player, d: dict) -> tuple[list[dict], l
     what = [damage_by_ability(rep, f, hits)] if hits else []
     if not d.get("killingAbilityGameID"):
         if moved := await positions.last_moves(rep, f, p.id, at):
-            what.append("No killing blow recorded. " + moved)
+            what.append(moved)  # the first line has said no killing blow was recorded
     elif line := killed_outright(rep, f, d, hits):
         what.append(line)
     return hits, what, lines

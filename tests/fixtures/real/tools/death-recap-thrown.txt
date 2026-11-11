@@ -1,6 +1,6 @@
 Draiman (Assassination Rogue) died at 0:53 on Sszorak pull 13 (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Killing blow: no killing blow recorded.
 Damage in the 10 s before death, by ability: Raging Crosswinds 374.44k in 6 hits, Ula'tek's Presence 250.82k in 5 hits, Venomous Surge 140.85k in 1 hit; 766.12k in all. The biggest hit: Raging Crosswinds 316.92k at 0:47, to 62% health.
-No killing blow recorded. Last logged position at 0:51: 113 yd from the middle of the rest of the raid (90% of them within 29 yd of it), after moving 63 yd in the 3 s before. A long, fast move ending far from everyone fits being thrown or knocked off (look for a knockback just before); close to the raid, an instant kill the log doesn't name.
+Last logged position at 0:51: 113 yd from the middle of the rest of the raid (90% of them within 29 yd of it), after moving 63 yd in the 3 s before. A long, fast move ending far from everyone fits being thrown or knocked off (look for a knockback just before); close to the raid, an instant kill the log doesn't name.
 Damage taken in the 10 s before death (time, ability, source, amount, health after):
   0:43 Raging Crosswinds from Sszorak: 11.48k (4.79k absorbed) -> 87% hp
   0:43 Ula'tek's Presence from Environment: 41.05k (18.83k absorbed) -> 82% hp

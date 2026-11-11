@@ -384,6 +384,17 @@ async def test_a_death_recap_leads_with_what_did_the_damage_and_whether_they_cou
     assert "Total 1.06M damage in the window." not in lines  # said once, in the line that adds it up
 
 
+async def test_a_death_with_no_killing_blow_says_so_once(recorded):
+    # "Killing blow: no killing blow recorded." closed the first line and "No killing blow recorded." opened the
+    # third, before where they were last. The third line now starts with that.
+    text, failed = await server.call("death_recap", CASES["death-recap-thrown"].args)
+    assert not failed
+    lines = text.splitlines()
+    assert lines[0].endswith("Killing blow: no killing blow recorded.")
+    assert lines[2].startswith("Last logged position at 0:51: 113 yd from the middle of the rest of the raid")
+    assert text.lower().count("no killing blow recorded") == 1
+
+
 async def test_a_timeline_window_lists_the_ids_of_what_it_names(recorded, monkeypatch):
     # A 15 s window closed with the ids of all 19 abilities of the pull, a third of its text. It lists the ones its
     # lines name; the whole pull still lists them all.
