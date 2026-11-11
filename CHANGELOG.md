@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-11
+
 ### Added
 
 - `MCP` **Claude and ChatGPT read Wipebot's method without the plugin.** How to read a wipe, a night or a player's log, and what an answer holds, used to reach only the Discord bot and people who had added the plugin: with the connector alone, Claude and ChatGPT got the tools and nothing on how to use them. They now read the method from a tool of its own before the first question. On the questions that went wrong without it, 19 of 33 answers were right where 11 were, against 22 with the plugin. An answer takes a few seconds longer.
