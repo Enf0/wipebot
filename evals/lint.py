@@ -69,17 +69,30 @@ def in_output(token: str, output: str) -> bool:
     return re.search(rf"(?<![\d.]){re.escape(token)}(?![\d])", output) is not None
 
 
-def recorded_calls(runs: list[dict], case_id: str) -> list[tuple[str, dict]]:
-    """Every call the runs' answers to a case made that didn't fail, once each, but the bot's own tools' calls that
-    the core can't take (a saved note's)."""
+def recorded_calls(runs: list[dict], case_id: str, saved: dict[str, str] | None = None) -> list[tuple[str, dict]]:
+    """Every call the runs' answers to a case made that didn't fail, once each. A call the bot filled from what the
+    server saved (raid_note with no note) is replayed with the case's own saved text (`saved`, by tool), as the bot
+    made it; without one the core can't take the call and it is left out, and so is the note shown as it is for the
+    next raid (`upcoming`), which the bot reads from its notebook and no pull is checked against."""
     calls: dict[str, tuple[str, dict]] = {}
     for run in runs:
         for t in (run.get("cases") or {}).get(case_id, []):
             for c in t.get("calls") or []:
-                saved = SAVED_ARGS.get(c["name"])
-                if not c.get("failed") and not (saved and saved not in c["args"]):
-                    calls.setdefault(json.dumps([c["name"], c["args"]], sort_keys=True), (c["name"], c["args"]))
+                name, args = c["name"], c["args"]
+                if (filled := SAVED_ARGS.get(name)) and filled not in args:
+                    if name not in (saved or {}) or args.get("upcoming"):
+                        continue
+                    args = {**args, filled: (saved or {})[name]}
+                if not c.get("failed"):
+                    calls.setdefault(json.dumps([name, args], sort_keys=True), (name, args))
     return list(calls.values())
+
+
+def saved_for(case: dict) -> dict[str, str]:
+    """What the server had saved when a case was asked, by the tool that reads it: the case's `note` for raid_note."""
+    from evals.asked import note_file
+    pasted = note_file(case.get("note"))
+    return {"raid_note": pasted.read_text(encoding="utf-8")} if pasted else {}
 
 
 def stale(case: dict, output: str) -> list[tuple[str, str]]:
@@ -137,10 +150,11 @@ async def lint(cases: list[dict], results: Path) -> Linted:
     flagged = checked = failed = no_data = asked_wrong = 0
     for case in cases:
         # a call with an argument its tool no longer takes ran another way then (compare_pulls' old pull_a)
-        calls = [(n, a) for n, a in recorded_calls(runs, case["id"]) if set(a) <= takes.get(n, set(a))]
+        calls = [(n, a) for n, a in recorded_calls(runs, case["id"], saved_for(case)) if set(a) <= takes.get(n, set(a))]
         # a run on another version of the case may name players or pulls this one doesn't (made-up names, once)
         now = {json.dumps([n, a], sort_keys=True) for n, a in recorded_calls(
-            [r for r in runs if (r.get("case_hashes") or {}).get(case["id"]) == case_hash(case)], case["id"])}
+            [r for r in runs if (r.get("case_hashes") or {}).get(case["id"]) == case_hash(case)], case["id"],
+            saved_for(case))}
         found = await asyncio.gather(*(run(n, a) for n, a in calls))
         replayed = "\n".join(t for t in found if t is not None and not failure(t))
         lacking = [t for t in found if t is not None and (PART_MISSING.search(t) if not failure(t)

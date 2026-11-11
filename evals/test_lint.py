@@ -24,6 +24,23 @@ def test_the_calls_replayed_are_each_runs_that_worked_once_and_none_the_bot_fill
                                         {"name": "raid_note", "args": {"pull": 19}, "failed": False}]}]}},
             {"cases": {"y": [{"calls": [{"name": "enemies", "args": {}, "failed": False}]}]}}]
     assert recorded_calls(runs, "x") == [("pull_timeline", {"pull": 19})]
+    # with the note the case's server had saved, the bot's call is replayed as the bot made it: the note filled in
+    assert recorded_calls(runs, "x", {"raid_note": "1:00 Enfo Spirit Link"})[1:] == [
+        ("raid_note", {"pull": 19, "note": "1:00 Enfo Spirit Link"})]
+    assert recorded_calls(runs, "y", {"raid_note": "a note"}) == [("enemies", {})]
+    # the note as it is for the next raid is the bot's own reading of its notebook: no call of the core's to replay
+    shown = [{"cases": {"x": [{"calls": [{"name": "raid_note", "args": {"upcoming": True}, "failed": False}]}]}}]
+    assert recorded_calls(shown, "x", {"raid_note": "a note"}) == []
+
+
+def test_a_cases_saved_note_is_what_its_raid_note_calls_are_replayed_with():
+    from evals.asked import note_file
+    from evals.lint import saved_for
+    from evals.run import load_cases
+    case = next(c for c in load_cases() if c.get("note"))
+    pasted = note_file(case["note"])
+    assert pasted and saved_for(case) == {"raid_note": pasted.read_text(encoding="utf-8")}
+    assert saved_for({"id": "x"}) == {}
 
 
 def test_a_number_from_rankings_that_moved_is_reported_apart_not_as_stale():
