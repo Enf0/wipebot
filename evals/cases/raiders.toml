@@ -67,7 +67,7 @@ where = "in a DM"
 question = ["who used the least defensives last night? where it mattered", "but would it have saved them?"]
 asker = "Enfo"
 expect = """Sometimes, not always: replaying each death before a wipe was decided with what was ready, a defensive or a
-healthstone would have saved Agonco at 15 of their 21 deaths, others less often."""
+healthstone would have saved Agonco at 16 of their 21 deaths, others less often."""
 facts = ["Algmor 13 of 21", "Scopidruid 11 of 19", "Sonyosh 9 of 15", "Nexsozz 6 of 9", "Martin 5 of 6",
          "Peggerino 5 of 10", "Pomaa 2 of 9",
          "the deaths in a hit killing many aren't theirs to save, and some deaths can't be judged",
@@ -77,8 +77,9 @@ facts = ["Algmor 13 of 21", "Scopidruid 11 of 19", "Sonyosh 9 of 15", "Nexsozz 6
 wrong = ["says every death with a ready defensive would have been saved",
          "counts deaths after a wipe was decided",
          """says a defensive or healthstone would have saved a Ravage death, or a death to the Mutilate hit itself
-         (not the Mutilated Gash bleed) other than Scopidruid's on pull 22, the one the replay says a healthstone
-         saves"""]
+         (not the Mutilated Gash bleed), other than the three the replay says one saves: Agonco's on pull 1 (Divine
+         Shield, an immunity), Scopidruid's on pull 22 (a healthstone) and Zebinomage's Ravage death on pull 3 (Ice
+         Cold)"""]
 
 [[case]]
 id = "real-holy-priest-night"  # a Holy Priest's night (answers #240-#241)

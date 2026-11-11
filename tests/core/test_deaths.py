@@ -107,6 +107,75 @@ def test_a_replays_rows_print_the_lines_the_recap_and_defensives_show():
     assert deaths.Replay().lines() == [] and not deaths.Replay() and not deaths.Replay(HEAD)  # nothing was ready
 
 
+async def test_a_replay_takes_a_spells_share_off_the_whole_killing_hit(monkeypatch):
+    """A killing hit's amount stops at the health the player had left, and its overkill is the rest of it. The
+    replay took an immunity or a reduction off the amounts alone and asked whether that made up the overkill: an
+    immunity to a one-shot was "not enough on its own" (873.52k less against 8.56M overkill on a real night), and a
+    reduction came out short by its share of the overkill. Made-up hits on a player with 1000 health."""
+    from types import SimpleNamespace
+
+    from wipebot.core import knowledge
+    from wipebot.core.knowledge.spells import Effect
+
+    class Rep:
+        async def defensive_casts(self):  # pressed on another pull: a spell they have, ready on this one
+            return [{"fight": 2, "sourceID": 7, "timestamp": 500_000, "abilityGameID": 1}]
+
+        async def defensive_spells(self, p):
+            return [{"name": "A Spell", "spell_id": 1, "cooldown": 120}]
+
+        def is_spell(self, c, sp):
+            return c["abilityGameID"] == sp["spell_id"]
+
+        async def potions(self, f, p, until):  # a healthstone used: no row for one
+            return 1, 0
+
+        async def schools(self):
+            return {9: 1, 8: 32}  # 9 physical, 8 magic
+
+    async def replayed(effect: Effect, hits: list[dict]) -> deaths.Replay:
+        async def its(spell_id):
+            return effect
+        monkeypatch.setattr(knowledge, "defensive_effect", its)
+        died = {"timestamp": hits[-1]["timestamp"]}
+        return await deaths.if_pressed(cast("deaths.Report", Rep()), {"id": 1, "startTime": 0},
+                                       cast("deaths.Player", SimpleNamespace(id=7)), died, hits)
+
+    def hit(at: int, amount: int, left: int, ability: int = 9, **more) -> dict:
+        return {"timestamp": at, "abilityGameID": ability, "amount": amount, "hitPoints": left, "maxHitPoints": 1000,
+                "resourceActor": 2} | more
+
+    one_shot = [hit(10_000, 50, 950), hit(12_000, 950, 0, overkill=8000)]
+    immune = await replayed(Effect("immunity", duration_s=8), one_shot)
+    assert immune.rows[0].line().strip() == (
+        "A Spell (immune to all damage for 8 s): 8.95k less of the 8.95k it covers: would have kept them alive")
+    assert immune.head == (
+        "If pressed (8.00k overkill to make up, healing as it was; a defensive at the start of the lethal burst, 0:12, "
+        "the first hit after they were last at 60%+ health; a heal after the last hit 1 s or more before the killing "
+        "hit, time to see it):")
+    assert (await replayed(Effect("reduction", pct=20, duration_s=8), one_shot)).rows[0].line().strip() == (
+        "A Spell (20% less damage for 8 s): 1.79k less of the 8.95k it covers: not enough on its own")
+    # a moment of immunity that is sure holds the whole one-shot, not only the health it took
+    assert (await replayed(Effect("immunity", duration_s=8, sure_s=1), one_shot)).rows[0].saves is True
+    # 20% of the 900 they took alone is 180, short of the 220 overkill; of all 1120 it is 224: at 580 health, not
+    # 500, the last hit does 576 of its 720 and they live
+    worn_down = [hit(10_000, 100, 900), hit(11_000, 400, 500), hit(12_000, 500, 0, overkill=220)]
+    assert (await replayed(Effect("reduction", pct=20, duration_s=8), worn_down)).rows[0].line().strip() == (
+        "A Spell (20% less damage for 8 s): 224 less of the 1.12k it covers: would have kept them alive")
+    # a spell that ran out before the killing hit takes nothing off it: the 400 it stopped must make up the overkill
+    assert (await replayed(Effect("immunity", duration_s=0.5), worn_down)).rows[0].saves is True
+    assert (await replayed(Effect("reduction", pct=30, duration_s=0.5), worn_down)).rows[0].line().strip() == (
+        "A Spell (30% less damage for 0.5 s): 120 less of the 400 it covers: not enough on its own")
+    # nor does a shield that ran out before it: 500 of shield took in the 350 it was up for, short of the 400 overkill
+    shield_out = [hit(10_000, 100, 900), hit(11_000, 350, 550), hit(12_000, 550, 0, overkill=400)]
+    assert (await replayed(Effect("absorb", pct=50, duration_s=0.5), shield_out)).rows[0].line().strip() == (
+        "A Spell (absorbs 50% of maximum health for 0.5 s): absorbs 350 of the burst: not enough on its own")
+    # a shield absorbs no more than the hits it is up for, and one against magic none of a physical burst
+    assert (await replayed(Effect("absorb", pct=30, duration_s=0.5), worn_down)).rows[0].saves is True  # 300 of 400
+    assert (await replayed(Effect("absorb", pct=30, only="magic", duration_s=8), worn_down)).rows[0].line().strip() == (
+        "A Spell (absorbs 30% of maximum health for 8 s): absorbs 0 of the burst: not enough on its own")
+
+
 async def test_a_recaps_verdict_is_the_replays_answer_in_one_line(rep, monkeypatch):
     assert deaths._verdict(replay(SHORT)) == [
         "Nothing that was ready would have kept them alive on its own (replayed below)."]

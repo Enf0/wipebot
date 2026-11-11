@@ -3030,7 +3030,7 @@ async def test_a_save_the_replay_cant_be_sure_of_is_not_counted_as_one(monkeypat
     sure_s = 1
     unsure = await replay()
     assert unsure.lines()[1] == (
-        "  Cloak of Shadows (immune to magic damage for 5 s): 1.00k less of the 1.00k it covers: would have kept them "
+        "  Cloak of Shadows (immune to magic damage for 5 s): 1.60k less of the 1.60k it covers: would have kept them "
         "alive only if it held for all 5 s: its tooltip promises the immunity for a moment, so can't be sure")
     assert unsure.rows[0].saves is None and deaths.savers(unsure) == []
     theirs = deaths.Standing("before the wipe was decided")

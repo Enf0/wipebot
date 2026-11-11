@@ -283,14 +283,24 @@ class Replay:
         return [self.head, *(r.line() for r in self.rows)] if self.rows else []
 
 
+def _unstopped(hits: list[dict], killing: dict) -> float:
+    """What some hits did, and would have done to health the player no longer had: the killing hit's amount stops at
+    the health left and its overkill is the rest of it, so what a spell takes off that hit, it takes off both."""
+    return sum(h.get("amount", 0) for h in hits) + (killing["overkill"] if any(h is killing for h in hits) else 0)
+
+
 async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict]) -> Replay:
     """Whether a ready defensive, a healthstone or a healing spell would have kept them alive: the lethal burst
     replayed with the effect from the spell's tooltip. Secondary to why they died; the arithmetic, not a verdict on
     the player."""
     hp_hits = [h for h in hits if h.get("resourceActor") == 2 and h.get("maxHitPoints")]
-    overkill = next((h.get("overkill", 0) for h in reversed(hits) if h.get("overkill")), 0)
-    if not hp_hits or not overkill:
+    killing = next((h for h in reversed(hits) if h.get("overkill")), None)
+    overkill = killing["overkill"] if killing else 0
+    if not killing or not hp_hits or not overkill:
         return Replay()
+
+    def unstopped(some: list[dict]) -> float:
+        return _unstopped(some, killing)
     max_hp = hp_hits[-1]["maxHitPoints"]
     above = [i for i, h in enumerate(hits) if h.get("resourceActor") == 2 and h.get("maxHitPoints")
              and 100 * h["hitPoints"] / h["maxHitPoints"] >= BURST_FROM_PCT]
@@ -326,16 +336,16 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
         if effect.kind == "heal":
             saved, how = _heal_in_time(hp_hits, max_hp, (effect.pct or 0) / 100 * max_hp)
         elif effect.kind == "absorb":  # a shield or temporary health: on top of their health, not capped by it
-            saved = (effect.pct or 0) / 100 * max_hp
+            saved = min((effect.pct or 0) / 100 * max_hp, unstopped(covered))  # of the hits it is up for
             how = f"absorbs {short(saved)} of the burst"
         else:
-            taken = sum(h.get("amount", 0) for h in covered)
+            taken = unstopped(covered)
             saved = taken if effect.kind == "immunity" else (effect.pct or 0) / 100 * taken
             how = f"{short(saved)} less of the {short(taken)} it covers"
         saves: bool | None = saved > overkill
         verdict = SAVED if saves else NOT_ENOUGH
         if saves and effect.sure_s:  # only a moment of it is sure (Cloak of Shadows' tooltip)
-            sure = sum(h.get("amount", 0) for h in covered if h["timestamp"] <= start + 1000 * effect.sure_s)
+            sure = unstopped([h for h in covered if h["timestamp"] <= start + 1000 * effect.sure_s])
             if sure <= overkill:
                 saves = None  # not a save anyone may count: the row says so
                 verdict = (f"{SAVED} only if it held for all {dur_ms // 1000:g} s: its tooltip "
