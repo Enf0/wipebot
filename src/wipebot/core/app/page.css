@@ -280,6 +280,8 @@ svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2
 .meter-rows .val small.old { margin: 0 6px 0 0; }
 .meter-rows .dl { font-size: 11.5px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 .meter-rows .dl.good { color: var(--good-ink); } .meter-rows .dl.bad { color: var(--dead-ink); }
+/* a ranking whose tool states no shares (kicks, a mechanic's hits, damage on adds) has no column for them */
+.meter-rows.plain .row { grid-template-columns: 22px minmax(0, 1fr) auto auto; }
 .meter-rows.then .row { grid-template-columns: 22px minmax(0, 1fr) auto auto 46px; }
 /* there the bars and the other night's tick end where the amounts begin, so a tick never lands on a number */
 .meter-rows.then { --amounts: 200px; }

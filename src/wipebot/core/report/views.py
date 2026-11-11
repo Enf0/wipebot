@@ -857,58 +857,158 @@ async def note_plan_view(rep: Report, text: str, boss: str, source: str = "") ->
                      "everyone": everyone, "rows": rows}}
 
 
+@dataclasses.dataclass
+class Stated:
+    """What a meter's tool states around its rows and a Meter has no field for, handed to the page as stated."""
+    # breakdown by player (tables.stated): its heading's total (0: none stated), and by player their share of it as
+    # their row writes it ("13%") and, for one in only some of the pulls, in how many and their rate over those
+    total: float = 0
+    rows: dict[str, tuple[str, str]] = dataclasses.field(default_factory=dict)
+    # mechanic_hits' "Total" line: the deaths with it as the killing blow, and of any cause soon after a hit
+    deaths: tuple[int, int] | None = None
+
+
 async def meters_of(rep: Report, tool: str, args: dict, other: Report | None = None) -> list[Meter]:
-    """The meters a tool's answer ranks players in, from its own rows: breakdown by player (damage, healing, damage
-    taken, kicks, dispels), mechanic_hits for one ability, enemies' damage on adds. None for another call: a table
-    by ability or pull, one player's part, every ability's outliers, too few players."""
+    """The meters a tool's answer ranks players in, from its own rows and in its text's order: breakdown by player
+    (damage, healing, damage taken, kicks, dispels), mechanic_hits for one ability, enemies' damage on the most
+    damaged kind of add. None for another call: a table by ability or pull, one player's part, every ability's
+    outliers, too few players."""
+    return [m for m, _ in await _ranked(rep, tool, args, other)]
+
+
+async def _ranked(rep: Report, tool: str, args: dict, other: Report | None = None) -> list[tuple[Meter, Stated]]:
+    """meters_of, each meter with what its tool states around its rows (Stated)."""
     a = args
     match tool:
         case "breakdown" if a.get("group_by", "player") == "player" and not a.get("player"):
-            found = await tables.meter(rep, a.get("data_type", ""), a.get("pulls"), a.get("boss"), a.get("ability"),
-                                       a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"), a.get("end"),
-                                       bool(a.get("least")), a.get("target"))
-            return [found] if found else []
+            asked = (a.get("data_type", ""), a.get("pulls"), a.get("boss"), a.get("ability"), a.get("cutoff"),
+                     bool(a.get("whole_pull")), a.get("start"), a.get("end"))
+            found = await tables.meter(rep, *asked, bool(a.get("least")), a.get("target"))
+            return [(found, Stated(*await tables.stated(rep, *asked, a.get("target"))))] if found else []
         case "mechanic_hits" if a.get("ability") and other is not None:  # against another night (`other`)
             found = await mechanics.meter_against(rep, other, a["ability"], a.get("boss"), bool(a.get("whole_pull")),
                                                   a.get("start"), a.get("end"))
-            return [found] if found else []
+            return [(found, Stated())] if found else []
         case "mechanic_hits" if a.get("ability"):
-            found = await mechanics.meter(rep, a["ability"], a.get("pull"), a.get("boss"), bool(a.get("all_pulls")),
-                                          bool(a.get("whole_pull")), a.get("start"), a.get("end"))
-            return [found] if found else []
+            asked = (a["ability"], a.get("pull"), a.get("boss"), bool(a.get("all_pulls")), bool(a.get("whole_pull")),
+                     a.get("start"), a.get("end"))
+            if (found := await mechanics.meter(rep, *asked)) is None:
+                return []
+            h, order, killed_by, died_after = await mechanics.ranking(rep, *asked)
+            return [(_as_its_text_ranks(rep.names, found, h, order), Stated(deaths=(killed_by, died_after)))]
         case "enemies":
-            return await adds.meters(rep, a.get("pull"), a.get("boss"), bool(a.get("all_pulls")))
+            # Each player's damage on every kind of add summed (adds.EVERY_KIND) is a number enemies' text states
+            # nowhere: the picture is the list it does state, who damaged the most damaged kind over the pull. Its
+            # waves (`by_wave`) are the text's alone, and the picture says it isn't one of them
+            whole = ", the whole pull, not by wave" if a.get("by_wave") and not a.get("all_pulls") else ""
+            return [(dataclasses.replace(m, scope=m.scope + whole), Stated())
+                    for m in await adds.meters(rep, a.get("pull"), a.get("boss"), bool(a.get("all_pulls")))
+                    if m.title != adds.EVERY_KIND]
     return []
 
 
+PER_MINUTE_THERE = " per minute of the pulls they were in"  # what a night's mechanic is ranked by, after "hits"
+
+
+def _as_its_text_ranks(names: dict[int, str], m: Meter, h: mechanics.Hits,
+                       order: list[tuple[int, float, int | None]]) -> Meter:
+    """mechanics.meter's bars as mechanic_hits' text lists its players (mechanics.ranking): in its order, each bar's
+    amount what that order is by (their hits, or the debuff's applications where those count who it caught; over
+    every pull, per minute of the pulls they were in; for an ability that only ticks, the ticks its order falls to),
+    and in the bar's few words the row's other numbers as the text writes them, the damage among them. `names`: the
+    players' by id."""
+    drawn = {b.name: b for b in m.bars}
+    only_ticks = not any(rate for _, rate, _ in order)
+    counted = "ticks" if only_ticks else "applications" if h.by_debuff else "hits"
+    bars = []
+    for who, rate, pulls in order:
+        hits = plural(h.hits[who], "hit") if h.hits[who] or counted == "hits" else ""
+        hits += f" (+{plural(h.ticks[who], 'tick')})" if hits and h.ticks[who] and not only_ticks else ""
+        if pulls is None:  # one pull: the bar's own amount isn't said twice
+            said = [plural(h.ticks[who], "tick") if h.ticks[who] else ""] if counted == "hits" else [hits]
+        else:
+            there = f"in {plural(pulls, 'pull')}"
+            said = ([f"{hits} {there}"] if counted == "hits"
+                    else [f"{plural(h.debuffs[who], 'application')} {there}", hits] if counted == "applications"
+                    else [there])
+        note = ", ".join(x for x in (*said, short(h.damage[who]) if h.damage[who] else "") if x)
+        bars.append(dataclasses.replace(drawn[names[who]], value=float(h.ticks[who]) if only_ticks else rate,
+                                        note=note))
+    night = order and order[0][2] is not None and not only_ticks
+    return dataclasses.replace(m, bars=bars, unit=counted + (PER_MINUTE_THERE if night else ""))
+
+
+def _change(now: float, was: float) -> str:
+    """'+26%', '-3%', 'same'; 'new' against none: a change as mechanic_hits' `against` writes it."""
+    if not was:
+        return "new"
+    pct = round((now / was - 1) * 100)
+    return f"{pct:+d}%" if pct else "same"
+
+
+def meter_amount(m: Meter, v: float) -> str:
+    """An amount of a meter as its tool writes it: damage and healing short ("53.83M"), a count whole, a count per
+    minute to two places ("2.14")."""
+    if m.unit == "amount":
+        return short(v)
+    if "per minute" in m.unit:  # against another night damage, or a debuff's applications (a few a minute)
+        return short(v) if m.unit == "per minute" and not m.scope.startswith("debuff") else f"{v:.2f}"
+    return f"{v:.0f}"
+
+
 async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = None) -> dict:
-    """A tool's ranking of players as in-game damage meters draw it (meters_of): per meter each player's amount, its
-    share of the top's, per second over the combat time, and their class colour, spec and role; the ranking in one
-    sentence (the card's headline); and, for one over several pulls that its tool also states pull by pull, the call
-    whose trend shows it (`by_pull`: the trend view's tool and args)."""
-    found = await meters_of(rep, tool, args, other)
+    """A tool's ranking of players as in-game damage meters draw it (meters_of): per meter each player's amount,
+    their class colour, spec and role, and what the tool's text states around them, as it states it (Stated): the
+    total, its rate and the combat time of breakdown's heading, each row's share of it and "in N of M pulls", a
+    mechanic's deaths. Nothing here is summed over the bars. With it the ranking in one sentence (the card's
+    headline); and, for one over several pulls that its tool also states pull by pull, the call whose trend shows
+    it (`by_pull`: the trend view's tool and args)."""
+    found = await _ranked(rep, tool, args, other)
     if not found:
         raise ValueError(f"{tool} ranks no players here")
     players = {p.name: p for p in rep.players.values()}
 
-    def bar(b) -> dict:
+    def written(m: Meter, v: float | None) -> dict:
+        """An amount the page's own short form would get wrong (a rate of a few a minute), as the text writes it."""
+        return {"text": meter_amount(m, v)} if v is not None and "per minute" in m.unit and (
+            m.unit != "per minute" or m.scope.startswith("debuff")) else {}
+
+    def bar(m: Meter, said: Stated, b) -> dict:
         p = players.get(b.name)
-        return {"name": b.name, "value": b.value, "note": b.note, "died_after": b.died_after,
-                "killed_by": b.killed_by, "color": class_hex(p.class_name) if p else "#9aa3b8",
-                "spec": spaced(p.spec) if p else "", "role": p.role if p else ""} | (
+        share, there = said.rows.get(b.name, ("", ""))
+        return {"name": b.name, "value": b.value, "note": ", ".join(x for x in (b.note, there) if x),
+                "share": share if said.total else "", "died_after": b.died_after, "killed_by": b.killed_by,
+                "color": class_hex(p.class_name) if p else "#9aa3b8", "spec": spaced(p.spec) if p else "",
+                "role": p.role if p else ""} | written(m, b.value) | (
                     {"per_pull": b.per_pull, "died_in": b.died_in} if b.per_pull else {}) | (
-                    {"was": b.was, "was_rank": b.was_rank} if b.was is not None else {})
-    meters = [{"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 1),
-               "icon": icon(m.ability), "note": m.note, "others": m.others, "headline": meter_headline(m),
-               "total": sum(b.value for b in m.bars), "median": statistics.median(b.value for b in m.bars),
-               "bars": [bar(b) for b in m.bars]} | ({"pulls": m.pulls, "per_pull": m.per_pull} if m.pulls else {})
-              | ({"then": dataclasses.asdict(m.then)} if m.then else {}) | ({"least": True} if m.least else {})
-              for m in found]
+                    {"was": b.was, "was_rank": b.was_rank, "change": _change(b.value, b.was)}
+                    | {f"was_{k}": v for k, v in written(m, b.was).items()} if b.was is not None else {})
+
+    def then(t) -> dict:
+        """The other night's numbers, with the raid's change and the deaths per minute as `against` writes them."""
+        return dataclasses.asdict(t) | {
+            "change": _change(t.raid, t.raid_was),
+            "deaths_per_min": [f"{n / max(minutes, 1e-9):.2f}"
+                               for n, minutes in ((t.deaths_was, t.minutes_was), (t.deaths, t.minutes))]}
+
+    def one(m: Meter, said: Stated) -> dict:
+        median = statistics.median(b.value for b in m.bars)
+        return {"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 3),
+                "icon": icon(m.ability), "note": m.note, "others": m.others, "headline": meter_headline(m, said),
+                # the heading's own: "(0:10 of combat; total 14.83M, 1.48M/s)"
+                "stated": {"total": short(said.total), "over": clock(m.seconds * 1000),
+                           "per_s": f"{short(said.total / m.seconds)}/s" if m.seconds else ""} if said.total else None,
+                "median": median, "bars": [bar(m, said, b) for b in m.bars]} | (
+                    {f"median_{k}": v for k, v in written(m, median).items()}) | (
+                    {"deaths": {"killed_by": said.deaths[0], "after": said.deaths[1]}} if said.deaths else {}) | (
+                    {"within_s": mechanics.HIT_THEN_DEATH_MS // 1000} if tool == "mechanic_hits" else {}) | (
+                    {"pulls": m.pulls, "per_pull": m.per_pull} if m.pulls else {}) | (
+                    {"then": then(m.then)} if m.then else {}) | ({"least": True} if m.least else {})
     by_pull = await _by_pull_call(rep, tool, args)
     return {"view": "meter", "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": args,
-            "title": found[0].title,
-            "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0], "meters": meters} | (
-                {"by_pull": by_pull} if by_pull else {})
+            "title": found[0][0].title,
+            "url": rep.url(rep.fight(args.get("pull"), args.get("boss"))).split("#")[0],
+            "meters": [one(m, said) for m, said in found]} | ({"by_pull": by_pull} if by_pull else {})
 
 
 async def _by_pull_call(rep: Report, tool: str, args: dict) -> dict | None:
@@ -924,16 +1024,12 @@ async def _by_pull_call(rep: Report, tool: str, args: dict) -> dict | None:
     return {"tool": tool, "args": by_pull} if len(pulls) >= TREND_MIN_PULLS else None
 
 
-def meter_headline(m: Meter) -> dict:
-    """A ranking in one sentence of its tool's rows: who is first (with `least`, last), with how much, and how that
-    stands against the median of the players ranked; against another night, the raid's per minute both nights and
-    the change."""
+def meter_headline(m: Meter, said: Stated | None = None) -> dict:
+    """A ranking in one sentence of its tool's rows: who is first (with `least`, last), with how much, for one in
+    only some of the pulls in how many as their row says it (`said`), and how that stands against the median of the
+    players ranked; against another night, the raid's per minute both nights and the change."""
     def amount(v: float) -> str:
-        if m.unit == "amount":
-            return short(v)
-        if m.unit == "per minute":  # against another night: damage, or a debuff's applications (a few a minute)
-            return f"{v:.2f}" if m.scope.startswith("debuff") else short(v)
-        return f"{v:.0f} {m.unit}"
+        return meter_amount(m, v) + ("" if m.unit in ("amount", "per minute") else f" {m.unit}")
     if m.then:
         t = m.then
         pct = round((t.raid / t.raid_was - 1) * 100) if t.raid_was else None
@@ -941,13 +1037,14 @@ def meter_headline(m: Meter) -> dict:
         return _headline(f"The raid's {m.scope.split(' per minute')[0]} from {m.title} per minute of its pulls: "
                          f"{amount(t.raid_was)} on {t.was_day}, {amount(t.raid)} on {t.day} ({change}).")
     b = m.bars[-1 if m.least else 0]
+    there = said.rows.get(b.name, ("", ""))[1] if said else ""
+    with_ = f"{amount(b.value)}{f', {there}' if there else ''}"
     median = statistics.median(x.value for x in m.bars)
     place = "last" if m.least else "first"
     if not median:
-        return _headline(f"{b.name} is {place} of the {len(m.bars)} players ranked with {amount(b.value)}.")
+        return _headline(f"{b.name} is {place} of the {len(m.bars)} players ranked with {with_}.")
     against = f"{100 * b.value / median:.0f}% of" if m.least else f"{b.value / median:.1f} times"
-    return _headline(f"{b.name} is {place} with {amount(b.value)}, {against} the median of the {len(m.bars)} players "
-                     "ranked.")
+    return _headline(f"{b.name} is {place} with {with_}, {against} the median of the {len(m.bars)} players ranked.")
 
 
 # ---- a trend by pull: one amount pull by pull over a night ----

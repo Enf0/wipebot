@@ -37,7 +37,7 @@ own card on that pull, which only they see.*
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/claude-damage-meter-dark.webp">
-  <img src="images/claude-damage-meter.webp" alt="A mock of a chat answering &quot;Who keeps getting hit by Virulence?&quot;: a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths it set up, then the answer">
+  <img src="images/claude-damage-meter.webp" alt="A mock of a chat answering &quot;Who keeps getting hit by Virulence?&quot;: a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths of any cause within 6 s of a hit, then the answer">
 </picture>
 
 *In Discord, a ranking of players comes as a damage meter, here Virulence over the whole night. Claude and ChatGPT

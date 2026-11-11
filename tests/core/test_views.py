@@ -3,6 +3,7 @@ snapshot; the page drawn in the mock host (viewhost.py, Chromium); the replay's 
 maps.replay packs (Node)."""
 import asyncio
 import contextlib
+import dataclasses
 import hashlib
 import io
 import itertools
@@ -227,30 +228,184 @@ def test_the_night_cards_quiet_endings_are_the_cores():
 
 @pytest.mark.parametrize("case", METER_CASES)
 async def test_a_meter_ranks_the_players_its_tool_states(recorded, case):
+    """A meter is its tool's own rows: every bar a player its text names with the amount it states there, and
+    around them only what the text states (its total and shares, which no table of kicks or adds has)."""
     data = await meter_data(case)
     text, failed = await server.call(CASES[case].tool, CASES[case].args)
     assert not failed
     for m in data["meters"]:
         values = [b["value"] for b in m["bars"]]
         assert len(values) >= 3 and values == sorted(values, reverse=True), m["title"]
-        assert m["total"] == sum(values)
-        for b in m["bars"] if CASES[case].tool != "enemies" else m["bars"][:1]:  # enemies names the top few
+        assert "total" not in m and (m["stated"] is None) == (m["unit"] != "amount" or CASES[case].tool == "enemies")
+        for b in m["bars"]:
             assert b["name"] in text, (m["title"], b["name"])
+            assert bool(b["share"]) == bool(m["stated"])
             if m["unit"] == "kicks":
                 assert re.search(rf"^  {re.escape(b['name'])}: {round(b['value'])}\b", text, re.MULTILINE)
-            elif m["unit"] == "amount" and CASES[case].tool != "enemies":
+            elif CASES[case].tool == "enemies":  # everyone who damaged the most damaged kind, as its line lists them
+                assert f"{b['name']} {short(b['value'])}" in text, (m["title"], b["name"])
+            elif m["unit"] == "amount":
                 assert short(b["value"]) in text, (b["name"], short(b["value"]))
 
 
-async def test_a_meter_shows_the_deaths_a_mechanic_set_up(recorded):
+@pytest.mark.parametrize("case", ["damage-least", "damage-taken-ability"])
+async def test_a_meters_total_rate_time_and_shares_are_its_texts_own(recorded, case):
+    """breakdown's heading states the table's total, its rate and the combat time, and each row its share of that
+    total: the meter hands those on and sums nothing over its bars. With `least` the bars are the damage dealers
+    alone and the total is still the raid's, so a sum over them gave another total (13.39M under a text saying
+    14.83M) and another share on 9 of the 13 bars; a clock from seconds rounded up read a second past the text's."""
+    data = await meter_data(case)
+    text, _ = await server.call(CASES[case].tool, CASES[case].args)
+    [m] = data["meters"]
+    said = m["stated"]
+    assert f"({said['over']} of combat; total {said['total']}, {said['per_s']})" in text.splitlines()[0]
+    for b in m["bars"]:
+        assert re.search(rf"^  \d+\. {re.escape(b['name'])} \([^)]*\)(?: \(tank\))?: {short(b['value'])} \([^)]*/s\), "
+                         rf"{b['share']} of total", text, re.MULTILINE), (b["name"], b["share"])
+    if case == "damage-least":
+        assert short(sum(b["value"] for b in m["bars"])) != said["total"]  # the bars are not the whole table
+
+
+async def test_a_meter_says_who_was_in_only_some_of_its_pulls_as_the_text_does(recorded, monkeypatch):
+    """Over several pulls the text says of a player who sat some out in how many they were and their rate over
+    those; the bar says it in the same words, and so does the headline of the one it names, so that a ranking from
+    the least doesn't lead with a player who wasn't there without saying so. No recorded ranking over several
+    pulls has such a player, so one is taken out of the first pull's roster here."""
+    from wipebot.core.report.base import Report
+    args = {"report": REPORT, "data_type": "DamageDone", "pulls": [12, 13], "least": True}
+    whole = (await server.view_data("meter", report=REPORT, tool="breakdown", args=args)).structured_content
+    last = whole["meters"][0]["bars"][-1]["name"]
+    assert not any("pulls" in b["note"] for b in whole["meters"][0]["bars"])
+    rep = await server.lib().report(REPORT)
+    first, in_pull = rep.fight(12, None), Report.pull_players
+    monkeypatch.setattr(Report, "pull_players", lambda self, f: {
+        k: v for k, v in in_pull(self, f).items() if f is not first or v.name != last})
+    text, _ = await server.call("breakdown", args)
+    [m] = (await server.view_data("meter", report=REPORT, tool="breakdown", args=args)).structured_content["meters"]
+    there = re.search(rf"\. {re.escape(last)} \(.*, (in 1 of 2 pulls \(\S+/s over them\))", text)
+    assert there and m["bars"][-1]["note"] == there.group(1)
+    assert m["headline"]["text"].startswith(f"{last} is last with {short(m['bars'][-1]['value'])}, {there.group(1)}, ")
+    assert sum("pulls" in b["note"] for b in m["bars"]) == 1
+
+
+async def test_a_mechanics_meter_is_in_its_texts_order_by_what_the_text_ranks_by(recorded):
+    """mechanic_hits lists its players by hits, over a night per minute of the pulls each was in; the meter ranked
+    them by damage, so the answer said Krøpling was second and the picture under it showed him tenth. The bars are
+    the text's rows in its order, each with the rate its row states and the row's other numbers in its words."""
+    data = await meter_data("mechanic-hits")
+    text, _ = await server.call("mechanic_hits", CASES["mechanic-hits"].args)
+    [m] = data["meters"]
+    rows = re.findall(r"^  (\S+)(?: \(tank\))?: (\d+ hits? \(\+\d+ ticks?\) in \d+ pulls?) \((\d+\.\d\d) per minute\), "
+                      r"(\S+), ", text, re.MULTILINE)
+    assert len(rows) == 22 and "most hits per minute of the pulls they were in first" in text
+    assert m["unit"] == "hits per minute of the pulls they were in"
+    assert [(b["name"], b["text"], b["note"]) for b in m["bars"]] == [
+        (name, rate, f"{counts}, {damage}") for name, counts, rate, damage in rows]
+    assert [b["name"] for b in m["bars"]][:3] == ["Deathadim", "Krøpling", "Sveini"]
+    assert m["headline"]["text"] == ("Deathadim is first with 2.14 hits per minute of the pulls they were in, 2.5 "
+                                     "times the median of the 22 players ranked.")
+    assert all(b["share"] == "" for b in m["bars"]) and m["stated"] is None  # its text states no total of hits
+
+
+def test_a_mechanics_meter_on_one_pull_is_ranked_by_hits_and_one_that_only_ticks_by_its_ticks():
+    """On one pull the text lists most hits first, so a bar's amount is the hits and its words the ticks and the
+    damage; a debuff that lands more often than it deals damage is ranked by its applications; and for an ability
+    that only ticks the text's order falls to the ticks, which are the bar's amount then."""
+    from collections import Counter
+
+    from wipebot.core.report.mechanics import Hits
+    from wipebot.core.report.meter import Bar, Meter
+
+    names = {1: "Mirelle", 2: "Rowan", 3: "Tamsin"}
+    drawn = Meter("Slag Wave", "Torvek pull 3", [Bar("Rowan", 900.0), Bar("Mirelle", 500.0), Bar("Tamsin", 100.0)])
+    h = Hits(hits=Counter({1: 4, 2: 2, 3: 1}), ticks=Counter({2: 6}), damage=Counter({1: 500, 2: 900, 3: 100}))
+    m = views._as_its_text_ranks(names, drawn, h, [(1, 4, None), (2, 2, None), (3, 1, None)])
+    assert m.unit == "hits" and [(b.name, b.value, b.note) for b in m.bars] == [
+        ("Mirelle", 4, "500"), ("Rowan", 2, "6 ticks, 900"), ("Tamsin", 1, "100")]
+    assert views.meter_headline(m)["text"] == (
+        "Mirelle is first with 4 hits, 2.0 times the median of the 3 players ranked.")
+    stacks = Hits(hits=Counter({1: 1}), debuffs=Counter({1: 3, 2: 5, 3: 4}), damage=Counter({1: 500}))
+    m = views._as_its_text_ranks(names, drawn, stacks, [(2, 5, None), (3, 4, None), (1, 3, None)])
+    assert m.unit == "applications" and [(b.name, b.value, b.note) for b in m.bars] == [
+        ("Rowan", 5, ""), ("Tamsin", 4, ""), ("Mirelle", 3, "1 hit, 500")]
+    over = Hits(ticks=Counter({1: 3, 2: 9, 3: 5}), damage=Counter({1: 300, 2: 900, 3: 500}))
+    night = dataclasses.replace(drawn, pulls=[1, 2])
+    m = views._as_its_text_ranks(names, night, over, [(2, 0, 2), (3, 0, 2), (1, 0, 1)])
+    assert m.unit == "ticks" and [(b.name, b.value, b.note) for b in m.bars] == [
+        ("Rowan", 9, "in 2 pulls, 900"), ("Tamsin", 5, "in 2 pulls, 500"), ("Mirelle", 3, "in 1 pull, 300")]
+
+
+async def test_a_mechanics_meter_states_its_deaths_as_its_text_does(recorded, tmp_path):
+    """The deaths on a mechanic's meter are its text's "Total" line and each row's own two counts, in the text's
+    words: deaths of any cause within 6 s of a hit, and those with it as the killing blow. Nothing says the
+    mechanic set a death up: the text dropped that claim, and the page said it in six places."""
     data = await meter_data("mechanic-hits")
     text, _ = await server.call("mechanic_hits", CASES["mechanic-hits"].args)
     [m] = data["meters"]
     assert m["title"] == "Tempest" and m["icon"]
     for b in m["bars"]:
         assert re.search(rf"^  {re.escape(b['name'])}(?: \(tank\))?: .*, {plural(b['died_after'], 'death')} within "
-                         rf"6 s, {plural(b['killed_by'], 'killing blow')}", text, re.MULTILINE), b["name"]
-    assert f"{plural(sum(b['killed_by'] for b in m['bars']), 'death')} with it as the killing blow" in m["note"]
+                         rf"{m['within_s']} s, {plural(b['killed_by'], 'killing blow')}", text, re.MULTILINE), b["name"]
+    assert (f"Total with Tempest as the killing blow: {m['deaths']['killed_by']}; deaths of any cause within "
+            f"{m['within_s']} s of a hit: {m['deaths']['after']}") in text
+    assert "set up" not in views.APP.joinpath("meter.js").read_text()
+    [s] = await shots(tmp_path, "mechanic_hits", CASES["mechanic-hits"].args, as_picture=True)
+    assert not s.errors and "set up" not in s.text
+    stats = s.text.upper()
+    assert "KILLING BLOWS\n48\n" in stats and "DEATHS WITHIN 6 S\n95\n" in stats and "TOTAL\n" not in stats
+    # the hits pull by pull under it are in the meter's order, the text's, not sorted again
+    grid = s.text.split("Tempest by pull")[1]
+    names = [b["name"] for b in m["bars"]]
+    assert sorted(names, key=grid.index) == names
+
+
+async def test_against_another_night_the_changes_are_the_ones_the_text_writes(recorded):
+    """mechanic_hits' against writes the raid's change, the deaths soon after a hit per minute both nights and each
+    player's change: the meter hands them on as written, where the page worked each out again."""
+    data = await meter_data("mechanic-hits-against")
+    text, _ = await server.call("mechanic_hits", CASES["mechanic-hits-against"].args)
+    [m] = data["meters"]
+    t = m["then"]
+    assert (f"per minute against {short(t['raid_was'])} ({t['change']}); deaths of any cause within {m['within_s']} s "
+            f"of a hit {t['deaths_per_min'][1]} per minute against {t['deaths_per_min'][0]} ({t['deaths']} against "
+            f"{t['deaths_was']})") in text
+    both = [b for b in m["bars"] if "was" in b]
+    assert len(both) >= 15
+    for b in both:
+        assert re.search(rf"^  {re.escape(b['name'])}(?: \(tank\))?: {short(b['value'])} \(\d+\w\w\) against "
+                         rf"{short(b['was'])} \(\d+\w\w\), {re.escape(b['change'])};", text, re.MULTILINE), b["name"]
+
+
+@pytest.mark.parametrize("case", ["twin-fangs-enemies-waves", "vashnik-enemies", "nekzali-enemies-night"])
+async def test_enemies_meter_is_the_one_list_its_text_states_and_says_when_that_is_not_by_wave(recorded, case):
+    """enemies lists who damaged the most damaged kind of add; its meter is that list. Each player's damage on
+    every kind summed was a meter too, a number the text states nowhere, and with by_wave the picture showed the
+    whole pull's sums under an answer about waves without saying so."""
+    from wipebot.core.report import adds
+    data = await meter_data(case)
+    text, _ = await server.call("enemies", CASES[case].args)
+    [m] = data["meters"]
+    assert m["title"] != adds.EVERY_KIND and m["title"].startswith("Damage on ") and m["stated"] is None
+    kind = m["title"].removeprefix("Damage on ")
+    assert re.search(rf"^  {re.escape(kind)}: ", text, re.MULTILINE)
+    for b in m["bars"]:
+        assert f"{b['name']} {short(b['value'])}" in text, b["name"]
+    by_wave = bool(CASES[case].args.get("by_wave"))
+    assert m["scope"].endswith(", the whole pull, not by wave") == by_wave
+    assert ("by wave, by player" in text) == by_wave
+
+
+def test_every_argument_of_a_tool_with_a_meter_is_read_for_its_meter():
+    """A meter is drawn from its tool's arguments: one the meter never read (enemies' by_wave was) gives a picture
+    of another question than the answer's. Each is read by name where the meters are made, or said here to be
+    read elsewhere."""
+    import inspect
+    elsewhere = {"against": "the other night, handed in as its report (`other`)"}
+    made = inspect.getsource(views._ranked)
+    read = set(re.findall(r'a(?:\.get\(|\[)"(\w+)"', made))
+    for tool in views.METER_TOOLS:
+        takes = set(inspect.signature(inspect.unwrap(getattr(server, tool))).parameters) - {"ctx", "report"}
+        assert takes and takes <= read | set(elsewhere), (tool, takes - read - set(elsewhere))
 
 
 async def test_a_mechanics_meter_over_the_night_counts_each_players_hits_pull_by_pull(recorded):
@@ -2352,7 +2507,8 @@ async def test_a_ranking_and_a_trend_are_the_card_too(recorded, width):
     rows = "document.querySelectorAll('.meter-rows li:not(.gap)').length"
     async with drawn(case.tool, case.args, width=width) as (view, errors):
         card = await view.evaluate(CARD)
-        assert card["lead"] == ["Deathadim is first with 53.83M, 2.6 times the median of the 22 players ranked."]
+        assert card["lead"] == ["Deathadim is first with 2.14 hits per minute of the pulls they were in, 2.5 times "
+                                "the median of the 22 players ranked."]
         assert 1 <= card["stats"] <= 4 and card["buttons"] == ["Open ranking", "By pull"] and card["tables"] == 0
         assert await view.evaluate(rows) == 8 and "14 more players" in await view.locator("body").inner_text()
         assert await view.locator('[data-panel="by_pull"]').count() == 0
