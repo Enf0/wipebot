@@ -177,3 +177,16 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
   cases rose when what code can decide moved into the output (how a pull ended, that it wasn't an enrage, that whose
   job it was isn't in the log): `ask-assignment` from 0/3 to 2/3, `night-not-a-dps-problem` from 0/3 to 3/3, while the
   same caveat in five tool descriptions hadn't moved them (22 October).
+
+## What a tool's output costs (measured 11 November 2026)
+
+- The pinned outputs (100 cases, 304,560 characters) are 114,278 tokens with OpenAI's o200k tokenizer: 2.67
+  characters a token, where prose runs near 4. Names with accents, numbers, spell ids and links split into many
+  tokens, so a character count understates a log output by about half. Claude's tokenizer isn't public; the ratio
+  carries over roughly, the absolute counts don't.
+- What costs is repetition, not ids or links: a reading note on every row, a history repeated per pull, rows that
+  restate a line above. Ours (11 November): `pull_summary` 3,351 to 1,730 characters on the tests' pull by saying
+  what decided the wipe once, `progress` with `each_pull` 21,696 to 12,780 on a night of 33 pulls, `player_night`
+  9,067 to 6,991 with one legend above its rows; no fact was removed from any of them.
+- Size is pinned: each case's output has a budget in characters (`tests/fixtures/real/tools/sizes.toml`), and a
+  test fails when one outgrows it by more than a tenth.

@@ -1,0 +1,87 @@
+# The size budget of each tool case's pinned output, in characters (test_no_tool_output_outgrew_its_size_budget in
+# tests/core/test_tools.py). The model reads a tool's whole output on every call, at about 2.7 characters a token
+# for these outputs, so an output that grows costs every answer that reads it, and a snapshot's diff shows changed
+# text, not that it is a fifth longer.
+# `just snapshot` lowers a line when its output shrank and adds a new case's. It never raises one: an output that
+# outgrew its budget by more than a tenth (or 200 characters, where that is more) fails the test until its line is
+# raised here by hand, with the reason in the commit.
+pull-summary = 1697
+vashnik-summary = 2319
+altar-summary = 3456
+timeline = 6278
+timeline-window = 1568
+timeline-player = 2468
+death-recap = 3497
+death-recap-thrown = 3306
+mechanic-hits = 6033
+mechanic-hits-bait = 4855
+mechanic-hits-against = 2829
+mechanic-outliers = 1927
+tank-swaps = 1911
+tank-swaps-taunts = 2219
+vashnik-tank-swaps = 3351
+compare-pulls = 1774
+nymrissa-enemies = 1204
+nekzali-enemies = 3116
+nymrissa-enemies-night = 3645
+nekzali-enemies-night = 3991
+vashnik-enemies = 1368
+twin-fangs-enemies-waves = 3188
+pull-map = 1409
+pull-map-mechanic = 3079
+pull-map-night = 1758
+pull-map-vashnik = 5459
+progress = 7222
+list-pulls = 1610
+first-hits = 11676
+roster = 746
+defensives = 4900
+defensives-player = 3858
+healing = 3436
+healing-night = 3684
+healing-mana = 702
+healing-mana-night = 570
+breakdown = 2834
+damage-taken = 3087
+damage-taken-whole = 2984
+damage-taken-ability = 1406
+healing-by-ability = 3141
+buffs = 1362
+damage-by-pull = 409
+debuffs-by-pull = 290
+interrupts = 476
+interrupts-by-pull = 692
+dispels = 1495
+damage-window = 1266
+damage-least = 1066
+raid-note = 10846
+raid-note-night = 16556
+raid-note-kicks = 4533
+raid-note-kicks-night = 7573
+raid-note-order-change = 12679
+raid-plan = 3244
+raid-plan-night = 2860
+raid-plan-versions = 3465
+raid-plan-latest = 2985
+raid-plan-player = 3344
+raid-plan-show = 2002
+raid-plan-unpulled = 2004
+compare-raid-mates = 1771
+player-trends = 451
+buff-at-casts = 401
+buff-at-casts-lust = 299
+buff-at-casts-night = 3583
+buff-at-casts-debuff = 1150
+resource-at-casts = 734
+spell-info = 96
+boss-tooltips = 1152
+boss-guide-mechanic = 1608
+wcl-query = 494
+wcl-query-pulls = 494
+wcl-query-schema = 6050
+web-lookup-read = 3238
+web-lookup-guide-part = 4268
+web-lookup-search = 838
+find-reports = 1720
+find-reports-own-guild = 1708
+breakdown-casts = 324

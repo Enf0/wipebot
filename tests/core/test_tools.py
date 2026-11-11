@@ -3,6 +3,7 @@ recorded answers (support/recorded.py); and what a snapshot can't hold, the pict
 import base64
 import io
 import json
+import os
 import re
 import struct
 
@@ -47,6 +48,65 @@ async def test_tool_output_matches_snapshot(recorded, case: Case):
             await run(case)
         pytest.skip(f"recorded before {case.stale}: `just record-tools`, then `just snapshot`")
     assert_snapshot(case.snapshot, await run(case))
+
+
+# An output may outgrow its budget by a tenth, or by this many characters where that is more (a short output's
+# added clause), before the test asks for the budget to be raised by hand.
+SIZE_MARGIN, SIZE_SLACK = 0.10, 200
+SIZES_HEAD = """\
+# The size budget of each tool case's pinned output, in characters (test_no_tool_output_outgrew_its_size_budget in
+# tests/core/test_tools.py). The model reads a tool's whole output on every call, at about 2.7 characters a token
+# for these outputs, so an output that grows costs every answer that reads it, and a snapshot's diff shows changed
+# text, not that it is a fifth longer.
+# `just snapshot` lowers a line when its output shrank and adds a new case's. It never raises one: an output that
+# outgrew its budget by more than a tenth (or 200 characters, where that is more) fails the test until its line is
+# raised here by hand, with the reason in the commit.
+"""
+
+
+def _sizes(folder) -> dict[str, int]:
+    path = folder / "sizes.toml"
+    return {name: int(n) for name, n in (line.split(" = ") for line in path.read_text(encoding="utf-8").splitlines()
+                                         if line and not line.startswith("#"))} if path.exists() else {}
+
+
+@pytest.mark.parametrize("folder", [TOOLS, LOCAL], ids=["published", "local"])
+def test_no_tool_output_outgrew_its_size_budget(folder):
+    """Size is a reviewed quantity: each case's output has a budget in characters beside its snapshot (sizes.toml;
+    the local cases' in local/, with their snapshots), and one that outgrew it by more than the margin fails until
+    the budget is raised by hand. Runs after the snapshot tests above, so `just snapshot` measures the new outputs."""
+    cases = [case for case in CASES.values() if case.snapshot.parent == folder and case.snapshot.exists()]
+    updating = bool(os.environ.get("UPDATE_SNAPSHOTS"))
+    budget = _sizes(folder)
+    if folder == LOCAL and (not cases or not (budget or updating)):
+        pytest.skip(NOT_LOCAL if not cases else "the local cases have no size budget yet: `just snapshot` writes it")
+    now = {case.name: len(case.snapshot.read_text(encoding="utf-8")) for case in cases}
+    if updating:  # down with an output that shrank, a line for a new case; never up
+        kept = {name: min(now.get(name, n), n) for name, n in budget.items() if name in CASES}
+        kept |= {name: n for name, n in now.items() if name not in kept}
+        if kept != budget:
+            (folder / "sizes.toml").write_text(SIZES_HEAD + "".join(
+                f"{name} = {kept[name]}\n" for name in CASES if name in kept), encoding="utf-8")
+        budget = kept
+    assert not (new := sorted(set(now) - set(budget))), f"no size budget for {new}: `just snapshot` adds its line"
+    grown = _outgrown(budget, now)
+    assert not grown, ("grew past its size budget: " + "; ".join(grown) + ". The model reads all of it on every call: "
+                       "cut what repeats, or, if the growth is meant, raise the line in "
+                       f"{(folder / 'sizes.toml').relative_to(TOOLS.parent.parent.parent)} by hand")
+
+
+def _outgrown(budget: dict[str, int], now: dict[str, int]) -> list[str]:
+    """The outputs past their budget by more than the margin, each with both sizes."""
+    return [f"{name}: {budget[name]} to {n} characters (+{100 * (n / budget[name] - 1):.0f}%)"
+            for name, n in now.items() if n > budget[name] + max(SIZE_MARGIN * budget[name], SIZE_SLACK)]
+
+
+def test_the_size_budget_allows_a_tenth_or_a_clause_and_no_more():
+    budget = {"night": 7000, "roster": 750}
+    assert _outgrown(budget, {"night": 7700, "roster": 950}) == []  # a tenth of a long one, a clause on a short one
+    assert _outgrown(budget, {"night": 7701, "roster": 951}) == [
+        "night: 7000 to 7701 characters (+10%)", "roster: 750 to 951 characters (+27%)"]
+    assert _outgrown(budget, {"night": 3000}) == []  # shrinking is free; `just snapshot` then lowers the line
 
 
 async def test_an_abilitys_damage_on_a_pull_is_one_number_in_every_tool(recorded):
