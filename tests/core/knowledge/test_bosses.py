@@ -244,6 +244,16 @@ def test_a_list_is_kept_whole_only_where_the_cut_comes_into_it_from_the_sentence
     # two sentences on, the cut ends at the sentence before the list and doesn't come into it
     assert cut("Darkfall comes twice. Dodge the first. " + tips, "Darkfall") == (
         "Darkfall comes twice. Dodge the first. Play it clean.")
+    # a summary is list after list of tips: the tail of a tip that ends one list is no reason to keep the next whole
+    summary = ("General:\n- Split into two groups. Stone Count pairs them.\nPhase 1:\n- Tanks swap on Tail Swipe.\n"
+               "- Heal through Gloom.\n- Spread for Embers.\n- Move on Darkfall.")
+    assert cut(summary, "Stone Count") == (
+        "Stone Count pairs them.\nPhase 1:\n- Tanks swap on Tail Swipe.\n- Heal through Gloom.")
+    # a section that starts with its list has no sentence leading into it: its items are cut as sentences are
+    items = tips.removeprefix("Play it clean.\n")
+    opening = Guide("method", "A guide", "https://guide", None, [("Summary", f"{items}\n{filler}")])
+    assert dict(bosses.mechanic_sections(opening, "Gloom"))["Summary"] == (
+        "- Gloom: heal through it.\n- Embers: spread out.\nSentence 0 about the tanks.")
     # sentences left out between two that are kept are marked, on the line of what comes after them
     assert cut("Embers open. One. Two. Three. Four. " + tips, "Embers") == (
         "Embers open. One. Two.\n... - Embers: spread out.\nSentence 0 about the tanks. Sentence 1 about the tanks.")

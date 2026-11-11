@@ -394,17 +394,21 @@ def mechanic_sections(g: Guide, mechanic: str) -> list[tuple[str, str]]:
 def _about(para: str, mechanic: str) -> str:
     """A long paragraph cut to the sentences naming the mechanic and the MECHANIC_AFTER after each, "..." where
     some are left out between. A list the cut comes into from the sentence leading into it is kept whole: the rule
-    for a mechanic is often three short items, each a sentence of its own. An item starts a line, as what follows
+    for a mechanic is often three short items, each a sentence of its own. Not one it comes into from an item of
+    the list before: a summary is list after list of tips, one a mechanic. An item starts a line, as what follows
     a list does; the paragraph's other line breaks become spaces."""
     parts = re.split(r"(?<=[.!?])(\s+)", para)
     sentences, gaps = parts[::2], parts[1::2]  # gaps[i] stands between sentence i and the next
     named = [i for i, s in enumerate(sentences) if _names(s, mechanic)]
     keep = {j for i in named for j in range(i, min(i + 1 + MECHANIC_AFTER, len(sentences)))}
     lists = _lists(sentences, gaps)
-    for lead, words, first, last in lists:
-        if lead is not None and (_names(words, mechanic) or any(first - MECHANIC_AFTER <= i < lead for i in named)):
-            keep |= set(range(lead, last + 1))
     listed = {i for _, _, first, last in lists for i in range(first, last + 1)}
+    for lead, words, first, last in lists:
+        if lead is None:
+            continue
+        # the cut comes in from prose: an item of the list before is cut as any sentence is, and its tail keeps none
+        if _names(words, mechanic) or any(first - MECHANIC_AFTER <= i < lead and i not in listed for i in named):
+            keep |= set(range(lead, last + 1))
     out, before = "", None
     for j in sorted(keep):
         if before is not None:
