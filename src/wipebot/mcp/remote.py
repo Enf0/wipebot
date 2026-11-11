@@ -14,10 +14,12 @@ its private reports to everyone, so the server won't start with one, nor read wi
   are the characters at guild rank 0 to WIPEBOT_OFFICER_RANK (signin.Access; by default WoW's Guild Master and
   Officer ranks), as Warcraft Logs had them at sign-in or the last membership check (within the hour).
 - The views, an MCP App (core/report/views.py, the page in core/app/): `pull_summary` draws the pull, `player_pull`
-  the player and `player_night` the player's night, asking the app-only `view_data` for what to draw (the player's
-  casts against top players on a click); `breakdown` and `mechanic_hits` draw a ranking of players as a meter and an
-  amount pull by pull as a trend, for the calls that state one; `pull_map` opens the replay, which asks the app-only
-  `pull_replay` for the whole pull and loads the room's map and the icons from /img/ (Warcraft Logs' public assets).
+  the player, `player_night` the player's night, `death_recap` the death and `progress` the night on a boss, each a
+  card that leads with one sentence of the tool's facts, asking the app-only `view_data` for what to draw (the
+  player's casts against top players on a click); `breakdown` and `mechanic_hits` draw a ranking of players as a
+  meter and an amount pull by pull as a trend, for the calls that state one; `pull_map` opens the replay, which asks
+  the app-only `pull_replay` for the whole pull and loads the room's map and the icons from /img/ (Warcraft Logs'
+  public assets).
   `pull_map` with `plan` on one pull opens it with the plan's spots at each moment it checked.
 - The connector and the skill as a Claude plugin to download, at /plugin.zip (plugin.py).
 - Its logo at /icon.png, named as the server's icon for the hosts that show one: Wipebot's, or the website's own.
@@ -103,31 +105,36 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                                        "breakdown": shown, "mechanic_hits": shown},
                     notes={"breakdown": ranks.format(what=(
                                "the user also sees a ranking by player drawn as a damage meter (damage, healing, "
-                               "damage taken, kicks, dispels), and damage, healing, damage taken or casts grouped by "
-                               "pull as a trend: a bar per pull, kills and resets marked, the median of each third "
-                               "of the night")),
+                               "damage taken, kicks, dispels) under a sentence on who is first against the median, "
+                               "and damage, healing, damage taken or casts grouped by pull as a trend: a bar per "
+                               "pull, kills and resets marked, the median of each third of the night")),
                            "mechanic_hits": ranks.format(what=(
-                               "the user also sees one ability's hits drawn as a meter of the players, with its "
-                               "trend pull by pull a click away over every pull")),
+                               "the user also sees one ability's hits drawn as a meter of the players under a "
+                               "sentence on who is hit most against the median, with its trend pull by pull a click "
+                               "away over every pull")),
                            "pull_map": "In Claude, the user gets a replay of the pull to play instead of the picture "
                                        "(not with all_pulls); with plan, the plan's spots on it and a button per "
                                        "moment.",
-                           "pull_summary": "In Claude and ChatGPT, the user also sees the pull drawn: boss health "
-                                           "and raid damage taken over time, phases, cooldowns and deaths, with its "
-                                           "replay a click away.",
+                           "pull_summary": "In Claude and ChatGPT, the user also sees the pull drawn: how it ended "
+                                           "in a sentence, boss health and raid damage taken over time, phases, "
+                                           "cooldowns and deaths, with its replay a click away.",
                            "player_night": "In Claude and ChatGPT, the user also sees the player's night drawn: "
-                                           "what killed them, ranked, with the pulls where a ready defensive or a "
-                                           "healthstone would have kept them alive, then their output and deaths "
-                                           "pull by pull, each pull's own view a click away.",
+                                           "their deaths before the wipes were decided in a sentence, what killed "
+                                           "them, ranked, with the pulls where a ready defensive or a healthstone "
+                                           "would have kept them alive, and their output and deaths pull by pull a "
+                                           "click away.",
                            "player_pull": "In Claude and ChatGPT, the user also sees the player's pull drawn: their "
-                                          "output and where it stands, time lost, when they cast, capped or died, "
-                                          "and their cooldowns, with their casts against top players a click away.",
-                           "death_recap": "In Claude and ChatGPT, the user also sees the death drawn: the hits and "
-                                          "their health in the seconds before it, the healing they got, the killing "
-                                          "blow, and their defensives then.",
-                           "progress": "In Claude and ChatGPT, the user also sees the night on the boss drawn: each "
-                                       "pull's boss health left, coloured by what ended it, against the night's and "
-                                       "the guild's best, with each pull's own view a click away.",
+                                          "death or their output in a sentence, their output and where it stands, "
+                                          "time lost, when they cast, capped or died, and their cooldowns, with "
+                                          "their casts against top players a click away.",
+                           "death_recap": "In Claude and ChatGPT, the user also sees the death drawn: what it "
+                                          "comes down to in a sentence, the hits and their health in the seconds "
+                                          "before it, the healing they got, the killing blow, and their defensives "
+                                          "then.",
+                           "progress": "In Claude and ChatGPT, the user also sees the night on the boss drawn: what "
+                                       "ended the most pulls in a sentence, each pull's boss health left, coloured "
+                                       "by what ended it, against the night's and the guild's best, with each "
+                                       "pull's own view a click away; with weeks, each raid night's best pull.",
                            "raid_plan": "In Claude, the user sees no map from raid_plan: for the pull against the "
                                         "plan, call pull_map with plan, which shows its replay."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",
