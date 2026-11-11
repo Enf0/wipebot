@@ -18,5 +18,6 @@ paths:
   below the agreed count (`AGREED` in evals/endings.py) or when a pull couldn't be read, and prints each pull's
   "Ended by" line beside its case's expect: read the two together. When a cause moves, check it against
   pull_summary's output before changing the case's `cause` or the count.
+- A changed `wrong` item needs its plant in evals/planted.toml rewritten: `just evals --lint` flags the stale one.
 - Run `--trials 3` before believing a moved case, and record what a run costs per model in docs/models.md when it
   changes the picture.

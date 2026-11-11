@@ -14,6 +14,8 @@ answer makes, and what would make it wrong: often the tempting misreading of the
   facts     supporting facts a full answer states (counted apart; a missing one doesn't fail it)
   wrong     what would make it wrong, each a claim an answer could make (a judge checks the answer states none);
             something a right answer must hold belongs in `expect`, a call it must make in `calls`
+            Each case has a plant in `../planted.toml`, an answer that states one of these as true, which
+            the judge must fail (`just evals --planted`): write it with the case, rewrite it with the item
   report    when it isn't the file's own (`[defaults]`)
   numbers   numbers of the `expect` that code looks for in the answer, and fails it without: the time or count
             that is the case's point, read as the lint reads a number (2:32 and 02:32 are one). An entry may

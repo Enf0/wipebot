@@ -385,8 +385,8 @@ case = "me-low-dps"
 kind = "wrong"
 item = "using defensives (Cloak, Evasion, Feint) more would raise damage"
 answer = """
-**Your damage is low mostly because you die, and using your defensives more would raise it.** Press Cloak of
-Shadows, Evasion and Feint more often: each of them is time alive, and time alive is damage. That is the first
+**You die too much, which is why your damage is low, and using your defensives more would raise it.** Press Cloak
+of Shadows, Evasion and Feint more often: each of them is time alive, and time alive is damage. That is the first
 thing to fix.
 """
 
@@ -617,14 +617,14 @@ kind = "wrong"
 item = "faults their overhealing as a main problem"
 answer = """
 **A good night, with one main problem: your overhealing.** Too much of your healing landed on players who didn't
-need it, and that is your biggest room for improvement. What you did well: you stayed alive on nearly every pull.
+need it, and that is your biggest room for improvement. The good part: you were alive for nearly every pull.
 """
 
 [[plant]]
 case = "real-holy-priest-night"
 kind = "vague"
 answer = """
-A good night overall. What you did well: you stayed alive and your healing was steady. Your biggest room for
+A good night overall. The good part: you kept yourself alive and your healing was steady. Your biggest room for
 improvement is to use your cooldowns a little earlier and to keep casting between the bursts of damage. Small
 things; keep it up.
 """
@@ -645,8 +645,8 @@ case = "real-subtlety-energy-follow-up"
 kind = "wrong"
 item = "takes the pushback on faith: says the energy cap is the mechanics' and nothing to fix"
 answer = """
-**You're right: the time at 100 energy is the mechanics on this fight, so there is nothing to fix there.** When you
-have to move out for Tempest or the soak you can't spend, and the energy sits at the cap. Forget that tip.
+**You're right: sitting at 100 energy comes from the mechanics on this fight, so there is nothing to fix there.**
+When you have to move out for Tempest or the soak you can't spend, and the energy sits at the cap. Forget that tip.
 """
 
 [[plant]]

@@ -185,6 +185,40 @@ number (against labelled answers the grounded check flagged 9 of 16 clean ones):
 - **Rubric**: does the answer open with its main finding, does a recommended change say who does what and when, and
   are the changes few and ordered.
 
+## Planted answers
+
+A case's `wrong` list hardly ever fails an answer: 26 times in 1,114 saved trials on 10 November, in 18 of 100
+cases. Either the bot rarely makes those mistakes, or the judge, told to read each item "as narrowly as it's
+written", lets them through; and the judge's agreement with the owner's marks is measured on good answers, hardly on
+bad ones. `just evals --planted` measures it: it asks the judge about answers written to be wrong.
+
+A plant is a short answer written by hand for one case, in `planted.toml` (no model writes one, and none is taken
+from a saved answer or a raider's words). Two kinds:
+
+- **wrong**: a fair answer to the case's question but for one thing: it states one item of the case's `wrong` list
+  plainly as true (the first, unless that one can't be stated), and names that item word for word. The judge's
+  `wrong` check must fail it. Every case but the held-out ones has one; a test holds that, so a new case comes
+  with its plant.
+- **vague**: an answer on the case's subject with every specific taken out: no player, time, number or ability, only
+  what anyone could say without reading the log. It may even be upbeat and agree with the question; it is empty,
+  not wrong. The judge's `expect` check must fail it. Twenty cases have one, among them the seven the review of 10
+  November called passable by a general answer.
+
+The run asks only the judge, as a run of the cases asks it: the case's question as the judge sees it, the judge's
+own prompts and the majority rule. So the plants caught are the real pipeline's. It says how many judge calls it
+will make and about what they cost before it asks (130 plants: 130 to 390 calls, about $2.60), prints the plants
+failed per kind and then each plant the judge let through with its reason, and saves the lot as
+`results/planted-<stamp>.json`. `-k` picks the plants by their case.
+
+A plant let through is a finding to read, not a failure of the run: the case's wrong item (or its `expect`) doesn't
+hold an answer to it as the judge reads it, the judge's prompt is too lenient, or the plant is too soft. Rewrite the
+item, the prompt or the plant, and ask again with `-k`. The run exits non-zero only when a plant could not be judged
+or is stale. Quote the plants caught beside a release's pass rate: a baseline is worth what its judge catches.
+
+Run it before new baselines are saved, and after a change to the judge's prompts or to a case's `wrong` list. A
+plant names its case and item, so one whose case is gone or no longer lists that item is stale: `just evals --lint`
+names it and fails (no model), as does `just check`, and `--planted` asks nothing until it is rewritten.
+
 ## Commands
 
 ```sh
@@ -207,6 +241,7 @@ just evals --recheck evals/results/X.json # a saved run's answers again: claims 
 just evals --form evals/results/X.json    # how a saved run's answers are built, against the bot's prompt (no model)
 just evals --label results/X.json   # mark a run's answers yourself (labels.jsonl)
 just evals --agreement              # how often the judge agrees with your marks
+just evals --planted                # the judge on the answers planted to be wrong: how many it fails (judge only)
 just evals --api-key                # bill the run to ANTHROPIC_API_KEY, not your Claude login
 ```
 
@@ -215,6 +250,8 @@ just evals --api-key                # bill the run to ANTHROPIC_API_KEY, not you
 - `cases/`: the cases, and in its README their format. `run.py`: running, comparing, labelling. `checks.py`: the
   judge, and the answers' form. `lint.py`: the numbers check. `coverage.py`: what the cases cover (`just check`
   fails when a core tool has no case and isn't in its `NO_CASE_YET`).
+- `planted.toml`: the answers planted to be wrong, one per case and more. `planted.py`: reading them, and asking
+  the judge about them.
 - `baseline*.json`: the runs others are compared with, one per mode. `full-runs.json`: each mode's last full run,
   which `just release` measures a release's distance from.
 - `test_*.py`: tests of the eval code itself, run by `just check`.

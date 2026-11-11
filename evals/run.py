@@ -13,6 +13,7 @@
     just evals --label evals/results/X.json   # mark a run's answers pass or fail yourself (evals/labels.jsonl)
     just evals --label-failed 30      # mark 30 answers the judge failed, over the cases
     just evals --agreement            # how often the judge agrees with your marks
+    just evals --planted              # the judge on answers planted to be wrong (evals/planted.toml): how many it fails
     just evals --lint                 # the cases' numbers against today's tool output (no model; after `just snapshot`)
     just evals --coverage             # what the cases cover: tools, kinds of question, places, bosses (no model)
     just evals --endings              # the engine's "Ended by" against each case's `cause` (no model)

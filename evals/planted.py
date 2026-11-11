@@ -40,7 +40,7 @@ KEYS = {"wrong": {"case", "kind", "item", "answer"}, "vague": {"case", "kind", "
 CHECK = {"wrong": "wrong", "vague": "expect"}  # the judge's check a plant of each kind must fail
 JOBS = 8  # plants judged at a time
 # What one judge call costs, to say what a run costs before it is spent: Sonnet's mean over the 5,172 checks of the
-# saved runs of 27 October to 10 November that it passed at the first vote was 0.85 cents, on whole answers; a plant
+# saved runs of 27 October to 10 November that it passed at the first vote was 0.84 cents, on whole answers; a plant
 # is shorter. (docs/models.md's 6 cents an answer, of 21 October, was three checks and the votes after a fail.)
 CALL_USD = 0.01
 CAUGHT, LET_THROUGH, NOT_JUDGED = "caught", "let through", "not judged"
