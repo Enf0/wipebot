@@ -35,9 +35,9 @@ takes the next one with the debuff still up.
 case = "wipe-enrage-hidden-by-deaths"
 kind = "vague"
 answer = """
-The raid took too much avoidable damage after the intermission and lost players it needed, so the pull fell apart
-well before the boss was close to dying. Tighten up the mechanics in that part of the fight and keep everyone alive
-through it, and the next pulls will go a lot further.
+The pull came apart after the intermission: the raid didn't handle the boss's mechanics there the way the fight
+asks, and it was over well before the boss was close to dying. Tighten up that part of the fight and the next pulls
+will go a lot further.
 """
 
 [[plant]]
@@ -187,9 +187,9 @@ the pull is over from there. Fix the soak groups first; the rest of the fight fo
 case = "night-bottleneck"
 kind = "vague"
 answer = """
-What keeps wiping you is the same handful of mistakes, pull after pull: players die early to avoidable damage, the
-raid runs short of people, and the pull falls apart from there. Clean up the early mistakes and stay alive longer,
-and the pulls will go further.
+What keeps wiping you is the same handful of mistakes, pull after pull: one of the fight's main mechanics isn't
+done cleanly, and the pull falls apart from there. Clean that up and stay alive longer, and the pulls will go
+further.
 """
 
 [[plant]]
@@ -253,6 +253,14 @@ item = "says everyone had an augment rune"
 answer = """
 **Yes, everyone was prepared: flasks, food, augment runes and weapon oils were on every player.** Everyone had an
 augment rune, so there is nothing to chase before the next pull.
+"""
+
+[[plant]]
+case = "night-raid-prep"
+kind = "vague"
+answer = """
+The raid was mostly prepared. The basics were covered, though not every consumable was on everyone. Remind people
+before the next raid and you're set.
 """
 
 [[plant]]
@@ -752,4 +760,223 @@ item = "agrees, as its verdict, that disc priest is the better pick"
 answer = """
 **Yes, we agree: disc priest is the better pick.** With the orbs and soaks working, a disc priest played that well
 brings the raid more than your paladin does now. Make the switch.
+"""
+
+# ---- limits.toml ----
+
+[[plant]]
+case = "me-boss-loot"
+kind = "wrong"
+item = "says it has no loot list for Kith'ix"
+answer = """
+**I have no loot list for Kith'ix.** The boss is too new for me to say what it drops, so I can't tell you which
+pieces suit a Restoration Shaman. The in-game Adventure Guide shows its loot.
+"""
+
+[[plant]]
+case = "me-stat-priority"
+kind = "wrong"
+item = "gives a stat priority the guide doesn't (Crit or Haste first for Farseer)"
+answer = """
+**For an Elemental Shaman playing Farseer, as you do, the priority is Haste first, then Mastery and Crit about
+even, then Versatility.** Aim for Haste until the rotation feels smooth.
+"""
+
+[[plant]]
+case = "me-top-builds-unpulled-boss"
+kind = "wrong"
+item = "says the top logs can't be fetched or that it needs a pull of the asker's own first"
+answer = """
+**I can't fetch the top logs for Kith'ix yet: I need a pull of your own on the boss first.** Once the raid has
+pulled him, link that report and I can set your talents beside the top Balance Druids'.
+"""
+
+[[plant]]
+case = "me-top-builds-unpulled-boss"
+kind = "vague"
+answer = """
+The top Balance Druids on that boss mostly play the same build, with only a few talents that differ between them,
+and they use the usual strong trinkets for the spec. Copy the common picks and you will be fine going in.
+"""
+
+[[plant]]
+case = "ask-unknown-asker"
+kind = "wrong"
+item = "gives some other player's results as the asker's"
+answer = """
+**No character is called Kebabmannen, so I took the closest, Zebinomage, as you.** You did well tonight: near the
+top on damage on the Sszorak pulls, and dead before the wipe was decided on only a few of them.
+"""
+
+[[plant]]
+case = "ask-assignment"
+kind = "wrong"
+item = "names who was assigned to soak as if the log showed it"
+answer = """
+**The log shows who was assigned: Lïzårðmâñ, Wutroll, Draiman, Sveini and Zebinomage were the soak group for that
+Mutilate.** They are the five it hit, and four of them died to it.
+"""
+
+[[plant]]
+case = "ask-boss-not-in-report"
+kind = "wrong"
+item = "analyses Kith'ix pulls as if they were in this report"
+answer = """
+**You wiped on Kith'ix because the adds weren't controlled.** On the last Kith'ix pull of this report the raid lost
+four players to the add wave around the two-minute mark, and the boss finished the rest. Kill the adds before the
+next wave comes.
+"""
+
+# ---- bot.toml ----
+
+[[plant]]
+case = "night-who-pulls-early"
+kind = "wrong"
+item = "names the fastest openers (Zebinomage, Krøpling, Scopidruid) as pulling early"
+answer = """
+**Zebinomage pulls early the most, then Krøpling and Scopidruid.** One of the three had the first hit on the boss
+on most of the night's pulls, so they are the ones starting the fight before the raid is ready.
+"""
+
+[[plant]]
+case = "real-sentinels-helical-officers"
+kind = "wrong"
+item = "names someone outside those six as having kept Helical Toxins to the end"
+answer = """
+**Six kept Helical Toxins to the end and got Cultivated Burst: Pomaa, Fappachino, Peggerino, Sveini, Dragepie and
+Enfo.** Zebinomage kept it to the end as well, a seventh beside those six. The deaths that followed lost the pull.
+"""
+
+[[plant]]
+case = "between-pulls-quick"
+kind = "wrong"
+item = "blames the enrage's fallout deaths after 2:32"
+answer = """
+**The deaths after 2:32 wiped it.**
+- Players dropped one after another from 2:32 on, and that run of deaths is what lost the pull.
+- Keep a healing cooldown for that stretch.
+"""
+
+[[plant]]
+case = "between-pulls-quick"
+kind = "vague"
+answer = """
+**Too many early deaths, and the raid ran out of people.**
+- Stay alive through the mechanics.
+- Same plan, cleaner.
+"""
+
+[[plant]]
+case = "live-raid-plain-question"
+kind = "wrong"
+item = "blames the enrage's fallout deaths after 2:32"
+answer = """
+**You lost it after 2:32: the raid died off there.**
+- The deaths from 2:32 to the end are what cost you the pull.
+- Healers: save a raid cooldown for after 2:32.
+"""
+
+# ---- posts.toml ----
+
+[[plant]]
+case = "post-unkicked-add"
+kind = "wrong"
+item = "her energy bar filling (Uncoiled Rage) ended the pull"
+answer = """
+**Wipe: her energy bar filled and Uncoiled Rage ended it.**
+She reached full energy in the intermission, and the raid couldn't heal through what came after.
+Next pull: end the intermission before her bar is full.
+"""
+
+[[plant]]
+case = "post-tank-death"
+kind = "wrong"
+item = "says the tank's first death at 2:51 lost the pull"
+answer = """
+**Wipe at 15%: the tank's death at 2:51 lost this one.**
+It cost the battle res early, and the tanks never caught up after it.
+Next pull: an external on the tank for that part, so the res is still there at the end.
+"""
+
+[[plant]]
+case = "post-tank-death"
+kind = "vague"
+answer = """
+**Wipe: the raid fell apart late in the fight.**
+One mistake snowballed, and too many died at once to go on.
+Next pull: keep everyone alive through that part and it's a kill.
+"""
+
+[[plant]]
+case = "post-own-ravage"
+kind = "wrong"
+item = "a healing gap or a missing defensive is what killed them"
+answer = """
+**You died to a healing gap: nobody healed you after the first hit.**
+You sat low for several seconds with no heal landing, and the next hit finished you.
+Next pull: call for a heal the moment you drop.
+"""
+
+# ---- connector.toml ----
+
+[[plant]]
+case = "officer-saves-note"
+kind = "wrong"
+item = "says it can't save a note here, or that only the Discord bot saves one"
+answer = """
+**I can't save a note here.** Keeping a raid note for the guild is something only the Discord bot does: paste it to
+Wipebot in your server, and it will check your pulls against it from then on.
+"""
+
+[[plant]]
+case = "plan-spots-at-virulence"
+kind = "wrong"
+item = "says the plan can't be read or checked, or asks for it again"
+answer = """
+**I can't read that plan.** The pasted text doesn't decode into spots I can check a pull against, so I can't tell
+who was on their spot for Virulence on pull 42.
+"""
+
+[[plant]]
+case = "plan-where-do-i-stand"
+kind = "wrong"
+item = "says it needs a pull, a log or a report to answer, or checks a pull instead"
+answer = """
+**I need a pull to answer that.** A plan alone doesn't tell me where you stand: link a report with a Sszorak pull
+and I can show where you stood against your spot on the plan.
+"""
+
+[[plant]]
+case = "plan-who-stays-out"
+kind = "wrong"
+item = "says it needs a pull, a log or a report to answer"
+answer = """
+**I need a log to answer that.** The plan on its own doesn't show who stays out of the stack; give me a report with
+a Sszorak pull and I can see who stood outside it.
+"""
+
+[[plant]]
+case = "plan-who-stays-out"
+kind = "vague"
+answer = """
+The plan lets a few players stay out of the stack so they can keep doing their job, and everyone else stacks with
+the group. If someone dies, the ones outside fill in.
+"""
+
+[[plant]]
+case = "night-kicks-order-changed"
+kind = "wrong"
+item = "blames Dragepie or anyone else for kicks in pulls 1-11 as if the note's order applied there"
+answer = """
+**Dragepie missed the most kicks: Kick #5 left went through again and again on pulls 1-11.** By the note's order
+that kick was theirs on each of those pulls, so those are their misses. Algmor comes next.
+"""
+
+[[plant]]
+case = "report-wrong-answer"
+kind = "wrong"
+item = "says it can't send a report, or that there is no way to reach Wipebot's maintainers"
+answer = """
+**I can't send a report from here.** There is no way for me to pass this on to Wipebot's maintainers, so the answer
+stands as it is: the cyst burst is what the log shows.
 """
