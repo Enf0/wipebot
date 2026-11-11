@@ -19,7 +19,10 @@ async def character_experience_text(name: str, realm: str, region: str) -> str:
              f"Source: Raider.IO {c.get('profile_url', 'https://raider.io')}"]
     progression = (data.get("raiding") or {}).get("progression") or []
     if progression:
-        lines.append("Raid progression (most recent raids last): " + "; ".join(
+        # Raider.IO's count of bosses killed is not Warcraft Logs' ranked kills, which player_history prints beside
+        # it: each names its source, and neither says why they differ.
+        lines.append("Raid progression as Raider.IO counts bosses killed (not Warcraft Logs' ranked kills; most "
+                     "recent raids last): " + "; ".join(
             f"{p['raid_slug']} {p.get('summary') or 'none'}" for p in progression))
     mplus = data.get("mythic_plus") or {}
     if mplus.get("current_score") is not None:
