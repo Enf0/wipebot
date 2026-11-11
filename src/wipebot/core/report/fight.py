@@ -205,14 +205,14 @@ async def pull_timeline(rep: Report, pull: PullRef = None, boss: str | None = No
         seconds = seconds[:TIMELINE_MAX_LINES] + [f"... {len(seconds) - TIMELINE_MAX_LINES} more lines: ask for a "
                                                   "narrower window with start and end"]
     ids: dict[str, int] = {}
-    shown = "\n".join(seconds)
+    notes = [n for part in found for n in part.notes]
+    shown = "\n".join([*seconds, *notes])  # a note names abilities too: the debuffs left out as too frequent
     for part in found:
         for name, i in part.ids.items():
             # a window lists the ids of what it names, not of the whole pull's abilities
             if not window or NTH_ABILITY.sub("", name) in shown:
                 ids.setdefault(name, i)
-    return "\n".join([_timeline_head(rep, f, window), *seconds, *(n for part in found for n in part.notes),
-                      *resources, damage, ids_line(ids)])
+    return "\n".join([_timeline_head(rep, f, window), *seconds, *notes, *resources, damage, ids_line(ids)])
 
 
 def _timeline_head(rep: Report, f: dict, of: str) -> str:

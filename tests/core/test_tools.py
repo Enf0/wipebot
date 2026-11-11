@@ -384,7 +384,7 @@ async def test_a_death_recap_leads_with_what_did_the_damage_and_whether_they_cou
     assert "Total 1.06M damage in the window." not in lines  # said once, in the line that adds it up
 
 
-async def test_a_timeline_window_lists_the_ids_of_what_it_names(recorded):
+async def test_a_timeline_window_lists_the_ids_of_what_it_names(recorded, monkeypatch):
     # A 15 s window closed with the ids of all 19 abilities of the pull, a third of its text. It lists the ones its
     # lines name; the whole pull still lists them all.
     window, _ = await server.call("pull_timeline", CASES["timeline-window"].args)
@@ -396,4 +396,10 @@ async def test_a_timeline_window_lists_the_ids_of_what_it_names(recorded):
     assert named and all(name.strip() in events for name in named)
     assert len(named) == 8 and every.count("[") == 19 and "Viscous Cyst" not in ids
     assert set(ids.removeprefix("Ability ids: ").split(", ")) < set(every.removeprefix("Ability ids: ").split(", "))
+    # a debuff left out of the lines as too frequent is named in the note under them: its id is listed too
+    monkeypatch.setattr("wipebot.core.report.fight.TIMELINE_DEBUFF_GROUPS", 2)
+    window, _ = await server.call("pull_timeline", CASES["timeline-window"].args)
+    assert "Viscous Cyst [1287205]" not in ids
+    assert ", Viscous Cyst (64 applications)" in window and "Viscous Cyst [1287205]" in window.splitlines()[-1]
+    assert "Dig In" not in window  # named by neither: still left out
 
