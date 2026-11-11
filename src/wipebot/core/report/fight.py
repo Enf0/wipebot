@@ -289,21 +289,25 @@ async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability
     them. Of an ability: its casts (the enemies' and the players'), its hits on players and their pets, its debuff
     going on and off players, its buff on the boss, and the deaths it dealt. Of a player: every cast they and their
     pets began or finished, and their deaths, which a window with no cast after one names. What the plain timeline
-    reads is in hand after it; an ability's hits are one more request, whatever number of ids it is logged under."""
+    reads is in hand after it; an ability's hits are one more request, whatever number of ids it is logged under.
+    After an ability's rows, the boss's ◆ casts in the window to read them against, unless the boss casts it itself
+    (`_against`): the enemies' casts are in hand, and Lorrgs' tracked casts are the plain timeline's."""
     p = rep.player(player) if player else None
     if p:
         rep.require_in(f, p)
     ids = sorted(rep.ability_ids(ability)) if ability else []
-    fid, died_before = f["id"], ""
+    fid, died_before, against = f["id"], "", []
     if ability:
-        *logged, hits, deaths = await asyncio.gather(
+        (*logged, hits, deaths), (casts, _) = await asyncio.gather(asyncio.gather(
             rep.events(fid, "Casts", hostilityType="Enemies"), rep.events(fid, "Casts"),
             rep.events(fid, "Debuffs", hostilityType="Friendlies"), rep.boss_buffs(f),
             rep.events_for([(fid, {"abilityID": i}) for i in ids], "DamageTaken", hostilityType="Friendlies"),
-            rep.deaths(f))
+            rep.deaths(f)), boss_casts(rep, f))
         events = [e for part in (*logged, *hits) for e in part if e.get("abilityGameID") in ids]
         events += [d for d in deaths if d.get("killingAbilityGameID") in ids]
-        name = " and ".join(sorted({rep.ability(i) for i in ids}))
+        names = {rep.ability(i) for i in ids}
+        name = " and ".join(sorted(names))
+        against = _against(f, casts, names, lo, hi, window)
         if p:
             events = [e for e in events if p.id in (rep.owner(e.get("sourceID", 0)), rep.owner(e.get("targetID", 0)))]
         only = f"{name} by or on {p.name}" if p else name
@@ -327,7 +331,24 @@ async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability
         return f"{head}\n{nothing} in this {'window' if window else 'pull'}{died_before}."
     listed = rows.listed(rep, events, rows.in_short, most=TIMELINE_MAX_LINES)
     more = ["For the rows left out, ask for a narrower window with start and end."] if listed.left_out else []
-    return "\n".join([head, f"{what}: {plural(len(events), 'event')}{listed.where}.", *listed.lines, *more])
+    return "\n".join([head, f"{what}: {plural(len(events), 'event')}{listed.where}.", *listed.lines, *more, *against])
+
+
+def _against(f: dict, casts: list[BossCast], names: set[str], lo: float, hi: float, window: str) -> list[str]:
+    """The boss's casts Lorrgs tracks (◆) from `lo` to `hi`, in a line: an ability's rows alone don't say where in
+    the boss's timeline they fell. None when the ability is one of the boss's casts (its rows have them) or the
+    window has none."""
+    if any(c.name in names for c in casts):
+        return []
+    when: dict[str, list[str]] = {}
+    for c in sorted(casts, key=lambda c: c.at):
+        if c.tracked and lo <= c.at <= hi:
+            when.setdefault(c.name, []).append(clock(c.at - f["startTime"]))
+    if not when:
+        return []
+    return [f"The boss's {TRACKED_MARK} casts (those Lorrgs tracks) in this {'window' if window else 'pull'}, to read "
+            "the rows against (pull_timeline without ability has all its casts, with the cooldowns and deaths): "
+            + " · ".join(f"{name} {', '.join(times)}" for name, times in when.items())]
 
 
 async def _run(source, what: str, rep: Report, f: dict) -> Found:

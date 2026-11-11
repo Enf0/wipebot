@@ -347,6 +347,7 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
                           "0:15.341 applydebuff: Sszorak → Tempest [1287083] → Dragepie",
                           "0:15.342 damage: Sszorak → Tempest [1287083] → Dragepie; 0 (334.76k absorbed)"]
     assert "0:16.980 damage: Sszorak → Tempest [1287083] → Sveini; 258.01k (35.23k absorbed, a tick)" in lines
+    # Tempest is one of the boss's own casts: its rows have them, so no line of the boss's casts follows
     assert lines[-1] == "Ability ids: Tempest [1287072, 1287083]" and len(lines) == 3 + 26 + 1
     assert asked == [("DamageTaken", [{"abilityID": 1287072}, {"abilityID": 1287083}])]
     # by or on one player; and a window with nothing of it
@@ -358,6 +359,28 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
     assert on_one[2].startswith("Counted: 5 damage (1.02M together, 520.87k more absorbed), 1 applydebuff, ")
     nothing = await fight.pull_timeline(rep, 13, "Sszorak", start="0:40", end="0:45", ability="Tempest")
     assert nothing.splitlines()[1:] == ["Nothing of Tempest is logged in this window."]
+
+
+async def test_a_timeline_of_an_ability_not_the_boss_s_own_ends_with_its_tracked_casts(recorded, monkeypatch):
+    """A totem's Malignance alone, without the boss's Imbibe it went off at: the model guessed the Imbibe's time. The
+    boss's ◆ casts in the window follow the rows, from the enemies' casts already read."""
+    rep = await server.lib().report("KBYT4xXn7VNjDgh8")
+
+    async def events_for(items, data_type, **filters):  # Rallying Cry hits no one
+        return [[] for _ in items]
+    monkeypatch.setattr(rep, "events_for", events_for)
+    lines = (await fight.pull_timeline(rep, 13, "Sszorak", ability="Rallying Cry")).splitlines()
+    assert lines[2:4] == ["1:11.818 cast: Pomaa → Rallying Cry", "2:28.953 cast: Sinnatony → Rallying Cry"]
+    assert lines[-1] == ("The boss's ◆ casts (those Lorrgs tracks) in this pull, to read the rows against "
+                         "(pull_timeline without ability has all its casts, with the cooldowns and deaths): "
+                         "Venomous Surge 0:29, 1:16, 2:36 · Raging Crosswinds 0:39, 0:40, 1:26, 1:27 · Dig In 1:39")
+    # a window has only its own, and none when it has none of them
+    window = (await fight.pull_timeline(rep, 13, "Sszorak", end="1:30", ability="Rallying Cry")).splitlines()
+    assert window[-1].endswith(" in this window, to read the rows against (pull_timeline without ability has all its "
+                               "casts, with the cooldowns and deaths): Venomous Surge 0:29, 1:16 · Raging Crosswinds "
+                               "0:39, 0:40, 1:26, 1:27")
+    none = await fight.pull_timeline(rep, 13, "Sszorak", start="1:40", end="2:30", ability="Rallying Cry")
+    assert none.splitlines()[-1] == "Ability ids: Rallying Cry [97462]" and "◆" not in none
 
 
 async def test_a_timeline_of_one_players_casts_is_cut_to_its_first_rows_and_counted_in_full(recorded):
