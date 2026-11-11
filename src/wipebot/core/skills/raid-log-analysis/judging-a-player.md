@@ -26,9 +26,9 @@ its rule as the fix's reason ("spend Holy Power before it caps"), also when the 
 - Judge defensives and active mitigation around a death or a big hit, and cooldowns by their timing against top
   players' or the raid note's, never by uses against possible uses.
 - Healers: raid cooldowns against the damage spikes (`healing`), mana over the pull (out early, or much left as
-  the raid died, both cost), a resource besides mana lost at its cap, dispels. Never fault overheal alone or
-  compare it across specs: it shows the spec and how many healers share the damage, and it costs only when mana
-  runs out or healing falls short in the spikes.
+  the raid died, both cost), another resource lost at its cap, dispels. Never fault overheal alone or compare it
+  across specs: it shows the spec and how many healers share the damage, and it costs only when mana runs out or
+  healing falls short in the spikes (`healing` shows both).
 - Tanks: staying alive, defensives on tank hits, taunts (`tank_swaps`), active mitigation while holding the boss.
   Never rank tanks by damage taken.
 
