@@ -30,6 +30,16 @@ def test_casting_finds_gaps_and_dropped_casts():
     assert casting.casting([], 50000).span_ms == 0
 
 
+def test_a_death_within_the_last_casts_gcd_leaves_no_gap():
+    """An instant at 10.0 is taken as busy until 11.5; dying at 11.0 makes the rest time dead, though the stretch
+    without a cast begins after the death: no gap, whether they lie dead to the end or are brought back and cast
+    again at 25.0."""
+    events = [ev(4000, "cast", 3), ev(5500, "cast", 3), ev(10000, "cast", 3)]
+    assert casting.casting(events, 30000, deaths=[11000]).gaps == [(7000, 10000)]
+    assert casting.casting([*events, ev(25000, "cast", 3)], 30000, deaths=[11000]).gaps == [(7000, 10000),
+                                                                                           (26500, 30000)]
+
+
 def test_a_raid_wide_pause_is_cut_out_of_a_players_gaps():
     from wipebot.core.report.casting import without
     # a gap from 3:10 to 3:30, the raid stunned 3:17-3:23: what's left either side, if still a gap

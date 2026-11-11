@@ -84,7 +84,8 @@ def casting(events: list[dict], until: float, deaths: Collection[float] = ()) ->
     """The casting gaps and cancelled casts in a player's cast events (casts, begincasts, empowers), up to
     `until`. A begun cast lands as a cast of the same spell; another cast begun before that, or no landing within
     CAST_MAX_MS, means it was dropped (an instant in between can be an off-GCD spell during the cast, so it isn't
-    a drop by itself). A gap that holds a death is time dead, not a gap, and the last gap ends at the death."""
+    a drop by itself). Time dead isn't a gap: a gap ends at a death after the last cast begun, even one within
+    that cast's GCD (the gap then begins after the death and is none)."""
     active: list[tuple[float, float]] = []  # when the player was casting or on the GCD, as far as the log says
     cancelled: dict[int, list[float]] = defaultdict(list)
     pending: tuple[int, float] | None = None  # the begun cast not yet landed: (ability, when)
@@ -110,14 +111,16 @@ def casting(events: list[dict], until: float, deaths: Collection[float] = ()) ->
     if not active:
         return Casting([], {}, 0.0)
     active.sort()
-    gaps: list[tuple[float, float]] = []
-    end = active[0][1]
+    found: list[tuple[float, float, float]] = []  # (from, to, when the last cast before it began)
+    began, end = active[0]
     for a, b in active[1:] + [(until, until)]:
         if a - end >= GAP_MS:
-            gaps.append((end, a))
-        end = max(end, b)
-    # A gap holding a death is cut there: what follows is time dead.
-    gaps = [(a, min(b, next((d for d in sorted(deaths) if a < d < b), b))) for a, b in gaps]
+            found.append((end, a, began))
+        began, end = a, max(end, b)
+    # A death after the last cast begun before a gap cuts the gap there: what follows is time dead. One before the
+    # gap's start (a death within the GCD taken for that cast) leaves no gap at all.
+    dead = sorted(deaths)
+    gaps = [(a, min(b, next((d for d in dead if began <= d < b), b))) for a, b, began in found]
     gaps = [(a, b) for a, b in gaps if b - a >= GAP_MS]
     return Casting(gaps, dict(cancelled), until - active[0][0])
 
