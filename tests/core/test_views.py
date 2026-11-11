@@ -263,10 +263,14 @@ def test_the_night_cards_quiet_endings_are_the_cores():
 @pytest.mark.parametrize("case", METER_CASES)
 async def test_a_meter_ranks_the_players_its_tool_states(recorded, case):
     """A meter is its tool's own rows: every bar a player its text names with the amount it states there, and
-    around them only what the text states (its total and shares, which no table of kicks or adds has)."""
+    around them only what the text states (its total and shares, which no table of kicks or adds has). Dispels are
+    the one sum left: the text lists who dispelled each debuff, and a bar is a player's dispels over those lists,
+    a count and an order of players the text itself doesn't state."""
     data = await meter_data(case)
     text, failed = await server.call(CASES[case].tool, CASES[case].args)
     assert not failed
+    dispels = [dict((name, int(n)) for name, n in re.findall(r"(\S+) (\d+)", who))
+               for who in re.findall(r"^  .+?: .*?; dispels by (.*?)(?:;|$)", text, re.MULTILINE)]
     for m in data["meters"]:
         values = [b["value"] for b in m["bars"]]
         assert len(values) >= 3 and values == sorted(values, reverse=True), m["title"]
@@ -276,6 +280,8 @@ async def test_a_meter_ranks_the_players_its_tool_states(recorded, case):
             assert bool(b["share"]) == bool(m["stated"])
             if m["unit"] == "kicks":
                 assert re.search(rf"^  {re.escape(b['name'])}: {round(b['value'])}\b", text, re.MULTILINE)
+            elif m["unit"] == "dispels":
+                assert len(dispels) == 2 and b["value"] == sum(by.get(b["name"], 0) for by in dispels), b["name"]
             elif CASES[case].tool == "enemies":  # everyone who damaged the most damaged kind, as its line lists them
                 assert f"{b['name']} {short(b['value'])}" in text, (m["title"], b["name"])
             elif m["unit"] == "amount":
