@@ -584,8 +584,7 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     Reading it: "Ended by" is computed from the log alone (one ability killing many within 2 s or in pulses within
     6 s, a buff the boss gained and kept, half the raid dead, or deaths spread out, from the first that stayed dead),
     with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
-    says. A pull that ended with the raid alive names the boss's cast that landed on the living as it ended, when
-    the log has one; otherwise the log doesn't say why it ended.
+    says.
     Phases are numbered as raiders count them, in every tool: stages P1, P2, P3 and intermissions I1, I2; "P1 (2nd
     time)" is a phase the fight went back to. The first line compares the wipe with this log's earlier pulls and
     with the guild's best in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded"
@@ -1531,10 +1530,7 @@ async def progress(boss: Annotated[str | None, Field(description=(
     it, averages over the night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull,
     and the night's killer. With `first_hits`, before all that: a tally of who hit the boss first ("who pulled?"),
     then who it was on each pull, with what and how far ahead of the next player.
-    Reading it: deaths after a buff the boss kept to the end are left out of the killers. The night's killer is
-    the ability with the most deaths (every death on a kill, a wipe's until it was decided), with how many of them
-    came in hits killing many (the raid's to stop), the players it killed outside those and the players it hit
-    most; a tank tops a "hit most" list by standing at the boss. With `weeks`: each
+    Reading it: a tank tops the night's killer's "hit most" list by standing at the boss. With `weeks`: each
     night's pulls on the boss, the kill, the best wipe before it and how the pulls ended, then the best wipe night
     by night."""
     rep = await lib().report(report)
@@ -1571,14 +1567,9 @@ async def player_pull(player: Player, pull: Pull = None, boss: Boss = None,
     and the defensives they used, Bloodlust and phases, uptime of their DoTs and own buffs, mana for a healer,
     the resource they spend (a healer's Holy Power or Essence too: time at its cap, and how much each source
     gained and lost there), healthstones and potions, and consumables at the pull.
-    Reading it: "Time lost" is seconds until the wipe was decided spent dead (no output at all), in casting gaps
-    (no cast begun) or with the resource at its cap (only its gain lost); how much of that the fight forces shows
-    against top players of the spec, who meet the same fight (compare_with_top casts). Cooldown uses / possible
-    assume pressing on cooldown from the pull until the player died or the wipe was decided. A wipe's percentile
-    against kills runs high on a short pull (Bloodlust and every cooldown come at the start), and is left out for
-    a player alive under a minute or under a third of the pull; healing on a wipe is capped by the damage taken.
-    Active time is Warcraft Logs' over the whole pull, left out for a player who died before the wipe was
-    decided."""
+    Reading it: how much of the "Time lost" the fight forces shows against top players of the spec, who meet the
+    same fight (compare_with_top casts). Active time is Warcraft Logs' over the whole pull, left out for a player
+    who died before the wipe was decided."""
     text = await coaching.player_pull(await lib().report(report), player, pull, boss)
     return await _shown("player_pull", {"player": player, "pull": pull, "boss": boss, "report": report}, text, ctx)
 
@@ -1695,11 +1686,8 @@ async def player_night(player: Player, boss: Boss = None, report: Report_ = None
     against possible uses, per pull and summed over the night; the resource they spend lost at the cap over the
     night, by source; and the trend ("am I getting better?"): deaths and output per second alive over the first,
     middle and last third of the pulls.
-    Reading it: a death after a wipe was decided is marked as fallout, and one in a hit killing many as the raid's
-    to stop; both are left out of the counts, as is a reset, whose row is marked. Cooldown uses /
-    possible assume pressing on cooldown from the pull until the player died or the wipe was decided. A cooldown
-    first used late and at the same time pull after pull is held for that moment of the fight: it has no possible
-    uses, only the pulls that got to the moment and how many of them had it used."""
+    Reading it: its first lines and the line above the rows say which deaths count and what a cooldown's uses are
+    counted against."""
     text = await coaching.player_night(await lib().report(report), player, boss)
     return await _shown("player_night", {"player": player, "boss": boss, "report": report}, text, ctx)
 
