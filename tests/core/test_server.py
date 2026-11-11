@@ -407,6 +407,52 @@ async def test_a_players_deaths_over_the_weeks_are_refused_when_points_run_low(m
     assert text == f"Not available: deaths over weeks reads about {asked[0]} points: ask again in 5 min"
 
 
+async def test_progress_over_the_weeks_holds_the_reports_own_night_when_attendance_lacks_it(monkeypatch, rep,
+                                                                                            patch_wcl):
+    library = server.Library(CODE, wcl=rep.wcl)
+    rep = await library.report()
+    monkeypatch.setattr(server.DEFAULT, "library", library)
+    week = 7 * 86400 * 1000
+    listed = [{"start": rep.start_ms - week, "codes": ["EARLIER"], "players": {}}]
+    left_out: dict[str, str] = {}
+    read: list[list[str]] = []  # each night's logs, as they were loaded
+    real = library.night
+
+    async def raid_nights(*_):
+        return list(listed), 5, left_out
+
+    async def loaded(n, *args):  # another log reads as this one: only which nights and logs are read is under test
+        read.append(n["codes"])
+        return await real(n, *args) if n["codes"] == [CODE] else [rep]
+    monkeypatch.setattr(server.night, "raid_nights", raid_nights)
+    monkeypatch.setattr(library, "night", loaded)
+
+    async def starts() -> list[float]:
+        return [n.start_ms for n in await server.boss_nights(rep, "sszorak", 2)]
+    # attendance lists last week's night and not yet this log's: its night stands after it, as the report dates it
+    assert await starts() == [rep.start_ms - week, rep.start_ms] and read == [["EARLIER"], [CODE]]
+    text, failed = await server.call("progress", {"boss": "sszorak", "weeks": 2})
+    by_night = text[text.index("Sszorak night by night over the last 2 weeks"):].splitlines()
+    assert not failed and len(by_night) == 4 and by_night[2].startswith(f"  {server.night.date(rep.start_ms)}: ")
+    assert re.fullmatch(r"Best wipe night by night: ([\d.]+) → \1", by_night[3])
+    # listed under its own code: as attendance has it
+    listed[1:] = [{"start": rep.start_ms + 60_000, "codes": [CODE], "players": {}}]
+    assert await starts() == [rep.start_ms - week, rep.start_ms + 60_000]
+    # only another raider's log of the night is listed: this one is read beside it, as one night
+    listed[1:] = [{"start": rep.start_ms - 3600 * 1000, "codes": ["THEIRS"], "players": {}}]
+    assert await starts() == [rep.start_ms - week, rep.start_ms - 3600 * 1000] and read[-1] == ["THEIRS", CODE]
+    assert listed[1]["codes"] == ["THEIRS"]  # the listed night itself is left as raid_nights gave it
+    # a log left out as not the guild's (a pug logged to its page) stays out of the guild's nights, listed or not yet
+    listed[1:], left_out[CODE] = [], "3 of 20 in the guild"
+    assert await starts() == [rep.start_ms - week]
+    left_out.clear()
+    rep.guild_id, rep.guild_name = 14169, "The Cöpper Lanterns"
+    patch_wcl(rep, guild_members={"Nobody"})
+    assert await starts() == [rep.start_ms - week]
+    patch_wcl(rep, guild_members={p.name for p in rep.players.values()})
+    assert await starts() == [rep.start_ms - week, rep.start_ms]
+
+
 async def test_find_reports_takes_the_current_reports_guild_without_a_realm(monkeypatch, rep, patch_wcl):
     library = server.Library(CODE, wcl=rep.wcl)
     rep = await library.report()

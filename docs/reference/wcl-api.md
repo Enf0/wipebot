@@ -179,7 +179,9 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   difficulty in the listing, without loading it.
 - `guild.attendance(zoneID, limit, page)` lists the guild's logs of a raid with `players {name type presence}`
   (presence 2 = benched): two people logging one night are two entries (3gBPRJMjfxbCX8K4 and 8TcXMAP2gHQGr9pW),
-  and alt and side runs are in it (a 71-player log), so filter by pulls on the raid's difficulty.
+  and alt and side runs are in it (a 71-player log), so filter by pulls on the raid's difficulty. Wipebot keeps
+  an answer for an hour (`reports(guildID:)` for 5 min), so it can lack a log uploaded since: `progress` over the
+  weeks adds its own report's night when it isn't there.
 - `guild.members(limit, page) { data { name } }` is the game's guild roster, alts included (several hundred
   names for one guild). Raiders log their pugs to the guild's page too; the share of a log's players in it tells
   them apart: the guild's nights had 86-100%, pugs and other groups 2-48% (Wipebot's line: two thirds).

@@ -1586,11 +1586,20 @@ async def progress(boss: Annotated[str | None, Field(description=(
 
 
 async def boss_nights(rep: Report, boss: str | None, weeks: int) -> list[night.BossNight]:
-    """The boss of `progress` (on its difficulty in this report) on each of the guild's raid nights over the weeks."""
+    """The boss of `progress` (on its difficulty in this report) on each of the guild's raid nights over the weeks,
+    this report's own night among them: the attendance kept for an hour can lack a log uploaded since."""
     f = rep.by_boss[rep.boss(boss)][-1]
-    nights, _, _ = await night.raid_nights(rep, weeks)
+    nights, _, not_guild = await night.raid_nights(rep, weeks)
+    nights = [n for n in nights if n["start"] <= rep.end_ms]  # the weeks up to this report's night, not after it
+    listed = any(rep.code in n["codes"] for n in nights) or rep.code in not_guild
+    if not listed and not await rep.guild_run_doubt():  # a pug logged to the guild's page stays out, as listed ones do
+        same = next((n for n in nights if abs(n["start"] - rep.start_ms) <= night.SAME_NIGHT_MS), None)
+        if same:  # another raider's log of the night is listed: this one reads beside it, each pull counted once
+            nights[nights.index(same)] = same | {"codes": [*same["codes"], rep.code]}
+        else:
+            nights.append({"start": rep.start_ms, "codes": [rep.code], "players": {}})
     found = []
-    for n in [n for n in nights if n["start"] <= rep.end_ms]:  # the weeks up to this report's night, not after it
+    for n in sorted(nights, key=lambda n: n["start"]):
         if (one := await night.boss_night(await lib().night(n), n["start"], f["encounterID"], f.get("difficulty"))):
             found.append(one)
     return found
