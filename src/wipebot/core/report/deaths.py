@@ -15,6 +15,7 @@ from .ending import MASS_HIT, MassDeath, mass_death
 RECAP_WINDOW_MS = 10_000  # damage shown before a death
 OUTRIGHT_FROM_PCT = 50  # a killing blow with no hit logged, after health at least this high: it killed outright
 HEALTHSTONE_SPELL = 6262  # the Healthstone item's spell: its tooltip says what it heals
+A_HEALTHSTONE = "a healthstone (if they had one; none used this pull)"  # the log doesn't say who carries one
 CASCADE_MS = 15_000       # deaths this close together are probably linked
 DEATH_STRIP_MS = 250  # a dying player's auras are removed just before the death event
 
@@ -53,16 +54,21 @@ async def death_recap(rep: Report, player: str, pull: PullRef = None, boss: str 
 
 def _verdict(pressed: list[str]) -> list[str]:
     """The replay's answer in one line, for the top of a death's recap: what would have kept them alive, of what
-    was ready (`if_pressed`'s lines, which stay below as the working). None when the death couldn't be replayed."""
+    was ready (`if_pressed`'s lines, which stay below as the working). None when the death couldn't be replayed.
+    It claims no more than the working does: a healthstone only if they had one, and nothing ruled out that the
+    replay couldn't tell."""
     tried = [line.strip() for line in pressed[1:] if line.startswith("  ")]
     if not tried:
         return []
-    if saved := savers(pressed):
+    if saved := [A_HEALTHSTONE if line.startswith(A_HEALTHSTONE) else line.split(" (")[0]
+                 for line in tried if line.endswith(f": {SAVED}")]:  # not one that would "only if it held"
         return [f"Would have kept them alive, if pressed (replayed below; secondary to what killed them): "
                 f"{', '.join(saved)}."]
     unsure = sum("can't" in line for line in tried)
-    return ["Nothing that was ready would have kept them alive on its own (replayed below)"
-            + (f"; {unsure} of {len(tried)} can't be told" if unsure else "") + "."]
+    if unsure:
+        return [f"Nothing that was ready is sure to have kept them alive on its own (replayed below): {unsure} of "
+                f"{len(tried)} can't be told."]
+    return ["Nothing that was ready would have kept them alive on its own (replayed below)."]
 
 
 def damage_by_ability(rep: Report, f: dict, hits: list[dict]) -> str:
@@ -213,7 +219,7 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
     stones, _ = await rep.potions(f, p, until=d["timestamp"])
     candidates = [(sp, sp["spell_id"]) for sp in spells if sp["name"] in pressed and _ready(rep, casts, sp, start)]
     if not stones:
-        candidates.append(({"name": "a healthstone (if they had one; none used this pull)"}, HEALTHSTONE_SPELL))
+        candidates.append(({"name": A_HEALTHSTONE}, HEALTHSTONE_SPELL))
     for sp, spell_id in candidates:
         effect = await knowledge.defensive_effect(spell_id)
         if effect is None:

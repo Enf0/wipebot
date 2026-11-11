@@ -73,11 +73,22 @@ def test_a_recaps_verdict_is_the_replays_answer_in_one_line():
             "pressed 1.1 s before the killing hit: would have kept them alive"
     short = "  Barkskin (20% less damage for 8 s): 30.00k less of the 150.00k it covers: not enough on its own"
     blind = "  Feint (40% less area damage): the log doesn't say which hits were area damage; can't tell"
-    assert deaths._verdict([head, short, stone]) == [
-        "Would have kept them alive, if pressed (replayed below; secondary to what killed them): a healthstone."]
-    assert deaths._verdict([head, short, blind]) == [
-        "Nothing that was ready would have kept them alive on its own (replayed below); 1 of 2 can't be told."]
     assert deaths._verdict([head, short]) == [
         "Nothing that was ready would have kept them alive on its own (replayed below)."]
     assert deaths._verdict([]) == [] and deaths._verdict(["If pressed: unavailable (Wowhead timed out)."]) == []
+    # It says no more than the working below it. The log doesn't show who carries a healthstone, so the one that
+    # would have done it keeps its "if they had one"; and what the replay couldn't tell isn't ruled out with the
+    # rest: an immunity sure only for a moment is no "would have", and "nothing would have" isn't said of the unknown.
+    assert deaths._verdict([head, short, stone]) == [
+        "Would have kept them alive, if pressed (replayed below; secondary to what killed them): a healthstone (if "
+        "they had one; none used this pull)."]
+    cloak = "  Cloak of Shadows (immune to magic for 5 s): 80.00k less of the 80.00k it covers: would have kept them " \
+            "alive only if it held for all 5 s: its tooltip promises the immunity for a moment, so can't be sure"
+    assert deaths._verdict([head, short, blind]) == [
+        "Nothing that was ready is sure to have kept them alive on its own (replayed below): 1 of 2 can't be told."]
+    assert deaths._verdict([head, blind, cloak]) == [
+        "Nothing that was ready is sure to have kept them alive on its own (replayed below): 2 of 2 can't be told."]
+    assert deaths._verdict([head, cloak, short.replace("Barkskin", "Feint").replace(
+        "not enough on its own", deaths.SAVED)]) == [
+        "Would have kept them alive, if pressed (replayed below; secondary to what killed them): Feint."]
 

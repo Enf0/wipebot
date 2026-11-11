@@ -372,7 +372,7 @@ async def test_a_death_recap_leads_with_what_did_the_damage_and_whether_they_cou
         "hits, Ula'tek's Presence 270.07k in 5 hits; 1.06M in all. The biggest hit: Raging Crosswinds 377.69k at 0:47, "
         "to 6% health. The killing blow: Ula'tek's Presence 50.23k at 0:48.")
     assert lines[2] == ("Would have kept them alive, if pressed (replayed below; secondary to what killed them): a "
-                        "healthstone.")
+                        "healthstone (if they had one; none used this pull).")
     assert lines[3].startswith("Damage taken in the 10 s before death (")
     # the line's sums are the rows' own: each ability's hits and the total
     rows = re.findall(r"^  \d+:\d\d (.+?) from .+?: ([\d.]+)k", text, re.MULTILINE)
