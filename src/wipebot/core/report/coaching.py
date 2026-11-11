@@ -17,7 +17,7 @@ from .build import gear_stats, hero_of, prepared
 from .casting import alive, cast_counts, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
 from .deaths import UNTOLD, Replayed, in_mass_hits, lived, replay_deaths, savers
-from .ending import MASS_HIT, MASS_NOTE, mass_death
+from .ending import BEFORE_NOTE, FALLOUT_NOTE, MASS_HIT, MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
 from .tables import totals_by_name
 
@@ -231,12 +231,12 @@ async def _death_note(rep: Report, f: dict, death: dict, row: bool = False) -> s
     decided = await rep.decided_at(f)
     if decided and death["timestamp"] - f["startTime"] > decided.at_ms:
         return (f", fallout (decided {clock(decided.at_ms)})" if row
-                else f" (after the wipe was decided at {clock(decided.at_ms)}: fallout)")
+                else f" ({FALLOUT_NOTE.format(at=clock(decided.at_ms))})")
     if m := await mass_death(rep, f, death):
         return (", " + MASS_HIT if row else f" ({MASS_NOTE})").format(n=m.killed, at=clock(m.at_ms))
     if row:
         return "" if is_reset(f) else ", counts"
-    return " (before the wipe was decided)" if decided else ""
+    return f" ({BEFORE_NOTE})" if decided else ""
 
 
 # Above a night's rows, once: what each row holds and what its death's mark means.

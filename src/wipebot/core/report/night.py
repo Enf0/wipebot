@@ -29,7 +29,7 @@ from ..pulls import (
 from ..text import clock, clusters, date, ordinal, plural, ranges, span
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
-from .ending import Ending, KeptBuff, deaths_from, kind_of_end, pull_endings
+from .ending import FALLOUT_NOTE, Ending, KeptBuff, deaths_from, kind_of_end, pull_endings
 
 
 def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
@@ -265,7 +265,7 @@ def _end_buffs(buffs: list[tuple[str, float]], enrages: list[tuple[str, float]],
         if (name, at) not in enrages:
             return " (as another boss died: not an enrage)"
         if decided and at > decided.at_ms:
-            return f" (after the wipe was decided at {clock(decided.at_ms)}: fallout)"
+            return f" ({FALLOUT_NOTE.format(at=clock(decided.at_ms))})"
         return ""
     return "; boss " + ", ".join(f"{n} from {clock(at)}{why(n, at)}" for n, at in buffs) if buffs else ""
 

@@ -278,6 +278,9 @@ async def mass_death(rep: Report, f: dict, death: dict) -> MassDeath | None:
 # defensive would at most have bought a few seconds of a pull already lost.
 MASS_HIT = "one of {n} killed at once from {at}"
 MASS_NOTE = MASS_HIT + ", a hit killing many: the raid's to stop, not counted as theirs"
+# What the tools note of a death on a wipe that was decided, beside the two above: it came before that, or after
+BEFORE_NOTE = "before the wipe was decided"
+FALLOUT_NOTE = "after the wipe was decided at {at}: fallout"
 
 
 def moment_text(m: Moment, raid: int) -> str:
