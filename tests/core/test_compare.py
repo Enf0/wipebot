@@ -47,6 +47,26 @@ async def test_a_pull_behind_to_the_end_says_since_when_and_by_how_much():
     assert "behind from 0:30 (10 points), 30 points behind at 2:00 (ours 60%, the kill's 30%)" in text
 
 
+async def test_a_pull_still_behind_is_never_said_to_be_no_longer_behind():
+    """Behind by 3 points from 0:30 and by 2 at the end: it read "no longer by 2:00, 2 points behind at 2:00", one
+    moment said both ways, since the stretch ended under 3 points and the standing called a point or more behind."""
+    text = await pace([(0, 100), (30_000, 83), (60_000, 63), (90_000, 43), (120_000, 22)],
+                      [(0, 100), (30_000, 80), (60_000, 60), (90_000, 40), (120_000, 20)])
+    assert "behind from 0:30 (3 points), 2 points behind at 2:00 (ours 22%, the kill's 20%)" in text
+    assert "no longer" not in text
+
+
+async def test_a_pull_behind_level_and_behind_again_says_each_from_the_series():
+    """Behind at 0:30, level with the kill at 1:00, behind again from 1:30 to the end: the stretch that ran to the
+    end is the one named. Level again at the end instead, the first stretch is named with when it was over."""
+    text = await pace([(0, 100), (30_000, 90), (60_000, 60), (90_000, 50), (120_000, 40)],
+                      [(0, 100), (30_000, 80), (60_000, 60), (90_000, 40), (120_000, 30)])
+    assert "behind from 1:30 (10 points), 10 points behind at 2:00 (ours 40%, the kill's 30%)" in text
+    text = await pace([(0, 100), (30_000, 90), (60_000, 60), (90_000, 50), (120_000, 30)],
+                      [(0, 100), (30_000, 80), (60_000, 60), (90_000, 40), (120_000, 30)])
+    assert "behind from 0:30 (10 points), no longer by 1:00, level with it at 2:00 (ours 30%, the kill's 30%)" in text
+
+
 async def test_a_pull_that_kept_the_kills_pace_says_where_it_stood_at_the_end():
     text = await pace([(0, 100), (60_000, 61), (120_000, 20)], [(0, 100), (60_000, 60), (120_000, 30)])
     assert "kept it (within 3 points or ahead), 10 points ahead at 2:00 (ours 20%, the kill's 30%)" in text

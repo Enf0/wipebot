@@ -313,15 +313,12 @@ async def _pace(rep: Report, f: dict, k: dict, code: str, fight_id: int, ours: d
     text = ("Pace against the kill (boss health at the same moment of each phase, counted from its start, while both "
             f"were in it, {until}): " if phased else
             f"Pace against the kill (boss health at the same moment, {until}): ")
-    since = next((i for i in range(len(behind)) if all(b >= PACE_POINTS for b in behind[i:])), None)
-    if since is None and all(b < PACE_POINTS for b in behind):
+    since, back = _stretch(behind)
+    if since is None:
         text += f"kept it (within {PACE_POINTS} points or ahead)"
-    elif since is not None:
+    else:
         text += f"behind from {when[since]} ({behind[since]:.0f} points)"
-    else:  # behind for a while, not to the end
-        since = next(i for i, b in enumerate(behind) if b >= PACE_POINTS)
-        back = next(i for i, b in enumerate(behind) if i > since and b < PACE_POINTS)
-        text += f"behind from {when[since]} ({behind[since]:.0f} points), no longer by {when[back]}"
+        text += f", no longer by {when[back]}" if back is not None else ""
     last = compared[-1]
     text += (f", {_standing(behind[-1])} at {when[-1]} (ours {_value(ours.get('health'), last.ours):.0f}%, the "
              f"kill's {_value(theirs.get('health'), last.kill):.0f}%)")
@@ -340,12 +337,34 @@ async def _pace(rep: Report, f: dict, k: dict, code: str, fight_id: int, ours: d
     return text + ". Deaths " + "; ".join(counts) + "."
 
 
+def _stretch(behind: list[float]) -> tuple[int | None, int | None]:
+    """The stretch the pace line names, as indexes into the moments compared: the pull fell behind the kill's pace
+    at the first (PACE_POINTS or more above its health) and was level with it or ahead again at the second, None
+    for a pull behind to the end; both None for a pull that kept the pace. A pull under PACE_POINTS behind has not
+    caught up, so 'no longer' is never said of a moment `_standing` calls behind. Of several stretches, the one that
+    ran to the end, else the first."""
+    over: list[tuple[int, int]] = []
+    since = None
+    for i, points in enumerate(behind):
+        if since is None and points >= PACE_POINTS:
+            since = i
+        elif since is not None and _points(points) <= 0:
+            over.append((since, i))
+            since = None
+    return (since, None) if since is not None else over[0] if over else (None, None)
+
+
+def _points(points: float) -> int:
+    """Our boss health minus the kill's at one moment in whole points: above 0 behind, below 0 ahead, 0 level."""
+    return round(abs(points)) * (1 if points > 0 else -1)
+
+
 def _standing(points: float) -> str:
     """Where a pull stood against the kill, from our boss health minus the kill's at one moment: '12 points
     behind', '5 points ahead', or 'level with it' within a point."""
-    if not (n := round(abs(points))):
+    if not (n := _points(points)):
         return "level with it"
-    return f"{plural(n, 'point')} {'behind' if points > 0 else 'ahead'}"
+    return f"{plural(abs(n), 'point')} {'behind' if n > 0 else 'ahead'}"
 
 
 def _deaths_by(deaths: list[dict], at: float) -> int:
