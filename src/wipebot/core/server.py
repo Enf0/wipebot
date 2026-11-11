@@ -1515,8 +1515,8 @@ async def progress(boss: Annotated[str | None, Field(description=(
                    each_pull: Annotated[bool, Field(description=(
                        "each pull's row also names its first three deaths and the killing blows until the wipe was "
                        "decided, with how many died after it"))] = False,
-                   first_hits: Annotated[bool, Field(description="first, who hit the boss first on each pull, for "
-                                                                 "\"who pulls early?\"")] = False,
+                   first_hits: Annotated[bool, Field(description="opens with who hit the boss first on each pull, "
+                                                                 "for \"who pulls early?\"")] = False,
                    weeks: Annotated[int | None, Field(description=(
                        "also the boss on each of the guild's raid nights over this many weeks back (1-12), for "
                        "\"are we doing better than last week?\": reads every night, slow"), ge=1, le=12)] = None,
