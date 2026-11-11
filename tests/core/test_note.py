@@ -307,7 +307,8 @@ async def test_a_kick_callout_no_cast_began_near_is_listed_for_that_and_not_as_a
     plan = _kick_note(note.Callout(120, 1, ("Rowan",), "Grab red orb"), note.Callout(130, 1, (), "Kick the totem"))
     kicks = await _wave(monkeypatch, (100, "Torvek"), (102, None), plan=plan)
     assert [k.player for k in kicks] == ["Torvek", "Mirelle"]
-    _, unchecked = note._callouts_to_check(plan, lambda c: c.at * 1000, 600_000, {id(k.callout) for k in kicks})
+    _, unchecked = note._callouts_to_check(cast(Any, None), plan, lambda c: c.at * 1000, 600_000,
+                                           {id(k.callout) for k in kicks})
     assert {why: [co.text for _, co in these] for why, these in note._unchecked(unchecked)} == {
         note.UNCHECKED: ["Grab red orb", "Kick the totem"],  # to everyone, so no one's kick assignment
         note.NO_CAST: ["Kick #3 left", "Kick #4 left"]}

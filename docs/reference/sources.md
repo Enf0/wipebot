@@ -154,6 +154,14 @@ API: `wcl-api.md`.
   phases is checked up to the log's first change of phase and no further. A soak that lands after it, where the
   note calls the soak's groups in a phase that can't be placed, counts for no one as "can't tell if the note calls
   a soak then" (no recorded note has one; the test rewrites the Sszorak note's later lines as ph:2).
+- A note's assignment text lists players for jobs that are no soak under headings in the raid leader's own words,
+  and may call a group of them at a time too: the guild's Coiled Altar note has "Orb Carriers" (eight carriers one
+  a line, and "Orb Helpers", four players with a timed "Green orb backup") beside "Guillotine Soaks". A timed
+  callout to a group is therefore not enough to make a section soak groups: the check also asks that its heading
+  begin with the name of an ability in the report (Guillotine; no ability is named "Orb Carriers" or "Orb"). The
+  callouts to the other sections' players are listed as not checked: on that note's night 15 entries (an orb to
+  grab, the backup, a CC, a ghost to soak, the tank's external), where only "CC Mindcontrol" to three of its four
+  players was listed while the orb carriers were taken for soak groups.
 - Whether a note's order of soak callouts is the order the groups soak in depends on how far apart it calls them.
   The two recorded Twin Fangs notes (October 2026) call their three groups 2 s apart, and of the 185 hits that who
   was hit gave to a group over the two nights, 182 landed within 0.5 s of that group's callout; the other three

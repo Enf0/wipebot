@@ -662,7 +662,7 @@ async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) 
 
     until = decided.at_ms if decided else end  # what came after the wipe was decided is only counted
     kicks = await _kicks(rep, f, note, players, state, when, until)
-    calls, unchecked = _callouts_to_check(note, when, until, {id(k.callout) for k in kicks})
+    calls, unchecked = _callouts_to_check(rep, note, when, until, {id(k.callout) for k in kicks})
     try:
         callouts, why = await _callouts(rep, f, note, players, died, when, calls, night), ""
     except KnowledgeError as e:
@@ -1174,12 +1174,14 @@ def _spell(sp: dict) -> str:
     return f"{sp['name']} [{', '.join(sp.get('tags') or []) or 'untagged'}]"
 
 
-def _ability_of(rep: Report, heading: str, hit_ids: set[int]) -> list[int]:
-    """The ids of the ability a heading names ("Mutilate Soaks" -> Mutilate), among those that hit players: the
-    longest run of the heading's first words that is an ability's name."""
+def _ability_of(rep: Report, heading: str, among: AbstractSet[int] | None = None) -> list[int]:
+    """The ids of the ability a heading names ("Mutilate Soaks" -> Mutilate): the longest run of the heading's first
+    words that is the name of an ability in the report, or with `among`, of one of those (the ones that hit players
+    on a pull)."""
     words = heading.split()
     for k in range(len(words), 0, -1):
-        if ids := sorted(rep.ids_named([" ".join(words[:k])]) & hit_ids):
+        named = rep.ids_named([" ".join(words[:k])])
+        if ids := sorted(named if among is None else named & among):
             return ids
     return []
 
@@ -1190,10 +1192,15 @@ def _same(names: Iterable[str]) -> frozenset[str]:
     return frozenset(_bare(n) for n in names)
 
 
-def _soak_sections(note: Note) -> dict[str, dict[str, list[str]]]:
-    """The note's sections of groups that get timed callouts: soak groups, not a spread list."""
+def _soak_sections(rep: Report, note: Note) -> dict[str, dict[str, list[str]]]:
+    """The note's soak sections: groups under a heading that names an ability of the report (`_ability_of`), one of
+    them of several players whom a timed callout names. A spread list has no group called. Players listed for
+    another job under a heading that names none ("Orb Carriers", whose "Orb Helpers" are called to back up) are no
+    soak groups: taken for one, a section made every label of it a soak group, so a callout to exactly one of its
+    players went unlisted, and the check said no ability of that name hit players."""
     called = {frozenset(c.players) for c in note.callouts if len(c.players) > 1}
-    return {h: gs for h, gs in note.groups.items() if any(_same(ns) in called for ns in gs.values() if len(ns) > 1)}
+    return {h: gs for h, gs in note.groups.items()
+            if any(_same(ns) in called for ns in gs.values() if len(ns) > 1) and _ability_of(rep, h)}
 
 
 DAMAGE_BY_ABILITY: dict[str, Any] = {"hostilityType": "Friendlies", "viewBy": "Ability"}
@@ -1242,9 +1249,9 @@ def _whose(hit: AbstractSet[str], at: float, members: dict[str, list[str]], call
 
 async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], state, when,
                  until: float) -> list[Soaks]:
-    """Per section of groups that get timed callouts (soak groups, not a spread list): each hit of the section's
-    ability, given to the group it was the soak of (`_whose`) or to none."""
-    sections = _soak_sections(note)
+    """Per soak section (`_soak_sections`): each hit of the section's ability, given to the group it was the soak
+    of (`_whose`) or to none."""
+    sections = _soak_sections(rep, note)
     if not sections:
         return []
     t0 = f["startTime"]
@@ -1298,9 +1305,8 @@ def _unplaced(soaks: list[Soaks], note: Note, phases: Phases) -> list[Soaks]:
     landed once such a phase may have begun (the change of phase in the log from which a placed phase's lines are
     in doubt too). The note may call that very soak, so "no group called within 20 s" isn't known of it."""
     doubt = min((at for at, label in phases.ends.values() if not label), default=math.inf)
-    sections = _soak_sections(note)
     for s in soaks:
-        groups = {_same(ns) for ns in sections[s.heading].values()}
+        groups = {_same(ns) for ns in note.groups[s.heading].values()}
         if any(c.phase in phases.unknown and frozenset(c.players) in groups for c in note.callouts):
             for h in s.hits:
                 if h.why == OUTSIDE and h.at >= doubt:
@@ -1433,11 +1439,11 @@ async def _planned_casts(rep: Report, f: dict, note: Note) -> list[dict]:
     return [c for c in casts if c.get("type") == "cast"]
 
 
-def _callouts_to_check(note: Note, when, until: float,
+def _callouts_to_check(rep: Report, note: Note, when, until: float,
                        kicks: set[int]) -> tuple[list[tuple[float, Callout]], list[tuple[float, Callout]]]:
-    """The callouts up to `until` that aren't a soak group's or a kick assignment (`kicks`, their ids), in order:
-    those asking for personals, which the log can check, and the rest, which it can't (PERSONALS)."""
-    soak = {_same(ns) for gs in _soak_sections(note).values() for ns in gs.values()}
+    """The callouts up to `until` that aren't a soak group's (`_soak_sections`) or a kick assignment (`kicks`, their
+    ids), in order: those asking for personals, which the log can check, and the rest, which it can't (PERSONALS)."""
+    soak = {_same(ns) for gs in _soak_sections(rep, note).values() for ns in gs.values()}
     calls = sorted(((at, c) for c in note.callouts if frozenset(c.players) not in soak and id(c) not in kicks
                     and (at := when(c)) is not None and at <= until),
                    key=lambda x: x[0])
@@ -1759,13 +1765,13 @@ async def _prefetch(rep: Report, fights: list[dict], notes: dict[int, Note]) -> 
     """What `_check` reads for each pull, fetched in a few queries for all of them and kept where `_check` finds it."""
     await rep.all_deaths(fights)
     await rep.boss_buff_events(fights)
-    soaking = [f for f in fights if _soak_sections(notes[f["id"]])]
+    soaking = [f for f in fights if _soak_sections(rep, notes[f["id"]])]
     tables = dict(zip([f["id"] for f in soaking], await rep.tables(
         [(f["id"], {}) for f in soaking], "DamageTaken", **DAMAGE_BY_ABILITY), strict=True))
     wanted = []
     for f in soaking:
         hit_ids = {e["guid"] for e in tables[f["id"]].get("entries") or []}
-        for heading in _soak_sections(notes[f["id"]]):
+        for heading in _soak_sections(rep, notes[f["id"]]):
             wanted += [(f["id"], {"abilityID": i}) for i in _ability_of(rep, heading, hit_ids)]
     if wanted:
         await rep.events_for(wanted, "DamageTaken", hostilityType="Friendlies")
