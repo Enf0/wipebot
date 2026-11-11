@@ -94,9 +94,8 @@ def save_pasted(store: Store, discord_guild_id: int, text: str, saved_by: str, a
 
 # On a bot many servers share (config.own_keys), a server reads and saves what its guild keeps (raid notes and plans)
 # only once an admin has shown the guild is the server's own (`verify`). Until then, what it's told:
-NOTES_OFF = ("Raid notes and plans are off here until an admin shows that **{guild}** is this server's guild: one who "
-             "has a character in it among those they claimed on Warcraft Logs signs in with `/login`, then runs "
-             "`/wipebot setup`. Everything else works already.")
+NOTES_OFF = ("Raid notes and plans are off here until an admin with a character in **{guild}** (claimed on Warcraft "
+             "Logs) runs `/login`, then `/wipebot setup`. Everything else works already.")
 NO_SIGN_IN = ("Raid notes and plans are off here: showing that **{guild}** is this server's guild takes a Warcraft "
               "Logs sign-in, which whoever runs this bot hasn't set up. Everything else works already.")
 NOTES_ON = "Raid notes and plans are on here: one of the characters you claimed on Warcraft Logs is in **{guild}**."
@@ -109,14 +108,15 @@ def notes_off(s: ServerSettings) -> str:
 
 async def verify(bot: WipeBot, s: ServerSettings, user_id: int) -> tuple[ServerSettings, str]:
     """/wipebot setup on a bot many servers share: whether the admin who ran it shows the guild is the server's own.
-    They do when they're signed in with Warcraft Logs (/login) and one of the characters they claimed there is in the
-    guild, asked of Warcraft Logs now with their own token. The settings, verified and saved when so, and what to tell
+    They do when they're signed in with Warcraft Logs (/login, or its sign-in for private reports, which says who
+    they are as well) and one of the characters they claimed there is in the guild, asked of Warcraft Logs now with
+    their own token. The settings, verified and saved when so, and what to tell
     the admin about raid notes and plans ("" where nothing changed: a host's own bot, or a server verified before)."""
     if not bot.own_keys or not s.set_up or s.verified_at is not None:
         return s, ""
     if not logincmd.callback_url():
         return s, notes_off(s)
-    if not (signed := bot.store.login(user_id)):
+    if not (signed := bot.store.login(user_id) or bot.store.private_login(user_id)):
         return s, notes_off(s) + " You aren't signed in yet."
     try:
         member = s.wcl_guild_id in await accounts.claimed_guilds(signed[1])
@@ -125,8 +125,8 @@ async def verify(bot: WipeBot, s: ServerSettings, user_id: int) -> tuple[ServerS
         return s, notes_off(s) + (" You're signed in, but Warcraft Logs didn't say which guilds your characters are "
                                   "in: run `/wipebot setup` again in a few minutes.")
     if not member:
-        return s, notes_off(s) + (" You're signed in, but none of the characters you claimed on Warcraft Logs is in "
-                                  "it.")
+        return s, notes_off(s) + (f" You're signed in as **{signed[0]}**, but none of the characters claimed on that "
+                                  "Warcraft Logs account is in it.")
     s = replace(s, verified_by=user_id, verified_at=time.time())
     bot.store.save_settings(s)
     log.info("server %s verified as its guild's own (Warcraft Logs guild %s)", s.discord_guild_id, s.wcl_guild_id)
@@ -363,7 +363,14 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
                            private="Let Wipebot read your private reports too (with remove: stop it)")
     @app_commands.guild_only()
     async def login(interaction: discord.Interaction, remove: bool = False, private: bool = False) -> None:
-        await logincmd.login_command(bot.store, interaction, remove, private)
+        async def signed_in() -> str:
+            """Signed in by an admin of a server whose guild isn't shown to be its own yet: shown now, without
+            another `/wipebot setup`."""
+            s = bot.store.settings(interaction.guild_id) if interaction.guild_id else None
+            if s is None or not interaction.permissions.manage_guild:
+                return ""
+            return (await verify(bot, s, interaction.user.id))[1]
+        await logincmd.login_command(bot.store, interaction, remove, private, signed_in)
 
     return [show_help, show_usage, login]
 

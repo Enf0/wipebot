@@ -153,8 +153,8 @@ Officers save them by pasting the export, in either app; anyone else's paste is 
   role set by `/wipebot setup officers:<role>`, or, with none set, those who can manage the server.
   `/wipebot setup` alone lists what's saved. On a copy many servers share, such as the public Wipebot, the link alone
   doesn't show whose guild it is: a server keeps and reads the guild's notes and plans once an admin who has a
-  character in the guild among those they claimed on Warcraft Logs has signed in with `/login` and run
-  `/wipebot setup`, which says so until then.
+  character in the guild among those they claimed on Warcraft Logs has signed in with `/login` (either sign-in, in
+  the server itself, or before `/wipebot setup`), which says so until then.
 
 What can be saved:
 

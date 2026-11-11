@@ -12,6 +12,7 @@ with `view-private-reports` too, whose token is kept apart and read with only fo
 import os
 import secrets
 from collections import Counter
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
@@ -34,10 +35,12 @@ def callback_url() -> str | None:
 class Choices(discord.ui.View):
     """The sign-in link and the button to paste the address it ends on, for one sign-in (its PKCE verifier)."""
 
-    def __init__(self, store: Store, callback: str, client_id: str, secret: str, private: bool = False):
+    def __init__(self, store: Store, callback: str, client_id: str, secret: str, private: bool = False,
+                 after: Callable[[], Awaitable[str]] | None = None):
         super().__init__(timeout=900)
         self.store, self.callback, self.client_id, self.secret = store, callback, client_id, secret
         self.private = private  # the second sign-in, for the raider's private reports
+        self.after = after  # what the sign-in changes where it was made, to say after it ("": nothing)
         self.verifier, self.challenge = accounts.pkce()
         self.state = secrets.token_urlsafe(16)
         steps = [self.signed_in]  # after the sign-in link, in the order they're used
@@ -81,15 +84,16 @@ async def sign_in(choices: Choices, user_id: int, pasted: str) -> str:
     guild = None if choices.private else home_guild(account.characters, choices.store.raider(user_id).character)
     choices.store.save_login(user_id, account.id, account.name, account.token, account.expires, choices.private,
                              guild)
+    more = await choices.after() if choices.after else ""
     if choices.private:
         return (f"Done: Wipebot now reads the private reports **{account.name}** may open on Warcraft Logs, for your "
-                "questions only. `/login private:True remove:True` stops it.")
+                "questions only. `/login private:True remove:True` stops it.") + (f"\n\n{more}" if more else "")
     said = (f"Signed in as **{account.name}** on Warcraft Logs. Your own Warcraft Logs points now pay first for what "
             "you ask; `/login remove:True` signs you out.")
     if guild:
         said += (f" In a server where Wipebot isn't set up, your guild **{guild[1]}** stands in: ask about its latest "
                  "night without a link.")
-    return said
+    return said + (f"\n\n{more}" if more else "")
 
 
 def home_guild(characters: list[dict], character: str | None) -> tuple[int, str, str, str] | None:
@@ -146,9 +150,10 @@ async def points_line(store: Store, reader: wcl.WCL, user_id: int) -> str | None
     return line + ("; you have some left this hour." if left else f"; yours are used up{back}, so the bot's pay.")
 
 
-async def login_command(store: Store, interaction: discord.Interaction, remove: bool, private: bool = False) -> None:
+async def login_command(store: Store, interaction: discord.Interaction, remove: bool, private: bool = False,
+                        after: Callable[[], Awaitable[str]] | None = None) -> None:
     """/login: the raider's sign-in status with the way to sign in, or with `remove`, their sign-in forgotten; with
-    `private`, the same for their private reports (a second sign-in)."""
+    `private`, the same for their private reports (a second sign-in). `after`: Choices'."""
     if remove and private:
         dropped = store.drop_private_login(interaction.user.id)
         await interaction.response.send_message(
@@ -173,10 +178,10 @@ async def login_command(store: Store, interaction: discord.Interaction, remove: 
             "when you may open them): open Warcraft Logs, approve, and paste the address it ends on here. The bot "
             "keeps that token encrypted and reads with it only reports it can't read itself, for your questions "
             "only, and keeps nothing of them but the answers. " + PRIVATE_NOTE,
-            view=Choices(store, callback, *client, private=True), ephemeral=True)
+            view=Choices(store, callback, *client, private=True, after=after), ephemeral=True)
         return
     await interaction.response.send_message(
         status(store, interaction.user.id) + "\n\nTo sign in: open Warcraft Logs, approve, and paste the address it "
         "ends on here. The bot keeps your token encrypted and reads only public reports with it; `/login "
         "private:True` lets it read your private reports too.",
-        view=Choices(store, callback, *client), ephemeral=True)
+        view=Choices(store, callback, *client, after=after), ephemeral=True)

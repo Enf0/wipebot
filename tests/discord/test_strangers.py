@@ -57,10 +57,10 @@ def test_a_server_that_links_a_guild_reads_nothing_it_keeps_until_an_admin_in_it
     saves(bot)
     ctx = context(bot, CLAIMS, member, channel)
     assert ctx.notebook is None and ctx.guild_id == 0 and not ctx.noted and not ctx.planned
-    assert "until an admin shows that **The Copper Lanterns** is this server's guild" in ctx.notes_off
+    assert "until an admin with a character in **The Copper Lanterns**" in ctx.notes_off
     told = commands.overview(bot, CLAIMS)
     assert "Sszorak" not in told and "Rowan" not in told  # none of what the guild saved
-    assert "2. Raid notes and plans are off here until an admin shows" in told and "`/login`" in told
+    assert "2. Raid notes and plans are off here until an admin with" in told and "`/login`" in told
     own = context(bot, OWN, member, channel)  # the guild's own server, as before
     assert own.notebook is bot.store.notebook and own.guild_id == 14169
     assert own.noted == ["Sszorak"] and own.planned == ["Sszorak"] and not own.notes_off
@@ -116,8 +116,8 @@ async def test_a_note_pasted_in_a_server_that_only_links_the_guild_is_not_saved(
     """Refused before anything is written, and before the server's AI key is asked for: saving needs no key."""
     book = shared.store.notebook
     told = await paste(CLAIMS)
-    assert told.startswith("I didn't save that. Raid notes and plans are off here until an admin shows")
-    assert "signs in with `/login`, then runs `/wipebot setup`" in told
+    assert told.startswith("I didn't save that. Raid notes and plans are off here until an admin with")
+    assert "runs `/login`, then `/wipebot setup`" in told
     assert book.notes(14169, 3420) == [] and book.latest_notes(14169) == []
     assert (await paste(OWN)).startswith("Saved the raid note")  # the guild's own server saves, as before
     assert len(book.notes(14169, 3420)) == 1
@@ -210,7 +210,7 @@ async def test_asked_about_a_guilds_report_from_another_server_the_tools_give_no
     note, plan = NOTE.read_text(encoding="utf-8"), PLAN.read_text(encoding="utf-8")
     assert not any(KEY in said or note[:40] in said or plan[:40] in said or "Rowan" in said
                    for said in after.values())
-    none = {CLAIMS: ("Raid notes and plans are off here until an admin shows",) * 3,
+    none = {CLAIMS: ("Raid notes and plans are off here until an admin with",) * 3,
             NOT_SET_UP: ("Raid notes are only kept in Discord",) * 2 + ("Raid plans are only kept in Discord",),
             # its own guild's notebook, which holds none for this boss
             OTHER: ("No raid note is saved for Sszorak that night in this server", "For the next raid, and ",

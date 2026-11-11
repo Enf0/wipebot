@@ -127,13 +127,12 @@ async def test_on_a_shared_bot_a_guild_is_a_servers_own_once_an_admin_with_a_cha
     link = "https://www.warcraftlogs.com/guild/id/14169"
     told = await setup(link=link)  # not signed in: the link is saved, the notes stay off
     assert told.startswith("wipebot is set up:") and told.endswith("You aren't signed in yet.")
-    assert ("Raid notes and plans are off here until an admin shows that **The Copper Lanterns** is this server's "
-            "guild: one who has a character in it among those they claimed on Warcraft Logs signs in with `/login`, "
-            "then runs `/wipebot setup`. Everything else works already.") in told
+    assert ("Raid notes and plans are off here until an admin with a character in **The Copper Lanterns** (claimed on "
+            "Warcraft Logs) runs `/login`, then `/wipebot setup`. Everything else works already.") in told
     assert (s := bot.store.settings(1001)) and s.set_up and s.verified_at is None and not asked_with
     bot.store.save_login(7, 42, "Rowan#1", "rowan's token", time.time() + 3600)
     told = await setup()  # signed in, with characters in another guild only
-    assert "but none of the characters you claimed on Warcraft Logs is in it." in told
+    assert "You're signed in as **Rowan#1**, but none of the characters claimed on that Warcraft Logs account" in told
     assert asked_with == ["rowan's token"] and bot.store.settings(1001).verified_at is None
     guilds = commands.accounts.AccountError("Warcraft Logs currentUser: 502")
     assert "Warcraft Logs didn't say which guilds your characters are in" in await setup()
@@ -152,6 +151,13 @@ async def test_on_a_shared_bot_a_guild_is_a_servers_own_once_an_admin_with_a_cha
     assert told.endswith("Raid notes and plans are on here: one of the characters you claimed on Warcraft Logs is in "
                          "**The Copper Lanterns**.")
     assert (s := bot.store.settings(1001)) and s.verified_by == 7
+    bot.store._db.execute("DELETE FROM server_settings")
+    bot.store.drop_login(7)
+    bot.store.save_login(7, 42, "Rowan#1", "rowan's private token", time.time() + 3600, private=True)
+    asked_with.clear()
+    told = await setup(link=link)  # signed in for private reports only: that sign-in says who they are as well
+    assert told.endswith("in **The Copper Lanterns**.") and asked_with == ["rowan's private token"]
+    assert bot.store.settings(1001).verified_by == 7
 
 
 async def test_a_shared_bot_without_sign_in_says_so_and_a_hosts_own_bot_asks_for_no_proof(bot, setup, monkeypatch):
