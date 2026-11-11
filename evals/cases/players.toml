@@ -13,7 +13,8 @@ earlier Ascendance would have fit a third use is fair coaching."""
 drifts = ["75th"]
 facts = ["75th percentile",
          "pull 2",
-         "second of five healers"]
+         "second of five healers, 290.04k healing per second",
+         "Ascendance at 0:34 and 4:23, Spirit Link Totem at 1:46 and 5:58: two of three possible each"]
 # Raid healing cooldowns (Ascendance, Spirit Link Totem) aren't defensives, and are often assigned to a timeline:
 # the second Ascendance, at 4:23, lined up with the Imbibe at 4:36, a trade-off.
 wrong = ["faults their overhealing",
@@ -241,7 +242,8 @@ drifts = ["1:07", "0:05", "0:09"]
 facts = ["Kingsbane at 0:06 and 1:38, the second about 30 s later than the top parses' ~1:07",
          "Vanish at 1:39 instead of with Deathmark at 0:07; top parses Vanish at 0:05-0:09",
          "Deathmark at 0:07; its second, ready at 2:07, was still unused when they died at 2:23"]
-wrong = ["counts Feint or Cloak of Shadows uses as a fault", "says a second Deathmark was ready before 2:07 (its first was at 0:07; saying it was ready at 2:07 and unused is right)"]
+wrong = ["counts Feint or Cloak of Shadows uses against how many were possible as a fault",
+         "says a second Deathmark was ready before 2:07 (its first was at 0:07; saying it was ready at 2:07 and unused is right)"]
 
 [[case]]
 id = "me-build-on-kill"  # the comparison is with ranked Ret kills; the build nearly matches them

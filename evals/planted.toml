@@ -493,7 +493,7 @@ cap is a small matter beside it.
 [[plant]]
 case = "me-cooldown-sync"
 kind = "wrong"
-item = "counts Feint or Cloak of Shadows uses as a fault"
+item = "counts Feint or Cloak of Shadows uses against how many were possible as a fault"
 answer = """
 **Partly: your damage cooldowns went out at the start, but Feint and Cloak of Shadows were used far fewer times
 than they were ready.** That is the fault to fix on this pull: press both every time they come up.
