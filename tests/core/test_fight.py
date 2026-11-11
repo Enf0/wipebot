@@ -12,6 +12,7 @@ from wipebot.core.pulls import Decided, GuildBest, mass_hits
 from wipebot.core.report import fight, night
 from wipebot.core.report.ending import (
     Ending,
+    LeadIn,
     MassDeath,
     deaths_from,
     ending,
@@ -446,6 +447,16 @@ async def test_a_pull_did_not_get_past_what_came_on_it_too(rep, monkeypatch):
     assert await fight._same_ending(rep, rep.fight(5, "Sszorak"), behind) == (
         "What ended the most earlier pulls (3 of 4), Venom Burst killing many, came on this pull too, after what "
         "ended it.")
+    # Deaths led into the hit on those pulls and not on this one: the hit is what came here too.
+    led = Ending("moments", 20, 120_000, hit.moments, lead_in=LeadIn(30_000, 4, 0))
+    earlier = [led, led, led, None]
+
+    async def led_into(_, fights):
+        return earlier[:len(fights)]
+    monkeypatch.setattr(fight, "pull_endings", led_into)
+    assert kind_of_end(led) == "deaths leading into Venom Burst killing many"
+    assert await fight._same_ending(rep, rep.fight(5, "Sszorak"), hit) == (
+        "What ended the most earlier pulls (3 of 4), Venom Burst killing many, came on this pull too.")
 
 
 async def test_a_fight_on_no_raid_difficulty_says_so_and_is_no_difficulty_10(rep, monkeypatch):

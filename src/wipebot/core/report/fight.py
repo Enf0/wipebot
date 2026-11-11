@@ -189,17 +189,18 @@ async def _same_ending(rep: Report, f: dict, ended: Ending | None) -> str | None
         if came is None:
             parts.append(f"got past what ended the most earlier pulls: {common} ({of})")
         else:
-            here = f"What ended the most earlier pulls ({of}), {common}, came on this pull too{came}."
+            here = f"What ended the most earlier pulls ({of}), {came}."
     return " ".join(([f"This pull {'; it '.join(parts)}."] if parts else []) + ([here] if here else [])) or None
 
 
 async def _came_here(rep: Report, f: dict, ended: Ending, earlier: Ending | None) -> str | None:
     """Where this pull had what ended most earlier pulls (the first moment of `earlier`, one of them) and so didn't
-    get past it, the words to follow "came on this pull too"; None where it didn't come. It came as a moment of
-    this pull's own ending, behind the one that leads or after deaths that led into it, or as a buff the boss gained
-    in the pull's last END_BUFF_WINDOW_MS and kept: no part of the ending when it came after the wipe was decided
-    or as a phase began. The words say when it came, unless a line above does (the ending's moments, a buff after
-    the wipe was decided), and what it came after."""
+    get past it: "<that moment>, came on this pull too", when, and what it came after; None where it didn't come.
+    It came as a moment of this pull's own ending, behind the one that leads or with deaths leading into it (or
+    without those that led into it earlier: the moment is what is named), or as a buff the boss gained in the
+    pull's last END_BUFF_WINDOW_MS and kept: no part of the ending when it came after the wipe was decided or as a
+    phase began. When it came is said unless a line above says it (the ending's moments, a buff after the wipe was
+    decided)."""
     if earlier is None or earlier.kind != "moments":
         return None
     led, decided = earlier.moments[0], await rep.decided_at(f)
@@ -218,7 +219,7 @@ async def _came_here(rep: Report, f: dict, ended: Ending, earlier: Ending | None
     if at is None:
         return None
     first = ended.moments[0].at_ms if ended.moments else ended.half_dead_ms
-    return ("" if said else f", at {clock(at)}") + (
+    return f"{moment_kind(led)}, came on this pull too" + ("" if said else f", at {clock(at)}") + (
         ", after the wipe was decided" if decided and at > decided.at_ms
         else ", after what ended it" if first is not None and at > first else "")
 
