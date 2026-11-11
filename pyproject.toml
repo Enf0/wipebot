@@ -1,6 +1,6 @@
 [project]
 name = "wipebot"
-version = "0.41.1"
+version = "1.0.0"
 description = "A raid assistant for World of Warcraft: an MCP server and a Discord bot."
 requires-python = ">=3.14"
 license = "AGPL-3.0-or-later"

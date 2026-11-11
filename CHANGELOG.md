@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-11
+
 ### Added
 
 - `Agent` **A trend by pull: is it getting better over the night?** Damage, healing, damage taken, casts and one ability's hits are now drawn pull by pull: a bar per pull, a kill capped in gold, and the median pull of each third of the night as a dashed line. A reset is hollow and left out, and the card's sentence states the thirds, as the answer now does from the same three medians ("The raid's healing per second: 1.67M in the first third of the 32 pulls, 1.65M in the middle and 1.87M in the last (each third's median pull)."). One player's trend is in their class colour, and in Discord the asker's row is drawn under the raid's. In Claude and ChatGPT a bar opens its pull, "Open trend" lists every pull's numbers, and a ranking over several pulls has "By pull".
