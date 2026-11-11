@@ -1883,8 +1883,9 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
                         "$fight(13) for the fight id of pull 13 on the boss, $start(13) and $end(13) for its start "
                         "and end and $at(13, 2:15) for 2:15 into it (what startTime and endTime take; inside a "
                         "filterExpression they count from the pull's start, as its `timestamp` does), $fights for "
-                        "the fight ids of every pull on the boss; a pull is a number or kill, best wipe, last wipe, "
-                        "first or last, and without one ($fight, $at(2:15)) the latest"))] = None,
+                        "the fight ids of every pull on the boss, $player(Name) for a player's actor id (what "
+                        "sourceID and targetID take); a pull is a number or kill, best wipe, last wipe, first or "
+                        "last, and without one ($fight, $at(2:15)) the latest"))] = None,
                     schema_type: Annotated[str | None, Field(description=(
                         "instead of a query, a type of the API to describe, e.g. Query, Report, ReportFight, "
                         "Encounter"))] = None,

@@ -3,10 +3,11 @@ write it from. Read-only, within the hour's points less a share kept for the oth
 while, so reading its later parts or asking it again costs nothing.
 
 The answer comes in the tools' own terms, so nothing in it is converted by hand: a pull stands in the query by its
-number (`$fight(13)`, `$at(13, 2:15)`: `_pulls`); event lists come back as rows, each with its time into its pull
-and its actors and abilities named, and counted (rows.py); a report's other times read m:ss into their pull, and the
-fights named get a legend (`_Answer`). One too long to read is cut to a part, each list saying how much of it was
-left out, where it used to be refused after its points were spent."""
+number and a player by name (`$fight(13)`, `$at(13, 2:15)`, `$player(Name)`: `_pulls`); event lists come back as
+rows, each with its time into its pull and its actors and abilities named, counted and added up (rows.py); a
+report's other times read m:ss into their pull, and the fights named get a legend (`_Answer`). One too long to read
+is cut to a part, each list saying how much of it was left out, where it used to be refused after its points were
+spent."""
 import asyncio
 import json
 import re
@@ -32,9 +33,9 @@ TYPE_REF = "name kind ofType { name kind ofType { name kind ofType { name } } }"
 SCHEMA = (f"query($name: String!) {{ __type(name: $name) {{ name kind description "
           f"fields {{ name description args {{ name description type {{ {TYPE_REF} }} }} type {{ {TYPE_REF} }} }} "
           f"inputFields {{ name description type {{ {TYPE_REF} }} }} enumValues {{ name description }} }} }}")
-# What stands for a pull of the tool's report in a query: $fight(13), $start(13), $end(13), $at(13, 2:15), $fights;
-# with the quotes around one written as a string of its own, "$start(13)"
-PULL = re.compile(r'("?)\$(fights|fight|start|end|at)\b(?:\(([^()]*)\))?\1')
+# What stands for a pull or a player of the tool's report in a query: $fight(13), $start(13), $end(13),
+# $at(13, 2:15), $fights, $player(Name); with the quotes around one written as a string of its own, "$start(13)"
+PULL = re.compile(r'("?)\$(fights|fight|start|end|at|player)\b(?:\(([^()]*)\))?\1')
 NAMED_REPORTS = 6  # of the reports a query names, this many are read for their names (a load each, when not loaded)
 LEGEND_FIGHTS = 30  # fights a legend names
 LEGEND_DETAILED = 8  # up to this many, each with its length and how it ended
@@ -49,7 +50,8 @@ Reports = Callable[[str], Awaitable[Report]]  # how a report a query names is re
 
 
 def uses_report(query: str) -> bool:
-    """Whether a query stands for something of the tool's report: its code (`$code`) or one of its pulls (PULL)."""
+    """Whether a query stands for something of the tool's report: its code (`$code`), or one of its pulls or
+    players (PULL)."""
     return "$code" in query or PULL.search(query) is not None
 
 
@@ -64,8 +66,9 @@ def _pulls(query: str, rep: Report | None, boss: str | None) -> str:
     take); `$fights` the fight ids of every pull on the boss. Inside a string (a filterExpression, whose
     `timestamp` counts from the fight's start: docs/reference/wcl-api.md) the three times count from the pull's
     start too, where the report's ms would match nothing without an error. A pull is a number on `boss` or a name
-    (kill, best wipe, ...: Report.fight); without one, the link's or the latest. A name the query declares as its
-    own variable is left alone."""
+    (kill, best wipe, ...: Report.fight); without one, the link's or the latest. `$player(Name)` is that player's
+    actor id (what sourceID and targetID take): rows name the actors, so an answer has no ids to copy. A name the
+    query declares as its own variable is left alone."""
     def filled(m: re.Match) -> str:
         name, given = m[2], m[3]
         in_filter = not m[1] and len(re.findall(r'(?<!\\)"', query[:m.start()])) % 2 == 1
@@ -76,6 +79,10 @@ def _pulls(query: str, rep: Report | None, boss: str | None) -> str:
         if name == "fights":
             return json.dumps([f["id"] for f in rep.by_boss[rep.boss(boss)]])
         args = [a.strip().strip("\"'") for a in (given or "").split(",") if a.strip()]
+        if name == "player":
+            if len(args) != 1:
+                raise FactError(f"{m[0]}: $player takes a player's name, $player(Name)")
+            return str(rep.player(args[0]).id)
         after = 0.0
         if name == "at":
             at = parse_clock(args.pop()) if 1 <= len(args) <= 2 else None

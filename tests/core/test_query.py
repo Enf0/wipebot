@@ -177,6 +177,21 @@ def test_a_pulls_time_inside_a_filter_counts_from_the_pull_as_the_filters_timest
         f'fightIDs: [{f["id"]}], startTime: {f["startTime"]}')
 
 
+def test_a_player_stands_in_a_query_by_name(rep):
+    """Rows name the actors, so their ids are no longer in an answer to copy into `sourceID`: they were asked for
+    with `masterData` first, a query spent on nothing else."""
+    druid, evoker = rep.player("Scopidruid"), rep.player("Lïzårðmâñ")
+    assert _pulls('table(sourceID: $player(scopidruid), targetID: $player("Lïzårðmâñ"), fightIDs: [$fight(13)])',
+                  rep, "Sszorak") == f"table(sourceID: {druid.id}, targetID: {evoker.id}, fightIDs: [21])"
+    assert uses_report("events(sourceID: $player(Scopidruid))")
+    declared = "query($player: Int) { reportData { report(code: $code) { events(sourceID: $player) { data } } } }"
+    assert _pulls(declared, rep, None) == declared
+    for query, error in (("$player(Nobodyhere)", "no single player matching"), ("$player()", "takes a player's name"),
+                         ("$player", "takes a player's name")):
+        with pytest.raises(FactError, match=error):
+            _pulls(query, rep, None)
+
+
 @pytest.mark.parametrize("query, error", [
     ("$fight(99)", "Sszorak has pulls 1-33"),
     ("$at()", "takes a pull and a time"),
