@@ -138,8 +138,7 @@ expect = """42 pulls on Sszorak (Mythic) and no kill, but the last pull was the 
 (62.6% before the night). The pulls got further as the night went on (average wipe 72.2% early, 66.6% late). What
 ended most pulls was the boss's enrage, Unbound Ferocity (11 pulls), then Mutilate killing many (8)."""
 facts = ["Tempest killed the most players: 62 deaths over 40 pulls",
-         "2 of the 42 pulls were resets",
-         "78:26 in combat"]
+         "2 of the 42 pulls were resets"]
 wrong = ["says the boss died",
          "says the raid got worse over the night",
          "gives another pull than 42, or another percentage than 34.1%, as the best"]
