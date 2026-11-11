@@ -347,18 +347,51 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
                           "0:15.341 applydebuff: Sszorak → Tempest [1287083] → Dragepie",
                           "0:15.342 damage: Sszorak → Tempest [1287083] → Dragepie; 0 (334.76k absorbed)"]
     assert "0:16.980 damage: Sszorak → Tempest [1287083] → Sveini; 258.01k (35.23k absorbed, a tick)" in lines
-    # Tempest is one of the boss's own casts: its rows have them, so no line of the boss's casts follows
-    assert lines[-1] == "Ability ids: Tempest [1287072, 1287083]" and len(lines) == 3 + 26 + 1
+    # Tempest is one of the boss's own casts: its rows have them, so no line of the boss's casts follows, but the
+    # raid's answer to each cast does ("did we have cooldowns for it?"), from 10 s before the cast to 5 s after
+    assert lines[-3] == "Ability ids: Tempest [1287072, 1287083]" and len(lines) == 3 + 26 + 1 + 2
+    assert lines[-2:] == [
+        "Raid and healing cooldowns pressed around each Tempest cast, from 10 s before it to 5 s after (pull_timeline "
+        "without ability has every cooldown, with the deaths and the raid's damage taken):",
+        "  0:16: healing cooldowns Apotheosis (Namsus) 0:15"]
     assert asked == [("DamageTaken", [{"abilityID": 1287072}, {"abilityID": 1287083}])]
     # by or on one player; and a window with nothing of it
     on_one = (await fight.pull_timeline(rep, 13, "Sszorak", end="0:40", ability="Tempest",
                                         player="sveini")).splitlines()
     assert on_one[0].startswith("Sszorak pull 13 timeline, 0:00-0:40, only Tempest by or on Sveini (")
     assert ": 8 events in Sszorak pull 13" in on_one[1] and all(" → Sveini" in row for row in on_one[3:-1])
+    assert on_one[-1].startswith("Ability ids: ")  # one player's rows: the raid's cooldowns aren't what was asked
     # fewer than ten events, but several hits: their amounts are added up in code
     assert on_one[2].startswith("Counted: 5 damage (1.02M together, 520.87k more absorbed), 1 applydebuff, ")
     nothing = await fight.pull_timeline(rep, 13, "Sszorak", start="0:40", end="0:45", ability="Tempest")
     assert nothing.splitlines()[1:] == ["Nothing of Tempest is logged in this window."]
+
+
+async def test_the_cooldowns_around_a_boss_s_own_casts_say_none_and_skip_one_cast_too_often(recorded, monkeypatch):
+    """A healing answer said four Imbibes went "without a cooldown": the ability's rows showed only the boss, and the
+    cooldowns pressed for each cast were in the plain timeline it didn't read. A line per cast now follows the rows."""
+    t0 = 1_000_000
+
+    async def pressed(rep, f):
+        return [(t0 + at, kind, name, who) for at, kind, name, who in (
+            (49_900, "raid cooldown", "Darkness", "Dh"), (50_000, "healing cooldown", "Tranquility", "Dru"),
+            (58_000, "raid cooldown", "Rallying Cry", "War"), (65_900, "healing cooldown", "Revival", "Monk"),
+            (66_100, "healing cooldown", "Divine Hymn", "Pri"))]
+    monkeypatch.setattr(fight, "raid_cooldown_casts", pressed)
+    rep, f = await server.lib().report("KBYT4xXn7VNjDgh8"), {"id": 1, "startTime": t0}
+
+    def roars(*seconds):
+        return [fight.BossCast(t0 + s * 1000, "Roar", True, 1, 1) for s in seconds]
+    lines = await fight._covered(rep, f, [*roars(60, 120), fight.BossCast(t0 + 90_000, "Bite", True, 1, 1)],
+                                 {"Roar"}, t0, t0 + 200_000)
+    assert lines[0].startswith("Raid and healing cooldowns pressed around each Roar cast, from 10 s before it to 5 s ")
+    # from 10 s before the cast's second to 5 s after it; healing cooldowns first; a cast with none says so
+    assert lines[1:] == ["  1:00: healing cooldowns Tranquility (Dru) 0:50, Revival (Monk) 1:05; raid cooldowns "
+                         "Rallying Cry (War) 0:58", "  2:00: none"]
+    assert len(await fight._covered(rep, f, roars(60, 120), {"Roar"}, t0 + 100_000, t0 + 200_000)) == 2  # a window
+    assert await fight._covered(rep, f, roars(60, 120), {"Roar"}, t0, t0 + 30_000) == []  # none of its casts in it
+    # a cast every few seconds isn't something cooldowns are planned for: no lines
+    assert await fight._covered(rep, f, roars(*range(10, 140, 10)), {"Roar"}, t0, t0 + 200_000) == []
 
 
 async def test_a_timeline_of_an_ability_not_the_boss_s_own_ends_with_its_tracked_casts(recorded, monkeypatch):

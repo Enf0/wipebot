@@ -638,8 +638,9 @@ async def pull_timeline(pull: Pull = None, boss: Boss = None,
     together, 2.00M more absorbed)"), ability (by kind where it has several: "Wrath 25 (12 cast, 13 begincast)" is
     12 casts), source and target, and the first 150 rows (start/end for the rest).
     Of an ability: its casts by enemies or players, its hits on players, its debuff going on and off players, its
-    buff on the boss, and the deaths it dealt; then the boss's ◆ casts in the window, unless the boss casts it
-    itself. Of a player: every cast they and their pets began or finished, and their deaths.
+    buff on the boss, and the deaths it dealt; then the boss's ◆ casts in the window, or, of an ability the boss
+    casts itself, the raid and healing cooldowns pressed around each cast. Of a player: every cast they and their
+    pets began or finished, and their deaths.
     Not for who a mechanic hit most over a night (mechanic_hits) or a player's casts per spell (player_pull)."""
     return await fight.pull_timeline(await lib().report(report), pull, boss, start, end, ability, player)
 

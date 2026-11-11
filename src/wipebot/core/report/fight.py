@@ -58,6 +58,8 @@ NTH_ABILITY = re.compile(r" \(\d+\w\w ability\)$")  # "Ravage (2nd ability)": an
 DAMAGE_BUCKET_MS = 5_000  # raid damage taken is shown per this much time
 BOSS_HEALTH = 1000  # WCL's Resources graph: abilityID 1000 is health, 100 + a power type that power
 RAID_WIDE = 3  # a damage dealer's or tank's cooldown is a raid cooldown when it buffs or heals this many others
+COVER_BEFORE_MS, COVER_AFTER_MS = 10_000, 5_000  # a cooldown pressed this close to a boss's cast was pressed for it
+COVERED_CASTS = 12  # an ability the boss casts more often in the window has no cooldowns planned for each cast
 
 
 def boss_left(f: dict) -> str:
@@ -291,7 +293,9 @@ async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability
     pets began or finished, and their deaths, which a window with no cast after one names. What the plain timeline
     reads is in hand after it; an ability's hits are one more request, whatever number of ids it is logged under.
     After an ability's rows, the boss's ◆ casts in the window to read them against, unless the boss casts it itself
-    (`_against`): the enemies' casts are in hand, and Lorrgs' tracked casts are the plain timeline's."""
+    (`_against`): the enemies' casts are in hand, and Lorrgs' tracked casts are the plain timeline's. After the rows
+    of one the boss casts itself, the raid and healing cooldowns pressed around each cast (`_covered`), which the
+    plain timeline reads too."""
     p = rep.player(player) if player else None
     if p:
         rep.require_in(f, p)
@@ -307,7 +311,8 @@ async def _only(rep: Report, f: dict, lo: float, hi: float, window: str, ability
         events += [d for d in deaths if d.get("killingAbilityGameID") in ids]
         names = {rep.ability(i) for i in ids}
         name = " and ".join(sorted(names))
-        against = _against(f, casts, names, lo, hi, window)
+        against = _against(f, casts, names, lo, hi, window) or (
+            [] if p else await _covered(rep, f, casts, names, lo, hi))
         if p:
             events = [e for e in events if p.id in (rep.owner(e.get("sourceID", 0)), rep.owner(e.get("targetID", 0)))]
         only = f"{name} by or on {p.name}" if p else name
@@ -349,6 +354,28 @@ def _against(f: dict, casts: list[BossCast], names: set[str], lo: float, hi: flo
     return [f"The boss's {TRACKED_MARK} casts (those Lorrgs tracks) in this {'window' if window else 'pull'}, to read "
             "the rows against (pull_timeline without ability has all its casts, with the cooldowns and deaths): "
             + " · ".join(f"{name} {', '.join(times)}" for name, times in when.items())]
+
+
+async def _covered(rep: Report, f: dict, casts: list[BossCast], names: set[str], lo: float, hi: float) -> list[str]:
+    """The raid and healing cooldowns pressed around each of the boss's own casts of an ability from `lo` to `hi`, a
+    line per cast: "did we have cooldowns for it?" is asked of the ability, whose rows alone show only the boss.
+    None when the boss doesn't cast it there, or casts it too often for cooldowns to be planned on each cast."""
+    mine = sorted({c.at for c in casts if c.name in names and lo <= c.at <= hi})
+    if not mine or len(mine) > COVERED_CASTS:
+        return []
+    try:
+        pressed = await raid_cooldown_casts(rep, f)
+    except KnowledgeError as e:
+        return [unavailable("The raid and healing cooldowns around each cast", e)]
+    lines, t0 = [], f["startTime"]
+    for at in mine:  # `at` is the cast's second: the cast itself fell up to a second later
+        near = [c for c in pressed if at - COVER_BEFORE_MS <= c[0] < at + 1000 + COVER_AFTER_MS]
+        kinds = [f"{kind}s " + ", ".join(f"{name} ({who}) {clock(t - t0)}" for t, k, name, who in near if k == kind)
+                 for kind in ("healing cooldown", "raid cooldown") if any(k == kind for _, k, _, _ in near)]
+        lines.append(f"  {clock(at - t0)}: " + ("; ".join(kinds) or "none"))
+    return [f"Raid and healing cooldowns pressed around each {' and '.join(sorted(names))} cast, from "
+            f"{COVER_BEFORE_MS // 1000} s before it to {COVER_AFTER_MS // 1000} s after (pull_timeline without ability "
+            "has every cooldown, with the deaths and the raid's damage taken):", *lines]
 
 
 async def _run(source, what: str, rep: Report, f: dict) -> Found:
