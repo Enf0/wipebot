@@ -28,6 +28,7 @@ def plugin_files(name: str, guild: str, mcp_url: str) -> dict[str, bytes]:
              if f.is_file() and f.name.endswith(".md")}
     manifest = _filled("plugin.json", name, guild, mcp_url)
     files["README.md"] = _filled("README.md", name, guild, mcp_url).encode()
+    files["assets/icon.png"] = resources.files(__package__).joinpath("icon.png").read_bytes()  # ChatGPT's and Codex's
     # The server for ChatGPT desktop and Codex, which read it from mcp.json when the root plugin.json is there, and
     # reject a server with any key beyond `type`, `url` and `headers` (codex-rs, 23 October 2026; the docs'
     # `extensions` sign-in settings drop it): they find the sign-in from the server's own OAuth metadata.
@@ -63,7 +64,8 @@ def _portable(name: str, guild: str, mcp_url: str, version: str) -> bytes:
                                "reports from Warcraft Logs and computes every number in code; the raid-log-analysis "
                                "skill says how to read them. Sign in with your Warcraft Logs account.",
             "developerName": name, "category": CATEGORY, "capabilities": ["Read", "Write"], "websiteURL": site,
-            "privacyPolicyURL": f"{site}/privacy", "defaultPrompt": PROMPTS}}}})
+            "privacyPolicyURL": f"{site}/privacy", "defaultPrompt": PROMPTS,
+            "composerIcon": "./assets/icon.png", "logo": "./assets/icon.png"}}}})
 
 
 def _json(data: dict) -> bytes:
