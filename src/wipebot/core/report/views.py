@@ -35,16 +35,19 @@ from .build import hero_of
 from .casting import alive, cast_counts, casting, raid_pauses, without
 from .coaching import (
     BEST_MIN_S,
+    LOST_MIN_S,
     OPENER_SHARE,
+    TimeLost,
     best_pulls,
     dead_spans,
+    death_note,
     night_cooldowns,
     night_pulls,
     night_trend,
     resource_use,
     time_lost,
 )
-from .cooldowns import DAMAGE_COOLDOWN, NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
+from .cooldowns import NOT_ON_COOLDOWN, came_back, cooldown_use, prepull
 from .deaths import (
     BURST_MS,
     NOT_ENOUGH,
@@ -64,7 +67,7 @@ from .ending import (
     KeptBuff,
     MassDeath,
     kind_of_end,
-    mass_death_of,
+    mass_death,
     pull_ending,
     pull_endings,
 )
@@ -239,68 +242,16 @@ async def _best(rep: Report, f: dict) -> dict | None:
 
 
 CASTS_SHOWN = 12  # a player's most cast spells in their view
-GAPS_SHARE = 0.05  # casting gaps over this share of their time until the wipe was decided are worth fixing
-STEADY_SHARE = 0.02  # under this share, worth saying they kept casting
-CAPPED_SHARE = 0.10  # their resource capped over this share of it more than top players' (when read)
-NOTES = 2  # things that went well, and things to fix, on a player's card
-
-
-def player_notes(out: dict) -> dict[str, list[str]]:
-    """What went well and what to fix on a player's pull, at most NOTES of each, the weightiest first, from the
-    player view's facts: a death before the wipe was decided (not one in a hit killing many: that hit wiped the
-    raid, whoever's job it was to stop it), casting gaps, a capped resource, a damage cooldown that came back and
-    wasn't used, their parse on a kill, their rank in their role.
-
-    What the tool's text doesn't judge, the card doesn't either. A cooldown is never judged by its uses against
-    possible uses (one held for a burst window is right even when it costs a use), only named by the moment it came
-    back unused, and only one Lorrgs tags a damage cooldown: a raid cooldown's use is someone's call the log doesn't
-    show, and an untagged spell isn't pressed on cooldown. Where a wipe stands among ranked kills is no praise (a
-    short pull runs high), and for a healer no fault (healing on a wipe is capped by the damage taken); for a damage
-    dealer, below the lowest of them is."""
-    good: list[tuple[float, str]] = []
-    fix: list[tuple[float, str]] = []
-    lost, o, s = out["lost"], out["output"], out["standing"]
-    until_s = max(lost["until_ms"] / 1000, 1)
-    died = next((d for d in out["died"] if not d["fallout"] and not d.get("with")), None)
-    if died:
-        to = "" if died["by"] == NO_KILLING_BLOW else f" to {died['by']}"
-        fix.append((100, f"Died at {clock(died['ms'])}{to}, before the wipe was decided"))
-    # Top players meet the same fight: only time at the cap beyond theirs is gain lost.
-    share = lost["capped_s"] / until_s
-    top = against.get("capped") if isinstance(against := out.get("top"), dict) else None
-    if share - (top or 0) >= CAPPED_SHARE:
-        fix.append((60 * (share - (top or 0)), f"{lost['resource']} capped for {round(lost['capped_s'])} s "
-                    f"({round(100 * share)}%" + (f"; top players {round(100 * top)}%)" if top is not None else ")")))
-    if lost["gaps_s"] >= GAPS_SHARE * until_s:
-        share = lost["gaps_s"] / until_s
-        fix.append((80 * share, f"{round(lost['gaps_s'])} s without casting ({round(100 * share)}%)"))
-    elif lost["gaps_s"] < STEADY_SHARE * until_s and not died:
-        good.append((30, "Never stopped casting" if lost["gaps_s"] < 1
-                     else f"Kept casting: {round(lost['gaps_s'])} s of gaps in {clock(lost['until_ms'])}"))
-    for c in out["cooldowns"]:  # the longer it sat ready, the weightier
-        if c.get("dps") and not c["raid"] and (ready := c.get("ready_ms")) is not None:
-            fix.append((25 * max(lost["until_ms"] - ready, 0) / (1000 * until_s),
-                        f"{c['name']} ready again at {clock(ready)}, not used"))
-    if s and s["kind"] == "parse":
-        if s["percentile"] >= 75:
-            good.append((40, f"{ordinal(s['percentile'])} percentile parse"))
-        elif s["percentile"] < 25:
-            fix.append((30, f"{ordinal(s['percentile'])} percentile parse"))
-    elif s and s["kind"] == "kills" and s["exact"] and o and o["what"] != "healing":
-        if all(s["mine"] < v for _, v in s["points"]) and s["points"][-1][0].startswith("25th"):
-            fix.append((30, f"Below the {s['points'][-1][0]} of ranked kills"))
-    if o and o["rank"] == 1 and o["of"] > 1:
-        good.append((35, f"Most {o['what']} of the {o['of']} {o['role']}"))
-    pick = lambda xs: [t for _, t in sorted(xs, key=lambda x: -x[0])[:NOTES]]  # noqa: E731
-    return {"good": pick(good), "fix": pick(fix)}
 
 
 async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> dict:  # noqa: PLR0915
     """One player on one pull, as player_pull states it: their output and rank in their role, where it stands
     among the spec's ranked kills (a wipe, with why that proves little by itself) or their parse (a kill), the time
-    they lost, when they cast, sat at their resource's cap or were dead, their major cooldowns against possible uses
-    and when one came back unused, their casts; with `top`, their casts per minute against top players of their
-    spec (compare_with_top's casts)."""
+    they lost as its "Time lost" line lists it, each death with what its "Died" line notes of it, when they cast,
+    sat at their resource's cap or were dead, their major cooldowns against possible uses and when one came back
+    unused, their casts; with `top`, their casts per minute against top players of their spec (compare_with_top's
+    casts) in their place. The card judges nothing the text doesn't: no note of its own on what went well or what
+    to fix."""
     p = rep.player(player)
     rep.require_in(f, p)
     p = rep.in_pull(f, p)
@@ -314,8 +265,8 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
     flow = casting(events, alive_until, [d["timestamp"] for d in own])
     flow.gaps = without(flow.gaps, [(a, min(b, alive_until)) for a, b in pauses if a < alive_until])
     what = "healing" if p.role == "healer" else "damage"
-    decided, ended, table, (_, resource, capped), early, (boss, found) = await asyncio.gather(
-        rep.decided_at(f), pull_ending(rep, f), rep.table(f["id"], "Healing" if what == "healing" else "DamageDone"),
+    decided, table, (_, resource, capped), early, (boss, found) = await asyncio.gather(
+        rep.decided_at(f), rep.table(f["id"], "Healing" if what == "healing" else "DamageDone"),
         resource_use(rep, f, p, casts, alive_s, alive_until), prepull(rep, [f], p), boss_casts(rep, f))
     try:
         hero = await hero_of(rep, p, det)
@@ -364,15 +315,14 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
                    "color": class_hex(p.class_name), "role": p.role, "hero": hero, "ilvl": det.get("maxItemLevel")},
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
         "output": output, "standing": standing,
-        "lost": {"until_ms": round(lost.until_ms), "dead_s": round(lost.dead_s, 1), "gaps_s": round(lost.gaps_s, 1),
-                 "capped_s": round(lost.capped_s, 1), "resource": resource},
+        # the "Time lost" line's costs, biggest first, in its numbers: [seconds, what, share of the time]
+        "lost": {"until_ms": round(lost.until_ms), "resource": resource,
+                 "costs": [[f"{sec:.0f}", cost.partition(" (")[0], f"{100 * sec / max(lost.until_ms / 1000, 1):.0f}%"]
+                           for sec, cost in lost.costs() if sec >= LOST_MIN_S]},
         "alive_s": round(alive_s), "alive_until_ms": round(alive_until - t0),
         "gaps": span(flow.gaps), "capped": span(capped), "dead": span(dead_spans(f, own, casts)),
-        "died": [{"ms": round(d["timestamp"] - t0), "by": (by := rep.ability(d.get("killingAbilityGameID"))),
-                  "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms),
-                  "with": m.killed if (m := mass_death_of(ended, d["timestamp"] - t0, by)) else 0} for d in own],
+        "died": await _died(rep, f, own),
         "cooldowns": [{"name": sp["name"], "uses": [round(t) for t in times], "possible": possible,
-                       "raid": "raid_cd" in (sp.get("tags") or []), "dps": DAMAGE_COOLDOWN in (sp.get("tags") or []),
                        "ready_ms": unused_from(sp, times, possible), "icon": icon(sp.get("spell_id"))}
                       for sp, times, possible in rows if not NOT_ON_COOLDOWN & set(sp.get("tags") or [])],
         "casts": [{"name": n, "n": k, "per_min": round(60 * k / max(alive_s, 1), 1), "icon": icon(ids.get(n))}
@@ -384,9 +334,19 @@ async def player_view(rep: Report, f: dict, player: str, top: bool = False) -> d
     }
     if top:
         out["top"] = await _against_top(rep, f, p, ids)
-    out["notes"] = player_notes(out)
-    out["headline"] = player_headline(out)
+        if isinstance(out["top"], dict):
+            out["casts"] = []  # the comparison is drawn in their place
+    out["headline"] = player_headline(out, lost)
     return out
+
+
+async def _died(rep: Report, f: dict, own: list[dict]) -> list[dict]:
+    """A player's deaths on a pull, each with what player_pull's "Died" line notes of it in its brackets
+    (coaching.death_note: nothing on a kill or a wipe never decided) and the two facts that note stands on."""
+    t0, decided = f["startTime"], await rep.decided_at(f)
+    return [{"ms": round(d["timestamp"] - t0), "by": rep.ability(d.get("killingAbilityGameID")),
+             "note": await death_note(rep, f, d), "fallout": bool(decided and d["timestamp"] - t0 > decided.at_ms),
+             "mass": bool(await mass_death(rep, f, d))} for d in own]
 
 
 async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | str:
@@ -401,10 +361,7 @@ async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | s
                        else round(r.median, 1), "low": r.low and round(r.low, 1), "high": r.high and round(r.high, 1),
                        "flag": r.flag} for r in c.rates],
             "total": [round(sum(v or 0 for v in c.my_cpm.values())),
-                      round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))],
-            # the share of their kill the top players' resource sat at its cap, median (None: not read)
-            "capped": statistics.median(capped) if (capped := [x.capped for x in c.found if x.capped is not None])
-            else None}
+                      round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))]}
 
 
 async def player_night_view(rep: Report, boss: str, player: str) -> dict:
@@ -1263,8 +1220,8 @@ def icons(data: object) -> set[str]:
 
 def _headline(text: str, kind: str = "") -> dict:
     """A card's headline: one sentence of what the view's tool states, written here so that no card and no model
-    words it. `kind` is the mark it is drawn with, as a card's notes are (kit.notes): "good" what went well, "fix"
-    what to do differently, "mind" what changes how the rest reads; "" a plain fact."""
+    words it. `kind` is the mark it is drawn with (kit.js MARK): "good" what went well, "fix" what to do
+    differently, "mind" what changes how the rest reads; "" a plain fact."""
     return {"text": text, "kind": kind}
 
 
@@ -1356,14 +1313,21 @@ def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
     return _headline(f"{plural(len(rows), 'pull')}: {'; '.join(counts)}.")  # one of them has a comma of its own
 
 
-def player_headline(out: dict) -> dict:
-    """A player's pull in one sentence: the weightiest of what to fix (player_notes), else of what went well, else
-    their output and rank as player_pull states them."""
-    notes = out["notes"]
-    if notes["fix"]:
-        return _headline(notes["fix"][0] + ".", "fix")
-    if notes["good"]:
-        return _headline(notes["good"][0] + ".", "good")
+def player_headline(out: dict, lost: TimeLost) -> dict:
+    """A player's pull in one sentence of player_pull's own: their first death that its "Died" line counts as theirs
+    (not after the wipe was decided, not one of a hit killing many), in that line's words, with the time dead as
+    its "Time lost" line states it; else their output and rank, its first line. No verdict, and nothing weighed by
+    the card: the text does neither."""
+    died = next((d for d in out["died"] if not d["fallout"] and not d["mass"]), None)
+    if died:
+        head = f"Died at {clock(died['ms'])}" + ("" if died["by"] == NO_KILLING_BLOW else f" to {died['by']}")
+        if died["note"]:  # "before the wipe was decided": said only where the text says it
+            head += f", {died['note']} at {clock(lost.until_ms)}"
+        if lost.dead_s < LOST_MIN_S:
+            return _headline(f"{head}.")
+        window, of = lost.until_ms / 1000, "those" if lost.decided else "the pull's"
+        return _headline(f"{head}: dead for {lost.dead_s:.0f} of {of} {int(window)} s "
+                         f"({100 * lost.dead_s / max(window, 1):.0f}%).")
     o = out["output"]
     if not o:
         return _headline(f"No output logged in {clock(out['duration_ms'])}.")

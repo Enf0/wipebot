@@ -90,14 +90,12 @@ const kit = (() => {
     }
     return [out, y];
   }
-  // A card's notes, marked the same in every view: "+" what went well, "−" what to do differently, "!" what changes
-  // how the rest reads. [[kind, text]], kind one of good, fix, mind
+  // A headline's mark, the same in every view: "+" what went well, "−" what to do differently, "!" what changes how
+  // the rest reads
   const MARK = { good: "+", fix: "−", mind: "!" };
-  const notes = (items) => !items.length ? "" : `<ul class="notes">${items.map(([kind, s]) =>
-    `<li class="${kind}"><span class="mk">${MARK[kind]}</span>${esc(s)}</li>`).join("")}</ul>`;
   // A view's card, the same shape in every view: its head, one headline (a sentence the server wrote from the tool's
-  // facts, views.py's "headline": the card words nothing itself; marked as a note is where it says what went well or
-  // what to do differently), at most CARD.stats numbers, one chart of about CARD.chart px, and at most CARD.buttons
+  // facts, views.py's "headline": the card words nothing itself; marked where it says what went well or what
+  // to do differently), at most CARD.stats numbers, one chart of about CARD.chart px, and at most CARD.buttons
   // buttons: `open` ("Open pull": the same card in fullscreen, with more under it) first, where the host has a
   // fullscreen, then the view's own ([id, label]). Fullscreen draws the same card without `open`; a still picture
   // has no buttons. `url` (the server's, to the pull or the report on Warcraft Logs) is the card's way out, a link
@@ -248,7 +246,7 @@ const kit = (() => {
   });
   document.addEventListener("focusout", hide);
 
-  return { esc, clock, short, exact, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, notes, legend, opens, fit, numbered,
+  return { esc, clock, short, exact, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, legend, opens, fit, numbered,
            CARD, card, press, frame, watch, looking, step, hatch };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open, asked), drawn into root

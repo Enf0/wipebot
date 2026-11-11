@@ -27,6 +27,7 @@ from wipebot.core.classes import CLASS_COLORS, WHITE
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, maps, views
 from wipebot.core.report import note as notes
+from wipebot.core.report.coaching import TimeLost, time_lost
 from wipebot.core.report.ending import EndCast, Ending, HalfDead, KeptBuff, LeadIn, MassDeath, mass_death_of
 from wipebot.core.text import clock, plural, short
 
@@ -1763,13 +1764,22 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
     out, lost = data["output"], data["lost"]
     per_s = f"{kit_short(out['per_s_alive'])}/s over the {data['alive_s']} s alive)"
     assert f"{per_s}, rank {out['rank']} of {out['of']} {out['role']}" in text
-    assert f"dead (no output at all) {lost['dead_s']:.0f} s" in text and f"casting gaps (no cast begun) " \
-                                                                       f"{lost['gaps_s']:.0f} s" in text
-    assert f"Died: {clock(data['died'][0]['ms'])} to {data['died'][0]['by']}" in text
+    # the time lost is the "Time lost" line's own: its costs in its order, seconds and shares, its caveats left out
+    line = next(x for x in text.splitlines() if x.startswith("Time lost"))
+    assert re.findall(r"(?:: |, )(\D+?) \([^)]*\) (\d+) s \((\d+%)\)", line) == [
+        (what, sec, share) for sec, what, share in lost["costs"]] and len(lost["costs"]) == 3
+    head = re.search(r"^Time lost until ([\d:]+), when the wipe was decided, .* of those (\d+) s:", line)
+    assert head
+    until, window = head.groups()
+    died = data["died"][0]
+    assert f"Died: {clock(died['ms'])} to {died['by']} ({died['note']})" in text
     # alive 53 s of the pull: an opener is placed among no kills, on the card as in the text
     assert data["standing"] is None and "against kills: not compared" in text
-    assert data["headline"] == {"text": data["notes"]["fix"][0] + ".", "kind": "fix"}  # the weightiest thing to fix
-    assert not [n for n in data["notes"]["good"] + data["notes"]["fix"] if "percentile" in n or "used" in n]
+    # the card leads with the death the text counts as theirs, in the text's words and numbers, and judges nothing
+    assert died["note"] == "before the wipe was decided" and lost["costs"][0][1] == "dead"
+    assert data["headline"] == {"kind": "", "text": f"Died at {clock(died['ms'])}, {died['note']} at {until}: dead "
+                                f"for {lost['costs'][0][0]} of those {window} s ({lost['costs'][0][2]})."}
+    assert "notes" not in data
     for cd in data["cooldowns"]:  # as player_pull lists them: uses / possible at their times
         uses = f"{len(cd['uses'])}/{cd['possible']}" + (" at " + ", ".join(clock(t) for t in cd["uses"])
                                                          if cd["uses"] else "")
@@ -1782,7 +1792,8 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
     # one spell, one rate: the card's own list of casts says what the comparison says of every spell in both (a
     # rogue's Mutilate, logged under an id for each hand, was 53.0 a minute in the list and 27.1 in the comparison)
     mine = {r["name"]: r["mine"] for r in data["top"]["rates"]}
-    both = {c["name"]: (c["per_min"], mine[c["name"]]) for c in data["casts"] if c["name"] in mine}
+    assert data["casts"] == []  # with the comparison its own list isn't drawn, and isn't sent
+    both = {c["name"]: (c["per_min"], mine[c["name"]]) for c in (await player_data())["casts"] if c["name"] in mine}
     assert len(both) >= 8 and both["Mutilate"] == (27.1, 27.1) and all(a == b for a, b in both.values()), both
     # alive for 53 s: Ambush (3.1 a minute at the top's median) is a spell to have pressed, Sprint and Vanish aren't
     flags = {r["name"]: r["flag"] for r in data["top"]["rates"]}
@@ -1793,8 +1804,9 @@ async def test_the_player_view_states_what_player_pull_and_compare_with_top_stat
 
 async def test_a_cooldowns_moment_on_the_card_is_the_moment_player_pull_says_it_came_back(local, monkeypatch):
     """On the recorded healer's pull, with their casts cut to the first use of each cooldown: player_pull says when
-    each came back unused, and the card names that moment for the damage cooldown alone (Divine Toll: Avenging Wrath
-    is a raid cooldown, whose use is someone's call). The healer's standing carries both of the text's caveats."""
+    each came back unused, and the card lists that moment for each as the text does. No cooldown leads the card,
+    whenever it came back: the card weighs none, as the text weighs none. The healer's standing carries both of the
+    text's caveats."""
     from wipebot.core.report import cooldowns
     use = cooldowns.cooldown_use
 
@@ -1818,9 +1830,11 @@ async def test_a_cooldowns_moment_on_the_card_is_the_moment_player_pull_says_it_
             assert line[1] == "", name
         else:
             assert re.fullmatch(rf" \(ready again at {clock(ready)}\b.*, unused\)", line[1]), (name, line[1])
-    assert data["notes"]["fix"][0] == f"Divine Toll ready again at {clock(back['Divine Toll'])}, not used"
-    assert data["headline"] == {"text": data["notes"]["fix"][0] + ".", "kind": "fix"}
-    assert not [n for n in data["notes"]["fix"] if "Avenging Wrath" in n or "Aura Mastery" in n]
+    out = data["output"]
+    assert "notes" not in data and data["headline"] == {"kind": "", "text": (
+        f"{kit_short(out['per_s_alive'])} healing per second over the {data['alive_s']} s alive, rank {out['rank']} of "
+        f"{out['of']} healers by total.")}
+    assert f"{kit_short(out['per_s_alive'])}/s over the {data['alive_s']} s alive), rank {out['rank']} of" in text
     assert data["standing"]["caveat"] == f"{views.SHORT_PULL} {views.CAPPED_HEALING}"
     assert data["standing"]["caveat"] in text
 
@@ -1867,21 +1881,22 @@ def made_up_player(top: bool) -> dict:
         "standing": {"kind": "kills", "n": 900, "exact": False, "mine": 290_000,
                      "points": [["100th best", 360_000], ["500th best", 320_000], ["900th best", 250_000]],
                      "caveat": f"{views.SHORT_PULL} {views.CAPPED_HEALING}"},
-        "lost": {"until_ms": 140000, "dead_s": 0.0, "gaps_s": 4.0, "capped_s": 0.0, "resource": ""},
+        "lost": {"until_ms": 140000, "resource": "", "costs": [["4", "casting gaps", "3%"]]},
         "alive_s": 143, "alive_until_ms": 143000, "gaps": [[100000, 104000]], "capped": [], "dead": [[143000, 150000]],
-        "died": [{"ms": 143000, "by": "Molten Fury", "fallout": True}],
+        "died": [{"ms": 143000, "by": "Molten Fury", "note": "after the wipe was decided at 2:20: fallout",
+                  "fallout": True, "mass": False}],
         "cooldowns": [{"name": "Ascendance", "uses": [60000], "possible": 1, "icon": "spells/114052.jpg"},
                       {"name": "Spirit Link Totem", "uses": [], "possible": 1, "icon": "spells/98008.jpg"}],
         "casts": [{"name": "Chain Heal", "n": 30, "per_min": 12.6}, {"name": "Riptide", "n": 25, "per_min": 10.5}],
         "phases": [{"ms": 0, "id": 1}],
         "tracked": [{"ms": 30000, "name": "Slag Wave"}, {"ms": 90000, "name": "Slag Wave"}],
         "top": {"hero": "Totemic", "same_hero": True, "parses": 5, "total": [40, 46],
-                "rates": [{"name": "Chain Heal", "mine": 12.6, "median": 17.0, "low": 15.0, "high": 19.0, "flag": ""},
+                "rates": [{"name": "Riptide", "mine": 10.5, "median": 11.0, "low": 9.0, "high": 13.0, "flag": ""},
+                          {"name": "Chain Heal", "mine": 12.6, "median": 17.0, "low": 15.0, "high": 19.0, "flag": ""},
                           {"name": "Astral Shift", "mine": 0.0, "median": 0.4, "low": 0.0, "high": 0.6,
                            "flag": "never cast"}]} if top else None,
     }
-    made["notes"] = views.player_notes(made)
-    return made | {"headline": views.player_headline(made)}
+    return made | {"headline": views.player_headline(made, TimeLost(140000, True, 0.0, 4.0, 0.0, ""))}
 
 
 def made_up_night() -> dict:
@@ -1947,6 +1962,23 @@ async def test_the_player_view_draws_and_asks_for_the_top_on_a_click(made_up, tm
              and m["msg"]["params"]["name"] == "view_data"]
     assert [c.get("top") for c in calls] == [False, True]  # the comparison read only when asked for
     assert "Astral Shift" in clicked.text and "0.0 / 0.4" in clicked.text
+
+
+async def test_the_comparison_on_the_card_marks_only_what_its_text_flags_in_the_texts_order(made_up):
+    """compare_with_top flags a spell never cast, cast far fewer or far more, and refuses "far more" for one cast
+    once in a short life. The card once ranked its rows by a difference of its own (Chain Heal, under the top's
+    range, above Riptide) and drew such a dot in orange as "outside their range", a mark the text never makes: the
+    flagged spells come first, the others in the text's order, in the player's colour."""
+    key = {"view": "player", "report": "AbCdEfGh12345678", "pull": 4, "boss": "Torvek's Forge", "player": "Mirelle",
+           "top": True}
+    result = {"content": [{"type": "text", "text": "Mirelle against the top"}], "structuredContent": key}
+    async with drawn("compare_with_top", {"player": "Mirelle"}, result=result) as (view, errors):
+        words = await view.evaluate("() => [...document.querySelectorAll('svg text')].map((t) => t.textContent)")
+        text = "|".join(words)
+        marked = await view.evaluate("() => document.querySelectorAll('circle[fill=\"var(--decided)\"]').length")
+    assert not errors and not marked and "outside their range" not in text
+    assert text.index("Astral Shift") < text.index("Riptide") < text.index("Chain Heal")
+    assert "flagged spells first" in text and "never cast or far off" in text and "biggest differences" not in text
 
 
 async def test_the_player_night_view_draws_and_a_pulls_row_opens_that_pull(made_up, tmp_path, monkeypatch):
@@ -2173,40 +2205,65 @@ def test_the_replay_reads_the_tracks_as_they_were_packed():
     assert got[4] == got[5] == got[6] == [40, 20, maps.DEAD_FACING]  # dead where they fell, not moving
 
 
-def _facts(**over) -> dict:
-    """A player view's facts that player_notes reads: a steady 3:00 until the wipe was decided, nothing wrong."""
-    facts = {"lost": {"until_ms": 180000, "dead_s": 0, "gaps_s": 2, "capped_s": 0, "resource": "Energy"},
-             "output": {"what": "damage", "rank": 4, "of": 14, "role": "damage dealers"}, "standing": None,
-             "died": [], "cooldowns": [{"name": "Deathmark", "uses": [1000, 121000], "possible": 2, "raid": False}]}
-    return facts | over
+def test_the_players_card_has_no_judge_of_its_own():
+    """The card once picked "what went well" and "to fix" by thresholds no tool's text has (gaps over 5% of the
+    time, a cap 10% beyond top players', a parse over the 75th percentile), so it could fault what the answer above
+    it did not. It states player_pull's facts and weighs none."""
+    for gone in ("player_notes", "GAPS_SHARE", "STEADY_SHARE", "CAPPED_SHARE", "NOTES"):
+        assert not hasattr(views, gone), gone
+    page = resources.files("wipebot.core").joinpath("app/player.js").read_text(encoding="utf-8")
+    assert "D.notes" not in page and "outside their range" not in page
 
 
-def test_a_players_notes_put_the_weightiest_first_and_judge_no_cooldown_by_its_count():
-    """Every cooldown used as often as it could be is no praise, and one used less no fault: a count can't tell a
-    cooldown held for a burst window from one forgotten (the card once said "Vanish: used 0 of the 1 times it was
-    ready" of a rogue who began the pull in Stealth)."""
-    assert views.player_notes(_facts()) == {"good": ["Kept casting: 2 s of gaps in 3:00"], "fix": []}
-    worse = _facts(died=[{"ms": 95000, "by": "Toxic Fumes", "fallout": False}],
-                   lost={"until_ms": 180000, "dead_s": 85, "gaps_s": 20, "capped_s": 40, "resource": "Energy"},
-                   cooldowns=[{"name": "Darkness", "uses": [], "possible": 3, "raid": True},
-                              {"name": "Deathmark", "uses": [], "possible": 2, "raid": False, "dps": True,
-                               "ready_ms": None}])
-    assert views.player_notes(worse) == {"good": [], "fix": ["Died at 1:35 to Toxic Fumes, before the wipe was decided",
-                                                             "Energy capped for 40 s (22%)"]}
-    after = _facts(died=[{"ms": 185000, "by": "Toxic Fumes", "fallout": True}],  # fallout isn't theirs to fix
-                   output={"what": "healing", "rank": 1, "of": 4, "role": "healers"},
-                   standing={"kind": "parse", "percentile": 81})
-    assert views.player_notes(after)["good"] == ["81st percentile parse", "Most healing of the 4 healers"]
-    wiped = _facts(died=[{"ms": 95000, "by": "Visceral Burst", "fallout": False, "with": 4}])  # one hit killing many
-    assert views.player_notes(wiped)["fix"] == []
+def _died(ms: int, by: str = "Toxic Fumes", note: str = "", fallout: bool = False, mass: bool = False) -> dict:
+    return {"ms": ms, "by": by, "note": note, "fallout": fallout, "mass": mass}
 
 
-def test_time_at_the_cap_is_a_fix_only_beyond_top_players():
-    capped = _facts(lost={"until_ms": 180000, "dead_s": 0, "gaps_s": 2, "capped_s": 36, "resource": "Fury"})
-    assert views.player_notes(capped)["fix"] == ["Fury capped for 36 s (20%)"]  # without top players: their share
-    assert views.player_notes(capped | {"top": {"capped": 0.18}})["fix"] == []  # the top cap as much: the fight's
-    less = capped | {"top": {"capped": 0.05}}
-    assert views.player_notes(less)["fix"] == ["Fury capped for 36 s (20%; top players 5%)"]
+def test_a_players_headline_is_the_death_the_text_counts_as_theirs_else_their_output():
+    """ "Before the wipe was decided" is said only where player_pull's "Died" line says it: the card once said it of
+    a death on a kill, and of one on a wipe that was never decided."""
+    out = {"output": {"what": "damage", "rank": 4, "of": 14, "role": "damage dealers", "per_s_alive": 248_000},
+           "alive_s": 160, "duration_ms": 300_000}
+    said = lambda died, lost: views.player_headline(out | {"died": died}, lost)["text"]  # noqa: E731
+    wipe = TimeLost(180_000, True, 85.0, 20.0, 40.0, "Energy")
+    assert said([_died(95_000, note="before the wipe was decided")], wipe) == (
+        "Died at 1:35 to Toxic Fumes, before the wipe was decided at 3:00: dead for 85 of those 180 s (47%).")
+    kill = TimeLost(300_000, False, 39.0, 3.0, 0.0, "Energy")
+    assert said([_died(261_000, "Mutilate")], kill) == (
+        "Died at 4:21 to Mutilate: dead for 39 of the pull's 300 s (13%).")
+    assert said([_died(299_500, "Mutilate")], TimeLost(300_000, False, 0.5, 3.0, 0.0, "Energy")) == (
+        "Died at 4:59 to Mutilate.")
+    assert said([_died(95_000, views.NO_KILLING_BLOW, "before the wipe was decided")], wipe).startswith(
+        "Died at 1:35, before the wipe was decided at 3:00: ")
+    # fallout and a hit killing many aren't theirs: neither leads, and no gap, cap or cooldown does in their place
+    plain = "248.00k damage per second over the 160 s alive, rank 4 of 14 damage dealers by total."
+    assert said([_died(185_000, note="after the wipe was decided at 3:00: fallout", fallout=True)], wipe) == plain
+    assert said([_died(95_000, "Visceral Burst", "one of 4 killed at once from 1:35, a hit killing many: the raid's "
+                       "to stop, not counted as theirs", mass=True)], wipe) == plain
+    assert said([], wipe) == plain
+    assert views.player_headline({"died": [], "output": None, "duration_ms": 45_000}, wipe)["text"] == (
+        "No output logged in 0:45.")
+    assert all(views.player_headline(out | {"died": d}, wipe)["kind"] == "" for d in ([], [_died(95_000)]))
+
+
+async def test_a_death_on_a_recorded_kill_is_not_said_to_be_before_a_wipe_was_decided(recorded):
+    """Nymrissa's kill, on which two players died: player_pull's "Died" line notes nothing of a death on a kill, so
+    the card's deaths carry no note and its headline speaks of the pull, not of a wipe."""
+    rep = await server.lib().report("GM8XdBHaqpFgxK9Q")
+    f = next(f for f in rep.by_boss["Nymrissa Wavecaller"] if f["kill"])
+    deaths = await rep.deaths(f)
+    assert len(deaths) == 2
+    for d in deaths:
+        own = [d]
+        died = await views._died(rep, f, own)
+        assert died == [{"ms": round(d["timestamp"] - f["startTime"]), "by": rep.ability(d["killingAbilityGameID"]),
+                         "note": "", "fallout": False, "mass": False}]
+        lost = time_lost(f, own, [], [], "", [], await rep.decided_at(f))  # as player_pull counts the time dead
+        head = views.player_headline({"died": died, "output": None, "duration_ms": 0}, lost)["text"]
+        length = int((f["endTime"] - f["startTime"]) / 1000)
+        assert head == (f"Died at {clock(died[0]['ms'])} to {died[0]['by']}: dead for {lost.dead_s:.0f} of the pull's "
+                        f"{length} s ({100 * lost.dead_s * 1000 / (f['endTime'] - f['startTime']):.0f}%).")
+        assert "wipe" not in head and not lost.decided
 
 
 def test_a_death_in_a_hit_killing_many_is_one_of_that_hit():
@@ -2284,16 +2341,6 @@ def test_a_damage_cooldown_never_pressed_is_never_cast_however_short_the_life():
                                                "Tricks of the Trade": top.NOT_DUE}
 
 
-def test_a_cooldown_is_noted_as_the_moment_it_came_back_unused_and_only_a_damage_cooldown():
-    """What the tool's text says of a cooldown used less than it could be is when it came back ("ready again at
-    2:07, unused"): the card says that moment, for a cooldown Lorrgs tags a damage cooldown, and nothing of one never
-    used, an untagged spell or a raid cooldown."""
-    back = {"name": "Deathmark", "uses": [7000], "possible": 2, "raid": False, "dps": True, "ready_ms": 127000}
-    assert views.player_notes(_facts(cooldowns=[back]))["fix"] == ["Deathmark ready again at 2:07, not used"]
-    for quiet in (back | {"uses": [], "ready_ms": None}, back | {"dps": False}, back | {"raid": True}):
-        assert views.player_notes(_facts(cooldowns=[quiet]))["fix"] == []
-
-
 def test_a_cooldown_came_back_unused_only_while_alive_and_before_the_wipe_was_decided():
     from wipebot.core.report import cooldowns
     f = {"startTime": 1_000_000, "endTime": 1_180_000}
@@ -2303,21 +2350,6 @@ def test_a_cooldown_came_back_unused_only_while_alive_and_before_the_wipe_was_de
     assert cooldowns.came_back(f, deathmark, [7000.0], 2, end, 1_120_000) is None  # after the wipe was decided
     assert cooldowns.came_back(f, deathmark, [], 1, end, end) is None  # never used: nothing came back
     assert cooldowns.came_back(f, deathmark, [7000.0, 130000.0], 2, end, end) is None  # as often as it could be
-
-
-def test_where_a_wipe_stands_among_kills_is_no_praise_and_no_fault_of_a_healers():
-    """A rogue dead for 100 of 152 s was told "Above the 90th percentile of ranked kills", and a healer on the same
-    wipe "Below the 25th": the text says under both that a short pull runs high, and of the healer that healing on a
-    wipe is capped by the damage taken. The card now praises no wipe by it and faults no healer; a damage dealer
-    below the lowest of the kills still is."""
-    points = [["90th percentile", 234_760], ["75th percentile", 232_040], ["50th percentile", 214_900],
-              ["25th percentile", 199_770]]
-    above = {"kind": "kills", "n": 42, "exact": True, "mine": 247_820, "points": points}
-    assert views.player_notes(_facts(standing=above))["good"] == ["Kept casting: 2 s of gaps in 3:00"]
-    below = above | {"mine": 150_000}
-    assert views.player_notes(_facts(standing=below))["fix"] == ["Below the 25th percentile of ranked kills"]
-    healer = _facts(standing=below, output={"what": "healing", "rank": 3, "of": 4, "role": "healers"})
-    assert views.player_notes(healer) == {"good": ["Kept casting: 2 s of gaps in 3:00"], "fix": []}
 
 
 # ---- the card: one shape in every view, led by a sentence code wrote ----
@@ -2441,18 +2473,7 @@ def test_a_nights_headline_reads_as_a_sentence_for_every_way_a_pull_ends():
     assert said([row(4, live=True)]) == "Pull 4 is still going."
 
 
-def test_a_players_headline_is_the_weightiest_note_and_their_nights_what_would_have_kept_them_alive():
-    died = _facts(died=[{"ms": 95000, "by": "Toxic Fumes", "fallout": False}])
-    died["notes"] = views.player_notes(died)
-    assert views.player_headline(died) == {"text": "Died at 1:35 to Toxic Fumes, before the wipe was decided.",
-                                           "kind": "fix"}
-    steady = _facts()
-    steady["notes"] = views.player_notes(steady)
-    assert views.player_headline(steady) == {"text": "Kept casting: 2 s of gaps in 3:00.", "kind": "good"}
-    plain = _facts(output={"what": "damage", "rank": 4, "of": 14, "role": "damage dealers", "per_s_alive": 248_000},
-                   alive_s=160, duration_ms=180_000) | {"notes": {"good": [], "fix": []}}
-    assert views.player_headline(plain) == {
-        "text": "248.00k damage per second over the 160 s alive, rank 4 of 14 damage dealers by total.", "kind": ""}
+def test_a_players_nights_headline_is_their_deaths_and_what_would_have_kept_them_alive():
     assert views.player_night_headline(0, 12, 0) == {
         "text": "Never died before a wipe was decided in 12 pulls.", "kind": "good"}
     assert views.player_night_headline(8, 33, 0) == {

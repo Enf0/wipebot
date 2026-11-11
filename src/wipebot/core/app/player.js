@@ -1,10 +1,10 @@
 // ---- the player: their pull in one sentence (views.player_headline), their output, the time they lost, and when
-// they cast, sat at their resource's cap or were dead, with their cooldowns (kit.card). Fullscreen adds the rest of
-// what went well and what to fix, where their output stands (with why that proves little on a wipe), their casts,
-// and against top players of their spec on asking (compare_with_top's casts) ----
+// they cast, sat at their resource's cap or were dead, with their cooldowns (kit.card). Fullscreen adds where their
+// output stands (with why that proves little on a wipe), their casts, and against top players of their spec on
+// asking (compare_with_top's casts). The card judges nothing player_pull's text doesn't: no notes of its own ----
 views.player = (() => {
   let D = null, root = null, loadingTop = false, topFailed = "";
-  const TOP_ROWS = 5;  // a picture's or card's casts against the top: the biggest differences
+  const TOP_ROWS = 5;  // a picture's or card's casts against the top: the spells the comparison flags first
 
   async function show(into, key) {
     root = into; loadingTop = false; topFailed = "";
@@ -20,11 +20,10 @@ views.player = (() => {
     const o = D.output, s = D.standing, items = [];
     if (o) items.push([`${o.what === "healing" ? "Healing" : "Damage"} per s alive`, kit.short(o.per_s_alive), "",
                        o.rank ? `rank ${o.rank} of ${o.of} ${o.role} by total` : ""]);  // views.player_view ranks by the total
-    const costs = [[D.lost.dead_s, "dead"], [D.lost.gaps_s, "casting gaps"], [D.lost.capped_s, `${D.lost.resource} capped`]]
-      .filter(([s]) => s >= 1).sort((a, b) => b[0] - a[0]);
+    const costs = D.lost.costs;  // the "Time lost" line's own, biggest first: [seconds, what, share]
     items.push([D.decided ? `Time lost before ${kit.clock(D.decided.ms)}` : "Time lost",
-                costs.length ? `${Math.round(costs[0][0])} s ${costs[0][1]}` : "none", costs[0] && costs[0][1] === "dead" ? "dead" : "",
-                costs.slice(1).map(([s, w]) => `${Math.round(s)} s ${w}`).join(", ")]);
+                costs.length ? `${costs[0][0]} s ${costs[0][1]}` : "none", costs[0] && costs[0][1] === "dead" ? "dead" : "",
+                costs.slice(1).map(([s, w]) => `${s} s ${w}`).join(", ")]);
     const judged = D.cooldowns.filter((c) => c.possible);
     // a kill's parse is a percentile that means what it says; where a wipe stands among kills proves little by
     // itself (views.SHORT_PULL) and is drawn in fullscreen only, with why
@@ -34,16 +33,10 @@ views.player = (() => {
       items.push(["Cooldowns", `${used} of ${possible}`, "", "if pressed on cooldown"]);  // a count, no verdict: one held is right
     }
     const d = D.died[0];
-    items.push(["Died", d ? kit.clock(d.ms) : "no", d && !d.fallout ? "dead" : "", d ? (d.fallout ? "after the wipe was decided" : d.by) : ""]);
+    // red only for a death the "Died" line counts as theirs: not fallout, not one of a hit killing many
+    items.push(["Died", d ? kit.clock(d.ms) : "no", d && !d.fallout && !d.mass ? "dead" : "",
+                d ? (d.fallout ? "after the wipe was decided" : d.mass ? "in a hit killing many" : d.by) : ""]);
     return items;
-  }
-
-  // What went well and what to fix, picked by the server (views.player_notes): the weightiest is the headline, the
-  // rest are listed in fullscreen
-  function notes() {
-    const n = D.notes, said = D.headline ? D.headline.text : "";
-    if (!n) return "";
-    return kit.notes([...n.good.map((s) => ["good", s]), ...n.fix.map((s) => ["fix", s])].filter(([, s]) => `${s}.` !== said));
   }
 
   function render() {
@@ -57,7 +50,7 @@ views.player = (() => {
       root.innerHTML = card(ribbon({ W: width, lanes: false }) + (against ? topSection(width, TOP_ROWS) : ""),
                             [!D.top && ["pl-top", "Against top players"]]);
     } else {
-      root.innerHTML = card(notes() + standing(width) + ribbon({ W: Math.max(560, width), lanes: true }))
+      root.innerHTML = card(standing(width) + ribbon({ W: Math.max(560, width), lanes: true }))
         + `<div class="full"><div>${topOrCasts(Math.max(400, width > 720 ? width - 264 : width))}</div>${side()}</div>`;
     }
     kit.press(root, "pl-top", () => (app.canGoFullscreen() && !full ? app.requestDisplayMode("fullscreen") : Promise.resolve()).then(loadTop));
@@ -157,7 +150,7 @@ views.player = (() => {
     // dead until they were back (a battle res, Reincarnation: their next cast) or the pull's end
     for (const [a, b] of D.dead) {
       const died = D.died.find((d) => Math.abs(d.ms - a) < 50);
-      o += `<rect x="${x(a)}" y="${bar}" width="${Math.max(4, x(b) - x(a))}" height="${h}" fill="url(#pl-hatch)"${kit.tip(`Dead ${span(a, b)}${died ? `: ${died.by}` : ""}`)}/>`;
+      o += `<rect x="${x(a)}" y="${bar}" width="${Math.max(4, x(b) - x(a))}" height="${h}" fill="url(#pl-hatch)"${kit.tip(`Dead ${span(a, b)}${died ? `: ${died.by}${died.note ? ` (${died.note})` : ""}` : ""}`)}/>`;
     }
     if (D.decided) {
       o += kit.line(x(D.decided.ms), bar - 4, x(D.decided.ms), bar + h + 4, "var(--decided)", 'stroke-width="1.6" stroke-dasharray="3 3"');
@@ -192,26 +185,25 @@ views.player = (() => {
     return kit.svg(W, ly + 6, o, `${D.player.name} over the pull: casting, gaps, dead, cooldowns`);
   }
 
-  // Their casts per minute against the top parses', the biggest differences first (`n` of them), each row on its own
-  // scale: the bar is the top's range, the tick its median, the dot theirs.
+  // Their casts per minute against the top parses', in the comparison's own order (the top's most cast first), each
+  // row on its own scale: the bar is the top's range, the tick its median, the dot theirs. With `n`, that many rows:
+  // the spells the comparison flags first. A difference is only what the comparison's text flags: it refuses "far
+  // more" for a spell cast once in a short life, so the page marks and ranks none by a measure of its own.
   function topSection(W, n) {
     const t = D.top;
     const counted = t.rates.filter((r) => r.median != null && (r.median >= 0.3 || r.mine >= 0.3));
-    // what the tool flags as off (never cast, far fewer, far more) comes first; what it says is no fault (an item
-    // not worn, cast before the pull, not due in their time alive) is no difference at all
+    // what the tool flags as off (never cast, far fewer, far more); what it says is no fault (an item not worn, cast
+    // before the pull, not due in their time alive)
     const off = (r) => /^(never cast|far )/.test(r.flag), excused = (r) => !!r.flag && !off(r);
-    const gap = (r) => off(r) ? 10 : excused(r) ? 0 : Math.abs(r.mine - r.median) / Math.max(r.median, 0.5);
-    const rows = (n ? counted.slice().sort((a, b) => gap(b) - gap(a)).slice(0, n) : counted);
+    const rows = n ? [...counted.filter(off), ...counted.filter((r) => !r.flag), ...counted.filter(excused)].slice(0, n) : counted;
     const L = Math.min(170, W * 0.36), R = 86, rh = 22;
     let o = kit.text(0, 11, `Casts per minute alive against ${t.parses} top ${who()}${t.same_hero && t.hero ? ` (${t.hero})` : ""} parses`
-                     + (n ? ", biggest differences" : ""));
+                     + (!n ? "" : rows.some(off) ? ", flagged spells first" : ", the top's most cast"));
     // what the marks are: a picture has no tooltip to ask
     const dot = (fill) => (lx, ly) => `<circle cx="${lx + 6}" cy="${ly - 4}" r="5" ${fill} stroke="var(--bg)" stroke-width="1.5"/>`;
     const keys = [[dot(kit.cls(D.player.color)), D.player.name],
       [(lx, ly) => kit.line(lx + 6, ly - 11, lx + 6, ly + 3, "var(--gold)", 'stroke-width="2.4"'), "the top players' median"],
       [(lx, ly) => `<rect x="${lx}" y="${ly - 8}" width="12" height="8" rx="4" fill="var(--muted)" opacity=".3"/>`, "their range"]];
-    const outside = (r) => !off(r) && !excused(r) && (r.mine < r.low || r.mine > r.high);
-    if (rows.some(outside)) keys.push([dot('fill="var(--decided)"'), "outside their range"]);
     if (rows.some(off)) keys.push([dot('fill="var(--dead)"'), "never cast or far off"]);
     if (rows.some(excused)) keys.push([dot('fill="var(--muted)"'), "no fault: not due, not worn or cast before the pull"]);
     const [key, ky] = kit.legend(keys, W, 30);
@@ -219,9 +211,8 @@ views.player = (() => {
     const T = ky + 8;
     rows.forEach((r, i) => {
       const y = T + i * rh + 11, max = Math.max(r.high, r.mine) * 1.08 || 1, x = (v) => L + v / max * (W - L - R);
-      // red where the tool flags it off, grey where it says it is no fault, orange outside the top's range
-      const fill = off(r) ? 'fill="var(--dead)"' : excused(r) ? 'fill="var(--muted)"'
-        : outside(r) ? 'fill="var(--decided)"' : kit.cls(D.player.color);
+      // red where the tool flags it off, grey where it says it is no fault
+      const fill = off(r) ? 'fill="var(--dead)"' : excused(r) ? 'fill="var(--muted)"' : kit.cls(D.player.color);
       o += kit.icon(D.img_base, r.icon, 0, y - 7, 14) + kit.text(r.icon && D.img_base ? 19 : 0, y + 4, r.name.length > 24 ? r.name.slice(0, 23) + "…" : r.name, "t");
       o += kit.line(L, y, W - R, y, "var(--line)");
       o += `<rect x="${x(r.low)}" y="${y - 4}" width="${Math.max(2, x(r.high) - x(r.low))}" height="8" rx="4" fill="var(--muted)" opacity=".3"/>`;
