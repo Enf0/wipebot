@@ -1515,7 +1515,7 @@ async def progress(boss: Annotated[str | None, Field(description=(
                    each_pull: Annotated[bool, Field(description=(
                        "each pull's row also names its first three deaths and the killing blows until the wipe was "
                        "decided, with how many died after it"))] = False,
-                   first_hits: Annotated[bool, Field(description="also who hit the boss first on each pull, for "
+                   first_hits: Annotated[bool, Field(description="first, who hit the boss first on each pull, for "
                                                                  "\"who pulls early?\"")] = False,
                    weeks: Annotated[int | None, Field(description=(
                        "also the boss on each of the guild's raid nights over this many weeks back (1-12), for "
@@ -1528,8 +1528,8 @@ async def progress(boss: Annotated[str | None, Field(description=(
     boss % and phase (on a boss with phases, the phase and the boss's health in it first, as raiders count a
     wipe), duration and first death of each, the guild's best wipe before the night and whether the night beat
     it, averages over the night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull,
-    and the night's killer. With `first_hits`: who hit the boss first on each pull, with what and how far ahead of
-    the next player, and a tally ("who pulled?").
+    and the night's killer. With `first_hits`, before all that: a tally of who hit the boss first ("who pulled?"),
+    then who it was on each pull, with what and how far ahead of the next player.
     Reading it: deaths after a buff the boss kept to the end are left out of the killers. The night's killer is
     the ability with the most deaths (every death on a kill, a wipe's until it was decided), with how many of them
     came in hits killing many (the raid's to stop), the players it killed outside those and the players it hit
@@ -1539,8 +1539,8 @@ async def progress(boss: Annotated[str | None, Field(description=(
     rep = await lib().report(report)
     # The overview asks Warcraft Logs other things than the pulls do: both at once.
     texts = list(await asyncio.gather(*([] if boss else [night.overview(rep)]), night.progress(rep, boss, each_pull)))
-    if first_hits:
-        texts.append(await night.first_hits(rep, boss))
+    if first_hits:  # what was asked for comes first: who pulled, before the night it was on
+        texts.insert(0, await night.first_hits(rep, boss))
     if weeks:
         texts.append(night.weeks_text(rep.boss_key(rep.by_boss[rep.boss(boss)][-1]), weeks,
                                       await boss_nights(rep, boss, weeks)))

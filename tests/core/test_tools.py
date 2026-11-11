@@ -283,3 +283,17 @@ async def test_a_timeline_of_one_players_casts_is_cut_to_its_first_rows_and_coun
                         ({"ability": "Tempst"}, "closest names: Tempest")):
         with pytest.raises(ToolError, match=error):
             await server.call("pull_timeline", {"report": "KBYT4xXn7VNjDgh8", "pull": 13, **args})
+
+
+async def test_who_pulled_leads_the_answer_that_was_asked_for_it(recorded):
+    # "Who pulls early?" is answered by the tally. It closed 42 rows that followed the whole night; it now opens the
+    # answer, its rows a pull each under one legend, and the night comes after.
+    text, failed = await server.call("progress", CASES["first-hits"].args)
+    assert not failed
+    lines = text.splitlines()
+    assert lines[0].startswith("First on the boss over 42 pulls: Zebinomage 13, Krøpling 9, ")
+    assert lines[0].endswith("; at least 1 s ahead of everyone else: Martin 1.")
+    assert lines[1].startswith("Sszorak's first hits, a pull a row (pull: the first player to hit the boss, ")
+    assert lines[2] == "  1: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before Pomaa"
+    assert [line.split(":")[0].strip() for line in lines[2:44]] == [str(n) for n in range(1, 43)]
+    assert lines[44] == "" and lines[45].startswith("Sszorak: 42 pulls on the night (")

@@ -213,15 +213,14 @@ EARLY_GAP_MS = 1_000  # a first hit this far ahead of the next player's is a pul
 
 
 async def _first_hits(rep: Report, fights: list[dict]) -> str:
-    """Who hit the boss first on each pull, with what, and how far ahead of the next player: who pulls. One
-    events query for every pull."""
+    """Who hit the boss first on each pull, with what, and how far ahead of the next player: who pulls. The tally,
+    which is the answer, then a row a pull. One events query for every pull."""
     if not rep.bosses:
         return "First hits on the boss: the log names no boss."
     events = await rep.events_for([(f["id"], {"startTime": f["startTime"],
                                               "endTime": f["startTime"] + FIRST_HIT_WINDOW_MS}) for f in fights],
                                   "DamageDone")  # WCL's filterExpression `target.id in (...)` finds nothing
-    lines = ["First hits on the boss, per pull (the log has no pull timer, so how early against a countdown can't "
-             "be told; a first hit well ahead of the next player's is someone pulling on their own):"]
+    rows = []
     first: Counter = Counter()
     ahead: Counter = Counter()
     for f, evs in zip(fights, events, strict=True):
@@ -232,27 +231,31 @@ async def _first_hits(rep: Report, fights: list[dict]) -> str:
                 hits[who] = (e["timestamp"] - f["startTime"], e.get("abilityGameID") or 0)
         order = sorted(hits.items(), key=lambda kv: kv[1][0])
         if not order:
-            lines.append(f"  {rep.label(f)}: no hit on the boss in its first {FIRST_HIT_WINDOW_MS // 1000} s")
+            rows.append(f"  {rep.pull_no(f)}: no hit on the boss in its first {FIRST_HIT_WINDOW_MS // 1000} s")
             continue
         (name, (at, ability)), rest = order[0], order[1:]
         first[name] += 1
-        line = f"  {rep.label(f)}: {name} ({rep.ability(ability)}) at {at / 1000:.1f} s"
+        row = f"  {rep.pull_no(f)}: {name} ({rep.ability(ability)}) at {at / 1000:.1f} s"
         if rest:
             gap = rest[0][1][0] - at
-            line += f", {gap / 1000:.1f} s before the next player ({rest[0][0]})"
+            row += f", {gap / 1000:.1f} s before {rest[0][0]}"
             if gap >= EARLY_GAP_MS:
                 ahead[name] += 1
         else:
-            line += f", nobody else hit the boss in its first {FIRST_HIT_WINDOW_MS // 1000} s"
+            row += f", nobody else hit the boss in its first {FIRST_HIT_WINDOW_MS // 1000} s"
             ahead[name] += 1
         if is_reset(f):  # the raid didn't fight it: a pull it wasn't ready for, or a reset it chose
-            line += f"; reset with the boss at {pct_text(wipe_pct(f))}"
-        lines.append(line)
-    lines.append(f"First on the boss over {plural(len(fights), 'pull')}: "
-                 + ", ".join(f"{n} {k}" for n, k in first.most_common())
-                 + (f"; at least {EARLY_GAP_MS / 1000:g} s ahead of everyone else: "
-                    + ", ".join(f"{n} {k}" for n, k in ahead.most_common()) if ahead else ""))
-    return "\n".join(lines)
+            row += f"; reset with the boss at {pct_text(wipe_pct(f))}"
+        rows.append(row)
+    tally = (f"First on the boss over {plural(len(fights), 'pull')}: "
+             + (", ".join(f"{n} {k}" for n, k in first.most_common()) or "nobody")
+             + (f"; at least {EARLY_GAP_MS / 1000:g} s ahead of everyone else: "
+                + ", ".join(f"{n} {k}" for n, k in ahead.most_common()) if ahead else "") + ".")
+    legend = (f"{rep.boss_key(fights[0])}'s first hits, a pull a row (pull: the first player to hit the boss, with "
+              "what and how far into the pull, then how long before the next player's first hit and whose; the log has "
+              "no pull timer, so how early against a countdown can't be told; a first hit well ahead of the next "
+              "player's is someone pulling on their own):")
+    return "\n".join([tally, legend, *rows])
 
 
 def _end_buffs(buffs: list[tuple[str, float]], enrages: list[tuple[str, float]], decided: Decided | None) -> str:
