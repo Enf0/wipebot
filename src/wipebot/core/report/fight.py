@@ -1,6 +1,7 @@
 """One pull in order: its summary and how it ended (`pull_summary`), and its timeline (`pull_timeline`)."""
 import asyncio
 import json
+import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
@@ -32,6 +33,7 @@ SAME_HIT_MS = 1_000  # debuff applications this close together are one hit of th
 STACKS_SHOWN = 3  # a stacking debuff that reaches this many stacks is worth a line
 TRACKED_MARK = "◆"  # after a boss cast Lorrgs tracks for the boss: the casts its timeline is built on
 TIMELINE_MAX_LINES = 150
+NTH_ABILITY = re.compile(r" \(\d+\w\w ability\)$")  # "Ravage (2nd ability)": an ability's further ids, by its name
 DAMAGE_BUCKET_MS = 5_000  # raid damage taken is shown per this much time
 BOSS_HEALTH = 1000  # WCL's Resources graph: abilityID 1000 is health, 100 + a power type that power
 RAID_WIDE = 3  # a damage dealer's or tank's cooldown is a raid cooldown when it buffs or heals this many others
@@ -203,9 +205,12 @@ async def pull_timeline(rep: Report, pull: PullRef = None, boss: str | None = No
         seconds = seconds[:TIMELINE_MAX_LINES] + [f"... {len(seconds) - TIMELINE_MAX_LINES} more lines: ask for a "
                                                   "narrower window with start and end"]
     ids: dict[str, int] = {}
+    shown = "\n".join(seconds)
     for part in found:
         for name, i in part.ids.items():
-            ids.setdefault(name, i)
+            # a window lists the ids of what it names, not of the whole pull's abilities
+            if not window or NTH_ABILITY.sub("", name) in shown:
+                ids.setdefault(name, i)
     return "\n".join([_timeline_head(rep, f, window), *seconds, *(n for part in found for n in part.notes),
                       *resources, damage, ids_line(ids)])
 

@@ -322,3 +322,17 @@ async def test_a_death_recap_leads_with_what_did_the_damage_and_whether_they_cou
     assert sum(line.startswith("If pressed (12.72k overkill to make up") for line in lines) == 1
     assert "Total 1.06M damage in the window." not in lines  # said once, in the line that adds it up
 
+
+async def test_a_timeline_window_lists_the_ids_of_what_it_names(recorded):
+    # A 15 s window closed with the ids of all 19 abilities of the pull, a third of its text. It lists the ones its
+    # lines name; the whole pull still lists them all.
+    window, _ = await server.call("pull_timeline", CASES["timeline-window"].args)
+    whole, _ = await server.call("pull_timeline", CASES["timeline"].args)
+    ids, every = window.splitlines()[-1], whole.splitlines()[-1]
+    assert ids.startswith("Ability ids: ") and every.startswith("Ability ids: ")
+    named = re.findall(r"([^,\[]+?)(?: \(\d\w\w ability\))? \[\d+\]", ids.removeprefix("Ability ids: "))
+    events = "\n".join(window.splitlines()[1:-1])
+    assert named and all(name.strip() in events for name in named)
+    assert len(named) == 8 and every.count("[") == 19 and "Viscous Cyst" not in ids
+    assert set(ids.removeprefix("Ability ids: ").split(", ")) < set(every.removeprefix("Ability ids: ").split(", "))
+
