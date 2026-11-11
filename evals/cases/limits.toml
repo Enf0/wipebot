@@ -62,8 +62,8 @@ where = "in a DM"  # a DM, as the asker had it
 question = "Who was supposed to soak the Mutilate that killed four people on pull 33?"
 pull = 33
 boss = "Sszorak"
-expect = """The log can't show assignments (the raid note holds them); it shows who the Mutilate hit and who died to
-it."""
+expect = """The log can't show assignments (a raid note would hold them, and none is saved for that night); it shows
+who the Mutilate hit and who died to it."""
 facts = ["the Mutilate at 2:15",
          "it hit five: Lïzårðmâñ, Wutroll, Draiman, Sveini and Zebinomage",
          "all but Draiman died to it",

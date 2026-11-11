@@ -11,8 +11,8 @@ expect = """The boss enraging (Unbound Ferocity) because a Serpent's Fury isn't 
 anything else. Why the stack fell short may be either: on most pulls the enrage ended enough were alive and it still
 didn't form, and on others early deaths left too few."""
 facts = ["the boss enraged on 20 of 33 pulls, and the enrage is what ended 10",
-         "11 of them at 1:17-1:25, the stack before the intermission; 6 at 2:32, 3 at 0:39",
-         "on pulls 13, 23, 24, 29, 30 and 31 it came with 14 to 18 alive, enough for the 14-player stack",
+         "11 of them at 1:17-1:25, the stack before the intermission; 6 at 2:32-2:33, 3 at 0:39-0:40",
+         "on pulls 13, 23, 24 and 31 it came with 15 to 18 alive, enough for the 14-player stack",
          "the early deaths are Virulence and Tempest (24 each among the first three deaths per pull)"]
 wrong = ["names the Mutilate soak, rather than the missed Serpent's Fury stacks, as what ends most pulls",
          "the second Serpent's Fury pop is too early, stated as fact rather than a possibility"]
@@ -121,7 +121,7 @@ damage on the Frostscales is an indirect sign, said as such); what it does show 
 Bubblefin Berserker on the kill, while Berserkers' Pulsing Tides hit the raid on the wipes."""
 facts = ["the kill is pull 8",
          "on the kill, 119 Shorerunners and 14 Frostscales came, none has a death recorded, and no Berserker came",
-         "Pulsing Tides was the killing blow 14 times over the night, until each wipe was decided",
+         "Pulsing Tides was the killing blow 28 times over the night, until each wipe was decided",
          "the best wipe, 7.6% on pull 7, ended when Berserkers came and their Pulsing Tides killed most of the raid",
          "Frostscale first is the guide's rule, not something the log shows"]
 wrong = ["states, as something the log shows, the order the adds died in or that the Frostscales died first (advising Frostscale first as the guide's rule is fine)",
@@ -250,6 +250,9 @@ facts = ["Unbound Ferocity ended 11 pulls first",
          "Mutilate killing many ended 8, deaths one after another 5",
          "Tempest the night's killer: 62 deaths, the first death on 12 pulls",
          "the best wipe, 34.1% on pull 42"]
+# 10 = 6 "deaths leading into many dying at once, no killing blow" + 4 "many dying at once, no killing blow";
+# 13 = those 10 + 3 "deaths leading into Viscous Cyst killing many" (progress prints the three counts, neither sum)
+derived = ["10", "13"]
 # progress counts the pulls by the first thing that ended each; the night's killer counts deaths, so Tempest tops it
 # while the stacks and the soak lost more pulls. Leading with Tempest is the tempting misreading. Mutilate first, with
 # the enrage as what it often leads to, is a raid leader's reading too (22 October: every such answer argued it).

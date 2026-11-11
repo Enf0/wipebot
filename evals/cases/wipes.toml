@@ -14,7 +14,7 @@ expect = """The boss enraged (Unbound Ferocity) at 2:32 because the Serpent's Fu
 though enough players were alive for the stack."""
 numbers = ["2:32"]  # by code: the moment of the enrage
 facts = ["16 players were alive, enough for the 14-player stack",
-         "the rage was at 96 by 2:30 and reached 100 at 2:32, a second after the combo's last Mutilate at 2:31",
+         "the rage was at 96 by 2:30 and at 100 by 2:33; the boss enraged at 2:32, a second after the combo's last Mutilate at 2:31",
          "the stack has to form as that Mutilate ends or be built before it; \"stack for it\" alone is not the fix"]
 wrong = ["the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the pull",
          "the second Serpent's Fury pop was too early, stated as the cause rather than a possibility"]
@@ -78,16 +78,17 @@ asker = "Enfo"
 pull = 14
 boss = "Ula'tek"
 expect = """Not a race lost on the timer: Fury Unleashed at 9:58 only finished the last two players. The raid had died
-before it, one after another from 8:00 on, half of it dead by 9:31, so the last Venomous Heart window (9:33-9:53), the burn that
-should finish her, had three players in it. What was missing above all is players alive for that window; saying the damage was also behind the
-guild's later kill is fair, calling it a race lost on the timer isn't."""
+before it, one after another from 8:00 on, half of it dead by 9:31, so the last Venomous Heart window (9:33-9:53), the
+burn that should finish her, had four players in it. What was missing above all is players alive for that window; saying
+the damage was also behind a kill of similar gear is fair, calling it a race lost on the timer isn't."""
 numbers = ["9:58", "9:31"]  # by code: the enrage, and when half the raid was dead
 facts = ["Fury Unleashed at 9:58, when 26 players had already died; it killed the last two at 9:58 and 10:00",
          "a first death at 7:02, then one after another from 8:00 on: six had died by 8:01, at the second platform break",
          "Volatile Purge killed 10 within a second at 9:31, which left half the raid dead",
-         "the boss at 10% at 9:31, with three players alive when Rage of the Shackled and the Venomous Heart came at 9:33"]
+         "four players alive when Rage of the Shackled and the Venomous Heart came at 9:33"]
 wrong = ["says the enrage (Fury Unleashed) ended the pull, or that the raid ran out of time",
          "makes more damage from rotations, gear or cooldowns the fix, rather than the deaths before the enrage"]
+
 [[case]]
 id = "wipe-unkicked-add"  # killing blows that are the raid's own attacks, on players the curse turned
 cause = "deaths from 4:58"  # Sonyom, Soulcoiled; Sjay at 4:14 was battle-ressed. `just evals --endings`
@@ -101,7 +102,7 @@ expect = """The intermission's Drowned Echo (Grasping Depths at 4:03) wasn't han
 casts went through unkicked and Soulcoiled the players in the well, and Grasping Depths kept stacking until it killed
 players one by one to the wipe. The fix is kicking every Curse and killing the Echo."""
 facts = ["the Curse went through at 4:28 and 4:39",
-         "Agonco, Fappachino, Grusarn and Krøpling (and three more) had a kick ready for both",
+         "Agonco, Fappachino, Grusarn and Krøpling (and four more) had a kick ready for both",
          "Miralupa and Sonyom were Soulcoiled at 4:45; Sonyom died at 4:58 to the raid's own attacks (Black Powder, a Rogue's finisher, is the killing blow)",
          "Grasping Depths killed eight, from 5:23 (20 stacks on Enfo at 5:38); half the raid was dead at 5:32 with the boss at 47.4%"]
 # Three died to Hungering Pyre at 5:27 and three to Slithering Flame as the raid thinned; no item rests on them. No
@@ -126,8 +127,8 @@ numbers = ["3:50"]  # by code: when the three Berserkers came; their pulses kill
 facts = ["Pulsing Tides killed 14; half the raid was dead at 3:56",
          "the one Berserker earlier in the pull, at 2:00, was killed at 2:12",
          "on Mythic, killing the Frostscale first so the murlocs can be hurt (the guide's rule)"]
-# Five had already died to Abyssal Rain, Frost Orb and Frost Burst by 1:50 and one to Water Jet at 3:28 (16 alive
-# when the Berserkers came): it left the raid short, but no item rests on it.
+# Five had already died to Abyssal Rain, Frost Orb and Frost Burst by 1:50 and one to Water Jet at 3:28 (15 alive
+# when the Berserkers came, after two Swirling Whirlpools deaths): it left the raid short, but no item rests on it.
 wrong = ["Wavecaller's Might (her stacking buff) ended the pull",
          "the Swirling Whirlpools deaths (at 3:48-3:49) lost the pull"]
 [[case]]
@@ -167,7 +168,7 @@ whole raid at 2:35-2:36 and killed 11 within a second, half the raid. The fix is
 before the intermission at 2:32, as the guide plans it (immunities on the hard sets)."""
 numbers = ["2:21", "2:35 or 2:36"]  # by code: the set left to erupt, and its blasts
 facts = ["Toxic Droplets at 2:21, the intermission (Vitriolic Stasis) at 2:32",
-         "Noxious Blast hits every player: two at 2:35 (313.72k and 307.31k) and a third at 2:36 on one of the dead",
+         "Noxious Blast hits every player: two at 2:35 (294.84k each) and a third at 2:36 on one of the dead",
          "11 players died within 3 s of 2:36, the farthest 68 yd apart: the whole raid, not a stack",
          "the one earlier death, at 2:26, was battle-ressed at 2:31"]
 wrong = ["says the death at 2:26 lost the pull",
@@ -188,6 +189,7 @@ expect = """A Serpent's Bite wasn't soaked off: the one on a healer from 7:43 wa
 Calcified Corpse at 7:58 that killed most of the raid. The fix is filling every Serpent's Bite soak, the healers'
 group's too."""
 numbers = ["7:58 or 7:59"]  # by code: the Calcified Corpse, or its deaths a second later
+derived = ["19"]  # pull_summary: Calcified Corpse ×16 until 8:00 + Nexsozz 8:01, Slushmania 8:05, Deathadim 8:10
 facts = ["three Serpent's Bites at 7:43: two were cleared in 10 s and 6 s, one was kept the full 15 s",
          "the Calcified Corpse at 7:58",
          "it killed 16 within 1 s at 7:59 and 19 in all; half the raid was dead at 8:00",
@@ -210,7 +212,7 @@ facts = ["at 1:18",
          "15 were still alive then",
          "Krøpling and Sonyosh died at 1:08-1:09",
          "Martin had the mark",
-         "at 1:16 a few of the living stood more than 8 yd from Martin (Sveini, Dragepie, Lïzårðmâñ)"]
+         "at 1:16 a few of the living stood more than 8 yd from Martin (Dragepie, Lïzårðmâñ)"]
 wrong = ["the Mutilated Gash deaths after 1:18 lost the pull",
          "too few players were alive to pop it",
          """says a named player should have been in the stack, failed their job or caused the enrage, even as a likely

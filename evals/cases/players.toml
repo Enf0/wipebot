@@ -329,11 +329,11 @@ tools = ["player_night"]
 question = "Did I get better at Sszorak over the night?"
 asker = "Draiman"
 boss = "Sszorak"
-expect = """Not really: more deaths before the wipe was decided after the first third of the night, not fewer, and
+expect = """Not really: no fewer deaths before the wipe was decided at the end of the night than at the start, and
 damage per second alive no higher at the end than at the start (lower in the last third)."""
-facts = ["died before the wipe was decided on 4 of 10 pulls in the first third, 8 of 12 in the middle, 7 of 10 in the last",
+facts = ["died before the wipe was decided on 3 of 10 pulls in the first third, 4 of 12 in the middle, 3 of 10 in the last",
          "damage per second alive, median, about 210k, 217k and 185k",
-         "the best pull by damage alive was pull 26"]
+         "the best pull by damage alive was pull 4"]
 wrong = ["says they improved over the night",
          "counts deaths after the wipe was decided against them"]
 
