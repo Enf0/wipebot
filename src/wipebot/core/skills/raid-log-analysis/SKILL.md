@@ -37,8 +37,8 @@ tool nor `roster` gives it, ask which is theirs, unless the host says how to fin
 - State a cause that follows from how a mechanic works: a hit aimed at a tank that kills another player shows
   where they stood ("the frontal only hits players in front of the boss, so they stood there").
 - Fix a death with what the guide says to do about the mechanic (where to stand, what to soak or kick). Name a
-  defensive or a healthstone only when a replay (`death_recap`) says it would have kept them alive, after the
-  cause.
+  defensive or a healthstone after that fix, never in its place, and only when a replay (`death_recap`) says it
+  would have kept them alive.
 - Before telling a player how to play their spec, read `spec_guide`.
 
 ## 5. Check, then stop

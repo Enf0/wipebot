@@ -1,9 +1,10 @@
 # Judging a player
 
-Answer the question they asked, and lead with what cost them the most: the "Time lost" line of `player_pull` ranks a
-death, casting gaps and a capped resource, biggest first. A death before the wipe was decided usually costs the most,
-but "why is my damage low" is about their damage while alive, and a small cost never leads because of its kind. About
-a night, cover every boss they pulled, kills first: a kill is the best evidence, a progression wipe the weakest.
+Answer the question they asked, and lead with what cost them the most: weigh the seconds in the "Time lost" line of
+`player_pull` (dead, casting gaps, a capped resource) by what it says each lost. A death before the wipe was decided
+usually costs the most. "Why is my damage low" is about their damage while alive. A small cost never leads because
+of its kind. About a night, cover every boss they pulled, kills first: a kill is the best evidence, a progression
+wipe the weakest.
 
 Read `spec_guide` once a conversation, on the topic of the advice. Give no advice the guide contradicts, and give
 its rule as the fix's reason ("spend Holy Power before it caps"), also when the question only asked for a count.
