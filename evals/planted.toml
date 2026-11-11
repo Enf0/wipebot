@@ -1,0 +1,80 @@
+# Answers written to be wrong, one known way each: the judge must fail every one (`just evals --planted`;
+# evals/planted.py, and evals/README.md under "Planted answers").
+#
+# A plant is written by hand for one case, never by a model and never from a saved answer or a raider's words:
+#   case    the case's id
+#   kind    "wrong": a fair short answer to the case's question but for one thing: it states `item` plainly as true,
+#           as its conclusion where the item is about a cause. It states nothing else of the case's wrong list.
+#           "vague": an answer on the case's subject with every specific taken out (no player, time, number or
+#           ability), only what anyone could say without reading the log. It need not be wrong, only empty.
+#   item    a wrong plant: the item of the case's `wrong` list it states, word for word as the case has it (the
+#           first of the list, unless that one can't be stated). Where the item gives alternatives ("calls it an
+#           enrage, or says the raid needs more damage") the plant states the first.
+#   answer  two to four sentences in the question's language, as the bot would answer. It turns on the item's claim
+#           and on no number of the case's `expect`, so a corrected number leaves it true to its item.
+#
+# Read a plant back as the judge is asked (checks.WRONG): "Does the answer state any of these as true?", each item
+# "as narrowly as it's written", and "a claim that something caused or lost the pull counts only if the answer names
+# it as the cause". If a fair judge could say the plant doesn't state the item, it is too soft: state it flat.
+# Every case but the held-out ones has its wrong plant (a test holds that), in the cases' own order below. A changed
+# wrong item leaves its plant stale: `just evals --lint` says so, and the plant is rewritten.
+
+# ---- wipes.toml ----
+
+[[plant]]
+case = "wipe-enrage-hidden-by-deaths"
+kind = "wrong"
+item = "the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the pull"
+answer = """
+**The Mutilated Gash deaths after 2:32 lost pull 13.** From then on player after player died with the Gash on them,
+and nothing before that had gone wrong enough to end the pull. Split the Mutilate soak into two groups, so nobody
+takes the next one with the debuff still up.
+"""
+
+[[plant]]
+case = "wipe-enrage-hidden-by-deaths"
+kind = "vague"
+answer = """
+The raid took too much avoidable damage after the intermission and lost players it needed, so the pull fell apart
+well before the boss was close to dying. Tighten up the mechanics in that part of the fight and keep everyone alive
+through it, and the next pulls will go a lot further.
+"""
+
+[[plant]]
+case = "wipe-too-few-alive"
+kind = "wrong"
+item = "the deaths after 2:32 lost the pull"
+answer = """
+**The deaths after 2:32 lost the pull.** Up to then the raid was in a state to go on; from 2:32 players died one
+after another until nobody was left, and that run of deaths is what ended it. Have the healers keep a raid cooldown
+for that last stretch.
+"""
+
+[[plant]]
+case = "wipe-who-started-it"
+kind = "wrong"
+item = "blames the players the Mutilate killed at 1:07 as the cause"
+answer = """
+**The four players the Mutilate killed at 1:07 wiped pull 14.** They were in the soak and didn't live through it,
+and losing four at once is what the raid couldn't come back from. Surviving that soak is on them: a defensive each
+and the pull goes on.
+"""
+
+[[plant]]
+case = "wipe-was-a-reset"
+kind = "wrong"
+item = "analyses pull 9's deaths as if it were a real attempt"
+answer = """
+**Pull 9 was lost in its first seconds, to the opening Mutilate.** Twelve players died at once at 0:11, then
+Mutilate killed Wutroll, Cptola and Sveini, and Tempest took Dragepie and Zebinomage at the end. The raid wasn't in
+position for that first soak: get both groups set before the pull timer ends.
+"""
+
+[[plant]]
+case = "wipe-enrage-after-collapse"
+kind = "wrong"
+item = "says the enrage (Fury Unleashed) ended the pull, or that the raid ran out of time"
+answer = """
+**Fury Unleashed ended pull 14.** The enrage came with Ula'tek at 6.4% and killed the raid, so the pull was lost on
+the timer. It was close: 6.4% is about one more Venomous Heart window.
+"""

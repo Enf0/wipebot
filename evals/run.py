@@ -1576,13 +1576,18 @@ def frozen() -> None:
     cache().recorded_at(first=RECORDED_AT)  # kept in the file: "now" for the tools
 
 
-async def _lint_then_drain(only: str, results: Path | None = None) -> int:
+async def _lint_then_drain(only: str, results: Path | None = None, plants: Path | None = None) -> int:
     """The lint's findings printed; 0 only when it checked cases and found nothing: a stale number, a replayed call
-    that fails, a case it couldn't check for lack of data and a run with nothing to replay are all 1."""
+    that fails, a case it couldn't check for lack of data and a run with nothing to replay are all 1. So is a stale
+    plant (evals/planted.py: its case is gone, or no longer lists the item the plant states), whatever the runs."""
+    from evals import planted
     from evals.lint import lint
     results = results or HERE / "results"
+    written = [p for p in planted.load_plants(plants or planted.PLANTS) if picked({"id": p.case}, only)]
+    old = planted.stale(written, load_cases())
     if not any(results.glob("*.json")):  # before frozen(), which would make an empty cache
         print(f"checked nothing: no run in {results} to replay the calls of (`just evals` makes one)")
+        print("\n".join([*old, planted.lint_line(written, old)]))
         return 1
     frozen()
     as_connector()  # the calls of the connector's own cases replay too
@@ -1591,8 +1596,8 @@ async def _lint_then_drain(only: str, results: Path | None = None) -> int:
         found = await lint(cases, results)
     finally:
         await cache().drain()
-    print(lint_line(found, len(cases)))
-    return 1 if found.flagged or found.failed or found.no_data or not found.checked else 0
+    print("\n".join([*old, lint_line(found, len(cases)) + "; " + planted.lint_line(written, old)]))
+    return 1 if found.flagged or found.failed or found.no_data or not found.checked or old else 0
 
 
 def lint_line(found, cases: int) -> str:
