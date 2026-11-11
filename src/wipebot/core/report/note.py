@@ -72,6 +72,7 @@ NEAR_END_MS = 10_000
 PLANNED_NEAR_MS = 10_000  # a cooldown the note plans for a player this close to a callout is their answer to it
 HELD_MS = 15_000  # a tank's cooldown pressed this soon after a callout's window was kept for what came next
 EVERYONE = "everyone"
+ABSENT = "not in this pull"  # the state of a player the note names who isn't in the pull
 # A callout whose words ask for personal defensives ("Personals", "Big defs") is answered only by one: a spell Lorrgs
 # tags defensive, or a tank's tank cooldown. It's the only kind of callout the log can check: another asks for
 # something that isn't a tracked spell (grab an orb, CC a mind-controlled player), so it's listed, not checked.
@@ -382,7 +383,8 @@ class Planned:
     uses: list[PlannedUse]
     later: list[tuple[float, Cooldown]]  # planned after `until`, so not checked against the pull
     skipped: int  # planned in phases the pull never reached
-    twice: list[tuple[float, float, Cooldown]] = field(default_factory=list)  # (first, again, it): checked as one
+    # one use written twice, checked as one: (the first line's ms in the pull, the second's, the second, the first)
+    twice: list[tuple[float, float, Cooldown, Cooldown]] = field(default_factory=list)
 
 
 @dataclass
@@ -655,7 +657,7 @@ async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) 
     def state(name: str, at: float) -> str:
         p = players.get(name)
         if p is None or p.name not in in_pull:
-            return "not in this pull"
+            return ABSENT
         if (since := died(p.name, at)) is not None:
             return f"dead since {clock(since)}"
         return "alive"
@@ -1001,7 +1003,8 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
                    + ", ".join(_planned_line(rep, at, cd) for at, cd in later[:LATER_SHOWN]) if later else ""))
         if c.planned.skipped:
             lines.append(f"  {c.planned.skipped} planned in phases the pull never reached")
-        lines += [f"  {_twice(rep, t)}" for t in c.planned.twice if asked is None or t[2].player in asked]
+        lines += [f"  {_twice(rep, clock(first), clock(again), cd)}" for first, again, cd, _ in c.planned.twice
+                  if asked is None or cd.player in asked]
     if c.callouts:
         lines.append(f"Callouts for personals, with what each player it names pressed from {CALL_BEFORE_MS // 1000} "
                      f"s before to {CALL_AFTER_MS // 1000} s after it (the spells Lorrgs tracks for their spec, with "
@@ -1386,7 +1389,7 @@ async def _cooldowns(rep: Report, f: dict, note: Note, players: dict[str, Player
         if first is None:
             planned.append(c)
         else:  # one use written twice (0:42 and 0:43): one cast can't cover both, so one would read as not cast
-            twice.append((when(first), when(c), c))
+            twice.append((when(first), when(c), c, first))
     pairs = sorted((abs(at - when(c)), i, j, at) for i, c in enumerate(planned)
                    for j, at in enumerate(casts[(c.player, c.spell)]) if abs(at - when(c)) <= MATCH_S * 1000)
     matched: dict[int, float] = {}
@@ -1920,6 +1923,37 @@ def _few_soaks(took: Counter, alive: Counter) -> str:
                         for k in sorted(few, key=lambda k: (took[k] / alive[k], name(k)))))
 
 
+def _night_tally(rep: Report, rows: list[tuple[PullCheck, PlannedUse]], which: bool = False) -> str:
+    """'on time 14, early 2 (5 s), late 3 (7 s), not cast 5 (p2, p3), dead 1, not in the pull 3' over planned uses
+    of a night: every one of `rows` is in one count, so they add up to the planned uses. `which`: with the pulls
+    of those not cast."""
+    off = [(u.cast_at - u.at) / 1000 for _, u in rows if u.cast_at is not None]
+    on = [d for d in off if timing(d) == "on time"]
+    early, late = [-d for d in off if timing(d) == "early"], [d for d in off if timing(d) == "late"]
+    left = [r for r in rows if r[1].cast_at is None and r[1].state == "alive"]
+    not_cast = [(c.f, u.at) for c, u in left]
+    dead = sum(r[1].cast_at is None and r[1].state.startswith("dead") for r in rows)
+    away = sum(r[1].cast_at is None and r[1].state == ABSENT for r in rows)
+    parts = [f"on time {len(on)}"] if on else []
+    if early:
+        parts.append(f"early {len(early)} ({statistics.median(early):.0f} s)")
+    if late:
+        parts.append(f"late {len(late)} ({statistics.median(late):.0f} s)")
+    if not_cast:
+        near = sum(c.until - u.at <= NEAR_END_MS for c, u in left)
+        cooling = sum(bool(u.cooling) for _, u in left)
+        parts.append(f"not cast {len(not_cast)}" + (
+            " (" + ", ".join(f"p{rep.pull_no(f)}" for f, _ in not_cast[:LISTED])
+            + (f" and {len(not_cast) - LISTED} more" if len(not_cast) > LISTED else "") + ")" if which else "")
+            + (f", {near} of them in the last {NEAR_END_MS // 1000} s" if near else "")
+            + (f", {cooling} of them on cooldown" if cooling else ""))
+    if dead:
+        parts.append(f"dead {dead}")
+    if away:  # counted apart: left out, a player's counts fell short of their planned uses by these
+        parts.append(f"not in the pull {away}")
+    return ", ".join(parts)
+
+
 def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None = None) -> list[str]:
     uses = [(c, u) for c in checks if c.planned for u in c.planned.uses]
     if not uses:
@@ -1930,7 +1964,7 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
            f"were planned in the last {NEAR_END_MS // 1000} s before the wipe was decided or the pull ended, and at "
            "how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their "
            "closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it "
-           "was pressed off the plan), dead by then:"]
+           "was pressed off the plan), dead by then, or not in the pull:"]
     per_player: dict[str, dict[tuple[float, int, int | None], list[tuple[PullCheck, PlannedUse]]]] = defaultdict(
         lambda: defaultdict(list))
     for c, u in uses:
@@ -1938,30 +1972,6 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
                                        u.cooldown.boss_spell)].append((c, u))
     if asked and not any(name in asked for name in per_player):
         return [f"Planned cooldowns: the note plans none for {asked.name}."]
-
-    def tally(rows: list[tuple[PullCheck, PlannedUse]], which: bool = False) -> str:
-        off = [(u.cast_at - u.at) / 1000 for _, u in rows if u.cast_at is not None]
-        on = [d for d in off if timing(d) == "on time"]
-        early, late = [-d for d in off if timing(d) == "early"], [d for d in off if timing(d) == "late"]
-        left = [r for r in rows if r[1].cast_at is None and r[1].state == "alive"]
-        not_cast = [(c.f, u.at) for c, u in left]
-        dead = sum(r[1].cast_at is None and r[1].state.startswith("dead") for r in rows)
-        parts = [f"on time {len(on)}"] if on else []
-        if early:
-            parts.append(f"early {len(early)} ({statistics.median(early):.0f} s)")
-        if late:
-            parts.append(f"late {len(late)} ({statistics.median(late):.0f} s)")
-        if not_cast:
-            near = sum(c.until - u.at <= NEAR_END_MS for c, u in left)
-            cooling = sum(bool(u.cooling) for _, u in left)
-            parts.append(f"not cast {len(not_cast)}" + (
-                " (" + ", ".join(f"p{rep.pull_no(f)}" for f, _ in not_cast[:LISTED])
-                + (f" and {len(not_cast) - LISTED} more" if len(not_cast) > LISTED else "") + ")" if which else "")
-                + (f", {near} of them in the last {NEAR_END_MS // 1000} s" if near else "")
-                + (f", {cooling} of them on cooldown" if cooling else ""))
-        if dead:
-            parts.append(f"dead {dead}")
-        return ", ".join(parts)
 
     def missed(rows: list[tuple[PullCheck, PlannedUse]]) -> int:
         return sum(r[1].cast_at is None and r[1].state == "alive" for r in rows)
@@ -1975,12 +1985,12 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
                        >= NEVER_CAST_MIN and not any(r[1].casts for r in everything if r[1].cooldown.spell == sp)}
         if asked and name not in asked:
             continue
-        out.append(f"  {name}: {plural(len(everything), 'planned use')}; {tally(everything)}")
+        out.append(f"  {name}: {plural(len(everything), 'planned use')}; {_night_tally(rep, everything)}")
         for rows in sorted(entries.values(), key=lambda rows: (rows[0][1].cooldown.phase, rows[0][1].cooldown.at)):
             u = rows[0][1]
             line = f"    {u.said or clock(u.at)} {_planned_spell(rep, u.cooldown)}"
             cast_on = Counter(r[1].on for r in rows if r[1].on)
-            line += f", {plural(len(rows), 'pull')}: {tally(rows, which=True)}" + (
+            line += f", {plural(len(rows), 'pull')}: {_night_tally(rep, rows, which=True)}" + (
                 "; cast on " + ", ".join(f"{n} {k}" for n, k in _by_count(cast_on)) if cast_on else "")
             if u.cooldown.spell in never[name]:
                 line += "; never cast, as above" if (name, u.cooldown.spell) in told else (
@@ -1990,17 +2000,19 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
             out.append(line)
     if asked:
         out.append(f"  {FOR_SCALE}: {plural(len(uses), 'planned use')} of {plural(len(per_player), 'player')}; "
-                   f"{tally(uses)}")
-    twice = {(cd.player, cd.spell, first, again): (first, again, cd)
-             for c in checks if c.planned for first, again, cd in c.planned.twice
+                   f"{_night_tally(rep, uses)}")
+    # a line of the note, said once by the note's own times: a later phase begins at another moment on each pull
+    twice = {(cd.player, cd.spell, first.phase, first.at, cd.phase, cd.at):
+             _twice(rep, c.phases.said(first), c.phases.said(cd), cd)
+             for c in checks if c.planned for _, _, cd, first in c.planned.twice
              if asked is None or cd.player in asked}
-    return out + [f"  {_twice(rep, t)}" for t in twice.values()]
+    return out + [f"  {line}" for line in twice.values()]
 
 
-def _twice(rep: Report, twice: tuple[float, float, Cooldown]) -> str:
-    first, again, cd = twice
-    return (f"The note plans {cd.player}'s {rep.ability_ref(cd.spell)} at both {clock(first)} and {clock(again)}: one "
-            "use written twice, checked as the first")
+def _twice(rep: Report, first: str, again: str, cd: Cooldown) -> str:
+    """One use the note writes twice, at these two times: a pull's own, or over a night the note's ("P2 0:14")."""
+    return (f"The note plans {cd.player}'s {rep.ability_ref(cd.spell)} at both {first} and {again}: one use written "
+            "twice, checked as the first")
 
 
 def _night_callouts(rep: Report, checks: list[PullCheck],  # noqa: C901

@@ -25,11 +25,11 @@ Ravenous Feast and Tainted Blood Groups: 176 hits of Ravenous Feast [1290662] ov
   Given to the group whose turn it was in the note (the hit had most of no group's living players): p21 2:02
   Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Wutroll (1 of 57)
   Hit, in no group: Grusarn 13
-Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (under 3 s from the note's time), early or late (the median), not cast within 30 s while alive (with the pulls; of them, how many were planned in the last 10 s before the wipe was decided or the pull ended, and at how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), dead by then:
-  Attractîv: 61 planned uses; on time 2, late 1 (29 s), not cast 41, 2 of them in the last 10 s, 2 of them on cooldown, dead 1
-    0:58 Stampeding Roar [106898], 35 pulls: on time 1, not cast 24 (p12, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24 and 12 more)
-    2:00 Stampeding Roar [106898], 17 pulls: not cast 12 (p14, p17, p20, p21, p22, p24, p25, p27, p29, p31, p37, p38), 2 of them in the last 10 s, dead 1
-    3:35 Stampeding Roar [106898], 6 pulls: on time 1, not cast 3 (p17, p29, p37)
+Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (under 3 s from the note's time), early or late (the median), not cast within 30 s while alive (with the pulls; of them, how many were planned in the last 10 s before the wipe was decided or the pull ended, and at how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), dead by then, or not in the pull:
+  Attractîv: 61 planned uses; on time 2, late 1 (29 s), not cast 41, 2 of them in the last 10 s, 2 of them on cooldown, dead 1, not in the pull 16
+    0:58 Stampeding Roar [106898], 35 pulls: on time 1, not cast 24 (p12, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24 and 12 more), not in the pull 10
+    2:00 Stampeding Roar [106898], 17 pulls: not cast 12 (p14, p17, p20, p21, p22, p24, p25, p27, p29, p31, p37, p38), 2 of them in the last 10 s, dead 1, not in the pull 4
+    3:35 Stampeding Roar [106898], 6 pulls: on time 1, not cast 3 (p17, p29, p37), not in the pull 2
     4:36 Stampeding Roar [106898], 2 pulls: late 1 (29 s), not cast 1 (p25), 1 of them on cooldown
     6:10 Stampeding Roar [106898], 1 pull: not cast 1 (p37), 1 of them on cooldown
   Sonyosh: 19 planned uses; on time 8, not cast 11, 4 of them in the last 10 s

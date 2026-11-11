@@ -397,8 +397,8 @@ async def test_one_cooldown_written_twice_in_a_note_is_checked_as_one_use(monkey
                                     lambda c: c.at * 1000, 600_000)
     assert planned is not None
     assert [(u.at, u.cast_at) for u in planned.uses] == [(42_000, 43_200), (90_000, 91_000)]
-    assert planned.twice == [(42_000, 43_000, plan.cooldowns[1])] and planned.skipped == 0
-    assert note._twice(cast(Any, rep), planned.twice[0]) == (
+    assert planned.twice == [(42_000, 43_000, plan.cooldowns[1], plan.cooldowns[0])] and planned.skipped == 0
+    assert note._twice(cast(Any, rep), "0:42", "0:43", plan.cooldowns[1]) == (
         "The note plans Lïzårðmâñ's Zephyr [374227] at both 0:42 and 0:43: one use written twice, checked as the first")
 
 
