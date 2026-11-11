@@ -665,12 +665,14 @@ def _first_deaths(judged: list[NightPull]) -> str:
 def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: NightCooldowns,
                 lost: str | None = None, lived: str | None = None, mass: int = 0) -> str:
     """player_night's text. `mass`: their deaths in a hit killing many (deaths.in_mass_hits, as defensives counts
-    them: a second death in a pull too)."""
+    them: a second death in a pull too). A pull's row gives their first death, so the count says how many of those
+    deaths are in no row."""
     main_role = Counter(pull.played.role for pull in pulls).most_common(1)[0][0]
     what = "healing" if main_role == "healer" else "damage"
     judged = [pull for pull in pulls if not pull.reset]  # a reset is no pull of the night's, in any count below
     resets = len(pulls) - len(judged)
     counted = [pull for pull in judged if pull.counted]
+    unlisted = max(mass - sum(pull.mass for pull in judged), 0)  # after an earlier death of theirs in the pull
     dead_s, counted_s = sum(pull.dead_s for pull in judged), sum(pull.counted_s for pull in judged)
     ranked = [((pull.mine or {}).get("total", 0) / max(pull.alive_s, 1), rep.pull_no(pull.f))
               for pull in best_pulls(pulls, main_role)]
@@ -686,6 +688,8 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
              f"{plural(len(judged), 'pull')} (" + (f"{plural(resets, 'reset')} left out; " if resets else "")
              + "later deaths are fallout and don't count"
              + (f"; nor {plural(mass, 'death')} in a hit killing many, the raid's to stop" if mass else "")
+             + (f", {unlisted} of them after another death of theirs in the pull, which is the one its row gives"
+                if unlisted else "")
              + f"); {_first_deaths(judged)}; dead for "
              f"{dead_s:.0f} s of the {counted_s:.0f} s before each wipe was decided "
              f"({100 * dead_s / max(counted_s, 1):.0f}%: no output then)."]

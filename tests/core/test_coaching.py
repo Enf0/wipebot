@@ -164,6 +164,21 @@ async def test_a_players_deaths_in_hits_killing_many_are_one_count_in_every_tool
         assert f"and died {n} in hits killing many" in row
 
 
+async def test_a_death_in_a_hit_killing_many_that_no_row_gives_is_said_to_be_in_none(rep):
+    """A pull's row gives a player's first death in it. Cptola's 9 deaths in hits killing many stood over 8 rows marked
+    "one of N killed at once": the ninth came on pull 11 after the death at 1:21 that its row gives."""
+    lines = (await coaching.player_night(rep, "Cptola", "Sszorak")).splitlines()
+    assert sum("killed at once from" in row for row in lines if row.startswith("  ")) == 8
+    assert ("nor 9 deaths in a hit killing many, the raid's to stop, 1 of them after another death of theirs in the "
+            "pull, which is the one its row gives); first death on 4 pulls") in lines[0]
+    assert next(row for row in lines if row.startswith("  11 ")).endswith("died #3 at 1:21 to Mutilated Gash "
+                                                                          "[1285998], counts")
+    # Where every such death is a pull's first of theirs, the rows give them all and the count stands alone.
+    lines = (await coaching.player_night(rep, "Scopidruid", "Sszorak")).splitlines()
+    assert sum("killed at once from" in row for row in lines if row.startswith("  ")) == 7
+    assert "nor 7 deaths in a hit killing many, the raid's to stop); first death on 5 pulls" in lines[0]
+
+
 async def test_a_players_first_deaths_are_counted_as_progress_lists_them_and_as_theirs(rep):
     """`progress` lists Scopidruid as the first death of pulls 5, 6, 10, 13, 15 and 22 of the tests' night, and
     player_night said "first death 5 times": pull 10's was one of 4 killed at once, not counted as theirs, with
