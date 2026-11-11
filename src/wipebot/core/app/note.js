@@ -26,8 +26,6 @@ views.note = (() => {
 
   // D.few: a planned cooldown, kick assignment or callout fewer pulls than this reached isn't drawn (views.NOTE_FEW)
   const MIN_W = 520;  // .note-board .grid svg's min-width
-  // a cooldown off by more than on time allows and by NEAR_S at most is drawn paler: a shade, counted as early or late
-  const NEAR_S = 3, NEAR = "color-mix(in srgb, var(--gold) 45%, var(--bg))";
   const NEAR_GREEN = "color-mix(in srgb, var(--green) 45%, var(--bg))";
 
   async function show(into, key) {
@@ -107,7 +105,6 @@ views.note = (() => {
     const fewer = C0.uses.length - rows.length;
     const labelW = 230, top = 26, colW = Math.max(SQ + 3, Math.min(16, 540 / C.pulls.length)), right = 70;
     const w = labelW + C.pulls.length * colW + right, h = top + C.uses.length * ROW + 4;
-    const shade = NEAR_S > C0.on_time_s;  // the paler band is there only past what is on time
     let body = "";
     C.pulls.forEach((p, i) => { if (p.pull === 1 || p.pull % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p.pull), "tm", 'text-anchor="middle"'); });
     C.uses.forEach((u, r) => {
@@ -120,8 +117,7 @@ views.note = (() => {
       C.pulls.forEach((p, i) => {
         const c = p.cells[r];
         if (!c) return;
-        const near = shade && c.off_s !== undefined && c.state !== "on time" && Math.abs(c.off_s) <= NEAR_S;
-        const [fill, word] = near ? [NEAR, COOLDOWN[c.state][1]] : COOLDOWN[c.state];
+        const [fill, word] = COOLDOWN[c.state];
         if (c.state !== "absent") seen++;
         if (c.state === "on time") on++;
         const off = c.off_s !== undefined && c.state !== "on time" ? ` by ${Math.abs(c.off_s).toFixed(0)} s` : "";
@@ -130,8 +126,9 @@ views.note = (() => {
       body += kit.text(w - 4, y + SQ - 0.5, `${on} of ${seen}`, "tm", 'text-anchor="end"');
     });
     const head = `<div class="head"><h1>Planned cooldowns</h1><span class="sub">${kit.esc(whose())} · each pull until its wipe was decided</span></div>`;
-    const keys = legend([[COOLDOWN["on time"][0], `on time (within ${C0.on_time_s} s)`],
-                         ...(shade ? [[NEAR, `early or late by ${NEAR_S} s at most`], [COOLDOWN.late[0], "more"]] : [[COOLDOWN.late[0], "early or late"]]),
+    // the one band raid_note's text states, in its words: on time is under C0.on_time_s from the note's time (the note
+    // check's ON_TIME_S), early or late from there on, by how much in a square's tooltip
+    const keys = legend([[COOLDOWN["on time"][0], `on time (under ${C0.on_time_s} s from the note's time)`], [COOLDOWN.late[0], "early or late"],
                          [COOLDOWN["not cast"][0], "not cast, alive"], [COOLDOWN.dead[0], "dead by then"]]);
     return `<section data-panel="cooldowns" class="note-board">${head}<div class="grid">${kit.svg(w, h, body, "Planned cooldowns by pull")}</div>${keys}`
       + `<div class="note">Right: on time, of the pulls that reached it before the wipe was decided.`

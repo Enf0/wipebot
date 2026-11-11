@@ -935,7 +935,10 @@ async def test_the_note_boards_bands_are_the_note_checks_own_and_one_raiders_boa
     assert "const FEW = 3" not in src
     [s] = await shots(tmp_path / "night", "raid_note", CASES["raid-note-night"].args)
     assert not s.errors, s.errors
-    assert f"on time (within {notes.ON_TIME_S} s)" in s.text and f"a defensive {notes.RUNNING}" in s.text
+    # on time in the words of the text's own key: "within 3 s" took in a press 3.0 s off, which the text calls late
+    text, _ = await server.call("raid_note", CASES["raid-note-night"].args)
+    band = f"on time (under {notes.ON_TIME_S} s from the note's time)"
+    assert band in text and band in s.text and f"a defensive {notes.RUNNING}" in s.text
     assert (f"pressed from {notes.CALL_BEFORE_MS // 1000} s before to {notes.CALL_AFTER_MS // 1000} s after the "
             "callout answers it") in s.text
     assert f"which fewer than {views.NOTE_FEW} pulls reached" in s.text
@@ -945,6 +948,38 @@ async def test_the_note_boards_bands_are_the_note_checks_own_and_one_raiders_boa
     assert "ENFO · THE TWIN FANGS · 39 PULLS" in said and "THEIRS WENT THROUGH FIRST\n0 OF 11" in said
     assert f"THE WIPE DECIDED WITHIN {notes.LOST_AFTER_MS // 1000} S, ANY PLAYER'S CAST" in said
     assert "WHOSE CAST WENT THROUGH FIRST" not in said and "KARADIM" not in said
+
+
+async def test_the_note_boards_planned_cooldowns_have_the_texts_one_band(recorded):
+    """The board kept a paler gold for a cooldown "early or late by 3 s at most" from when on time was under 1 s.
+    raid_note's text has one band (on time under ON_TIME_S, early or late from there on) and so has the board: a
+    square is on time, early or late, not cast, dead or absent, by the state the note check gave it."""
+    src = resources.files("wipebot.core").joinpath("app", "note.js").read_text(encoding="utf-8")
+    assert "NEAR_S" not in src and "at most" not in src
+    data = await note_data("raid-note-night")
+    cast = [c for p in data["cooldowns"]["pulls"] for c in p["cells"] if c and "off_s" in c]
+    assert data["cooldowns"]["on_time_s"] == notes.ON_TIME_S
+    # the state is the note check's, of the unrounded time: the tenth of a second the cell carries is at the band's
+    # edge for six of the night's 537 presses (2.96 s is on time and reads 3.0), which the paler tier went by
+    on, off = ([abs(c["off_s"]) for c in cast if (c["state"] == "on time") == yes] for yes in (True, False))
+    assert max(on) <= notes.ON_TIME_S <= min(off) and len(on) == 279 and len(off) == 258
+    assert (on + off).count(notes.ON_TIME_S) == 6
+    from wipebot.core import viewhost
+    panel, args = '[data-panel="cooldowns"]', CASES["raid-note-night"].args
+    squares = f'{panel} svg rect[width="10"]'
+    key = await viewhost.picture_key("raid_note", args)  # the board is a picture only the Discord bot posts
+    assert key is not None
+    board = {"content": [], "structuredContent": key}
+    async with drawn("raid_note", args, result=board, picture=True) as (view, errors):
+        keys = await view.evaluate(f"() => [...document.querySelectorAll('{panel} .legend span')]"
+                                   ".map((s) => s.textContent)")
+        fills = await view.evaluate(f"() => [...new Set([...document.querySelectorAll('{squares}')]"
+                                    ".map((r) => r.getAttribute('fill')))]")
+        assert not errors, errors
+    assert keys == [f"on time (under {notes.ON_TIME_S} s from the note's time)", "early or late", "not cast, alive",
+                    "dead by then"]
+    assert set(fills) <= {"var(--green)", "var(--gold)", "var(--dead)", "var(--muted)", "var(--line)"}
+    assert {"var(--green)", "var(--gold)"} <= set(fills)
 
 
 @pytest.mark.parametrize("case", ["raid-note", "raid-note-kicks"])
