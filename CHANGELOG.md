@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-11
+
 ### Added
 
 - `MCP` **See a raid plan as raidstrats.gg draws it.** Asked for the plan as it is ("what's our plan for this boss?"), Wipebot shows each plan with the names saved on its spots: in ChatGPT the plan itself, its scenes a click apart and your own spots lit when you ask where you stand; in Claude a link that opens it.
