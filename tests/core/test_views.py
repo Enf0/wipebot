@@ -21,7 +21,7 @@ from mcp.types import CallToolResult, TextContent
 
 from tests.support import assert_snapshot
 from tests.support.paths import REAL
-from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Replay, serve_from
+from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Replay, asked, serve_from
 from wipebot.core import server
 from wipebot.core.classes import CLASS_COLORS, WHITE
 from wipebot.core.notebook import Notebook
@@ -320,11 +320,6 @@ async def test_the_raid_night_view_draws_and_a_pulls_bar_opens_that_pull(recorde
 
 METER_CASES = ["mechanic-hits", "damage-taken-ability", "interrupts", "dispels", "nekzali-enemies-night",
                "vashnik-enemies", "damage-least"]
-
-
-def asked(key: dict) -> dict:
-    """What the page asks view_data with a key: all of it but what the page itself reads (a folded card's label)."""
-    return {k: v for k, v in key.items() if k not in ("label", "folded")}
 
 
 async def meter_data(case: str) -> dict:
