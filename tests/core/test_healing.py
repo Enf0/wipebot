@@ -2,8 +2,8 @@
 from wipebot.core.report import fight, healing
 
 
-def _graph(per_second: list[float]) -> dict:
-    return {"series": [{"name": "Total", "pointStart": 0, "pointInterval": 1000, "data": per_second}]}
+def _graph(per_second: list[float], start: float = 0) -> dict:
+    return {"series": [{"name": "Total", "pointStart": start, "pointInterval": 1000, "data": per_second}]}
 
 
 async def test_a_pull_without_spikes_names_its_peak_by_the_seconds_the_timeline_names(rep, monkeypatch):
@@ -13,7 +13,8 @@ async def test_a_pull_without_spikes_names_its_peak_by_the_seconds_the_timeline_
     taken = [100.0] * 60
     taken[35:40] = [140.0] * 5
     assert healing._even(f, _graph(taken), f["endTime"]) == (
-        "the raid's damage taken stayed under 1.5x its median of 100/s, highest 140/s over the 5 s from 0:35")
+        "the raid's damage taken stayed under 1.5x its median of 100/s over any 5 s, highest 140/s over the 5 s from "
+        "0:35")
 
     async def keep(*_):
         return _graph(taken)
@@ -32,3 +33,99 @@ def test_a_peak_where_the_pull_is_cut_says_the_seconds_that_were_averaged():
     fine = {"series": [{"name": "Total", "pointStart": 0, "pointInterval": 250,
                         "data": [100.0] * 100 + [140.0] * 20 + [100.0] * 120}]}
     assert healing._even(f, fine, 60_000).endswith("highest 138/s over the 5 s from 0:24")
+
+
+def test_a_peak_over_the_bar_for_under_3_s_is_no_spike_and_says_so():
+    # A spike lasts 3 s or more: a 5 s average over 1.5x the median for one second isn't one, and "stayed under 1.5x
+    # its median, highest 152/s" said of a 100/s median was false.
+    f = {"id": 1, "startTime": 0, "endTime": 60_000}
+    taken = [100.0] * 60
+    taken[28:33] = [120.0, 160.0, 200.0, 160.0, 120.0]
+    assert not healing._spikes(f, _graph(taken), f["endTime"])
+    assert healing._even(f, _graph(taken), f["endTime"]) == (
+        "the raid's damage taken reached 1.5x its median of 100/s for under 3 s at a time, highest 152/s over the 5 s "
+        "from 0:28")
+
+
+def test_a_pulls_busiest_stretches_are_built_as_its_spikes_are():
+    # The biggest few runs of 5 s averages at 1.25x the median, runs this close together joined as spikes are, none
+    # overlapping, shown in time order.
+    f = {"id": 1, "startTime": 0, "endTime": 120_000}
+    taken = [100.0] * 120
+    taken[10:15] = [135.0] * 5  # the smallest of four: left out
+    taken[30:33] = taken[37:40] = [170.0] * 3  # their averages' runs 3 s apart: one stretch
+    taken[60:70] = [140.0] * 10
+    taken[90:96] = [135.0] * 6
+    graph = _graph(taken)
+    assert not healing._spikes(f, graph, f["endTime"])
+    busiest = healing._biggest([f], {1: graph}, {1: f["endTime"]}, healing.BUSY_TIMES, healing.BUSIEST_SHOWN)
+    assert [(s.start // 1000, s.end // 1000) for s in busiest] == [(29, 41), (61, 69), (91, 95)]
+
+
+def _flat_but(f: dict, busy: dict[int, float]) -> dict:
+    """A graph of the raid's damage taken at 100/s over pull `f`, but at the seconds `busy` gives."""
+    taken = [busy.get(i, 100.0) for i in range(int((f["endTime"] - f["startTime"]) // 1000))]
+    return _graph(taken, f["startTime"])
+
+
+async def test_a_pull_without_spikes_shows_its_busiest_stretches_and_names_them_so(rep, patch_wcl):
+    # On a kill whose damage was high all through, healing printed only "No spikes: the raid's damage taken stayed
+    # under 1.5x its median of 1.11M/s, highest 1.53M/s over the 5 s from 6:35", and answers took "no spikes" for
+    # their verdict on the healers though no healing cooldown went into that worst stretch. It now says what is so,
+    # then shows the pull's busiest stretches as it shows spikes, and calls them nothing else.
+    busy = {i: 135.0 for i in [*range(20, 30), *range(80, 86)]}
+    patch_wcl(rep, graphs=lambda code, fights, *_, **__: {f["id"]: _flat_but(f, busy) for f in fights})
+    text = await healing.healing(rep, 13)
+    head, *lines = text.splitlines()
+    assert head.startswith("The raid's busiest stretches of damage taken and the healing into them, ")
+    assert head.endswith("A spike: raid damage taken at 1.5x the pull's median or more over 5 s, at least 3 s long; "
+                         "where a pull has none, its busiest stretches: at 1.25x or more, as long.")
+    assert lines[0] == ("The raid's damage taken stayed under 1.5x its median of 100/s over any 5 s, highest 135/s "
+                        "over the 5 s from 0:20; its 2 busiest stretches:")
+    assert lines[1] == "0:21-0:29 (8 s): 0/s taken (no damage recorded); healing 0/s, - of the damage taken."
+    assert lines[2].startswith("  Healers: ")
+    assert lines[3].startswith("  Healing cooldowns used (or up to 5 s before): ")
+    assert lines[4].startswith("1:21-1:25 (4 s): ")
+    assert "Each healer in the busiest stretches against the rest of the time" in text
+    assert "in the busiest stretches, " in text and "healing cooldowns in a busiest stretch" in text
+    assert "spike" not in "\n".join(lines)
+
+
+async def test_a_pull_under_the_lower_bar_says_so_in_a_line(rep, patch_wcl):
+    patch_wcl(rep, graphs=lambda code, fights, *_, **__: {f["id"]: _flat_but(f, {40: 120.0}) for f in fights})
+    text = await healing.healing(rep, 13)
+    assert text.startswith("The raid's damage taken, ")  # no stretch shown: none in the title either
+    assert text.splitlines()[1] == ("The raid's damage taken stayed under 1.25x its median of 100/s over any 5 s, "
+                                    "highest 104/s over the 5 s from 0:36.")
+    assert len(text.splitlines()) == 2
+
+
+def test_a_pull_with_no_damage_most_of_the_time_has_no_median_to_measure_against():
+    # "stayed under 1.5x its median of 0/s, highest 140/s" was false: with no damage in half the pull's 5 s or more,
+    # nothing is measured against the median.
+    f = {"id": 1, "startTime": 0, "endTime": 60_000}
+    taken = [0.0] * 60
+    taken[35:40] = [140.0] * 5
+    assert not healing._spikes(f, _graph(taken), f["endTime"], healing.BUSY_TIMES)
+    assert healing._even(f, _graph(taken), f["endTime"]) == (
+        "the raid's damage taken had a median of 0/s over 5 s, against which no stretch is measured, highest 140/s "
+        "over the 5 s from 0:35")
+
+
+async def test_a_night_without_spikes_shows_each_pulls_busiest_stretches(rep, patch_wcl):
+    busy = {i: 135.0 for i in range(10, 18)}
+    patch_wcl(rep, graphs=lambda code, fights, *_, **__: {f["id"]: _flat_but(f, busy) for f in fights})
+    text = await healing.healing(rep, boss="Sszorak", all_pulls=True)
+    head, *lines = text.splitlines()
+    assert lines[0] == "No pull's raid damage taken was at 1.5x its median over 5 s for 3 s or more."
+    assert lines[1].startswith("Each pull's 3 busiest stretches (time, length, ")
+    assert any(line.startswith("The busiest stretches that came back pull after pull") for line in lines)
+    assert "spike" not in "\n".join(lines)
+
+
+async def test_a_night_under_the_lower_bar_names_each_pull_in_its_line(rep, patch_wcl):
+    patch_wcl(rep, graphs=lambda code, fights, *_, **__: {f["id"]: _flat_but(f, {30: 110.0}) for f in fights})
+    flat = (await healing.healing(rep, boss="Sszorak", all_pulls=True)).splitlines()
+    assert len(flat) == 2 and flat[1].startswith(
+        "Pull 1: the raid's damage taken stayed under 1.25x its median of 100/s over any 5 s, highest 102/s over the "
+        "5 s from 0:26; pull 2: the raid's damage taken stayed under 1.25x")

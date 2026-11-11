@@ -1794,7 +1794,8 @@ async def healing(pull: Pull = None, boss: Boss = None,
     and deaths in it; then each healer in the spikes against the rest of the time. With all_pulls, each pull's
     biggest spikes in a line and the spikes by the ability behind them over the night.
     Reading it: a spike is the raid's damage at 1.5 times the pull's median or more, so a pull's quiet stretches set
-    the bar. Ready and unused counts a healer's cooldown only when they press it somewhere in the report;
+    the bar; where no pull has one (damage high all through), each pull's busiest stretches, at 1.25 times, are
+    read the same way. Ready and unused counts a healer's cooldown only when they press it somewhere in the report;
     cooldowns are often planned for one spike and held through another (the raid note says). Overhealing is
     healing past full health: healing is capped by the damage taken, so a high share where the raid took little
     (heals over time and smart heals landing on players at full health) isn't a fault on its own.

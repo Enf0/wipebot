@@ -19,6 +19,7 @@
 #   BfgjDv6LC2HaVbFm  Wed 30 Sep: Mythic Nek'zali, two pulls with kicks on its adds
 #   fk2z6bCw4xRLNvht  28 Mythic Coiled Altar pulls, the last the first into Stage Three, with the raid note saved
 #                     for the boss on 2 Nov (../notes)
+#   dTQMvNbBcPh6mDrA  Tue 25 Aug: Heroic Sszorak killed on pull 8, The Twin Fangs on pull 7
 # All are reports of The Dragonfell Tribe, the maintainers' guild (tests/README.md). Bosses other than Sszorak are
 # where how a pull ended is easy to get wrong (a tank death, a battle res, adds).
 
@@ -77,6 +78,8 @@ roster = { tool = "roster", report = "KBYT4xXn7VNjDgh8" }
 defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
 defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid" }
 healing = { tool = "healing", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", pull = 8 }
+# no spike on a kill whose damage was high all through: its busiest stretches, at 1.25x the median, shown instead
+healing-busiest = { tool = "healing", report = "dTQMvNbBcPh6mDrA", boss = "The Twin Fangs", pull = 7 }
 # the spikes that come back at the same moment pull after pull
 healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true }
 # healers going low late in a long pull, and the druid's Innervates: both on a healer above the low line while two
