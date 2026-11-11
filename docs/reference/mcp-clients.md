@@ -146,7 +146,9 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
   documentation). Neither can be changed in the tool's wrapper, which runs after; `server.Server.call_tool`
   refuses an unknown argument by name, with the tool's arguments and the tools that take it, and words an
   ill-fitting one in a sentence with the argument's own description. A null is let through: clients fill one in
-  for what they don't use.
+  for what they don't use. A number given where a tool takes only text is taken as that text before the check
+  (11 November): the tools print a spell's id as a number and `spell_info` asks for it back, and
+  `spell_info {"spell": 1287083}` was refused as "a valid string". Text given for a number is still refused.
 - ChatGPT treats a tool without `readOnlyHint` as a write action and asks the user before each call
   (https://developers.openai.com/api/docs/guides/developer-mode); every tool carries it but the remote server's
   `save_note_or_plan`, the one write, which is a tool of its own so that only saving asks (`raid_note` stays

@@ -2201,7 +2201,8 @@ class Server(MCPServer):
     """An MCP server that tells the model what was wrong with a call's arguments, in sentences it can act on. The
     SDK checks them before the tool runs: it drops an argument the tool doesn't take without a word, so the call
     answers another question than the one asked, and words one of the wrong kind as pydantic does (its model's
-    name, error codes and a link to its documentation)."""
+    name, error codes and a link to its documentation). A number given where a tool takes text is taken as that
+    text (`_numbers_as_text`)."""
 
     async def call_tool(self, name: str, arguments: dict[str, Any], context: Context | None = None) -> Any:
         tool = self._tool_manager.get_tool(name)
@@ -2210,7 +2211,8 @@ class Server(MCPServer):
         if tool and (unknown := [a for a, value in arguments.items() if value is not None and a not in takes]):
             raise ToolError(self._not_taken(name, takes, unknown))
         try:
-            return await super().call_tool(name, arguments, context)
+            return await super().call_tool(name, _numbers_as_text(tool.parameters, arguments) if tool else arguments,
+                                           context)
         except ToolError as e:
             if tool and isinstance(e.__cause__, ValidationError):
                 raise ToolError(_ill_fitting(name, tool.parameters, arguments, e.__cause__)) from e.__cause__
@@ -2226,6 +2228,22 @@ class Server(MCPServer):
             if having := [tool for tool, args in tools.items() if a in args]:
                 told.append(f"Tools that take `{a}`: {', '.join(having)}.")
         return " ".join(told)
+
+
+def _numbers_as_text(schema: dict, given: dict[str, Any]) -> dict[str, Any]:
+    """A call's arguments with a number given where the tool takes text as that text: the tools print a spell's id
+    as a number and ask for it back ("spell id (best, from a log tool)"), and a model gives it as it read it. A
+    whole number that came as a decimal is its id ("1287083", not "1287083.0"). Only where text is all the tool
+    takes there: a choice of a few words, a list and a yes or no stay what was given, and are refused as before."""
+    def takes_text(arg: dict) -> bool:
+        kinds = [kind for kind in arg.get("anyOf") or [arg] if kind != {"type": "null"}]
+        return bool(kinds) and all(kind.get("type") == "string" and "enum" not in kind for kind in kinds)
+    def as_given(name: str, value: Any) -> Any:
+        if isinstance(value, bool) or not isinstance(value, int | float) or not takes_text(takes.get(name) or {}):
+            return value
+        return str(int(value) if isinstance(value, float) and value.is_integer() else value)
+    takes = schema.get("properties") or {}
+    return {name: as_given(name, value) for name, value in given.items()}
 
 
 def _ill_fitting(tool: str, schema: dict, given: dict, error: ValidationError) -> str:

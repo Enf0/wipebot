@@ -191,6 +191,48 @@ async def test_an_argument_of_the_wrong_kind_is_told_in_a_sentence():
         "player_pull needs `player`: character name as in the log (accents optional).")
 
 
+def _fitting(schema: dict) -> object:
+    """A value an argument of this schema takes, for one a test has to give."""
+    kind = (schema.get("anyOf") or [schema])[0]
+    if "enum" in kind:
+        return kind["enum"][0]
+    return {"integer": kind.get("minimum", 1), "boolean": True, "array": []}.get(kind.get("type"), "x")
+
+
+async def test_a_number_given_where_a_tool_takes_text_is_taken_as_its_text(monkeypatch):
+    """The tools print a spell's id as a number ("[1287083]") and ask for it back ("spell id (best, from a log
+    tool)"), so a model gives it as one: `spell_info {"spell": 1287083}` was refused as no valid string. Every
+    tool's text arguments take a number as its text; what a tool takes as a number still refuses text."""
+    took: dict[str, dict] = {}
+    tools = server.mcp._tool_manager.list_tools()
+    for tool in tools:
+        async def ran(_name=tool.name, **given):
+            took[_name] = given
+            return "ran"
+        monkeypatch.setattr(tool, "fn", ran)
+    texts = {}
+    for tool in tools:
+        args = tool.parameters.get("properties") or {}
+        texts[tool.name] = [name for name, schema in args.items() if schema.get("type") == "string"
+                            and "enum" not in schema]
+        given = {name: 1287083 if name in texts[tool.name] else _fitting(args[name])
+                 for name in {*texts[tool.name], *tool.parameters.get("required", ())}}
+        await server.mcp.call_tool(tool.name, given)
+        assert {name: took[tool.name][name] for name in texts[tool.name]} == dict.fromkeys(texts[tool.name], "1287083")
+    assert texts["spell_info"] == ["spell"] and "report" in texts["progress"] and "player" in texts["player_pull"]
+    assert sum(map(len, texts.values())) > 80  # nearly every argument of every tool
+    # a whole number that came as a decimal (JSON has one kind of number) reads as the id it is
+    await server.mcp.call_tool("spell_info", {"spell": 1287083.0})
+    assert took["spell_info"] == {"spell": "1287083"}
+    # neither a yes or no nor a list is a number, and a number is no choice of a few words
+    with pytest.raises(ToolError, match="spell_info can't take True as `spell`: it should be a valid string"):
+        await server.mcp.call_tool("spell_info", {"spell": True})
+    with pytest.raises(ToolError, match=r"boss_guide can't take 3 as `topic`: it should be 'strategy', 'tooltips' or"):
+        await server.mcp.call_tool("boss_guide", {"boss": "Sszorak", "topic": 3})
+    with pytest.raises(ToolError, match="progress can't take 'many' as `weeks`: it should be a valid integer"):
+        await server.mcp.call_tool("progress", {"report": 12345678, "weeks": "many"})
+
+
 async def test_a_boss_name_read_one_of_several_ways_is_said_in_the_results_first_line(night):
     class Mixed(FakeWCL):  # Vashnik pulled once on Heroic before the Mythic pulls
         async def report_fights(self, code, cache_for=None):
