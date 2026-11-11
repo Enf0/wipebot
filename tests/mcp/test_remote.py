@@ -745,14 +745,20 @@ def test_pull_tools_open_the_views_which_read_the_app_only_tools(client):
     assert "the user also sees the pull drawn" in tools["pull_summary"]["description"]
     # raid_plan's view is its plan on raidstrats.gg, with show only: most of its answers have no pull to play, and
     # the page draws nothing for them (app/main.js)
-    assert tools["raid_plan"]["_meta"]["ui"]["resourceUri"] == remote.VIEWS_APP
+    # at an address of its own: it alone frames another site, which a host asks its user about before it opens
+    assert tools["raid_plan"]["_meta"]["ui"]["resourceUri"] == remote.PLAN_APP != remote.VIEWS_APP
+    assert tools["raid_plan"]["_meta"]["openai/outputTemplate"] == remote.PLAN_APP
     assert "call pull_map with plan, which shows its replay." in tools["raid_plan"]["description"]
     for app_only in ("view_data", "pull_replay", "viewer_log"):
         assert tools[app_only]["_meta"]["ui"] == {"resourceUri": remote.VIEWS_APP, "visibility": ["app"]}
     page = call("resources/read", {"uri": remote.VIEWS_APP})["contents"][0]
     assert page["mimeType"] == "text/html;profile=mcp-app" and "pull_replay" in page["text"]
     assert "view_data" in page["text"] and "/*SCRIPT*/" not in page["text"]
-    assert page["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC], "frameDomains": ["https://raidstrats.gg"]}
+    assert page["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC]}  # no other site: no question before it opens
+    for plans in (remote.PLAN_APP, "ui://wipebot/plan-0123456789.html"):
+        plan = call("resources/read", {"uri": plans})["contents"][0]
+        assert plan["text"] == page["text"] and plan["mimeType"] == page["mimeType"]
+        assert plan["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC], "frameDomains": ["https://raidstrats.gg"]}
     # a stale tool list: the replay viewer's addresses from before the views, and an older views page
     for older in ("ui://wipebot/pull-map-0123456789.html", "ui://wipebot/views-0123456789.html"):
         again = call("resources/read", {"uri": older})["contents"][0]

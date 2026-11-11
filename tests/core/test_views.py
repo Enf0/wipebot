@@ -1273,7 +1273,7 @@ def test_the_tools_with_a_card_are_the_ones_whose_result_carries_its_key():
     keyed = set(re.findall(r'await _shown\("(\w+)"', Path(server.__file__).read_text(encoding="utf-8")))
     remote = (Path(server.__file__).parents[1] / "mcp" / "remote.py").read_text(encoding="utf-8")
     listed = re.search(r"server\.register\(mcp, setup, meta=\{(.*?)\}", remote, re.DOTALL)
-    assert listed and set(re.findall(r'"(\w+)": shown', listed[1])) == keyed | {"pull_map", "raid_plan"}
+    assert listed and set(re.findall(r'"(\w+)": (?:shown|plan)\b', listed[1])) == keyed | {"pull_map", "raid_plan"}
     assert keyed == viewhost.SHOWN and keyed < set(server.VIEW_TOOLS)
     # and in the page: the tools only some of whose calls have a view (it draws nothing for the others), and the
     # rest, whose view it can draw again from the tool's arguments

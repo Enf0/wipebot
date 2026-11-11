@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `MCP` **Claude opens Wipebot's views without asking first.** Since 1.1.0 Claude held every view back behind "This app wants to show content from other websites" until you allowed raidstrats.gg: the page all views share said it may show a raid plan from there. Only the raid plan's view says so now, so a pull, a player, a night or a meter opens as before, and Claude asks only when a plan is shown.
 - `MCP` **A pull's card reads cleanly on a phone.** The boss box keeps each % with what it is ("best of this log: WCL 4.5%"), where a narrow card left "WCL 4.5%" on a line of its own like a second answer. A damage peak's number is no longer written over the spike beside it: it stands next to its own peak, or stays in the tooltip when there's no room.
 
   ![The Coiled Altar pull 3 on a phone in Claude's dark theme: the boss box "P2 0.5%, WCL 50.1% · best of this log: WCL 4.5%", and in the chart "8.6M" beside the first of two damage spikes at the line the wipe was decided at](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/pull-card-phone.webp)

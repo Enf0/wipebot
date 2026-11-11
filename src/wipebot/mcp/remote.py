@@ -58,6 +58,9 @@ from .signin import CALLBACK_PATH, CONSENT_PATH, PRIVATE_PATH, WEB_PATH, Access,
 # Claude caches an app's page by its address: a changed page gets a new one. Any older address still gets today's
 # page (`_any_views_address`), so a host with an older tool list doesn't break.
 VIEWS_APP = views.page_uri()
+# The same page at an address of its own for raid_plan, the one view that frames another site: a host asks its user
+# before it opens a view that declares one (Claude: "wants to show content from other websites"), so the others don't
+PLAN_APP = VIEWS_APP.replace("/views-", "/plan-")
 IMG_PATH = re.compile(r"maps/\d+-map\.png|icons/[A-Za-z]+-[A-Za-z]+\.jpg|bosses/\d+-icon\.jpg|spells/\d+\.jpg")
 LATEST_RAID_S = 600  # the default report: looked up this often
 log = logging.getLogger(__name__)
@@ -93,6 +96,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                           revocation_options=RevocationOptions(enabled=True)),
         auth_server_provider=signin, extensions=[_views_app(public, setup)])
     shown = {"ui": {"resourceUri": VIEWS_APP}, "openai/outputTemplate": VIEWS_APP}
+    plan = {"ui": {"resourceUri": PLAN_APP}, "openai/outputTemplate": PLAN_APP}
     # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull, and
     # compare_with_top no player: the player view asks for its comparison itself), and the two that rank players:
     # breakdown and mechanic_hits, whose calls without a ranking or a trend draw nothing (the page's frame stays
@@ -102,7 +106,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
              "within a minute of the last as a line the user opens.")
     server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
                                        "player_night": shown, "death_recap": shown, "progress": shown,
-                                       "breakdown": shown, "mechanic_hits": shown, "raid_plan": shown},
+                                       "breakdown": shown, "mechanic_hits": shown, "raid_plan": plan},
                     notes={"breakdown": ranks.format(what=(
                                "the user also sees a ranking by player drawn as a damage meter (damage, healing, "
                                "damage taken, kicks, dispels) under a sentence on who is first against the median, "
@@ -365,8 +369,9 @@ def _officer(signin: SignIn) -> Callable[[], tuple[str, int]]:
 FRAMED = ["https://raidstrats.gg"]  # raid_plan's plan, in its embed where the host allows the frame (app/plan.js)
 
 
-def _views_csp(public_url: str) -> ResourceCsp:
-    return ResourceCsp(resource_domains=[public_url], frame_domains=FRAMED)  # the room's map and icons, from /img/
+def _views_csp(public_url: str, framed: bool = False) -> ResourceCsp:
+    """What the page loads: the room's map and icons, from /img/; `framed`, raid_plan's page, the plan's site too."""
+    return ResourceCsp(resource_domains=[public_url], frame_domains=FRAMED if framed else None)
 
 
 def _views_app(public_url: str, setup: server.Setup) -> Apps:
@@ -374,6 +379,8 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
     apps = Apps()
     apps.add_html_resource(VIEWS_APP, views.page(), name=VIEWS_APP.removeprefix("ui://"), title="Wipebot",
                            csp=_views_csp(public_url), prefers_border=False)
+    apps.add_html_resource(PLAN_APP, views.page(), name=PLAN_APP.removeprefix("ui://"), title="Wipebot",
+                           csp=_views_csp(public_url, framed=True), prefers_border=False)
 
     # All only read (the log note changes nothing a user sees): ChatGPT lists a tool not marked so as Write
     @apps.tool(resource_uri=VIEWS_APP, visibility=["app"], structured_output=False, name="view_data",
@@ -419,8 +426,10 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
 
 def _any_views_address(mcp: MCPServer, public_url: str) -> None:
     """Every older versioned address of the views' page, the replay viewer's before it included, gets today's page."""
-    meta = {"ui": {"csp": _views_csp(public_url).model_dump(by_alias=True, exclude_none=True),
-                   "prefersBorder": False}}
+    def meta_(framed: bool = False) -> dict:
+        return {"ui": {"csp": _views_csp(public_url, framed).model_dump(by_alias=True, exclude_none=True),
+                       "prefersBorder": False}}
+    meta = meta_()
 
     @mcp.resource("ui://wipebot/views-{version}.html", name="views-any", mime_type=APP_MIME_TYPE, meta=meta)
     def any_version(version: str) -> str:
@@ -428,6 +437,10 @@ def _any_views_address(mcp: MCPServer, public_url: str) -> None:
 
     @mcp.resource("ui://wipebot/pull-map-{version}.html", name="pull-map-any", mime_type=APP_MIME_TYPE, meta=meta)
     def any_replay_version(version: str) -> str:
+        return views.page()
+
+    @mcp.resource("ui://wipebot/plan-{version}.html", name="plan-any", mime_type=APP_MIME_TYPE, meta=meta_(True))
+    def any_plan_version(version: str) -> str:
         return views.page()
 
 

@@ -1,6 +1,7 @@
 // ---- raid_plan with `show`: each plan as raidstrats.gg draws it, its embed (embed-doc) with the names saved on its
 // numbered spots and the asked raider's spots lit, where the host lets the page frame raidstrats.gg (ChatGPT does,
-// Claude doesn't: hostCapabilities.sandbox.csp.frameDomains says); elsewhere a line with the plan's link ----
+// Claude asks its user first: hostCapabilities.sandbox.csp.frameDomains says); elsewhere a line with the plan's
+// link. Only this view's address declares the frame (the remote server's PLAN_APP), so only it is asked about ----
 views.plan = (() => {
   const ORIGIN = "https://raidstrats.gg";
   const framed = () => ((app.capabilities().sandbox || {}).csp || {}).frameDomains?.some((d) => d.replace(/\/$/, "") === ORIGIN);
