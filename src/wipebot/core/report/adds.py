@@ -373,7 +373,8 @@ EVERY_KIND = "Damage on adds"  # the title of `meters`' first meter: every kind 
 async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False) -> list[Meter]:
     """The damage on adds by player as meters, from the same tables as `enemies` (`enemies_night` with all_pulls): on
     every kind of add it names (the NIGHT_KINDS most damaged over the night) summed, then on the most damaged kind
-    alone when there are several. None for no adds or fewer than MIN_BARS players who hit them."""
+    alone when there are several, with the damage that kind took as the text states it (Meter.total). None for no
+    adds or fewer than MIN_BARS players who hit them."""
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
     fights = rep.ended(pulls) if all_pulls else pulls
     if all_pulls:
@@ -388,6 +389,7 @@ async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all
                 taken[rep.actor(n["id"])] += hurt.get(n["id"], 0)
         names = sorted(taken, key=lambda n: -taken[n])[:NIGHT_KINDS]
         dealt = await _dealt_on(rep, fights, names)
+        took = dict(taken)  # each kind's "took" over the pulls, as enemies_night states it
         scope = f"all {plural(len(fights), rep.boss_key(fights[0]) + ' pull')}, each whole pull"
     else:
         f = fights[0]
@@ -406,6 +408,7 @@ async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all
             for e in table.get("entries") or []:
                 dealt_by_id[n_id][e["name"]] += e.get("total", 0)
         dealt = {rep.actor(n["id"]): dealt_by_id[n["id"]] for n in shown if hurt.get(n["id"])}
+        took = {rep.actor(n["id"]): hurt[n["id"]] for n in shown if hurt.get(n["id"])}  # as enemies states it
         scope = rep.label(f)
     dealt = {name: c for name, c in dealt.items() if c}
     players = set(rep.names.values())
@@ -416,7 +419,7 @@ async def meters(rep: Report, pull: PullRef = None, boss: str | None = None, all
         out.append(Meter(EVERY_KIND, f"{scope}: {few(list(dealt))}", bars(sum(dealt.values(), Counter()))))
     if dealt:
         name, c = next(iter(dealt.items()))
-        out.append(Meter(f"Damage on {name}", scope, bars(c)))
+        out.append(Meter(f"Damage on {name}", scope, bars(c), total=took[name]))
     return [m for m in out if len(m.bars) >= MIN_BARS]
 
 

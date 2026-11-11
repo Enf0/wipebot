@@ -50,3 +50,4 @@ class Meter:
     per_pull: str = ""  # what `per_pull` counts: "hits", "debuffs"
     then: Then | None = None  # the other night it's compared with, each bar's `was`
     least: bool = False  # for "who did the least?": drawn from the bottom of the ranking
+    total: float = 0  # the total its tool's text states beside these rows, where their maker has it: enemies' "took"
