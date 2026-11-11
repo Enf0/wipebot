@@ -294,8 +294,8 @@ asker = "Enfo"
 pull = 7
 boss = "The Twin Fangs"
 expect = """Mostly well: the healing cooldowns went into each Stir the Depths and Ravenous Feast cycle but the fifth.
-The fight's highest damage, 1.53M/s at 6:35-6:37 (Venomous Emergence at 6:18, Stir the Depths at 6:31), got none
-until Zephyr at 6:44 and Darkness at 6:48, with Avenging Wrath not used again after 3:32."""
+The fight's highest damage, 1.53M/s over the 5 s from 6:35 (Venomous Emergence at 6:18, Stir the Depths at 6:31),
+got none until Zephyr at 6:44 and Darkness at 6:48, with Avenging Wrath not used again after 3:32."""
 facts = ["Stir the Depths at 0:52, 2:00, 3:41, 4:49, 6:31, 7:39; Ravenous Feast at 1:07, 2:15, 3:57, 5:04, 6:46, 7:54",
          "the 4:49 cycle got Rallying Cry at 4:47, Ascendance at 4:53, Spirit Link Totem at 5:04 and Rewind at 5:09",
          "Avenging Wrath used twice, at 0:40 and 3:32",

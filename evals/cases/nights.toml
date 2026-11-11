@@ -41,7 +41,7 @@ damage would mean fewer Imbibes, so fewer totem rounds, is fair."""
 facts = ["Plague Wave was the most common of each pull's first three deaths (29), many around 1:00",
          "Malignance (totems not cleared) next with 12",
          "Catalytic Bile killed the most until each wipe was decided: 63 deaths over 19 pulls, never the first",
-         "the best wipe, pull 16, reached 9.4% at 6:41, deaths spread out from 3:48",
+         "the best wipe, pull 16, reached 9.4% at 6:41: first death at 3:48, then deaths one after another from 4:36",
          "the kill on pull 19 took 7:00",
          "the guide says there's no DPS enrage (a 5th healer is worth it)"]
 # compare_pulls puts pull 16 behind the closest-item-level fast kill (4:45) from 0:30 on, which is why the expect
