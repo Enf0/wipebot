@@ -11,6 +11,8 @@ from .names import lorrgs_slug, slug
 from .specs import spec_spells
 from .talents import class_and_spec
 
+PERSONAL = {"defensive", "move", "tank"}  # a moment's spells, not the cooldowns a raid plans around
+
 
 async def cooldown_comparison(report_code: str, fight_id: int, player: str, phase: int = 1) -> dict:
     """warcraft_cli's cooldown packet: one player's cooldown casts on a pull (all of it: filter by the phase's
@@ -50,8 +52,16 @@ async def cooldown_comparison_text(report_code: str, fight_id: int, player: str,
         n = comp.get("phase_sample_count") or comp.get("sample_count")
         lines.append(f"Top parses compared: {n} (from Lorrgs' ranking of this spec on this boss).")
         freq = comp.get("selected_phase_spell_frequency") or []
-        lines.append("How many of them cast each cooldown in this phase, and total casts: " + "; ".join(
-            f"{f['spell']['name']} {f['sample_count']}/{n} ({plural(f['total_casts'], 'cast')})" for f in freq))
+        moments = [f for f in freq if PERSONAL & set(f["spell"].get("tags") or [])]
+
+        def counts(fs: list[dict]) -> str:
+            return "; ".join(f"{f['spell']['name']} {f['sample_count']}/{n} ({plural(f['total_casts'], 'cast')})"
+                             for f in fs)
+        lines.append("How many of them cast each cooldown in this phase, and total casts: "
+                     + (counts([f for f in freq if f not in moments]) or "none"))
+        if moments:
+            lines.append("Defensive, tank and movement spells, which answer a moment (a big hit, a death, movement), "
+                         "so how often they cast them isn't a fault: " + counts(moments))
         for s in (comp.get("samples") or [])[:5]:
             times: dict[str, list[str]] = defaultdict(list)
             for c in s.get("selected_phase_casts") or []:
@@ -79,7 +89,6 @@ async def cooldown_comparison_text(report_code: str, fight_id: int, player: str,
 
 
 TOP_TIMELINES = 5  # top parses whose cooldown times are listed in full
-PERSONAL = {"defensive", "move", "tank"}  # a moment's spells, not the cooldowns a raid plans around
 
 
 async def top_cooldowns_text(spec: str, boss: str, difficulty: str | None = None) -> str:

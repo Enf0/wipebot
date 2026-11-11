@@ -197,3 +197,31 @@ async def test_the_top_comparisons_phase_is_named_as_every_tool_names_it(rep, mo
     # Without the pull's phases to name it by, the stretch is its times alone: never warcraft_cli's own number.
     bare = await knowledge.cooldown_comparison_text(rep.code, f["id"], "Draiman", 3)
     assert bare.startswith(f"Draiman (rogue-assassination), {clock(back)}-2:50 of this pull.")
+
+
+async def test_the_top_comparisons_moment_spells_are_counted_apart_from_its_cooldowns(rep, monkeypatch):
+    """me-healer-kill: compare_with_top counted Earth Elemental (a defensive) among a Restoration Shaman's
+    cooldowns as "3/5", and an answer advised casting it because most top players had. Defensive, tank and movement
+    spells answer a moment, so they get their own line; each top player's timeline still lists them."""
+    def spell(name: str, *tags: str) -> dict:
+        return {"spell": {"name": name, "tags": list(tags)}}
+
+    async def packet(code, fight_id, player, phase):
+        return {"phase": {"selected": {"start_ms": 0}},
+                "player": {"name": "Enfo", "spec_slug": "shaman-restoration"},
+                "comparison": {"status": "ready", "phase_sample_count": 2, "selected_phase_spell_frequency": [
+                    {**spell("Ascendance", "raid_cd"), "sample_count": 2, "total_casts": 4},
+                    {**spell("Spiritwalker's Grace", "move"), "sample_count": 2, "total_casts": 5},
+                    {**spell("Potion of Recklessness"), "sample_count": 1, "total_casts": 1},
+                    {**spell("Earth Elemental", "defensive"), "sample_count": 1, "total_casts": 1}],
+                    "samples": [{"player": {"name": "Torvek"}, "region": "EU", "report_id": "a", "duration_ms": 300_000,
+                                 "selected_phase_casts": [{**spell("Earth Elemental", "defensive"),
+                                                           "timestamp_ms": 30_000}]}]}}
+    monkeypatch.setattr(knowledge.top_parses, "cooldown_comparison", packet)
+    lines = (await knowledge.cooldown_comparison_text(rep.code, 2, "Enfo")).split("\n")
+    assert lines[3:6] == [
+        "How many of them cast each cooldown in this phase, and total casts: Ascendance 2/2 (4 casts); Potion of "
+        "Recklessness 1/2 (1 cast)",
+        "Defensive, tank and movement spells, which answer a moment (a big hit, a death, movement), so how often "
+        "they cast them isn't a fault: Spiritwalker's Grace 2/2 (5 casts); Earth Elemental 1/2 (1 cast)",
+        "  Torvek (EU, report a, kill 5:00): Earth Elemental at 0:30"]

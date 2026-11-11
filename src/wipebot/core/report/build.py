@@ -282,7 +282,8 @@ async def _top_stats(rep: Report, gaps: dict) -> str:
     if len(mine) == len(SECONDARIES) and (total := sum(mine.values())):
         line += "; theirs: " + ", ".join(f"{n} {100 * mine[n] / total:.0f}%" for n in order)
     return line + (". These are what the top players' gear gave them, not a stat priority: the spec guide gives that "
-                   "(spec_guide), and a gap from them is a note beside it, not a new priority.")
+                   "(spec_guide), and a gap from them is a note beside it, not a new priority: it is no reason to take "
+                   "a stat over one the guide ranks higher.")
 
 
 def gear_stats(det: dict, pieces_below: bool = False) -> str:
