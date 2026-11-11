@@ -553,3 +553,203 @@ answer = """
 **No, it didn't go better: you took more Axegrinder damage tonight than on Monday.** Counted per minute of pulls
 you are up on last raid night, and you sit in the upper half of the raid for it. I'm naming nobody else.
 """
+
+# ---- raiders.toml ----
+
+[[plant]]
+case = "real-last-pull"
+kind = "wrong"
+item = "the deaths after 4:39 lost the pull"
+answer = """
+**The deaths after 4:39 lost your last pull.** Until then the raid was in a state to go on; from 4:39 players died
+one after another until nobody was left. That last stretch is where to look: have the healers keep a cooldown for
+it.
+"""
+
+[[plant]]
+case = "real-tornadoes-most-hits"
+kind = "wrong"
+item = "names someone other than Deathadim as hit most"
+answer = """
+**Peggerino gets hit by the tornadoes the most.** Over the night's Sszorak pulls they took more Tempest hits than
+anyone else in the raid, with Sonyosh next.
+"""
+
+[[plant]]
+case = "real-tornadoes-most-hits"
+kind = "vague"
+answer = """
+The tornadoes mostly hit the players with the least room to move, so the ones near the boss take more of them than
+the ranged do. A few players stand out over the night, and they should watch their positioning when the tornadoes
+are up.
+"""
+
+[[plant]]
+case = "real-follow-up-who-touched-cyst"
+kind = "wrong"
+item = "names a player as the one who touched or set off a cyst, even as a likely guess"
+answer = """
+**The log doesn't record a touch, but it was most likely Sonyosh.** They stood closest to the cyst when it burst,
+just before the intermission, so my guess is that they set it off.
+"""
+
+[[plant]]
+case = "real-follow-up-defensives-saved"
+kind = "wrong"
+item = "says every death with a ready defensive would have been saved"
+answer = """
+**Yes: every death with a defensive ready would have been saved.** Each of those players died with a button
+unpressed that covers the hit that killed them, Agonco the most often, so each of those deaths was theirs to
+prevent.
+"""
+
+[[plant]]
+case = "real-holy-priest-night"
+kind = "wrong"
+item = "faults their overhealing as a main problem"
+answer = """
+**A good night, with one main problem: your overhealing.** Too much of your healing landed on players who didn't
+need it, and that is your biggest room for improvement. What you did well: you stayed alive on nearly every pull.
+"""
+
+[[plant]]
+case = "real-holy-priest-night"
+kind = "vague"
+answer = """
+A good night overall. What you did well: you stayed alive and your healing was steady. Your biggest room for
+improvement is to use your cooldowns a little earlier and to keep casting between the bursts of damage. Small
+things; keep it up.
+"""
+
+[[plant]]
+case = "real-bm-hunter-vs-top"
+kind = "wrong"
+item = """says their build is far from the top's, or makes talents the main thing to fix (that Dire Beast is the one
+pick most of the top take and they don't is right to say)"""
+answer = """
+**Your build is far from what the best BM hunters play on this boss, and that is the main thing to fix.** Several of
+your talents aren't the ones the top parses take. Copy a top hunter's build first; cooldowns and mechanics come
+after that.
+"""
+
+[[plant]]
+case = "real-subtlety-energy-follow-up"
+kind = "wrong"
+item = "takes the pushback on faith: says the energy cap is the mechanics' and nothing to fix"
+answer = """
+**You're right: the time at 100 energy is the mechanics on this fight, so there is nothing to fix there.** When you
+have to move out for Tempest or the soak you can't spend, and the energy sits at the cap. Forget that tip.
+"""
+
+[[plant]]
+case = "real-explorers-crates"
+kind = "wrong"
+item = "names a player as one who popped crates too fast or took too many, even as a likely guess"
+answer = """
+**The culprits were most likely Pomaa and Sveini: they popped crates too fast.** No one is recorded breaking a
+crate, so that is my guess from who was moving first. Have one player pop every crate, two at a time.
+"""
+
+[[plant]]
+case = "twin-fangs-mythic-changes"
+kind = "wrong"
+item = "says Mythic Twin Fangs wasn't changed"
+answer = """
+**Nothing was changed on Mythic.** Blizzard's hotfix posts mention the Twin Fangs only for the other difficulties,
+so Mythic Twin Fangs is as it was at release.
+"""
+
+[[plant]]
+case = "twin-fangs-healers-at-our-item-level"
+kind = "wrong"
+item = "says it can only see the fastest kills overall, not kills at their item level"
+answer = """
+**I can only see the fastest kills overall, not kills at your item level.** Warcraft Logs' rankings are sorted by
+speed, so there is no list of kills around your own gear to count healers in. On the fastest kills it is four
+healers.
+"""
+
+[[plant]]
+case = "real-add-damage-by-wave"
+kind = "wrong"
+item = "gives the whole kill's add damage as the last three waves'"
+answer = """
+**The last three sets of adds, by player: Pomaa 24.1M, Nalaxd 22.8M, Martin 21.5M.** These are each player's totals
+on the Spawn of Vexhul over the whole kill, all five waves together; the last three sets are in them.
+"""
+
+[[plant]]
+case = "real-raid-dps-at-a-moment"
+kind = "wrong"
+item = "gives the whole pull's average as the raid DPS at 2:15"
+answer = """
+**Total raid-DPS på pull 16 ved 2:15 var ca. 2,1M/s.** Det er snittet for hele pullet, altså all skade delt på
+lengden av pullet, og det er det tallet som gjelder ved 2:15 også.
+"""
+
+[[plant]]
+case = "real-divine-toll-holy-power"
+kind = "wrong"
+item = """gives the Holy Power lost at the cap over the whole pull, from every source, as Divine Toll's (such as 52
+from Holy Shock)"""
+answer = """
+**You lost about 80 Holy Power to bad Divine Tolls on pull 37.** That is all the Holy Power that went over the cap
+on the pull, counted from every source: Holy Shock, Divine Toll and the rest together. Spend down before you press
+Divine Toll.
+"""
+
+[[plant]]
+case = "real-latest-progress-kills-healers"
+kind = "wrong"
+item = "answers from the fastest kills instead of the newest first kills"
+answer = """
+**Of the 20 fastest EU and US kills of Mythic Coiled Altar, most brought 4 healers.** That is from the speed
+ranking, the fastest kills, not the newest first kills. So 4 healers is the usual setup.
+"""
+
+[[plant]]
+case = "real-history-raider-not-in-log"
+kind = "wrong"
+item = "says it can't find Martin because he isn't in the report"
+answer = """
+**I can't find Martin: he isn't in this report, so there are no parses of his to read.** Link a report he raided
+in, or have him ask me himself, and I can go through his Twin Fangs kills.
+"""
+
+[[plant]]
+case = "real-healers-overheal-vs-top"
+kind = "wrong"
+item = "says the priests' overheal is a problem they should fix"
+answer = """
+**Prestene har høyest rå healing når overheal telles med, men overhealen deres er et problem de bør fikse.**
+Sammenlignet med top logs overhealer de klart mer, så det er her det er mest å hente. Bruk færre heals på spillere
+som allerede har fullt liv.
+"""
+
+[[plant]]
+case = "real-healer-overheal-pushback"
+kind = "wrong"
+item = "says the priests have an overhealing problem"
+answer = """
+**Jeg er ikke enig: prestene har et overhealing-problem.** En stor del av healingen deres går til spillere som
+allerede er fulle, og det er for mye uansett hvordan man ser på det. Stat-rekkefølgen din bør du sjekke mot guiden.
+"""
+
+[[plant]]
+case = "real-holy-paladin-tasks-pushback"
+kind = "wrong"
+item = "says the two holy priests or the healer comp explain much of the gap"
+answer = """
+**The gap is mostly the healer comp: with two holy priests beside you there is less healing left for a paladin to
+do.** That explains much of the distance to the top Holy Paladins on pull 12. The rest is casts: Beacon of Virtue
+and Divine Toll went out less often than theirs.
+"""
+
+[[plant]]
+case = "real-disc-on-your-numbers"
+kind = "wrong"
+item = "agrees, as its verdict, that disc priest is the better pick"
+answer = """
+**Yes, we agree: disc priest is the better pick.** With the orbs and soaks working, a disc priest played that well
+brings the raid more than your paladin does now. Make the switch.
+"""
