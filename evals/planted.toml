@@ -35,9 +35,8 @@ takes the next one with the debuff still up.
 case = "wipe-enrage-hidden-by-deaths"
 kind = "vague"
 answer = """
-The pull came apart after the intermission: the raid didn't handle the boss's mechanics there the way the fight
-asks, and it was over well before the boss was close to dying. Tighten up that part of the fight and the next pulls
-will go a lot further.
+The raid didn't handle one of the boss's mechanics the way the fight asks, and the pull fell apart from there.
+Tighten up the mechanics and the next pulls will go a lot further.
 """
 
 [[plant]]
@@ -587,9 +586,8 @@ anyone else in the raid, with Sonyosh next.
 case = "real-tornadoes-most-hits"
 kind = "vague"
 answer = """
-The tornadoes mostly hit the players with the least room to move, so the ones near the boss take more of them than
-the ranged do. A few players stand out over the night, and they should watch their positioning when the tornadoes
-are up.
+Some players take clearly more tornado hits than the rest over the night. The ones who stand out should watch
+their positioning when the tornadoes are up.
 """
 
 [[plant]]
@@ -924,8 +922,8 @@ case = "officer-saves-note"
 kind = "wrong"
 item = "says it can't save a note here, or that only the Discord bot saves one"
 answer = """
-**I can't save a note here.** Keeping a raid note for the guild is something only the Discord bot does: paste it to
-Wipebot in your server, and it will check your pulls against it from then on.
+**I can't save a note here.** Keeping a raid note for the guild is something only the Discord bot does, so your
+pulls aren't checked against this one.
 """
 
 [[plant]]
@@ -960,7 +958,7 @@ case = "plan-who-stays-out"
 kind = "vague"
 answer = """
 The plan lets a few players stay out of the stack so they can keep doing their job, and everyone else stacks with
-the group. If someone dies, the ones outside fill in.
+the group. Stick to the plan and the stack will hold.
 """
 
 [[plant]]
@@ -1168,8 +1166,8 @@ your assignments in it.
 case = "note-my-job"
 kind = "vague"
 answer = """
-According to the note you have a soak group, a job in the intermission and a couple of cooldowns to press at set
-times. Follow the note's timings and stay with your group, and you're doing your job.
+According to the note you have a soak group, a job of your own and some cooldowns to press at set times. Follow
+the note's timings and stay with your group, and you're doing your job.
 """
 
 [[plant]]
@@ -1205,8 +1203,8 @@ to list for that night.
 case = "server-what-we-killed-wednesday"
 kind = "vague"
 answer = """
-You had a good Wednesday: the raid got through most of the bosses it pulled that night without much trouble. A
-solid clear, with the rest of the week left for progress.
+You had a good Wednesday: the raid got several bosses down that night. A solid night, with more to build on next
+raid.
 """
 
 [[plant]]
