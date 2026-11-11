@@ -9,13 +9,13 @@
   "verdict": "VERDICT: cannot tell: 14 of this run's 104 cases not compared."
  },
  "plugin": {
-  "commit": "8be93f8",
+  "commit": "442af31",
   "date": "2026-11-11",
-  "trials": "3 trials",
-  "passed": 248,
-  "of": 276,
+  "trials": "2-3 trials",
+  "passed": 183,
+  "of": 205,
   "errors": 0,
-  "verdict": "VERDICT: a drop shown: the total is 2.4 spreads below the baseline's (but 69 of this run's 92 cases not compared)."
+  "verdict": "VERDICT: cannot tell: 11 of this run's 92 cases not compared."
  },
  "connector": {
   "commit": "8be93f8",
