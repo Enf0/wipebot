@@ -129,3 +129,26 @@ async def test_a_night_under_the_lower_bar_names_each_pull_in_its_line(rep, patc
     assert len(flat) == 2 and flat[1].startswith(
         "Pull 1: the raid's damage taken stayed under 1.25x its median of 100/s over any 5 s, highest 102/s over the "
         "5 s from 0:26; pull 2: the raid's damage taken stayed under 1.25x")
+
+
+async def test_who_was_meant_to_press_a_cooldown_left_ready_is_said_once_and_only_then(rep, patch_wcl, monkeypatch):
+    # healing named who left which cooldown ready and unused and never said that who was meant to press it isn't in
+    # the log. It says so once, after the spikes (after the night's "most often ready and unused" line), never per
+    # spike, and only when a cooldown was left ready.
+    busy = {i: 300.0 for i in [*range(20, 26), *range(80, 86)]}
+    patch_wcl(rep, graphs=lambda code, fights, *_, **__: {f["id"]: _flat_but(f, busy) for f in fights})
+    fill = healing._fill
+
+    async def ready_in_each(rep, fights, spikes, ends):
+        whole = await fill(rep, fights, spikes, ends)
+        for s in spikes:
+            s.ready.append("Spirit Link Totem (Enfo)")
+        return whole
+    monkeypatch.setattr(healing, "_fill", ready_in_each)
+    lines = (await healing.healing(rep, 13, jobs="JOBS")).splitlines()
+    assert lines.count("JOBS") == 1 and lines[lines.index("JOBS") + 1].startswith("Each healer in the spikes")
+    night = (await healing.healing(rep, boss="Sszorak", all_pulls=True, jobs="JOBS")).splitlines()
+    assert night.count("JOBS") == 1 and night[night.index("JOBS") - 1].startswith(
+        "Healing cooldowns most often ready and unused in a spike: Spirit Link Totem (Enfo) ")
+    monkeypatch.setattr(healing, "_fill", fill)
+    assert "JOBS" not in await healing.healing(rep, 13, jobs="JOBS")  # none left ready: nothing to say it of

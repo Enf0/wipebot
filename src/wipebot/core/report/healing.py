@@ -9,7 +9,7 @@ from ..cache import FOREVER
 from ..knowledge import KnowledgeError
 from ..text import clock, ids_line, plural, short
 from ..wcl import WCLError
-from .base import Player, PullRef, Report, dead_since, unavailable
+from .base import COOLDOWNS_NOT_LOGGED, Player, PullRef, Report, dead_since, unavailable
 from .casting import casting, raid_pauses, without
 
 # A spike: raid damage taken at SPIKE_TIMES the pull's median or more, averaged over SPIKE_AVG_MS. The timeline
@@ -66,7 +66,11 @@ class InSpike:
     ready: int = 0
 
 
-async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False) -> str:
+async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False,
+                  jobs: str = COOLDOWNS_NOT_LOGGED) -> str:
+    """The spikes (or busiest stretches) and the healing into them; `jobs` follows them, once, when a healing
+    cooldown was ready and unused in one: who was meant to press it isn't in the log (server.py says whether a raid
+    note was saved)."""
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
     fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = await rep.decided_cuts(fights)  # what follows is fallout: everyone heals the few still alive
@@ -108,6 +112,8 @@ async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, al
         lines += _night_lines(rep, fights, spikes, healers, busiest)
     else:
         lines += [_spike_line(rep, s, healers) for s in spikes]
+    if any(s.ready for s in spikes):
+        lines.append(jobs)
     lines += _healer_lines(rep, fights, spikes, healers, whole, ends, busiest)
     lines.append(ids_line({name: i for s in spikes for name, i, _ in s.abilities}))
     return "\n".join(lines)

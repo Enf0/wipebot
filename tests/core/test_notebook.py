@@ -10,7 +10,7 @@ from wipebot.core import notebook as notebook_module
 from wipebot.core import server
 from wipebot.core.notebook import Notebook
 from wipebot.core.report import FactError, Report
-from wipebot.core.report.base import JOBS_NOT_LOGGED
+from wipebot.core.report.base import COOLDOWNS_NOT_LOGGED, JOBS_NOT_LOGGED
 
 SSZORAK = {"name": "Sszorak", "encounterID": 3420, "startTime": 1_500_000, "difficulty": 5}
 DAY = 86400
@@ -126,6 +126,23 @@ async def test_after_who_was_hit_a_tool_says_whether_the_guild_saved_a_note_and_
     assert await server._jobs(night(None), None, None) == JOBS_NOT_LOGGED  # a personal log: no guild's notes
     signed_in(monkeypatch, {555})
     assert await server._jobs(night(), None, None) == JOBS_NOT_LOGGED  # nor another guild's
+
+
+async def test_after_a_healing_cooldown_ready_and_unused_healing_says_whether_a_note_may_plan_it(book, monkeypatch):
+    """healing named who left which cooldown ready and unused ("Spirit Link Totem (Enfo) 10 times") and never said
+    that who was meant to press it isn't in the log: answers handed out cooldowns without it. A saved note plans
+    them, and raid_note checks it; without one, a cooldown ready and unused isn't a missed assignment."""
+    assert ("Who was meant to press which healing cooldown isn't in the log; The Copper Lanterns saved a raid note for "
+            "Sszorak that night, which may plan them: raid_note checks each cooldown it plans against the pulls, and "
+            "one ready and unused that it doesn't plan isn't a missed assignment.") == \
+        await server._jobs(night(), None, None, all_pulls=True, cooldowns=True)
+    assert ("Who was meant to press which healing cooldown isn't in the log, and The Copper Lanterns has no raid note "
+            "saved for Sszorak that night; a healing cooldown ready and unused isn't a missed assignment") in \
+        await server._jobs(night(555), None, None, cooldowns=True)
+    assert await server._jobs(night(None), None, None, cooldowns=True) == COOLDOWNS_NOT_LOGGED  # a personal log
+    signed_in(monkeypatch, {555})
+    assert await server._jobs(night(), None, None, cooldowns=True) == COOLDOWNS_NOT_LOGGED  # another guild's notes
+    assert "(a soak, a kick, a spot)" not in COOLDOWNS_NOT_LOGGED
 
 
 async def test_with_nothing_saved_or_a_personal_log_it_asks_for_a_paste(book):

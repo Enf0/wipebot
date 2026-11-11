@@ -86,7 +86,15 @@ from .report import mana as manas
 from .report import note as notes
 from .report import plan as plans
 from .report import query as queries
-from .report.base import JOBS_NOT_LOGGED, NOT_AN_ASSIGNMENT, every_pull, link_fights, read_as
+from .report.base import (
+    COOLDOWNS_NOT_LOGGED,
+    JOBS_NOT_LOGGED,
+    NOT_AN_ASSIGNMENT,
+    UNUSED_NOT_MISSED,
+    every_pull,
+    link_fights,
+    read_as,
+)
 from .text import day, name_key, plural
 from .wcl import WCLError
 
@@ -1068,17 +1076,27 @@ async def enemies(pull: Pull = None, boss: Boss = None,
     return await adds.enemies(rep, pull, boss, await _jobs(rep, pull, boss, kicks=True), by_wave)
 
 
-async def _jobs(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool = False, kicks: bool = False) -> str:
+async def _jobs(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool = False, kicks: bool = False,
+                cooldowns: bool = False) -> str:
     """What a tool says after who was hit, carried a debuff or had a kick ready: whose job it was isn't in the log,
     and whether the guild saved a raid note for the pull (for the boss that night, with `all_pulls`), which may
-    assign it; with `kicks`, whether that note assigns kicks or has an interrupt order. JOBS_NOT_LOGGED where the
-    guild's notes can't be read."""
+    assign it; with `kicks`, whether that note assigns kicks or has an interrupt order; with `cooldowns`, the same
+    of who was meant to press a healing cooldown left ready and unused. JOBS_NOT_LOGGED (COOLDOWNS_NOT_LOGGED) where
+    the guild's notes can't be read."""
     if not rep.guild_id or not _a_member(rep.guild_id):
-        return JOBS_NOT_LOGGED
+        return COOLDOWNS_NOT_LOGGED if cooldowns else JOBS_NOT_LOGGED
     f = rep.fight(pull, boss)
     found = await saved_note(notebook.Notebook(readonly=True), rep.guild_id, rep, f, all_pulls)
-    whose = "Whose kick it was" if kicks else "Whose job it was (a soak, a kick, a spot)"
+    whose = ("Who was meant to press which healing cooldown" if cooldowns else "Whose kick it was" if kicks
+             else "Whose job it was (a soak, a kick, a spot)")
     night = f"{f['name']} that night"
+    if cooldowns:
+        if found is None:
+            return (f"{whose} isn't in the log, and {rep.guild_name} has no raid note saved for {night}; "
+                    f"{UNUSED_NOT_MISSED}.")
+        return (f"{whose} isn't in the log; {rep.guild_name} saved a raid note for {night}, which may plan them: "
+                f"raid_note checks each cooldown it plans against the {'pulls' if all_pulls else 'pull'}, and one "
+                "ready and unused that it doesn't plan isn't a missed assignment.")
     if found is None:
         return (f"{whose} isn't in the log, and {rep.guild_name} has no raid note saved for {night}; "
                 f"{NOT_AN_ASSIGNMENT}.")
@@ -1808,7 +1826,7 @@ async def healing(pull: Pull = None, boss: Boss = None,
         return manas.mana_text(rep, await manas.mana(rep, pull, boss, all_pulls))
     if all_pulls:
         await lib().wcl.ensure_points(HEALING_PULL_POINTS * len(rep.by_boss[rep.boss(boss)]), "all_pulls")
-    return await heals.healing(rep, pull, boss, all_pulls)
+    return await heals.healing(rep, pull, boss, all_pulls, await _jobs(rep, pull, boss, all_pulls, cooldowns=True))
 
 
 @_tool

@@ -121,6 +121,11 @@ def unavailable(what: str, e: Exception) -> str:
 NOT_AN_ASSIGNMENT = "who did it on other pulls isn't an assignment (raids swap spots and keep reserves)"
 JOBS_NOT_LOGGED = (f"Whose job it was (a soak, a kick, a spot) isn't in the log: a raid note may assign them, and "
                    f"{NOT_AN_ASSIGNMENT}.")
+# After a healing cooldown ready and unused (`healing`): the same of who was meant to press it.
+UNUSED_NOT_MISSED = ("a healing cooldown ready and unused isn't a missed assignment (raids plan each cooldown for "
+                     "chosen moments and hold it through the others)")
+COOLDOWNS_NOT_LOGGED = (f"Who was meant to press which healing cooldown isn't in the log: a raid note may plan them, "
+                        f"and {UNUSED_NOT_MISSED}.")
 
 
 # A pull by number on its boss, or by one of these names.

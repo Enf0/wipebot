@@ -13,6 +13,7 @@ The spikes that came back pull after pull (starts within 10 s of each other; the
   1:18-1:20, Unstable Miasma, Contaminate: 2 spikes in 2 pulls, 6 s, 2.80M/s taken, healing 2.40M/s; 1.5 healing cooldowns per spike, 1 with one ready and unused; 0 deaths
   2:55, Noxious Blast, Mark of Blood: 2 spikes in 2 pulls, 11 s, 3.76M/s taken, healing 2.66M/s; 1.0 healing cooldowns per spike, 1 with one ready and unused; 14 deaths
 Healing cooldowns most often ready and unused in a spike: Zephyr (Lïzårðmâñ) 6 times, Rewind (Lïzårðmâñ) 3 times, Stasis (Lïzårðmâñ) 3 times, Divine Hymn (Miralupa) 3 times, Apotheosis (Miralupa) 2 times
+Who was meant to press which healing cooldown isn't in the log, and The Dragonfell Tribe has no raid note saved for Entombed Sentinels that night; a healing cooldown ready and unused isn't a missed assignment (raids plan each cooldown for chosen moments and hold it through the others).
 Each healer in the spikes against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns):
   Enfo (Restoration Shaman): 481.84k/s (19% overheal) in the spikes, 294.97k/s (30% overheal) the rest of the time; casting throughout in 111 s of spikes; 2 healing cooldowns in a spike, 0 left ready in one
   Namsus (Holy Priest): 412.84k/s (29% overheal) in the spikes, 308.22k/s (42% overheal) the rest of the time; casting throughout in 111 s of spikes; 4 healing cooldowns in a spike, 1 left ready in one
