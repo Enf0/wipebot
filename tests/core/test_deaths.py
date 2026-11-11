@@ -174,6 +174,10 @@ async def test_a_replay_takes_a_spells_share_off_the_whole_killing_hit(monkeypat
     assert (await replayed(Effect("absorb", pct=30, duration_s=0.5), worn_down)).rows[0].saves is True  # 300 of 400
     assert (await replayed(Effect("absorb", pct=30, only="magic", duration_s=8), worn_down)).rows[0].line().strip() == (
         "A Spell (absorbs 30% of maximum health for 8 s): absorbs 0 of the burst: not enough on its own")
+    # never at 60% in the hits read: the burst is all of them, and the head says so
+    low = [hit(10_000, 100, 400), hit(12_000, 400, 0, overkill=100)]
+    assert "0:10, the first hit read in the 10 s before the death (none left them at 60%+ health); a heal" in (
+        await replayed(Effect("immunity", duration_s=8), low)).head
 
 
 async def test_a_recaps_verdict_is_the_replays_answer_in_one_line(rep, monkeypatch):
@@ -238,7 +242,44 @@ async def test_a_death_the_replay_cant_tell_is_counted_apart_in_defensives_and_t
         return made
     monkeypatch.setattr(deaths, "replay_deaths", replay_deaths)
     lines = (await deaths.defensives(rep, "Sszorak", player="Draiman")).splitlines()
-    assert lines[0].endswith("a ready defensive or a healthstone would have kept them alive at 1 of them (can't tell "
-                             "at 1 more: a ready spell's effect can't be told).")
+    assert ("each replayed with what was ready (a defensive pressed as they last fell under 60% health, at most 10 s "
+            "before the death; a heal or a healthstone 1 s or more before the killing hit; healing as it was; "
+            "secondary to what killed them): a ready defensive or a healthstone would have kept them alive through "
+            "the hits that killed them at 1 of them (can't tell at 1 more: a ready spell's effect can't be told). "
+            "After that death the pull went on for ") in lines[0]
+    assert lines[0].endswith(" until the wipe was decided or the pull ended.")
     assert any(line.startswith(f"- pull {unsure} ") and "so can't be sure" in line for line in lines)
     assert lines[-1].startswith("Can't tell at 1 (no overkill or health logged): ")
+
+
+async def test_the_time_a_pull_went_on_leaves_out_the_deaths_its_wipe_was_decided_at():
+    """How long the pulls went on after the deaths something ready would have stopped. A death the wipe was decided
+    within a second of (the tenth of twenty, or the one before it) is counted apart: with them alive it may not have
+    been decided then, so "0:00 until the wipe was decided" would say living was worth nothing. Made-up pulls."""
+    class Rep:
+        async def decided_cuts(self, fights):
+            return {f["id"]: f["decided"] for f in fights if "decided" in f}
+
+    def death(pull: int, at: int, **f) -> deaths.Replayed:
+        return deaths.Replayed({"id": pull, "endTime": 300_000} | f, {"timestamp": at}, deaths.Replay(), False)
+
+    async def went_on(*saved: deaths.Replayed) -> str:
+        return await deaths._went_on(cast("deaths.Report", Rep()), list(saved))
+
+    until = " until the wipe was decided or the pull ended."
+    as_they_died = "the wipe was decided as they died (within 1 s)"
+    early, later = death(1, 60_000, decided=91_000), death(2, 60_000, decided=140_000)
+    at_it, just_before = death(3, 60_000, decided=60_000), death(4, 60_000, decided=60_146)
+    a_kill = death(5, 299_500)  # no wipe to decide: the pull's end, however near
+    assert await went_on() == ""
+    assert await went_on(early) == " After that death the pull went on for 0:31" + until
+    assert await went_on(at_it) == f" At that death {as_they_died}."
+    assert await went_on(a_kill) == " After that death the pull went on for 0:00" + until
+    assert await went_on(early, later) == (
+        " After those 2 the pulls went on for a median of 0:55 (0:31 to 1:20)" + until)
+    assert await went_on(at_it, just_before) == f" At those 2 {as_they_died}."
+    assert await went_on(early, at_it) == (
+        f" At 1 of those 2 {as_they_died}; after the other one the pull went on for 0:31" + until)
+    assert await went_on(early, at_it, later, just_before) == (
+        f" At 2 of those 4 {as_they_died}; after the other 2 the pulls went on for a median of 0:55 (0:31 to 1:20)"
+        + until)

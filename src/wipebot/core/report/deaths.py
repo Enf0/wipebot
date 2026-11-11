@@ -1,15 +1,17 @@
 """Deaths: one in detail (`death_recap`), what a ready defensive would have changed, and the raid's
 healthstones, potions and defensives over a boss (`defensives`)."""
 import asyncio
+import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from math import inf
 
 from .. import knowledge
 from ..knowledge import KnowledgeError, spaced
 from ..text import clock, ids_line, plural, short
 from . import healing as heals
 from . import positions
-from .base import FactError, Player, PullRef, Report, unavailable
+from .base import DEATH_BURST_MS, FactError, Player, PullRef, Report, unavailable
 from .ending import BEFORE_NOTE, FALLOUT_NOTE, MASS_HIT, MASS_NOTE, MassDeath, mass_death
 
 RECAP_WINDOW_MS = 10_000  # damage shown before a death
@@ -244,6 +246,10 @@ def _ready(rep: Report, casts: list[dict], sp: dict, at: float) -> bool:
 SAVED = "would have kept them alive"  # if_pressed's verdict for a spell that would have
 NOT_ENOUGH = "not enough on its own"  # and for one that wouldn't have
 UNTOLD = "a ready spell's effect can't be told"  # why a replayed death has no answer (`lived` is None)
+# How if_pressed replays, in short, where its verdicts are counted with no replay's own head beside them.
+REPLAYED = (f"a defensive pressed as they last fell under {BURST_FROM_PCT}% health, at most "
+            f"{RECAP_WINDOW_MS // 1000} s before the death; a heal or a healthstone {REACT_MS / 1000:g} s or more "
+            "before the killing hit; healing as it was")
 
 
 @dataclass(frozen=True)
@@ -283,6 +289,17 @@ class Replay:
         return [self.head, *(r.line() for r in self.rows)] if self.rows else []
 
 
+def _lethal_burst(hits: list[dict]) -> tuple[list[dict], str]:
+    """The lethal burst of the hits read before a death, and where it begins, in words: the hits since the player
+    was last at BURST_FROM_PCT of their health or more, or all of them when no hit left them that high."""
+    above = [i for i, h in enumerate(hits) if h.get("resourceActor") == 2 and h.get("maxHitPoints")
+             and 100 * h["hitPoints"] / h["maxHitPoints"] >= BURST_FROM_PCT]
+    if above and above[-1] + 1 < len(hits):
+        return hits[above[-1] + 1:], f"the first hit after they were last at {BURST_FROM_PCT}%+ health"
+    return hits, (f"the first hit read in the {RECAP_WINDOW_MS // 1000} s before the death (none left them at "
+                  f"{BURST_FROM_PCT}%+ health)")
+
+
 def _unstopped(hits: list[dict], killing: dict) -> float:
     """What some hits did, and would have done to health the player no longer had: the killing hit's amount stops at
     the health left and its overkill is the rest of it, so what a spell takes off that hit, it takes off both."""
@@ -302,14 +319,12 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
     def unstopped(some: list[dict]) -> float:
         return _unstopped(some, killing)
     max_hp = hp_hits[-1]["maxHitPoints"]
-    above = [i for i, h in enumerate(hits) if h.get("resourceActor") == 2 and h.get("maxHitPoints")
-             and 100 * h["hitPoints"] / h["maxHitPoints"] >= BURST_FROM_PCT]
-    burst = hits[above[-1] + 1:] if above and above[-1] + 1 < len(hits) else hits
+    burst, began = _lethal_burst(hits)
     start = burst[0]["timestamp"]
     t0 = f["startTime"]
     head = (f"If pressed ({short(overkill)} overkill to make up, healing as it was; a defensive at the start of the "
-            f"lethal burst, {clock(start - t0)}, the first hit after they were last at {BURST_FROM_PCT}%+ health; a "
-            f"heal after the last hit {REACT_MS / 1000:g} s or more before the killing hit, time to see it):")
+            f"lethal burst, {clock(start - t0)}, {began}; a heal after the last hit {REACT_MS / 1000:g} s or more "
+            "before the killing hit, time to see it):")
     casts = await _their_casts(rep, f, p, d["timestamp"])
     spells = await rep.defensive_spells(p)
     pressed = await _used_ever(rep, p, spells)
@@ -654,6 +669,29 @@ async def replay_deaths(rep: Report, p: Player, fights: list[dict], whole_pull: 
     return list(await asyncio.gather(*(one(f, d, h) for (f, d), h in zip(todo, hits, strict=True))))
 
 
+async def _went_on(rep: Report, saved: list[Replayed]) -> str:
+    """How long the pulls went on after the deaths something ready would have saved, until each wipe was decided
+    or the pull ended: what living through the burst was worth to the pull, which the replay can't say. The deaths
+    a wipe was decided within DEATH_BURST_MS of (a moment of deaths) are counted apart: the time after them isn't
+    what living was worth, when with them alive the wipe may not have been decided then."""
+    if not saved:
+        return ""
+    decided = await rep.decided_cuts([r.f for r in saved])
+    after = sorted(decided.get(r.f["id"], r.f["endTime"]) - r.d["timestamp"] for r in saved
+                   if decided.get(r.f["id"], inf) - r.d["timestamp"] > DEATH_BURST_MS)
+    those = "that death" if len(saved) == 1 else f"those {len(saved)}"
+    then = f"the wipe was decided as they died (within {DEATH_BURST_MS // 1000} s)"
+    if not after:
+        return f" At {those} {then}."
+    went = (f"the pull went on for {clock(after[0])}" if len(after) == 1 else
+            f"the pulls went on for a median of {clock(statistics.median(after))} ({clock(after[0])} to "
+            f"{clock(after[-1])})") + " until the wipe was decided or the pull ended."
+    if len(after) == len(saved):
+        return f" After {those} {went}"
+    return (f" At {len(saved) - len(after)} of {those} {then}; after the other "
+            f"{'one' if len(after) == 1 else len(after)} {went}")
+
+
 async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pull: bool) -> str:
     """Each of a player's deaths on a boss before its wipe was decided, with what a ready defensive or a
     healthstone would have changed (if_pressed, the death recap's replay)."""
@@ -665,9 +703,11 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
     scope = "before each wipe was decided" if not whole_pull else "in the whole pulls"
     attempts, resets = rep.attempts(fights)
     lines = [f"{p.name}'s {plural(len(done), 'death')} on {rep.boss_key(fights[0])} {scope}, over "
-             f"{plural(len(attempts), 'pull')}{resets}, each replayed with what was ready (secondary to what killed "
-             f"them): a ready defensive or a healthstone would have kept them alive at {saved} of them"
-             + (f" (can't tell at {unsure} more: {UNTOLD})" if unsure else "") + "."]
+             f"{plural(len(attempts), 'pull')}{resets}, each replayed with what was ready ({REPLAYED}; secondary to "
+             f"what killed them): a ready defensive or a healthstone would have kept them alive through the hits "
+             f"that killed them at {saved} of them"
+             + (f" (can't tell at {unsure} more: {UNTOLD})" if unsure else "") + "."
+             + ("" if whole_pull else await _went_on(rep, [r for r in done if lived(r.more, r.outright) is True]))]
     if on_reset := [f"pull {rep.pull_no(f)} {clock(d['timestamp'] - f['startTime'])}"
                     for f in fights if f not in attempts for d in await rep.deaths(f) if d["targetID"] == p.id]:
         lines.append(f"Not counted, {plural(len(on_reset), 'death')} on a reset (the boss untouched, no attempt): "

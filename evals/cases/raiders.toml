@@ -73,7 +73,9 @@ facts = ["Algmor 13 of 21", "Scopidruid 11 of 19", "Sonyosh 9 of 15", "Nexsozz 6
          "the deaths in a hit killing many aren't theirs to save, and some deaths can't be judged",
          "5 of Agonco's deaths can't be told (no health or overkill logged)",
          "9 of Agonco's deaths were in a hit killing many, set apart",
-         "the saves are mostly Tempest and Virulence deaths"]
+         "the saves are mostly Tempest and Virulence deaths",
+         """at 1 of Agonco's 16 the wipe was decided as they died; after the other 15 the pulls went on for a median
+         of 0:31 (0:09 to 1:20) until the wipe was decided"""]
 wrong = ["says every death with a ready defensive would have been saved",
          "counts deaths after a wipe was decided",
          """says a defensive or healthstone would have saved a Ravage death, or a death to the Mutilate hit itself
