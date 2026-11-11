@@ -17,7 +17,7 @@ views.pull = (() => {
   // The card's numbers; how the pull ended is its headline (views.pull_headline). A kill: how fast and how clean,
   // against other kills of the boss. A wipe: how far it got, and where that stands against the log's earlier wipes
   // on the boss and the guild's earlier logs, as the post says; on a boss counted by phase those are Warcraft Logs'
-  // whole-fight %, so the wipe's own leads, all named WCL.
+  // whole-fight %, so the wipe's own leads, all named WCL. Each % comes written (views.py: the text's pct_text).
   function stats() {
     const out = [], b = D.best, wcl = D.phase ? "WCL " : "";
     if (D.kill && D.ranking) {
@@ -27,14 +27,14 @@ views.pull = (() => {
     if (D.got) {  // how far the wipe got, as pull_summary's first line states it
       const where = D.got_wcl ? [`WCL ${D.got_wcl}`] : [];
       if (b && b.new_guild) where.push("new guild best");
-      else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log ${wcl}${b.tonight.toFixed(1)}%`);
+      else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log ${wcl}${b.tonight}`);
       out.push(["Boss", D.got, b && b.new_guild ? "best" : "", where.join(" · ")]);
     }
     out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), "",
               D.decided && D.deaths.length > counted().length ? `${D.deaths.length - counted().length} after it: fallout` : ""]);
     const first = D.deaths[0];
     if (first) out.push(["First death", `${first.name} ${kit.clock(first.ms)}`, "dead", first.by]);
-    if (b && b.guild) out.push(["Guild best before", `${wcl}${b.guild.pct.toFixed(1)}%`, "", b.guild.day]);
+    if (b && b.guild) out.push(["Guild best before", `${wcl}${b.guild.pct}`, "", b.guild.day]);
     return out;
   }
 

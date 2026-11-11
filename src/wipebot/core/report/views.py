@@ -246,15 +246,18 @@ def damage_peaks(damage: dict[int, float]) -> list[dict]:
 
 async def _best(rep: Report, f: dict) -> dict | None:
     """How a wipe compares with the log's earlier wipes on the boss and the guild's earlier logs, as pull_summary's
-    post marks it (pulls.best_marks): None for a kill, a reset, a pull still going or one without a boss %."""
+    post marks it (pulls.best_marks): None for a kill, a reset, a pull still going or one without a boss %. The two
+    percentages are written here as the text writes one (pct_text), so a card beside its answer never rounds the
+    other way."""
     pct = wipe_pct(f)
     if f["kill"] or f.get("inProgress") or is_reset(f) or pct is None:
         return None
     earlier = wipe_pcts([g for g in rep.by_boss[rep.boss_key(f)]
                          if g.get("difficulty") == f.get("difficulty") and g["startTime"] < f["startTime"]])
     tonight, before = min(earlier, default=None), await rep.guild_best(f)
-    return {"tonight": tonight, "new_tonight": tonight is not None and pct < tonight,
-            "guild": {"pct": before.pct, "day": day(before.start_ms)} if before else None,
+    return {"tonight": pct_text(tonight) if tonight is not None else None,
+            "new_tonight": tonight is not None and pct < tonight,
+            "guild": {"pct": pct_text(before.pct), "day": day(before.start_ms)} if before else None,
             "new_guild": before is not None and pct < min(before.pct, tonight if tonight is not None else before.pct)}
 
 

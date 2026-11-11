@@ -104,6 +104,21 @@ async def test_the_pull_view_states_what_pull_summary_states(recorded):
     assert len(json.dumps(data)) < 150_000 // 10  # far under Claude's limit for a tool result
 
 
+async def test_the_pull_cards_best_wipes_are_written_as_the_text_writes_a_percentage(recorded, monkeypatch):
+    """The log's best wipe before this pull and the guild's best before the night come to the card written, by the
+    function the text writes a boss % with. The page rounded them itself, and JavaScript rounds 63.25 to 63.3
+    where the text says 63.2%: about one pull in a hundred, beside the number the answer quotes."""
+    from wipebot.core.pulls import pct_text
+    data = await pull_data()
+    assert data["best"]["tonight"] == pct_text(66.79) == "66.8%"
+    made_up_view(monkeypatch, {"view": "pull", "report": data["report"], "pull": data["pull"]}, data | {
+        "best": {"tonight": pct_text(63.25), "new_tonight": False, "new_guild": False,
+                 "guild": {"pct": pct_text(41.25), "day": "Thu 9 Oct"}}})
+    async with drawn("pull_summary", {}, mode="fullscreen", width=1100) as (view, errors):
+        said = await view.locator(".stats").first.inner_text()
+    assert not errors and "best of this log 63.2%" in said and "41.2%\nThu 9 Oct" in said
+
+
 def test_damage_peaks_are_the_runs_pull_timeline_marks_twice_the_median():
     damage = {0: 100.0, 1: 100.0, 2: 250.0, 3: 300.0, 4: 100.0, 5: 100.0, 6: 199.0, 7: 200.0, 8: 100.0}  # median 100
     step = views.DAMAGE_BUCKET_MS

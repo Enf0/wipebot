@@ -2,7 +2,8 @@
 const kit = (() => {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const clock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
-  // 1.5B, 1.53M, 860k: as the tools' text writes amounts
+  // 1.5B, 1.5M, 13M, 860k: an amount in a card's few digits (the tools' text writes two decimals: 1.53M, 13.17M,
+  // 860.25k, which `exact` keeps)
   const short = (v) => v >= 1e9 ? `${(v / 1e9).toFixed(v >= 1e10 ? 0 : 1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}k` : `${Math.round(v)}`;
   // 1.53M, 860.25k: to the tools' two decimals, where pulls a few percent apart are told apart (a trend)
   const exact = (v) => v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(2)}k` : `${Math.round(v)}`;
