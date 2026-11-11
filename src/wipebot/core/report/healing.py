@@ -4,6 +4,7 @@ import asyncio
 import math
 import statistics
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..knowledge import KnowledgeError
@@ -11,6 +12,7 @@ from ..text import clock, ids_line, plural, short
 from ..wcl import WCLError
 from .base import COOLDOWNS_NOT_LOGGED, Player, PullRef, Report, dead_since, unavailable
 from .casting import casting, raid_pauses, without
+from .cooldowns import one_per_use
 from .taken import Taken, raid_taken
 
 # A spike: raid damage taken at SPIKE_TIMES the pull's median or more, averaged over SPIKE_AVG_MS. The timeline
@@ -22,7 +24,7 @@ SPIKE_AVG_MS = 5_000
 SPIKE_STEP_MS = 1_000
 SPIKE_JOIN_MS = 3_000  # spikes this close together are one
 SPIKE_MIN_MS = 3_000  # shorter is one hit, not a spike
-SPIKES_SHOWN = 4  # one pull: its biggest spikes
+SPIKES_SHOWN = 4  # one pull: its biggest spikes in full; the others in a line, with the healing cooldowns up in each
 NIGHT_SPIKES = 3  # a boss's pulls: each pull's biggest
 # One pull without a spike: its busiest SPIKE_AVG_MS, read as a spike is, and called nothing else. Read second by
 # second, 4 of 121 pulls that weren't resets had none (6 bosses in 6 reports; Sszorak pulls 26 and 32 of
@@ -49,6 +51,7 @@ class Spike:
     cooldowns: list[str] = field(default_factory=list)  # used in it: "Spirit Link Totem (Enfo) at 1:13"
     ready: list[str] = field(default_factory=list)  # ready and unused
     deaths: list[str] = field(default_factory=list)
+    up: set[tuple[int, str, float]] = field(default_factory=set)  # the presses behind `cooldowns`: (healer, name, when)
 
     @property
     def seconds(self) -> float:
@@ -66,7 +69,6 @@ class InSpike:
     overheal: float = 0.0
     idle_s: float = 0.0  # alive with no cast begun
     dead_s: float = 0.0
-    cooldowns: int = 0
     ready: int = 0
 
 
@@ -83,8 +85,11 @@ async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, al
         taken = await raid_taken(rep, fights)
     except WCLError as e:
         return going + unavailable("Raid damage taken over time", e)
-    spikes = [s for f in fights for s in sorted(_spikes(f, taken[f["id"]], ends[f["id"]])[
-        :NIGHT_SPIKES if all_pulls else SPIKES_SHOWN], key=lambda s: s.start)]
+    found = {f["id"]: _spikes(f, taken[f["id"]], ends[f["id"]]) for f in fights}
+    spikes = [s for f in fights for s in sorted(found[f["id"]][:NIGHT_SPIKES if all_pulls else SPIKES_SHOWN],
+                                                key=lambda s: s.start)]
+    # One pull with more spikes than are shown in full: the others in a line, so none is left out unsaid
+    more = [] if all_pulls else sorted(found[fights[0]["id"]][SPIKES_SHOWN:], key=lambda s: s.start)
     busiest, held = None, ""  # one pull without a spike: its busiest seconds, as "the busiest 5 s"
     if not spikes and not all_pulls and (peak := _peak(fights[0], taken[fights[0]["id"]], ends[fights[0]["id"]])):
         held, a, b, per_s = peak
@@ -96,6 +101,8 @@ async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, al
                   + (" in each pull" if all_pulls else f", {clock(cut[fights[0]['id']] - fights[0]['startTime'])}")
                   + ")")
     shown = (f"{busiest.removeprefix('the ')} of damage taken and the healing into them" if busiest else
+             f"{len(spikes)} biggest damage spikes of {len(spikes) + len(more)} (by the damage taken in them) and the "
+             "healing into them" if more else
              "damage spikes and the healing into them" if spikes else "damage taken")
     head = (f"The raid's {shown}, {scope}"
             + ("" if all_pulls else f" ({rep.url(fights[0])})") + f". A spike: raid damage taken at {SPIKE_TIMES}x "
@@ -104,7 +111,7 @@ async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, al
         return going + head + "\n" + _sentence("; ".join(
             (f"pull {rep.pull_no(f)}: " if all_pulls else "") + _even(f, taken[f["id"]], ends[f["id"]])
             for f in fights)) + "."
-    whole = await _fill(rep, fights, spikes, ends)
+    whole = await _fill(rep, fights, spikes, ends, more)
     healers = {p.id: p for f in fights for p in rep.pull_players(f).values() if p.role == "healer"}
     lines = [going + head]
     if busiest:
@@ -113,9 +120,10 @@ async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, al
         lines += _night_lines(rep, fights, spikes, healers)
     else:
         lines += [_spike_line(rep, s, healers) for s in spikes]
+        lines += _more_lines(more)
     if any(s.ready for s in spikes):
         lines.append(jobs)
-    lines += _healer_lines(rep, fights, spikes, healers, whole, ends, busiest)
+    lines += _healer_lines(rep, fights, spikes, healers, whole, ends, busiest, more)
     lines.append(ids_line({name: i for s in spikes for name, i, _ in s.abilities}))
     return "\n".join(lines)
 
@@ -186,12 +194,16 @@ def _spikes(f: dict, taken: Taken | None, end: float) -> list[Spike]:
             else:
                 runs.append([t, t])
     kept = [s for a, b in runs if (s := Spike(f, a, min(b + SPIKE_STEP_MS, end))).end - s.start >= SPIKE_MIN_MS]
-    return sorted(kept, key=lambda s: -taken.damage(s.start, s.end))
+    for s in kept:
+        s.taken = taken.damage(s.start, s.end)  # a spike shown in full gets its tables' sum instead (`_fill`)
+    return sorted(kept, key=lambda s: -s.taken)
 
 
-async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict[int, float]) -> dict[int, dict]:
-    """Each spike's damage by ability, healing by player, healers' casting and cooldowns, and deaths; returns each
-    pull's whole Healing table (until decided), for the healing outside the spikes. Tables in one query each."""
+async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict[int, float],
+                more: Sequence[Spike] = ()) -> dict[int, dict]:
+    """Each spike's damage by ability, healing by player, healers' casting and cooldowns, and deaths, and of the
+    spikes in `more` (a pull's smaller ones) only the cooldowns up in them, which need no table; returns each pull's
+    whole Healing table (until decided), for the healing outside the spikes. Tables in one query each."""
     windows = [(s.fight["id"], {"startTime": s.start, "endTime": s.end}) for s in spikes]
     taken, healed, whole, casts, backs, used = await asyncio.gather(
         rep.tables(windows, "DamageTaken", viewBy="Ability", hostilityType="Friendlies"),
@@ -205,6 +217,17 @@ async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict
     cds = await _healing_cooldowns(rep, fights)
     pressed = {(c.get("sourceID"), name) for c in used for (pid, name), sp in cds.items()
                if c.get("sourceID") == pid and rep.is_spell(c, sp)}
+    own = {(f["id"], pid): [c for c in by_fight[f["id"]] if c.get("sourceID") == pid]
+           for f in fights for pid in {pid for pid, _ in cds} | {p.id for p in rep.pull_players(f).values()
+                                                                if p.role == "healer"}}
+    # (pull, healer) -> each healing cooldown of theirs with its casts in the pull
+    presses = {(fid, pid): {name: (sp, [c["timestamp"] for c in casts if c["type"] == "cast" and rep.is_spell(c, sp)])
+                            for (who, name), sp in cds.items() if who == pid} for (fid, pid), casts in own.items()}
+
+    def uses(fid: int, pid: int, name: str, at: list[float]) -> set[tuple[int, str, float]]:
+        """The uses these casts belong to: a channel logs a cast for each tick, and its first is the press."""
+        first = one_per_use(presses[fid, pid][name][1])
+        return {(pid, name, max((u for u in first if u <= t), default=t)) for t in at}
     for s, t, h in zip(spikes, taken, healed, strict=True):
         f, t0 = s.fight, s.fight["startTime"]
         by_name: dict[str, list] = {}  # an ability logged under several ids is one, under its biggest id's
@@ -227,20 +250,22 @@ async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict
             gone = dead_since(deaths, backs[f["id"]].get(p.id, []), p.id, s.end)
             if gone is not None:
                 mine.dead_s = (s.end - max(gone, s.start)) / 1000
-            own = [c for c in by_fight[f["id"]] if c.get("sourceID") == p.id]
-            gaps = without(casting(own, s.end, died).gaps, pauses[f["id"]])
+            gaps = without(casting(own[f["id"], p.id], s.end, died).gaps, pauses[f["id"]])
             mine.idle_s = sum(max(0.0, min(b, s.end) - max(a, s.start)) for a, b in gaps) / 1000
-            for (pid, name), sp in cds.items():
-                if pid != p.id:
-                    continue
-                theirs = [c["timestamp"] for c in own if c["type"] == "cast" and rep.is_spell(c, sp)]
+            for name, (sp, theirs) in presses[f["id"], p.id].items():
                 if at := _up(theirs, sp, s.start, s.end):
                     s.cooldowns.append(f"{name} ({p.name}) at {clock(at[0] - t0)}")
-                    mine.cooldowns += 1
+                    s.up |= uses(f["id"], p.id, name, at)
                 elif (p.id, name) in pressed and gone is None and _ready(theirs, sp, s.start):
                     s.ready.append(f"{name} ({p.name})")
                     mine.ready += 1
             s.healers[p.id] = mine
+    for s in more:
+        for p in (p for p in rep.pull_players(s.fight).values() if p.role == "healer"):
+            for name, (sp, theirs) in presses[s.fight["id"], p.id].items():
+                if at := _up(theirs, sp, s.start, s.end):
+                    s.cooldowns.append(f"{name} ({p.name}) at {clock(at[0] - s.fight['startTime'])}")
+                    s.up |= uses(s.fight["id"], p.id, name, at)
     return {f["id"]: w for f, w in zip(fights, whole, strict=True)}
 
 
@@ -294,6 +319,17 @@ def _spike_line(rep: Report, s: Spike, healers: dict[int, Player]) -> str:
     if s.deaths:
         out.append("  Deaths in it: " + ", ".join(s.deaths))
     return "\n".join(out)
+
+
+def _more_lines(more: list[Spike]) -> list[str]:
+    """A pull's spikes beyond the SPIKES_SHOWN biggest, in a line: when, how much, and the healing cooldowns up."""
+    if not more:
+        return []
+    t0 = more[0].fight["startTime"]
+    return [f"The {'one smaller spike' if len(more) == 1 else f'{len(more)} smaller spikes'} (time, damage taken per "
+            "second: the healing cooldowns up in it, by the same rule): "
+            + " · ".join(f"{clock(s.start - t0)}-{clock(s.end - t0)} {short(s.taken / s.seconds)}/s: "
+                         f"{', '.join(s.cooldowns) or 'none'}" for s in more)]
 
 
 def _in_spike(p: Player, h: InSpike, seconds: float) -> str:
@@ -361,10 +397,13 @@ def _night_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers: 
 
 
 def _healer_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers: dict[int, Player],
-                  whole: dict[int, dict], ends: dict[int, float], busiest: str | None = None) -> list[str]:
+                  whole: dict[int, dict], ends: dict[int, float], busiest: str | None = None,
+                  more: Sequence[Spike] = ()) -> list[str]:
     """Each healer in the spikes (or a pull's `busiest` seconds) against the rest of the time: healing per second,
-    overhealing, time with no cast begun or dead, healing cooldowns used in a spike and left ready in one."""
-    shown = busiest or "the spikes"
+    overhealing, time with no cast begun or dead, healing cooldowns used in a spike and left ready in one. With
+    `more` (a pull's smaller spikes, which have no healing read) the cooldowns count those spikes too: each press
+    once, whatever number of spikes it was up in."""
+    shown = busiest or ("those spikes" if more else "the spikes")
     rows = []
     for pid, p in healers.items():
         mine = [(s, s.healers[pid]) for s in spikes if pid in s.healers]
@@ -382,17 +421,20 @@ def _healer_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers:
         idle, dead = sum(h.idle_s for _, h in mine), sum(h.dead_s for _, h in mine)
         missed = ", ".join(x for x in (f"no cast begun for {idle:.0f} s" if idle >= 1 else "",
                                        f"dead for {dead:.0f} s" if dead >= 1 else "") if x) or "casting throughout"
+        used = len({(name, t) for s in [*spikes, *more] for who, name, t in s.up if who == pid})
         rows.append(f"  {p.label}: {short(heal / spike_s)}/s ({_over(heal, over)} overheal) in {shown}, "
                     f"{rest} the rest of the time; {missed} in "
-                    + (f"those {spike_s:.0f} s" if busiest else f"{spike_s:.0f} s of spikes") + "; "
-                    f"{plural(sum(h.cooldowns for _, h in mine), 'healing cooldown')} in "
+                    + (f"those {spike_s:.0f} s" if busiest or more else f"{spike_s:.0f} s of spikes") + "; "
+                    f"{plural(used, 'healing cooldown')} in "
                     + ("them" if busiest else "a spike") + f", {sum(h.ready for _, h in mine)} left ready in "
                     + ("them" if busiest else "one"))
     if not rows:
         return []
-    return [f"Each healer in {shown} against the rest of the time (healing on a wipe is capped by the damage "
-            "taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide "
-            "stuns):", *rows]
+    return [f"Each healer in {f'the {len(spikes)} biggest spikes' if more else shown} against the rest of the time "
+            "(healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high "
+            "overheal; no cast begun leaves out raid-wide stuns"
+            + (f"; healing cooldowns in a spike count all {len(spikes) + len(more)} spikes, left ready the "
+               f"{len(spikes)} biggest" if more else "") + "):", *rows]
 
 
 async def at_death(rep: Report, f: dict, p: Player, at: float) -> list[str]:

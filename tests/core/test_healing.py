@@ -141,16 +141,68 @@ async def test_who_was_meant_to_press_a_cooldown_left_ready_is_said_once_and_onl
     patch_wcl(rep, graph_windows=_windows(rep, busy))
     fill = healing._fill
 
-    async def ready_in_each(rep, fights, spikes, ends):
-        whole = await fill(rep, fights, spikes, ends)
+    async def ready_in_each(rep, fights, spikes, ends, more=()):
+        filled = await fill(rep, fights, spikes, ends, more)
         for s in spikes:
             s.ready.append("Spirit Link Totem (Enfo)")
-        return whole
+        return filled
     monkeypatch.setattr(healing, "_fill", ready_in_each)
     lines = (await healing.healing(rep, 13, jobs="JOBS")).splitlines()
     assert lines.count("JOBS") == 1 and lines[lines.index("JOBS") + 1].startswith("Each healer in the spikes")
+    # Both of the pull's spikes are shown in full: nothing is said of others
+    assert lines[0].startswith("The raid's damage spikes and the healing into them, ")
+    assert "smaller spike" not in "\n".join(lines) and "biggest" not in "\n".join(lines)
     night = (await healing.healing(rep, boss="Sszorak", all_pulls=True, jobs="JOBS")).splitlines()
     assert night.count("JOBS") == 1 and night[night.index("JOBS") - 1].startswith(
         "Healing cooldowns most often ready and unused in a spike: Spirit Link Totem (Enfo) ")
     monkeypatch.setattr(healing, "_fill", fill)
     assert "JOBS" not in await healing.healing(rep, 13, jobs="JOBS")  # none left ready: nothing to say it of
+
+
+async def test_a_pull_with_more_spikes_than_are_shown_in_full_says_so_and_lists_the_rest(rep, patch_wcl):
+    # Read second by second a pull has more spikes than the 4 shown in full (10 on a Vashnik kill, 15 on a Nymrissa
+    # wipe), and under "The raid's damage spikes" the others went unsaid: answers said only one Imbibe spiked, of
+    # three, and a healer read "0 healing cooldowns in a spike" who pressed one in the fifth. The head now counts
+    # them, the others come in a line with the healing cooldowns up in each, and a healer's cooldowns count every
+    # spike, each use once (a channel logs a cast per tick).
+    f = rep.fight(13)
+    t0, busy = f["startTime"], {}
+    for start, seconds, rate in [(20, 8, 300.0), (45, 7, 300.0), (70, 6, 300.0), (95, 5, 300.0), (118, 3, 250.0),
+                                 (135, 4, 300.0)]:
+        busy.update({i: rate for i in range(start, start + seconds)})
+    enfo = next(p.id for p in rep.pull_players(f).values() if p.name == "Enfo")
+    casts = [{"timestamp": t0 + 1000 * at, "type": "cast", "sourceID": enfo, "abilityGameID": 98008}
+             for at in (5, 115, 116, 118, 150, 171)]  # 115-118: one channel; 171: after the wipe was decided
+    events = rep.wcl.events
+
+    async def with_casts(code, fight_id, data_type, **filters):
+        if data_type == "Casts" and fight_id == f["id"] and filters.get("hostilityType") != "Enemies":
+            return casts
+        return await events(code, fight_id, data_type, **filters)
+
+    async def many(code, fights, data_type, **filters):
+        return [await with_casts(code, fid, data_type, **filters, **own) for fid, own in fights]
+    patch_wcl(rep, graph_windows=_windows(rep, busy), events=with_casts, events_many=many)
+    lines = (await healing.healing(rep, 13)).splitlines()
+    assert lines[0].startswith("The raid's 4 biggest damage spikes of 6 (by the damage taken in them) and the healing "
+                               "into them, Sszorak pull 13 until the wipe was decided")
+    assert [line.split(" (")[0] for line in lines if line[0].isdigit()] == ["0:19-0:29", "0:44-0:53", "1:09-1:17",
+                                                                              "1:34-1:41"]
+    rest = next(i for i, line in enumerate(lines) if line.startswith("The 2 smaller spikes"))
+    assert lines[rest] == (
+        "The 2 smaller spikes (time, damage taken per second: the healing cooldowns up in it, by the same rule): "
+        "1:57-2:02 190/s: Spirit Link Totem (Enfo) at 1:55 · 2:14-2:20 233/s: none")
+    # the casts at 0:05 and 2:30 were in no spike: a cooldown outside every spike isn't listed (listed, answers
+    # called each one pressed in a quiet stretch, also those pressed on a cast of the boss that never spiked)
+    assert lines[rest + 1].startswith("Each healer in the 4 biggest spikes against the rest of the time (") and \
+        lines[rest + 1].endswith("; healing cooldowns in a spike count all 6 spikes, left ready the 4 biggest):")
+    assert not any("0:05" in line or "2:30" in line for line in lines)
+    row = next(line for line in lines if line.startswith("  Enfo (Restoration Shaman): "))
+    assert " in those spikes, " in row and row.endswith(
+        " in those 34 s; 1 healing cooldown in a spike, 0 left ready in one")
+    # One spike beyond those shown, and a pull's busiest seconds in place of a spike
+    lone = healing.Spike(f, t0 + 60_000, t0 + 65_000, taken=5_000.0)
+    assert healing._more_lines([lone]) == [
+        "The one smaller spike (time, damage taken per second: the healing cooldowns up in it, by the same rule): "
+        "1:00-1:05 1.00k/s: none"]
+

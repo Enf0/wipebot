@@ -1817,13 +1817,16 @@ async def healing(pull: Pull = None, boss: Boss = None,
     The raid's damage spikes on a pull, until the wipe was decided: each spike's time, length, damage taken per
     second and the abilities behind it, the raid's healing as a share of it, each healer's healing per second
     and overhealing in it, time with no cast begun or dead, the healing cooldowns used in it or ready and unused,
-    and deaths in it; then each healer in the spikes against the rest of the time. With all_pulls, each pull's
-    biggest spikes in a line and the spikes by the ability behind them over the night.
+    and deaths in it (of a pull with more than four spikes, the four biggest so, and the others in a line with the
+    healing cooldowns up in each); then each healer in the spikes against the rest of the time. With all_pulls,
+    each pull's biggest spikes in a line and the spikes by the ability behind them over the night.
     Reading it: a spike is the raid's damage at 1.5 times the pull's median or more, so a pull's quiet stretches set
-    the bar. Ready and unused counts a healer's cooldown only when they press it somewhere in the report;
-    cooldowns are often planned for one spike and held through another (the raid note says). Overhealing is
-    healing past full health: healing is capped by the damage taken, so a high share where the raid took little
-    (heals over time and smart heals landing on players at full health) isn't a fault on its own.
+    the bar. Only the healing cooldowns up in a spike are listed: one pressed for a moment that didn't spike is in
+    pull_timeline, which has every cooldown in time order. Ready and unused counts a healer's cooldown only when
+    they press it somewhere in the report; cooldowns are often planned for one spike and held through another (the
+    raid note says). Overhealing is healing past full health: healing is capped by the damage taken, so a high
+    share where the raid took little (heals over time and smart heals landing on players at full health) isn't a
+    fault on its own.
     With `mana` ("was I out of mana?", "did I get an Innervate?", "could a druid have innervated me?"): each healer's
     mana until the wipe was decided, how low and from when it was under 30%, and each druid's Innervate cast (when,
     on whom, at what mana) or ready while a healer was under 30%; with all_pulls, per healer the pulls they were low
