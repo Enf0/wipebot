@@ -144,7 +144,10 @@ API: `wcl-api.md`.
   2; the Lost Explorers 1, 4, 1, 2, 1, 3 on the recorded reports, October 2026), the addon counts the fight its own
   way and Warcraft Logs' list can't say which phase a note's `ph:2` is. Neither can it for a number the list has
   no phase for (the addon counts Nek'zali 1, 1.5, 1.75, 2; the log has Stage One, the intermission and Stage Two).
-  The check counts such lines as not checked and times none of them.
+  The check counts such lines as not checked and times none of them, so on those bosses a note with lines in later
+  phases is checked up to the log's first change of phase and no further. A soak that lands after it, where the
+  note calls the soak's groups in a phase that can't be placed, counts for no one as "can't tell if the note calls
+  a soak then" (no recorded note has one; the test rewrites the Sszorak note's later lines as ph:2).
 - Whether a note's order of soak callouts is the order the groups soak in depends on how far apart it calls them.
   The two recorded Twin Fangs notes (October 2026) call their three groups 2 s apart, and of the 185 hits that who
   was hit gave to a group over the two nights, 182 landed within 0.5 s of that group's callout; the other three

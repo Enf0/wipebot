@@ -214,6 +214,78 @@ async def test_the_recorded_pull_into_stage_three_is_timed_by_the_logs_phases(re
     assert "not understood" not in out
 
 
+def test_phases_that_cant_be_placed_for_one_reason_say_why_once():
+    """A note with lines in three later phases on a boss whose pulls go back to a phase (the Entombed Sentinels' note
+    counts up at every change): the first line gave the same reason three times, once per phase. One sentence names
+    the phases; a phase that can't be placed for another reason keeps its own."""
+    lines = [line(1, 90), line(2, 5), line(2, 9), Callout(7, 2.5, ("Torvek",), "Soak"), line(3, 22)]
+    back = "this boss's pulls go back to a phase or skip one, so the log doesn't count as the note"
+    again = [(1, 0), (2, 100_000), (3, 150_000), (2, 180_000), (3, 250_000), (4, 300_000)]
+    checks = [_check(lay_phases([1, 2, 2.5, 3], ALTAR, again, in_order=False), lines, i) for i in (1, 2)]
+    assert note._phases_said(checks[0]) == (
+        "Note times count from the pull's start (ph:1). 2 planned cooldowns in ph:2, 1 callout in ph:2.5, 1 planned "
+        f"cooldown in ph:3 not checked: can't tell which phase of the log each is ({back}).")
+    assert note._night_phases(checks) == (
+        " 4 planned cooldowns in ph:2 over 2 pulls, 2 callouts in ph:2.5 over 2 pulls, 2 planned cooldowns in ph:3 "
+        f"over 2 pulls not checked: can't tell which phase of the log each is ({back}).")
+    mixed = _check(lay_phases([1, 2, 3], SSZORAK, SSZORAK_PULL, in_order=False), lines)
+    assert note._phases_said(mixed) == (
+        "Note times count from the pull's start (ph:1). 2 planned cooldowns in ph:2 not checked: can't tell which "
+        f"phase of the log that is ({back}). 1 planned cooldown in ph:3 not checked: can't tell which phase of the "
+        "log that is (the log's phases of this boss are P1, P2).")
+
+
+def test_a_soak_hit_isnt_outside_the_notes_soak_times_where_its_soak_callouts_cant_be_placed():
+    """A note that calls a group to soak in ph:1 and again in ph:2, on a boss whose log goes back to a phase: the
+    second callout can't be laid over the log, so a hit after the log's first change of phase read "outside the
+    note's soak times (no group called within 20 s of them)", which the log can't say of this note. Such a hit
+    still counts for no one, for the reason that is true; a hit before the change, where every callout is placed,
+    and a section the note times only in ph:1 keep "outside"."""
+    group, others = ["Torvek", "Mirelle", "Halvard"], ["Rowan", "Brightleaf", "Stonewall"]
+    plan = note.Note(3420, "Mythic", "Sszorak", groups={"Soaks": {"Left": group}, "Orbs": {"Carriers": others}},
+                     callouts=[Callout(10, 1, tuple(group), "Soak"), Callout(5, 2, tuple(group), "Soak"),
+                               Callout(20, 1, tuple(others), "Grab orbs")])
+
+    def hits(*at: float) -> list[note.SoakHit]:
+        return [note.SoakHit(ms, "", [], set(group), 100_000, [], [], note.OUTSIDE) for ms in at]
+    given = note.SoakHit(10_500, "Left", group, set(group), 100_000, [], [])
+    soaks = [note.Soaks("Soaks", {"Left": group}, 1285999, [given, *hits(50_000, 130_000)]),
+             note.Soaks("Orbs", {"Carriers": others}, 1285999, hits(130_000))]
+    phases = lay_phases([1, 2], SSZORAK, SSZORAK_PULL, in_order=False)  # the log's first change is at 1:40
+    assert [[h.why for h in s.hits] for s in note._unplaced(soaks, plan, phases)] == [
+        ["", note.OUTSIDE, note.UNPLACED], [note.OUTSIDE]]
+    assert note.UNPLACED == "can't tell if the note calls a soak then"
+    # where the note's phases are all placed, a hit far from every callout is outside its soak times
+    placed = [note.Soaks("Soaks", {"Left": group}, 1285999, hits(130_000))]
+    assert note._unplaced(placed, plan, lay_phases([1, 2], ALTAR, ALTAR_PULL))[0].hits[0].why == note.OUTSIDE
+    # and such hits aren't among those "in the note's soak times" that say whether a section soaks at all
+    assert note._no_soaks([*hits(1_000, 2_000), *note._unplaced(
+        [note.Soaks("Soaks", {"Left": group}, 1285999, hits(130_000, 140_000, 150_000))], plan, phases)[0].hits]) == ""
+
+
+async def test_on_the_recorded_sszorak_pull_a_note_with_a_second_phase_is_counted_not_checked(recorded):
+    """Pull 42 of vjt3KLbN8g62J1H9 (the log goes P1, P2, P1, P2, P1) with the guild's note, its lines from 2:00 on
+    written as ph:2: none of them is timed, the ph:1 lines stop being checked where the log first changed phase
+    (1:40), and the four soaks after it, whose callouts are among the lines that can't be placed, count for no one
+    without being called outside the note's soak times."""
+    text = (TOOLS.parent / "notes" / "sszorak-2026-10-12.txt").read_text(encoding="utf-8")
+    two = "\n".join(row.replace("ph:1;", "ph:2;") if row.startswith("time:") and float(row[5:row.index(";")]) >= 120
+                    else row for row in text.splitlines())
+    rep = await server.lib().report("vjt3KLbN8g62J1H9")
+    out = await note.note_check(rep, two, 42, "Sszorak")
+    assert out.splitlines()[0].endswith(
+        "Note times count from the pull's start (ph:1). 37 planned cooldowns and 20 callouts in ph:2 not checked: "
+        "can't tell which phase of the log that is (this boss's pulls go back to a phase or skip one, so the log "
+        "doesn't count as the note). 1 planned cooldown of ph:1 timed after the log's phase changed at 1:40 not "
+        "checked: a phase of the note that can't be placed may have begun then.")
+    rows = [row.strip() for row in out.splitlines()]
+    planned = [row for row in rows if "]: cast at " in row or "]: not cast within" in row]
+    assert len(planned) == 21 and planned[-1].startswith("1:40 Scopidruid Stampeding Roar")
+    assert [row[:47] for row in rows if "counted for no one" in row] == [
+        f"{at} can't tell if the note calls a soak then: " for at in ("2:23", "2:31", "3:06", "3:14")]
+    assert "outside the note's soak times" not in out
+
+
 def test_one_raiders_part_of_the_next_raids_note_names_an_intermissions_lines():
     torvek = SimpleNamespace(id=1, name="Torvek")
     rep = cast(Any, SimpleNamespace(player=lambda name: torvek, ability_ref=lambda spell: f"Spell [{spell}]",

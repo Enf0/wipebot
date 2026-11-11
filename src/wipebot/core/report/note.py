@@ -46,9 +46,12 @@ SOAK_CALL_MS = 20_000
 SOAK_FEW = 2
 # why a hit is given to no group
 OUTSIDE, UNCLEAR, SEVERAL = "outside the note's soak times", "can't tell whose soak", "on several groups at once"
+UNPLACED = "can't tell if the note calls a soak then"
 NO_GROUP = {OUTSIDE: f"outside the note's soak times (no group called within {SOAK_CALL_MS // 1000} s of them)",
             UNCLEAR: "where the log can't tell whose soak it was (a player or two of a group hit, or as many of two)",
-            SEVERAL: "on most of the living players of two or more groups at once, so no one group's soak"}
+            SEVERAL: "on most of the living players of two or more groups at once, so no one group's soak",
+            UNPLACED: "where the log can't tell if the note calls a soak (it calls some in a phase that can't be laid "
+                      "over the log, which may have begun by then)"}
 # Groups the note calls to soak this far apart or more soak in turn, and a hit that landed in a group's turn (nearest
 # its callout) is that group's soak. On the two recorded Twin Fangs nights the notes call their groups 2 s apart,
 # and of the 185 hits that who was hit gave to a group, 182 landed within 0.5 s of that group's callout; the other
@@ -284,6 +287,7 @@ def _version(found: list[Version], start_s: float) -> Version:
 
 
 NEVER, ENDED, UNKNOWN = "never reached", "its phase had ended", "can't tell which phase of the log that is"
+UNKNOWN_EACH = "can't tell which phase of the log each is"  # of several phases that can't be placed for one reason
 
 
 @dataclass
@@ -336,7 +340,7 @@ class SoakHit:
     size: float  # the median damage per player hit, absorbed included, of those it did any to (`unharmed`)
     absent: list[tuple[str, str]]  # (player of the group not hit, their state)
     others: list[tuple[str, str | None]]  # (player hit from outside the group, their groups if any)
-    why: str = ""  # OUTSIDE, UNCLEAR or SEVERAL
+    why: str = ""  # OUTSIDE, UNCLEAR, SEVERAL or UNPLACED
     near: dict[str, int] = field(default_factory=dict)  # of a hit given to none: the groups called then, players hit
     by_turn: bool = False  # given to the group whose turn it landed in, not by who was hit (`_in_turn`)
     unharmed: list[str] = field(default_factory=list)  # hit for no damage: immune, or the log has it miss them
@@ -662,7 +666,8 @@ async def _check(rep: Report, f: dict, note: Note, night: _Night | None = None) 
         planned.skipped = sum(phases.fate(c) == NEVER for c in note.cooldowns)
         for u in planned.uses:
             u.said = phases.said(u.cooldown)
-    return PullCheck(f, full, decided, until, await _soaks(rep, f, note, players, state, when, until), planned,
+    soaks = _unplaced(await _soaks(rep, f, note, players, state, when, until), note, phases)
+    return PullCheck(f, full, decided, until, soaks, planned,
                      callouts, kicks, sorted(n for n in _people(note, players) - stray.keys()
                                              if n not in players or players[n].name not in in_pull),
                      why, unchecked, stray, phases, Counter((c.phase, phases.fate(c), type(c)) for c in
@@ -799,8 +804,8 @@ def _counted(kinds: Mapping[type, int]) -> str:
 
 
 def _off(checks: Iterable[PullCheck], fate: str) -> dict[float, tuple[Counter, list[PullCheck]]]:
-    """The lines not checked for their phase with this `fate`, over these pulls: per note phase, how many of each
-    kind and the pulls that had some."""
+    """The lines not checked for their phase with this `fate`, over these pulls: per note phase, in the note's
+    order, how many of each kind and the pulls that had some."""
     out: dict[float, tuple[Counter, list[PullCheck]]] = {}
     for c in checks:
         for (ph, why, kind), n in sorted(c.off.items(), key=lambda kv: kv[0][0]):
@@ -809,7 +814,7 @@ def _off(checks: Iterable[PullCheck], fate: str) -> dict[float, tuple[Counter, l
                 kinds[kind] += n
                 if c not in pulls:
                     pulls.append(c)
-    return out
+    return dict(sorted(out.items()))
 
 
 DROPPED = ("A phase's lines stop when the note's next phase begins, as the addon drops them, so those timed later "
@@ -830,11 +835,27 @@ def _phases_said(c: PullCheck) -> str:
     if ended := _off([c], ENDED):
         said += " " + DROPPED + ", ".join(f"{_counted(kinds)} of ph:{q:g} ({ph.ends[q][1]} began at "
                                           f"{clock(ph.ends[q][0])})" for q, (kinds, _) in ended.items()) + "."
-    for q, (kinds, _) in sorted(_off([c], UNKNOWN).items(), key=lambda kv: (kv[0] not in ph.unknown, kv[0])):
-        said += (f" {_counted(kinds)} in ph:{q:g} not checked: {UNKNOWN} ({ph.unknown[q]})." if q in ph.unknown else
-                 f" {_counted(kinds)} of ph:{q:g} timed after the log's phase changed at {clock(ph.ends[q][0])} not "
-                 f"checked: {MAY_HAVE_BEGUN}.")
+    doubt = _off([c], UNKNOWN)
+    said += _unknown_said(doubt, ph.unknown)
+    for q, (kinds, _) in doubt.items():
+        if q not in ph.unknown:
+            said += (f" {_counted(kinds)} of ph:{q:g} timed after the log's phase changed at "
+                     f"{clock(ph.ends[q][0])} not checked: {MAY_HAVE_BEGUN}.")
     return said
+
+
+def _unknown_said(off: Mapping[float, tuple[Counter, list[PullCheck]]], unknown: Mapping[float, str],
+                  over: bool = False) -> str:
+    """The lines in phases of the note that can't be laid over the log (`unknown`: phase -> why), of the lines not
+    checked for their phase (`_off`): one sentence for each reason, with the phases it holds for, so a note with
+    four such phases says why once. `over`: with how many pulls had them, for a night."""
+    by_why: dict[str, list[str]] = defaultdict(list)
+    for q, (kinds, pulls) in off.items():
+        if q in unknown:
+            by_why[unknown[q]].append(f"{_counted(kinds)} in ph:{q:g}"
+                                      + (f" over {plural(len(pulls), 'pull')}" if over else ""))
+    return "".join(f" {', '.join(these)} not checked: {UNKNOWN if len(these) == 1 else UNKNOWN_EACH} ({why})."
+                   for why, these in by_why.items())
 
 
 def _night_phases(checks: list[PullCheck]) -> str:
@@ -852,11 +873,12 @@ def _night_phases(checks: list[PullCheck]) -> str:
     if ended := _off(checks, ENDED):
         said += " " + DROPPED + ", ".join(f"{_counted(kinds)} of ph:{q:g} over {plural(len(pulls), 'pull')}"
                                           for q, (kinds, pulls) in ended.items()) + "."
-    for q, (kinds, pulls) in sorted(_off(checks, UNKNOWN).items(), key=lambda kv: (kv[0] not in unknown, kv[0])):
-        over = f"over {plural(len(pulls), 'pull')}"
-        said += (f" {_counted(kinds)} in ph:{q:g} {over} not checked: {UNKNOWN} ({unknown[q]})." if q in unknown else
-                 f" {_counted(kinds)} of ph:{q:g} timed after the log's phase changed, {over}, not checked: "
-                 f"{MAY_HAVE_BEGUN}.")
+    doubt = _off(checks, UNKNOWN)
+    said += _unknown_said(doubt, unknown, over=True)
+    for q, (kinds, pulls) in doubt.items():
+        if q not in unknown:
+            said += (f" {_counted(kinds)} of ph:{q:g} timed after the log's phase changed, over "
+                     f"{plural(len(pulls), 'pull')}, not checked: {MAY_HAVE_BEGUN}.")
     return said
 
 
@@ -1256,6 +1278,22 @@ async def _soaks(rep: Report, f: dict, note: Note, players: dict[str, Player], s
             _given(h, turn, members, owner, state).by_turn = True
         out.append(section)
     return out
+
+
+def _unplaced(soaks: list[Soaks], note: Note, phases: Phases) -> list[Soaks]:
+    """The sections' hits, those OUTSIDE the note's soak times made UNPLACED where the log can't say that: the note
+    calls a group of the section to soak in a phase that can't be laid over the log (`Phases.unknown`), and the hit
+    landed once such a phase may have begun (the change of phase in the log from which a placed phase's lines are
+    in doubt too). The note may call that very soak, so "no group called within 20 s" isn't known of it."""
+    doubt = min((at for at, label in phases.ends.values() if not label), default=math.inf)
+    sections = _soak_sections(note)
+    for s in soaks:
+        groups = {_same(ns) for ns in sections[s.heading].values()}
+        if any(c.phase in phases.unknown and frozenset(c.players) in groups for c in note.callouts):
+            for h in s.hits:
+                if h.why == OUTSIDE and h.at >= doubt:
+                    h.why = UNPLACED
+    return soaks
 
 
 def _given(h: SoakHit, label: str, members: dict[str, list[str]], owner: Mapping[str, list[str]], state) -> SoakHit:
@@ -1833,7 +1871,7 @@ def _no_soaks(hits: list[SoakHit]) -> str:
     """What the night says of a section whose groups aren't soaking its ability (a CC list, an ability to avoid): of
     the hits in the note's soak times, at least FEW_SOAKS_MIN, under FEW_SOAKS could be given to a group, the rest
     landing on a player or two of each. No one is counted as missing those; '' for a section that soaks."""
-    timed = [h for h in hits if h.why != OUTSIDE]
+    timed = [h for h in hits if h.why not in (OUTSIDE, UNPLACED)]
     given = sum(bool(h.label) for h in timed)
     if len(timed) < FEW_SOAKS_MIN or given >= FEW_SOAKS * len(timed):
         return ""
