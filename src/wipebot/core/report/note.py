@@ -1828,6 +1828,7 @@ def _night_soaks(rep: Report, checks: list[PullCheck],  # noqa: C901, PLR0912, P
         missed: dict[tuple[str, str], list[tuple[dict, float]]] = defaultdict(list)
         dead: Counter = Counter()
         other: Counter = Counter()
+        soaked: Counter = Counter()  # of `other`, per (player, the group whose soak hit them)
         stray: Counter = Counter()
         no_group: dict[str, list[tuple[dict, float]]] = defaultdict(list)  # why -> the hits given to no group
         for c, s in sections:
@@ -1846,6 +1847,7 @@ def _night_soaks(rep: Report, checks: list[PullCheck],  # noqa: C901, PLR0912, P
                 for n, g in h.others:
                     if g:
                         other[n] += 1
+                        soaked[(n, h.label)] += 1
                     else:
                         stray[n] += 1
         hits = sum(len(s.hits) for _, s in sections)
@@ -1885,7 +1887,7 @@ def _night_soaks(rep: Report, checks: list[PullCheck],  # noqa: C901, PLR0912, P
         if turned := [(c.f, h.at) for c, s in sections for h in s.hits if h.by_turn]:
             out.append(f"  Given to the group whose turn it was in the note ({BY_TURN}): {_pulls(rep, turned)}")
         out += _untimed([s for _, s in sections])
-        if line := _few_soaks(took, alive):
+        if line := _few_soaks(took, alive, soaked):
             out.append(line)
         if stray:
             out.append("  Hit, in no group: " + ", ".join(f"{n} {k}" for n, k in _by_count(stray)))
@@ -1920,20 +1922,38 @@ def _few(took: Counter, alive: Counter) -> list:
     return [k for k in alive if alive[k] >= FEW_SOAKS_MIN and took[k] < FEW_SOAKS * alive[k]]
 
 
-def _few_soaks(took: Counter, alive: Counter) -> str:
-    """The line naming the players hit by almost none of their group's soaks while alive, or ''. The counts are per
-    player or per (player, group); a player in several groups is named with the group."""
-    few = _few(took, alive)
-    if not few:
-        return ""
+def _few_soaks(took: Counter, alive: Counter, other: Counter | None = None) -> str:
+    """The lines naming the players hit by almost none of their group's soaks while alive, or ''. The counts are per
+    player or per (player, group); a player in several groups is named with the group. `other`, per (player, the
+    group whose soak it was), counts their hits by the soaks of groups they aren't in: those hit by at least half as
+    many of them as their group's soaks they were alive for were soaking with another group, not missing theirs, and
+    are named on a second line (the reasons the first gives, a reserve or a spot changed, don't both fit them)."""
     rows = Counter(k[0] for k in alive if isinstance(k, tuple))
 
     def name(k: str | tuple[str, str]) -> str:
         return k if isinstance(k, str) else k[0] if rows[k[0]] == 1 else f"{k[0]} in {k[1]}"
-    return ("  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with "
-            "this group (a reserve, a spot changed since the note was written): "
-            + ", ".join(f"{name(k)} ({took[k]} of {alive[k]})"
-                        for k in sorted(few, key=lambda k: (took[k] / alive[k], name(k)))))
+
+    def elsewhere(k: str | tuple[str, str]) -> str:
+        """'hit by 55 of Left's soaks, 2 of Right's', if at least half as many as their group's while alive."""
+        by = Counter({g: n for (p, g), n in (other or {}).items() if p == (k if isinstance(k, str) else k[0])})
+        if 2 * by.total() < alive[k]:
+            return ""
+        return "hit by " + ", ".join(f"{n} of {g}'s" + (" soaks" if i == 0 else "")
+                                     for i, (g, n) in enumerate(_by_count(by)))
+
+    few = sorted(_few(took, alive), key=lambda k: (took[k] / alive[k], name(k)))
+    moved = {k: hit for k in few if (hit := elsewhere(k))}
+    lines = []
+    if rest := [k for k in few if k not in moved]:
+        lines.append("  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking "
+                     "with this group (a reserve, a spot changed since the note was written): "
+                     + ", ".join(f"{name(k)} ({took[k]} of {alive[k]})" for k in rest))
+    if moved:
+        lines.append("  Hit by almost none of their group's soaks while alive (under a fifth) but by another group's "
+                     "soaks at least half as many times, so soaking with another group than the note puts them in (a "
+                     "spot changed since it was written), not missing these: "
+                     + ", ".join(f"{name(k)} ({took[k]} of {alive[k]}; {hit})" for k, hit in moved.items()))
+    return "\n".join(lines)
 
 
 def _night_tally(rep: Report, rows: list[tuple[PullCheck, PlannedUse]], which: bool = False) -> str:

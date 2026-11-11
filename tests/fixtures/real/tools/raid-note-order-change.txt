@@ -23,7 +23,7 @@ Ravenous Feast and Tainted Blood Groups: 176 hits of Ravenous Feast [1290662] ov
   Counted for no one: 2 hits on most of the living players of two or more groups at once, so no one group's soak: p5 2:02, p21 2:04
   Counted for no one: 2 hits where the log can't tell whose soak it was (a player or two of a group hit, or as many of two): p27 2:02, p33 2:02
   Given to the group whose turn it was in the note (the hit had most of no group's living players): p21 2:02
-  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Wutroll (1 of 57)
+  Hit by almost none of their group's soaks while alive (under a fifth) but by another group's soaks at least half as many times, so soaking with another group than the note puts them in (a spot changed since it was written), not missing these: Wutroll (1 of 57; hit by 55 of Left's soaks)
   Hit, in no group: Grusarn 13
 Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the pulls that reached it before the wipe was decided: on time (under 3 s from the note's time), early or late (the median), not cast within 30 s while alive (with the pulls; of them, how many were planned in the last 10 s before the wipe was decided or the pull ended, and at how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), dead by then, or not in the pull:
   Attractîv: 61 planned uses; on time 2, late 1 (29 s), not cast 41, 2 of them in the last 10 s, 2 of them on cooldown, dead 1, not in the pull 16

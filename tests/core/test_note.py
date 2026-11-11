@@ -218,6 +218,25 @@ def test_a_player_hit_by_almost_none_of_their_groups_soaks_is_named_as_likely_no
     assert note._few_soaks(Counter(Mirelle=3), Counter(Mirelle=4)) == ""
 
 
+def test_a_player_hit_by_another_groups_soaks_instead_is_named_as_soaking_there_not_missing_theirs():
+    """The Twin Fangs night: Wutroll, in Center in the note, was hit by 1 of Center's 57 soaks and 55 of Left's, and
+    read "likely not soaking with this group (a reserve, ...)", five lines from the 55: answers said they weren't
+    soaking. Hit by other groups' soaks at least half as many times as their group's while alive, a player is named
+    on a line of their own with those groups; fewer keep the first line's reasons."""
+    took = Counter({("Torvek", "Center"): 1, ("Mirelle", "Center"): 0, ("Halvard", "Left"): 8})
+    alive = Counter({("Torvek", "Center"): 8, ("Mirelle", "Center"): 6, ("Halvard", "Left"): 8})
+    other = Counter({("Torvek", "Left"): 3, ("Torvek", "Right"): 1, ("Mirelle", "Left"): 2})
+    assert note._few_soaks(took, alive, other).split("\n") == [
+        "  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this "
+        "group (a reserve, a spot changed since the note was written): Mirelle (0 of 6)",
+        "  Hit by almost none of their group's soaks while alive (under a fifth) but by another group's soaks at least "
+        "half as many times, so soaking with another group than the note puts them in (a spot changed since it was "
+        "written), not missing these: Torvek (1 of 8; hit by 3 of Left's soaks, 1 of Right's)"]
+    assert note._few_soaks(took, alive) == note._few_soaks(took, alive, Counter()) == (
+        "  Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this "
+        "group (a reserve, a spot changed since the note was written): Mirelle (0 of 6), Torvek (1 of 8)")
+
+
 def _kicks_by(*pulls: Mapping[str, str | None], missing: tuple[str, ...] = ()) -> list:
     """Night checks with one kick per assignment and pull, {"Kick #1 left": who kicked its cast, or None when it went
     through}, each assignment its player's in the note (Kick #1 left: Sonyosh, Kick #2 left: Dragepie); `missing`,
