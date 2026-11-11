@@ -9,13 +9,13 @@ pull.
 
 ## What it looks like
 
-In Claude and ChatGPT, an answer about a pull, a night, a player or a death comes with that drawn under it, made by the
-tools from the log, with more a click away: the pull's replay, a player's casts against the top. In Discord the same
-comes as pictures, with buttons under them for the next thing to look at, and a ranking of players as a damage meter.
+In Claude and ChatGPT, an answer about a pull, a night, a player, a death or a ranking of players comes with that drawn
+under it, made by the tools from the log, with more a click away: the pull's replay, a player's casts against the top,
+a ranking pull by pull. In Discord the same comes as pictures, with buttons under them for the next thing to look at.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/claude-why-did-we-wipe-dark.webp">
-  <img src="images/claude-why-did-we-wipe.webp" alt="Claude answering &quot;Why did we wipe on Sszorak pull 13?&quot;: the pull drawn as boss health against the raid's damage taken, with phases and deaths, and buttons to open the pull and its replay, then the answer: the enrage at 2:32 with 16 of 20 alive">
+  <img src="images/claude-why-did-we-wipe.webp" alt="Claude answering &quot;Why did we wipe on Sszorak pull 13?&quot;: a card that leads with how the pull ended, then the pull drawn as boss health against the raid's damage taken, with phases, cooldowns and deaths, and buttons to open the pull and its replay, then the answer: the enrage at 2:32 with 16 of 20 alive">
 </picture>
 
 *In Claude: pull 13 ended on the boss's enrage at 2:32 with 16 of 20 alive, and the pull is drawn with the answer.*
@@ -37,11 +37,12 @@ own card on that pull, which only they see.*
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/claude-damage-meter-dark.webp">
-  <img src="images/claude-damage-meter.webp" alt="A mock of a chat answering &quot;Who keeps getting hit by Virulence?&quot;: a damage meter of every player's damage taken from it over 33 pulls, with the median and the deaths of any cause within 6 s of a hit, then the answer">
+  <img src="images/claude-damage-meter.webp" alt="A mock of a chat answering &quot;Who keeps getting hit by Tempest?&quot;: a card that leads with who is hit most per minute and how that stands against the median, then the killing blows, the deaths of any cause within 6 s of a hit and the median, the top eight players' bars in their class colours, and the buttons Open ranking and By pull, then the answer">
 </picture>
 
-*In Discord, a ranking of players comes as a damage meter, here Virulence over the whole night. Claude and ChatGPT
-draw a pull, a night, a player and a death, and give a ranking as text.*
+*A ranking of players is a card in Claude and ChatGPT, here Tempest over the whole night: who is first and how that
+stands against the median, the top eight players, and the rest and the pull by pull a click away. In Discord it comes
+as a damage meter's picture with the same sentence.*
 
 The pictures are real tool output from the tests' report, with made-up names; the chat around them is a mock.
 
