@@ -193,7 +193,13 @@ async def view(case: Case) -> None:
     """The case's view data, for a tool with a view: what the view reads that its tool doesn't (the player's night
     replays each death)."""
     if (key := await server.view_key(case.tool, case.args)) is not None:
-        await server.view_data(**key)
+        await server.view_data(**asked(key))
+
+
+def asked(key: dict) -> dict:
+    """What the page asks view_data with a view's key: all of it but what the page itself reads (a folded card's
+    label)."""
+    return {k: v for k, v in key.items() if k not in ("label", "folded")}
 
 
 async def replay_data(args: dict | None = None) -> dict:

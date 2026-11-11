@@ -26,6 +26,7 @@ from tests.support.recorded import (
     replay_data,
     run,
     serve_from,
+    view,
 )
 from wipebot.core import server
 from wipebot.core.report import fight, maps
@@ -156,6 +157,13 @@ def test_no_output_names_a_player_by_a_spec_alone():
         if not case.stale and case.snapshot.exists():
             found = alone.findall(case.snapshot.read_text(encoding="utf-8"))
             assert not found, f"{case.name}: {found[:3]}"
+
+
+@pytest.mark.parametrize("name", ["mechanic-hits", "damage-by-pull", "pull-summary"])
+async def test_a_recording_reads_each_cases_view_as_the_page_asks_for_it(recorded, name):
+    """Recording stopped at the first ranking: its view's key carries the folded card's label, which the page keeps
+    to itself and view_data doesn't take."""
+    await view(CASES[name])
 
 
 def test_every_snapshot_has_a_case():
