@@ -35,7 +35,10 @@ form = {lines = 4, chars = 500}  # by code: the lines and about the characters a
 numbers = ["7:00", "7:13"]  # by code: the tank's death and the Stone Breaker set
 wrong = ["says the tank's first death at 2:51 lost the pull",
          "says the players who died to Stone Breaker stood in it, or blames the DPS for those deaths",
-         "says a named player failed a soak or the swap"]
+         """says the unsoaked Stone Breaker set or the swap was a named player's mistake, or their job that they failed,
+as if the log showed whose it was (naming the tank whose death at 7:00 started it is the answer, not blame; that
+Karadim, the one tank left and holding both serpents from 7:03, got no Stone Breaker debuff from the 7:13 set, had
+no stacks left and could have taken it is what the log shows; a tank soaking each set is the guides' fix)"""]
 
 [[case]]
 id = "post-own-ravage"  # wipe-dps-in-ravage as their own feedback

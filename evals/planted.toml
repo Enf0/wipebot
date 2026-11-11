@@ -230,7 +230,7 @@ settled on the mechanics, so the night ended well. Keep doing what worked and th
 [[plant]]
 case = "night-who-dies-first"
 kind = "wrong"
-item = "names someone other than Scopidruid or Grusarn as dying first most often"
+item = "names a third player, neither Scopidruid nor Grusarn, as dying first most often"
 answer = """
 **Providence dies first most often on Sentinels.** They were the first death on more pulls than anyone else, each
 time early in the pull. Nobody else stands out.

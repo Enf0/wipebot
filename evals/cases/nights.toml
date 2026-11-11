@@ -71,23 +71,25 @@ report = "PjKR7hQwtYpd8WDz"
 question = "Who keeps dying first on Sentinels?"
 asker = "Karadim"
 expect = """Scopidruid and Grusarn died first most often: Scopidruid is listed first on 3 of the 7 pulls (2, 3 and
-4), each time to something different, Grusarn on 2 (5 and 6), and nobody else more than once. Two of Scopidruid's
-three shouldn't count against them as the tally suggests. On pull 3 they were one of five killed by Noxious Blast
-within a second, a hit killing many that counts against no one (so two each is right too, if the answer sets pull 3
-aside and says why). On pull 4 the pull went on two minutes after their 2:17 death (the next death came at 4:13) to
-the night's best wipe, 36.3%, ended by the boss gaining Ula'tek's Dominance, so that death didn't decide the pull.
-Saying a Barkskin or healthstone would have saved them is fine."""
+4), each time to something different, Grusarn on 2 (5 and 6), and nobody else more than once. Pull 3 doesn't count
+against Scopidruid: they were one of five killed by Noxious Blast within a second at 2:35, a hit killing many that
+counts against no one (so two each is right too, if the answer sets pull 3 aside and says why). Neither of their
+other two first deaths ended its pull: pull 2 ended with the raid alive, and pull 4 went on two minutes after the 2:17
+death (the next death came at 4:13) to the night's best wipe, 36.3%, ended by the boss gaining Ula'tek's Dominance at
+4:34. Counting pulls 2 and 4 as theirs to fix is right, and so is saying a healthstone, or on pull 4 Barkskin, would
+have kept them alive; so is setting pull 4 aside because that death didn't decide the pull."""
 facts = ["Grusarn first on pulls 5 and 6; Providence on 1 and Wutroll on 7",
          "pull 3: Noxious Blast killed 5 at once at 2:35, Scopidruid first only by the order",
-         "pull 4: Scopidruid died at 2:17, the next death came at 4:13, and the pull reached 36.3%, the night's best",
+         """pull 4: Scopidruid died at 2:17, the next death came at 4:13, and the pull reached 36.3%, the night's best,
+ended by the boss gaining Ula'tek's Dominance at 4:34""",
          "on pulls 2 and 4 they died in the Blood side's damage after an Unstable Miasma hit, with 15 Mark of Blood stacks",
          "no healthstone used before any of the three deaths; on pull 4 Barkskin was not used"]
-wrong = ["names someone other than Scopidruid or Grusarn as dying first most often",
+wrong = ["names a third player, neither Scopidruid nor Grusarn, as dying first most often",
          "says Grusarn died first more often than Scopidruid, or blames Scopidruid for pull 3's death",
          "says Scopidruid's deaths lost those pulls",
          "says Scopidruid stood in the wrong place or broke an assignment, as if the log showed it",
          "claims what a class can or can't do (\"druids can't...\")",
-         "calls pull 4's death the costly one, or says it cost the best pull"]
+         "says Scopidruid's pull 4 death ended or decided that pull (the boss gaining Ula'tek's Dominance at 4:34 did)"]
 [[case]]
 id = "night-kill-what-went-right"
 tools = ["boss_guide", "compare_pulls", "mechanic_hits", "progress", "pull_map", "pull_summary", "pull_timeline"]

@@ -145,16 +145,21 @@ boss = "The Twin Fangs"
 expect = """A tank death started it: a tank died to Caustic Deluge at 7:00, and with one tank holding both serpents
 the next Stone Breaker set (7:13, 7:16, 7:19), which a tank soaks, went off on the raid: it killed 9 and half the
 raid was dead at 7:16."""
-numbers = ["7:00", "7:13"]  # by code: the tank's death and the Stone Breaker set it left to the raid
+numbers = ["7:00", "7:13"]  # by code: the tank's death and the Stone Breaker set that went off on the raid
 facts = ["the tanks alternated Caustic Deluge as on the kill (5:48 on one, 6:56 on the other)",
          "the tank who died had Envenomed x9 and Stone Breaker x3, with Fortifying Brew used at 6:02",
-         "the other tank took Vexhul at 7:03; no tank got Stone Breaker from the 7:13 set",
+         "the other tank took Vexhul at 7:03; no tank got the Stone Breaker debuff from the 7:13 set",
          "the first death, the same tank at 2:51, was battle-ressed"]
+# The 7:13 set was Karadim's by the alternation either way: they soaked the sets at 1:34 and 4:23, and on the kill the
+# one at 7:13 too (Stone Breaker 7:13-8:08, tank_swaps). The other tank's death put Vexhul on Karadim as well (7:03).
 wrong = ["says the tank's first death at 2:51 lost the pull",
          "says the tanks didn't swap Caustic Deluge",
          "says the players who died to Stone Breaker stood in it, or blames the DPS for those deaths",
          "says Eternal Venom stacks or Toxic Fumes lost the pull, rather than the tank's death",
-         "says a named player failed a soak or the swap"]
+         """says the unsoaked Stone Breaker set or the swap was a named player's mistake, or their job that they failed,
+as if the log showed whose it was (naming the tank whose death at 7:00 started it is the answer, not blame; that
+Karadim, the one tank left and holding both serpents from 7:03, got no Stone Breaker debuff from the 7:13 set, had
+no stacks left and could have taken it is what the log shows; a tank soaking each set is the guides' fix)"""]
 [[case]]
 id = "wipe-droplet-explosion"  # 11 dead in one second to erupting droplets, behind a lone death at 2:26
 cause = "ability: Noxious Blast"  # what an expert names first; `just evals --endings`
