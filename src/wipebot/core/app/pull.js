@@ -80,7 +80,7 @@ views.pull = (() => {
       const end = i + 1 < D.phases.length ? D.phases[i + 1].ms : D.duration_ms;
       const again = seen.has(p.id); seen.add(p.id);
       return { from: p.ms, to: end, label: `${p.label || `P${p.id}`}${again ? " (2nd time)" : ""}`, name: p.name,
-               fill: again ? "var(--gold)" : i === 0 ? "var(--line)" : "var(--p2)", opacity: again ? 0.55 : i === 0 ? 1 : 0.6 };
+               fill: again ? "var(--gold)" : i === 0 ? "var(--line)" : "var(--p2)", opacity: again ? 0.38 : i === 0 ? 1 : 0.6 };
     });
   }
 

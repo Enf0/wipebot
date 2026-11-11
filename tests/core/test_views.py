@@ -1408,10 +1408,7 @@ async def test_every_text_a_view_draws_reads_against_what_is_behind_it(recorded,
             await texts(tool, {"player": "Mirelle"})
     low = [(tool, t["said"], t["cls"], round(contrast(t["ink"], t["on"]), 2))
            for tool, texts in seen.items() for t in texts if contrast(t["ink"], t["on"]) < 4.5]
-    # known, and still to put right: the name of a phase the fight went back to, on its gold band in the dark theme
-    # (3.5:1 on a host's card; pull.js's phaseBands says how strong the band is)
-    again = [t for t in low if t[0] == "pull_summary" and t[1].startswith("P1 (2nd time)")]
-    assert [t for t in low if t not in again] == [] and (theme == "dark" or not again)
+    assert low == []
     # and it looked at what it says: a chip of each kind, and how many died at once written in three marks
     assert {t["cls"] for t in seen["player_night"] if t["cls"].startswith("chip")} == {
         "chip", "chip fix", "chip unknown", "chip outright", "chip fix sample"}
