@@ -68,7 +68,7 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                   + "; whole_pull for the rest)")
     h = found
     by_debuff = h.by_debuff
-    counted, what = (h.debuffs, "debuff applications") if by_debuff else (h.hits, "hits")
+    what = "debuff applications" if by_debuff else "hits"
     # Over a night a player is ranked by the pulls they were in: one who sat out half of them was hit half as often.
     there = _minutes(rep, fights, cut, window) if all_pulls else None
     pulse = _pulse(h)
@@ -86,14 +86,9 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
              f"stacks), deaths of any cause within {HIT_THEN_DEATH_MS // 1000} s after a hit or tick, deaths with "
              f"{name} itself as the killing blow (what it leaves behind, a spawn or a debuff that kills later, "
              "counts under that ability's name)" + ("" if pulse else again) + ":"]
-
-    def rate(w: int) -> float:
-        return counted[w] / max(there[0].get(rep.names[w], 0), 1e-9) if there else counted[w]
-    ranked = sorted(set(h.hits) | set(h.ticks) | set(h.debuffs),
-                    key=lambda w: (-rate(w), -h.debuffs[w], -h.hits[w], -h.ticks[w]) if by_debuff
-                    else (-rate(w), -h.hits[w], -h.ticks[w], -h.debuffs[w]))
-    lines += [_player_line(rep, h, who, (there[1][rep.names[who]], rate(who)) if there else None, not pulse)
-              for who in ranked[:PLAYERS_LISTED]]
+    ranked = _ranked(rep, h, there)
+    lines += [_player_line(rep, h, who, (there[1][rep.names[who]], rate) if there else None, not pulse)
+              for who, rate in ranked[:PLAYERS_LISTED]]
     if (left := len(ranked) - PLAYERS_LISTED) > 0:
         lines.append(f"  and {plural(left, 'more player')} below them in this order, left out here")
     if pulse:
@@ -107,6 +102,20 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
     if all_pulls:
         lines.append(_per_pull(rep, fights, h))
     return "\n".join(lines + await _applications(rep, fights, h, _counting(fights, cut, window), name) + [jobs])
+
+
+def _ranked(rep: Report, h: Hits, there: tuple[dict[str, float], Counter, float] | None) -> list[tuple[int, float]]:
+    """The players an ability caught (their ids), in the order mechanic_hits lists them, each with what that order
+    is by: their hits, or the debuff's applications where those count who it caught; over a night (`there`:
+    _minutes), per minute of the pulls they were in. The one place that order is made."""
+    counted = h.debuffs if h.by_debuff else h.hits
+
+    def rate(w: int) -> float:
+        return counted[w] / max(there[0].get(rep.names[w], 0), 1e-9) if there else counted[w]
+    return [(w, rate(w)) for w in sorted(
+        set(h.hits) | set(h.ticks) | set(h.debuffs),
+        key=lambda w: (-rate(w), -h.debuffs[w], -h.hits[w], -h.ticks[w]) if h.by_debuff
+        else (-rate(w), -h.hits[w], -h.ticks[w], -h.debuffs[w]))]
 
 
 def _minutes(rep: Report, fights: list[dict], cut: dict[int, float], window: tuple[float, float] | None
