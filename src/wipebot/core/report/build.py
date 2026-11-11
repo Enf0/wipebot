@@ -341,11 +341,13 @@ async def gear_by_slot(det: dict) -> str:
         pieces.append(text)
     total = [(STAT_SHORT.get(n, n), summed[n]) for n in ("Critical Strike", "Haste", "Mastery", "Versatility")]
     rated = sum(v for _, v in total)
-    return ("Gear by slot at the pull (item level from the log; secondary and minor stats from Wowhead's tooltip with "
-            "the piece's bonus IDs, before gems and enchants): " + "; ".join(pieces) + "."
-            + (" Summed over the pieces read (before gems and enchants): " + ", ".join(
-                f"{n} {v} ({100 * v / rated:.0f}%)" for n, v in sorted(total, key=lambda x: -x[1])) + "."
-               if rated else ""))
+    by_slot = ("(item level from the log; secondary and minor stats from Wowhead's tooltip with the piece's bonus IDs, "
+               "before gems and enchants): " + "; ".join(pieces) + ".")
+    if not rated:
+        return "Gear by slot at the pull " + by_slot
+    # the sum is what the comparison with the top players' shares reads: it leads, the pieces follow
+    return ("Gear at the pull, summed over the pieces read (before gems and enchants): " + ", ".join(
+        f"{n} {v} ({100 * v / rated:.0f}%)" for n, v in sorted(total, key=lambda x: -x[1])) + ". By slot " + by_slot)
 
 
 async def raid_prep(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:

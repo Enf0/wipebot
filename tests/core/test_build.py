@@ -17,12 +17,12 @@ async def test_each_piece_has_its_item_level_from_the_log_and_its_stats_from_its
         {"id": 1, "slot": 0, "name": "Stare", "itemLevel": 321, "bonusIDs": [13440]},
         {"id": 2, "slot": 1, "name": "Reliquary", "itemLevel": 334},
         {"id": 0, "slot": 3}]}}
-    assert await build.gear_by_slot(det) == (
-        "Gear by slot at the pull (item level from the log; secondary and minor stats from Wowhead's tooltip with "
-        "the piece's bonus IDs, before gems and enchants): head Stare (321): 128 Crit, 62 Mastery, 82 Leech; neck "
-        "Reliquary (334): stats unknown (Wowhead didn't answer); ring Band (321): 225 Versatility (Wowhead's tooltip "
-        "is item level 315: its stats are at that level). Summed over the pieces read (before gems and enchants): "
-        "Versatility 225 (54%), Crit 128 (31%), Mastery 62 (15%), Haste 0 (0%).")
+    assert await build.gear_by_slot(det) == (  # the sum, which the comparison below it reads, before the pieces
+        "Gear at the pull, summed over the pieces read (before gems and enchants): Versatility 225 (54%), Crit 128 "
+        "(31%), Mastery 62 (15%), Haste 0 (0%). By slot (item level from the log; secondary and minor stats from "
+        "Wowhead's tooltip with the piece's bonus IDs, before gems and enchants): head Stare (321): 128 Crit, 62 "
+        "Mastery, 82 Leech; neck Reliquary (334): stats unknown (Wowhead didn't answer); ring Band (321): 225 "
+        "Versatility (Wowhead's tooltip is item level 315: its stats are at that level).")
     assert await build.gear_by_slot({}) == "Gear by slot: not in the log (needs advanced combat logging)."
 
 
