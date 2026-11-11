@@ -130,7 +130,7 @@ async def test_a_reset_is_no_pull_of_a_players_night_in_any_count(rep):
     text = await coaching.player_night(rep, "Enfo", "Sszorak")
     assert f"Died before the wipe was decided on {counted} of 32 pulls (1 reset left out; later deaths" in text
     assert f"of the {counted} deaths that count" in text
-    assert "  pull 9 (100.0%, 0:24): a reset, not counted; " in text
+    assert "  9 (100.0%, 0:24): a reset, not counted; " in text
     table = await deaths.defensives(rep, "Sszorak")
     assert "on Sszorak: 32 pulls (1 reset left out), until each wipe was decided" in table
     assert ": 33 pulls" not in table and ": 32 pulls, " in table
@@ -276,3 +276,27 @@ async def test_time_at_the_cap_with_no_logged_loss_says_what_the_log_leaves_out(
         "Vim 0 of 261. Its 2 s at the cap can have lost more: these are the gains of spells and procs, and what a "
         "resource regenerates by itself isn't logged.")
     assert (await coaching.lost_at_cap(rep, [f["id"]], p, 3) or "").endswith("Venomous Vim 0 of 261")
+
+
+async def test_a_nights_rows_are_short_under_one_legend(rep):
+    # Every row repeated what its numbers were ("healing ... while alive, rank 3 of 4 healers by total") and what its
+    # death's mark meant, 46 words of it on a death in a hit killing many. One line above the rows says it once; a
+    # row keeps its numbers and a mark: "counts", "fallout (decided m:ss)" or "one of N killed at once from m:ss".
+    p = rep.player("Enfo")
+    pulls, *_ = await coaching.night_pulls(rep, p, rep.by_boss["Sszorak"])
+    lines = (await coaching.player_night(rep, "Enfo", "Sszorak")).splitlines()
+    rows = [line for line in lines if line.startswith("  ")]
+    legend = lines[lines.index(rows[0]) - 1]
+    assert legend == coaching.NIGHT_ROWS.format(what="healing", role="healers") and len(rows) == len(pulls) == 33
+    assert sum("the raid's to stop" in line for line in lines[lines.index(legend):]) == 1
+    assert sum("by total" in line for line in lines) == 1
+    for pull, row in zip(pulls, rows, strict=True):
+        assert row.startswith(f"  {rep.pull_no(pull.f)} (")
+        assert ("; survived" in row) == (pull.death is None)
+        if pull.death:  # each death's mark is the one its count goes by
+            assert (", counts" in row) == pull.counted
+            assert (", fallout (decided " in row) == pull.fallout
+            assert (", one of " in row and " killed at once from " in row) == (pull.mass and not pull.fallout)
+    assert sum(", counts" in row for row in rows) == sum(x.counted for x in pulls)
+    assert rows[5].endswith("died #8 at 1:07 to Mutilate [1285999], one of 4 killed at once from 1:07")
+    assert rows[7].split("; ")[1] == "died #6 at 1:33 to Mutilated Gash [1285998], counts"

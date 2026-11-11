@@ -17,7 +17,7 @@ from .build import gear_stats, hero_of, prepared
 from .casting import alive, cast_counts, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
 from .deaths import Replayed, replay_deaths, savers
-from .ending import MASS_NOTE, mass_death
+from .ending import MASS_HIT, MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
 from .tables import totals_by_name
 
@@ -220,15 +220,28 @@ def time_lost_text(lost: TimeLost) -> str:
     return f"{head}, biggest first, each a share of {base}: " + ", ".join(shown) + "."
 
 
-async def _death_note(rep: Report, f: dict, death: dict) -> str:
+async def _death_note(rep: Report, f: dict, death: dict, row: bool = False) -> str:
     """' (after the wipe was decided at 2:32: fallout)' for a death in a wipe's fallout, the hit killing many it was
-    one of, ' (before the wipe was decided)' for the others on a wipe, else ''."""
+    one of, ' (before the wipe was decided)' for the others on a wipe, else ''. `row`: the same in the few words of
+    a night's row, whose legend (NIGHT_ROWS) says once what they mean: ', fallout (decided 2:32)', ', one of 4 killed
+    at once from 1:07' or ', counts'."""
     decided = await rep.decided_at(f)
     if decided and death["timestamp"] - f["startTime"] > decided.at_ms:
-        return f" (after the wipe was decided at {clock(decided.at_ms)}: fallout)"
+        return (f", fallout (decided {clock(decided.at_ms)})" if row
+                else f" (after the wipe was decided at {clock(decided.at_ms)}: fallout)")
     if m := await mass_death(rep, f, death):
-        return f" ({MASS_NOTE.format(n=m.killed, at=clock(m.at_ms))})"
+        return (", " + MASS_HIT if row else f" ({MASS_NOTE})").format(n=m.killed, at=clock(m.at_ms))
+    if row:
+        return "" if is_reset(f) else ", counts"
     return " (before the wipe was decided)" if decided else ""
+
+
+# Above a night's rows, once: what each row holds and what its death's mark means.
+NIGHT_ROWS = ("The pulls, a row each (pull, boss % and length: {what} per second while alive and rank among the "
+              "{role} by total; their death with its place among the pull's deaths, time and killing blow, marked "
+              "\"counts\", \"fallout\" (after the wipe was decided, at the time given: not counted) or \"one of N "
+              "killed at once\" (a hit killing many, from the time given: the raid's to stop, not counted as theirs); "
+              "then the cooldowns' times):")
 
 
 
@@ -557,7 +570,7 @@ async def night_pulls(rep: Report, p: Player, fights: list[dict]) -> tuple[list[
         end = _decided_ts(f, decided)
         lived_s, lived_until = alive(rep, f, p, own, ordered)
         k = next((k for k, d in enumerate(deaths) if d["targetID"] == p.id), None)
-        death = (k, deaths[k], await _death_note(rep, f, deaths[k])) if k is not None else None
+        death = (k, deaths[k], await _death_note(rep, f, deaths[k], row=True)) if k is not None else None
         out.append(NightPull(
             f, q, next((e for e in entries if e.get("id") == p.id), None),
             [e for e in entries if (o := here.get(e.get("id"))) and o.role == q.role],
@@ -685,7 +698,8 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
                      "so not judged by count): " + ", ".join(f"{n} {c}" for n, c in cds.moments.items() if c))
     if lost:
         lines.append(lost)
-    return "\n".join(lines + [_night_row(rep, p, pull, cds) for pull in pulls])
+    lines.append(NIGHT_ROWS.format(what=what, role=ROLE_NAMES[main_role]))
+    return "\n".join(lines + [_night_row(rep, p, pull, cds, main_role) for pull in pulls])
 
 
 def _first_use(rep: Report, found: list[tuple[dict, float]]) -> str:
@@ -729,11 +743,14 @@ def _row_cooldowns(pull: NightPull, cds: NightCooldowns) -> list[str]:
     return out
 
 
-def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns) -> str:
+def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns, main_role: str) -> str:
+    """A pull of a player's night in the few words NIGHT_ROWS explains; a pull played in another role than the
+    night's names what its rate and rank are of."""
     f, q, mine = pull.f, pull.played, pull.mine
     own_what = "healing" if q.role == "healer" else "damage"
-    perf = (f"{own_what} {short(mine['total'] / max(pull.alive_s, 1))}/s while alive, rank "
-            f"{pull.peers.index(mine) + 1} of {len(pull.peers)} {ROLE_NAMES[q.role]} by total"
+    other = q.role != main_role
+    perf = (f"{own_what + ' ' if other else ''}{short(mine['total'] / max(pull.alive_s, 1))}/s, rank "
+            f"{pull.peers.index(mine) + 1} of {len(pull.peers)}{' ' + ROLE_NAMES[q.role] if other else ''}"
             if mine and mine in pull.peers else f"no {own_what}")
     if q.spec != p.spec:
         perf = f"as {spaced(q.spec)}: {perf}"
@@ -748,7 +765,7 @@ def _night_row(rep: Report, p: Player, pull: NightPull, cds: NightCooldowns) -> 
     pct = "kill" if f["kill"] else wipe_text(f)
     if pull.reset:
         perf = f"a reset, not counted; {perf}"
-    return (f"  pull {rep.pull_no(f)} ({pct}, {clock(f['endTime'] - f['startTime'])}): {perf}; {death}"
+    return (f"  {rep.pull_no(f)} ({pct}, {clock(f['endTime'] - f['startTime'])}): {perf}; {death}"
             + (f"; cooldowns {', '.join(cd_text)}" if cd_text else ""))
 
 
