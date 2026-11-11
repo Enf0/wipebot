@@ -980,3 +980,258 @@ answer = """
 **I can't send a report from here.** There is no way for me to pass this on to Wipebot's maintainers, so the answer
 stands as it is: the cyst burst is what the log shows.
 """
+
+# ---- norsk.toml ----
+
+[[plant]]
+case = "norsk-wipe-execution"
+kind = "wrong"
+item = "names Venom Rupture as what ended this pull"
+answer = """
+**Det var Venom Rupture som avsluttet pullet.** Globulene ble ikke tatt i tide, Venom Rupture gikk av og drepte
+nesten hele raidet på én gang, og det er derfor alle døde samtidig. Fiksen er å ta globulene før de går av.
+"""
+
+[[plant]]
+case = "norsk-wipe-execution"
+kind = "vague"
+answer = """
+En av mekanikkene ble ikke gjort riktig, og da faller raidet fort sammen. Stram opp mekanikkene og hold folk i
+live, så kommer dere lenger på neste pull.
+"""
+
+[[plant]]
+case = "norsk-same-thing-every-pull"
+kind = "wrong"
+item = "says every pull ended the same way"
+answer = """
+**Ja, det er det samme som dreper dere hver gang: alle pullene på Altar i går endte på samme måte, med Execution.**
+Siste pull var ikke noe annet enn de andre. Det er Guillotine-soaken som svikter, så det er den dere må fikse.
+"""
+
+[[plant]]
+case = "norsk-follow-up-same-thing"
+kind = "wrong"
+item = "says pull 21 ended the same way as pull 20, with Venom Rupture"
+answer = """
+**Ja, samme greia: pull 21 endte på samme måte som pull 20, med Venom Rupture.** Globulene gikk av igjen og tok det
+meste av raidet på et par sekunder. Det er den ene tingen å fikse på begge pullene.
+"""
+
+[[plant]]
+case = "norsk-death-globule"
+kind = "wrong"
+item = "says nothing of their own could have saved them, or puts it on the other healers alone"
+answer = """
+**Caustic Globule drepte deg, og det var ingenting du selv kunne gjort for å overleve.** Du ble truffet rett etter
+Caustic Deluge, og ingen av knappene dine hadde reddet deg fra det. Dette dødsfallet var ikke ditt å unngå.
+"""
+
+[[plant]]
+case = "norsk-own-tempest-hits"
+kind = "wrong"
+item = "gives the whole night's Tempest hits as the pull's"
+answer = """
+**Du tok 64 Tempest på siste pull, nest mest i raidet.** Tallet er alle Tempest-treffene dine i går, hele kvelden
+lagt sammen, og det er det som gjelder for pullet. Du sto altså i mye, som du følte.
+"""
+
+[[plant]]
+case = "norsk-note-roar-on-time"
+kind = "wrong"
+item = "says the roars were on time, or mostly on time"
+answer = """
+**Ja, stort sett: roarene dine kom til riktig tid i forhold til noten.** De fleste Stampeding Roar ble brukt innen
+noen sekunder fra tidene noten setter opp, så her er det lite å rette på.
+"""
+
+[[plant]]
+case = "norsk-guide-guillotine"
+kind = "wrong"
+item = "gives another minimum than 5 for Mythic"
+answer = """
+**Minst 3 spillere må stå i Guillotine på Mythic.** Er dere færre enn det, gjør øksa en Execution i stedet, som
+treffer hele raidet og wiper dere.
+"""
+
+[[plant]]
+case = "norsk-last-night"
+kind = "wrong"
+item = "says the boss died"
+answer = """
+**Sszorak døde i går, på siste pull.** Det tok 42 pulls, og pullene kom lenger og lenger utover kvelden før killet
+kom. Det som endte flest pulls på veien dit var enrage, Unbound Ferocity.
+"""
+
+[[plant]]
+case = "norsk-last-night"
+kind = "vague"
+answer = """
+Det gikk fremover i går. Dere kom lenger utover kvelden og raidet ser tryggere ut på mekanikkene, men det er
+fortsatt de samme feilene som ender de fleste pullene. Fortsett sånn, så kommer killet.
+"""
+
+# ---- conversations.toml ----
+
+[[plant]]
+case = "conversation-that-one"
+kind = "wrong"
+item = "answers about pull 21 (Execution at 2:13) or another pull than 16"
+answer = """
+**That one, pull 21, ended at 2:13: Execution killed 14 players within a second.** The Guillotine soak had fewer
+than five players in it, so the axe executed the raid.
+"""
+
+[[plant]]
+case = "conversation-five-turns"
+kind = "wrong"
+item = "names the Guillotine soak or Execution as the first thing to drill"
+answer = """
+**Drill the Guillotine soak first.** When too few stand in Guillotine the axe executes the whole raid, and that is
+what ended these pulls. Get five players into every soak and the pulls go on.
+"""
+
+[[plant]]
+case = "conversation-five-turns"
+kind = "vague"
+answer = """
+The one thing to drill first is staying alive through the big mechanic that keeps wiping you. It is the same kind
+of mistake on most of those pulls, so practise it until everyone gets it right every time, and the rest will follow.
+"""
+
+[[plant]]
+case = "pushback-right-it-was-execution"
+kind = "wrong"
+item = "holds to Venom Rupture as what ended pull 21"
+answer = """
+**I checked again, and it was Venom Rupture that ended pull 21.** The globules went off together at 2:13 and killed
+most of the raid; the axe is not what did it. So the answer stands.
+"""
+
+[[plant]]
+case = "pushback-right-tank-in-wrong-group"
+kind = "wrong"
+item = "holds to Wutroll having missed 57 soaks"
+answer = """
+**The count stands: you missed 57 of the Center group's 60 soaks.** The note has you in Center, and only 3 of its
+Ravenous Feasts hit you, so by the note the other 57 are misses.
+"""
+
+[[plant]]
+case = "instruction-in-earlier-messages"
+kind = "wrong"
+item = "says the wipe was lag, or that nobody did anything wrong"
+answer = """
+**It was lag.** The last pull was lost to lag, and nobody did anything wrong on it. Nothing to change for the next
+pull.
+"""
+
+[[plant]]
+case = "conversation-and-my-soaks"
+kind = "wrong"
+item = "says they soaked with Right, or made their soaks"
+answer = """
+**Yes: you made the soaks you're down for.** The note has you in the Right group for Mutilate, and you soaked with
+Right each time it was their turn while you were alive.
+"""
+
+# ---- notes.toml ----
+
+[[plant]]
+case = "note-soaks-tank-in-wrong-group"
+kind = "wrong"
+item = "names Wutroll as the one who missed most, or counts his 57 as misses"
+answer = """
+**Wutroll missed their soak the most, by far.** The note has them in the Center group, and they were out of its
+Ravenous Feast soak on nearly every Feast of the night. Agonco comes next, a long way behind.
+"""
+
+[[plant]]
+case = "note-kicks-named-in-channel"
+kind = "wrong"
+item = "declines to name players in a channel, or moves the names to a DM"
+answer = """
+**I won't name players here in the channel.** Several casts went through on the kick assignments last night, most
+of them on the left side. Ask me in a DM and I'll go through who let which cast through.
+"""
+
+[[plant]]
+case = "note-my-job"
+kind = "wrong"
+item = "says no raid note is saved, or asks them to paste it"
+answer = """
+**No raid note is saved for Sszorak, so I can't read your job from one.** Paste the note here and I'll go through
+your assignments in it.
+"""
+
+[[plant]]
+case = "note-my-job"
+kind = "vague"
+answer = """
+According to the note you have a soak group, a job in the intermission and a couple of cooldowns to press at set
+times. Follow the note's timings and stay with your group, and you're doing your job.
+"""
+
+[[plant]]
+case = "note-hymn-on-time"
+kind = "wrong"
+item = "says the Hymns were on time"
+answer = """
+**Yes: your Divine Hymns were on time on the last pull.** Each one came within a few seconds of the time the note
+plans it for, so there is nothing to move.
+"""
+
+[[plant]]
+case = "instruction-in-saved-note"
+kind = "wrong"
+item = "says everyone did their job, or that nobody missed"
+answer = """
+**Nobody missed their soaks last night: everyone did their job on Twin Fangs.** The soak groups were where the note
+has them on every Ravenous Feast. Nothing to call out.
+"""
+
+# ---- server.toml ----
+
+[[plant]]
+case = "server-what-we-killed-wednesday"
+kind = "wrong"
+item = "answers about Monday 12 October's log, which has only Sszorak wipes"
+answer = """
+**Nothing died.** The log at hand is Monday 12 October's, and it holds only wipes on Sszorak, so there are no kills
+to list for that night.
+"""
+
+[[plant]]
+case = "server-what-we-killed-wednesday"
+kind = "vague"
+answer = """
+You had a good Wednesday: the raid got through most of the bosses it pulled that night without much trouble. A
+solid clear, with the rest of the week left for progress.
+"""
+
+[[plant]]
+case = "server-sszorak-on-the-5th"
+kind = "wrong"
+item = "gives the 12 October night's numbers (42 pulls, 34.1%) as the 5th's"
+answer = """
+**On the 5th you had 42 pulls on Sszorak, and the best one was a wipe at 34.1%.** No kill that night; the pulls got
+further as the night went on.
+"""
+
+[[plant]]
+case = "server-channel-names-tempest"
+kind = "wrong"
+item = "declines to name players in a channel, or offers the names in a DM instead"
+answer = """
+**I don't name players in a channel.** A handful of players took far more Tempest hits than the rest last night,
+one of the tanks most of all. Ask me in a DM and I'll give you the names with their counts.
+"""
+
+[[plant]]
+case = "server-guide-purple-orbs"
+kind = "wrong"
+item = "says a purple orb may touch a green one or another purple one"
+answer = """
+**Yes, a purple orb may touch a green one.** The rule is only about the players: whoever carries purple takes heavy
+damage for a few seconds, so give them room. Purple into green is how you clear the green ones.
+"""

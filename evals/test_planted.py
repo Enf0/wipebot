@@ -325,3 +325,20 @@ def test_the_flag_asks_with_the_judges_model_and_the_cases_k_picks(monkeypatch):
         runner.main()
     assert done.value.code == 1  # the run's own exit code
     assert got == {"judge_model": "haiku", "only": "wipe,night", "billed_to": "your Claude Code login"}
+
+
+def test_every_regular_case_has_its_wrong_plant():
+    """A new case comes with its plant: an answer that states one item of its wrong list as true, for the judge to
+    fail (`just evals --planted`). The held-out cases have none."""
+    assert unplanted(load_plants(), load_cases()) == []
+
+
+def test_the_plants_stand_by_cases_file_in_the_cases_own_order():
+    """The file stays readable: one group per cases file, and in it the plants in the order of their cases."""
+    cases = load_cases()
+    place = {c["id"]: (c["kind"], n) for n, c in enumerate(cases)}
+    files = [place[p.case][0] for p in load_plants()]
+    groups = [kind for n, kind in enumerate(files) if n == 0 or files[n - 1] != kind]
+    assert len(groups) == len(set(groups)), f"a cases file's plants stand in more than one group: {groups}"
+    order = [place[p.case] for p in load_plants()]
+    assert all(a[1] <= b[1] for a, b in zip(order, order[1:], strict=False) if a[0] == b[0])
