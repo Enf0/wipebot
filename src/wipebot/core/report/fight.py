@@ -61,7 +61,8 @@ RAID_WIDE = 3  # a damage dealer's or tank's cooldown is a raid cooldown when it
 def boss_left(f: dict) -> str:
     """'the boss at 62.6% health' (to one decimal, as a wipe's % is given everywhere: pct_text), or the health being
     unknown; on a boss counted by phase, the phase too ('the boss at 80.8% health in P2'). A kill is 'the boss
-    dead': WCL often leaves one at 0.01% (an Entombed Sentinels kill), which reads as a near miss."""
+    dead': WCL often leaves one at 0.01% (an Entombed Sentinels kill), which reads as a near miss. The wipe's % is
+    added wherever it prints as another number, however close the two are: the summary's first line gives that one."""
     if f.get("kill"):
         return "the boss dead"
     pct = f.get("bossPercentage")
@@ -69,7 +70,7 @@ def boss_left(f: dict) -> str:
         return "the boss's health not logged"
     phase = f" in {phase_label(f)}" if phase_health(f) is not None else ""
     fight = f.get("fightPercentage")  # what the summaries call the wipe: phases weighed in (wipe_pct)
-    apart = fight is not None and abs(fight - pct) >= 0.05 and pct_text(fight) != pct_text(pct)
+    apart = fight is not None and pct_text(fight) != pct_text(pct)
     return f"the boss at {pct_text(pct)} health{phase}" + (f" (the wipe at {pct_text(fight)}, phases weighed in)"
                                                            if apart else "")
 

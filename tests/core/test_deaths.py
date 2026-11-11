@@ -32,6 +32,10 @@ def test_a_kill_reads_as_the_boss_dead_not_its_last_percent():
     # one precision: pull_summary opened with "wipe at 62.6%" and closed with "the boss at 62.59% health"
     assert boss_left({"kill": False, "bossPercentage": 62.59}) == "the boss at 62.6% health"
     assert boss_left({"kill": False, "bossPercentage": 62.56, "fightPercentage": 62.61}) == "the boss at 62.6% health"
+    # ... and where the two print apart, however close they are, the last line says which the first line gave: it
+    # read "the boss at 62.5% health" alone under "wipe at 62.6%".
+    assert boss_left({"kill": False, "bossPercentage": 62.55, "fightPercentage": 62.59}) == (
+        "the boss at 62.5% health (the wipe at 62.6%, phases weighed in)")
 
 
 def test_a_wipe_says_its_bosss_health_and_the_wipe_percent_when_phases_make_them_differ():
