@@ -459,6 +459,21 @@ async def test_a_pull_did_not_get_past_what_came_on_it_too(rep, monkeypatch):
         "What ended the most earlier pulls (3 of 4), Venom Burst killing many, came on this pull too.")
 
 
+async def test_what_came_on_a_pull_as_a_phase_began_is_given_its_time(rep, monkeypatch):
+    # A buff the boss gains within 5 s of a phase's start is the phase's, not read as what ended the pull, so no line
+    # of the summary gives it: an Entombed Sentinels pull "got past" the boss gaining Ula'tek's Dominance, which it
+    # gained at 3:07, 5 s into a phase. Here pull 5 of the tests' night with a phase made up to begin 3 s before the
+    # boss gained Unbound Ferocity at 1:17: the line that names the buff is then the one to say when it came.
+    late = rep.fight(5, "Sszorak")
+    monkeypatch.setitem(late, "phaseTransitions", [*late["phaseTransitions"],
+                                                   {"id": 2, "startTime": late["startTime"] + 75_000}])
+    assert await rep.end_buffs(late) == []
+    text = await fight.pull_summary(rep, 5, "Sszorak")
+    assert "got past" not in text and text.count("Unbound Ferocity") == 1
+    assert ("What ended the most earlier pulls (3 of 4), the boss gaining Unbound Ferocity and keeping it to the end, "
+            "came on this pull too, at 1:17, after the wipe was decided.") in text
+
+
 async def test_a_fight_on_no_raid_difficulty_says_so_and_is_no_difficulty_10(rep, monkeypatch):
     # A Mythic+ run reaches Warcraft Logs as one fight with a difficulty that is no raid's: "(difficulty 10)" with
     # "raid size 5" and "the boss dead" read as a bug. The raid's own pulls carry no such line.
