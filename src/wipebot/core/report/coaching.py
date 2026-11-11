@@ -1074,3 +1074,9 @@ def _tally(stacks: list[int | None], stacked: bool) -> str:
     if stacked:
         return ", ".join(f"{n} stack{'s' * (n != 1)} on {k}" for n, k in sorted(counts.items()))
     return f"up on {sum(k for n, k in counts.items() if n)} of {len(stacks)}"
+
+
+async def death_note(rep: Report, f: dict, death: dict) -> str:
+    """What player_pull's "Died" line says of a death in its brackets, for the player's picture: that it came before
+    the wipe was decided, after it (fallout), in a hit killing many, or nothing on a kill or a wipe never decided."""
+    return (await _death_note(rep, f, death)).strip(" ()")
