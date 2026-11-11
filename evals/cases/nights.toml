@@ -70,16 +70,18 @@ where = "in a DM"  # a DM, as the asker had it
 report = "PjKR7hQwtYpd8WDz"
 question = "Who keeps dying first on Sentinels?"
 asker = "Karadim"
-expect = """Scopidruid died first most often, on 3 of the 7 pulls (2, 3 and 4), each time to something different;
-Grusarn was first twice and nobody else more than once. Only one of the three was a death that mattered alone: on
-pull 3 Scopidruid was one of five killed by Noxious Blast within a second, and on pull 4 the pull went on two
-minutes after their death to the night's best wipe."""
+expect = """Scopidruid and Grusarn died first most often: Scopidruid is listed first on 3 of the 7 pulls (2, 3 and
+4), each time to something different, Grusarn on 2 (5 and 6), and nobody else more than once. Only one of
+Scopidruid's three mattered alone: on pull 3 they were one of five killed by Noxious Blast within a second, a hit
+killing many that counts against no one (so two each is right too, if the answer says pull 3 was set aside and why),
+and on pull 4 the pull went on two minutes after their death to the night's best wipe."""
 facts = ["Grusarn first on pulls 5 and 6; Providence on 1 and Wutroll on 7",
          "pull 3: Noxious Blast killed 5 at once at 2:35, Scopidruid first only by the order",
          "pull 4: Scopidruid died at 2:17, the next death came at 4:13, and the pull reached 36.3%, the night's best",
          "on pulls 2 and 4 they died in the Blood side's damage after an Unstable Miasma hit, with 15 Mark of Blood stacks",
          "no healthstone used before any of the three deaths; on pull 4 Barkskin was not used"]
-wrong = ["names someone other than Scopidruid as dying first most often",
+wrong = ["names someone other than Scopidruid or Grusarn as dying first most often",
+         "says Grusarn died first more often than Scopidruid, or blames Scopidruid for pull 3's death",
          "says Scopidruid's deaths lost those pulls",
          "says Scopidruid stood in the wrong place or broke an assignment, as if the log showed it",
          "claims what a class can or can't do (\"druids can't...\")"]
@@ -162,9 +164,11 @@ behind and was short when the enrage came."""
 facts = ["damage per second over each pull: 2.07M/s on pull 6 until its enrage at 8:07, 2.12M/s on the kill",
          "boss health 10% at 7:07 on the kill against 7:19 on pull 6",
          "both pulls reached the enrage (Caustic Rain, at the third Submerge) at 8:07; on the kill one twin died at 8:11 and the other at 8:14, seconds into it",
-         "the kill was messy late: 12 deaths, most from 7:39 on, once the boss was nearly dead"]
+         "the kill was messy late: 12 deaths, most from 7:39 on, once the boss was nearly dead",
+         "Zephyr went out at 6:44 on the kill, before the 6:46 Ravenous Feast; on pull 6 that Feast had Darkness at 6:43 and Zephyr came at 7:52"]
 derived = ["10%"]  # the timeline prints the boss's health without a % sign ("7:07 10")
-wrong = ["the kill used a different cooldown plan or strategy",
+wrong = ["""credits the kill to a new plan, strategy or tactic (a planned change to cooldowns, positioning, kill order
+or how a mechanic is handled); saying which cooldowns the log shows on a Feast in each pull is fine""",
          "credits the kill to more damage per player rather than to who stayed alive",
          "says the kill had few or no deaths in all (it had 12, most from 7:39 on; none until 6:46 is right)",
          "says deaths alone ended the best wipe, not the enrage at 8:07"]

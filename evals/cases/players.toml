@@ -273,9 +273,9 @@ report = "p7jRwgv8b1rY6LBd"
 question = "The #1 Holy Priest on Twin Fangs Mythic does 537k HPS. What's a realistic HPS for me to aim at?"
 asker = "Namsus"
 expect = """Not the #1 parse: its raid's other three healers parsed low, so it took a third of their healing. A
-realistic target is a point of the spec's spread, around the 75th percentile (about 426k), which Namsus already
-reached on the 0.9% wipe, a wipe being weak evidence on its own."""
-drifts = ["537.21k", "426k", "444.59k", "425.96k", "404.59k", "33%", "12th", "20th", "42nd", "1738"]
+realistic target is a point of the spec's spread, the 75th to 90th percentile (about 426k to 445k); Namsus is already
+at about the 75th on the 0.9% wipe, which is weak evidence until a kill."""
+drifts = ["537.21k", "426k", "445k", "444.59k", "425.96k", "404.59k", "33%", "12th", "20th", "42nd", "1738"]
 facts = ["the #1 parse's raid had 4 healers and it did 33% of their healing, against an even 25%",
          "the other healers on that kill at the 12th, 20th and 42nd percentiles",
          "the spread of ranked Holy Priest kills: 90th percentile 444.59k, 75th 425.96k, median 404.59k",

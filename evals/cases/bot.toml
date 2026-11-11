@@ -34,12 +34,15 @@ pull = 5
 boss = "Entombed Sentinels"
 expect = """Naming them (in a DM): six never neutralized Helical Toxins in the second
 intermission and got Cultivated Burst at 3:01, Pomaa, Fappachino, Peggerino, Sveini, Dragepie and Enfo; five of them
-died to it at 3:02-3:04, which lost the pull. The log doesn't show each player's orb count or who collided with whom."""
+died to it at 3:02-3:04, which lost the pull. The log doesn't record anyone's starting orb count; who collided can
+only be worked out from debuff changes landing at the same moment, and an answer that does so may lead with it as long
+as it names all six."""
 facts = ["Enfo died to Blood Venom at 3:04 with the burst on",
+         "Enfo and Dragepie went to 5 stacks together at 2:41, and Pomaa and Fappachino gained stacks with them at 2:44",
          "the bosses gained Ula'tek's Dominance at 3:07, after those deaths",
          "players with 3 orbs stand still, 1 seek them, 2 pair with 2, to make exactly 4"]
 wrong = ["names someone outside those six as having kept Helical Toxins to the end",
-         "says the log shows each player's orb count or who collided with whom",
+         "states a player's starting orb count as a recorded fact",
          "says Ula'tek's Dominance or the deaths after 3:04 lost the pull",
          "says it can't or won't name who kept Helical Toxins to the end"]
 [[case]]

@@ -230,10 +230,10 @@ settled on the mechanics, so the night ended well. Keep doing what worked and th
 [[plant]]
 case = "night-who-dies-first"
 kind = "wrong"
-item = "names someone other than Scopidruid as dying first most often"
+item = "names someone other than Scopidruid or Grusarn as dying first most often"
 answer = """
-**Grusarn dies first most often on Sentinels.** They were the first death on more pulls than anyone else, each time
-early in the pull. Nobody else stands out.
+**Providence dies first most often on Sentinels.** They were the first death on more pulls than anyone else, each
+time early in the pull. Nobody else stands out.
 """
 
 [[plant]]
@@ -285,9 +285,10 @@ pull, it went off, and the raid died to the explosions. Dispel it sooner and mos
 [[plant]]
 case = "night-kill-vs-best-wipe"
 kind = "wrong"
-item = "the kill used a different cooldown plan or strategy"
+item = """credits the kill to a new plan, strategy or tactic (a planned change to cooldowns, positioning, kill order
+or how a mechanic is handled); saying which cooldowns the log shows on a Feast in each pull is fine"""
 answer = """
-**The kill used a different cooldown plan.** The raid cooldowns were moved to the middle of the fight, where the
+**The kill came from a new cooldown plan.** The raid cooldowns were moved to the middle of the fight, where the
 best wipe had lost players, and that is what carried the raid through it. Keep the new plan as the standard one.
 """
 
