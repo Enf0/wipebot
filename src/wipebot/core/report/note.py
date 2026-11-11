@@ -490,6 +490,18 @@ def _asked(rep: Report, p: Player, notes: Iterable[Note]) -> Asked:
                                                if q.id == p.id}))
 
 
+def asked_of(rep: Report, player: str, notes: Collection[Note]) -> Asked:
+    """The one player a note's check is drawn for (raid_note's `player`), found as its text finds them: one of the
+    report's, by every name the notes write them by (`_asked`), else one only the notes name (own_part: the note for
+    the next raid is for who comes next, and the report has who came last)."""
+    if p := rep.find_player(player):
+        return _asked(rep, p, notes)
+    if written := {n for note in notes for n in _named(note) | set(note.invited)
+                   if name_key(_bare(n)) == name_key(player)}:
+        return Asked(_bare(min(written)), frozenset(written))
+    raise FactError(f"no single player matching {player!r} in this report, and the note names no one so")
+
+
 NAMED_SPELL = re.compile(r"(\b(?:spellid|bossSpell):\d+) \([^;]*\)")  # a spell id with its name put after it
 
 
