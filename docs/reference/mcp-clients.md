@@ -187,6 +187,7 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
 - What costs is repetition, not ids or links: a reading note on every row, a history repeated per pull, rows that
   restate a line above. Ours (11 November): `pull_summary` 3,317 to 1,697 characters on the tests' pull by saying
   what decided the wipe once, `progress` with `each_pull` 21,696 to 12,780 on a night of 33 pulls, `player_night`
-  9,067 to 6,991 with one legend above its rows; no fact was removed from any of them.
+  9,067 to 6,991 with one legend above its rows. The only facts that went are, of each death after the wipe was
+  decided in `pull_summary`, the player's spec and how many were alive after it (the count after the last stays).
 - Size is pinned: each case's output has a budget in characters (`tests/fixtures/real/tools/sizes.toml`), and a
   test fails when one outgrows it by more than a tenth.
