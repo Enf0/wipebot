@@ -206,12 +206,15 @@ def time_lost(f: dict, deaths: list[dict], casts: list[dict], gaps: list[tuple[f
                     within(capped), resource)
 
 
+LOST_MIN_S = 1  # a cost of less time than this is not listed as time lost
+
+
 def time_lost_text(lost: TimeLost) -> str:
     """player_pull's "Time lost" line: each cost of a second or more, biggest first, with its share of the time."""
     window = lost.until_ms / 1000
     head = (f"Time lost until {clock(lost.until_ms)}, when the wipe was decided" if lost.decided
             else f"Time lost over the {clock(lost.until_ms)} pull")
-    shown = [f"{what} {s:.0f} s ({100 * s / max(window, 1):.0f}%)" for s, what in lost.costs() if s >= 1]
+    shown = [f"{what} {s:.0f} s ({100 * s / max(window, 1):.0f}%)" for s, what in lost.costs() if s >= LOST_MIN_S]
     if not shown:
         return f"{head}, biggest first: none."
     # The base once, here: the lines below give the same gaps and cap as shares of the time alive. In whole
