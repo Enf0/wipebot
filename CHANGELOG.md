@@ -14,6 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `MCP` **The replay shows the phases, the boss's health and what it casts next.** The replay's timeline is coloured by phase, each named under it, and a phase the fight went back to keeps its colour. A frame at the top left gives the boss, the phase and its health as the pull plays, a new bar for each phase's boss as raiders count it ("P2 97.5%"). At the top right, "Coming up" counts down the boss's next casts in the log over the coming 20 s, those Lorrgs tracks in bold.
 
   ![The Coiled Altar pull 12's replay at 3:08: the frame "The Coiled Altar, P2 Stage Two: Usurper's Reprisal" with its health at 97.5%, "Coming up" with Spiritcackle in 1 s, Dread Bolt in 5 s, Gloombomb in 8 s and Dread Bolt in 9 s, and under the map the timeline coloured blue for P1 and purple for P2](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/replay-phases-timers.webp)
+- `MCP` **See a raid night on Wipebot's website, no sign-in needed.** [wipebot.enfo.dev](https://wipebot.enfo.dev/#try) now draws a real Mythic night with the same view Claude and ChatGPT show: each pull's boss health left, coloured by what ended it, and a click on a pull opens its deaths, cooldowns and replay. The night's own page lists questions to copy into Claude, ChatGPT or Discord. It replaces the demo chat, which needed a Warcraft Logs sign-in and answered a few questions a day.
+
+  ![The website's "Try it": Sszorak's 33 pulls on 5 October, "10 of the 33 pulls ended with the boss gaining Unbound Ferocity and keeping it to the end.", best wipe 62.6% on pull 13, a bar per pull coloured by how it ended, and under it a box to paste your own night's link](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/website-night.webp)
 
 ### Fixed
 
