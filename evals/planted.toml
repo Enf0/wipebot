@@ -170,3 +170,176 @@ answer = """
 **Tempest killed you, Nexsozz, and Tempest is what wiped pull 20.** It took you early and then the rest of the
 raid. What you personally should have done is move out of Tempest sooner: that is the one change to make.
 """
+
+# ---- nights.toml ----
+
+[[plant]]
+case = "night-bottleneck"
+kind = "wrong"
+item = "names the Mutilate soak, rather than the missed Serpent's Fury stacks, as what ends most pulls"
+answer = """
+**The Mutilate soak is what ends most of your pulls on Sszorak, more than the Serpent's Fury stacks or anything
+else.** Pull after pull too few players stand in it or the same ones take it twice, it kills several at once, and
+the pull is over from there. Fix the soak groups first; the rest of the fight follows.
+"""
+
+[[plant]]
+case = "night-bottleneck"
+kind = "vague"
+answer = """
+What keeps wiping you is the same handful of mistakes, pull after pull: players die early to avoidable damage, the
+raid runs short of people, and the pull falls apart from there. Clean up the early mistakes and stay alive longer,
+and the pulls will go further.
+"""
+
+[[plant]]
+case = "night-healing-cooldowns"
+kind = "wrong"
+item = "the healing cooldowns are well spread over every spike"
+answer = """
+**The healing cooldowns are in the right place: they are well spread over every spike of the fight.** The damage
+comes in waves at the same moments each pull, and each wave has a cooldown on it. Nothing to move; keep the plan as
+it is.
+"""
+
+[[plant]]
+case = "night-not-a-dps-problem"
+kind = "wrong"
+item = "the raid needs more damage to beat an enrage or damage check on Vashnik"
+answer = """
+**Yes: you need more damage to beat Vashnik's enrage.** The best wipe ran out of time with the boss nearly dead,
+which is a damage check missed by a little. A bit more from everyone and that pull is a kill.
+"""
+
+[[plant]]
+case = "night-improving"
+kind = "wrong"
+item = "the night was flat or got worse"
+answer = """
+**No, the night was flat.** The wipes ended at about the same point from the first pull to the last, with no steady
+gain between them, and the kill at the end came from one good attempt rather than from a trend.
+"""
+
+[[plant]]
+case = "night-improving"
+kind = "vague"
+answer = """
+Yes, you got better as the night went on. The later pulls went further than the early ones and the raid looked more
+settled on the mechanics, so the night ended well. Keep doing what worked and the progress will hold.
+"""
+
+[[plant]]
+case = "night-who-dies-first"
+kind = "wrong"
+item = "names someone other than Scopidruid as dying first most often"
+answer = """
+**Grusarn dies first most often on Sentinels.** They were the first death on more pulls than anyone else, each time
+early in the pull. Nobody else stands out.
+"""
+
+[[plant]]
+case = "night-kill-what-went-right"
+kind = "wrong"
+item = "says the kill won mainly by doing more damage, or that pull 9 was behind on damage"
+answer = """
+**The kill won mainly by doing more damage.** Ula'tek's health dropped faster on the kill than on the 9.3% pull, so
+the fight was over before the last mechanics could pile up. More damage is what turned that wipe into a kill.
+"""
+
+[[plant]]
+case = "night-raid-prep"
+kind = "wrong"
+item = "says everyone had an augment rune"
+answer = """
+**Yes, everyone was prepared: flasks, food, augment runes and weapon oils were on every player.** Everyone had an
+augment rune, so there is nothing to chase before the next pull.
+"""
+
+[[plant]]
+case = "night-add-control"
+kind = "wrong"
+item = """states, as something the log shows, the order the adds died in or that the Frostscales died first
+(advising Frostscale first as the guide's rule is fine)"""
+answer = """
+**Yes: the log shows the Frostscales died first on the kill, and the Shorerunners after them.** That is the right
+order, since the murlocs can't be hurt while a Frostscale lives. On the wipes the order slipped and the murlocs
+lived too long.
+"""
+
+[[plant]]
+case = "night-dispels"
+kind = "wrong"
+item = "says slow dispels caused most of the wipes"
+answer = """
+**No: slow dispels caused most of the night's wipes.** Exploding Infection was left on players too long pull after
+pull, it went off, and the raid died to the explosions. Dispel it sooner and most of those pulls go on.
+"""
+
+[[plant]]
+case = "night-kill-vs-best-wipe"
+kind = "wrong"
+item = "the kill used a different cooldown plan or strategy"
+answer = """
+**The kill used a different cooldown plan.** The raid cooldowns were moved to the middle of the fight, where the
+best wipe had lost players, and that is what carried the raid through it. Keep the new plan as the standard one.
+"""
+
+[[plant]]
+case = "night-summary-for-raid"
+kind = "wrong"
+item = """treats Mother's Wrath as raid damage to heal through or survive with cooldowns, not as its target being
+out of reach"""
+answer = """
+- Ula'tek died on pull 8.
+- Mother's Wrath was the night's killer: it is heavy raid damage, and the raid didn't have the healing for it.
+- Next week: a healing cooldown and personal defensives on every Mother's Wrath, and heal through it.
+"""
+
+[[plant]]
+case = "healers-imbibe-cooldowns"
+kind = "wrong"
+item = "says an Imbibe from 1:48 on got no healing or raid cooldown"
+answer = """
+**Not all of them: the Imbibe at 1:48 got no healing or raid cooldown.** The others each had cooldowns on them, but
+that one was healed through bare. Move one cooldown onto it.
+"""
+
+[[plant]]
+case = "night-adds-damage-and-waves"
+kind = "wrong"
+item = """states, as something the log shows, when the Barbed Bulwarks or the Broodlings of Ithraz died or how fast
+they were killed"""
+answer = """
+**The log shows all three adds dying on time.** The Spawn of Vexhul die within about ten seconds of coming, the
+Barbed Bulwarks within five seconds each and the Broodlings of Ithraz within about eight. None of the three is slow,
+so the adds aren't your problem on this fight.
+"""
+
+[[plant]]
+case = "night-three-things-to-fix"
+kind = "wrong"
+item = "leads with Tempest, or with damage, as the most important thing to fix"
+answer = """
+**1. Tempest is the most important thing to fix:** it killed more players than anything else last night.
+**2. The Mutilate soak,** which kills several at once when it comes up short.
+**3. The Serpent's Fury stack,** so the boss doesn't enrage.
+"""
+
+[[plant]]
+case = "night-better-than-last-week"
+kind = "wrong"
+item = "says the raid did worse than the week before"
+answer = """
+**No: the raid did worse than the week before.** The pulls ended earlier and with the boss on more health than a
+week ago, so this week was a step back. The same mechanics are ending them.
+"""
+
+[[plant]]
+case = "plan-healing-cooldowns-sszorak"
+kind = "wrong"
+item = "names a healer as having failed an assigned cooldown (there is no raid note)"
+answer = """
+**Plan: Spirit Link Totem on the opening Virulence wave, a raid cooldown on the second wave, the rest as on the
+kill.** The gap tonight was the opening wave: Enfo was assigned Spirit Link Totem there and failed to use it, pull
+after pull. With that one pressed on time the plan holds.
+"""
