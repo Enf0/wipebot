@@ -400,7 +400,8 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
     if q.data_type == "Healing" and any(c["overheal"] for c in s.counts.values()):
         lines.append("Overheal is healing past full health. Heals over time and passive healing overheal more by "
                      "design, and the more healers share the damage, the more each overheals: compare it only within "
-                     "one spec and as many healers. It costs mana and casts, nothing more.")
+                     "one spec, as many healers and the same stretch of the pulls (a wipe cut where it was decided is "
+                     "not a whole kill: end cuts a kill to the same length). It costs mana and casts, nothing more.")
     if own:
         lines.append(f"{OWN}: every hit of it came from a player or a pet, not from an enemy.")
     if parsed:
