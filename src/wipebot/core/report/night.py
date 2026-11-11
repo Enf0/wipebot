@@ -29,7 +29,7 @@ from ..pulls import (
 from ..text import clock, clusters, date, ordinal, plural, ranges, span
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
-from .ending import Ending, KeptBuff, kind_of_end, pull_endings
+from .ending import Ending, KeptBuff, deaths_from, kind_of_end, pull_endings
 
 
 def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
@@ -286,10 +286,15 @@ def _kept_as(ending: Ending | None, decided: Decided | None, name: str, at: floa
 
 
 def _ended(ending: Ending | None, decided: Decided | None) -> str:
-    """What ended a wipe and when it was decided, for its line in `progress`; nothing for a kill or a reset."""
+    """What ended a wipe and when it was decided, for its line in `progress`; nothing for a kill or a reset. An
+    ending that leads with deaths says from when, as its pull's "Ended by" does (ending.deaths_from): the row's
+    first death can be an earlier one, brought back since."""
     if not ending or ending.kind in ("reset", "live"):
         return ""
-    return f", ended by {kind_of_end(ending)}" + (f", decided at {clock(decided.at_ms)}" if decided else "")
+    what = kind_of_end(ending)
+    if (start := deaths_from(ending)) is not None:  # "deaths one after another", "deaths leading into ..."
+        what = f"deaths from {clock(start)} " + what.removeprefix("deaths ")
+    return f", ended by {what}" + (f", decided at {clock(decided.at_ms)}" if decided else "")
 
 
 def _marks(fights: list[dict], before: GuildBest | None) -> tuple[dict[int, str], tuple[int, dict, float] | None]:

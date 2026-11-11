@@ -307,6 +307,18 @@ def _lead_in_text(lead_in: LeadIn) -> str:
     return f"{lead_in.deaths} deaths one after another from {clock(lead_in.first_ms)}{tanks}, none brought back"
 
 
+def deaths_from(e: Ending | None) -> float | None:
+    """When the deaths an ending leads with began (ms into the pull): the first that stayed dead of deaths one after
+    another, or the first of those that led into a hit killing many. None for an ending that leads with something
+    else. A death before it was undone by a battle res or stands apart: the pull's first death can be earlier. The
+    one start the "Ended by" line, `lead` and a night's row give."""
+    if e is not None and e.kind == "cascade":
+        return e.first_death_ms or 0
+    if e is not None and e.kind == "moments" and e.lead_in and e.led_in:
+        return e.lead_in.first_ms
+    return None
+
+
 def ending_text(e: Ending | None) -> str | None:
     """The ending as pull_summary's "Ended by" line; None for a kill."""
     if e is None:
@@ -317,7 +329,7 @@ def ending_text(e: Ending | None) -> str | None:
         case "reset":
             return "Ended by: a reset (the boss untouched)."
         case "cascade":
-            return (f"Ended by: deaths from {clock(e.first_death_ms or 0)} until half the raid was dead at "
+            return (f"Ended by: deaths from {clock(deaths_from(e) or 0)} until half the raid was dead at "
                     f"{clock(e.half_dead_ms or 0)}, no single hit killing many: start from the first death and follow "
                     "what each left short.")
         case "alive":
@@ -350,14 +362,12 @@ def lead(e: Ending | None) -> str:
     "alive" (no death decided it), "live" or "kill"."""
     if e is None:
         return "kill"
+    if (start := deaths_from(e)) is not None:
+        return f"deaths from {clock(start)}"
     match e.kind:
-        case "cascade":
-            return f"deaths from {clock(e.first_death_ms or 0)}"
         case "cast":
             return f"cast: {e.cast.name if e.cast else ''}"
         case "moments":
-            if e.lead_in and e.led_in:
-                return f"deaths from {clock(e.lead_in.first_ms)}"
             match e.moments[0]:
                 case MassDeath(ability=name):
                     return f"ability: {name}" if name else "moment: no killing blow"

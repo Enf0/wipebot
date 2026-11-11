@@ -9,10 +9,11 @@ import pytest
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.pulls import Decided, GuildBest, mass_hits
-from wipebot.core.report import fight
+from wipebot.core.report import fight, night
 from wipebot.core.report.ending import (
     Ending,
     MassDeath,
+    deaths_from,
     ending,
     ending_ability,
     ending_text,
@@ -437,6 +438,26 @@ def test_a_cascade_starts_at_the_first_death_that_stayed(rep, deaths):
     e = ending(rep, PULL, died, {901: [T0 + 15_000.0]}, 6, [], Decided(60_000))
     assert e and e.kind == "cascade" and e.first_death_ms == 50_000
     assert ending_ability(e) is None
+
+
+def test_a_nights_row_starts_a_pulls_deaths_where_its_summary_does(rep, deaths):
+    """The pull's first death at 0:10 was brought back, so its "Ended by" has the deaths from 0:50. The night's row
+    named only that first death, and a pull with "first death (Plague Wave, 3:48)" read as deaths from 3:48 where its
+    summary said from 4:36."""
+    died = died_as((10.0, SWIPE, 901), (50.0, SWIPE, 902), (55.0, CRASH, 903), (60.0, SWIPE, 904))
+    e = ending(rep, PULL, died, {901: [T0 + 15_000.0]}, 6, [], Decided(60_000))
+    assert str(ending_text(e)).startswith("Ended by: deaths from 0:50 until half the raid was dead at 1:00")
+    assert lead(e) == "deaths from 0:50" and deaths_from(e) == 50_000
+    assert night._ended(e, Decided(60_000)) == ", ended by deaths from 0:50 one after another, decided at 1:00"
+    # Deaths that led into a hit killing many: from the first of them, a death long before left out as in the summary.
+    rep.abilities |= {VENOM: "Venom Burst", SWIPE: "Tail Swipe"}
+    led = died_as((5.0, SWIPE, 901), (70.0, SWIPE, 902), (85.0, SWIPE, 904), (90.0, SWIPE, 905), (95.0, SWIPE, 906),
+                  (100.0, VENOM, 907), (100.2, VENOM, 908), (100.4, VENOM, 909), (100.6, VENOM, 910))
+    e = ending(rep, PULL, led, {}, 20, [], None)
+    assert night._ended(e, None) == ", ended by deaths from 1:10 leading into Venom Burst killing many"
+    # An ending that leads with something else has no such start, and its row none.
+    hit = ending(rep, PULL, led[5:], {}, 20, [], None)
+    assert deaths_from(hit) is None and night._ended(hit, None) == ", ended by Venom Burst killing many"
 
 async def test_a_pull_still_going_has_no_buffs_at_the_end_and_is_logged_so_far():
     night = Night()
