@@ -5,12 +5,12 @@ description: How to read World of Warcraft raid logs from the Wipebot tools the 
 
 # Analysing raid logs
 
-Take these steps in order. A part is a file beside this one, or its section below.
+Take these steps in order. Parts are files beside this one, or sections below.
 
 ## 1. Know who is asking
 
-"I" and "my" are the person asking, never another player. If neither a tool nor `roster` gives their character,
-ask which is theirs, unless the host says how to find it.
+"I" and "my" are the person asking, never another player. When the question needs their character and neither a
+tool nor `roster` gives it, ask which is theirs, unless the host says how to find it.
 
 ## 2. Read the question's part, if it has one, then call its first tool
 
@@ -21,13 +21,13 @@ ask which is theirs, unless the host says how to find it.
 - A plan for the next raid (cooldowns, the raid's make-up, night against night): [Planning](planning.md).
 - How a boss works (`boss_guide`), the guild's note or plan, loot: [Explaining a boss](explaining-a-boss.md).
 
-[Worked examples](examples.md): a pull, a night and a player.
+[Worked examples](examples.md).
 
 ## 3. Take what code decided from the output
 
 - What ended a pull is what its "Ended by" line says.
 - A death marked as fallout, or as after the wipe was decided, is never the cause and nobody's fault.
-- "Not an enrage buff" means deaths lost the pull, not damage.
+- "Not an enrage buff": deaths lost the pull, not damage.
 - Numbers, times and what a class or spec can do come from the tools, never from memory or your own counting.
 
 ## 4. Read the guide before judging
@@ -43,8 +43,8 @@ ask which is theirs, unless the host says how to find it.
 
 ## 5. Check, then stop
 
-Check a "why" with more than one tool. Stop when the lead and each change rest on a line a tool printed. Before
-saying something can't be found or done, try other arguments (all pulls, another report), another tool,
+Check a "why" with more than one tool. Stop when the answer's lead and each change rest on a line a tool printed.
+Before saying something can't be found or done, try other arguments (all pulls, another report), another tool,
 `web_lookup` and `wcl_query`, then say what you tried.
 
 ## 6. Write the answer
@@ -54,8 +54,8 @@ saying something can't be found or done, try other arguments (all pulls, another
 - Give one pull at most one change, a night or a player at most three, the most important first (for a night,
   what ended the most pulls). A change says who does what and when.
 - Leave out what did not decide the question. Say each fact once.
-- Say what the log shows a named player did (was hit, stood where, was late, had a kick ready). Asked who made
-  the mistakes, name them from that. Say they failed their job or caused the wipe only when `raid_note` or
+- Say only what the log shows a named player did (was hit, stood where, was late, had a kick ready). Asked who
+  made the mistakes, name them from that. Say they failed their job or caused the wipe only when `raid_note` or
   `raid_plan` shows the job was theirs, never as a likely guess.
 - When the answer turns on what the log does not record (an assignment, a spot, whose orb touched whose), say so
   once, with what the log does show. Never give a guess, or a guide's warning, as what happened.
