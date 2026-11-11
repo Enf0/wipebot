@@ -12,5 +12,5 @@ Sszorak pull 13 timeline, 2:25-2:40 (https://www.warcraftlogs.com/reports/KBYT4x
 ◆ marks the boss abilities Lorrgs tracks for this boss: the casts its timeline is built on, to line pulls up by.
 Boss health % over time: 2:27 64
 Boss power (0-100) over time: 2:25 87 · 2:28 92 · 2:31 98
-Raid damage taken per second, 5 s averages (median 3.85M/s; * marks twice the median or more): 2:25 1.73M · 2:30 5.73M · 2:35 3.85M
+Raid damage taken per second, 5 s averages (median 2.53M/s; * marks twice the median or more): 2:25 1.43M · 2:30 6.68M* · 2:35 2.53M
 Ability ids: Ravage [1277101], Mutilate [1277031], Venomous Surge [1305959], Ravage (2nd ability) [1277002], Mutilate (2nd ability) [1277027], Unbound Ferocity [1296898], Corroding Venom [1282873], Mutilated Gash [1277051]

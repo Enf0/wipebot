@@ -15,6 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   ![The Coiled Altar pull 12's replay at 3:08: the frame "The Coiled Altar, P2 Stage Two: Usurper's Reprisal" with its health at 97.5%, "Coming up" with Spiritcackle in 1 s, Dread Bolt in 5 s, Gloombomb in 8 s and Dread Bolt in 9 s, and under the map the timeline coloured blue for P1 and purple for P2](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/replay-phases-timers.webp)
 
+### Fixed
+
+- `Agent` **Damage spikes are measured second by second.** The raid's damage taken came from Warcraft Logs' graph, which averages a long pull over some 20 s at a time, so short bursts were flattened: a Twin Fangs kill had no spike and showed its three busiest stretches, its highest 5 s 1.53M/s, where the log's damage taken table gives 1.9M/s. Each second's damage is now worked back out of that graph, as the table gives it: that kill shows four spikes, the biggest 6:29-6:37 at 1.82M/s with no healing cooldown in it, and an Entombed Sentinels pull that had none shows three. A pull with no spike at all shows its busiest 5 s, called so, in place of busiest stretches. The pull timeline's 5 s averages and the pull card's damage line and peaks read the same numbers, the table's: Sszorak pull 13's peak at 2:30 is 6.68M/s, where it read 5.73M/s, and a wipe's last burst stays in its last seconds instead of marking the 5 s before it.
+
+  ![Sszorak pull 33 drawn, its raid damage taken worked out second by second: the 1:12-1:22 spike marked at 4.1M and the end at 7.0M, where the line marked only the end, at 5.6M](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/pull-damage-fine.webp)
+
 ## [1.0.0] - 2026-11-11
 
 ### Added

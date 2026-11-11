@@ -78,8 +78,12 @@ roster = { tool = "roster", report = "KBYT4xXn7VNjDgh8" }
 defensives = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak" }
 defensives-player = { tool = "defensives", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", player = "Scopidruid" }
 healing = { tool = "healing", report = "GM8XdBHaqpFgxK9Q", boss = "Nymrissa Wavecaller", pull = 8 }
-# no spike on a kill whose damage was high all through: its busiest stretches, at 1.25x the median, shown instead
-healing-busiest = { tool = "healing", report = "dTQMvNbBcPh6mDrA", boss = "The Twin Fangs", pull = 7 }
+# a kill whose damage was high all through: its spikes, read second by second (on the whole pull's graph, smoothed
+# over some 20 s, it had none)
+healing-twin-fangs-kill = { tool = "healing", report = "dTQMvNbBcPh6mDrA", boss = "The Twin Fangs", pull = 7 }
+# a pull without a spike (over the bar for under 3 s): its busiest 5 s (2 here, up to the wipe decided), shown as a
+# spike is
+healing-busiest = { tool = "healing", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", pull = 32 }
 # the spikes that come back at the same moment pull after pull
 healing-night = { tool = "healing", report = "kTMfFRQ324Hvx6G7", boss = "Entombed Sentinels", all_pulls = true }
 # healers going low late in a long pull, and the druid's Innervates: both on a healer above the low line while two

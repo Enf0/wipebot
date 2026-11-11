@@ -1,18 +1,14 @@
-The raid's busiest stretches of damage taken and the healing into them, The Twin Fangs pull 7 (https://www.warcraftlogs.com/reports/dTQMvNbBcPh6mDrA#fight=23). A spike: raid damage taken at 1.5x the pull's median or more over 5 s, at least 3 s long; where a pull has none, its busiest stretches: at 1.25x or more, as long.
-The raid's damage taken stayed under 1.5x its median of 1.11M/s over any 5 s, highest 1.53M/s over the 5 s from 6:35; its 3 busiest stretches:
-3:38-3:44 (6 s): 1.83M/s taken (Coiling Ichor 26%, Toxic Fumes 23%); healing 1.48M/s, 80% of the damage taken.
-  Healers: Agonco 396.04k/s (14% overheal); Enfo 455.42k/s (5% overheal); Lïzårðmâñ 262.12k/s (4% overheal)
-  Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): Avenging Wrath (Agonco) at 3:32; ready and unused (by healers who press them this report): none
-6:25-6:44 (19 s): 1.55M/s taken (Eternal Venom 30%, Toxic Fumes 27%); healing 1.31M/s, 84% of the damage taken.
-  Healers: Agonco 224.45k/s (16% overheal); Enfo 338.55k/s (2% overheal); Lïzårðmâñ 250.03k/s (1% overheal)
-  Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): none; ready and unused (by healers who press them this report): Avenging Wrath (Agonco), Zephyr (Lïzårðmâñ)
-7:33-7:50 (16 s): 1.50M/s taken (Eternal Venom 31%, Toxic Fumes 27%); healing 1.31M/s, 87% of the damage taken.
-  Healers: Agonco 291.72k/s (4% overheal); Enfo 341.39k/s (5% overheal); Lïzårðmâñ 78.25k/s (2% overheal), no cast begun for 4 s, dead for the last 10 s
-  Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): none; ready and unused (by healers who press them this report): Avenging Wrath (Agonco)
-  Deaths in it: Algmor (Eternal Venom, 7:39), Lïzårðmâñ (Toxic Fumes, 7:40)
-Who was meant to press which healing cooldown isn't in the log, and The Dragonfell Tribe has no raid note saved for The Twin Fangs that night; a healing cooldown ready and unused isn't a missed assignment (raids plan each cooldown for chosen moments and hold it through the others).
-Each healer in the busiest stretches against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns):
-  Agonco (Holy Paladin): 277.10k/s (11% overheal) in the busiest stretches, 208.00k/s (29% overheal) the rest of the time; casting throughout in 41 s of busiest stretches; 1 healing cooldown in a busiest stretch, 2 left ready in one
-  Enfo (Restoration Shaman): 357.22k/s (4% overheal) in the busiest stretches, 308.18k/s (14% overheal) the rest of the time; casting throughout in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 0 left ready in one
-  Lïzårðmâñ (Preservation Evoker): 183.13k/s (2% overheal) in the busiest stretches, 218.46k/s (18% overheal) the rest of the time; no cast begun for 4 s, dead for 10 s in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 1 left ready in one
-Ability ids: Coiling Ichor [1290878], Toxic Fumes [1294976], Eternal Venom [1290480]
+The raid's busiest 2 s of damage taken and the healing into them, Sszorak pull 32 until the wipe was decided (the boss's enrage or half the raid dead, 1:03) (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=40). A spike: raid damage taken at 1.5x the pull's median or more over 5 s, at least 3 s long.
+The raid's damage taken reached 1.5x its median of 2.10M/s for under 3 s at a time; the busiest 2 s:
+1:01-1:03 (2 s): 2.33M/s taken (Tempest 73%, Ula'tek's Presence 13%); healing 1.70M/s, 73% of the damage taken.
+  Healers: Cptola dead; Enfo dead; Namsus 381.73k/s (30% overheal); Miralupa 334.41k/s (35% overheal), no cast begun for 2 s; Lïzårðmâñ 884.29k/s (4% overheal)
+  Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): Divine Hymn (Namsus) at 0:59, Apotheosis (Miralupa) at 0:44; ready and unused (by healers who press them this report): Zephyr (Lïzårðmâñ), Rewind (Lïzårðmâñ)
+  Deaths in it: Wutroll (no killing blow recorded, 1:01), Sonyosh (no killing blow recorded, 1:03), Sveini (Tempest, 1:03)
+Who was meant to press which healing cooldown isn't in the log, and The Dragonfell Tribe has no raid note saved for Sszorak that night; a healing cooldown ready and unused isn't a missed assignment (raids plan each cooldown for chosen moments and hold it through the others).
+Each healer in the busiest 2 s against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns):
+  Cptola (Holy Paladin): 0/s (- overheal) in the busiest 2 s, 257.32k/s (50% overheal) the rest of the time; dead for 2 s in those 2 s; 0 healing cooldowns in them, 0 left ready in them
+  Enfo (Restoration Shaman): 18.82k/s (9% overheal) in the busiest 2 s, 300.67k/s (31% overheal) the rest of the time; dead for 2 s in those 2 s; 0 healing cooldowns in them, 0 left ready in them
+  Namsus (Holy Priest): 381.73k/s (30% overheal) in the busiest 2 s, 286.59k/s (51% overheal) the rest of the time; casting throughout in those 2 s; 1 healing cooldown in them, 0 left ready in them
+  Miralupa (Holy Priest): 334.41k/s (35% overheal) in the busiest 2 s, 298.67k/s (42% overheal) the rest of the time; no cast begun for 2 s in those 2 s; 1 healing cooldown in them, 0 left ready in them
+  Lïzårðmâñ (Preservation Evoker): 884.29k/s (4% overheal) in the busiest 2 s, 395.15k/s (48% overheal) the rest of the time; casting throughout in those 2 s; 0 healing cooldowns in them, 2 left ready in them
+Ability ids: Tempest [1287083], Ula'tek's Presence [1285965]

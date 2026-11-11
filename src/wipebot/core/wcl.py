@@ -16,7 +16,7 @@ import sys
 import threading
 import time
 from collections import Counter
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -1317,10 +1317,18 @@ class WCL:
 
     async def graphs(self, code: str, fights: list[dict], data_type: str, **filters) -> dict[int, dict]:
         """`graph` for each of several fights, by fight id, in as few queries as possible."""
-        fields = {f"f{f['id']}": "graph(" + _args(fightIDs=[f["id"]], startTime=f["startTime"], endTime=f["endTime"],
-                                                  dataType=data_type, **filters) + ")" for f in fights}
+        got = await self.graph_windows(code, [(f"f{f['id']}", f["id"], f["startTime"], f["endTime"]) for f in fights],
+                                       data_type, **filters)
+        return {f["id"]: got[f"f{f['id']}"] for f in fights}
+
+    async def graph_windows(self, code: str, items: Sequence[tuple[str, int, float, float]], data_type: str,
+                            **filters) -> dict[str, dict]:
+        """A WCL graph for each of several (name, fight id, start, end) items, by name, in as few queries as
+        possible: a fight's whole length or a window of it, in as many points whatever its length (240 steps)."""
+        fields = {name: "graph(" + _args(fightIDs=[fid], startTime=start, endTime=end, dataType=data_type, **filters)
+                  + ")" for name, fid, start, end in items}
         got = await self._aliased(code, fields)
-        return {f["id"]: got[f"f{f['id']}"]["data"] for f in fights}
+        return {name: got[name]["data"] for name, *_ in items}
 
     async def table(self, code: str, fight_id: int | list[int], data_type: str, **filters) -> dict:
         """A WCL table (DamageDone, Healing, DamageTaken, Casts, ...) for one fight, or summed over several."""

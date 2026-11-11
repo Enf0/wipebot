@@ -1,11 +1,13 @@
 """The captured night: a report's fights, players, deaths and the bosses' buffs
 (fixtures/real/<code>.json), and a fake Warcraft Logs that serves it, finished or playing live. Tests use it where
-recorded answers can't serve: a live report growing pull by pull, and counting the queries a report asks.
+recorded answers can't serve: a live report growing pull by pull, and counting the queries a report asks. And
+`damage_graph`: Warcraft Logs' graph of made-up damage taken, as it comes.
 
 `uv run python -m tests.support.night CODE` captures a report."""
 import asyncio
 import json
 import sys
+from collections.abc import Callable
 from typing import cast
 
 from wipebot.core.wcl import WCL, boss_ids
@@ -18,6 +20,22 @@ RESTO_SPELLS = [
     {"spell_id": 98008, "name": "Spirit Link Totem", "cooldown": 180.0, "tags": ["raid_cd"],
      "spell_type": "shaman-restoration"},
 ]
+
+
+def damage_graph(rate: Callable[[float], float], start: float, end: float, fight: dict) -> dict:
+    """Warcraft Logs' graph of a made-up raid taking `rate(t)` per second over each step from report time `t`, asked
+    over `start`-`end`, as it comes (docs/reference/wcl-api.md): 240 steps, each point the damage over the 10 steps
+    around it (5 before) over their length, nothing counted outside the window or the fight, and no point after the
+    first at or past the fight's end."""
+    step = (end - start) / 240
+    taken = []
+    for k in range(240):
+        a, b = max(start + k * step, fight["startTime"]), min(start + (k + 1) * step, fight["endTime"])
+        taken.append(rate(start + k * step) * (b - a) / 1000 if b > a else 0.0)
+    last = next((j for j in range(240) if start + j * step >= fight["endTime"]), 240)
+    data = [sum(taken[max(j - 5, 0):j + 5]) * 1000 / (10 * step) for j in range(last + 1)]
+    return {"series": [{"name": "Total", "pointStart": start, "pointInterval": step, "data": data},
+                       {"name": "Someone", "pointStart": start, "pointInterval": step, "data": [1.0] * len(data)}]}
 
 
 class Night:
@@ -130,6 +148,10 @@ class FakeWCL:
     async def graphs(self, code, fights, data_type, **filters):
         self.queries.append(f"graphs {data_type} {[f['id'] for f in fights]}")
         return {f["id"]: {"series": []} for f in fights}
+
+    async def graph_windows(self, code, items, data_type, **filters):
+        self.queries.append(f"graph_windows {data_type} {sorted({fid for _, fid, _, _ in items})}")
+        return {name: {"series": []} for name, *_ in items}
 
     async def table(self, code, fight_id, data_type, **filters):
         self.queries.append(f"table {data_type}")

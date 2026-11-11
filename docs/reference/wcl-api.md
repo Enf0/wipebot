@@ -182,6 +182,27 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   report can be read, but it calls every player "Player (N)", so the parse's player isn't found in it
   (`ranks.readable`). The 50 fastest kills of `fightRankings` had none hidden (fourteen lists).
 - `graph` needs the fight's `startTime`/`endTime` or it spans the whole report; its series are rates.
+- A graph has 240 steps over whatever window it is asked for (`pointInterval` is the window's length / 240), and each
+  point is the damage over the 10 steps around it (5 before it, its own and 4 after) divided by their length, none
+  counted outside the window (`DamageTaken` with `hostilityType: Friendlies`, verified 2026-11-11 to the unit on 99
+  whole pulls' graphs, three overlapping 60 s windows of The Twin Fangs pull 7 of dTQMvNbBcPh6mDrA and six of 240 s;
+  a point is a whole number over 10 steps' seconds, rounded to 0.1). Over a whole 8-minute pull that is some
+  20 s, which flattens bursts: per 2.06 s at 3:36-3:47 of that pull the table gives 0.97, 1.93, 1.99, 1.58 and
+  1.73M/s, the whole-pull graph 1.37, 1.44, 1.43, 1.42 and 1.39; in a 60 s window (250 ms steps) still 2.5 s, which
+  read a wipe's last burst back into the seconds before it (vjt3KLbN8g62J1H9 Sszorak pull 1: 3.64M/s over 0:35-0:40,
+  where the table has 1.40M/s) and a window's first and last 1.25 s low. A point less the one before is the step
+  entering its box less the one leaving, so with the damage of a window's first 5 steps known, each step's own
+  damage follows exactly; and the last 5 points' boxes reach past the window, where there is none, which checks it.
+  Points stop at the first one at or past the fight's end, whatever window was asked (51 for a 240 s window from 50 s
+  before vjt3KLbN8g62J1H9 fight 46 ended; a whole pull's can have a 242nd, a step past its end), and a window
+  begun before the fight keeps its `pointStart`. Most fights have nothing before their `startTime`, but some count a
+  hit in the seconds before it (8TcXMAP2gHQGr9pW fight 41: 15,216 in the second before). So the raid's damage taken
+  is asked in 240 s windows of 1 s steps, the first from 10 s before the pull's start (its first 5 steps worked out
+  from the last points' boxes, which have nothing past the window, and the first point's) and each next from 5 s
+  before the one before ends (`report/taken.py`): its damage per second is the table's (fight 46: 100-105 s, 238-243 s
+  across two windows and 283-286 s to the unit; The Twin Fangs pull 7's total 542.47M, the table's). A window costs a
+  point whatever its length, so a pull costs one for its first 230 s and one per 235 s after: one for most wipes, as
+  the whole-pull graph did, three for an 8-minute kill (123 pulls of six nights: 155 points, 433 in 60 s windows).
 - DamageDone/Healing table entries have `activeTime` (ms) and, for damage, `targets`.
 - `events(dataType: Deaths)` → `targetID`, `killingAbilityGameID`. The killing ability is missing on
   about 15% of deaths, which are shown as "no killing blow recorded".

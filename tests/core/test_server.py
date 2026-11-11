@@ -366,6 +366,26 @@ async def test_a_mechanic_no_guide_names_is_answered_from_its_tooltip(monkeypatc
         await server.call("boss_guide", {"boss": "Sszorak", "mechanic": "Made Up"})
 
 
+async def test_healing_over_a_bosss_pulls_counts_a_point_for_each_graph_window_of_its_long_pulls(monkeypatch, rep,
+                                                                                                  patch_wcl):
+    # The raid's damage taken is asked in windows of 235 s of pull, a point each: a night of 8-minute pulls costs
+    # three a pull, where the guard counted one, the whole pull's graph.
+    library = server.Library(CODE, wcl=rep.wcl)
+    rep = await library.report()
+    monkeypatch.setattr(server.DEFAULT, "library", library)
+    asked = []
+
+    async def ensure_points(need, what):
+        asked.append(need)
+        raise server.WCLError(f"{what} reads about {need} points")
+    patch_wcl(rep, ensure_points=ensure_points)
+    pulls = rep.by_boss[rep.boss("Sszorak")]
+    with pytest.raises(ToolError, match="all_pulls reads about"):
+        await server.call("healing", {"boss": "Sszorak", "all_pulls": True})
+    windows = [len(server.taken.windows(f)) for f in pulls]
+    assert asked == [(server.HEALING_PULL_POINTS - 1) * len(pulls) + sum(windows)]  # these, under 235 s: one each
+
+
 async def test_a_players_deaths_over_the_weeks_are_refused_when_points_run_low(monkeypatch, rep, patch_wcl):
     library = server.Library(CODE, wcl=rep.wcl)
     rep = await library.report()

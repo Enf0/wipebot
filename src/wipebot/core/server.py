@@ -75,6 +75,7 @@ from .report import (
     plan_export,
     saved,
     tables,
+    taken,
     tanks,
     top,
     versus,
@@ -992,7 +993,8 @@ async def replay_data(report: str, pull: int, boss: str, at_ms: int = 0, players
 
 
 AGGRO_WEEKS = 4  # tank_swaps: the guild's raid nights it looks through for the spells each tank took a boss with
-# What the opt-in reads of many nights or pulls cost in Warcraft Logs points (measured on a Mythic night of 24 pulls)
+# What the opt-in reads of many nights or pulls cost in Warcraft Logs points (measured on a Mythic night of 24 pulls;
+# healing's for a pull of one graph window of damage taken, and a point more for each window more: report.taken)
 TAUNTS_POINTS, ATTENDANCE_WEEK_POINTS, HEALING_PULL_POINTS = 500, 40, 8
 DEATHS_NIGHT_POINTS = 35  # player_history's deaths: a night read cold (7 nights took 240)
 
@@ -1817,8 +1819,7 @@ async def healing(pull: Pull = None, boss: Boss = None,
     and deaths in it; then each healer in the spikes against the rest of the time. With all_pulls, each pull's
     biggest spikes in a line and the spikes by the ability behind them over the night.
     Reading it: a spike is the raid's damage at 1.5 times the pull's median or more, so a pull's quiet stretches set
-    the bar; where no pull has one (damage high all through), each pull's busiest stretches, at 1.25 times, are
-    read the same way. Ready and unused counts a healer's cooldown only when they press it somewhere in the report;
+    the bar. Ready and unused counts a healer's cooldown only when they press it somewhere in the report;
     cooldowns are often planned for one spike and held through another (the raid note says). Overhealing is
     healing past full health: healing is capped by the damage taken, so a high share where the raid took little
     (heals over time and smart heals landing on players at full health) isn't a fault on its own.
@@ -1830,7 +1831,8 @@ async def healing(pull: Pull = None, boss: Boss = None,
     if mana:
         return manas.mana_text(rep, await manas.mana(rep, pull, boss, all_pulls))
     if all_pulls:
-        await lib().wcl.ensure_points(HEALING_PULL_POINTS * len(rep.by_boss[rep.boss(boss)]), "all_pulls")
+        await lib().wcl.ensure_points(sum(HEALING_PULL_POINTS - 1 + len(taken.windows(f))
+                                          for f in rep.by_boss[rep.boss(boss)]), "all_pulls")
     return await heals.healing(rep, pull, boss, all_pulls, await _jobs(rep, pull, boss, all_pulls, cooldowns=True))
 
 

@@ -1,35 +1,37 @@
-"""The healers: the raid's damage spikes on a pull or over a boss's pulls (where none has one, their busiest
-stretches) and the healing into them (`healing`), and what each healer was doing as a player died (`death_recap`)."""
+"""The healers: the raid's damage spikes on a pull or over a boss's pulls (a pull without one, its busiest 5 s) and the
+healing into them (`healing`), and what each healer was doing as a player died (`death_recap`)."""
 import asyncio
+import math
 import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
-from ..cache import FOREVER
 from ..knowledge import KnowledgeError
 from ..text import clock, ids_line, plural, short
 from ..wcl import WCLError
 from .base import COOLDOWNS_NOT_LOGGED, Player, PullRef, Report, dead_since, unavailable
 from .casting import casting, raid_pauses, without
+from .taken import Taken, raid_taken
 
 # A spike: raid damage taken at SPIKE_TIMES the pull's median or more, averaged over SPIKE_AVG_MS. The timeline
 # marks twice its median; a Mythic fight's waves of damage seldom reach that.
 SPIKE_TIMES = 1.5
 SPIKE_AVG_MS = 5_000
+# Read a second at a time from the pull's start (taken.py's damage, exact to the second): spikes start and end on whole
+# seconds, and their tables are asked for those.
+SPIKE_STEP_MS = 1_000
 SPIKE_JOIN_MS = 3_000  # spikes this close together are one
 SPIKE_MIN_MS = 3_000  # shorter is one hit, not a spike
 SPIKES_SHOWN = 4  # one pull: its biggest spikes
 NIGHT_SPIKES = 3  # a boss's pulls: each pull's biggest
-# Where no pull has a spike, each pull's busiest stretches: built as spikes are, at BUSY_TIMES its median or more. A
-# fight whose damage is high all through (The Twin Fangs: a 1.11M/s median, peaking at 1.53M/s, 1.4x) never reaches
-# SPIKE_TIMES, and its worst stretch is still where its healing cooldowns were wanted; a pull that never reaches
-# BUSY_TIMES has none to show.
-BUSY_TIMES = 1.25
-BUSIEST_SHOWN = 3  # one pull: its busiest stretches
+# One pull without a spike: its busiest SPIKE_AVG_MS, read as a spike is, and called nothing else. Read second by
+# second, 4 of 121 pulls that weren't resets had none (6 bosses in 6 reports; Sszorak pulls 26 and 32 of
+# KBYT4xXn7VNjDgh8, the Coiled Altar's 6 and 19 in 64hVgfmydQGNxC7A): each reached 1.5x its median for under 3 s, and
+# its worst moment is still where a healing cooldown was wanted. Over a boss's pulls, those without one are left out.
 SAME_SPIKE_MS = 10_000  # spikes in different pulls starting this close to the first of them: the same moment
 COOLDOWN_LEAD_MS = 5_000  # a healing cooldown this soon before a spike was used for it (a totem goes down first)
 # Pressed earlier, it counts while it lasts by Lorrgs' duration through half the spike or more: Avenging Wrath at 3:32
-# lasts through 3:38-3:44, which read "none" (The Twin Fangs), but an opener's last second isn't the 0:20 spike's.
+# lasts through 3:39-3:47, which read "none" (The Twin Fangs), but an opener's last second isn't the 0:20 spike's.
 ABILITIES_NAMED = 2  # the abilities behind each spike
 AT_DEATH_MS = 5_000  # death_recap: each healer's casts in this window before a death
 CASTS_NAMED = 4
@@ -70,48 +72,45 @@ class InSpike:
 
 async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, all_pulls: bool = False,
                   jobs: str = COOLDOWNS_NOT_LOGGED) -> str:
-    """The spikes (or busiest stretches) and the healing into them; `jobs` follows them, once, when a healing
-    cooldown was ready and unused in one: who was meant to press it isn't in the log (server.py says whether a raid
-    note was saved)."""
+    """The spikes (one pull without any, its busiest 5 s) and the healing into them; `jobs` follows them, once, when a
+    healing cooldown was ready and unused in one: who was meant to press it isn't in the log (server.py says whether a
+    raid note was saved)."""
     pulls = rep.by_boss[rep.boss(boss)] if all_pulls else [rep.fight(pull, boss)]
     fights, going = (rep.ended(pulls), rep.still_going(pulls)) if all_pulls else (pulls, "")
     cut = await rep.decided_cuts(fights)  # what follows is fallout: everyone heals the few still alive
     ends = {f["id"]: cut.get(f["id"], f["endTime"]) for f in fights}
     try:
-        graphs = await _damage_graphs(rep, fights)
+        taken = await raid_taken(rep, fights)
     except WCLError as e:
         return going + unavailable("Raid damage taken over time", e)
-    spikes = _biggest(fights, graphs, ends, SPIKE_TIMES, NIGHT_SPIKES if all_pulls else SPIKES_SHOWN)
-    busiest = not spikes  # no pull has a spike: each pull's busiest stretches, read the same way
-    if busiest:
-        spikes = _biggest(fights, graphs, ends, BUSY_TIMES, NIGHT_SPIKES if all_pulls else BUSIEST_SHOWN)
+    spikes = [s for f in fights for s in sorted(_spikes(f, taken[f["id"]], ends[f["id"]])[
+        :NIGHT_SPIKES if all_pulls else SPIKES_SHOWN], key=lambda s: s.start)]
+    busiest, held = None, ""  # one pull without a spike: its busiest seconds, as "the busiest 5 s"
+    if not spikes and not all_pulls and (peak := _peak(fights[0], taken[fights[0]["id"]], ends[fights[0]["id"]])):
+        held, a, b, per_s = peak
+        if per_s > 0:
+            busiest, spikes = f"the busiest {_seconds(a, b)} s", [Spike(fights[0], a, b)]
     scope = f"all {plural(len(fights), fights[0]['name'] + ' pull')}" if all_pulls else rep.label(fights[0])
     if cut:
         scope += (" until the wipe was decided (the boss's enrage or half the raid dead"
                   + (" in each pull" if all_pulls else f", {clock(cut[fights[0]['id']] - fights[0]['startTime'])}")
                   + ")")
-    shown = ("damage spikes and the healing into them" if not busiest else
-             "busiest stretches of damage taken and the healing into them" if spikes else "damage taken")
+    shown = (f"{busiest.removeprefix('the ')} of damage taken and the healing into them" if busiest else
+             "damage spikes and the healing into them" if spikes else "damage taken")
     head = (f"The raid's {shown}, {scope}"
             + ("" if all_pulls else f" ({rep.url(fights[0])})") + f". A spike: raid damage taken at {SPIKE_TIMES}x "
-            f"the pull's median or more over {SPIKE_AVG_MS // 1000} s, at least {SPIKE_MIN_MS // 1000} s long"
-            + (f"; where a pull has none, its busiest stretches: at {BUSY_TIMES}x or more, as long" if busiest else "")
-            + ".")
+            f"the pull's median or more over {SPIKE_AVG_MS // 1000} s, at least {SPIKE_MIN_MS // 1000} s long.")
     if not spikes:
         return going + head + "\n" + _sentence("; ".join(
-            (f"pull {rep.pull_no(f)}: " if all_pulls else "") + _even(f, graphs.get(f["id"]), ends[f["id"]], BUSY_TIMES)
+            (f"pull {rep.pull_no(f)}: " if all_pulls else "") + _even(f, taken[f["id"]], ends[f["id"]])
             for f in fights)) + "."
     whole = await _fill(rep, fights, spikes, ends)
     healers = {p.id: p for f in fights for p in rep.pull_players(f).values() if p.role == "healer"}
     lines = [going + head]
-    if busiest and all_pulls:
-        lines.append(f"No pull's raid damage taken was at {SPIKE_TIMES}x its median over {SPIKE_AVG_MS // 1000} s "
-                     f"for {SPIKE_MIN_MS // 1000} s or more.")
-    elif busiest:
-        lines.append(_sentence(_even(fights[0], graphs.get(fights[0]["id"]), ends[fights[0]["id"]])) + "; its "
-                     + ("busiest stretch:" if len(spikes) == 1 else f"{len(spikes)} busiest stretches:"))
+    if busiest:
+        lines.append(f"The raid's damage taken {held}; {busiest}:")
     if all_pulls:
-        lines += _night_lines(rep, fights, spikes, healers, busiest)
+        lines += _night_lines(rep, fights, spikes, healers)
     else:
         lines += [_spike_line(rep, s, healers) for s in spikes]
     if any(s.ready for s in spikes):
@@ -121,88 +120,73 @@ async def healing(rep: Report, pull: PullRef = None, boss: str | None = None, al
     return "\n".join(lines)
 
 
-async def _damage_graphs(rep: Report, fights: list[dict]) -> dict[int, dict]:
-    """WCL's graph of raid damage taken for each pull, the ones not remembered in one query (the timeline's)."""
-    async def fetch(missing: list[int]) -> dict[int, dict]:
-        return await rep.wcl.graphs(rep.code, [f for f in fights if f["id"] in missing], "DamageTaken",
-                                    hostilityType="Friendlies")
-    return await rep.keep_many({f["id"]: (("graph", f["id"], "DamageTaken"), f["id"]) for f in fights}, fetch,
-                               FOREVER)
-
-
-def _points(f: dict, graph: dict | None, end: float) -> tuple[list[tuple[float, float]], list[tuple[float, float]],
-                                                              float]:
-    """Raid damage taken per second until `end` from WCL's graph: (each point, each point averaged over
-    SPIKE_AVG_MS, the averages' median) as (report time, per second)."""
-    total = next((s for s in (graph or {}).get("series") or [] if s.get("name") == "Total"), None)
-    if not total or not total.get("pointInterval"):
-        return [], [], 0.0
-    step = total["pointInterval"]
-    start = total.get("pointStart", f["startTime"])
-    points = [(start + i * step, v) for i, v in enumerate(total.get("data") or []) if start + i * step < end]
-    if not points:
-        return [], [], 0.0
-    half = SPIKE_AVG_MS / 2
+def _averages(f: dict, taken: Taken | None, end: float) -> tuple[list[tuple[float, float, float, float]], float]:
+    """Raid damage taken until `end` (taken.py) for each SPIKE_STEP_MS from the pull's start, averaged over the
+    SPIKE_AVG_MS centred on it, fewer at the pull's start and at `end`: ((its start, the average's start and end, per
+    second) for each, the averages' median)."""
+    if taken is None:
+        return [], 0.0
+    t0, half = f["startTime"], SPIKE_AVG_MS / 2
     avg = []
-    for t, _ in points:
-        near = [v for u, v in points if abs(u - t) <= half]
-        avg.append((t, sum(near) / len(near)))
-    return points, avg, statistics.median(v for _, v in avg)
-
-
-def _biggest(fights: list[dict], graphs: dict[int, dict], ends: dict[int, float], times: float,
-             shown: int) -> list[Spike]:
-    """Each pull's `shown` biggest spikes at `times` its median (busiest stretches at BUSY_TIMES), in time order."""
-    return [s for f in fights for s in sorted(_spikes(f, graphs.get(f["id"]), ends[f["id"]], times)[:shown],
-                                              key=lambda s: s.start)]
+    for i in range(math.ceil((end - t0) / SPIKE_STEP_MS)):
+        t = t0 + i * SPIKE_STEP_MS
+        a, b = max(t0, t + SPIKE_STEP_MS / 2 - half), min(end, t + SPIKE_STEP_MS / 2 + half)
+        avg.append((t, a, b, taken.rate(a, b)))
+    return avg, statistics.median(v for *_, v in avg) if avg else 0.0
 
 
 def _sentence(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def _even(f: dict, graph: dict | None, end: float, times: float = SPIKE_TIMES) -> str:
-    """A pull without spikes, or without busiest stretches (`times` BUSY_TIMES): its median and peak against that
-    bar. The peak is an average over SPIKE_AVG_MS and is named by where those begin, as pull_timeline names its
-    averages of as long: by their middle, the same seconds read 2 s later here than there. At the pull's start and
-    at `end` fewer seconds are averaged, and those are the seconds said."""
-    points, avg, typical = _points(f, graph, end)
+def _seconds(a: float, b: float) -> int:
+    """How many whole seconds `a`-`b` is, one at the least."""
+    return max(round((b - a) / 1000), 1)
+
+
+def _peak(f: dict, taken: Taken | None, end: float) -> tuple[str, float, float, float] | None:
+    """A pull without spikes: how its damage held against SPIKE_TIMES its median, and its highest average over
+    SPIKE_AVG_MS (start, end, per second); None with no damage recorded. The average is named by where its seconds
+    begin, as pull_timeline names its averages of as long (named by their middle, the same seconds would read 2 s
+    later here than there); at the pull's start and at `end` it has fewer seconds, and those are the seconds said."""
+    avg, typical = _averages(f, taken, end)
     if not avg:
-        return "no raid damage taken recorded"
-    at, peak = max(avg, key=lambda p: p[1])
-    near = [u for u, _ in points if abs(u - at) <= SPIKE_AVG_MS / 2]  # the points `_points` averaged for it
-    step = points[1][0] - points[0][0] if len(points) > 1 else SPIKE_AVG_MS
-    over = min(SPIKE_AVG_MS, min(near[-1] + step, end) - near[0])
-    median = f"{times}x its median of {short(typical)}/s"
+        return None
+    _, a, b, peak = max(avg, key=lambda p: p[3])
+    median = f"{SPIKE_TIMES}x its median of {short(typical)}/s"
     if typical <= 0:  # no damage in half its 5 s or more: nothing is measured against that median
         held = f"had a median of 0/s over {SPIKE_AVG_MS // 1000} s, against which no stretch is measured"
-    elif peak >= times * typical:
+    elif peak >= SPIKE_TIMES * typical:
         held = f"reached {median} for under {SPIKE_MIN_MS // 1000} s at a time"  # runs too short to be one
     else:
         held = f"stayed under {median} over any {SPIKE_AVG_MS // 1000} s"
-    return (f"the raid's damage taken {held}, highest {short(peak)}/s over the {max(round(over / 1000), 1)} s from "
-            f"{clock(near[0] - f['startTime'])}")
+    return held, a, b, peak
 
 
-def _spikes(f: dict, graph: dict | None, end: float, times: float = SPIKE_TIMES) -> list[Spike]:
-    """A pull's spikes, biggest first: where raid damage taken per second, averaged over SPIKE_AVG_MS, is `times`
-    its median until `end` or more (BUSY_TIMES for its busiest stretches)."""
-    points, avg, typical = _points(f, graph, end)
-    if not points:
+def _even(f: dict, taken: Taken | None, end: float) -> str:
+    """A pull without spikes in a clause: how its damage held (`_peak`) and its highest average, when and how long."""
+    if (peak := _peak(f, taken, end)) is None:
+        return "no raid damage taken recorded"
+    held, a, b, per_s = peak
+    return (f"the raid's damage taken {held}, highest {short(per_s)}/s over the {_seconds(a, b)} s from "
+            f"{clock(a - f['startTime'])}")
+
+
+def _spikes(f: dict, taken: Taken | None, end: float) -> list[Spike]:
+    """A pull's spikes, biggest by their damage first: where raid damage taken per second, averaged over
+    SPIKE_AVG_MS, is SPIKE_TIMES its median until `end` or more."""
+    avg, typical = _averages(f, taken, end)
+    if taken is None or typical <= 0:
         return []
-    step = points[1][0] - points[0][0] if len(points) > 1 else 0
     runs: list[list[float]] = []
-    for t, v in avg:
-        if typical > 0 and v >= times * typical:
+    for t, _, _, v in avg:
+        if v >= SPIKE_TIMES * typical:
             if runs and t - runs[-1][1] <= SPIKE_JOIN_MS:
                 runs[-1][1] = t
             else:
                 runs.append([t, t])
-    # Ranked by the damage of the points in each run, its first to its last: its end, a step after its last point,
-    # can be a hair past the next point, which isn't in it (the step isn't whole milliseconds).
-    kept = [(s, sum(v for t, v in points if a <= t <= b)) for a, b in runs
-            if (s := Spike(f, a, min(b + step, end))).end - s.start >= SPIKE_MIN_MS]
-    return [s for s, _ in sorted(kept, key=lambda k: -k[1])]
+    kept = [s for a, b in runs if (s := Spike(f, a, min(b + SPIKE_STEP_MS, end))).end - s.start >= SPIKE_MIN_MS]
+    return sorted(kept, key=lambda s: -taken.damage(s.start, s.end))
 
 
 async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict[int, float]) -> dict[int, dict]:
@@ -323,23 +307,10 @@ def _in_spike(p: Player, h: InSpike, seconds: float) -> str:
     return text
 
 
-def _kind(busiest: bool) -> tuple[str, str]:
-    """What the stretches shown are called, one and many: spikes, or a pull's busiest stretches where none has one."""
-    return ("busiest stretch", "busiest stretches") if busiest else ("spike", "spikes")
-
-
-def _count(k: int, kind: tuple[str, str]) -> str:
-    return f"{k} {kind[k != 1]}"
-
-
-def _night_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers: dict[int, Player],
-                 busiest: bool = False) -> list[str]:
-    """Each pull's biggest spikes (or busiest stretches) in a line, then the spikes by the ability behind most of
-    their damage."""
-    one, many = kind = _kind(busiest)
-    lines = [f"Each pull's {NIGHT_SPIKES} {many if busiest else 'biggest ' + many} (time, length, damage taken per "
-             "second and the ability behind most of it, healing as a share of it, healing cooldowns used, deaths in "
-             "it):"]
+def _night_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers: dict[int, Player]) -> list[str]:
+    """Each pull's biggest spikes in a line, then the spikes by the ability behind most of their damage."""
+    lines = [f"Each pull's {NIGHT_SPIKES} biggest spikes (time, length, damage taken per second and the ability "
+             "behind most of it, healing as a share of it, healing cooldowns used, deaths in it):"]
     by_fight: dict[int, list[Spike]] = defaultdict(list)
     for s in spikes:
         by_fight[s.fight["id"]].append(s)
@@ -361,9 +332,9 @@ def _night_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers: 
             groups.append([s])
     groups = [g for g in groups if len({s.fight["id"] for s in g}) > 1]
     if groups:
-        lines.append(f"The {many} that came back pull after pull (starts within {SAME_SPIKE_MS // 1000} s of each "
+        lines.append(f"The spikes that came back pull after pull (starts within {SAME_SPIKE_MS // 1000} s of each "
                      "other; the abilities behind most of their damage, pulls, typical length, damage taken and "
-                     f"healing per second, healing cooldowns used per {one}, {many} with a healing cooldown ready "
+                     "healing per second, healing cooldowns used per spike, spikes with a healing cooldown ready "
                      "and unused, deaths in them):")
     for group in sorted(groups, key=lambda g: -len(g)):
         pulls = len({s.fight["id"] for s in group})
@@ -375,25 +346,25 @@ def _night_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers: 
             f"  {clock(min(starts))}" + (f"-{clock(max(starts))}" if clock(max(starts)) != clock(min(starts)) else "")
             + ", "
             f"{', '.join(name for name, _ in damage.most_common(ABILITIES_NAMED))}: "
-            f"{_count(len(group), kind)} in {plural(pulls, 'pull')}, "
+            f"{plural(len(group), 'spike')} in {plural(pulls, 'pull')}, "
             f"{statistics.median(s.seconds for s in group):.0f} s, "
             f"{short(statistics.median(s.taken / s.seconds for s in group))}/s taken, healing "
             f"{short(statistics.median(s.healing / s.seconds for s in group))}/s; "
-            f"{sum(len(s.cooldowns) for s in group) / len(group):.1f} healing cooldowns per {one}, "
+            f"{sum(len(s.cooldowns) for s in group) / len(group):.1f} healing cooldowns per spike, "
             f"{sum(1 for s in group if s.ready)} with one ready and unused; "
             f"{plural(sum(len(s.deaths) for s in group), 'death')}")
     ready = Counter(r for s in spikes for r in s.ready)
     if ready:
-        lines.append(f"Healing cooldowns most often ready and unused in a {one}: "
+        lines.append("Healing cooldowns most often ready and unused in a spike: "
                      + ", ".join(f"{r} {plural(n, 'time')}" for r, n in ready.most_common(5)))
     return lines
 
 
 def _healer_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers: dict[int, Player],
-                  whole: dict[int, dict], ends: dict[int, float], busiest: bool = False) -> list[str]:
-    """Each healer in the spikes (or busiest stretches) shown against the rest of the time: healing per second,
+                  whole: dict[int, dict], ends: dict[int, float], busiest: str | None = None) -> list[str]:
+    """Each healer in the spikes (or a pull's `busiest` seconds) against the rest of the time: healing per second,
     overhealing, time with no cast begun or dead, healing cooldowns used in a spike and left ready in one."""
-    one, many = _kind(busiest)
+    shown = busiest or "the spikes"
     rows = []
     for pid, p in healers.items():
         mine = [(s, s.healers[pid]) for s in spikes if pid in s.healers]
@@ -411,13 +382,15 @@ def _healer_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers:
         idle, dead = sum(h.idle_s for _, h in mine), sum(h.dead_s for _, h in mine)
         missed = ", ".join(x for x in (f"no cast begun for {idle:.0f} s" if idle >= 1 else "",
                                        f"dead for {dead:.0f} s" if dead >= 1 else "") if x) or "casting throughout"
-        rows.append(f"  {p.label}: {short(heal / spike_s)}/s ({_over(heal, over)} overheal) in the {many}, "
-                    f"{rest} the rest of the time; {missed} in {spike_s:.0f} s of {many}; "
-                    f"{plural(sum(h.cooldowns for _, h in mine), 'healing cooldown')} in a {one}, "
-                    f"{sum(h.ready for _, h in mine)} left ready in one")
+        rows.append(f"  {p.label}: {short(heal / spike_s)}/s ({_over(heal, over)} overheal) in {shown}, "
+                    f"{rest} the rest of the time; {missed} in "
+                    + (f"those {spike_s:.0f} s" if busiest else f"{spike_s:.0f} s of spikes") + "; "
+                    f"{plural(sum(h.cooldowns for _, h in mine), 'healing cooldown')} in "
+                    + ("them" if busiest else "a spike") + f", {sum(h.ready for _, h in mine)} left ready in "
+                    + ("them" if busiest else "one"))
     if not rows:
         return []
-    return [f"Each healer in the {many} against the rest of the time (healing on a wipe is capped by the damage "
+    return [f"Each healer in {shown} against the rest of the time (healing on a wipe is capped by the damage "
             "taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide "
             "stuns):", *rows]
 

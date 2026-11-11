@@ -22,11 +22,11 @@ id = "night-healing-cooldowns"  # from the raiders' own question (answer #265)
 tools = ["boss_guide", "healing"]
 question = "When do we take the most damage on Sszorak, and are our healing cooldowns in the right place?"
 expect = """The damage comes in waves at the same moments every pull. The healing cooldowns go mostly on the second
-wave, at 1:04-1:17 (2.7 and 2.2 per spike), and fewer on the first, at 0:20-0:27 (Virulence and Mutilated Gash, 1.1
-per spike), which came in 21 pulls."""
-facts = ["in the first wave healing kept pace without cooldowns: 3.07M/s against 3.14M/s taken",
-         "Venomous Surge at 0:31-0:40 got no healing cooldown in any of its 6 spikes, healing 2.25M/s against 3.40M/s",
-         "a healing cooldown was ready and unused in all 21 first-wave spikes"]
+wave, at 1:05-1:18 (2.4 and 1.2 per spike), and fewer on the first, at 0:21-0:31 (Virulence and Mutilated Gash, 1.1
+per spike), which came in 20 pulls."""
+facts = ["in the first wave healing kept pace without cooldowns: 3.10M/s against 3.15M/s taken",
+         "Venomous Surge at 0:33-0:42 got no healing cooldown in any of its 8 spikes, healing 2.33M/s against 3.14M/s",
+         "a healing cooldown was ready and unused in all 20 first-wave spikes"]
 wrong = ["the healing cooldowns are well spread over every spike",
          "the first wave's deaths came from too little healing, though healing matched the damage taken"]
 
@@ -289,13 +289,13 @@ question = "Make us a healing cooldown plan for Sszorak from tonight's pulls."
 asker = "Enfo"
 boss = "Sszorak"
 expect = """A plan of healing cooldowns by time over the fight, which cooldown when, built from the night's kill and its
-spikes, with a cooldown on the Virulence and Mutilated Gash wave around 0:23-0:28. Where it names cooldowns left
+spikes, with a cooldown on the Virulence and Mutilated Gash wave around 0:22-0:29. Where it names cooldowns left
 ready and unused, it doesn't call them missed or someone's job: the log can't show who was assigned."""
-facts = ["the 0:23-0:28 spike: 3.55M/s taken, 0.8 healing cooldowns per spike, 17 deaths",
-         "on each of the 6 pulls that spike came, a healing cooldown was ready and unused",
-         "the Viscous Cyst bursts at 1:41-1:43 are a mechanic to handle, not only a cooldown to add",
-         "Spirit Link Totem (Enfo) the cooldown most often ready and unused, 10 times",
-         "the 1:41-1:43 Viscous Cyst spikes: 5.29M/s taken, healing 1.94M/s"]
+facts = ["the 0:22-0:29 spike: 3.25M/s taken, 1.9 healing cooldowns per spike, 17 deaths",
+         "on each of the 7 pulls that spike came, a healing cooldown was ready and unused",
+         "the Viscous Cyst bursts at 1:42-1:50 are a mechanic to handle, not only a cooldown to add",
+         "Spirit Link Totem (Enfo) and Rewind (Lïzårðmâñ) the cooldowns most often ready and unused, 13 times each",
+         "the 1:42-1:50 Viscous Cyst spikes: 4.28M/s taken, healing 1.83M/s"]
 # 22 October: every answer built its plan from the kill's own timeline (pull 14) and fixed its one late set, a raid
 # leader's way to plan farm; the case asked first for the spike that came back most, which none led with.
 wrong = ["names a healer as having failed an assigned cooldown (there is no raid note)"]

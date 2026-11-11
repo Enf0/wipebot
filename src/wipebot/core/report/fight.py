@@ -1,6 +1,7 @@
 """One pull in order: its summary and how it ended (`pull_summary`), and its timeline (`pull_timeline`)."""
 import asyncio
 import json
+import math
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -45,6 +46,7 @@ from .ending import (
     pull_endings,
     ruled_out,
 )
+from .taken import raid_taken
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -657,22 +659,20 @@ async def _reaching_others(rep: Report, f: dict, names: set[str]) -> set[str]:
 
 
 async def raid_damage(rep: Report, f: dict, lo: float, hi: float) -> dict[int, float] | None:
-    """Raid damage taken per second, averaged per DAMAGE_BUCKET_MS from WCL's graph: bucket (from the pull's start)
-    -> per second; None when Warcraft Logs has no graph."""
+    """Raid damage taken per second in each DAMAGE_BUCKET_MS from the pull's start, within `lo`-`hi` (taken.py, as
+    healing reads it): bucket -> per second; None when Warcraft Logs has none."""
     try:
-        graph = await rep.keep(("graph", f["id"], "DamageTaken"), [f["id"]],
-                               lambda: rep.wcl.graph(rep.code, f, "DamageTaken", hostilityType="Friendlies"), FOREVER)
+        taken = (await raid_taken(rep, [f]))[f["id"]]
     except WCLError:
         return None
-    total = next((s for s in graph.get("series") or [] if s.get("name") == "Total"), None)
-    if not total or not total.get("pointInterval"):
+    if taken is None:
         return None
-    buckets: dict[int, list[float]] = defaultdict(list)
-    for i, v in enumerate(total.get("data") or []):
-        at = total.get("pointStart", f["startTime"]) + i * total["pointInterval"]
-        if lo <= at <= hi:
-            buckets[int((at - f["startTime"]) // DAMAGE_BUCKET_MS)].append(v)
-    return {b: sum(v) / len(v) for b, v in sorted(buckets.items())}
+    t0, out = f["startTime"], {}
+    for b in range(int((lo - t0) // DAMAGE_BUCKET_MS), math.ceil((hi - t0) / DAMAGE_BUCKET_MS)):
+        a, z = max(lo, t0 + b * DAMAGE_BUCKET_MS), min(hi, t0 + (b + 1) * DAMAGE_BUCKET_MS)
+        if z > a:
+            out[b] = taken.rate(a, z)
+    return out
 
 
 async def _raid_damage(rep: Report, f: dict, lo: float, hi: float) -> str:

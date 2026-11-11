@@ -328,8 +328,8 @@ expect = """Agrees that overheal alone doesn't measure a healer and that the log
 Altar, since no healer went under 30% mana; and checks their stat order against the guide (Crit > Mastery >
 Versatility > Haste in raid) rather than agreeing to all of it."""
 facts = ["the lowest mana was 39% (Enfo, pull 15)",
-         "the priests overhealed 30-33% in the damage spikes and 45-46% the rest of the time",
-         "healing cooldowns ready and unused in the spikes: Spirit Link Totem 14 times, Rewind 13 times",
+         "the priests overhealed 28-30% in the damage spikes and 46-47% the rest of the time",
+         "healing cooldowns ready and unused in the spikes: Spirit Link Totem 27 times, Rewind 25 times",
          "Divine Hymn adds 4% healing taken a tick, stacking",
          "Method's guide ranks Versatility above Haste in raid"]
 wrong = ["says the priests have an overhealing problem",

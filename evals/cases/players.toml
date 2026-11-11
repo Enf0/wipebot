@@ -161,7 +161,7 @@ expect = """Well: top healer on the pull, with the big cooldowns on the 1:11-1:2
 wipe was decided, and the death is fallout of the wipe."""
 facts = ["top healer of 5",
          "Ascendance at 1:12 and Spirit Link Totem at 1:15",
-         "the 1:11-1:22 spike (Mutilated Gash, Tempest)",
+         "the 1:11-1:22 spike (Tempest, Mutilated Gash)",
          "mana at 64% when the wipe was decided at 2:32",
          "the death at 2:49"]
 wrong = ["faults the 2:49 death", "faults their overhealing",
@@ -294,8 +294,8 @@ asker = "Enfo"
 pull = 7
 boss = "The Twin Fangs"
 expect = """Mostly well: the healing cooldowns went into each Stir the Depths and Ravenous Feast cycle but the fifth.
-The fight's highest damage, 1.53M/s over the 5 s from 6:35 (Venomous Emergence at 6:18, Stir the Depths at 6:31),
-got none until Zephyr at 6:44 and Darkness at 6:48, with Avenging Wrath not used again after 3:32."""
+The biggest damage spike, 6:29-6:37 at 1.82M/s taken (Venomous Emergence at 6:18, Stir the Depths at 6:31), got
+no healing cooldown until Zephyr at 6:44 and Darkness at 6:48, with Avenging Wrath not used again after 3:32."""
 facts = ["Stir the Depths at 0:52, 2:00, 3:41, 4:49, 6:31, 7:39; Ravenous Feast at 1:07, 2:15, 3:57, 5:04, 6:46, 7:54",
          "the 4:49 cycle got Rallying Cry at 4:47, Ascendance at 4:53, Spirit Link Totem at 5:04 and Rewind at 5:09",
          "Avenging Wrath used twice, at 0:40 and 3:32",

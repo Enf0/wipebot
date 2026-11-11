@@ -524,3 +524,23 @@ def test_a_process_with_a_share_sees_its_own_share_of_the_hour():
     busy = wcl_module.Budget(share=0.15, leave=0.3, user_points=False).view(
         {**rate, "pointsSpentThisHour": 2600}, Counter(total=20))
     assert busy["limitPerHour"] - busy["pointsSpentThisHour"] == 0
+
+
+async def test_graph_windows_ask_each_window_its_own_times_forty_a_query(monkeypatch):
+    # A graph has as many points whatever its window (240 steps): a pull's raid damage is asked in windows of a
+    # minute (report.taken), each an alias. Whole pulls (`graphs`) are asked as before.
+    w = WCL()
+    asked = []
+
+    async def query(q, cache_for=None, **variables):
+        asked.append(q)
+        return {"reportData": {"report": {alias: {"data": {"args": args}}
+                                          for alias, args in re.findall(r"(\w+): graph\(([^)]*)\)", q)}}}
+    monkeypatch.setattr(w, "query", query)
+    items = [(f"f7w{k}", 7, 1000 + 56_000 * k, 61_000 + 56_000 * k) for k in range(45)]
+    got = await w.graph_windows("ABC", items, "DamageTaken", hostilityType="Friendlies")
+    assert len(asked) == -(-len(items) // ALIASES_PER_QUERY)
+    assert got["f7w2"]["args"] == ("fightIDs: [7], startTime: 113000, endTime: 173000, dataType: DamageTaken, "
+                                   "hostilityType: Friendlies")
+    whole = await w.graphs("ABC", [{"id": 3, "startTime": 10, "endTime": 99}], "Resources", abilityID=100)
+    assert whole == {3: {"args": "fightIDs: [3], startTime: 10, endTime: 99, dataType: Resources, abilityID: 100"}}

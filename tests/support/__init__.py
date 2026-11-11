@@ -1,6 +1,6 @@
 """Shared by the tests of every layer (tests/README.md says how the suite works):
 - paths.py: where the data is; what's copied from real reports sits under fixtures/real.
-- night.py: the captured night and a fake Warcraft Logs serving it.
+- night.py: the captured night and a fake Warcraft Logs serving it; Warcraft Logs' graph of made-up damage.
 - recorded.py: Warcraft Logs' and the guides' recorded answers, for the tool tests.
 - standins.py: what stands in for the guide sites' writing and Warcraft Logs' images in the recordings.
 - local.py: the local cases' recordings and snapshots, fetched and pushed (the maintainers').
@@ -10,10 +10,11 @@ Fixtures are in the conftest.py files."""
 import os
 from pathlib import Path
 
-from .night import RESTO_SPELLS, FakeWCL, Night
+from .night import RESTO_SPELLS, FakeWCL, Night, damage_graph
 from .paths import CODE, FIXTURES, NOTE, PLAN, REAL
 
-__all__ = ["CODE", "FIXTURES", "NOTE", "PLAN", "REAL", "RESTO_SPELLS", "FakeWCL", "Night", "assert_snapshot"]
+__all__ = ["CODE", "FIXTURES", "NOTE", "PLAN", "REAL", "RESTO_SPELLS", "FakeWCL", "Night", "assert_snapshot",
+           "damage_graph"]
 
 
 def assert_snapshot(path: Path, actual: str) -> None:

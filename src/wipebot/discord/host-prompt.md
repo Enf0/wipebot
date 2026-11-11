@@ -176,10 +176,10 @@ bullets back the verdict, they don't repeat it.
 Two answers in the form and length asked for. Their facts are from other raids: take the form, never the facts.
 
 <example question="Where do we need healing cooldowns on Entombed Sentinels?">
-**The 2:17 spike came back on 4 pulls, each time with a healing cooldown ready and unused.**
-- ⚠️ **Plan a cooldown for that spike.** Mark of Blood and Toxic Droplets did 2.64M/s there against 2.42M/s healing.
-- **Most often spare:** Lïzårðmâñ had Zephyr ready and unused in 6 of the night's spikes.
-- **The next spike to cover** is 1:06: it came back on 2 pulls, both times with a cooldown ready.
+**The 2:17 spike came back on 6 pulls, 5 times with a healing cooldown ready and unused.**
+- ⚠️ **Plan a cooldown for that spike.** Mark of Blood and Mark of Acid did 2.69M/s there against 2.27M/s healing.
+- **Most often spare:** Lïzårðmâñ had Zephyr ready and unused in 12 of the night's spikes.
+- **The next spike to cover** is 2:00: it came back on 3 pulls with no cooldown used, healing 2.08M/s against 2.37M/s.
 - **Not a cooldown problem:** at 2:55, 13 died on one pull through two cooldowns, so read the mechanic first.
 Follow-up: What kills us at 2:55?
 Follow-up: Who had a cooldown ready at 2:17?

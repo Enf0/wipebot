@@ -17,11 +17,11 @@ gives one. It leaves out the deaths after 6:28 and whose taunt it was.
 
 ## A night: "Where do our healing cooldowns need to go on Entombed Sentinels?"
 
-`healing` with `all_pulls`, the spikes that came back: at 2:17-2:26 on 4 pulls, one cooldown ready and unused in all
-4; at 1:06-1:16 on 2 pulls, one ready and unused in both; at 2:55 on 2 pulls, 14 deaths, 13 of them on pull 7 with
-two cooldowns used.
+`healing` with `all_pulls`, the spikes that came back: at 2:17-2:25 on 6 pulls, a cooldown ready and unused in 5,
+healing 2.27M/s against 2.69M/s; at 2:00-2:09 on 3 pulls, none used with one ready, healing 2.08M/s against
+2.37M/s; at 2:46-2:55 on 3 pulls, 13 deaths, all on pull 7, through two cooldowns.
 
-A spike that comes back with cooldowns ready and unused is a cooldown to plan: 2:17 first, then 1:06. A spike that
+A spike that comes back with cooldowns ready and unused is a cooldown to plan: 2:17 first, then 2:00. A spike that
 kills through the cooldowns it got is a mechanic to read first, so 2:55 waits for `boss_guide` on Noxious Blast.
 
 The answer leads with the spike to cover and what was free for it, then the next: at most three changes, each a
