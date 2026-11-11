@@ -56,8 +56,8 @@ NO_GROUP = {OUTSIDE: f"outside the note's soak times (no group called within {SO
 # its callout) is that group's soak. On the two recorded Twin Fangs nights the notes call their groups 2 s apart,
 # and of the 185 hits that who was hit gave to a group, 182 landed within 0.5 s of that group's callout; the other
 # three came as pulls fell apart (`SEVERAL`, `_in_turn`). Sszorak's note calls its two sides 0 or 1 s apart and the
-# side that soaks first varies (the nearest callout was the other side's on 100 of 168 hits): there only who was
-# hit says whose soak it was.
+# side that soaks first varies (of 168 hits, both sides were called at the same second on 94, and on 51 of the other
+# 74 the nearer callout was the other side's): there only who was hit says whose soak it was.
 IN_TURN_MS = 1_500
 BY_TURN = "the hit had most of no group's living players"
 SOAKS_ARE = f"given to the group called to soak within {SOAK_CALL_MS // 1000} s of it with most of its players hit"

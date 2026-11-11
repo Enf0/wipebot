@@ -153,9 +153,9 @@ API: `wcl-api.md`.
   was hit gave to a group over the two nights, 182 landed within 0.5 s of that group's callout; the other three
   came as pulls fell apart (two on every living player of all three groups, one in the first group's turn on four
   players of the other two). The Sszorak note calls its two sides at the same second or 1 s apart and the side that
-  soaks first varies: the callout nearest to a hit was the other side's on 100 of 168 hits. So the check reads a
-  turn from the note only where its groups are called 1.5 s or more apart, and only on a pull whose clear soaks
-  each landed in their group's turn.
+  soaks first varies: of the 168 hits given to a side, both were called at the same second on 94, and on 51 of the
+  other 74 the nearer callout was the other side's. So the check reads a turn from the note only where its groups
+  are called 1.5 s or more apart, and only on a pull whose clear soaks each landed in their group's turn.
 - `wowhead guide-full <boss guide url>` (the url from `wowhead guides raids "<boss>"`; the row's title says
   "Raid Boss Guide" or "Raid Guide ... Boss Cheat Sheet") has the boss's abilities in `linked_entities` (73 spells
   for the Coiled Altar) and the strategy in `body.section_chunks[*]` (9k chars of text for Sszorak: the cheat

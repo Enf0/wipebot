@@ -31,10 +31,11 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   their real source. A dying player's auras are removed about 20 ms before the death event.
 - `events(dataType: Healing)` takes `targetID` for the healing a player received.
 - A `cast` event's `targetID` is the player a spell was cast on, where it has one: on the four recorded raid-note
-  nights (October and November 2026) every Guardian Spirit, Blessing of Sacrifice and Time Dilation carried the
-  player it went on (142 casts on another player, one on the caster, whose own id it then is), and every other
-  planned cooldown -1 (1,449 casts: raid cooldowns, totems, personals). A spell aimed at an enemy carries the
-  enemy's id (Ascendance logged the boss). The raid note check prints "on <name>" only for a target that is a player.
+  nights (October and November 2026) every cast event of Guardian Spirit, Blessing of Sacrifice and Time Dilation
+  carried the player it went on (169 events: 165 on another player, 4 on the caster, whose own id it then is; of
+  the 143 the raid note check matched to a planned line, one was on the caster), and every other planned cooldown
+  -1 (raid cooldowns, totems, personals) but Ascendance, which carried an enemy's id on 155 of its 259 events. The
+  raid note check prints "on <name>" only for a target that is a player.
 - A `damage` event that did its target nothing has `amount` 0 and no `absorbed`, with `hitType` 10 (immune) or 0 (a
   miss): on the same nights, of the soak events on players, 40 with `hitType` 10 had Divine Shield or Blessing of
   Protection up and 17 with `hitType` 0 Aspect of the Turtle or Cloak of Shadows. A hit that was all absorbed is
