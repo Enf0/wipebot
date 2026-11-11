@@ -388,7 +388,7 @@ def subject(s: PullSummary, url: str) -> str:
     head = f"{s.boss} ({s.difficulty}) pull {s.pull_no}: "
     if s.kill:
         return f"{head}kill in {clock(s.duration_ms)}, {plural(len(s.deaths), 'death')} ({url})."
-    length = f"{clock(s.duration_ms)} {'logged so far' if s.live else 'long'}"
+    length = f"{clock(s.duration_ms)} {'logged' if s.live else 'long'}"
     ranks = _ranks(s)
     return f"{head}{', '.join([*_outcome(s, str), length])} ({url})" + ("; " + ", ".join(ranks) if ranks else "") + "."
 
@@ -421,7 +421,8 @@ def trend_line(s: PullSummary) -> str | None:
 
 
 def format_summary(s: PullSummary) -> str:
-    """The post about a pull, as a channel shows it: progress with each_pull and compare_pulls print it."""
+    """The post about a pull, as a channel shows it: compare_pulls prints it, and a pull's row in progress with
+    each_pull takes its deaths from the same lines."""
     head = f"**{s.boss}** ({s.difficulty}) · pull {s.pull_no}"
     if s.kill:
         return f"{head} · **KILL** · {clock(s.duration_ms)} · {plural(len(s.deaths), 'death')}"

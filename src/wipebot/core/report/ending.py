@@ -389,8 +389,9 @@ def ruled_out(e: Ending | None, kept: list[tuple[str, float]], decided: Decided 
     late = [(name, at) for name, at in kept if decided and at > decided.at_ms]
     if late:
         gained = " and ".join(f"{name} at {clock(at)}" for name, at in late)
+        are = "it's" if len(late) == 1 else "they're"
         head = (f"Not an enrage buff: the boss gained {gained}, after the wipe was decided "
-                f"at {clock(decided.at_ms) if decided else '?'}, so it's fallout.")
+                f"at {clock(decided.at_ms) if decided else '?'}, so {are} fallout.")
     else:
         head = "Not an enrage buff: no buff the boss gained near the end decided it."
     return head + " Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check."

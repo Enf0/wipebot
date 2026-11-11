@@ -12,6 +12,7 @@ from wipebot.core.pulls import (
     pct_text,
     phase_label,
     phase_labels,
+    subject,
     summarize,
     wipe_pct,
     wipe_pcts,
@@ -225,6 +226,26 @@ def test_a_kill_or_a_pull_still_going_has_no_buffs_at_the_end():
 def test_a_pull_still_going_without_a_percentage_says_only_that_it_is_going():
     s = summarize({**WIPE, "inProgress": True, "fightPercentage": None}, [WIPE], [], {}, {})
     assert format_summary(s) == "**Boss** (Mythic) · pull 1 · **in progress** · 1:00"
+
+
+def test_a_pull_in_one_sentence_says_what_it_was_once_whatever_it_was():
+    # pull_summary's first line: the post's facts in a plain sentence, the pull's own link in it. A pull still going
+    # said "so far" of the boss's health and again of its length.
+    url = "https://www.warcraftlogs.com/reports/abc#fight=1"
+    earlier = {**WIPE, "id": 0, "fightPercentage": 50.0, "startTime": -100_000, "endTime": -50_000}
+    died = [{"timestamp": 30_000, "targetID": 7, "killingAbilityGameID": 1}]
+
+    def said(fight: dict, same: tuple[dict, ...] = (), deaths: tuple[dict, ...] = ()) -> str:
+        line = subject(summarize(fight, [*same, fight], list(deaths), {7: "Torvek"}, {1: "Tempest"}), url)
+        assert line.startswith(f"Boss (Mythic) pull {len(same) + 1}: ") and line.count(url) == 1 and "**" not in line
+        return line.split(": ", 1)[1].replace(f" ({url})", "")
+    assert said(WIPE) == "wipe at 40.0%, 1:00 long."
+    assert said(WIPE, (earlier,)) == "wipe at 40.0%, 1:00 long; best of this log so far."
+    assert said({**WIPE, "inProgress": True}) == "in progress, the boss at 40.0% so far, 1:00 logged."
+    assert said({**WIPE, "inProgress": True, "fightPercentage": None}) == "in progress, 1:00 logged."
+    assert said({**WIPE, "fightPercentage": None}) == "wipe (boss health not logged), 1:00 long."
+    assert said({**WIPE, "fightPercentage": 100.0, "endTime": 20_000}) == "reset at 100.0%, 0:20 long."
+    assert said({**WIPE, "kill": True}, deaths=tuple(died)) == "kill in 1:00, 1 death."
 
 
 def test_a_new_best_must_beat_both_tonight_and_the_guilds_earlier_logs():

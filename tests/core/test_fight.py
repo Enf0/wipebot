@@ -20,6 +20,7 @@ from wipebot.core.report.ending import (
     lead,
     pull_ending,
     pull_endings,
+    ruled_out,
 )
 from wipebot.core.text import clock
 
@@ -134,6 +135,25 @@ async def test_the_fallout_names_only_what_decided_the_wipe(rep):
     assert "The boss gained Unbound Ferocity" not in late  # nor a second line about a buff that decided nothing
 
 
+async def test_every_buff_gained_after_the_wipe_was_decided_is_named_once_as_fallout(rep, monkeypatch):
+    # Pull 5: half the raid was dead at 1:14, and the boss gained Unbound Ferocity at 1:17. Were it two buffs, the
+    # line on what the wipe wasn't names both, so neither has, or needs, a line of its own further down.
+    f = rep.fight(5)
+    ((name, at),) = await rep.end_buffs(f)
+    kept = [(name, at), ("Frenzy", at + 2_000)]
+    assert ruled_out(await pull_ending(rep, f), kept, await rep.decided_at(f)) == (
+        "Not an enrage buff: the boss gained Unbound Ferocity at 1:17 and Frenzy at 1:19, after the wipe was decided "
+        "at 1:14, so they're fallout. Unless the guide names a cast that ends the fight on a timer, deaths lost it, "
+        "not a damage check.")
+
+    async def end_buffs(fight: dict) -> list[tuple[str, float]]:
+        return kept
+    monkeypatch.setattr(rep, "end_buffs", end_buffs)
+    text = await fight.pull_summary(rep, 5)
+    assert text.count("Unbound Ferocity at 1:17") == 1 and text.count("Frenzy at 1:19") == 1
+    assert "The boss gained" not in text and "so they're fallout." in text
+
+
 async def test_pull_summary_leads_with_the_pull_and_how_it_ended(rep):
     # What the model reads first is the answer: the pull in a plain sentence with its own link, then "Ended by". The
     # post's lines that the rows below restate (first deaths, the buffs at the end) and its bold are the post's alone.
@@ -178,9 +198,9 @@ async def test_the_deaths_after_the_wipe_was_decided_are_one_line_with_every_dea
 
 
 async def test_the_post_keeps_its_text_and_the_bot_finds_its_marks_in_pull_summary(rep, monkeypatch):
-    # The post (progress with each_pull, compare_pulls) is written from the same facts and reads as it did. Wipebot
-    # in Discord looks in pull_summary's answer for the post's mark of a new guild best and takes the first pull
-    # link in it for the picture: the mark is kept as the post writes it, and the pull's own link comes first.
+    # The post (compare_pulls prints it) is written from the same facts and reads as it did. Wipebot in Discord
+    # looks in pull_summary's answer for the post's mark of a new guild best and takes the first pull link in it
+    # for the picture: the mark is kept as the post writes it, and the pull's own link comes first.
     f = rep.fight(13)
     assert (await rep.summary(f)).splitlines() == [
         "**Sszorak** (Mythic) · pull 13 · wipe at **62.6%** · P1 (2nd time) · 2:42 · best of this log so far",
