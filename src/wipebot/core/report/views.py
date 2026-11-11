@@ -920,7 +920,7 @@ async def _by_pull_call(rep: Report, tool: str, args: dict) -> dict | None:
     if tool != "breakdown" or args.get("data_type") not in TREND_TYPES:
         return None
     by_pull = {k: v for k, v in args.items() if k != "least"} | {"group_by": "pull"}
-    pulls = (await _table_asked(rep, by_pull)).fights
+    pulls = (await _by_pull(rep, by_pull, read=False))[0].fights
     return {"tool": tool, "args": by_pull} if len(pulls) >= TREND_MIN_PULLS else None
 
 
@@ -996,29 +996,24 @@ async def trend_of(rep: Report, tool: str, args: dict) -> Trend | None:
     return None
 
 
-async def _table_asked(rep: Report, a: dict) -> tables.Asked:
-    """What breakdown grouped by pull is over, for its arguments: the pulls (those that got to its window), the
-    table and its filters."""
-    return await tables._asked(rep, a["data_type"], "pull", a.get("pulls"), a.get("boss"), a.get("player"),
-                               a.get("ability"), a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"),
-                               a.get("end"), a.get("target"))
+async def _by_pull(rep: Report, a: dict, read: bool = True) -> tuple[tables.Asked, list[tuple[list[tuple], float]]]:
+    """breakdown grouped by pull for its arguments (tables.by_pull): what it is over (the pulls that got to its
+    window, the table and its heading's words) and, with `read`, each pull's rows and counted seconds."""
+    return await tables.by_pull(rep, a["data_type"], a.get("pulls"), a.get("boss"), a.get("player"), a.get("ability"),
+                                a.get("cutoff"), bool(a.get("whole_pull")), a.get("start"), a.get("end"),
+                                a.get("target"), read)
 
 
 async def _table_trend(rep: Report, a: dict) -> Trend | None:
-    """breakdown grouped by pull: each pull's rows, total and counted time, read and summed as the tool's text does
-    (tables._by_pull, whose lines a test holds these to). A table lists only the players with some of the amount: the
-    others in the pull get a row of none, so that none is told from not being there."""
-    q = await _table_asked(rep, a)
+    """breakdown grouped by pull: each pull's rows, total and counted time, as the tool's own reading gives them
+    (tables.by_pull; a test holds these to the text's lines). A table lists only the players with some of the amount:
+    the others in the pull get a row of none, so that none is told from not being there."""
+    q, found = await _by_pull(rep, a)  # the tables its text read: nothing more is fetched
     if len(q.fights) < TREND_MIN_PULLS:
         return None
-    per_pull = await tables._per_pull_tables(rep, q.fights, q.data_type, q.filters, q.ids, q.ends, q.starts)
     amounts, seconds, rows = [], [], []
-    for f, found in zip(q.fights, per_pull, strict=True):
-        merged, total_time, _ = tables._merged_rows(found, q.data_type, "ability" if q.player else "player",
-                                                    q.ids != [None])
-        merged = tables._without_moved(merged, q.data_type)[0]
-        end, start = q.ends.get(f["id"], f["endTime"]), q.starts.get(f["id"], f["startTime"])
-        seconds.append((total_time if q.cutoff and total_time else end - start) / 1000)  # WCL's time is cut too
+    for f, (merged, counted) in zip(q.fights, found, strict=True):
+        seconds.append(counted)
         amounts.append(sum(v for _, v, _ in merged))
         here = {} if q.player else {p.name: 0.0 for p in rep.pull_players(f).values()}
         rows.append(here | {name: v for name, v, _ in merged})
