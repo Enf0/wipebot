@@ -147,22 +147,25 @@ def counted(found: list[dict]) -> dict[str, dict[str, int]]:
 
 
 def report(found: list[dict]) -> list[str]:
-    """What a run prints once it has asked: per kind, the plants the judge failed of those it judged; then each
-    plant it let through with its reason, and each it couldn't judge. A plant not judged is in no count."""
+    """What a run prints once it has asked: each plant the judge let through with its reason, and each it couldn't
+    judge; then, last, so that the end of a long output holds them, the plants the judge failed per kind, of those
+    it judged. A plant not judged is in no count."""
     lines = []
-    for kind, n in counted(found).items():
-        lines.append(f"{kind}: the judge failed {n['caught']} of {some(n['caught'] + n['let_through'])}"
-                     + (f" ({n['not_judged']} more could not be judged)" if n["not_judged"] else ""))
     for outcome, head in ((LET_THROUGH, "let through: the judge passed an answer written to fail. Read each one: the "
                            "case's wrong item (or its expect) doesn't hold an answer to it as the judge reads it, or "
                            "the plant is too soft"),
                           (NOT_JUDGED, "could not be judged (in no count)")):
         mine = [f for f in found if f["verdict"] == outcome]
         if mine:
-            lines.append(f"\n{len(mine)} {head}:")
+            lines.append(f"{len(mine)} {head}:")
         for f in mine:
             lines += [f"  {f['case']}, {f['kind']}" + (f": \"{f['item']}\"" if f["item"] else ""),
                       f"    the plant: {plain(f['plant'])}", f"    the judge: {f['reason']}"]
+        if mine:
+            lines.append("")
+    for kind, n in counted(found).items():
+        lines.append(f"{kind}: the judge failed {n['caught']} of {some(n['caught'] + n['let_through'])}"
+                     + (f" ({n['not_judged']} more could not be judged)" if n["not_judged"] else ""))
     return lines
 
 
@@ -221,7 +224,7 @@ async def planted(judge_model: str, only: str = "", path: Path = PLANTS, results
         if judged:
             out = keep(results or HERE / "results", judged, judge=judged_by(judge_model),
                        judge_models=sorted(checks.MODELS), commit=commit(), filter=only, billed_to=billed_to)
-            print(f"\nsaved {out}", flush=True)
+            print(f"\nsaved {out}\n", flush=True)
     print("\n".join(report(judged)) + f"\n(judge {judge_model}, {sum(len(f['votes']) for f in judged)} votes, "
           f"${sum(f['cost_usd'] for f in judged):.2f})")
     if unjudged := sum(f["verdict"] == NOT_JUDGED for f in judged):

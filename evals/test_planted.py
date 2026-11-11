@@ -204,6 +204,7 @@ async def test_a_judge_that_passes_every_plant_lets_them_through_and_the_run_sti
     assert code == 0  # a plant let through is a finding to read, not a gate
     assert "wrong: the judge failed 0 of 1 plant\nvague: the judge failed 0 of 1 plant\n" in out
     assert "\n2 let through: the judge passed an answer written to fail. Read each one" in out
+    assert out.index("2 let through") < out.index("wrong: the judge failed")  # the counts last: a tail holds them
     assert ("  wipe-was-a-reset, wrong: \"analyses pull 9's deaths as if it were a real attempt\"\n"
             "    the plant: Pull 9 was lost to the opening Mutilate.\n"
             "    the judge: It states none of them\n"
