@@ -1,7 +1,7 @@
 The raid's busiest stretches of damage taken and the healing into them, The Twin Fangs pull 7 (https://www.warcraftlogs.com/reports/dTQMvNbBcPh6mDrA#fight=23). A spike: raid damage taken at 1.5x the pull's median or more over 5 s, at least 3 s long; where a pull has none, its busiest stretches: at 1.25x or more, as long.
 The raid's damage taken stayed under 1.5x its median of 1.11M/s over any 5 s, highest 1.53M/s over the 5 s from 6:35; its 3 busiest stretches:
-3:46-3:52 (6 s): 1.24M/s taken (Toxic Fumes 32%, Eternal Venom 28%); healing 1.65M/s, 134% of the damage taken.
-  Healers: Agonco 320.20k/s (16% overheal); Enfo 589.50k/s (8% overheal); Lïzårðmâñ 318.94k/s (7% overheal)
+3:38-3:44 (6 s): 1.83M/s taken (Coiling Ichor 26%, Toxic Fumes 23%); healing 1.48M/s, 80% of the damage taken.
+  Healers: Agonco 396.04k/s (14% overheal); Enfo 455.42k/s (5% overheal); Lïzårðmâñ 262.12k/s (4% overheal)
   Healing cooldowns used (or up to 5 s before): none; ready and unused (by healers who press them this report): none
 6:25-6:44 (19 s): 1.55M/s taken (Eternal Venom 30%, Toxic Fumes 27%); healing 1.31M/s, 84% of the damage taken.
   Healers: Agonco 224.45k/s (16% overheal); Enfo 338.55k/s (2% overheal); Lïzårðmâñ 250.03k/s (1% overheal)
@@ -12,7 +12,7 @@ The raid's damage taken stayed under 1.5x its median of 1.11M/s over any 5 s, hi
   Deaths in it: Algmor (Eternal Venom, 7:39), Lïzårðmâñ (Toxic Fumes, 7:40)
 Who was meant to press which healing cooldown isn't in the log, and The Dragonfell Tribe has no raid note saved for The Twin Fangs that night; a healing cooldown ready and unused isn't a missed assignment (raids plan each cooldown for chosen moments and hold it through the others).
 Each healer in the busiest stretches against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns):
-  Agonco (Holy Paladin): 265.72k/s (11% overheal) in the busiest stretches, 209.03k/s (29% overheal) the rest of the time; casting throughout in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 2 left ready in one
-  Enfo (Restoration Shaman): 377.33k/s (5% overheal) in the busiest stretches, 306.36k/s (14% overheal) the rest of the time; casting throughout in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 0 left ready in one
-  Lïzårðmâñ (Preservation Evoker): 191.66k/s (3% overheal) in the busiest stretches, 217.68k/s (18% overheal) the rest of the time; no cast begun for 4 s, dead for 10 s in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 1 left ready in one
-Ability ids: Toxic Fumes [1294976], Eternal Venom [1290480]
+  Agonco (Holy Paladin): 277.10k/s (11% overheal) in the busiest stretches, 208.00k/s (29% overheal) the rest of the time; casting throughout in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 2 left ready in one
+  Enfo (Restoration Shaman): 357.22k/s (4% overheal) in the busiest stretches, 308.18k/s (14% overheal) the rest of the time; casting throughout in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 0 left ready in one
+  Lïzårðmâñ (Preservation Evoker): 183.13k/s (2% overheal) in the busiest stretches, 218.46k/s (18% overheal) the rest of the time; no cast begun for 4 s, dead for 10 s in 41 s of busiest stretches; 0 healing cooldowns in a busiest stretch, 1 left ready in one
+Ability ids: Coiling Ichor [1290878], Toxic Fumes [1294976], Eternal Venom [1290480]

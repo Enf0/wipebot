@@ -62,6 +62,19 @@ def test_a_pulls_busiest_stretches_are_built_as_its_spikes_are():
     assert [(s.start // 1000, s.end // 1000) for s in busiest] == [(29, 41), (61, 69), (91, 95)]
 
 
+def test_a_stretch_is_ranked_by_its_own_points_not_the_one_after_it():
+    # Warcraft Logs' graph points are 2.06 s apart, not whole milliseconds: a stretch's end, a step after its last
+    # point, can be a hair past the next point, and that point, outside it, counted toward its rank. On The Twin
+    # Fangs pull 7, 3:46-3:52 (4.26M on its own points) was shown as one of the three busiest before 3:38-3:44 (4.30M).
+    step = 2061.4166666666665
+    taken = [100.0] * 60
+    taken[7:11] = [150.0, 150.0, 150.0, 120.0]  # a stretch on points 7-9, its end a hair past point 10
+    taken[20:23] = [170.0] * 3
+    f = {"id": 1, "startTime": 0, "endTime": 124_000}
+    graph = {"series": [{"name": "Total", "pointStart": 0, "pointInterval": step, "data": taken}]}
+    assert [round(s.start / step) for s in healing._spikes(f, graph, f["endTime"], healing.BUSY_TIMES)] == [20, 7]
+
+
 def _flat_but(f: dict, busy: dict[int, float]) -> dict:
     """A graph of the raid's damage taken at 100/s over pull `f`, but at the seconds `busy` gives."""
     taken = [busy.get(i, 100.0) for i in range(int((f["endTime"] - f["startTime"]) // 1000))]

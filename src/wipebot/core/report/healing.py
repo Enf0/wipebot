@@ -196,9 +196,11 @@ def _spikes(f: dict, graph: dict | None, end: float, times: float = SPIKE_TIMES)
                 runs[-1][1] = t
             else:
                 runs.append([t, t])
-    spikes = [s for a, b in runs if (s := Spike(f, a, min(b + step, end))).end - s.start >= SPIKE_MIN_MS]
-    rate = {id(s): sum(v for t, v in points if s.start <= t < s.end) for s in spikes}
-    return sorted(spikes, key=lambda s: -rate[id(s)])
+    # Ranked by the damage of the points in each run, its first to its last: its end, a step after its last point,
+    # can be a hair past the next point, which isn't in it (the step isn't whole milliseconds).
+    kept = [(s, sum(v for t, v in points if a <= t <= b)) for a, b in runs
+            if (s := Spike(f, a, min(b + step, end))).end - s.start >= SPIKE_MIN_MS]
+    return [s for s, _ in sorted(kept, key=lambda k: -k[1])]
 
 
 async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict[int, float]) -> dict[int, dict]:
