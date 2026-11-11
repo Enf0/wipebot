@@ -543,13 +543,6 @@ async def ranking(rep: Report, ability: str, pull: PullRef = None, boss: str | N
     in) and, over every pull, how many pulls they were in (else None); then the deaths with it as the killing blow
     and the deaths of any cause within HIT_THEN_DEATH_MS of a hit, as its "Total" line counts them."""
     fights, _, cut, window, h = await _asked(rep, ability, pull, boss, all_pulls, whole_pull, start, end)
-    counted = h.debuffs if h.by_debuff else h.hits
     there = _minutes(rep, fights, cut, window) if all_pulls else None
-
-    def rate(w: int) -> float:
-        return counted[w] / max(there[0].get(rep.names[w], 0), 1e-9) if there else counted[w]
-    ranked = sorted(set(h.hits) | set(h.ticks) | set(h.debuffs),
-                    key=lambda w: (-rate(w), -h.debuffs[w], -h.hits[w], -h.ticks[w]) if h.by_debuff
-                    else (-rate(w), -h.hits[w], -h.ticks[w], -h.debuffs[w]))
-    return (h, [(w, rate(w), there[1][rep.names[w]] if there else None) for w in ranked],
+    return (h, [(w, by, there[1][rep.names[w]] if there else None) for w, by in _ranked(rep, h, there)],
             sum(h.killed_by.values()), sum(h.died_after.values()))
