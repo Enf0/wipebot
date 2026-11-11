@@ -44,11 +44,11 @@ facts = ["Plague Wave was the most common of each pull's first three deaths (29)
          "the best wipe, pull 16, reached 9.4% at 6:41, deaths spread out from 3:48",
          "the kill on pull 19 took 7:00",
          "the guide says there's no DPS enrage (a 5th healer is worth it)"]
-# compare_pulls puts pull 16 behind the closest-item-level fast kill (5:21) from 0:30 on, which is why the expect
+# compare_pulls puts pull 16 behind the closest-item-level fast kill (4:45) from 0:30 on, which is why the expect
 # allows the fewer Imbibes. The Malignant Burst deaths on pulls 10 and 16 came as or after half the raid was dead
 # (5:09, 6:40).
 wrong = ["the raid needs more damage to beat an enrage or damage check on Vashnik",
-         "calls Flame Infusion or Shadow Infusion an enrage (the boss gains them at every Imbibe)",
+         "calls Flame Infusion or Shadow Infusion an enrage (the boss gains them at its first Imbibe)",
          "says the Malignant Burst deaths on pulls 10 and 16 were a damage check failed"]
 [[case]]
 id = "night-improving"  # what went right over a night
@@ -75,7 +75,7 @@ Grusarn was first twice and nobody else more than once. Only one of the three wa
 pull 3 Scopidruid was one of five killed by Noxious Blast within a second, and on pull 4 the pull went on two
 minutes after their death to the night's best wipe."""
 facts = ["Grusarn first on pulls 5 and 6; Providence on 1 and Wutroll on 7",
-         "pull 3: Noxious Blast killed 5 within 1 s at 2:35, Scopidruid first only by the order",
+         "pull 3: Noxious Blast killed 5 at once at 2:35, Scopidruid first only by the order",
          "pull 4: Scopidruid died at 2:17, the next death came at 4:13, and the pull reached 36.3%, the night's best",
          "on pulls 2 and 4 they died in the Blood side's damage after an Unstable Miasma hit, with 15 Mark of Blood stacks",
          "no healthstone used before any of the three deaths; on pull 4 Barkskin was not used"]
@@ -90,10 +90,10 @@ report = "ZRNhqaprvfmBgMkH"
 question = "We finally killed Ula'tek! What did we do better than on the 9.3% pull?"
 asker = "Enfo"
 expect = """Stayed alive through the Caustic Waves, Volatile Purge and second platform break around 8:00: the boss's
-health was level on both pulls until then, but pull 9 fell to 10 players alive by 8:02, while the kill had 22 alive at
+health was level on both pulls until then, but pull 9 fell to 11 players alive by 8:02, while the kill had 23 alive at
 8:01. The kill wasn't clean either: a Calcified Corpse from the last Serpent's Bite killed most of the raid at
 9:36-9:37, and the boss died at 9:38 in the last Venomous Heart window."""
-facts = ["boss health level with the kill until the wipe: 15% on pull 9 and 16% on the kill at 8:00",
+facts = ["boss health level with the kill until the wipe: 15% on pull 9 and 16% on the kill at 8:02",
          "pull 9: Caustic Waves hit 3, then 3, then 8 players at 7:52, and Volatile Purge killed 6 within 1 s at 7:58, stacking up to 3 on one player",
          "the kill lost one player at the platform break (Circling Prey at 8:01) and three in all before 8:49",
          "on the kill the last Serpent's Bite (9:20) was kept the full 15 s; its Calcified Corpse at 9:35 killed 16, and the boss died at 9:38, after the Venomous Heart opened at 9:33"]
@@ -156,10 +156,10 @@ question = "Compare our kill with the best wipe: what did we do differently?"
 asker = "Enfo"
 boss = "The Twin Fangs"
 expect = """The difference was staying alive through the middle of the fight, not a new plan or more damage per
-player: both pulls did the same damage per second and both ran into the 8:07 enrage; the kill had nobody die until
+player: both pulls did about the same damage per second and both ran into the 8:07 enrage; the kill had nobody die until
 6:46, while the best wipe (pull 6, 2.3%) lost a healer at 5:55 and three players to the 6:48 Ravenous Feast, fell
 behind and was short when the enrage came."""
-facts = ["damage per second until each pull's first death: 2.16M/s on pull 6, 2.15M/s on the kill",
+facts = ["damage per second over each pull: 2.07M/s on pull 6 until its enrage at 8:07, 2.12M/s on the kill",
          "boss health 10% at 7:07 on the kill against 7:19 on pull 6",
          "both pulls reached the enrage (Caustic Rain, at the third Submerge) at 8:07; on the kill one twin died at 8:11 and the other at 8:14, seconds into it",
          "the kill was messy late: 12 deaths, most from 7:39 on, once the boss was nearly dead"]
@@ -180,8 +180,8 @@ Phase One wipes it hit the whole raid at once, which it does when its target is 
 the boss and her tail tanked in reach through Phase One. (The best wipe, pull 6 at 8.7% in the last phase, 6.2% as
 Warcraft Logs counts it, was a Serpent's Bite left unsoaked.)"""
 facts = ["the kill on pull 8 at 8:49, with 7 deaths",
-         "Mother's Wrath killed 11 at 1:59 on pull 1 and 15 at 1:59 on pull 3, and many on pull 4",
-         "Mother's Wrath the night's killer, 58 deaths until each wipe was decided",
+         "Mother's Wrath killed many at once on pulls 1, 3 and 4",
+         "Mother's Wrath the night's killer, 61 deaths until each wipe was decided",
          "the best wipe (pull 6, P3 8.7%, WCL 6.2%) was a Calcified Corpse from an unsoaked Serpent's Bite"]
 wrong = ["treats Mother's Wrath as raid damage to heal through or survive with cooldowns, not as its target being out of reach",
          "makes more damage from rotations, gear or cooldowns the change for next week",
@@ -243,12 +243,12 @@ boss = "Sszorak"
 expect = """Three priorities, most important first, ranked by the pulls each ended: the Serpent's Fury stacks that
 let the boss enrage (Unbound Ferocity, the first thing that ended 11 of the 42 pulls) first or second, and the Mutilate
 soak (8) among the three with a change of its own (a Mutilate that kills four often leaves too few for the stack). The
-third can be the many dying at once with no killing blow around the Howling Maelstrom (7 pulls, 10 with its Viscous
+third can be the many dying at once with no killing blow around the Howling Maelstrom (10 pulls, 13 with its Viscous
 Cysts), in either order with Mutilate, or staying alive through the stretches of deaths (Tempest the night's killer);
 each with a change."""
 facts = ["Unbound Ferocity ended 11 pulls first",
-         "Mutilate killing many ended 8, deaths one after another 8",
-         "Tempest the night's killer: 58 deaths, the first death on 12 pulls",
+         "Mutilate killing many ended 8, deaths one after another 5",
+         "Tempest the night's killer: 62 deaths, the first death on 12 pulls",
          "the best wipe, 34.1% on pull 42"]
 # progress counts the pulls by the first thing that ended each; the night's killer counts deaths, so Tempest tops it
 # while the stacks and the soak lost more pulls. Leading with Tempest is the tempting misreading. Mutilate first, with
@@ -264,11 +264,12 @@ question = "Are we doing better on Sszorak than last week?"
 asker = "Enfo"
 boss = "Sszorak"
 expect = """Yes in how far pulls get: the best wipe went from 62.6% (5 October) to 34.1% (12 October). But the same
-things still end the pulls: the boss keeping Unbound Ferocity (10, then 11 pulls) and Mutilate killing many (7, then
-8)."""
+things still end the pulls: the boss keeping Unbound Ferocity (10, then 11 pulls) and Mutilate killing many (7, 5 of
+them after earlier deaths, then 8)."""
 facts = ["33 pulls on 5 October, 42 on 12 October",
          "the best wipes were pull 13 and pull 42",
-         "deaths one after another ended 6, then 8"]
+         "deaths one after another ended 6, then 5"]
+derived = ["7"]  # 5 October: 5 "deaths leading into Mutilate killing many" + 2 "Mutilate killing many"
 wrong = ["says the raid did worse than the week before",
          "says the pulls now end on something different from the week before"]
 
@@ -287,7 +288,7 @@ facts = ["the 0:23-0:28 spike: 3.55M/s taken, 0.8 healing cooldowns per spike, 1
          "on each of the 6 pulls that spike came, a healing cooldown was ready and unused",
          "the Viscous Cyst bursts at 1:41-1:43 are a mechanic to handle, not only a cooldown to add",
          "Spirit Link Totem (Enfo) the cooldown most often ready and unused, 10 times",
-         "the 1:41-1:43 Viscous Cyst spikes: 4.74M/s taken, healing 2.29M/s"]
+         "the 1:41-1:43 Viscous Cyst spikes: 5.29M/s taken, healing 1.94M/s"]
 # 22 October: every answer built its plan from the kill's own timeline (pull 14) and fixed its one late set, a raid
 # leader's way to plan farm; the case asked first for the spike that came back most, which none led with.
 wrong = ["names a healer as having failed an assigned cooldown (there is no raid note)"]

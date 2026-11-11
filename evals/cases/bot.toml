@@ -14,7 +14,7 @@ asker = "Enfo"
 boss = "Sszorak"
 expect = """Not as a habit: on all but two pulls the raid opened together, the first hit within half a second of the
 next player's, so who was first most often is just the fastest opener. The two exceptions were both Martin's, pulls
-the raid wasn't ready for and reset: on pull 19 nobody else hit the boss in the first 5 s, and on pull 10 he was
+the raid wasn't ready for and reset: on pull 19 nobody else hit the boss in the first 5 s, and on pull 10 they were
 first and the raid reset with the boss at full health. The log has no pull timer, so how early against the
 countdown can't be told."""
 facts = ["Zebinomage first on 13 of 42 pulls, Krøpling 9, Scopidruid 7",
@@ -37,7 +37,7 @@ intermission and got Cultivated Burst at 3:01, Pomaa, Fappachino, Peggerino, Sve
 died to it at 3:02-3:04, which lost the pull. The log doesn't show each player's orb count or who collided with whom."""
 facts = ["Enfo died to Blood Venom at 3:04 with the burst on",
          "the bosses gained Ula'tek's Dominance at 3:07, after those deaths",
-         "players with 3 orbs stand still, 1 seek them, 2 meet between the bosses, to make exactly 4"]
+         "players with 3 orbs stand still, 1 seek them, 2 pair with 2, to make exactly 4"]
 wrong = ["names someone outside those six as having kept Helical Toxins to the end",
          "says the log shows each player's orb count or who collided with whom",
          "says Ula'tek's Dominance or the deaths after 3:04 lost the pull",

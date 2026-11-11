@@ -89,16 +89,16 @@ expect = """A good night: dead before a wipe was decided on only 2 of 40 pulls, 
 improve comes from the comparison with the top Holy Priests, and the answer gives at least one of the two gaps with
 its numbers: Apotheosis first pressed at a median 1:03 where they press it at 0:18-0:26, or 36 casts a minute against
 their 47."""
-drifts = ["50th", "47", "0-2%", "31%"]
+drifts = ["50th", "47", "0-2%", "31%", "0:26", "1:11-1:18"]
 derived = ["14 of the 40"]  # player_night's pull lines: rank 1 of 4 healers on 15, one of them a reset
 facts = ["top healer on 14 of the 40 pulls that count",
          "pull 42: 395.56k/s, above the 50th percentile of ranked kills",
-         "Apotheosis used 33 times of 52 possible",
+         "Apotheosis used on 32 of the 37 pulls that got to 1:03, 33 uses over the night",
          "Divine Hymn at a median 0:18, where the top parses use it at 1:11-1:18",
          "7% of the time in casting gaps against their 0-2%",
          "no augment rune; Mastery 13% of secondaries against the top's 31%"]
 wrong = ["faults their overhealing as a main problem", "says they died often or early",
-         "says they used Divine Hymn too often (the per-pull counts are its channel ticks)"]
+         "says they used Divine Hymn too often (41 uses of 41 possible over the night)"]
 numbers = ["1:03 or 36"]
 
 [[case]]
@@ -192,7 +192,7 @@ question = ["can you check whether most Twin Fangs mythic logs run 4 or 5 healer
             "what about logs around our own ilvl, not top logs?"]
 asker = "Enfo"
 expect = """Answers from the ranked Mythic Twin Fangs kills in Warcraft Logs' item level bracket around the raid's
-own (about 328-330), not the fastest kills overall: they bring 4 healers (all of them when this case was written)."""
+own (about 329), not the fastest kills overall: they bring 4 healers (all of them when this case was written)."""
 derived = ["6:06", "7:39"]  # Warcraft Logs gives the kills' durations in ms (366364): the answer converts them
 drifts = ["37", "6:06", "7:39"]
 facts = ["37 ranked kills in the bracket, 6:06 to 7:39",
@@ -290,12 +290,12 @@ grave litt mer i ovwrhealingproblematikken, kan du sammenligne rå healing inklu
 alle coiled altar trøyene, og sammenligne opp mot top logs?"""
 asker = "Miralupa"
 expect = """Gives the healers' healing with overheal over the Coiled Altar pulls (the priests about 732k/s and 755k/s
-with it, 409k/s and 417k/s without) and puts their higher overheal down to five healers sharing the same damage, not
-to how the priests heal."""
-drifts = ["754", "726", "664", "725", "735"]
+with it, 409k/s and 417k/s without) and puts their higher overheal down to the damage there was to heal, which five
+healers shared (the top parses' kills had five too), not to how the priests heal."""
+drifts = ["31-39%"]
 facts = ["Namsus 416.63k/s, overheal 45%; Miralupa 408.84k/s, overheal 44%",
          "the raid healed 2.14M/s",
-         "the top Holy Priests overhealed about 25-31% in raids of 4 healers",
+         "the top Holy Priests overhealed about 31-39%, in raids of 5 healers too",
          "no healer ran short of mana",
          "whether a fifth healer is needed shows in the damage spikes, not in overheal"]
 wrong = ["says the priests' overheal is a problem they should fix",
@@ -325,8 +325,8 @@ expect = """Agrees that overheal alone doesn't measure a healer and that the log
 Altar, since no healer went under 30% mana; and checks their stat order against the guide (Crit > Mastery >
 Versatility > Haste in raid) rather than agreeing to all of it."""
 facts = ["the lowest mana was 39% (Enfo, pull 15)",
-         "the priests overhealed 28-30% in the damage spikes and 45-46% the rest of the time",
-         "healing cooldowns ready and unused in the spikes: Spirit Link Totem and Rewind 14 times each",
+         "the priests overhealed 30-33% in the damage spikes and 45-46% the rest of the time",
+         "healing cooldowns ready and unused in the spikes: Spirit Link Totem 14 times, Rewind 13 times",
          "Divine Hymn adds 4% healing taken a tick, stacking",
          "Method's guide ranks Versatility above Haste in raid"]
 wrong = ["says the priests have an overhealing problem",

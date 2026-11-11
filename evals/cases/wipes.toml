@@ -271,9 +271,9 @@ defensive or healthstone would have saved them from that hit, and the wipe wasn'
 facts = ["Nexsozz died at 0:16 (896k, 716k overkill), 9 yd from the boss and 27° off its facing, beside Wutroll at 1°, while most of the raid stood behind",
          "Deathadim soaked the second Mutilate at 0:12 alone (the first at 0:08 had 11 players) and died at 0:15",
          "Wutroll took both Ravages (0:16, 0:24) and died",
-         "the battle res at 0:17 never took the boss back",
+         "the battle res at 0:17 was not taken: Deathadim stayed dead",
          "Icebound Fortitude would not have saved them from that hit",
-         "Ravage hit Nexsozz only twice over the night's 33 pulls: not a pattern"]
+         "Ravage hit Nexsozz only once over the night's 32 pulls: not a pattern"]
 wrong = ["Tempest is the cause of the wipe or of Nexsozz's death",
          "says a defensive (Icebound Fortitude) or a healthstone would have saved Nexsozz",
          "says Nexsozz's death caused or decided the wipe"]

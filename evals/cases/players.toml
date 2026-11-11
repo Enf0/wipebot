@@ -28,14 +28,14 @@ tools = ["compare_with_top", "player_night", "player_pull", "spec_guide"]
 calls = ["spec_guide"]  # advice on how to play a spec comes from its guide
 question = "What could I have done better on Twin Fangs last night?"
 asker = "Cptola"
-expect = """Besides staying alive longer (Cptola died before the wipe was decided on 29 of 39 pulls), the main thing to
+expect = """Besides staying alive longer (Cptola died before the wipe was decided on 11 of 37 pulls), the main thing to
 fix in how they play is Holy Power lost at the cap: a quarter of it over the night, spent too late. The fix is the
 guide's: spend Holy Power before it caps, and press Divine Toll with little of it."""
-drifts = ["11%", "1.8"]
+drifts = ["10%", "1.8"]
 facts = ["833 of 3288 Holy Power lost at the cap over the night (25%)",
-         "Holy Power at its cap for 34% of their time alive on pull 37, against about 11% for the top parses",
+         "Holy Power at its cap for 34% of their time alive on pull 37, against about 10% for the top parses",
          "most of it from Holy Shock (573 of 2057 lost)",
-         "among the first 3 deaths on 17 pulls",
+         "among the first 3 deaths on 7 pulls",
          "Divine Toll 1.3 a minute against the top parses' 1.8"]
 # Holding Holy Power for the damage is what the bot first advised, against both guides; Method says not to play
 # around Mastery, and to put Infusion of Light Flashes on Beacon of Virtue targets with Moment of Compassion.
@@ -51,11 +51,11 @@ question = "Why is my DPS so low on Sszorak, and what should I fix?"
 asker = "Draiman"
 expect = """Draiman's damage while alive is low against the spec's ranked kills, and one of the main fixes is the AoE
 build on a single-target boss."""
-drifts = ["25th", "1:07", "12.3"]  # rankings and the top parses move: lint reports these apart
+drifts = ["25th", "1:07", "14.0"]  # rankings and the top parses move: lint reports these apart
 facts = ["below the 25th percentile of ranked Assassination kills",
          "lacking Doomblade, Improved Poisons and Systemic Failure, which most top players take",
          "the second Kingsbane at 1:38 where the top parses press it at about 1:07",
-         "Envenom 9.6 a minute against the top's 12.3",
+         "Envenom 9.6 a minute against the top's 14.0",
          "DoT and poison uptime is already 93-99%"]
 wrong = ["using defensives (Cloak, Evasion, Feint) more would raise damage",
          "counts a defensive's uses against how many were possible as a fault",
@@ -158,10 +158,9 @@ pull = 33
 boss = "Sszorak"
 expect = """Well: top healer on the pull, with the big cooldowns on the 1:11-1:22 damage spike, mana to spare when the
 wipe was decided, and the death is fallout of the wipe."""
-drifts = ["1:07"]
 facts = ["top healer of 5",
          "Ascendance at 1:12 and Spirit Link Totem at 1:15",
-         "the 1:11-1:22 spike (Mutilated Gash, Tempest); the top parses use theirs at 1:07-1:11",
+         "the 1:11-1:22 spike (Mutilated Gash, Tempest)",
          "mana at 64% when the wipe was decided at 2:32",
          "the death at 2:49"]
 wrong = ["faults the 2:49 death", "faults their overhealing",
@@ -176,10 +175,11 @@ pull = 2
 boss = "Vashnik the Malignant"
 expect = """Yes: active mitigation (Shuffle) up through the kill, brews used steadily, and never died; a note on the
 timing of a defensive is fair."""
-drifts = ["6.3"]
+drifts = ["8.0", "1.6"]
+derived = ["2-3"]  # Fortifying Brew 2:33 - Dripping Fangs 2:30 = 3 s, 4:53 - 4:51 = 2 s
 facts = ["Shuffle up 100%",
-         "49 Purifying Brews, 7.1 a minute against a top median of 6.3",
-         "Celestial Infusion 1.4 a minute, the same as the top",
+         "49 Purifying Brews, 7.1 a minute against a top median of 8.0",
+         "Celestial Infusion 1.4 a minute against a top median of 1.6",
          "Fortifying Brew at 2:33 and 4:53, 2-3 s after Dripping Fangs landed (2:30, 4:51)",
          "Niuzao five times"]
 wrong = ["ranks the tanks by damage taken as a measure of mitigation",
@@ -205,7 +205,7 @@ facts = ["88th percentile",
 # compare_with_top says the top take the other version of Earthquake on its choice node; casting Earthquake more
 # when Maelstrom caps is rotation advice.
 wrong = ["Ascendance was used too often",
-         "calls the Earthquake or Thunderous Paws talent choice a gap or mistake to fix (noting it in passing is fine)",
+         "calls the Earthquake or Primordial Bond talent choice a gap or mistake to fix (noting it in passing is fine)",
          "says there are no ranked kills to compare with"]
 
 [[case]]
@@ -236,6 +236,7 @@ pull = 33
 boss = "Sszorak"
 expect = """Partly: Deathmark and the first Kingsbane went out together at the start, but Vanish came only at 1:39,
 not with them, and the second Kingsbane came late, at 1:38."""
+derived = ["30 s"]  # the second Kingsbane's 1:38 less the top parses' 1:07 is 31 s
 drifts = ["1:07", "0:05", "0:09"]
 facts = ["Kingsbane at 0:06 and 1:38, the second about 30 s later than the top parses' ~1:07",
          "Vanish at 1:39 instead of with Deathmark at 0:07; top parses Vanish at 0:05-0:09",
@@ -253,11 +254,11 @@ boss = "Vashnik the Malignant"
 expect = """Compares Agonco's trinkets and talents from the log with the top ranked Retribution parses on Vashnik and
 finds them close: the same trinkets, and talents that differ from the top's in a pick or two. The rest is small
 (enchants, no augment rune)."""
-drifts = ["92%", "90%", "45", "50", "76", "77", "100%", "0%", "80%", "74%"]
-facts = ["Voracious Heart of Ula'tek (92% of the top) and Zul'jin's Guillotine Technique (90%), the same as theirs",
-         "45 of the top 50 play Herald of the Sun as they do; 76 of their 77 picks are common among the top",
+drifts = ["98%", "94%", "48", "50", "76", "77", "100%", "0%", "92%", "82%"]
+facts = ["Voracious Heart of Ula'tek (98% of the top) and Zul'jin's Guillotine Technique (94%), the same as theirs",
+         "48 of the top 50 play Herald of the Sun as they do; 76 of their 77 picks are common among the top",
          "Jurisdiction (100%) and Burning Crusade (100%) missing; Heart of the Crusader (0%) taken",
-         "main hand Arcane Mastery where 80% use Rite of the Hash'ey; feet Farstrider's Hunt where 74% use Lynx's Dexterity",
+         "main hand Arcane Mastery where 92% use Rite of the Hash'ey; feet Farstrider's Hunt where 82% use Lynx's Dexterity",
          "no augment rune at the pull"]
 wrong = ["calls pull 19 a wipe", "says Warcraft Logs has no ranked Retribution kills of Vashnik",
          "says their talents or trinkets aren't in the log",
@@ -270,12 +271,12 @@ report = "p7jRwgv8b1rY6LBd"
 question = "The #1 Holy Priest on Twin Fangs Mythic does 537k HPS. What's a realistic HPS for me to aim at?"
 asker = "Namsus"
 expect = """Not the #1 parse: its raid's other three healers parsed low, so it took a third of their healing. A
-realistic target is a point of the spec's spread, around the 75th percentile (about 425k), which Namsus already
+realistic target is a point of the spec's spread, around the 75th percentile (about 426k), which Namsus already
 reached on the 0.9% wipe, a wipe being weak evidence on its own."""
-drifts = ["537.21k", "442.62k", "424.79k", "403.48k", "33%", "12th", "20th", "42nd", "1376"]
+drifts = ["537.21k", "426k", "444.59k", "425.96k", "404.59k", "33%", "12th", "20th", "42nd", "1738"]
 facts = ["the #1 parse's raid had 4 healers and it did 33% of their healing, against an even 25%",
          "the other healers on that kill at the 12th, 20th and 42nd percentiles",
-         "the spread of ranked Holy Priest kills: 90th percentile 442.62k, 75th 424.79k, median 403.48k",
+         "the spread of ranked Holy Priest kills: 90th percentile 444.59k, 75th 425.96k, median 404.59k",
          "428.33k per second alive on pull 37, above the 75th percentile"]
 wrong = ["sets 537k or the #1 parse as the target",
          "says the other healers on the #1 kill held back on purpose",
