@@ -2331,6 +2331,79 @@ def viewer_at(track: str, times_ms: list[float]) -> list:
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def made_up_scene(*dots: maps.Dot) -> maps.Scene:
+    """A map's scene on made-up positions (hundredths of a yard), in a room 1,000 yd across."""
+    return maps.Scene("Made-up Boss · pull 1", "0:10", 1, (-50_000.0, 50_000.0, -50_000.0, 50_000.0), dots=list(dots))
+
+
+def made_up_dot(name: str, x_yd: float, y_yd: float = 0, **more) -> maps.Dot:
+    return maps.Dot(name, (200, 200, 200), "", "dps", x_yd * 100, y_yd * 100, **more)
+
+
+def made_up_room() -> bytes:
+    from PIL import Image
+    out = io.BytesIO()
+    Image.new("RGB", (64, 64), (40, 60, 40)).save(out, "PNG")
+    return out.getvalue()
+
+
+def test_a_map_far_wider_than_any_room_still_has_its_scale_bar():
+    """The scale bar takes the first of its lengths that is long enough to read. With two living players 1,800 yd
+    apart none was, and the drawing failed (StopIteration) though the answer's text was written: it now takes the
+    longest."""
+    from wipebot.core.report import draw
+    apart = made_up_scene(made_up_dot("Near", 0), made_up_dot("Far", 1_800))
+    picture = draw.render(apart, made_up_room(), {})
+    assert picture[:4] == b"RIFF" and picture[8:12] == b"WEBP"
+    close = made_up_scene(made_up_dot("Near", 0), made_up_dot("Far", 30))  # an ordinary room: as before
+    assert draw.render(close, made_up_room(), {})[:4] == b"RIFF"
+
+
+async def test_a_map_is_drawn_without_the_room_when_its_image_cannot_be_read(monkeypatch):
+    """A spec's icon that can't be read leaves a plain marker; the room's map image failed the whole tool, text and
+    all. The positions are now drawn on a plain ground, and the picture's title says the room could not be read."""
+    from wipebot.core import knowledge
+    from wipebot.core.report import draw
+
+    async def unreadable(*_):
+        raise knowledge.KnowledgeError("Warcraft Logs' images did not answer")
+    monkeypatch.setattr(knowledge, "map_image", unreadable)
+    monkeypatch.setattr(knowledge, "wcl_image", unreadable)
+    titles = []
+    text = draw._text
+    monkeypatch.setattr(draw, "_text", lambda d, xy, words, *rest: (titles.append(words), text(d, xy, words, *rest)))
+    picture = await maps.drawn(made_up_scene(made_up_dot("Near", 0), made_up_dot("Far", 30)))
+    assert picture[:4] == b"RIFF" and picture[8:12] == b"WEBP"
+    assert "Made-up Boss · pull 1 · the room's map could not be read" in titles
+
+
+def test_one_player_far_from_the_raid_does_not_shrink_the_map_to_a_dot():
+    """The view was framed on everyone alive, however far apart, so one player a long way off (walked out, on
+    another floor) left the raid a dot. A view is now no wider than draw.MAX_VIEW_YD for the living: past that,
+    those farthest from the middle of the rest are left out of the frame and named in the text as off the map's
+    edge. One asked about is always framed, and a player thrown 100 yd, as on the recorded pull, still is."""
+    from types import SimpleNamespace
+
+    from wipebot.core.report import draw
+    raid = [made_up_dot(f"R{i}", 5 * (i % 4), 5 * (i // 4)) for i in range(12)]  # within 15 yd of each other
+    alone = made_up_scene(*raid)
+    gone = made_up_scene(*raid, made_up_dot("Stray", 900))
+    assert draw.strays(gone) == {"Stray"} and draw.strays(alone) == set()
+    assert draw._view(gone) == draw._view(alone) and not draw.in_view(gone, 90_000, 0)
+    width_yd = lambda sc: draw.W * draw.SS / draw._view(sc)[2] / 100  # noqa: E731
+    assert width_yd(gone) == draw.MIN_VIEW_YD
+    nobody = cast("maps.Report", SimpleNamespace(pull_players=lambda f: {}))
+    assert maps._around(nobody, {}, gone)[-1] == "Off the map's edge (alive, far from the rest of the raid): Stray"
+    assert not any("Off the map" in line for line in maps._around(nobody, {}, alone))
+    asked = made_up_scene(*raid, made_up_dot("Stray", 900, focus=True))  # the one asked about: in the frame
+    assert draw.strays(asked) == set() and width_yd(asked) > 900 and draw.in_view(asked, 90_000, 0)
+    two = made_up_scene(*raid, made_up_dot("Left", 900), made_up_dot("Right", -700))  # both, the farthest first
+    assert draw.strays(two) == {"Left", "Right"} and draw._view(two) == draw._view(alone)
+    thrown = made_up_scene(*raid, made_up_dot("Thrown", 108))  # far, and the view still shows the raid: framed
+    assert draw.strays(thrown) == set() and 108 < width_yd(thrown) < draw.MAX_VIEW_YD
+    assert draw.in_view(thrown, 10_800, 0)
+
+
 def test_the_replay_reads_the_tracks_as_they_were_packed():
     samples = [(0.0, 0.0, 0.0), (1000.0, 1000.0, 0.0), (2000.0, 1000.0, 1000.0), (3000.0, 2000.0, 1000.0)]
     facings = [(0.0, 0.17453), (1000.0, 6.10865), (2000.0, 1.5708), (3000.0, 1.5708)]  # 10°, 350°, 90°, 90°

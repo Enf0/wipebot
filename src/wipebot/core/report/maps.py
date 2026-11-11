@@ -135,7 +135,10 @@ async def drawn(sc: Scene) -> bytes:
             icons[path] = await knowledge.wcl_image(path)
         except knowledge.KnowledgeError:
             pass  # a plain marker instead
-    room = await knowledge.map_image(sc.map_id)
+    try:
+        room = await knowledge.map_image(sc.map_id)
+    except knowledge.KnowledgeError:
+        room = None  # the positions on a plain ground: the answer's text is computed, and a picture of it still helps
     return await asyncio.to_thread(draw.render, sc, room, icons)  # seconds of CPU: off the event loop
 
 
@@ -219,6 +222,8 @@ def _around(rep: Report, f: dict, sc: Scene, near: str | None = None) -> list[st
         lines.append(f"Not on the map (no position logged then): {', '.join(missing)}")
     if outside := [d.name for d in sc.dots if d.dead and not draw.in_view(sc, d.x, d.y)]:
         lines.append(f"Off the map's edge (died earlier, elsewhere): {', '.join(outside)}")
+    if away := [d.name for d in sc.dots if not d.dead and not draw.in_view(sc, d.x, d.y)]:
+        lines.append(f"Off the map's edge (alive, far from the rest of the raid): {', '.join(away)}")
     return lines
 
 

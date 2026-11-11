@@ -17,9 +17,14 @@ GOLD = (245, 197, 66)
 RED = (255, 92, 92)
 GREY = (120, 124, 134)
 MIN_VIEW_YD, MARGIN_YD = 60, 12  # the view shows at least this much of the room, this far around what's in it
+# The view is never wider than this for the sake of the living: past it the raid is a dot. The living farthest from
+# the middle of the rest (one thrown off, one walking out) are then left out of the frame, and the text names them
+MAX_VIEW_YD = 300
+SCALE_YD = (5, 10, 20, 50, 100)  # the scale bar's lengths: the first that is long enough to read, else the last
 R = 16 * SS  # a player's marker's radius
 BR = 30 * SS  # a boss's
 IMAGE_FORMATS = ["PNG", "JPEG", "WEBP"]  # Warcraft Logs' maps and icons: no other decoder opens what's fetched
+NO_ROOM = " · the room's map could not be read"  # after the picture's title, when it is drawn without the room
 
 
 @functools.cache
@@ -47,15 +52,39 @@ def nudge(points: list[tuple[float, float]], gap: float, keep_out: list[tuple[fl
     return out
 
 
+def _span(pts: list[tuple[float, float]]) -> float:
+    """How wide a view of these points is, with its margin, in the image's shape (hundredths of a yard)."""
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return max(max(xs) - min(xs) + 2 * MARGIN_YD * 100, (max(ys) - min(ys) + 2 * MARGIN_YD * 100) * W / H,
+               MIN_VIEW_YD * 100)
+
+
+def strays(sc) -> set[str]:
+    """The living the view is not framed on: when a view of everyone alive would be wider than MAX_VIEW_YD, those
+    farthest from the middle of the living, one by one, until it is not. Never one asked about, who is framed
+    however far off."""
+    live = [d for d in sc.dots if not d.dead and not d.focus]
+    if len(live) < 3:
+        return set()
+    mid = (sorted(d.x for d in live)[len(live) // 2], sorted(d.y for d in live)[len(live) // 2])
+    live.sort(key=lambda d: math.dist((d.x, d.y), mid))
+    away: set[str] = set()
+    while len(live) > 2 and _span([(d.x, d.y) for d in live]) > MAX_VIEW_YD * 100:
+        away.add(live.pop().name)
+    return away
+
+
 def _view(sc) -> tuple[float, float, float]:
     """The map's left and top edges in the view (world) and pixels per hundredth of a yard: what's in the scene (the
-    living, the bosses, the spots and marks, the dead only when nothing else is) with a margin, in the image's shape."""
-    pts = [(d.x, d.y) for d in sc.dots if not d.dead or d.focus] + [(b.x, b.y) for b in sc.bosses]
+    living but the `strays`, the bosses, the spots and marks, the dead only when nothing else is) with a margin, in
+    the image's shape."""
+    away = strays(sc)
+    pts = [(d.x, d.y) for d in sc.dots if (not d.dead and d.name not in away) or d.focus]
+    pts += [(b.x, b.y) for b in sc.bosses]
     pts += [(s.x, s.y) for s in sc.spots] + [(m.x, m.y) for m in sc.marks]
     pts = pts or [(d.x, d.y) for d in sc.dots]
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-    span = max(max(xs) - min(xs) + 2 * MARGIN_YD * 100, (max(ys) - min(ys) + 2 * MARGIN_YD * 100) * W / H,
-               MIN_VIEW_YD * 100)
+    span = _span(pts)
     per = W * SS / span
     return (min(xs) + max(xs)) / 2 - span / 2, (min(ys) + max(ys)) / 2 + span * H / W / 2, per
 
@@ -80,8 +109,9 @@ def _text(draw: ImageDraw.ImageDraw, xy, text: str, f, fill, anchor: str = "lm")
     draw.text(xy, text, font=f, fill=fill, anchor=anchor, stroke_width=3 * SS, stroke_fill=(0, 0, 0))
 
 
-def render(sc, map_png: bytes, icons: dict[str, bytes]) -> bytes:  # noqa: C901, PLR0915
-    """The scene as a WebP image; `icons` has the image of each icon path in it."""
+def render(sc, map_png: bytes | None, icons: dict[str, bytes]) -> bytes:  # noqa: C901, PLR0915
+    """The scene as a WebP image; `icons` has the image of each icon path in it. Without the room's map (`map_png`
+    None: it could not be read) everyone is drawn on a plain ground, and the picture says so."""
     w, h = W * SS, H * SS
     x0, y1, per = _view(sc)
 
@@ -89,12 +119,15 @@ def render(sc, map_png: bytes, icons: dict[str, bytes]) -> bytes:  # noqa: C901,
         return (x - x0) * per, (y1 - y) * per
 
     # The room, cut to the view (beyond the map's image stays dark) and dimmed so the markers stand out.
-    m = Image.open(io.BytesIO(map_png), formats=IMAGE_FORMATS).convert("RGB")
-    min_x, max_x, min_y, max_y = sc.bounds
-    kx, ky = m.width / (max_x - min_x), m.height / (max_y - min_y)
-    box = ((x0 - min_x) * kx, (max_y - y1) * ky, (x0 + w / per - min_x) * kx, (max_y - y1 + h / per) * ky)
-    room = m.transform((w, h), Image.Transform.EXTENT, box, Image.Resampling.BICUBIC, fillcolor=BG)
-    img = Image.blend(Image.new("RGB", (w, h), BG), room, 0.75).convert("RGBA")
+    img = Image.new("RGB", (w, h), BG)
+    if map_png:
+        m = Image.open(io.BytesIO(map_png), formats=IMAGE_FORMATS).convert("RGB")
+        min_x, max_x, min_y, max_y = sc.bounds
+        kx, ky = m.width / (max_x - min_x), m.height / (max_y - min_y)
+        box = ((x0 - min_x) * kx, (max_y - y1) * ky, (x0 + w / per - min_x) * kx, (max_y - y1 + h / per) * ky)
+        room = m.transform((w, h), Image.Transform.EXTENT, box, Image.Resampling.BICUBIC, fillcolor=BG)
+        img = Image.blend(img, room, 0.75)
+    img = img.convert("RGBA")
     overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))  # what's translucent: spot rings, facing cones
     od, draw = ImageDraw.Draw(overlay), ImageDraw.Draw(img)
 
@@ -152,8 +185,8 @@ def render(sc, map_png: bytes, icons: dict[str, bytes]) -> bytes:  # noqa: C901,
 
     _names(draw, sc, where, bosses)
     _text(draw, (24 * SS, 34 * SS), sc.at, font(34), INK)
-    _text(draw, (24 * SS, 66 * SS), sc.title, font(16, bold=False), (200, 206, 220))
-    yd = next(n for n in (5, 10, 20, 50, 100) if n * 100 * per >= 70 * SS)  # a scale bar, bottom right
+    _text(draw, (24 * SS, 66 * SS), sc.title + ("" if map_png else NO_ROOM), font(16, bold=False), (200, 206, 220))
+    yd = next((n for n in SCALE_YD if n * 100 * per >= 70 * SS), SCALE_YD[-1])  # a scale bar, bottom right
     bx1, by = w - 24 * SS, h - 26 * SS
     draw.line((bx1 - yd * 100 * per, by, bx1, by), fill=INK, width=3 * SS)
     _text(draw, (bx1 - yd * 50 * per, by - 10 * SS), f"{yd} yd", font(14, bold=False), INK, "mb")
