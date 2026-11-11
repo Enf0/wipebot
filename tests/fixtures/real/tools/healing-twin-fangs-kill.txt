@@ -12,7 +12,7 @@ The raid's 4 biggest damage spikes of 5 (by the damage taken in them) and the he
   Healers: Agonco 389.13k/s (4% overheal); Enfo 321.56k/s (1% overheal); Lïzårðmâñ 73.09k/s (3% overheal), no cast begun for 3 s, dead for the last 4 s
   Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): none; ready and unused (by healers who press them this report): Avenging Wrath (Agonco)
   Deaths in it: Algmor (Eternal Venom, 7:39), Lïzårðmâñ (Toxic Fumes, 7:40)
-The one smaller spike (time, damage taken per second: the healing cooldowns up in it, by the same rule): 4:49-4:54 1.85M/s: Ascendance (Enfo) at 4:53
+The one other spike, with less damage in all than the 4 above (time, length, damage taken per second: the healing cooldowns up in it, by the same rule): 4:49-4:54 (5 s) 1.85M/s: Ascendance (Enfo) at 4:53
 Who was meant to press which healing cooldown isn't in the log, and The Dragonfell Tribe has no raid note saved for The Twin Fangs that night; a healing cooldown ready and unused isn't a missed assignment (raids plan each cooldown for chosen moments and hold it through the others).
 Each healer in the 4 biggest spikes against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns; healing cooldowns in a spike count all 5 spikes, left ready the 4 biggest):
   Agonco (Holy Paladin): 302.60k/s (10% overheal) in those spikes, 207.81k/s (29% overheal) the rest of the time; casting throughout in those 31 s; 1 healing cooldown in a spike, 2 left ready in one

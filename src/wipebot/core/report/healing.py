@@ -24,7 +24,7 @@ SPIKE_AVG_MS = 5_000
 SPIKE_STEP_MS = 1_000
 SPIKE_JOIN_MS = 3_000  # spikes this close together are one
 SPIKE_MIN_MS = 3_000  # shorter is one hit, not a spike
-SPIKES_SHOWN = 4  # one pull: its biggest spikes in full; the others in a line, with the healing cooldowns up in each
+SPIKES_SHOWN = 4  # one pull: the spikes with the most damage in full; the others in a line, with their cooldowns
 NIGHT_SPIKES = 3  # a boss's pulls: each pull's biggest
 # One pull without a spike: its busiest SPIKE_AVG_MS, read as a spike is, and called nothing else. Read second by
 # second, 4 of 121 pulls that weren't resets had none (6 bosses in 6 reports; Sszorak pulls 26 and 32 of
@@ -202,7 +202,7 @@ def _spikes(f: dict, taken: Taken | None, end: float) -> list[Spike]:
 async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict[int, float],
                 more: Sequence[Spike] = ()) -> dict[int, dict]:
     """Each spike's damage by ability, healing by player, healers' casting and cooldowns, and deaths, and of the
-    spikes in `more` (a pull's smaller ones) only the cooldowns up in them, which need no table; returns each pull's
+    spikes in `more` (a pull's others) only the cooldowns up in them, which need no table; returns each pull's
     whole Healing table (until decided), for the healing outside the spikes. Tables in one query each."""
     windows = [(s.fight["id"], {"startTime": s.start, "endTime": s.end}) for s in spikes]
     taken, healed, whole, casts, backs, used = await asyncio.gather(
@@ -322,14 +322,17 @@ def _spike_line(rep: Report, s: Spike, healers: dict[int, Player]) -> str:
 
 
 def _more_lines(more: list[Spike]) -> list[str]:
-    """A pull's spikes beyond the SPIKES_SHOWN biggest, in a line: when, how much, and the healing cooldowns up."""
+    """A pull's spikes beyond the SPIKES_SHOWN with the most damage, in a line: when, how long, how much a second,
+    and the healing cooldowns up. "Other", with its length, not "smaller": a short spike can run higher per second
+    than those shown (the Twin Fangs kill's fifth, 5 s at 1.85M/s against 8 s at 1.82M/s)."""
     if not more:
         return []
-    t0 = more[0].fight["startTime"]
-    return [f"The {'one smaller spike' if len(more) == 1 else f'{len(more)} smaller spikes'} (time, damage taken per "
-            "second: the healing cooldowns up in it, by the same rule): "
-            + " · ".join(f"{clock(s.start - t0)}-{clock(s.end - t0)} {short(s.taken / s.seconds)}/s: "
-                         f"{', '.join(s.cooldowns) or 'none'}" for s in more)]
+    t0, one = more[0].fight["startTime"], len(more) == 1
+    return [f"The {'one other spike, with' if one else f'{len(more)} other spikes, each with'} less damage in all "
+            f"than the {SPIKES_SHOWN} above (time, length, damage taken per second: the healing cooldowns up in "
+            f"{'it' if one else 'each'}, by the same rule): "
+            + " · ".join(f"{clock(s.start - t0)}-{clock(s.end - t0)} ({s.seconds:.0f} s) "
+                         f"{short(s.taken / s.seconds)}/s: {', '.join(s.cooldowns) or 'none'}" for s in more)]
 
 
 def _in_spike(p: Player, h: InSpike, seconds: float) -> str:
@@ -401,7 +404,7 @@ def _healer_lines(rep: Report, fights: list[dict], spikes: list[Spike], healers:
                   more: Sequence[Spike] = ()) -> list[str]:
     """Each healer in the spikes (or a pull's `busiest` seconds) against the rest of the time: healing per second,
     overhealing, time with no cast begun or dead, healing cooldowns used in a spike and left ready in one. With
-    `more` (a pull's smaller spikes, which have no healing read) the cooldowns count those spikes too: each press
+    `more` (a pull's other spikes, which have no healing read) the cooldowns count those spikes too: each press
     once, whatever number of spikes it was up in."""
     shown = busiest or ("those spikes" if more else "the spikes")
     rows = []

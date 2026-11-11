@@ -376,9 +376,9 @@ async def _covered(rep: Report, f: dict, casts: list[BossCast], names: set[str],
             f"The boss cast {what} at {clock(before - t0)}, before this window: the raid and healing cooldowns pressed "
             "around that cast come with a window that holds it."]
     if len(runs) > COVERED_CASTS:
-        return [f"The boss cast {what} {len(runs)} times here: the raid and healing cooldowns pressed around each cast "
-                f"come with {COVERED_CASTS} casts or fewer (a window: start, end); pull_timeline without ability has "
-                "every cooldown."]
+        return [f"The boss cast {what} at {len(runs)} separate moments here (casts up to {COVER_PULSE_MS // 1000} s "
+                f"apart are one moment): the raid and healing cooldowns pressed around each come with {COVERED_CASTS} "
+                "or fewer (a window: start, end); pull_timeline without ability has every cooldown."]
     try:
         pressed = await raid_cooldown_casts(rep, f)
     except Unreadable:  # Warcraft Logs won't show the report any more: the call says so, not the rows of a copy

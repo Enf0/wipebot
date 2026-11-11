@@ -404,8 +404,9 @@ async def test_the_cooldowns_around_a_boss_s_own_casts_say_none_and_skip_one_cas
     # more casts than a line each is worth reading: said, with how to get them (a Vashnik kill's 20 Malignant
     # Catalysts got nothing, unsaid, where the wipe's 6 got their lines)
     assert await fight._covered(rep, f, roars(*range(10, 140, 10)), {"Roar"}, t0, t0 + 200_000) == [
-        "The boss cast Roar 13 times here: the raid and healing cooldowns pressed around each cast come with 12 casts "
-        "or fewer (a window: start, end); pull_timeline without ability has every cooldown."]
+        "The boss cast Roar at 13 separate moments here (casts up to 2 s apart are one moment): the raid and healing "
+        "cooldowns pressed around each come with 12 or fewer (a window: start, end); pull_timeline without ability "
+        "has every cooldown."]
     assert len(await fight._covered(rep, f, roars(*range(10, 130, 10)), {"Roar"}, t0, t0 + 200_000)) == 1 + 12
     # a cast a second (the Lost Explorers' Mighty Thud printed the same cooldowns six times over) is one cast, from
     # 10 s before its first second to 5 s after its last

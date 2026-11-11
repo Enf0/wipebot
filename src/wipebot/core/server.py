@@ -1817,9 +1817,9 @@ async def healing(pull: Pull = None, boss: Boss = None,
     The raid's damage spikes on a pull, until the wipe was decided: each spike's time, length, damage taken per
     second and the abilities behind it, the raid's healing as a share of it, each healer's healing per second
     and overhealing in it, time with no cast begun or dead, the healing cooldowns used in it or ready and unused,
-    and deaths in it (of a pull with more than four spikes, the four biggest so, and the others in a line with the
-    healing cooldowns up in each); then each healer in the spikes against the rest of the time. With all_pulls,
-    each pull's biggest spikes in a line and the spikes by the ability behind them over the night.
+    and deaths in it (of a pull with more than four spikes, the four with the most damage so, and the others in a
+    line with the healing cooldowns up in each); then each healer in the spikes against the rest of the time. With
+    all_pulls, each pull's biggest spikes in a line and the spikes by the ability behind them over the night.
     Reading it: a spike is the raid's damage at 1.5 times the pull's median or more, so a pull's quiet stretches set
     the bar. Only the healing cooldowns up in a spike are listed: one pressed for a moment that didn't spike is in
     pull_timeline, which has every cooldown in time order. Ready and unused counts a healer's cooldown only when

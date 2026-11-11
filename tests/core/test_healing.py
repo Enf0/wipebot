@@ -151,7 +151,7 @@ async def test_who_was_meant_to_press_a_cooldown_left_ready_is_said_once_and_onl
     assert lines.count("JOBS") == 1 and lines[lines.index("JOBS") + 1].startswith("Each healer in the spikes")
     # Both of the pull's spikes are shown in full: nothing is said of others
     assert lines[0].startswith("The raid's damage spikes and the healing into them, ")
-    assert "smaller spike" not in "\n".join(lines) and "biggest" not in "\n".join(lines)
+    assert "other spike" not in "\n".join(lines) and "biggest" not in "\n".join(lines)
     night = (await healing.healing(rep, boss="Sszorak", all_pulls=True, jobs="JOBS")).splitlines()
     assert night.count("JOBS") == 1 and night[night.index("JOBS") - 1].startswith(
         "Healing cooldowns most often ready and unused in a spike: Spirit Link Totem (Enfo) ")
@@ -161,7 +161,7 @@ async def test_who_was_meant_to_press_a_cooldown_left_ready_is_said_once_and_onl
 
 async def test_a_pull_with_more_spikes_than_are_shown_in_full_says_so_and_lists_the_rest(rep, patch_wcl):
     # Read second by second a pull has more spikes than the 4 shown in full (10 on a Vashnik kill, 15 on a Nymrissa
-    # wipe), and under "The raid's damage spikes" the others went unsaid: answers said only one Imbibe spiked, of
+    # kill), and under "The raid's damage spikes" the others went unsaid: answers said only one Imbibe spiked, of
     # three, and a healer read "0 healing cooldowns in a spike" who pressed one in the fifth. The head now counts
     # them, the others come in a line with the healing cooldowns up in each, and a healer's cooldowns count every
     # spike, each use once (a channel logs a cast per tick).
@@ -188,10 +188,12 @@ async def test_a_pull_with_more_spikes_than_are_shown_in_full_says_so_and_lists_
                                "into them, Sszorak pull 13 until the wipe was decided")
     assert [line.split(" (")[0] for line in lines if line[0].isdigit()] == ["0:19-0:29", "0:44-0:53", "1:09-1:17",
                                                                               "1:34-1:41"]
-    rest = next(i for i, line in enumerate(lines) if line.startswith("The 2 smaller spikes"))
+    rest = next(i for i, line in enumerate(lines) if line.startswith("The 2 other spikes"))
+    # "other", with each one's length: a short spike can run higher per second than the four with the most damage
     assert lines[rest] == (
-        "The 2 smaller spikes (time, damage taken per second: the healing cooldowns up in it, by the same rule): "
-        "1:57-2:02 190/s: Spirit Link Totem (Enfo) at 1:55 · 2:14-2:20 233/s: none")
+        "The 2 other spikes, each with less damage in all than the 4 above (time, length, damage taken per second: "
+        "the healing cooldowns up in each, by the same rule): "
+        "1:57-2:02 (5 s) 190/s: Spirit Link Totem (Enfo) at 1:55 · 2:14-2:20 (6 s) 233/s: none")
     # the casts at 0:05 and 2:30 were in no spike: a cooldown outside every spike isn't listed (listed, answers
     # called each one pressed in a quiet stretch, also those pressed on a cast of the boss that never spiked)
     assert lines[rest + 1].startswith("Each healer in the 4 biggest spikes against the rest of the time (") and \
@@ -200,9 +202,9 @@ async def test_a_pull_with_more_spikes_than_are_shown_in_full_says_so_and_lists_
     row = next(line for line in lines if line.startswith("  Enfo (Restoration Shaman): "))
     assert " in those spikes, " in row and row.endswith(
         " in those 34 s; 1 healing cooldown in a spike, 0 left ready in one")
-    # One spike beyond those shown, and a pull's busiest seconds in place of a spike
+    # One spike beyond those shown
     lone = healing.Spike(f, t0 + 60_000, t0 + 65_000, taken=5_000.0)
     assert healing._more_lines([lone]) == [
-        "The one smaller spike (time, damage taken per second: the healing cooldowns up in it, by the same rule): "
-        "1:00-1:05 1.00k/s: none"]
+        "The one other spike, with less damage in all than the 4 above (time, length, damage taken per second: the "
+        "healing cooldowns up in it, by the same rule): 1:00-1:05 (5 s) 1.00k/s: none"]
 
