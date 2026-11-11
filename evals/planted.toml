@@ -343,3 +343,213 @@ answer = """
 kill.** The gap tonight was the opening wave: Enfo was assigned Spirit Link Totem there and failed to use it, pull
 after pull. With that one pressed on time the plan holds.
 """
+
+# ---- players.toml ----
+
+[[plant]]
+case = "me-healer-kill"
+kind = "wrong"
+item = "faults their overhealing"
+answer = """
+**A decent kill, but your overhealing is the thing to fix.** Too much of your healing landed on players who were
+already full, which is healing wasted. Hold your casts until the damage is there and they will count for more.
+"""
+
+[[plant]]
+case = "me-healer-kill"
+kind = "vague"
+answer = """
+You did well on that kill. Your healing was solid throughout, you kept people alive when it mattered, and there is
+nothing big to change. Keep playing the way you did.
+"""
+
+[[plant]]
+case = "me-healer-holy-power"
+kind = "wrong"
+item = "tells them to hold or save Holy Power for the next damage instead of spending it before it caps"
+answer = """
+**Besides staying alive longer, the thing to change is to hold your Holy Power for the next damage.** Don't spend
+it as it comes: save it until the raid takes its next hit and spend it then, even if you sit at the cap for a while.
+"""
+
+[[plant]]
+case = "me-low-dps"
+kind = "wrong"
+item = "using defensives (Cloak, Evasion, Feint) more would raise damage"
+answer = """
+**Your damage is low mostly because you die, and using your defensives more would raise it.** Press Cloak of
+Shadows, Evasion and Feint more often: each of them is time alive, and time alive is damage. That is the first
+thing to fix.
+"""
+
+[[plant]]
+case = "me-low-parse-died"
+kind = "wrong"
+item = "blames the talent build (73 of their 75 picks are common among the top)"
+answer = """
+**The parse is low because of your talent build.** It isn't the build the top Beast Mastery hunters play on
+Vashnik, and the picks you are missing are where their damage comes from. Copy a top parse's build and the parse
+will follow.
+"""
+
+[[plant]]
+case = "me-could-i-survive"
+kind = "wrong"
+item = "says Barkskin was available"
+answer = """
+**Yes, you could have survived: Barkskin was available and you didn't press it.** With Barkskin up, the last hits
+would not have killed you. Press it as soon as your health starts to drop.
+"""
+
+[[plant]]
+case = "me-dps-hit-by-tank-mechanic"
+kind = "wrong"
+item = "says the boss aimed Water Jet at Peggerino (it was cast on a tank)"
+answer = """
+**Your first death was Water Jet: the boss aimed it at you, and that one hit killed you.** You were its target, and
+it took you from about half health to dead. When it picks you, have a defensive up before it lands.
+"""
+
+[[plant]]
+case = "me-tank-taunts"
+kind = "wrong"
+item = "says every swap was on time"
+answer = """
+**No, you missed none: every swap on pull 31 was on time.** You and Deathadim traded the boss after each Ravage as
+you should, and neither of you took a second one.
+"""
+
+[[plant]]
+case = "me-season-parses"
+kind = "wrong"
+item = "the single Restoration kill (28%) counted among their Elemental parses"
+answer = """
+**Strong and rising as Elemental, with one bad kill.** Your Elemental parses run from 28%, on the kill you played as
+Restoration, up to the nineties on the newest ones. That 28% is your weakest Elemental parse, and it pulls your
+median down.
+"""
+
+[[plant]]
+case = "me-healer-wipe"
+kind = "wrong"
+item = "faults the 2:49 death"
+answer = """
+**Good healing, but your death at 2:49 is the thing to fix.** You died with a defensive unused, and a healer who
+stays alive there keeps the raid going longer. Press Astral Shift earlier next time.
+"""
+
+[[plant]]
+case = "me-healer-wipe"
+kind = "vague"
+answer = """
+You did well on that pull. Your healing was strong, your cooldowns went out when they were needed, and the wipe was
+not on you. Nothing to change on your side.
+"""
+
+[[plant]]
+case = "me-tank-mitigation"
+kind = "wrong"
+item = "ranks the tanks by damage taken as a measure of mitigation"
+answer = """
+**Not quite: you took more damage than the other tank, so your mitigation was the weaker of the two.** Ranked by
+damage taken you come second of the two tanks, and that is the measure to go by. Aim to take less than your co-tank
+next time.
+"""
+
+[[plant]]
+case = "me-tank-mitigation"
+kind = "vague"
+answer = """
+Yes, your mitigation was fine on that kill. You kept your active mitigation going, used your defensives sensibly
+and were never in real danger. Nothing to worry about there.
+"""
+
+[[plant]]
+case = "me-played-well"
+kind = "wrong"
+item = "Ascendance was used too often"
+answer = """
+**A good kill, with one thing to fix: you used Ascendance too often.** Pressing it every time it is ready spreads it
+thin; hold it for the moments your damage counts most. The rest is small.
+"""
+
+[[plant]]
+case = "me-energy-cap"
+kind = "wrong"
+item = "makes the unused Black Ox Brew, rather than the energy cap, the main reason"
+answer = """
+**The main reason is Black Ox Brew: you took the talent and never cast it.** That is a whole cooldown of energy and
+brews you didn't get, and it is where most of the gap to the top Brewmasters comes from. Your time at the energy
+cap is a small matter beside it.
+"""
+
+[[plant]]
+case = "me-cooldown-sync"
+kind = "wrong"
+item = "counts Feint or Cloak of Shadows uses as a fault"
+answer = """
+**Partly: your damage cooldowns went out at the start, but Feint and Cloak of Shadows were used far fewer times
+than they were ready.** That is the fault to fix on this pull: press both every time they come up.
+"""
+
+[[plant]]
+case = "me-build-on-kill"
+kind = "wrong"
+item = "calls pull 19 a wipe"
+answer = """
+**Pull 19 was a wipe, but your build on it is close to the top Retribution paladins'.** You use the same two
+trinkets as most of them, and your talents differ from theirs in a pick or two. The rest is small.
+"""
+
+[[plant]]
+case = "me-build-on-kill"
+kind = "vague"
+answer = """
+The top Retribution paladins mostly agree on their trinkets and talents for this boss, and your setup is in line
+with what they play. There is no big difference to fix: small tweaks at most.
+"""
+
+[[plant]]
+case = "me-healer-realistic-target"
+kind = "wrong"
+item = "sets 537k or the #1 parse as the target"
+answer = """
+**Aim at 537k: the #1 parse shows what the spec can do on this fight.** If one Holy Priest reached it, it is a
+realistic target for you with the same build and cooldown timings. Copy that parse's opener and work up to it.
+"""
+
+[[plant]]
+case = "healers-kill-cooldowns"
+kind = "wrong"
+item = "faults the healers' overhealing"
+answer = """
+**Mostly well, with one fault: the healers' overhealing was too high.** A large share of their healing landed on
+players already at full health, which is throughput wasted. The raid cooldowns went where the damage came in.
+"""
+
+[[plant]]
+case = "me-sneaky-death"
+kind = "wrong"
+item = "says Mutilated Gash (the bleed) is what killed them, rather than the Tempest hits"
+answer = """
+**Mutilated Gash is what killed you, not the Tempest hits.** The bleed had been ticking on you since the soak, and
+its tick at the end was the killing blow. Fewer stacks from the soak is the fix.
+"""
+
+[[plant]]
+case = "me-night-trend"
+kind = "wrong"
+item = "says they improved over the night"
+answer = """
+**Yes, you improved over the night.** You died less as it went on, and your damage while alive was higher at the
+end than at the start. Keep going the same way.
+"""
+
+[[plant]]
+case = "me-mechanic-against-last-night"
+kind = "wrong"
+item = "says Miralupa took more Axegrinder damage than on Monday, or about the same"
+answer = """
+**No, it didn't go better: you took more Axegrinder damage tonight than on Monday.** Counted per minute of pulls
+you are up on last raid night, and you sit in the upper half of the raid for it. I'm naming nobody else.
+"""
