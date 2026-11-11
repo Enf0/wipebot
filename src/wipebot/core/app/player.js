@@ -24,14 +24,10 @@ views.player = (() => {
     items.push([D.decided ? `Time lost before ${kit.clock(D.decided.ms)}` : "Time lost",
                 costs.length ? `${costs[0][0]} s ${costs[0][1]}` : "none", costs[0] && costs[0][1] === "dead" ? "dead" : "",
                 costs.slice(1).map(([s, w]) => `${s} s ${w}`).join(", ")]);
-    const judged = D.cooldowns.filter((c) => c.possible);
     // a kill's parse is a percentile that means what it says; where a wipe stands among kills proves little by
-    // itself (views.SHORT_PULL) and is drawn in fullscreen only, with why
+    // itself (views.SHORT_PULL) and is drawn in fullscreen only, with why. No number over the cooldowns: player_pull
+    // states each one's uses of possible uses and no total, so a sum of them here was the page's own
     if (s && s.kind === "parse") items.push(["Parse", `${kit.ordinal(s.percentile)} percentile`, "", `against ${who()} kills`]);
-    else if (judged.length) {
-      const used = judged.reduce((n, c) => n + Math.min(c.uses.length, c.possible), 0), possible = judged.reduce((n, c) => n + c.possible, 0);
-      items.push(["Cooldowns", `${used} of ${possible}`, "", "if pressed on cooldown"]);  // a count, no verdict: one held is right
-    }
     const d = D.died[0];
     // red only for a death the "Died" line counts as theirs: not fallout, not one of a hit killing many
     items.push(["Died", d ? kit.clock(d.ms) : "no", d && !d.fallout && !d.mass ? "dead" : "",

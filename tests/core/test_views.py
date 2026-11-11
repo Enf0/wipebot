@@ -2217,7 +2217,7 @@ async def test_the_player_view_draws_and_asks_for_the_top_on_a_click(made_up, tm
     for s in taken:
         assert not s.errors, (s.path.name, s.errors)
         assert s.height > 100 and "Mirelle" in s.text and "290k" in s.text and "rank 2 of 4 healers" in s.text
-        assert "4 s casting gaps" in s.text and "1 of 2" in s.text and "after the wipe was decided" in s.text
+        assert "4 s casting gaps" in s.text and "after the wipe was decided" in s.text
     first, clicked = taken[0], taken[1]
     assert "Against top players" in first.text and "Astral Shift" not in first.text
     calls = [m["msg"]["params"]["arguments"] for m in clicked.messages if m["msg"].get("method") == "tools/call"
@@ -3156,6 +3156,7 @@ def test_a_players_nights_headline_is_their_deaths_and_what_would_have_kept_them
         "alive.")
 
 
+STAT_TILES = '() => [...document.querySelectorAll(".stats .stat")].map((e) => e.innerText)'
 CARD = """() => {
   const all = (sel) => [...document.querySelectorAll(sel)];
   return { lead: all(".lead").map((p) => p.textContent), stats: all(".stats .stat").length,
@@ -3396,10 +3397,14 @@ async def test_the_player_cards_are_the_same_card_and_a_wipes_standing_is_fullsc
     from wipebot.core import viewhost
     async with drawn("player_pull", {"player": "Mirelle"}) as (view, errors):
         card, text = await view.evaluate(CARD), await view.locator("body").inner_text()
+        tiles = [t.splitlines()[0] for t in await view.evaluate(STAT_TILES)]
     assert not errors and card["lead"] == ["290.00k healing per second over the 143 s alive, rank 2 of 4 healers "
                                            "by total."]
-    assert card["stats"] == 4 and card["charts"] == 1 and card["buttons"] == ["Open player", "Against top players"]
+    assert card["stats"] == 3 and card["charts"] == 1 and card["buttons"] == ["Open player", "Against top players"]
     assert "ranked" not in text and "100th best" not in text and views.SHORT_PULL not in text
+    # No number over the cooldowns: player_pull states each one's uses of possible uses (Ascendance 1/1, Spirit Link
+    # Totem 0/1) and no total, and the card once said "Cooldowns 1 of 2", a sum the page made of them
+    assert tiles == ["HEALING PER S ALIVE", "TIME LOST BEFORE 2:20", "DIED"] and "1 of 2" not in text
     async with drawn("player_pull", {"player": "Mirelle"}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, _):
         text = await view.locator("body").inner_text()
     assert "ranked Restoration Shaman kills" in text and "100th best" in text
