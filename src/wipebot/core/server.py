@@ -1372,12 +1372,12 @@ async def raid_note(note: Annotated[str | None, Field(description=(
     """For "did people do their jobs?", "who missed their soak?", "were the cooldowns on time?", "who didn't kick
     as assigned?", over the night "who missed their soak most?", and for one raider "did I do my part?".
     The raid's assignment and cooldown note checked against a pull: the assignments, each soak's hits against the
-    group the note calls to soak then, each planned cooldown against when the player cast it, each kick assignment
-    (a callout to one player as an add begins a cast) against who kicked that cast, and each callout for personals
-    ("Big Personals") with what the players it names pressed around it. With all_pulls, one call checks every pull
-    on the boss (each against the note saved before it began) and counts all of that per player: a night's
-    question needs no call per pull. With `player`, the same check printed for that player alone, the raid's rows
-    as counts.
+    group the note calls to soak then, each planned cooldown against when the player cast it (on time: under 3 s
+    from its time in the note), each kick assignment (a callout to one player as an add begins a cast) against who
+    kicked that cast, and each callout for personals ("Big Personals") with what the players it names pressed
+    around it. With all_pulls, one call checks every pull on the boss (each against the note saved before it began)
+    and counts all of that per player: a night's question needs no call per pull. With `player`, the same check
+    printed for that player alone, the raid's rows as counts.
     Reading it: each section's first line says how it counts, and the first line of all where each phase of the
     note lies in the log and which lines weren't checked for their phase. A soak hit at no group's time, or on too
     few players to tell whose it was, counts for no one. A planned cooldown "not cast" says when the spell was on

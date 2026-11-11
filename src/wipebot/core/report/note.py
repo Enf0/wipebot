@@ -33,6 +33,10 @@ from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since
 from .cooldowns import spell_at
 
 MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it this close to its time
+# A planned cooldown cast less than this far from its time in the note is on time; one off by this much or more is
+# early or late by its offset. Of the 1,592 planned presses matched to a cast on the four recorded nights, 30% were
+# within 1 s of their time and 64% within 3 s: at 1 s most presses that followed the plan read early or late.
+ON_TIME_S = 3
 NEVER_CAST_MIN = 3  # pulls a planned spell was missed on, never cast at all, before the night says so
 # Hits of an ability this close together are one hit of it (one soak). One landing's hits come within 50 ms in the
 # log, and soaks that go group after group (The Twin Fangs' Ravenous Feast) land 1.5 s apart or more.
@@ -907,13 +911,18 @@ def _planned_spell(rep: Report, cd: Cooldown) -> str:
             + (f' "{cd.text}"' if cd.text else ""))
 
 
+def timing(off: float) -> str:
+    """'on time', 'early' or 'late' of a planned cooldown cast `off` seconds from its time in the note (ON_TIME_S):
+    the one reading a pull's rows, a night's counts and the note's card share."""
+    return "on time" if abs(off) < ON_TIME_S else "early" if off < 0 else "late"
+
+
 def _pull_tally(uses: list[PlannedUse]) -> str:
     """'on time 4, early 12, late 9, not cast 6, dead 2' over a pull's planned uses: the raid's, for scale."""
-    off = [(u.cast_at - u.at) / 1000 for u in uses if u.cast_at is not None]
+    cast = Counter(timing((u.cast_at - u.at) / 1000) for u in uses if u.cast_at is not None)
     left = Counter("not cast" if u.state == "alive" else "dead" if u.state.startswith("dead") else u.state
                    for u in uses if u.cast_at is None)
-    counts = {"on time": sum(abs(d) < 1 for d in off), "early": sum(d <= -1 for d in off),
-              "late": sum(d >= 1 for d in off), **left}
+    counts = {how: cast[how] for how in ("on time", "early", "late")} | left
     return ", ".join(f"{what} {n}" for what, n in counts.items() if n)
 
 
@@ -956,15 +965,16 @@ def _pull_text(rep: Report, c: PullCheck, source: str,  # noqa: C901, PLR0912, P
         lines.append(f"Planned cooldowns: the note plans none for {asked.name}.")
     if c.planned and not none_planned:
         uses = [u for u in c.planned.uses if asked is None or u.cooldown.player in asked]
-        lines.append("Planned cooldowns (time in the note: what happened)" + (
+        lines.append(f"Planned cooldowns (time in the note: what happened; on time: under {ON_TIME_S} s from it)" + (
             f", {asked.name}'s {len(uses)} of the raid's {len(c.planned.uses)} ({_pull_tally(c.planned.uses)})"
             if asked and c.planned.uses else "") + ":")
         for u in uses:
             line = f"  {_planned_line(rep, u.at, u.cooldown)}"
             if u.cast_at is not None:
                 d = (u.cast_at - u.at) / 1000
-                line += f": cast at {clock(u.cast_at)}{f' on {u.on}' if u.on else ''}, " + ("on time" if abs(d) < 1 else
-                                                              f"{abs(d):.0f} s {'late' if d > 0 else 'early'}")
+                how = timing(d)
+                line += (f": cast at {clock(u.cast_at)}{f' on {u.on}' if u.on else ''}, "
+                         + (how if how == "on time" else f"{abs(d):.0f} s {how}"))
             else:
                 line += f": not cast within {MATCH_S} s ({u.state}"
                 if u.casts:
@@ -1909,12 +1919,12 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
     if not uses:
         return []
     out = ["Planned cooldowns over the pulls, per player and per planned use (note time and spell), counting the "
-           f"pulls that reached it before the wipe was decided: on time (within 1 s), early or late (the median), not "
-           f"cast within {MATCH_S} s while alive (with the pulls; of them, how many were planned in the last "
-           f"{NEAR_END_MS // 1000} s before the wipe was decided or the pull ended, and at how many the spell was on "
-           "cooldown from their own earlier cast, by Lorrgs' base cooldown or by their closest two casts of it on "
-           "these pulls where that is shorter: the note plans it again too soon, or it was pressed off the plan), "
-           "dead by then:"]
+           f"pulls that reached it before the wipe was decided: on time (under {ON_TIME_S} s from the note's time), "
+           f"early or late (the median), not cast within {MATCH_S} s while alive (with the pulls; of them, how many "
+           f"were planned in the last {NEAR_END_MS // 1000} s before the wipe was decided or the pull ended, and at "
+           "how many the spell was on cooldown from their own earlier cast, by Lorrgs' base cooldown or by their "
+           "closest two casts of it on these pulls where that is shorter: the note plans it again too soon, or it "
+           "was pressed off the plan), dead by then:"]
     per_player: dict[str, dict[tuple[float, int, int | None], list[tuple[PullCheck, PlannedUse]]]] = defaultdict(
         lambda: defaultdict(list))
     for c, u in uses:
@@ -1924,9 +1934,9 @@ def _night_cooldowns(rep: Report, checks: list[PullCheck], asked: Asked | None =
         return [f"Planned cooldowns: the note plans none for {asked.name}."]
 
     def tally(rows: list[tuple[PullCheck, PlannedUse]], which: bool = False) -> str:
-        on = [r for r in rows if r[1].cast_at is not None and abs(r[1].cast_at - r[1].at) < 1000]
         off = [(u.cast_at - u.at) / 1000 for _, u in rows if u.cast_at is not None]
-        early, late = [-d for d in off if d <= -1], [d for d in off if d >= 1]
+        on = [d for d in off if timing(d) == "on time"]
+        early, late = [-d for d in off if timing(d) == "early"], [d for d in off if timing(d) == "late"]
         left = [r for r in rows if r[1].cast_at is None and r[1].state == "alive"]
         not_cast = [(c.f, u.at) for c, u in left]
         dead = sum(r[1].cast_at is None and r[1].state.startswith("dead") for r in rows)

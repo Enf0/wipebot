@@ -3,11 +3,11 @@ Assignments in the note's text:
   Ravenous Feast and Tainted Blood Groups: Left: Attractîv Dragepie Martin Sonyosh Namsus Lïzårðmâñ; Right: Krøpling Zebinomage Peggerino Cptola Enfo Dscopi; Center: Draiman Slushmania Agonco Nalaxd Pomaa Nexsozz
   Broodling Kicks - Cast Order: Kick #1 left: Sonyosh; Kick #1 right: Enfo; Kick #2 left: Dragepie; Kick #2 right: Dscopi; Kick #3 left: Martin; Kick #3 right: Krøpling; Kick #4 left: Attractîv; Kick #4 right: Peggerino; Kick #5 left: Agonco; Kick #5 right: Zebinomage
 Ravenous Feast and Tainted Blood Groups: 2 hits of Ravenous Feast [1290662], after the wipe was decided at 0:56: not checked
-Planned cooldowns (time in the note: what happened):
-  0:16 Lïzårðmâñ Rewind [363534]: cast at 0:17, 2 s late
-  0:37 Enfo Ascendance [114052]: cast at 0:38, 2 s late
-  0:38 Namsus Apotheosis [200183]: cast at 0:40, 3 s late
-  0:43 Nexsozz Anti-Magic Zone [51052]: cast at 0:40, 3 s early
+Planned cooldowns (time in the note: what happened; on time: under 3 s from it):
+  0:16 Lïzårðmâñ Rewind [363534]: cast at 0:17, on time
+  0:37 Enfo Ascendance [114052]: cast at 0:38, on time
+  0:38 Namsus Apotheosis [200183]: cast at 0:40, on time
+  0:43 Nexsozz Anti-Magic Zone [51052]: cast at 0:40, on time
   0:43 Cptola Avenging Wrath [31884]: cast at 0:38, 5 s early
   0:43 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30 s (alive; cast at 0:00; on cooldown from the 0:00 cast, 90 s by Lorrgs' base cooldown)
   Planned after the wipe was decided at 0:56, so not checked against this pull: 48 lines, the next 0:57 Dragepie Time Spiral [374968], 0:58 Attractîv Stampeding Roar [106898], 1:01 Pomaa Rallying Cry [97462]

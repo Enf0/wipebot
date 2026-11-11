@@ -72,7 +72,7 @@ async def test_the_recorded_externals_are_printed_with_the_notes_words_and_the_c
     text = (TOOLS.parent / "notes" / "coiled-altar-2026-11-02.txt").read_text(encoding="utf-8")
     rep = await server.lib().report("fk2z6bCw4xRLNvht")
     rows = [row.strip() for row in (await note.note_check(rep, text, 28, "Coiled Altar")).splitlines()]
-    assert '0:22 Miralupa Guardian Spirit [47788] "Guardian Spirit Wutroll": cast at 0:19 on Wutroll, 3 s early' in rows
+    assert '0:22 Miralupa Guardian Spirit [47788] "Guardian Spirit Wutroll": cast at 0:19 on Wutroll, on time' in rows
     assert ('3:35 Lïzårðmâñ Time Dilation [357170] "Time Dilation Wutroll": not cast within 30 s (alive; cast at '
             "5:05)") in rows
     assert "0:44 Miralupa Divine Hymn [64843]: cast at 0:44, on time" in rows  # no words, and no target in the log

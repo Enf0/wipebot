@@ -689,8 +689,7 @@ def _note_cooldowns(rep: Report, night: notes.Night, color: Callable[[str], str]
     for c, u in uses:
         if u.cast_at is not None:
             off = (u.cast_at - u.at) / 1000
-            state = "on time" if abs(off) < 1 else "early" if off < 0 else "late"
-            cell = {"state": state, "off_s": round(off, 1)}
+            cell = {"state": notes.timing(off), "off_s": round(off, 1)}
         else:
             cell = {"state": "not cast" if u.state == "alive" else "dead" if u.state.startswith("dead") else "absent"}
         by_pull[c.f["id"]][key(u)] = cell | {"ms": round(u.at)}

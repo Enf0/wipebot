@@ -15,10 +15,10 @@ Mutilate Soaks: each hit of Mutilate [1285999], given to the group called to soa
   3:14 Left: 6 of 10 hit, 335.96k each; not hit: Scopidruid (alive), Draiman (dead since 3:00), Enfo (alive), Namsus (alive); also hit: Fappachino (Right), Lïzårðmâñ (Right), Peggerino (Right), Slushmania (Right)
   Hit by almost none of their group's soaks while alive (under a fifth), so likely not soaking with this group (a reserve, a spot changed since the note was written): Miralupa (0 of 4)
   2 more after the wipe was decided at 4:08
-Planned cooldowns (time in the note: what happened):
+Planned cooldowns (time in the note: what happened; on time: under 3 s from it):
   0:11 Dragepie Zephyr [374227]: not cast within 30 s (alive; cast at 3:08)
   0:16 Lïzårðmâñ Stasis (Store) [370537]: cast at 0:01, 15 s early
-  0:16 Miralupa Divine Hymn [64843]: cast at 0:18, 3 s late
+  0:16 Miralupa Divine Hymn [64843]: cast at 0:18, on time
   0:16 Namsus Apotheosis [200183]: cast at 0:15, on time
   0:20 Nexsozz Anti-Magic Zone [51052]: not cast within 30 s (alive)
   0:21 Sonyosh Poison Cleansing Totem [383013]: cast at 0:15, 5 s early
@@ -26,26 +26,26 @@ Planned cooldowns (time in the note: what happened):
   0:58 Lïzårðmâñ Zephyr [374227]: not cast within 30 s (alive; cast at 0:23, 3:00; on cooldown from the 0:23 cast, 120 s by Lorrgs' base cooldown)
   1:03 Namsus Divine Hymn [64843]: cast at 1:03, on time
   1:03 Miralupa Apotheosis [200183]: cast at 1:15, 13 s late
-  1:08 Sonyosh Wind Rush Totem [192077]: cast at 1:09, 2 s late
+  1:08 Sonyosh Wind Rush Totem [192077]: cast at 1:09, on time
   1:08 Enfo Ascendance [114052]: cast at 1:16, 9 s late
   1:08 Enfo Poison Cleansing Totem [383013]: not cast within 30 s (alive; cast at 2:27)
-  1:11 Deathadim Anti-Magic Zone [51052]: cast at 1:09, 2 s early
+  1:11 Deathadim Anti-Magic Zone [51052]: cast at 1:09, on time
   1:12 Fappachino Darkness [196718]: cast at 1:08, 3 s early
-  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, 1 s late
-  1:15 Pomaa Rallying Cry [97462]: cast at 1:12, 2 s early
-  1:20 Lïzårðmâñ Rewind [363534]: cast at 1:18, 1 s early
+  1:12 Enfo Spirit Link Totem [98008]: cast at 1:13, on time
+  1:15 Pomaa Rallying Cry [97462]: cast at 1:12, on time
+  1:20 Lïzårðmâñ Rewind [363534]: cast at 1:18, on time
   1:37 Lïzårðmâñ Time Spiral [374968]: cast at 1:47, 10 s late
   1:39 Enfo Wind Rush Totem [192077]: cast at 1:38, on time
   1:40 Scopidruid Stampeding Roar [106898]: not cast within 30 s (alive; cast at 0:23, 2:30; on cooldown from the 0:23 cast, 120 s by Lorrgs' base cooldown)
   1:50 Dragepie Time Spiral [374968]: cast at 1:46, 3 s early
   2:15 Lïzårðmâñ Stasis (Store) [370537]: not cast within 30 s (alive; cast at 0:01, 2:59)
   2:19 Dragepie Zephyr [374227]: not cast within 30 s (alive; cast at 3:08)
-  2:22 Namsus Apotheosis [200183]: cast at 2:23, 1 s late
+  2:22 Namsus Apotheosis [200183]: cast at 2:23, on time
   2:23 Miralupa Divine Hymn [64843]: cast at 2:35, 13 s late
-  2:27 Sonyosh Poison Cleansing Totem [383013]: cast at 2:29, 3 s late
+  2:27 Sonyosh Poison Cleansing Totem [383013]: cast at 2:29, on time
   3:05 Lïzårðmâñ Zephyr [374227]: cast at 3:00, 5 s early
   3:10 Miralupa Apotheosis [200183]: cast at 3:17, 7 s late
-  3:14 Namsus Divine Hymn [64843]: cast at 3:11, 3 s early
+  3:14 Namsus Divine Hymn [64843]: cast at 3:11, on time
   3:14 Enfo Poison Cleansing Totem [383013]: not cast within 30 s (alive; cast at 2:27)
   3:15 Sonyosh Wind Rush Totem [192077]: cast at 3:14, on time
   3:20 Nexsozz Anti-Magic Zone [51052]: not cast within 30 s (alive)

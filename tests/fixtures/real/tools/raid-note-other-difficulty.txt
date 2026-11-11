@@ -14,14 +14,14 @@ Orb Carriers (2): no ability of that name hit players on this pull
 Guillotine Soaks: each hit of Guillotine [1283594], given to the group called to soak within 20 s of it with most of its players hit (2 hits):
   0:48 P1 Soak 1: 4 of 6 hit, 147.31k each; not hit: Martin (not in this pull), Slushmania (not in this pull); also hit: Agonco, Algmor, Attractîv, Biblethump, Cptola (P1 Soak 2), Enfo (P3 Soak 3), Fappachino (P3 Soak 1/P3 Soak 3), Karadim (P1 Soak 2), Krøpling (P3 Soak 3), Miralupa (P3 Soak 3), Nalaxd (P1 Soak 2/P3 Soak 2), Namsus (P1 Soak 2/P3 Soak 2), Peggerino (P3 Soak 1/P3 Soak 3), Providence, Pwnpíe, Rouxao, Sveini, Zebinomage
   2:33 outside the note's soak times: 1 player hit, 45.45k each; counted for no one
-Planned cooldowns (time in the note: what happened):
+Planned cooldowns (time in the note: what happened; on time: under 3 s from it):
   0:01 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 0:00, on time
   0:03 Miralupa Apotheosis [200183]: cast at 0:06, 3 s late
   0:04 Cptola Avenging Wrath [31884]: cast at 0:04, on time
   0:22 Miralupa Guardian Spirit [47788] "Guardian Spirit Wutroll": not cast within 30 s (alive)
   0:37 Lïzårðmâñ Time Spiral [374968]: not cast within 30 s (alive)
   0:39 Namsus Apotheosis [200183]: cast at 0:26, 13 s early
-  0:41 Enfo Wind Rush Totem [192077]: cast at 0:39, 1 s early
+  0:41 Enfo Wind Rush Totem [192077]: cast at 0:39, on time
   0:44 Miralupa Divine Hymn [64843]: not cast within 30 s (alive; cast at 1:44, 7:17)
   0:45 Scopidruid Stampeding Roar [106898]: not cast within 30 s (alive)
   0:47 Lïzårðmâñ Zephyr [374227]: not cast within 30 s (alive; cast at 3:01)
@@ -54,7 +54,7 @@ Planned cooldowns (time in the note: what happened):
   3:28 Namsus Divine Hymn [64843]: not cast within 30 s (alive; cast at 0:22, 2:53, 5:15, 7:16; on cooldown from the 2:53 cast, 121 s by their closest two casts of it on the night (Lorrgs' base cooldown: 180 s))
   3:32 Dragepie Zephyr [374227]: not cast within 30 s (not in this pull)
   3:32 Lïzårðmâñ Zephyr [374227]: not cast within 30 s (alive; cast at 3:01; on cooldown from the 3:01 cast, 120 s by Lorrgs' base cooldown)
-  3:32 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 3:33, 1 s late
+  3:32 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 3:33, on time
   3:41 Enfo Spirit Link Totem [98008]: not cast within 30 s (alive; cast at 1:39, 4:40; on cooldown from the 1:39 cast, 180 s by Lorrgs' base cooldown)
   3:41 Pomaa Rallying Cry [97462]: not cast within 30 s (alive; cast at 5:41)
   4:11 Cptola Avenging Wrath [31884]: not cast within 30 s (alive; cast at 0:04, 2:45, 4:52, 6:55; on cooldown from the 2:45 cast, 120 s by Lorrgs' base cooldown)

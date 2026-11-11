@@ -15,22 +15,22 @@ Guillotine Soaks: each hit of Guillotine [1283594], given to the group called to
   0:48 P1 Soak 1: 6 of 6 hit, 453.14k each; also hit: Fappachino (P3 Soak 1/P3 Soak 3)
   2:13 P1 Soak 2: 5 of 6 hit, 731.66k each but none to Cptola, Martin, Nalaxd (immune or missed in the log, and counted as hit); not hit: Namsus (alive)
   2:46 outside the note's soak times: 1 player hit, 44.54k each; counted for no one
-Planned cooldowns (time in the note: what happened):
+Planned cooldowns (time in the note: what happened; on time: under 3 s from it):
   0:01 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 0:00, on time
   0:03 Miralupa Apotheosis [200183]: cast at 0:02, on time
   0:04 Cptola Avenging Wrath [31884]: not cast within 30 s (alive; cast at 0:59, 3:01)
-  0:22 Miralupa Guardian Spirit [47788] "Guardian Spirit Wutroll": cast at 0:19 on Wutroll, 3 s early
-  0:37 Lïzårðmâñ Time Spiral [374968]: cast at 0:38, 1 s late
-  0:39 Namsus Apotheosis [200183]: cast at 0:40, 2 s late
+  0:22 Miralupa Guardian Spirit [47788] "Guardian Spirit Wutroll": cast at 0:19 on Wutroll, on time
+  0:37 Lïzårðmâñ Time Spiral [374968]: cast at 0:38, on time
+  0:39 Namsus Apotheosis [200183]: cast at 0:40, on time
   0:41 Enfo Wind Rush Totem [192077]: cast at 0:40, on time
   0:44 Miralupa Divine Hymn [64843]: cast at 0:44, on time
   0:45 Scopidruid Stampeding Roar [106898]: not cast within 30 s (alive; cast at 2:48, 5:39)
   0:47 Lïzårðmâñ Zephyr [374227]: cast at 0:46, on time
-  0:58 Namsus Guardian Spirit [47788] "Guardian Spirit Wutroll": cast at 0:55 on Wutroll, 3 s early
-  1:00 Enfo Ascendance [114052]: cast at 0:58, 1 s early
+  0:58 Namsus Guardian Spirit [47788] "Guardian Spirit Wutroll": cast at 0:55 on Wutroll, on time
+  1:00 Enfo Ascendance [114052]: cast at 0:58, on time
   1:25 Dragepie Time Spiral [374968]: cast at 1:29, 4 s late
-  1:48 Dragepie Zephyr [374227]: cast at 1:46, 1 s early
-  1:48 Namsus Divine Hymn [64843]: cast at 1:45, 3 s early
+  1:48 Dragepie Zephyr [374227]: cast at 1:46, on time
+  1:48 Namsus Divine Hymn [64843]: cast at 1:45, on time
   2:05 Cptola Avenging Wrath [31884]: not cast within 30 s (alive; cast at 0:59, 3:01; on cooldown from the 0:59 cast, 120 s by Lorrgs' base cooldown)
   2:08 Miralupa Apotheosis [200183]: cast at 2:07, on time
   2:10 Scopidruid Stampeding Roar [106898]: not cast within 30 s (alive; cast at 2:48, 5:39)
@@ -77,7 +77,7 @@ Planned cooldowns (time in the note: what happened):
   6:23 Dragepie Zephyr [374227]: not cast within 30 s (alive; cast at 1:46, 5:01; on cooldown from the 5:01 cast, 120 s by Lorrgs' base cooldown)
   6:23 Lïzårðmâñ Zephyr [374227]: not cast within 30 s (alive; cast at 0:46)
   6:23 Namsus Soulcoiler Ritual Vessel [1291894]: cast at 6:04, 19 s early
-  6:32 Enfo Spirit Link Totem [98008]: cast at 6:33, 1 s late
+  6:32 Enfo Spirit Link Totem [98008]: cast at 6:33, on time
   6:32 Pomaa Rallying Cry [97462]: not cast within 30 s (dead since 6:14; cast at 2:28)
   7:02 Cptola Avenging Wrath [31884]: not cast within 30 s (dead since 5:13; cast at 0:59, 3:01)
   Planned after the wipe was decided at 7:03, so not checked against this pull: 33 lines, the next 7:08 Namsus Apotheosis [200183], 7:18 Scopidruid Stampeding Roar [106898], 7:21 Miralupa Divine Hymn [64843]

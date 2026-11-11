@@ -121,6 +121,12 @@ API: `wcl-api.md`.
   recorded Sszorak note plans Stampeding Roar 73 to 102 s apart against a base of 120 s, the druid's closest two
   casts of it that night were 126 s apart, and the use planned at 1:40 was cast on none of the 11 pulls they were
   alive at it (on cooldown each time from the cast the note plans at 0:27).
+- How close to its time in the note a planned cooldown is pressed: of the 1,592 planned presses the raid note check
+  matched to a cast on the four recorded nights (October and November 2026), 472 (30%) were under 1 s from their
+  time, 544 (34%) from 1 s to under 3 s and 576 (36%) 3 s or more (Sszorak 107, 172 and 258 of 537; the Twin Fangs
+  18, 32 and 30 of 80, then 203, 201 and 116 of 520; the Coiled Altar 144, 139 and 172 of 455). The check calls a
+  press on time under 3 s from its time (`note.ON_TIME_S`, read by the note's card too): at 1 s, most presses that
+  followed the plan read early or late.
 - An NSRT note's lines, as the addon reads them (its Reminders.lua and InterruptDisplay.lua, November 2026): a field is
   found anywhere in a line (`time:` in seconds, decimals allowed; `ph:` a number, decimals allowed; `tag:`; `text:`;
   `spellid:`), and a timed line needs a time, a tag and a text or a spell. A tag is `everyone`, a character's name or

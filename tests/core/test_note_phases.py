@@ -208,7 +208,7 @@ async def test_the_recorded_pull_into_stage_three_is_timed_by_the_logs_phases(re
     # the push to Stage Two was planned at 2:47 in ph:1 and came at 2:27: those lines read "19 s early" and "not cast"
     assert not [row for row in rows if row.startswith("2:47 ")]
     assert "2:29 Enfo Spirit Link Totem [98008] for Dreadful Presence [1288635]: cast at 2:29, on time" in rows
-    assert "6:32 Enfo Spirit Link Totem [98008]: cast at 6:33, 1 s late" in rows  # ph:2.5 at 0:24
+    assert "6:32 Enfo Spirit Link Totem [98008]: cast at 6:33, on time" in rows  # ph:2.5 at 0:24, 1.1 s after it
     assert [row for row in rows if row.startswith("7:02 Cptola Avenging Wrath [31884]: not cast within 30 s (dead")]
     assert [row[:14] for row in rows if '"Personals"' in row] == ["1:47 everyone:"]
     assert "not understood" not in out
