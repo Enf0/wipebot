@@ -370,11 +370,12 @@ def test_help_on_a_server_without_a_key_says_so_first_and_where_to_ask_meanwhile
     assert "AI key" not in commands.help_text(settings, admin=False)
     raider = commands.help_text(settings, admin=False, keyless=True)
     assert raider.startswith("**I can't answer here yet.** This server hasn't added an AI key for my answers yet: an "
-                             "admin adds one with `/wipebot setup` (OpenRouter or Anthropic).\n\n**What to ask:**")
+                             "admin adds one with `/wipebot setup` (OpenRouter or Anthropic). Without one, `/follow` "
+                             "in a channel still posts each pull's card there")
     assert "Claude" not in raider  # the host runs no connector, or the bot wasn't told where
     monkeypatch.setenv("WIPEBOT_PUBLIC_URL", "https://wipebot.example.com/")
     raider = commands.help_text(settings, admin=False, keyless=True)
-    assert ("(OpenRouter or Anthropic). Until then you can ask me the same in Claude or ChatGPT, which needs no key "
+    assert ("for your own. Until then you can ask me the same in Claude or ChatGPT, which needs no key "
             "here: add `https://wipebot.example.com/mcp` there as a connector") in raider
     assert "som ikke trenger nøkkel her: legg til `https://wipebot.example.com/mcp` der" in commands.needs_key("no")
     assert len(commands.help_text(replace(settings, required_role_id=111), admin=True, keyless=True)) < 2000

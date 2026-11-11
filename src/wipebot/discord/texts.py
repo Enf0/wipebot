@@ -88,6 +88,11 @@ WITHOUT_KEY = Text(" Until then you can ask me the same in Claude or ChatGPT, wh
                    "there as a connector and sign in with Warcraft Logs.",
                    " Til da kan du spørre meg om det samme i Claude eller ChatGPT, som ikke trenger nøkkel her: legg "
                    "til `{url}` der som connector og logg inn med Warcraft Logs.")
+# ...and what works here without one: the pictures after each pull, which code draws
+FOLLOW_WITHOUT_KEY = Text(" Without one, `/follow` in a channel still posts each pull's card there after every wipe "
+                          "and kill, with buttons for your own.",
+                          " Uten nøkkel poster `/follow` i en kanal likevel kortet for hvert pull der etter hver wipe "
+                          "og kill, med knapper for ditt eget.")
 STILL_ANSWERING = Text("I'm still answering {n} of your questions: ask again when one is done.",
                        "Jeg svarer fortsatt på {n} av spørsmålene dine. Spør igjen når ett er ferdig.")
 ASKED_A_LOT = Text("That's {n} answers for you this hour, which is all one person gets: ask again in a while.",

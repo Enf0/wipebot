@@ -144,8 +144,9 @@ def test_pulls_handled_before_servers_had_their_own_stay_handled_for_the_servers
         CREATE TABLE posted (report TEXT NOT NULL, fight INTEGER NOT NULL, posted_at REAL NOT NULL, latency_s REAL,
                              PRIMARY KEY (report, fight));
         INSERT INTO posted VALUES ('LIVE1', 30, 1000.0, 45.0), ('LASTWEEK', 12, 500.0, NULL);
-        INSERT INTO following VALUES (1001, 20, 7, 'Rowan', NULL, 'LIVE1', 20, 'who died first', 900.0),
-                                     (1001, 7, 7, 'Rowan', 'Torvek', 'LIVE1', NULL, '', 950.0);""")
+        INSERT INTO following (discord_guild_id, key, user_id, name, character, code, channel_id, request, asked)
+            VALUES (1001, 20, 7, 'Rowan', NULL, 'LIVE1', 20, 'who died first', 900.0),
+                   (1001, 7, 7, 'Rowan', 'Torvek', 'LIVE1', NULL, '', 950.0);""")
     old.commit()
     old.close()
     store = Store(path)

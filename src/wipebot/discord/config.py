@@ -92,3 +92,13 @@ def record_answers() -> bool:
     asked and, with channel context, what was said around it. Off, the log doesn't print questions or answers
     either."""
     return os.environ.get("WIPEBOT_RECORD_ANSWERS", "").lower() in ("1", "true", "yes")
+
+
+def max_followed() -> int:
+    """How many servers may follow their raid with /follow at once (WIPEBOT_MAX_FOLLOWED; 0 or unset: any number).
+    Each followed raid costs Warcraft Logs points every pull (about 100 for a pull's picture, a few a poll), from the
+    bot's own hour on Warcraft Logs' old point system, so a copy many servers share keeps it to what its hour holds."""
+    value = os.environ.get("WIPEBOT_MAX_FOLLOWED", "").strip()
+    if value and not value.isdigit():
+        raise ValueError(f"WIPEBOT_MAX_FOLLOWED is {value!r}: a whole number of servers, 0 for any number")
+    return int(value or 0)

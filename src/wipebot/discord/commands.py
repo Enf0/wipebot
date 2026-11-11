@@ -13,7 +13,7 @@ import logging
 import re
 import time
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import discord
 import httpx
@@ -250,7 +250,8 @@ def needs_key(lang: str = "en") -> str:
     """What a server without an AI key is told, on a bot that answers only on servers' own: that an admin adds one,
     and, when the host runs the connector too, that it answers the same questions without one."""
     url = config.connector_url()
-    return texts.NEEDS_KEY.to(lang) + (texts.WITHOUT_KEY.to(lang, url=url) if url else "")
+    return (texts.NEEDS_KEY.to(lang) + texts.FOLLOW_WITHOUT_KEY.to(lang)
+            + (texts.WITHOUT_KEY.to(lang, url=url) if url else ""))
 
 
 def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False, keyless: bool = False) -> str:
@@ -263,7 +264,9 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False, keyles
              + "\nTell me your character once (\"I'm Jekå\") and \"I\" means them from then on. A warcraftlogs.com "
                "report link asks about that report instead of the guild's latest."]
     budget = "the AI budget and " if config.openrouter_key() or config.own_keys() else ""
-    commands = ["`/help`: this", f"`/usage`: what's left of {budget}this hour's Warcraft Logs points"]
+    commands = ["`/help`: this", f"`/usage`: what's left of {budget}this hour's Warcraft Logs points",
+                "`/follow`: each pull's card in this channel after every wipe and kill of the guild's raid, with "
+                "buttons for each raider's own (`character:` yours in your DMs instead; drawn without AI)"]
     if logincmd.callback_url():
         commands.append("`/login`: sign in with Warcraft Logs, so your own points pay for your questions")
     if admin:
@@ -365,7 +368,40 @@ def build_everyone(bot: WipeBot) -> list[app_commands.Command]:
     async def login(interaction: discord.Interaction, remove: bool = False, private: bool = False) -> None:
         await logincmd.login_command(bot.store, interaction, remove, private)
 
-    return [show_help, show_usage, login]
+    @app_commands.command(name="follow", description="Post each pull's card here after every wipe and kill of "
+                                                     "the guild's raid (needs no AI key)")
+    @app_commands.describe(character="Your character: their own card goes to your DMs instead",
+                           stop="Stop the posts here (with character: in your DMs)")
+    @app_commands.guild_only()
+    async def follow(interaction: discord.Interaction, character: str | None = None, stop: bool = False) -> None:
+        await interaction.response.send_message(await follow_command(bot, interaction, character, stop),
+                                                ephemeral=True)
+
+    return [show_help, show_usage, login, follow]
+
+
+async def follow_command(bot: WipeBot, interaction: discord.Interaction, character: str | None,
+                         stop: bool) -> str:
+    """/follow: start or stop the pictures after each pull of the server's guild's raid, drawn without the model
+    (posts.Posts.follow); what to tell the member who ran it."""
+    from .bot import is_officer, may_chat  # noqa: PLC0415 (bot imports this module)
+    guild = in_guild(interaction)
+    member = cast(discord.Member, interaction.user)
+    s = bot.store.settings(guild.id)
+    if s is None or not s.set_up:
+        return ("This server isn't connected to a guild yet: an admin runs `/wipebot setup` with the guild's "
+                "warcraftlogs.com page, then `/follow` posts after each of its pulls.")
+    if not may_chat(s, [r.id for r in member.roles]):
+        return texts.NEEDS_ROLE.to("en", role=s.required_role_id)
+    channel = None if character else cast(discord.abc.Messageable, interaction.channel)
+    try:
+        live = None if stop else await bot._follower(s).live()  # noqa: SLF001
+    except WCLError as e:
+        log.warning("couldn't look for the live report for /follow: %s", e)
+        return "Warcraft Logs didn't answer just now; try again in a minute."
+    return await bot.posts.follow(guild.id, member, member.display_name, live, channel,
+                                  (character or "").strip() or None, stop, is_officer(s, member),
+                                  config.max_followed())
 
 
 def build(bot: WipeBot) -> app_commands.Group:

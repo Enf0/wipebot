@@ -38,6 +38,7 @@ class Following:
     channel: discord.abc.Messageable | None = None  # the channel where the posts go; None for their DMs
     request: str = ""  # what they asked for after each wipe, in their words
     asked: float = 0.0  # when (time.time()), for how long a request waits for the live report
+    drawn: bool = False  # /follow's: each pull's picture with its buttons, drawn without the model (no AI key needed)
 
     @property
     def key(self) -> int:
@@ -77,7 +78,7 @@ class Posts:
 
     def _save(self, guild_id: int, f: Following) -> None:
         self.store.save_following(SavedFollowing(guild_id, f.key, f.user.id, f.name, f.character, f.code,
-                                                 getattr(f.channel, "id", None), f.request, f.asked))
+                                                 getattr(f.channel, "id", None), f.request, f.asked, f.drawn))
 
     async def follow_pulls(self, guild_id: int, user: discord.User | discord.Member, name: str, args: dict,
                            live: str | None, code: str, channel: discord.abc.Messageable | None = None,
@@ -138,6 +139,53 @@ class Posts:
         was = "It was already set up." if before else "Nothing was set up for them before this request."
         return (f"Done: after each wipe and kill {report}, {character}'s feedback goes to {name} in a DM, until the "
                 f"report stops being logged or they ask to stop. {was}")
+
+    async def follow(self, guild_id: int, user: discord.User | discord.Member, name: str, live: str | None,
+                     channel: discord.abc.Messageable | None, character: str | None = None, stop: bool = False,
+                     officer: bool = False, max_servers: int = 0) -> str:
+        """/follow, by `user` in `channel`: start or stop the pictures after each wipe and kill of the live report
+        (`live`, None before the raid logs), drawn without the model, so a server without an AI key gets them too.
+        Without `character` the pull's picture goes to the channel; with it, that character's own picture goes to
+        their DMs. Someone else's posts in a channel are changed or stopped only by them or an `officer`. At most
+        `max_servers` servers (0: any number) follow at once: each costs Warcraft Logs points every pull. What to tell
+        them, in English (an ephemeral reply)."""
+        following = self.by_server.get(guild_id, {})
+        key = user.id if character else getattr(channel, "id", None) or user.id
+        theirs = following.get(key)
+        if not character and theirs and theirs.user.id != user.id and not officer:
+            return f"{theirs.name} set up the posts after pulls here: only they or an officer can change or stop them."
+        if stop:
+            ended = self.end(guild_id, key)
+            log.info("posts after pulls %s: stopped by %s", "in a DM" if character else "in a channel",
+                     self._shown(name))
+            place = "in your DMs" if character else "here"
+            return f"Stopped: no more posts after pulls {place}." if ended else f"There were no posts to stop {place}."
+        busy = {g for g, places in self.by_server.items()
+                if g != guild_id and any(f.drawn for f in places.values())}
+        if max_servers and len(busy) >= max_servers and not any(f.drawn for f in following.values()):
+            return (f"{len(busy)} other servers are following their raids right now, the most this bot follows at "
+                    "once (each costs Warcraft Logs points every pull): try again later.")
+        if key not in following and len(following) >= MAX_PER_SERVER:
+            return (f"This server already has {MAX_PER_SERVER} requests for posts after wipes, the most there can be: "
+                    "one has to stop first.")
+        when = ("the guild's raid that's being logged now" if live else
+                f"the guild's raid once it starts logging (within {FOLLOW_WAIT_S // 3600} hours)")
+        if character:
+            try:
+                if live:
+                    character = (await self.library.report(live)).player(character).name
+            except FactError as e:
+                return str(e)
+            self.add(guild_id, Following(user, name, character, live, asked=time.time(), drawn=True))
+            self._remember_character(user.id, character)
+            log.info("drawn posts after pulls for %s on report %s", self._shown(f"{name} as {character}"),
+                     live or "(not started)")
+            return (f"Done: after each wipe and kill of {when}, {character}'s card on the pull comes to your DMs, and "
+                    "the night's card when the raid ends. `/follow character:... stop:True` stops it.")
+        self.add(guild_id, Following(user, name, None, live, channel, asked=time.time(), drawn=True))
+        log.info("drawn posts after pulls in a channel for %s on report %s", self._shown(name), live or "(not started)")
+        return (f"Done: after each wipe and kill of {when}, the pull's card goes here, with buttons for each raider's "
+                "own, and the night's when the raid ends. `/follow stop:True` stops it.")
 
     async def due(self, guild_id: int, live: str | None, pulls: list[Pull]) -> list[tuple[Following, Pull]]:
         """The posts due after `pulls` (one per request, on the latest wipe of its report), once the server's requests

@@ -105,6 +105,7 @@ class SavedFollowing:
     channel_id: int | None
     request: str
     asked: float
+    drawn: bool = False  # /follow's: each pull's picture, drawn without the model
 
 
 # Columns of older versions that new rows can't leave empty: the posts channel of the answer after each wipe.
@@ -115,7 +116,8 @@ ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "offi
                  ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
                  ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
                  ("logins", "guild", "TEXT"), ("server_settings", "verified_by", "INTEGER"),
-                 ("server_settings", "verified_at", "REAL"), ("interactions", "rounds", "INTEGER")]
+                 ("server_settings", "verified_at", "REAL"), ("interactions", "rounds", "INTEGER"),
+                 ("following", "drawn", "INTEGER NOT NULL DEFAULT 0")]
 
 
 class Store:
@@ -214,6 +216,7 @@ class Store:
                 channel_id INTEGER,      -- NULL for their DMs
                 request TEXT NOT NULL,
                 asked REAL NOT NULL,
+                drawn INTEGER NOT NULL DEFAULT 0,  -- /follow's: each pull's picture, drawn without the model
                 PRIMARY KEY (discord_guild_id, key)
             );
             CREATE TABLE IF NOT EXISTS server_options (  -- what an admin turned on or off, set up or not
@@ -379,7 +382,8 @@ class Store:
     # ---------- posts after wipes ----------
 
     def save_following(self, f: SavedFollowing) -> None:
-        self._db.execute("INSERT OR REPLACE INTO following VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", astuple(f))
+        self._db.execute("INSERT OR REPLACE INTO following (discord_guild_id, key, user_id, name, character, code, "
+                         "channel_id, request, asked, drawn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", astuple(f))
         self._db.commit()
 
     def drop_following(self, discord_guild_id: int, key: int | None = None) -> None:
@@ -391,8 +395,9 @@ class Store:
         self._db.commit()
 
     def all_following(self) -> list[SavedFollowing]:
-        return [SavedFollowing(*row) for row in self._db.execute(
-            "SELECT discord_guild_id, key, user_id, name, character, code, channel_id, request, asked FROM following")]
+        return [SavedFollowing(*row[:-1], bool(row[-1])) for row in self._db.execute(
+            "SELECT discord_guild_id, key, user_id, name, character, code, channel_id, request, asked, drawn "
+            "FROM following")]
 
     # ---------- answers and reactions ----------
 

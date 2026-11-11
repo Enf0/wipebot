@@ -565,7 +565,7 @@ class WipeBot(discord.Client):
                 continue
             self.posts.add(saved.discord_guild_id, Following(
                 user, saved.name, saved.character, saved.code, cast(discord.abc.Messageable | None, channel),
-                saved.request, saved.asked), save=False)
+                saved.request, saved.asked, saved.drawn), save=False)
             log.info("posts after wipes for %s restored (report %s)", self._shown(saved.name),
                      saved.code or "not started")
 
@@ -669,6 +669,9 @@ class WipeBot(discord.Client):
         else:
             key = (f.key, f.user.id)
             where = in_channel(getattr(f.channel, "name", ""))
+        if f.drawn:
+            await self._drawn_post(s, f, pull)
+            return
         question = post_question(pull.boss, pull.pull_no, f.name, f.character, f.request, kill=pull.kill)
         ctx = self._context(s, f.user, f.name, pull.report, where, f.channel, asker=f.character, pull=pull.pull_no,
                             boss=pull.boss)
@@ -697,6 +700,33 @@ class WipeBot(discord.Client):
                  time.time() - pull.ended_ms / 1000)
         await self._answer("follow", key, pull.report, question, ctx, f.name, send, fight=pull.fight,
                            channel_id=getattr(f.channel, "id", None))
+
+    async def _drawn_post(self, s: ServerSettings, f: Following, pull: Pull) -> None:
+        """/follow's post after one pull, drawn from the tools without the model, so a server without an AI key gets
+        it too: in a channel the pull's picture, whose buttons open each raider's own, only to them; in a raider's
+        DMs their own picture on it. None when nothing can be drawn (no Chromium, Warcraft Logs refused, the
+        character wasn't in the pull)."""
+        where = {"report": pull.report, "boss": pull.boss, "pull": pull.pull_no}
+        tool, args = ("player_pull", {**where, "player": f.character}) if f.character else ("pull_summary", where)
+        lang = texts.named(self.store.language(s.discord_guild_id))
+        with asker_of(self.store, f.user.id).reading():  # read as the one who asked for the posts
+            images = await host.picture(tool, args)
+            if not images:
+                log.info("no drawn post after %s pull %s for %s: nothing drawn", pull.boss, pull.pull_no,
+                         self._shown(f.name))
+                return
+            pictures = await pictures_for([(i, tool, args) for i in images], lang=lang,
+                                          mine=self._character(f.user.id))
+        files = [discord.File(io.BytesIO(i), filename=p.name) for i, p in zip(images, pictures, strict=True)]
+        try:
+            sent = await (f.channel or await f.user.create_dm()).send(view=answer_layout("", pictures), files=files)
+        except discord.HTTPException as e:
+            log.warning("couldn't send the drawn post after %s pull %s for %s: %s", pull.boss, pull.pull_no,
+                        self._shown(f.name), e)
+            return
+        self.store.remember_message(sent.id, pull.report, pull.fight)  # a reply to it is about this pull
+        log.info("drawn post after %s pull %s for %s, %.0f s after it ended", pull.boss, pull.pull_no,
+                 self._shown(f.name), time.time() - pull.ended_ms / 1000)
 
     @answering
     async def _night_post(self, f: Following, lang: str = "en") -> None:

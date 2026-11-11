@@ -141,3 +141,39 @@ def test_a_new_setup_stops_every_request_in_the_server(posts, store, rowan):
     posts.add(2002, Following(rowan, "Rowan", "Torvek", "OTHER"))
     posts.clear(SERVER)
     assert not places(posts) and [f.discord_guild_id for f in store.all_following()] == [2002]
+
+
+async def test_follow_posts_the_pulls_card_in_the_channel_without_the_model(posts, store, rowan, channel):
+    told = await posts.follow(SERVER, rowan, "Rowan", "LIVE1", channel)
+    assert told.startswith("Done: after each wipe and kill of the guild's raid that's being logged now, the pull's "
+                           "card goes here")
+    [f] = posts.by_server[SERVER].values()
+    assert (f.key, f.character, f.drawn) == (20, None, True)
+    assert [(s.key, s.drawn) for s in store.all_following()] == [(20, True)]  # outlives a restart, still drawn
+    assert await posts.due(SERVER, "LIVE1", [WIPE, RESET]) == [(f, WIPE)]
+    assert (await posts.follow(SERVER, rowan, "Rowan", None, channel, stop=True)).startswith("Stopped")
+    assert not places(posts) and store.all_following() == []
+
+
+async def test_follow_with_a_character_sends_their_own_card_to_their_dms(posts, store, rowan, channel):
+    told = await posts.follow(SERVER, rowan, "Rowan", "LIVE1", None, "torvek")
+    assert "Torvek's card on the pull comes to your DMs" in told
+    assert places(posts) == {7: ("Torvek", "", "LIVE1")} and posts.by_server[SERVER][7].drawn
+    assert store.raider(7).character == "Torvek"
+    assert "no single player matching 'Nobody'" in await posts.follow(SERVER, rowan, "Rowan", "LIVE1", None, "Nobody")
+
+
+async def test_only_who_set_up_follow_in_a_channel_or_an_officer_stops_it(posts, rowan, member, channel):
+    await posts.follow(SERVER, rowan, "Rowan", "LIVE1", channel)
+    halvard = member(8, "Halvard")
+    assert "only they or an officer" in await posts.follow(SERVER, halvard, "Halvard", None, channel, stop=True)
+    assert (await posts.follow(SERVER, halvard, "Halvard", None, channel, stop=True, officer=True)).startswith(
+        "Stopped")
+
+
+async def test_follow_is_capped_to_so_many_servers_at_once(posts, rowan, channel):
+    """Each followed raid costs Warcraft Logs points every pull, from the hour every server shares."""
+    await posts.follow(SERVER, rowan, "Rowan", None, channel, max_servers=1)
+    told = await posts.follow(SERVER + 1, rowan, "Rowan", None, channel, max_servers=1)
+    assert "1 other servers are following their raids right now" in told and SERVER + 1 not in posts.by_server
+    assert (await posts.follow(SERVER, rowan, "Rowan", None, None, "torvek", max_servers=1)).startswith("Done")

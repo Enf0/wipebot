@@ -418,7 +418,9 @@ async def test_a_server_without_a_key_is_told_so_in_the_questions_language(bot, 
     msg = message("<@99> hvorfor wipet vi?")
     await bot.on_message(msg)
     assert msg.replies == ["Denne serveren har ikke lagt inn en AI-nøkkel for svarene mine ennå: en admin legger inn "
-                           "en med `/wipebot setup` (OpenRouter eller Anthropic)."] and not asked
+                           "en med `/wipebot setup` (OpenRouter eller Anthropic). Uten nøkkel poster `/follow` i en "
+                               "kanal likevel kortet for hvert pull der etter hver wipe og kill, med knapper for ditt "
+                               "eget."] and not asked
 
 
 async def test_help_on_a_server_without_a_key_leads_with_that(bot, message, asked, monkeypatch):
@@ -730,6 +732,33 @@ async def test_when_the_raid_ends_each_place_gets_its_night_without_the_model(bo
     assert asked == []  # no model turn
     await bot._night_post(Following(rowan, "Rowan", "Torvek", "LIVE1"), "no")
     assert dm.sent[-1].startswith("**Det var raidet.** Kvelden til Torvek:")
+
+
+async def test_follows_posts_are_drawn_without_the_model_on_a_server_without_a_key(bot, settings, asked, member,
+                                                                                  channel, monkeypatch):
+    """/follow's posts after a pull are the tools' pictures: a server that hasn't added an AI key gets them too."""
+    drawn: list = []
+
+    async def picture(tool, args):
+        drawn.append((tool, args))
+        return [b"WEBP"]
+
+    async def no_actions(drawn, results=(), lang="en", mine=""):
+        return [Picture(f"wipebot-{n + 1}.webp") for n in range(len(drawn))]
+    monkeypatch.setattr(wipebot.host, "picture", picture)
+    monkeypatch.setattr(wipebot, "pictures_for", no_actions)
+    bot.own_keys = True  # a copy many servers share, and this one has no key
+    dm = FakeDM()
+    rowan = member(7, "Rowan")
+    rowan.create_dm = lambda: asyncio.sleep(0, dm)
+    pull = Pull("LIVE1", 30, "Sszorak", 12, 0.0)
+    await bot._post(settings, Following(rowan, "Rowan", None, "LIVE1", channel, drawn=True), pull)
+    await bot._post(settings, Following(rowan, "Rowan", "Torvek", "LIVE1", drawn=True), pull)
+    where = {"report": "LIVE1", "boss": "Sszorak", "pull": 12}
+    assert drawn == [("pull_summary", where), ("player_pull", {**where, "player": "Torvek"})]
+    assert channel.files == [["wipebot-1.webp"]] and len(dm.sent) == 1
+    assert asked == [] and recorded(bot.store) == []  # no model turn, no answer recorded
+    assert bot.store.pull_for_message(1) == ("LIVE1", 30)  # a reply to it is about the pull
 
 
 async def test_a_post_nothing_called_for_isnt_sent(bot, settings, asked, member, channel):
