@@ -242,9 +242,10 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
     assert lines[1] == ("What the log has of Tempest (its casts, its hits on players and their pets, its debuff going "
                         "on and off players, its buff on the boss, the deaths it dealt): 26 events in Sszorak pull 13, "
                         "times from the pull's start.")
-    assert lines[2] == ("Counted: 14 damage, 4 applydebuff, 4 removedebuff, 2 applydebuffstack, 1 begincast, 1 cast; "
-                        "by ability: Tempest 26; from: Sszorak 26; on: Sveini 8, Krøpling 6, Cptola 5, Dragepie 3, "
-                        "Deathadim 2.")
+    # the 14 hits' amounts in the log add up to 1,862,408, and what shields took of them to 1,997,423
+    assert lines[2] == ("Counted: 14 damage (1.86M together, 2.00M more absorbed), 4 applydebuff, 4 removedebuff, "
+                        "2 applydebuffstack, 1 begincast, 1 cast; by ability: Tempest 26; from: Sszorak 26; on: "
+                        "Sveini 8, Krøpling 6, Cptola 5, Dragepie 3, Deathadim 2.")
     # the cast and its damage are logged under two ids of the one name, so each row says which
     assert lines[3:6] == ["0:13.004 begincast: Sszorak → Tempest [1287072]",
                           "0:15.341 applydebuff: Sszorak → Tempest [1287083] → Dragepie",
@@ -256,7 +257,9 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
     on_one = (await fight.pull_timeline(rep, 13, "Sszorak", end="0:40", ability="Tempest",
                                         player="sveini")).splitlines()
     assert on_one[0].startswith("Sszorak pull 13 timeline, 0:00-0:40, only Tempest by or on Sveini (")
-    assert ": 8 events in Sszorak pull 13" in on_one[1] and all(" → Sveini" in row for row in on_one[2:-1])
+    assert ": 8 events in Sszorak pull 13" in on_one[1] and all(" → Sveini" in row for row in on_one[3:-1])
+    # fewer than ten events, but several hits: their amounts are added up in code
+    assert on_one[2].startswith("Counted: 5 damage (1.02M together, 520.87k more absorbed), 1 applydebuff, ")
     nothing = await fight.pull_timeline(rep, 13, "Sszorak", start="0:40", end="0:45", ability="Tempest")
     assert nothing.splitlines()[1:] == ["Nothing of Tempest is logged in this window."]
 

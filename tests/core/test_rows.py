@@ -56,14 +56,19 @@ def test_an_ability_logged_under_several_ids_is_told_apart_by_its_id(rep):
 
 def test_events_are_counted_by_code_and_a_list_cut_to_its_first_rows_says_what_was_left_out(rep):
     events = _events()
-    assert rows.counted(rep, events) == ("Counted: 2 damage, 1 cast, 1 applydebuffstack, 1 applydebuff, 1 death; "
-                                         "by ability: Tempest 3, Virulence 2; from: Boss 5; on: Pomaa 3, Nalaxd 2.")
-    assert not rows.listed(rep, events).lines[0].startswith("Counted")  # few enough to count by eye
+    # the amounts of each kind are added up too, a sum over rows being as much code's as a count; what shields
+    # absorbed apart, since a hit's amount leaves it out and a table of damage taken counts it
+    assert rows.counted(rep, events) == ("Counted: 2 damage (125.00k together, 1.06k more absorbed), 1 cast, "
+                                         "1 applydebuffstack, 1 applydebuff, 1 death; by ability: Tempest 3, "
+                                         "Virulence 2; from: Boss 5; on: Pomaa 3, Nalaxd 2.")
+    assert rows.listed(rep, events).lines[0].startswith("Counted: 2 damage (125.00k together, 1.06k more absorbed), ")
+    one_hit = [e for e in events if not e.get("tick")]
+    assert not rows.listed(rep, one_hit).lines[0].startswith("Counted")  # few enough to count by eye, no sum to make
     # of each count the most common are named, the rest summed
     on_nine = [{**events[1], "targetID": player} for player in list(rep.names)[:9]]
     assert rows.counted(rep, on_nine).endswith(" and 1 more (1 event).")
     cut = rows.listed(rep, events, most=4)
-    assert cut.left_out == 2 and cut.lines[0].startswith("Counted: 2 damage, ") and len(cut.lines) == 7
+    assert cut.left_out == 2 and cut.lines[0].startswith("Counted: 2 damage (") and len(cut.lines) == 7
     assert cut.lines[-2] == "… 2 more events left out, the last at 0:19.000: the counts above are of all 6."
     many = [{**events[1], "timestamp": T0 + n} for n in range(40)]
     by_room = rows.listed(rep, many, room=1_000)
@@ -72,8 +77,8 @@ def test_events_are_counted_by_code_and_a_list_cut_to_its_first_rows_says_what_w
     size = sum(len(line) + 1 for line in rows.listed(rep, many).lines)
     tight = rows.listed(rep, many, room=size - 50)
     assert tight.left_out and sum(len(line) + 1 for line in tight.lines) <= size - 50
-    assert rows.listed(rep, many).lines[0] == ("Counted: 40 damage; by ability: Tempest 40; from: Boss 40; on: "
-                                               "Nalaxd 40.")
+    assert rows.listed(rep, many).lines[0] == ("Counted: 40 damage (4.19M together, 42.40k more absorbed); by "
+                                               "ability: Tempest 40; from: Boss 40; on: Nalaxd 40.")
 
 
 def test_a_moment_between_pulls_is_in_none(rep):

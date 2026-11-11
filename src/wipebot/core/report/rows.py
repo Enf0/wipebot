@@ -18,7 +18,8 @@ HEAD_KEYS = frozenset({"timestamp", "type", "sourceID", "sourceInstance", "targe
 ACTOR_KEYS = {"killerID": ("killer", "killerInstance"), "attackerID": ("attacker", None)}
 ABILITY_KEYS = {"killingAbilityGameID": "killingAbility", "extraAbilityGameID": "extraAbility"}
 COUNTED_TOP = 8  # of each count (kinds, abilities, sources, targets), this many are named
-COUNTED_FROM = 10  # a list of events this long is counted too, by kind, ability, source and target
+COUNTED_FROM = 10  # a list of events this long is counted too, by kind, ability, source and target; a shorter one
+#                    when it has amounts to add up
 CUT_ROWS = 3  # a list of events cut to fit keeps at least this many rows
 
 
@@ -111,22 +112,45 @@ def _top(counts: Counter) -> str:
         f" and {len(counts) - len(shown)} more ({plural(rest, 'event')})" if rest else "")
 
 
+def _amount(e: dict, key: str = "amount") -> float | None:
+    """An event's amount (a hit's damage, a heal's healing), or None for one without."""
+    amount = e.get(key)
+    return amount if isinstance(amount, (int, float)) and not isinstance(amount, bool) else None
+
+
+def _summed(n: int, amount: float | None, absorbed: float) -> str:
+    """' (3.41M together, 1.25M more absorbed)' for a kind's `n` events with amounts, or '': the amounts as each
+    row has them, and what shields took apart, which a hit's amount leaves out and damage taken in breakdown
+    includes (KBYT4xXn7VNjDgh8 pull 13, Tempest on Sveini: 2.16M and 0.82M absorbed, 2.98M there)."""
+    if amount is None or n < 2:
+        return ""
+    return f" ({short(amount)} together" + (f", {short(absorbed)} more absorbed" if absorbed else "") + ")"
+
+
 def counted(rep: Report, events: Iterable[dict]) -> str:
-    """'Counted: 20 damage, 17 cast; by ability: Tempest 20, Ravage 17; from: Sszorak 37; on: Wutroll 12, ...': a
-    list of events by kind, ability, source and target, so a count comes from code however many rows are shown."""
+    """'Counted: 20 damage (3.41M together, 1.25M more absorbed), 17 cast; by ability: Tempest 20, Ravage 17; from:
+    Sszorak 37; on: Wutroll 12, ...': a list of events by kind, with the amounts of each kind added up, and by
+    ability, source and target, so a count or a sum comes from code however many rows are shown."""
     kinds: Counter = Counter()
+    amounts: dict[str, float] = {}
+    absorbed: dict[str, float] = {}
     abilities: Counter = Counter()
     sources: Counter = Counter()
     targets: Counter = Counter()
     for e in events:
-        kinds[e.get("type", "event")] += 1
+        kind = e.get("type", "event")
+        kinds[kind] += 1
+        if (amount := _amount(e)) is not None:
+            amounts[kind] = amounts.get(kind, 0) + amount
+            absorbed[kind] = absorbed.get(kind, 0) + (_amount(e, "absorbed") or 0)
         if e.get("abilityGameID"):
             abilities[rep.ability(e["abilityGameID"])] += 1
         if e.get("type") != "death" and e.get("sourceID") is not None:
             sources[unit(rep, e["sourceID"])] += 1
         if e.get("targetID") not in (None, -1):
             targets[unit(rep, e["targetID"])] += 1
-    parts = [", ".join(f"{n} {kind}" for kind, n in kinds.most_common())]
+    parts = [", ".join(f"{n} {kind}" + _summed(n, amounts.get(kind), absorbed.get(kind, 0))
+                       for kind, n in kinds.most_common())]
     parts += [f"{label}: {_top(c)}" for label, c in (("by ability", abilities), ("from", sources), ("on", targets))
               if c]
     return "Counted: " + "; ".join(parts) + "."
@@ -167,9 +191,10 @@ def pull_at(rep: Report, at: float, fight_id: int | None = None) -> dict | None:
 @dataclass
 class Listed:
     """A list of events as lines. `where` says which pull they are in and what their times count from (" in Sszorak
-    pull 13, times from the pull's start"), for the caller's own first line; `lines` are the counts (from
-    COUNTED_FROM events, or cut), a row an event under its pull's name where there are several pulls, what was left
-    out, and the ids of the abilities named; `left_out` is how many events have no row."""
+    pull 13, times from the pull's start"), for the caller's own first line; `lines` are the counts and sums (from
+    COUNTED_FROM events, or cut, or with amounts to add up), a row an event under its pull's name where there are
+    several pulls, what was left out, and the ids of the abilities named; `left_out` is how many events have no
+    row."""
     where: str
     lines: list[str]
     left_out: int = 0
@@ -211,7 +236,8 @@ def listed(rep: Report, events: list[dict], rest: Callable[[Report, dict], str] 
         while kept and not kept[-1][1]:  # a pull's name with none of its rows under it
             kept.pop()
     left_out = len(events) - sum(r for _, r in kept)
-    lines = [counts] if left_out or len(events) >= COUNTED_FROM else []
+    summed = Counter(e.get("type") for e in events if _amount(e) is not None)  # two amounts of a kind: a sum to make
+    lines = [counts] if left_out or len(events) >= COUNTED_FROM or max(summed.values(), default=0) > 1 else []
     lines += [line for line, _ in kept]
     if left_out:
         last, (f, _) = events[-1], pulls[-1]

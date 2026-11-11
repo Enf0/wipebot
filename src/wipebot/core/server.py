@@ -616,10 +616,11 @@ async def pull_timeline(pull: Pull = None, boss: Boss = None,
     With `ability` or `player`, the log's own events instead, a row each ("when exactly was X hit by Y?", "when
     was Z cast, and on whom?", "what did X press between 2:10 and 2:25?"; in any log, a top player's by its link):
     the time into the pull as m:ss.mmm, the kind (cast, begincast for the start of a cast bar, damage,
-    applydebuff, removedebuff, death), source → ability → target, a hit's amount; counted by kind, ability, source
-    and target, and the first 150 rows (start/end for the rest). Of an ability: its casts by enemies or players,
-    its hits on players, its debuff going on and off players, its buff on the boss, and the deaths it dealt. Of a
-    player: every cast they and their pets began or finished.
+    applydebuff, removedebuff, death), source → ability → target, a hit's amount; counted by kind (a kind's
+    amounts added up, with what shields absorbed apart, which damage taken in breakdown includes: "14 damage (1.86M
+    together, 2.00M more absorbed)"), ability, source and target, and the first 150 rows (start/end for the rest).
+    Of an ability: its casts by enemies or players, its hits on players, its debuff going on and off players, its
+    buff on the boss, and the deaths it dealt. Of a player: every cast they and their pets began or finished.
     Not for who a mechanic hit most over a night (mechanic_hits) or a player's casts per spell (player_pull)."""
     return await fight.pull_timeline(await lib().report(report), pull, boss, start, end, ability, player)
 
@@ -1903,16 +1904,17 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
     character(name, serverSlug, serverRegion) }, guildData { guild(...) }.
     Reading it: the answer is JSON, in the tools' terms where it is about a report. Each list of events is rows
     instead, under the JSON: the time m:ss.mmm into its pull, the kind, source → ability → target by name, then
-    what else the event holds; a long list is counted by kind, ability, source and target. A report's other times
-    (a table's bands, a death's row, a graph's pointStart) are m:ss.mmm into their pull too, and "Fights" names
-    each fight the answer is about as boss and pull number, a few with their length and how they ended. A `fights`
-    field keeps each fight's own start and end in the report's ms; its phase transitions are m:ss.mmm into the
-    pull, each with its `phase` as the other tools name it (P2, I1). An answer over 3 parts is cut to one: each
-    list then ends with how many items were left out, and the counts are of all its events. Events come a page at
-    a time (nextPageTimestamp, in the report's ms, is where the next starts); table and rankings are JSON inside
-    the answer. Rankings are kept per partition (a patch's), and a new one is empty for a while: an empty ranking
-    may need zone(id) { partitions } and an older `partition`; item level brackets are zone(id) { brackets },
-    counted from its min in steps of its bucket."""
+    what else the event holds; a long list, or one with amounts, is counted by kind (a kind's amounts added up,
+    with what shields absorbed apart), ability, source and target. A report's other times (a table's bands, a
+    death's row, a graph's pointStart) are m:ss.mmm into their pull too, and "Fights" names each fight the answer
+    is about as boss and pull number, a few with their length and how they ended. A `fights` field keeps each
+    fight's own start and end in the report's ms; its phase transitions are m:ss.mmm into the pull, each with its
+    `phase` as the other tools name it (P2, I1). An answer over 3 parts is cut to one: each list then ends with
+    how many items were left out, and the counts are of all its events. Events come a page at a time
+    (nextPageTimestamp, in the report's ms, is where the next starts); table and rankings are JSON inside the
+    answer. Rankings are kept per partition (a patch's), and a new one is empty for a while: an empty ranking may
+    need zone(id) { partitions } and an older `partition`; item level brackets are zone(id) { brackets }, counted
+    from its min in steps of its bucket."""
     if schema_type:
         return await queries.schema_text(lib().wcl, schema_type)
     if not query:
