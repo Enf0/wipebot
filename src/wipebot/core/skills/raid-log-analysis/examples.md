@@ -9,7 +9,7 @@ tank, died at 5:13 and Wutroll, the other tank, at 6:16. The nine deaths after 6
 `tank_swaps`: Wutroll held the boss alone from 5:15 and stood at Dripping Fangs 3 at 6:15; whose turn it was to taunt
 isn't in the log.
 
-Follow the chain from the first tank's death at 5:13: after it the other tank had nobody to trade with, so the 3
+Follow the chain to the first tank's death at 5:13: after it the other tank had nobody to trade with, so the 3
 stacks follow from that death and aren't a missed taunt. Why that tank died is open until `death_recap` is read.
 
 The answer leads with the tank's death at 5:13, then the chain with its times, and one change only if the recap

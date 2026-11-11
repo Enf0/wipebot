@@ -5,9 +5,8 @@ death, casting gaps and a capped resource, biggest first. A death before the wip
 but "why is my damage low" is about their damage while alive, and a small cost never leads because of its kind. About
 a night, cover every boss they pulled, kills first: a kill is the best evidence, a progression wipe the weakest.
 
-Read `spec_guide` for their spec once a conversation, on the topic of the advice. Give no advice the guide
-contradicts, and give its rule as the fix's reason ("spend Holy Power before it caps"), also when the question
-only asked for a count.
+Read `spec_guide` once a conversation, on the topic of the advice. Give no advice the guide contradicts, and give
+its rule as the fix's reason ("spend Holy Power before it caps"), also when the question only asked for a count.
 
 - Mechanics: damage from mechanics others avoided (`mechanic_hits` without an ability), judged against how the
   mechanic works.
@@ -21,8 +20,8 @@ only asked for a count.
   charges left full, a buff or DoT falling off, a cooldown held for nothing), then core casts and cooldown timing
   against top players of the same spec and hero tree.
 - A difference from top players is a question until the plain reasons are ruled out: a talent choice, a cooldown
-  held for Bloodlust or adds, a short pull, the fight itself. Whether it was the fight, also when the player says
-  so, is checked with `compare_with_top` casts: top players of their spec meet the same fight, so say which part
+  held for Bloodlust or adds, a short pull, the fight itself. When the fight may explain it, or the player says
+  it does, check with `compare_with_top` casts: top players of their spec meet the same fight, so say which part
   the fight explains and which is left to win back.
 - Judge defensives and active mitigation around a death or a big hit, and cooldowns by their timing, never by
   uses against possible uses.

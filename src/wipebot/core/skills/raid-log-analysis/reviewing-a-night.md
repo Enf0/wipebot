@@ -17,9 +17,9 @@ latest: a night with several bosses in progress takes one call per boss.
 - A question about every pull ("who missed their soak most?", "who pressed personals when told?", "who keeps
   standing off their spot?") is one call with `all_pulls` (`raid_note`, `raid_plan`, `pull_map`,
   `mechanic_hits`), never one call per pull.
-- A player hit by another group's soak, or standing at another player's spot, pull after pull has likely changed
-  places since the note or plan was saved: say that, and count none of it as misses. A spot the plan's notes say
-  moves (a player who runs out to bait) is no mistake either.
+- A player who pull after pull is hit by another group's soak, or stands at another player's spot, has likely
+  changed places since the note or plan was saved: say that, and count none of it as misses. A spot the plan's
+  notes say moves (a player who runs out to bait) is no mistake either.
 - Improving or not is read from the best wipe and the average wipe, early against late. On a boss counted by
   phase, say how far a wipe got as the tools write it, the phase with its health ("P2 80.8%"), never the health
   alone.

@@ -1,23 +1,24 @@
 # Reading a wipe
 
 Read "Ended by" in `pull_summary` first, then find why: killing blows tell how players died, not why the pull was
-lost. "Ended by" reads one of these ways, and each says where the why is.
+lost. "Ended by", read with the guide, is one of these, and each says where the why is.
 
 - A reset, the boss untouched: say so in a line.
 - The boss gained a buff and kept it to the end: when the guide calls it an enrage or berserk, find why it came.
-  Where a mechanic holds it off (a stack, a soak, a kick, an energy reset), check it each time it was due, against
-  the boss's power and a kill's timing, and the players alive then against the number it needs: fewer alive means
-  the deaths before it lost the pull, enough alive means the mechanic was late, early or missed. Where nothing
-  holds it off, the boss did not die in time: `compare_pulls` against a kill shows where the raid fell behind, and
-  players dead early, or in a window where the boss takes extra damage, are damage lost.
+  Where a mechanic holds it off (a stack, a soak, a kick, an energy reset), check each time it was due
+  (`pull_timeline`). Compare the players alive then with the number the mechanic needs: fewer means the earlier
+  deaths lost the pull. Enough means the mechanic was late, early or missed: check its time against the boss's
+  power and a kill's timing. Where nothing holds it off, the boss did not die in time: `compare_pulls` against a
+  kill shows where the raid fell behind, and players dead early, or in a window where the boss takes extra damage,
+  are damage lost.
 - One ability killed many, at once or in pulses: find which mechanic failed and how (who carried it, who soaked
   it, how many were alive for it). A death in that hit says nothing about that player's fault either way.
 - A raid-wide hit killed players: when a mechanic the raid missed caused the hit or made it bigger, that mechanic
   is the fix. The cooldown plan is the fix only when the guide says to use healing cooldowns for the hit and none
   came before it.
 - A stacking debuff reached its lethal cap: the cause is where the extra stacks came from.
-- Deaths one after another: start at the first death it names and follow what each left short: a soak, a stack,
-  a role.
+- Deaths one after another: from the first death it names, follow what each left short (a soak, a stack, a
+  role).
 
 Then work back to the first domino. Call `death_recap` on the first one to three deaths that stayed dead before
 the wipe was decided. It shows a one-shot, a slow bleed that healing did not cover, or an earlier hit that made a
