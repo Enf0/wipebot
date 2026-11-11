@@ -2974,6 +2974,22 @@ def test_a_deaths_headline_is_what_it_comes_down_to():
         "text": "Died at 0:53, no killing blow recorded.", "kind": "mind", "more": moved}
 
 
+async def test_a_death_after_the_wipe_was_decided_says_so_once_on_its_card(recorded, monkeypatch):
+    """A fallout death's card says what it was in its headline, with when the wipe was decided. The line under the
+    player's name said "after the wipe was decided" again."""
+    data = await death_data()
+    note = "after the wipe was decided at 0:40: fallout"
+    late = data | {"fallout": True, "note": note, "saved_by": [],
+                   "headline": {"text": f"Killed by {data['by']} at {clock(data['at_ms'])}, {note}.", "kind": ""}}
+    key = await server.view_key("death_recap", DEATH_CASE.args)
+    made_up_view(monkeypatch, key, late)
+    for width in (360, 720):
+        async with drawn("death_recap", {}, width=width) as (view, errors):
+            said = await view.locator("body").inner_text()
+        assert not errors, errors
+        assert said.count("after the wipe was decided") == 1 and f"died {clock(data['at_ms'])}" in said, width
+
+
 async def test_a_save_the_replay_cant_be_sure_of_is_not_counted_as_one(monkeypatch):
     """Cloak of Shadows' tooltip promises its immunity for a moment. Where it covers the lethal burst only if it
     held for all its seconds, the replay's row says "would have kept them alive only if it held ... can't be

@@ -39,7 +39,8 @@ views.death = (() => {
   function render() {
     if (!D || !root) return;
     const { full, picture, width } = kit.frame(root), p = D.player;
-    const sub = [`${p.spec} ${p.class}`, D.title, `died ${kit.clock(D.at_ms)}`, D.fallout ? "after the wipe was decided" : null,
+    // a death after the wipe was decided says so in its headline, with when: the line under the name doesn't repeat it
+    const sub = [`${p.spec} ${p.class}`, D.title, `died ${kit.clock(D.at_ms)}`,
                  D.deaths > 1 ? `death ${D.death} of ${D.deaths}` : null].filter(Boolean).join(" · ");
     root.innerHTML = kit.card({ title: p.name, sub, color: p.color, headline: D.headline, stats: stats(),
                                 chart: chart(full ? Math.max(560, width) : width, full) + (full && !picture ? hitList() : ""),
