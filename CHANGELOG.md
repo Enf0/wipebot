@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `MCP` **Claude and ChatGPT read Wipebot's method without the plugin.** How to read a wipe, a night or a player's log, and what an answer holds, used to reach only the Discord bot and people who had added the plugin: with the connector alone, Claude and ChatGPT got the tools and nothing on how to use them. They now read the method from a tool of its own before the first question. On the questions that went wrong without it, 19 of 33 answers were right where 11 were, against 22 with the plugin. Such an answer takes about 15 s longer.
 
+### Fixed
+
+- `MCP` **A pull's card reads cleanly on a phone.** The boss box keeps each % with what it is ("best of this log: WCL 4.5%"), where a narrow card left "WCL 4.5%" on a line of its own like a second answer. A damage peak's number is no longer written over the spike beside it: it stands next to its own peak, or stays in the tooltip when there's no room.
+
+  ![The Coiled Altar pull 3 on a phone in Claude's dark theme: the boss box "P2 0.5%, WCL 50.1% · best of this log: WCL 4.5%", and in the chart "8.6M" beside the first of two damage spikes at the line the wipe was decided at](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/pull-card-phone.webp)
+
 ## [1.1.0] - 2026-11-11
 
 ### Added

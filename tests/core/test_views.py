@@ -116,7 +116,7 @@ async def test_the_pull_cards_best_wipes_are_written_as_the_text_writes_a_percen
                  "guild": {"pct": pct_text(41.25), "day": "Thu 9 Oct"}}})
     async with drawn("pull_summary", {}, mode="fullscreen", width=1100) as (view, errors):
         said = await view.locator(".stats").first.inner_text()
-    assert not errors and "best of this log 63.2%" in said and "41.2%\nThu 9 Oct" in said
+    assert not errors and "best of this log:\xa063.2%" in said and "41.2%\nThu 9 Oct" in said
 
 
 async def test_a_damage_peak_names_the_healer_cooldowns_as_long_before_it_as_healing_counts_one(recorded, monkeypatch):

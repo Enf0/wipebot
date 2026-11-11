@@ -27,8 +27,11 @@ views.pull = (() => {
     if (D.got) {  // how far the wipe got, as pull_summary's first line states it
       const where = D.got_wcl ? [`WCL ${D.got_wcl}`] : [];
       if (b && b.new_guild) where.push("new guild best");
-      else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log ${wcl}${b.tonight}`);
-      out.push(["Boss", D.got, b && b.new_guild ? "best" : "", where.join(" · ")]);
+      else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log: ${wcl}${b.tonight}`);
+      // a % stays on the line of what it is: a narrow card never breaks "WCL 50.1%" or "log: WCL 4.5%" in two, which
+      // once left "WCL 4.5%" on a line of its own, as if a second answer
+      const whole = (t) => t.replace(/(log: )?(WCL )?(\S+%)$/, (m) => m.replaceAll(" ", "\u00a0"));
+      out.push(["Boss", D.got, b && b.new_guild ? "best" : "", where.map(whole).join(" · ")]);
     }
     out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), "",
               D.decided && D.deaths.length > counted().length ? `${D.deaths.length - counted().length} after it: fallout` : ""]);
@@ -217,15 +220,24 @@ views.pull = (() => {
       });
       boxes.push([x0 - 3, x0 + w + 3, ty - 11, ty + tall + 4]);
     }
-    // each peak's height: over the peak, or beside the line the wipe was decided at where it would sit on it, a row
-    // lower where that is taken or the health line runs through; a peak with no room for it keeps its tooltip
+    // each peak's height: over the peak, or, where it would sit on the line the wipe was decided at, beside that
+    // line or beside the peak, a row lower where that is taken or the health line runs through. Never on the damage
+    // itself (a peak beside it once had its spike written over); a peak with no room for it keeps its tooltip
+    const damageTop = (x0, x1) => {  // the damage's highest point between two x of the plot, as a y
+      const half = step / 2 / D.duration_ms * (W - L - R) + 1;
+      const ys = per.filter(([ms]) => { const px = x(Math.min(ms + step / 2, D.duration_ms)); return px > x0 - half && px < x1 + half; }).map(([, v]) => yD(v));
+      return ys.length ? Math.min(...ys) : bottom;
+    };
     for (const pk of peaks) {
       const text = kit.short(pk.per_s), w = kit.width(text), cx = (x(pk.from_ms) + x(pk.to_ms)) / 2;
       const py = Math.max(top + 9, yD(pk.per_s) - 5), tries = [[cx - w / 2, py]];
-      if (dx != null && Math.abs(cx - dx) < w / 2 + 6) for (const row of [0, 1, 2, 3]) tries.push([dx - 5 - w, py + 13 * row], [dx + 5, py + 13 * row]);
+      if (dx != null && Math.abs(cx - dx) < w / 2 + 6) {
+        for (const row of [0, 1, 2, 3]) tries.push([dx - 5 - w, py + 13 * row], [dx + 5, py + 13 * row]);
+        for (const row of [0, 1, 2, 3]) tries.push([x(pk.from_ms) - 5 - w, py + 13 * row]);
+      }
       const clear = (lx, ly) => { const line = healthBetween(lx, lx + w); return !line || line[1] < ly - 12 || line[0] > ly + 6; };
       const at = tries.find(([lx, ly]) => lx >= L && lx + w <= W - R - 2 && ly < bottom - 2 && (dx == null || lx > dx + 2 || lx + w < dx - 2)
-        && free(lx - 2, lx + w + 2, ly - 9, ly + 3) && clear(lx, ly));
+        && free(lx - 2, lx + w + 2, ly - 9, ly + 3) && clear(lx, ly) && damageTop(lx, lx + w) > ly + 2);
       if (!at) continue;
       o += kit.text(at[0], at[1], text, "td", 'font-weight="600" pointer-events="none"');
       boxes.push([at[0] - 2, at[0] + w + 2, at[1] - 9, at[1] + 3]);
