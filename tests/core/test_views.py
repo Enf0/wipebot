@@ -863,7 +863,73 @@ async def test_the_note_view_counts_the_callouts_raid_note_counts(recorded):
     counts = {n: (int(a), int(m))
               for n, a, m in re.findall(r"^    (\S+): alive for (\d+); pressed at (\d+)", block, re.MULTILINE)}
     assert counts and {r["player"]: (r["alive"], r["made"]) for r in personals["rows"]} == counts
-    assert {s for r in personals["rows"] for p in r["cells"] for s in p} == {"answered", "none", "dead", "excused"}
+    assert {s for r in personals["rows"] for p in r["cells"] for s in p} == {"answered", "none", "dead", "excused",
+                                                                             "running"}
+
+
+async def test_the_note_view_sets_a_defensive_already_running_apart_as_raid_note_does(recorded):
+    """A defensive pressed before the callout's window and still up is not counted against a raider, and raid_note
+    says so by name ("one already running 10"). The board drew it as the blue of "the note's cooldown for them",
+    which it isn't: it has its own square, as many as the text counts."""
+    data, (text, _) = await note_data("raid-note-night"), await server.call("raid_note", CASES["raid-note-night"].args)
+    [personals] = data["callouts"]["callouts"]
+    block = text.split('"Big Personals" to everyone', 1)[1].split("\n  \"", 1)[0]
+    said = {n: int(k) for n, k in re.findall(rf"^    (\S+): .*one {notes.RUNNING} (\d+)", block, re.MULTILINE)}
+    drawn_as = {r["player"]: k for r in personals["rows"]
+                if (k := sum(s == "running" for p in r["cells"] for s in p))}
+    assert said and drawn_as == said
+    not_counted = {n: int(k) for n, k in re.findall(r"^    (\S+): .*not counted at (\d+) \(", block, re.MULTILINE)}
+    assert {r["player"]: k for r in personals["rows"]  # with the note's plan for them and a tank's kept for after
+            if (k := sum(s in ("running", "excused") for p in r["cells"] for s in p))} == not_counted
+
+
+async def test_the_note_board_for_one_raider_is_their_part(recorded):
+    """raid_note with `player` prints that raider's rows; its board drew every raider's all the same. It is their
+    kick assignment with their count, their planned cooldowns, and their row of each callout that names them or
+    everyone, with the pulls lost after a cast went through as the text counts them for scale."""
+    case = CASES["raid-note-kicks-player"]
+    data, (text, _) = await note_data("raid-note-kicks-player"), await server.call("raid_note", case.args)
+    assert data["player"] == "Enfo" and data["title"] == "The Twin Fangs: Enfo's part of the raid note"
+    k = data["kicks"]
+    assert [s["player"] for s in k["slots"]] == ["Enfo"]
+    assert {c["player"] for p in k["pulls"] for cell in p["cells"] for c in cell} == {"Enfo"}
+    [(made, alive)] = re.findall(r"^  Enfo \(Kick[^)]*\): kicked (\d+) of (\d+)", text, re.MULTILINE)
+    assert (k["made"], k["alive"]) == (int(made), int(alive))
+    [(lost, counted, first)] = re.findall(r"went through: (\d+) of (\d+); Enfo's cast was the first to go through "
+                                          r"on (\d+)", text)
+    assert (k["lost"], k["counted"]) == (int(lost), int(counted))
+    assert sum(f["count"] for f in k["first"]) == int(first) and all(f["name"] == "Enfo" for f in k["first"])
+    assert {u["player"] for u in data["cooldowns"]["uses"]} == {"Enfo"}
+    [uses] = re.findall(r"^  Enfo: (\d+) planned uses", text, re.MULTILINE)
+    assert sum(bool(c) for p in data["cooldowns"]["pulls"] for c in p["cells"]) == int(uses)
+    case = CASES["raid-note-night-player"]
+    data, (text, _) = await note_data("raid-note-night-player"), await server.call("raid_note", case.args)
+    assert data["kicks"] is None and data["cooldowns"] is None  # "the note plans none for Zebinomage"
+    [personals] = data["callouts"]["callouts"]
+    [row] = personals["rows"]
+    [(alive, made)] = re.findall(r"^    Zebinomage: alive for (\d+); pressed at (\d+)", text, re.MULTILINE)
+    assert (row["player"], row["alive"], row["made"]) == ("Zebinomage", int(alive), int(made))
+
+
+async def test_the_note_boards_bands_are_the_note_checks_own_and_one_raiders_board_says_whose(recorded, tmp_path):
+    """What counts as on time, as answering a callout and as a pull lost after a cast is said on the board in the
+    note check's own numbers, not in copies of them, and a defensive already running has its word in the legend.
+    One raider's board names them under each panel's title and counts their casts."""
+    src = resources.files("wipebot.core").joinpath("app", "note.js").read_text(encoding="utf-8")
+    assert "within 1 s" not in src and "3 s before to 5 s after" not in src and "within 10 s" not in src
+    assert "const FEW = 3" not in src
+    [s] = await shots(tmp_path / "night", "raid_note", CASES["raid-note-night"].args)
+    assert not s.errors, s.errors
+    assert f"on time (within {notes.ON_TIME_S} s)" in s.text and f"a defensive {notes.RUNNING}" in s.text
+    assert (f"pressed from {notes.CALL_BEFORE_MS // 1000} s before to {notes.CALL_AFTER_MS // 1000} s after the "
+            "callout answers it") in s.text
+    assert f"which fewer than {views.NOTE_FEW} pulls reached" in s.text
+    [s] = await shots(tmp_path / "theirs", "raid_note", CASES["raid-note-kicks-player"].args)
+    assert not s.errors, s.errors
+    said = s.text.upper()
+    assert "ENFO · THE TWIN FANGS · 39 PULLS" in said and "THEIRS WENT THROUGH FIRST\n0 OF 11" in said
+    assert f"THE WIPE DECIDED WITHIN {notes.LOST_AFTER_MS // 1000} S, ANY PLAYER'S CAST" in said
+    assert "WHOSE CAST WENT THROUGH FIRST" not in said and "KARADIM" not in said
 
 
 @pytest.mark.parametrize("case", ["raid-note", "raid-note-kicks"])
@@ -905,6 +971,17 @@ async def test_the_note_for_the_next_raid_is_drawn_as_it_is_player_by_player(rec
     [s] = await shots(tmp_path, "raid_note", key["args"] | {"report": report})
     assert not s.errors, s.errors
     assert "Twin Fangs: who does what" in s.text and rows[0]["player"] in s.text and "saved by Rowan" in s.text
+    # asked for one raider (raid_note's player), their row alone under what everyone is told: it drew every raider's
+    key = await server.view_key("raid_note", {"report": report, "boss": "Twin Fangs", "upcoming": True,
+                                              "player": "enfo"})
+    assert key is not None and key["args"]["player"] == "enfo"
+    theirs = (await server.view_data(**key)).structured_content
+    assert theirs is not None and theirs["player"] == "Enfo"
+    assert theirs["title"] == "Twin Fangs: Enfo's part of the raid note"
+    assert theirs["plan"]["rows"] == [r for r in rows if r["player"] == "Enfo"] != []
+    assert theirs["plan"]["everyone"] == data["plan"]["everyone"]
+    [s] = await shots(tmp_path / "theirs", "raid_note", key["args"] | {"report": report})
+    assert not s.errors and "Twin Fangs: Enfo's part" in s.text and rows[0]["player"] not in s.text
 
 
 VERSUS_CASE = CASES["compare-raid-mates"]  # two Frost Mages over every Twin Fangs pull both were in

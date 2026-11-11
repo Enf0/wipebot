@@ -3,7 +3,9 @@
 // its player dead), the cast that went through first on a pull its wipe followed ringed; under it, whose cast that
 // was, counted. Then each planned cooldown pull by pull, and each callout's players pull by pull (pressed what answers
 // it, only something else, none). A panel (data-panel) each, each its own picture in Discord, named so an answer
-// can pick the one it's about.
+// can pick the one it's about. Asked for one raider (raid_note's player, D.player), the panels hold their part.
+// The bands a panel names (on time, a callout's window, a pull lost after a cast, too few pulls to draw) are the
+// note check's own, sent with the data.
 // For a boss not pulled yet or the next raid (raid_note's upcoming), the note as it is: each player's jobs and, on the
 // fight's timeline, their planned cooldowns and the callouts to them ----
 views.note = (() => {
@@ -22,9 +24,10 @@ views.note = (() => {
     "not cast": [MISS, "not cast"], dead: ["var(--muted)", "dead by then"], absent: ["var(--line)", "not in the pull"],
   };
 
-  const FEW = 3;  // a planned cooldown, kick assignment or callout fewer pulls than this reached isn't drawn (views.NOTE_FEW)
+  // D.few: a planned cooldown, kick assignment or callout fewer pulls than this reached isn't drawn (views.NOTE_FEW)
   const MIN_W = 520;  // .note-board .grid svg's min-width
-  const NEAR_S = 3, NEAR = "color-mix(in srgb, var(--gold) 45%, var(--bg))";  // a cooldown off by 1-3 s: paler
+  // a cooldown off by more than on time allows and by NEAR_S at most is drawn paler: a shade, counted as early or late
+  const NEAR_S = 3, NEAR = "color-mix(in srgb, var(--gold) 45%, var(--bg))";
   const NEAR_GREEN = "color-mix(in srgb, var(--green) 45%, var(--bg))";
 
   async function show(into, key) {
@@ -36,6 +39,9 @@ views.note = (() => {
   const square = (x, y, fill, tip, ring) => `<rect x="${x}" y="${y}" width="${SQ}" height="${SQ}" rx="2" fill="${fill}"`
     + (ring ? ` stroke="var(--gold)" stroke-width="2"` : "") + `${kit.tip(tip)}/>`
     + (fill === MISS ? `<path d="M${x + 3} ${y + 3}l4 4m0 -4l-4 4" stroke="var(--bg)" stroke-width="1.5" stroke-linecap="round" pointer-events="none"/>` : "");
+  // a square in outline: not a press at the callout and not a miss (a defensive already running)
+  const hollow = (x, y, color, tip) => `<rect x="${x + 1}" y="${y + 1}" width="${SQ - 2}" height="${SQ - 2}" rx="1.5" fill="transparent" stroke="${color}" stroke-width="2"${kit.tip(tip)}/>`;
+  const whose = () => D.player ? `${D.player} · ${D.boss}` : D.boss;  // under a panel's title: whose part it is
   // the legend under a grid: [a swatch's style, its word, whether it's ringed]
   const legend = (items) => `<div class="legend">${items.map(([style, word, ring]) => {
     const css = style === MISS ? "" : style.includes(":") ? style : `background:${style}`;
@@ -64,7 +70,7 @@ views.note = (() => {
           + (c.state === "covered" ? ` (${c.by})` : "") + (c.lead ? "\nThe first to go through before the wipe was decided" : "");
         body += square(left + j * colW + 2 + k * (SQ + GAP), y, fill, tip, c.lead);
       }));
-      if (p.lost && p.counted) body += `<rect x="${w - 10}" y="${y}" width="4" height="${SQ}" rx="1" fill="var(--dead)"${kit.tip(`Pull ${p.pull}: the wipe was decided within 10 s after a cast went through`)}/>`;
+      if (p.lost && p.counted) body += `<rect x="${w - 10}" y="${y}" width="4" height="${SQ}" rx="1" fill="var(--dead)"${kit.tip(`Pull ${p.pull}: the wipe was decided within ${K.lost_after_s} s after a cast went through`)}/>`;
       body += "</g>";
     });
     const from = K.from_pull ? K.pulls.findIndex((p) => p.pull === K.from_pull) : -1;
@@ -73,32 +79,35 @@ views.note = (() => {
       body += kit.line(left - 30, y, w, y, "var(--gold)", 'stroke-dasharray="3 3" opacity="0.7"');
     }
     const lead = K.first[0];
-    const head = `<div class="head"><h1>Kick assignments</h1><span class="sub">${kit.esc(D.boss)} · ${kit.plural(K.pulls.length, "pull")}`
+    const head = `<div class="head"><h1>Kick assignments</h1><span class="sub">${kit.esc(whose())} · ${kit.plural(K.pulls.length, "pull")}`
       + (K.from_pull ? ` · counted from pull ${K.from_pull}, when the note's order came in` : "") + "</span></div>";
     const stats = kit.stats([
-      ["Kicked", `${K.made} of ${K.alive}`, "", "by their player, while alive"],
-      ["Pulls lost after a cast went through", `${K.lost} of ${K.counted}`, K.lost ? "dead" : "", "the wipe decided within 10 s"],
-      lead ? ["Went through first most", lead.name, "", `${lead.count} of those pulls`] : null,
+      ["Kicked", `${K.made} of ${K.alive}`, "", D.player ? "of their casts, while alive" : "by their player, while alive"],
+      ["Pulls lost after a cast went through", `${K.lost} of ${K.counted}`, K.lost ? "dead" : "",
+       `the wipe decided within ${K.lost_after_s} s${D.player ? ", any player's cast" : ""}`],
+      D.player ? (K.lost ? ["Theirs went through first", `${lead ? lead.count : 0} of ${K.lost}`, "", "of those pulls"] : null)
+        : lead ? ["Went through first most", lead.name, "", `${lead.count} of those pulls`] : null,
     ]);
     const max = Math.max(1, ...K.first.map((f) => f.count));
-    const first = K.first.length ? `<div class="sec">Whose cast went through first, on the pulls the wipe followed</div><ol class="tally">`
+    const first = K.first.length && !D.player ? `<div class="sec">Whose cast went through first, on the pulls the wipe followed</div><ol class="tally">`
       + K.first.map((f) => `<li><span ${kit.cls(f.color, "nm cls")}>${kit.esc(f.name)}</span>`
         + `<span class="bar"><i class="cb" style="width:${(100 * f.count / max).toFixed(1)}%;--c:${kit.esc(f.color)}"></i></span><span class="val">${f.count}</span></li>`).join("")
       + "</ol>" : "";
     const keys = legend([[KICK.kicked[0], "kicked"], [KICK.covered[0], "covered by another"], [KICK.through[0], "went through"],
                          [KICK.through[0], "first through, the wipe followed", true], [KICK.dead[0], "their player dead"]]);
-    const fewer = K.fewer ? `<div class="note">${K.fewer} more, which fewer than ${FEW} pulls reached, aren't drawn.</div>` : "";
+    const fewer = K.fewer ? `<div class="note">${K.fewer} more, which fewer than ${D.few} pulls reached, aren't drawn.</div>` : "";
     return `<section data-panel="kicks" class="note-board">${head}${stats}<div class="grid">${kit.svg(w, h, body, "Kick assignments by pull")}</div>${keys}${fewer}${first}</section>`;
   }
 
 
   function cooldowns(C0) {
     const reached = (r) => C0.pulls.filter((p) => p.cells[r]).length;
-    const rows = C0.uses.map((u, r) => r).filter((r) => reached(r) >= FEW);
+    const rows = C0.uses.map((u, r) => r).filter((r) => reached(r) >= D.few);
     const C = { uses: rows.map((r) => C0.uses[r]), pulls: C0.pulls.map((p) => ({ pull: p.pull, cells: rows.map((r) => p.cells[r]) })) };
     const fewer = C0.uses.length - rows.length;
     const labelW = 230, top = 26, colW = Math.max(SQ + 3, Math.min(16, 540 / C.pulls.length)), right = 70;
     const w = labelW + C.pulls.length * colW + right, h = top + C.uses.length * ROW + 4;
+    const shade = NEAR_S > C0.on_time_s;  // the paler band is there only past what is on time
     let body = "";
     C.pulls.forEach((p, i) => { if (p.pull === 1 || p.pull % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p.pull), "tm", 'text-anchor="middle"'); });
     C.uses.forEach((u, r) => {
@@ -111,7 +120,7 @@ views.note = (() => {
       C.pulls.forEach((p, i) => {
         const c = p.cells[r];
         if (!c) return;
-        const near = c.off_s !== undefined && c.state !== "on time" && Math.abs(c.off_s) <= NEAR_S;
+        const near = shade && c.off_s !== undefined && c.state !== "on time" && Math.abs(c.off_s) <= NEAR_S;
         const [fill, word] = near ? [NEAR, COOLDOWN[c.state][1]] : COOLDOWN[c.state];
         if (c.state !== "absent") seen++;
         if (c.state === "on time") on++;
@@ -120,24 +129,28 @@ views.note = (() => {
       });
       body += kit.text(w - 4, y + SQ - 0.5, `${on} of ${seen}`, "tm", 'text-anchor="end"');
     });
-    const head = `<div class="head"><h1>Planned cooldowns</h1><span class="sub">${kit.esc(D.boss)} · each pull until its wipe was decided</span></div>`;
-    const keys = legend([[COOLDOWN["on time"][0], "on time (within 1 s)"], [NEAR, `early or late by ${NEAR_S} s at most`], [COOLDOWN.late[0], "more"],
+    const head = `<div class="head"><h1>Planned cooldowns</h1><span class="sub">${kit.esc(whose())} · each pull until its wipe was decided</span></div>`;
+    const keys = legend([[COOLDOWN["on time"][0], `on time (within ${C0.on_time_s} s)`],
+                         ...(shade ? [[NEAR, `early or late by ${NEAR_S} s at most`], [COOLDOWN.late[0], "more"]] : [[COOLDOWN.late[0], "early or late"]]),
                          [COOLDOWN["not cast"][0], "not cast, alive"], [COOLDOWN.dead[0], "dead by then"]]);
     return `<section data-panel="cooldowns" class="note-board">${head}<div class="grid">${kit.svg(w, h, body, "Planned cooldowns by pull")}</div>${keys}`
       + `<div class="note">Right: on time, of the pulls that reached it before the wipe was decided.`
-      + (fewer ? ` ${fewer} more planned later, which fewer than ${FEW} pulls reached, aren't drawn.` : "") + "</div></section>";
+      + (fewer ? ` ${fewer} more planned later, which fewer than ${D.few} pulls reached, aren't drawn.` : "") + "</div></section>";
   }
 
   const CALLOUT = {  // a player at a pull's callouts: their fill, and the word in the legend
     answered: ["var(--green)", "pressed a defensive"], some: [NEAR_GREEN, "at some of them"],
-    none: [MISS, "no defensive"], excused: ["var(--blue)", "the note's cooldown for them, or a tank's kept for after"],
+    none: [MISS, "no defensive"], running: ["var(--green)", "a defensive already running"],
+    excused: ["var(--blue)", "the note's cooldown for them, or a tank's kept for after"],
     dead: ["var(--muted)", "dead"],
   };
+  const RUNNING = "background:none;border:2px solid var(--green);box-sizing:border-box";  // its swatch: the outline
+  const UNCOUNTED = { running: "a defensive pressed earlier was still running", excused: "pressed the cooldown the note plans for them, or a tank kept one for just after" };
   // A player's square on a pull, where the callout may come more than once: answered every time it found them alive,
-  // some of the times, never, or dead for all of them
+  // some of the times, never; not counted (one already running, or the note's plan for them), or dead for all of them
   function pullState(cell) {
     const alive = cell.filter((s) => s === "answered" || s === "none"), made = alive.filter((s) => s === "answered").length;
-    if (!alive.length) return cell.includes("excused") ? "excused" : "dead";
+    if (!alive.length) return cell.includes("running") ? "running" : cell.includes("excused") ? "excused" : "dead";
     if (made) return made === alive.length ? "answered" : "some";
     return "none";
   }
@@ -156,9 +169,9 @@ views.note = (() => {
         r.cells.forEach((cell, i) => {
           if (!cell.length) return;
           const alive = cell.filter((s) => s === "answered" || s === "none"), made = alive.filter((s) => s === "answered").length;
-          body += square(labelW + i * colW, y, CALLOUT[pullState(cell)][0],
-                         `Pull ${C.pulls[i]}, "${g.text}": ${r.player} ` + (alive.length ? `pressed a defensive at ${made} of ${alive.length}`
-                           : cell.includes("excused") ? "not counted: pressed the cooldown the note plans for them, or a tank kept one for just after" : "dead"));
+          const state = pullState(cell), tip = `Pull ${C.pulls[i]}, "${g.text}": ${r.player} `
+            + (alive.length ? `pressed a defensive at ${made} of ${alive.length}` : UNCOUNTED[state] ? `not counted: ${UNCOUNTED[state]}` : "dead");
+          body += state === "running" ? hollow(labelW + i * colW, y, CALLOUT.running[0], tip) : square(labelW + i * colW, y, CALLOUT[state][0], tip);
         });
         body += kit.text(w - 4, y + SQ - 0.5, `${r.made} of ${r.alive}`, "tm", 'text-anchor="end"');
         y += ROW;
@@ -166,11 +179,11 @@ views.note = (() => {
       y += 6;
     }
     const states = new Set(C.callouts.flatMap((g) => g.rows.flatMap((r) => r.cells.filter((c) => c.length).map(pullState))));
-    const hd = `<div class="head"><h1>Personals</h1><span class="sub">${kit.esc(D.boss)} · ${kit.plural(C.pulls.length, "pull")}</span></div>`;
+    const hd = `<div class="head"><h1>Personals</h1><span class="sub">${kit.esc(whose())} · ${kit.plural(C.pulls.length, "pull")}</span></div>`;
     const keys = legend(Object.entries(CALLOUT).filter(([s]) => s === "answered" || s === "none" || states.has(s))
-      .map(([, [fill, word]]) => [fill, word]));
+      .map(([s, [fill, word]]) => [s === "running" ? RUNNING : fill, word]));
     return `<section data-panel="callouts" class="note-board">${hd}<div class="grid">${kit.svg(w, h, body, "Callouts by pull")}</div>${keys}`
-      + `<div class="note">A defensive or tank cooldown pressed from 3 s before to 5 s after the callout answers it. Right: times they pressed one, of the times they were alive.</div></section>`;
+      + `<div class="note">A defensive or tank cooldown pressed from ${C.before_s} s before to ${C.after_s} s after the callout answers it. Right: times they pressed one, of the times they were alive and counted.</div></section>`;
   }
 
   const PLAN_W = 680, NAME_W = 112, PLAN_ROW = 34, SECTION = 18, PHASE_GAP = 10, LONG_HEADING = 18;
@@ -248,7 +261,7 @@ views.note = (() => {
       body += kit.labels(P.everyone.map((e) => [e, e.text]), X, ly + 3.5, "tm", P.everyone.map(X), right);
     }
     const sub = [D.difficulty, D.source && `saved ${D.source.replace(/^saved /, "")}`, "the note as it is, before the pull"];
-    const head = `<div class="head"><h1>${kit.esc(D.boss)}: who does what</h1><span class="sub">${kit.esc(sub.filter(Boolean).join(" · "))}</span></div>`;
+    const head = `<div class="head"><h1>${kit.esc(D.boss)}: ${D.player ? `${kit.esc(D.player)}'s part` : "who does what"}</h1><span class="sub">${kit.esc(sub.filter(Boolean).join(" · "))}</span></div>`;
     const texts = (k) => [...new Set(P.rows.flatMap((r) => r.callouts.filter((t) => kindOf(t) === k)))];
     const keyOf = (k) => texts(k).length === 1 ? texts(k)[0] : `${k[0].toUpperCase()}${k.slice(1)} callouts`;  // its words, or its kind
     const keys = legend([...kinds.map((k) => [hues.css(k), keyOf(k)]),
@@ -265,7 +278,7 @@ views.note = (() => {
     if (!D || !root) return;
     if (D.plan) { root.innerHTML = plan(D.plan); return; }
     const parts = [D.kicks && kicks(D.kicks), D.cooldowns && cooldowns(D.cooldowns), D.callouts && callouts(D.callouts)].filter(Boolean);
-    root.innerHTML = parts.join("") || '<div class="note">The note has no kick assignments, planned cooldowns or callouts for this boss.</div>';
+    root.innerHTML = parts.join("") || `<div class="note">The note has no kick assignments, planned cooldowns or callouts for ${D.player ? `${kit.esc(D.player)} on ` : ""}this boss.</div>`;
   }
 
   return { show, relayout: render };

@@ -4,6 +4,7 @@
 "difficulty": "Mythic",
 "source": "",
 "title": "Twin Fangs: the raid note",
+"player": null,
 "plan": {
   "phases": [{"phase": 1, "length_s": 459.0}],
   "everyone": [],
