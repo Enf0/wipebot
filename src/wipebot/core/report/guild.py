@@ -67,7 +67,7 @@ async def guild_reports(wcl: WCL, days: int, since_ms: float, guild: str | None 
 
 
 def _pulls(rep: dict) -> str:
-    """'boss pulls Heroic 2: The Coiled Altar 2 (killed); Mythic 31: The Coiled Altar 31': a report's boss pulls,
+    """'boss pulls Heroic 2: The Coiled Altar 2 (1 kill); Mythic 31: The Coiled Altar 31': a report's boss pulls,
     each raid difficulty with its own bosses, so a boss killed on Heroic and wiped on all night on Mythic reads as
     that; then what it holds that is no raid difficulty (a dungeon), named as other content, as a character's
     reports name it."""
@@ -75,7 +75,7 @@ def _pulls(rep: dict) -> str:
     other: list[str] = []
     for (d, boss), (n, kills) in (rep.get("bosses_by_difficulty") or {}).items():
         if d in DIFFICULTIES:
-            killed = f" ({'killed' if kills == 1 else f'{kills} kills'})" if kills else ""
+            killed = f" ({plural(kills, 'kill')})" if kills else ""  # "2 (1 kill)": "2 (killed)" read as two kills
             by_difficulty.setdefault(d, []).append(f"{boss} {n}{killed}")
         elif boss not in other:
             other.append(boss)

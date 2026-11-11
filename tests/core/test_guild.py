@@ -39,7 +39,7 @@ async def test_a_boss_killed_on_heroic_is_not_killed_on_mythic():
     """A Heroic kill and 31 Mythic wipes of one boss were added up as "33 (killed)" under "Heroic 2, Mythic 32"."""
     night = ([fight("Torvek's Forge", 4), fight("Torvek's Forge", 4, kill=True)]
              + [fight("Torvek's Forge", 5) for _ in range(31)] + [fight("The Slag Pit", 5)])
-    assert await listed(night) == ("boss pulls Heroic 2: Torvek's Forge 2 (killed); Mythic 32: Torvek's Forge 31, "
+    assert await listed(night) == ("boss pulls Heroic 2: Torvek's Forge 2 (1 kill); Mythic 32: Torvek's Forge 31, "
                                    "The Slag Pit 1")
 
 
@@ -47,7 +47,7 @@ async def test_a_dungeon_in_a_raid_log_is_not_a_boss_of_the_raid():
     """A dungeon's fights have no raid difficulty: they aren't counted in the pulls, so they aren't listed as one."""
     night = [fight("Torvek's Forge", 4, kill=True), fight("The Ember Halls", 10, kill=True),
              fight("The Ember Halls", 10)]
-    assert await listed(night) == "boss pulls Heroic 1: Torvek's Forge 1 (killed); other content: The Ember Halls"
+    assert await listed(night) == "boss pulls Heroic 1: Torvek's Forge 1 (1 kill); other content: The Ember Halls"
     assert await listed([fight("The Ember Halls", 10)]) == "no boss pulls; other content: The Ember Halls"
 
 
