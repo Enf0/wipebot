@@ -1,12 +1,12 @@
 {
  "bot": {
-  "commit": "69b21e9",
+  "commit": "7a827d7",
   "date": "2026-11-11",
-  "trials": "3 trials",
-  "passed": 273,
-  "of": 312,
+  "trials": "2-6 trials",
+  "passed": 205,
+  "of": 242,
   "errors": 0,
-  "verdict": "VERDICT: cannot tell: 83 of this run's 104 cases not compared."
+  "verdict": "VERDICT: cannot tell: 14 of this run's 104 cases not compared."
  },
  "plugin": {
   "commit": "8be93f8",
