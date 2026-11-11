@@ -169,10 +169,29 @@ async def raid_nights(rep: Report, weeks: int) -> tuple[list[dict], int, dict[st
     return nights, hardest, not_guild
 
 
-async def attendance(rep: Report, weeks: int = 4) -> str:
-    """Who raided the report's raid on which nights, for its guild over the last weeks: Warcraft Logs' attendance,
-    one entry per night."""
+async def nights_to(rep: Report, weeks: int) -> tuple[list[dict], int, dict[str, str]]:
+    """`raid_nights` of the weeks up to the report's night, that night among them. The attendance kept for an hour
+    can lack a log uploaded since: the report's night is then added from the report (`unlisted`), its players as
+    there, beside another raider's log of the night where that one is listed. A pug logged to the guild's page
+    stays out, as listed ones do."""
     nights, hardest, not_guild = await raid_nights(rep, weeks)
+    nights = [n for n in nights if n["start"] <= rep.end_ms]  # the weeks up to this report's night, not after it
+    if any(rep.code in n["codes"] for n in nights) or rep.code in not_guild or await rep.guild_run_doubt():
+        return nights, hardest, not_guild
+    there = {p.name: 1 for p in rep.players.values()}
+    same = next((n for n in nights if abs(n["start"] - rep.start_ms) <= SAME_NIGHT_MS), None)
+    if same:  # this log reads beside the listed one, each pull counted once (same_pull)
+        nights[nights.index(same)] = {"start": same["start"], "codes": [*same["codes"], rep.code],
+                                      "players": same["players"] | there}
+    else:
+        nights.append({"start": rep.start_ms, "codes": [rep.code], "players": there, "unlisted": True})
+    return sorted(nights, key=lambda n: n["start"]), hardest, not_guild
+
+
+async def attendance(rep: Report, weeks: int = 4) -> str:
+    """Who raided the report's raid on which nights, for its guild over the weeks up to the report's night:
+    Warcraft Logs' attendance, one entry per night, and the report itself for its own night where that lacks it."""
+    nights, hardest, not_guild = await nights_to(rep, weeks)
     if not nights:
         return (f"No {DIFFICULTIES.get(hardest, '')} raid nights of {rep.guild_name} in {rep.zone} logged in the "
                 f"last {plural(weeks, 'week')}.")
@@ -182,8 +201,8 @@ async def attendance(rep: Report, weeks: int = 4) -> str:
              f"{plural(weeks, 'week')}, from Warcraft Logs' attendance ({plural(len(nights), 'night')}; logs of one "
              f"evening count once, logs with fewer than {RAID_PULLS} {DIFFICULTIES.get(hardest, '')} pulls are left "
              "out):"]
-    lines += [f"- {date(n['start'])}: {plural(len(n['players']), 'player')} "
-              f"({', '.join(n['codes'])})" for n in nights]
+    lines += [f"- {date(n['start'])}: {plural(len(n['players']), 'player')} ({', '.join(n['codes'])}"
+              + (", read from the log: not in the attendance yet)" if n.get("unlisted") else ")") for n in nights]
     if not_guild:
         lines.append("Left out, as mostly players from outside the guild (a pug or another group logged to the "
                      "guild's page): " + ", ".join(f"{code} ({why})" for code, why in not_guild.items()))

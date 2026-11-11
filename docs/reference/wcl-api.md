@@ -183,8 +183,9 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   hold the same pulls, each beginning at most 5 s from its twin by the logs' own clocks (every Mythic pull: 16
   of 16 that night, 27 of 27 and 12 of 12 on two others): what reads a night's logs side by side counts a pull
   once (`report.base.same_pull`). A log uploaded between two pages' reads is on both pages. Wipebot keeps an
-  answer for an hour (`reports(guildID:)` for 5 min), so it can lack a log uploaded since: `progress` over the
-  weeks adds its own report's night when it isn't there.
+  answer for an hour (`reports(guildID:)` for 5 min), so it can lack a log uploaded since: `progress`, a
+  player's deaths and the attendance over the weeks add their own report's night when it isn't there
+  (`night.nights_to`).
 - `guild.members(limit, page) { data { name } }` is the game's guild roster, alts included (several hundred
   names for one guild). Raiders log their pugs to the guild's page too; the share of a log's players in it tells
   them apart: the guild's nights had 86-100%, pugs and other groups 2-48% (Wipebot's line: two thirds).

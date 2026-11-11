@@ -1587,19 +1587,11 @@ async def progress(boss: Annotated[str | None, Field(description=(
 
 async def boss_nights(rep: Report, boss: str | None, weeks: int) -> list[night.BossNight]:
     """The boss of `progress` (on its difficulty in this report) on each of the guild's raid nights over the weeks,
-    this report's own night among them: the attendance kept for an hour can lack a log uploaded since."""
+    this report's own night among them (night.nights_to)."""
     f = rep.by_boss[rep.boss(boss)][-1]
-    nights, _, not_guild = await night.raid_nights(rep, weeks)
-    nights = [n for n in nights if n["start"] <= rep.end_ms]  # the weeks up to this report's night, not after it
-    listed = any(rep.code in n["codes"] for n in nights) or rep.code in not_guild
-    if not listed and not await rep.guild_run_doubt():  # a pug logged to the guild's page stays out, as listed ones do
-        same = next((n for n in nights if abs(n["start"] - rep.start_ms) <= night.SAME_NIGHT_MS), None)
-        if same:  # another raider's log of the night is listed: this one reads beside it, each pull counted once
-            nights[nights.index(same)] = same | {"codes": [*same["codes"], rep.code]}
-        else:
-            nights.append({"start": rep.start_ms, "codes": [rep.code], "players": {}})
+    nights, _, _ = await night.nights_to(rep, weeks)
     found = []
-    for n in sorted(nights, key=lambda n: n["start"]):
+    for n in nights:
         if (one := await night.boss_night(await lib().night(n), n["start"], f["encounterID"], f.get("difficulty"))):
             found.append(one)
     return found
@@ -1784,7 +1776,7 @@ async def player_history(
     await rep.character(player)  # a wrong name fails the call, not each part
 
     async def deaths_part() -> str:
-        nights, hardest, _ = await night.raid_nights(rep, weeks)
+        nights, hardest, _ = await night.nights_to(rep, weeks)
         wanted = name_key(player)
         there = [n for n in nights if any(name_key(name) == wanted and presence == 1
                                           for name, presence in n["players"].items())]

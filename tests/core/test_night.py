@@ -45,6 +45,32 @@ async def test_attendance_counts_a_night_once_and_leaves_out_other_difficulties(
     assert lines[-1] == "Nights raided, of 2: Torvek 2, Mirelle 1, Brightleaf 0 (+1 benched)"
 
 
+async def test_the_nights_up_to_a_report_hold_its_own_when_attendance_lacks_it(rep, patch_wcl):
+    rep.guild_id, rep.zone_id, rep.guild_name = 14169, 53, "The Copper Lanterns"
+    week, hour = 7 * 86400 * 1000, 3600 * 1000
+    there = dict.fromkeys((p.name for p in rep.players.values()), 1)
+    earlier = {"code": "EARLIER", "startTime": rep.start_ms - week, "players": [{"name": "Torvek", "presence": 1}]}
+    later = {"code": "LATER", "startTime": rep.end_ms + week, "players": [{"name": "Torvek", "presence": 1}]}
+    logs = [earlier, later]
+    patch_wcl(rep, attendance=lambda *_: list(logs), guild_reports=[], guild_members=set())
+
+    async def nights() -> list[tuple[float, list[str], dict[str, int]]]:
+        return [(n["start"], n["codes"], n["players"]) for n in (await night.nights_to(rep, 2))[0]]
+    # not listed yet: its night is added as the report has it, everyone in the log as there; a later night is not its
+    assert await nights() == [(earlier["startTime"], ["EARLIER"], {"Torvek": 1}), (rep.start_ms, [rep.code], there)]
+    lines = (await night.attendance(rep, 2)).splitlines()  # who raided which nights reads the same nights
+    assert "(2 nights;" in lines[0] and lines[1].endswith("1 player (EARLIER)")
+    assert lines[2].endswith(f"{len(there)} players ({rep.code}, read from the log: not in the attendance yet)")
+    # only another raider's log of the night is listed: this one reads beside it, and who it has there was there
+    benched = next(iter(there))
+    logs.append({"code": "THEIRS", "startTime": rep.start_ms - hour,
+                 "players": [{"name": benched, "presence": 2}, {"name": "Torvek", "presence": 1}]})
+    assert (await nights())[1] == (rep.start_ms - hour, ["THEIRS", rep.code], {"Torvek": 1} | there)
+    # listed under its own code: as attendance has it
+    logs[2:] = [{"code": rep.code, "startTime": rep.start_ms, "players": [{"name": "Torvek", "presence": 1}]}]
+    assert (await nights())[1] == (rep.start_ms, [rep.code], {"Torvek": 1})
+
+
 async def test_a_boss_night_counts_its_pulls_once_with_the_kill_the_best_wipe_and_the_endings(rep):
     f = rep.by_boss[rep.boss("sszorak")][-1]
     one = await night.boss_night([rep], rep.start_ms, f["encounterID"], f.get("difficulty"))

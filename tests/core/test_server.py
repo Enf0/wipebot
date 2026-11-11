@@ -407,6 +407,52 @@ async def test_a_players_deaths_over_the_weeks_are_refused_when_points_run_low(m
     assert text == f"Not available: deaths over weeks reads about {asked[0]} points: ask again in 5 min"
 
 
+async def test_a_players_deaths_over_the_weeks_hold_the_reports_own_night_when_attendance_lacks_it(monkeypatch, rep,
+                                                                                                  patch_wcl):
+    library = server.Library(CODE, wcl=rep.wcl)
+    rep = await library.report()
+    monkeypatch.setattr(server.DEFAULT, "library", library)
+    week = 7 * 86400 * 1000
+    name = next(p.name for p in rep.players.values())
+    listed = [{"start": rep.start_ms - week, "codes": ["EARLIER"], "players": {name: 1}},
+              {"start": rep.end_ms + week, "codes": ["LATER"], "players": {name: 1}}]
+    read: list[list[str]] = []  # each night's logs, as they were loaded
+    real = library.night
+
+    async def raid_nights(*_):
+        return list(listed), 5, {}
+
+    twin = Report(rep.wcl, "THEIRS")  # another raider's log of the same pulls, its clock seconds off
+    await twin.load()
+    twin.start_ms = rep.start_ms - 4_000
+
+    async def loaded(n, *args):  # an earlier log reads as this one: only which nights and logs are read is under test
+        read.append(n["codes"])
+        return await real(n, *args) if n["codes"] == [CODE] else [twin, rep] if "THEIRS" in n["codes"] else [rep]
+    monkeypatch.setattr(server.night, "raid_nights", raid_nights)
+    monkeypatch.setattr(library, "night", loaded)
+    asked = []
+
+    async def ensure_points(need, what):
+        asked.append(need)
+    patch_wcl(rep, ensure_points=ensure_points)
+    text, failed = await server.call("player_history", {"player": name, "show": ["deaths"]})
+    # last week's night as attendance lists it, then this log's own, which it doesn't yet; not a night after it
+    assert not failed and read == [["EARLIER"], [CODE]] and asked == [2 * server.DEATHS_NIGHT_POINTS]
+    days = [server.night.date(t) for t in (rep.start_ms - week, rep.start_ms)]
+    assert re.findall(r"^- (.+?): \d+ pulls? on ", text, re.M) == days and "\nOver the 2 nights: " in text
+    # a night the player sat out is neither read nor counted in the points
+    del read[:], asked[:]
+    listed[0]["players"] = {name: 2, "Torvek": 1}
+    alone, failed = await server.call("player_history", {"player": name, "show": ["deaths"]})
+    assert read == [[CODE]] and asked == [server.DEATHS_NIGHT_POINTS] and len(alone.splitlines()) == 2
+    # only another raider's log of the night is listed: this one reads beside it, each pull and death counted once
+    del read[:]
+    listed.append({"start": twin.start_ms, "codes": ["THEIRS"], "players": {"Torvek": 1}})
+    text, failed = await server.call("player_history", {"player": name, "show": ["deaths"]})
+    assert read == [["THEIRS", CODE]] and text == alone
+
+
 async def test_progress_over_the_weeks_holds_the_reports_own_night_when_attendance_lacks_it(monkeypatch, rep,
                                                                                             patch_wcl):
     library = server.Library(CODE, wcl=rep.wcl)
