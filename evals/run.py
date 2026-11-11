@@ -1510,6 +1510,9 @@ def arguments() -> argparse.ArgumentParser:
     parser.add_argument("--label", metavar="RESULTS", help="mark a run's answers yourself")
     parser.add_argument("--label-failed", type=int, metavar="N", help="mark N answers the judge failed yourself")
     parser.add_argument("--agreement", action="store_true", help="compare the judge with your marks")
+    parser.add_argument("--planted", action="store_true",
+                        help="ask the judge about the answers planted to be wrong (evals/planted.toml): how many "
+                             "it fails; -k picks their cases")
     parser.add_argument("--lint", action="store_true",
                         help="check the cases' numbers against the tools' output now (no model)")
     parser.add_argument("--endings", action="store_true",
@@ -1546,6 +1549,9 @@ def main() -> None:
         label_failed(args.label_failed)
     elif args.agreement:
         asyncio.run(agreement(args.judge_model))
+    elif args.planted:
+        from evals import planted
+        sys.exit(asyncio.run(planted.planted(args.judge_model, args.filter, billed_to=args.billed_to)))
     elif args.lint:
         sys.exit(asyncio.run(_lint_then_drain(args.filter)))
     elif args.recheck:
