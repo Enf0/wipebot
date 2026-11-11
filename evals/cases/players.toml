@@ -293,11 +293,17 @@ question = "How did the healers do on the Twin Fangs kill? Were raid cooldowns u
 asker = "Enfo"
 pull = 7
 boss = "The Twin Fangs"
-expect = """Mostly well: the healing cooldowns went into each Stir the Depths and Ravenous Feast cycle but the fifth.
-The biggest damage spike, 6:29-6:37 at 1.82M/s taken (Venomous Emergence at 6:18, Stir the Depths at 6:31), got
-no healing cooldown until Zephyr at 6:44 and Darkness at 6:48, with Avenging Wrath not used again after 3:32."""
+expect = """Mostly well; the main miss came late: the 6:29-6:37 spike (1.82M/s taken; Venomous Emergence at 6:18, Stir
+the Depths at 6:31) got no healing cooldown until Zephyr at 6:44 and Darkness at 6:48, while Avenging Wrath, not used
+again after 3:32, sat ready through it. The four spikes are close in size (1.73M/s to 1.82M/s), so which one an answer
+calls the biggest doesn't matter. Calling the 7:36-7:44 spike thin too is fair, and so is naming the 1:58-2:05 spike
+with none up, as healing lists it, as long as the verdict stays mostly well."""
 facts = ["Stir the Depths at 0:52, 2:00, 3:41, 4:49, 6:31, 7:39; Ravenous Feast at 1:07, 2:15, 3:57, 5:04, 6:46, 7:54",
+         """each of the first four cycles got healing cooldowns; the second only Ascendance at 1:52 and Zephyr at
+2:16""",
          "the 4:49 cycle got Rallying Cry at 4:47, Ascendance at 4:53, Spirit Link Totem at 5:04 and Rewind at 5:09",
+         """the 7:36-7:44 spike got none either: Aura Mastery and Stasis at 7:24 came before it, Ascendance at 7:54
+went into the Feast, and Avenging Wrath sat ready""",
          "Avenging Wrath used twice, at 0:40 and 3:32",
          "the late deaths were Eternal Venom stacks (10 kill) and a 7:54 Feast with only 3 soakers per hit, not damage healing should have covered"]
 wrong = ["faults the healers' overhealing",

@@ -299,11 +299,11 @@ drifts = ["31-39%"]
 facts = ["Namsus 416.63k/s, overheal 45%; Miralupa 408.84k/s, overheal 44%",
          "the raid healed 2.14M/s",
          "the top Holy Priests overhealed about 31-39%, in raids of 5 healers too",
-         "no healer ran short of mana",
-         "whether a fifth healer is needed shows in the damage spikes, not in overheal"]
+         "no healer ran short of mana"]
 wrong = ["says the priests' overheal is a problem they should fix",
          "says mastery or Echo of Light loses more to overheal than other healing",
-         "compares overheal percentages across specs as a measure of who healed well"]
+         "compares overheal percentages across specs as a measure of who healed well",
+         "draws from overheal that a fifth healer adds little or isn't needed"]
 
 [[case]]
 id = "real-healer-overheal-pushback"  # a Holy Priest pushes back: overheal alone says nothing (#1039)

@@ -71,10 +71,12 @@ report = "PjKR7hQwtYpd8WDz"
 question = "Who keeps dying first on Sentinels?"
 asker = "Karadim"
 expect = """Scopidruid and Grusarn died first most often: Scopidruid is listed first on 3 of the 7 pulls (2, 3 and
-4), each time to something different, Grusarn on 2 (5 and 6), and nobody else more than once. Only one of
-Scopidruid's three mattered alone: on pull 3 they were one of five killed by Noxious Blast within a second, a hit
-killing many that counts against no one (so two each is right too, if the answer says pull 3 was set aside and why),
-and on pull 4 the pull went on two minutes after their death to the night's best wipe."""
+4), each time to something different, Grusarn on 2 (5 and 6), and nobody else more than once. Two of Scopidruid's
+three shouldn't count against them as the tally suggests. On pull 3 they were one of five killed by Noxious Blast
+within a second, a hit killing many that counts against no one (so two each is right too, if the answer sets pull 3
+aside and says why). On pull 4 the pull went on two minutes after their 2:17 death (the next death came at 4:13) to
+the night's best wipe, 36.3%, ended by the boss gaining Ula'tek's Dominance, so that death didn't decide the pull.
+Saying a Barkskin or healthstone would have saved them is fine."""
 facts = ["Grusarn first on pulls 5 and 6; Providence on 1 and Wutroll on 7",
          "pull 3: Noxious Blast killed 5 at once at 2:35, Scopidruid first only by the order",
          "pull 4: Scopidruid died at 2:17, the next death came at 4:13, and the pull reached 36.3%, the night's best",
@@ -84,7 +86,8 @@ wrong = ["names someone other than Scopidruid or Grusarn as dying first most oft
          "says Grusarn died first more often than Scopidruid, or blames Scopidruid for pull 3's death",
          "says Scopidruid's deaths lost those pulls",
          "says Scopidruid stood in the wrong place or broke an assignment, as if the log showed it",
-         "claims what a class can or can't do (\"druids can't...\")"]
+         "claims what a class can or can't do (\"druids can't...\")",
+         "calls pull 4's death the costly one, or says it cost the best pull"]
 [[case]]
 id = "night-kill-what-went-right"
 tools = ["boss_guide", "compare_pulls", "mechanic_hits", "progress", "pull_map", "pull_summary", "pull_timeline"]
@@ -138,7 +141,9 @@ asker = "Miralupa"
 boss = "Vashnik the Malignant"
 expect = """Yes, or mostly yes: nearly every Exploding Infection was dispelled, and slow dispels are not what cost
 the night. Naming the few held long is fair: the one held into the Imbibe that went off and cost pull 4, and the ones
-on the kill (Sveini's through the 6:00 Imbibe, Krøpling's never dispelled), which cost nothing there."""
+on the kill (Sveini's through the 6:00 Imbibe, Krøpling's never dispelled), which cost nothing there. So is naming
+the late third and fourth dispels of a set of four and suggesting a dispel order, as long as the verdict is yes or
+mostly yes."""
 facts = ["104 of 113 Exploding Infections were dispelled over the 8 pulls; 35 of 36 on the kill",
          "the one never dispelled on the kill was Krøpling's, from 6:19: it killed them at 6:31, a second before the boss died",
          "Exploding Infection itself killed 3 over the night",
@@ -149,7 +154,9 @@ facts = ["104 of 113 Exploding Infections were dispelled over the 8 pulls; 35 of
 # more. No raid note shows who had which dispel.
 wrong = ["says slow dispels caused most of the wipes",
          "says Congealing Bolt needed dispelling (most ran out undispelled)",
-         "blames a named healer for Krøpling's death"]
+         "blames a named healer for Krøpling's death",
+         """gives a no or mostly-no verdict, or says the slow dispels on the kill cost it or would have lost the pull
+on a wipe (saying a held Infection cost pull 4 is fine)"""]
 [[case]]
 id = "night-kill-vs-best-wipe"  # execution, not a new plan
 tools = ["boss_guide", "breakdown", "compare_pulls", "progress", "pull_summary", "pull_timeline"]
@@ -200,8 +207,10 @@ pull = 19
 boss = "Vashnik the Malignant"
 expect = """Yes: from the second Imbibe on (1:48, 3:12, 4:36, 6:00) each had healing and raid cooldowns on it, as
 the guide's plan asks (the raid stacks in melee for the healing cooldowns that carry it through Imbibe); the first, at
-0:23, came while the opening cooldowns were still up, with an Anti-Magic Zone at 0:22. Nobody died to it. Calling one
-of them the thinnest is fair (3:12 and 4:36 had three each before the cast)."""
+0:23, came while the opening cooldowns were still up, with an Anti-Magic Zone at 0:22. Nobody died to it. Calling 3:12
+or 4:36 light, thinner or less stacked than the others is fair (each had three before the cast); saying or counting
+that one of them had no healing cooldown on the cast is not. Naming the 5:01-5:08 spike after 4:36, which healing lists
+with none up and Spirit Link Totem ready, is fair too."""
 facts = ["five Imbibes: 0:23, 1:48, 3:12, 4:36, 6:00",
          "the 3:12 Imbibe had the fewest: Divine Hymn at 3:04, Rallying Cry at 3:08 and Zephyr at 3:10",
          "at 1:48: Divine Hymn at 1:39, then Rallying Cry, Spirit Link Totem and Anti-Magic Zone at 1:46 and Darkness at 1:47",
@@ -217,10 +226,11 @@ where = "in a DM"
 question = "Can you go through the damage done on the three adds that spawn on the Twin Fangs tonight, and how fast or slow they die?"
 asker = "Enfo"
 boss = "The Twin Fangs"
-expect = """Only the Spawn of Vexhul have deaths in the log: the first wave dies by about 0:42-0:47 on every pull
-that reached it, the second by about 1:45-1:48. The Barbed Bulwarks and the Broodlings of Ithraz have no death
-recorded, so the log can't show how fast they were killed. Whether the Spawns die fast enough is the answer's to
-judge, either way."""
+expect = """Only the Spawn of Vexhul have deaths in the log, wave by wave over the night: the first wave's first and
+last deaths come at about 0:42 and 0:47 (medians; ranges 0:40-0:47 and 0:45-0:55 over the 24 pulls that reached it),
+the second wave's at about 1:45 and 1:48 (ranges 1:43-1:47 and 1:47-1:51 over 9 pulls); either the medians or the
+ranges carry the point. The Barbed Bulwarks and the Broodlings of Ithraz have no death recorded, so the log can't show
+how fast they were killed. Whether the Spawns die fast enough is the answer's to judge, either way."""
 facts = ["Spawn of Vexhul: 105 came over 24 pulls, 95 died",
          "most of their Corrosive Spits went through: 99 of 175",
          "the Broodlings took no damage at all",
@@ -228,9 +238,10 @@ facts = ["Spawn of Vexhul: 105 came over 24 pulls, 95 died",
          "Pomaa did the most damage on the Spawns (137.51M), then Dscopi and Nalaxd (about 100M each)",
          "512 Barbed Bulwarks came and took only 1.51M in all",
          "Visceral Burst: 392 begun, 309 kicked, 66 went through"]
-# Method's guide has one Spawn burst before its first Corrosive Spit and the other two killed before their second; the
-# first spits land 1-2 s after a wave comes (pull 26: 0:38, 0:39), before any Spawn dies. A kill at the raid's item
-# level (compare_pulls) kills its waves about as fast, so the expect leaves the pace to the answer.
+# Method's guide has one Spawn burst before its first Corrosive Spit and the other two killed before their second;
+# pull 26's first spits begin at 0:37-0:39, and the two that went through land at 0:43 and 0:44, after the first Spawn
+# died at 0:41 (its spit, begun at 0:37, never landed). A kill at the raid's item level (compare_pulls) kills its
+# waves about as fast, so the expect leaves the pace to the answer.
 wrong = ["states, as something the log shows, when the Barbed Bulwarks or the Broodlings of Ithraz died or how fast they were killed"]
 
 # ---- The raid leader's harder questions, written from the tools' output before any answer was read: ranking
