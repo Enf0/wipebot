@@ -1080,3 +1080,10 @@ async def death_note(rep: Report, f: dict, death: dict) -> str:
     """What player_pull's "Died" line says of a death in its brackets, for the player's picture: that it came before
     the wipe was decided, after it (fallout), in a hit killing many, or nothing on a kill or a wipe never decided."""
     return (await _death_note(rep, f, death)).strip(" ()")
+
+
+def row_cooldowns(pull: NightPull, cds: NightCooldowns) -> list[str]:
+    """A pull's cooldowns as player_night's row for the pull words them, for the player's night picture: uses of
+    possible with the times, and of one held for a moment of the fight its times, or "unused" on a pull that got
+    there."""
+    return _row_cooldowns(pull, cds)
