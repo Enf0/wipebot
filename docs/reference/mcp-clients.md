@@ -148,7 +148,9 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
   ill-fitting one in a sentence with the argument's own description. A null is let through: clients fill one in
   for what they don't use. A number given where a tool takes only text is taken as that text before the check
   (11 November): the tools print a spell's id as a number and `spell_info` asks for it back, and
-  `spell_info {"spell": 1287083}` was refused as "a valid string". Text given for a number is still refused.
+  `spell_info {"spell": 1287083}` was refused as "a valid string". Text given for a number is still refused. A
+  view's key and data are made from the same arguments as the model gave them (the bot's pictures, a page asking
+  with the host's copy), so `view_key` and `view_data` read a number the same way.
 - ChatGPT treats a tool without `readOnlyHint` as a write action and asks the user before each call
   (https://developers.openai.com/api/docs/guides/developer-mode); every tool carries it but the remote server's
   `save_note_or_plan`, the one write, which is a tool of its own so that only saving asks (`raid_note` stays

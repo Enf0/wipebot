@@ -836,8 +836,12 @@ async def _ranking_key(rep: Report, tool: str, args: dict) -> dict | None:
 async def view_key(tool: str, args: dict) -> dict | None:
     """What a view needs to draw a tool's answer: the view, and the pull and player the call was about, resolved
     (the latest pull, a report's code, the player's name as logged), as a host reads it from the result's
-    structuredContent. None for a tool, or a call, without one."""
+    structuredContent. None for a tool, or a call, without one. `args` are read as the tool reads them: a number
+    given where it takes text is that text (`_numbers_as_text`), since a picture is drawn from the arguments as
+    the model gave them."""
     view = VIEW_TOOLS.get(tool)
+    if found := mcp._tool_manager.get_tool(tool):
+        args = _numbers_as_text(found.parameters, args)
     if tool == "compare_with_top" and args.get("player") and args.get("against"):  # two raid mates side by side
         return await _versus_key(args)
     if view is None or (tool == "compare_with_top" and not (args.get("player")
@@ -952,15 +956,16 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
 
 
 def _as_called(tool: str | None, args: dict | None) -> dict:
-    """A meter's or a trend's `args` held to its tool's own arguments: typed as the tool takes them, without any it
-    doesn't have, and refused in words where the tool would refuse them. The page sends back what its result's key
-    held, but the page's tools are anyone's to call who is signed in, and these arguments go on to the tables'
-    queries as the tool's own do."""
+    """A meter's or a trend's `args` held to its tool's own arguments: typed as the tool takes them (a number for
+    text as that text, as its call was read: `_numbers_as_text`), without any it doesn't have, and refused in words
+    where the tool would refuse them. The page sends back what its result's key held, but the page's tools are
+    anyone's to call who is signed in, and these arguments go on to the tables' queries as the tool's own do."""
     found = mcp._tool_manager.get_tool(tool) if tool in views.METER_TOOLS else None
     if not tool or found is None or not args:  # no ranking's tool: the view says so
         return args or {}
     try:
-        return found.fn_metadata.arg_model.model_validate(args).model_dump(exclude_unset=True)
+        given = _numbers_as_text(found.parameters, args)
+        return found.fn_metadata.arg_model.model_validate(given).model_dump(exclude_unset=True)
     except ValidationError as e:
         wrong = "; ".join(f"{'.'.join(str(part) for part in x['loc'])}: {x['msg']}" for x in e.errors())
         raise FactError(f"not {tool}'{'' if tool.endswith('s') else 's'} arguments: {wrong}") from e

@@ -785,21 +785,45 @@ async def test_a_rankings_arguments_from_the_page_are_held_to_its_tools_own(reco
     ask = {k: v for k, v in CASES["damage-taken-ability"].args.items() if k != "report"}  # Tempest on pull 13
     with monkeypatch.context() as stranger:
         stranger.setattr(server.lib(), "report", no_report)
-        for bad in ({"cutoff": ["1]) }"]}, {"pulls": "13"}, {"start": 90}, {"data_type": ["DamageTaken"]},
+        for bad in ({"cutoff": ["1]) }"]}, {"pulls": "13"}, {"start": [90]}, {"data_type": ["DamageTaken"]},
                     {"target": {"name": "x"}}):
             for view in ("meter", "trend"):
                 with pytest.raises(FactError, match="not breakdown's arguments: " + next(iter(bad))):
                     await server.view_data(view, report=REPORT, tool="breakdown", args=ask | bad)
         with pytest.raises(FactError, match="not mechanic_hits' arguments: ability"):
             await server.view_data("trend", report=REPORT, tool="mechanic_hits", args={"ability": ["Tempest"]})
-    # what the tool takes goes through as it would there: typed, and without what it doesn't have
+    # what the tool takes goes through as it would there: typed, a number for text as that text (the tool's own
+    # call reads one so: Server.call_tool), and without what it doesn't have
     assert server._as_called("breakdown", ask | {"cutoff": "3", "nope": 1}) == ask | {"cutoff": 3}
+    assert server._as_called("breakdown", ask | {"start": 90, "ability": 1287083.0}) == ask | {
+        "start": "90", "ability": "1287083"}
     result = await server.view_data("meter", report=REPORT, tool="breakdown", args=ask | {"nope": 1})
     assert result.structured_content and result.structured_content["args"] == ask
     # the keys the server hands out are such arguments
     for case in ("mechanic-hits", "damage-by-pull", "damage-least", "interrupts"):
         key = await server.view_key(CASES[case].tool, CASES[case].args)
         assert key and server._as_called(key["tool"], key["args"]) == key["args"], case
+
+
+async def test_an_ability_given_by_its_id_as_a_number_is_drawn_as_its_tool_ranked_it(recorded):
+    """The tools print an ability's id as a number and a model gives it back as one, which the tool takes as its
+    text (test_server). Its picture is drawn from the same arguments, as the model gave them: the key was an error
+    ("'int' object has no attribute 'strip'"), so the bot's answer went without its meter, and a page asking with
+    the host's copy of the arguments was told they aren't mechanic_hits'."""
+    args = CASES["mechanic-hits"].args  # Tempest over the night; 1287083 is one of the ids the log has it under
+    key = await server.view_key("mechanic_hits", args | {"ability": 1287083})
+    assert key and key == await server.view_key("mechanic_hits", args | {"ability": "1287083"})
+    assert key["args"] == {"ability": "1287083", "all_pulls": True} and key["label"].startswith("Tempest, all 32 ")
+    by_id = (await server.view_data(**asked(key))).structured_content
+    assert by_id and by_id["meters"] == (await meter_data("mechanic-hits"))["meters"]
+    # the page's own call with the arguments as the host had them, for the meter and for its trend by pull
+    for view, held in (("meter", "meters"), ("trend", "pulls")):
+        page = await server.view_data(view, report=REPORT, tool="mechanic_hits",
+                                      args={"ability": 1287083.0, "all_pulls": True})
+        named = await server.view_data(view, report=REPORT, tool="mechanic_hits",
+                                       args={"ability": "Tempest", "all_pulls": True})
+        assert page.structured_content and named.structured_content
+        assert page.structured_content[held] == named.structured_content[held], view
 
 
 def test_only_the_first_ranking_of_an_answer_comes_open():
