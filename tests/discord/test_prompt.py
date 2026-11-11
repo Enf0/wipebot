@@ -14,12 +14,15 @@ from wipebot.discord.prompt import (
     BOT_TOOLS,
     HOST_PROMPT,
     LIVE,
+    NO_LINKS,
+    PLAN_LINKS,
     POST_CHARS,
     asker_line,
     message,
     post_prefetch,
     post_question,
     report_line,
+    system_prompt,
 )
 
 TZ = datetime.timezone(datetime.timedelta(hours=2))
@@ -168,6 +171,15 @@ async def test_a_post_comes_with_the_tool_it_starts_from_already_run():
     assert await post_prefetch(unread, "Sszorak", 12, "Torvek", "") == [
         ("player_pull", {"player": "Torvek", "boss": "Sszorak", "pull": 12})]
     assert await post_prefetch(unread, "Sszorak", 12, None, "") == []
+
+
+def test_the_prompt_says_a_plans_link_is_saved_only_where_the_host_saves_one(monkeypatch):
+    """A bot with raidstrats.gg's key saves a plan by its link (bot.py), so its prompt mustn't say no link is."""
+    monkeypatch.delenv("RSGG_REST_API_KEY", raising=False)
+    assert " ".join(HOST_PROMPT.split()).count(NO_LINKS) == 1 and NO_LINKS in HOST_PROMPT  # on one line: replaceable
+    assert NO_LINKS in system_prompt("Wipebot", "") and PLAN_LINKS not in system_prompt("Wipebot", "")
+    monkeypatch.setenv("RSGG_REST_API_KEY", "a-key")
+    assert PLAN_LINKS in system_prompt("Wipebot", "") and NO_LINKS not in system_prompt("Wipebot", "")
 
 
 def test_the_host_prompt_says_what_every_picture_draws():

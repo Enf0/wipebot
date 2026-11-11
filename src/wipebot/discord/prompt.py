@@ -11,6 +11,7 @@ from datetime import datetime
 from importlib import resources
 from typing import TYPE_CHECKING
 
+from wipebot.core import raidstrats
 from wipebot.core.report import FactError, Report
 from wipebot.core.report.ending import ending_ability, pull_ending
 
@@ -36,10 +37,20 @@ def plain(text: str, chars: int = 100) -> str:
     return text if len(text) <= chars else text[:chars].rstrip() + " …"
 
 
+# What host-prompt.md says isn't saved, and what it says instead where the host has raidstrats.gg's key, so a plan's
+# link is saved too (bot.py saves it; commands.BY_LINK tells an officer how).
+NO_LINKS = "Nothing typed, screenshotted or linked is saved."
+PLAN_LINKS = ("A raid plan's link on raidstrats.gg, pasted by an officer, is saved too; nothing typed or screenshotted "
+              "is.")
+
+
 def system_prompt(name: str, skill: str) -> str:
-    """The bot's system prompt. It's the same for every session, so the prompt cache serves it to each new one;
-    what's specific to the report goes in each question (`message`)."""
-    return HOST_PROMPT.format(name=name) + "\n" + skill
+    """The bot's system prompt. It's the same for every session of one bot, so the prompt cache serves it to each
+    new one; what's specific to the report goes in each question (`message`)."""
+    text = HOST_PROMPT.format(name=name)
+    if raidstrats.key():
+        text = text.replace(NO_LINKS, PLAN_LINKS, 1)
+    return text + "\n" + skill
 
 
 @dataclass(frozen=True)
