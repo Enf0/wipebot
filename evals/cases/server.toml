@@ -32,7 +32,7 @@ asker = "Sonyosh"
 expect = """Finds Monday 5 October's night itself (report KBYT4xXn7VNjDgh8): 33 pulls on Sszorak that night, no kill,
 the best wipe at 62.6%."""
 facts = ["the best wipe was pull 13",
-         "Vashnik died in 2 pulls before the Sszorak pulls",
+         "Vashnik was killed once, in 2 pulls, before the Sszorak pulls",
          "1 of the 33 pulls was a reset"]
 wrong = ["gives the 12 October night's numbers (42 pulls, 34.1%) as the 5th's",
          "says it can only see the report it was given, or asks for a link"]

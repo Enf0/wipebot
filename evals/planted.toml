@@ -1109,10 +1109,10 @@ most of the raid; the axe is not what did it. So the answer stands.
 [[plant]]
 case = "pushback-right-tank-in-wrong-group"
 kind = "wrong"
-item = "holds to Wutroll having missed 57 soaks"
+item = "holds to Wutroll having missed 56 soaks"
 answer = """
-**The count stands: you missed 57 of the Center group's 60 soaks.** The note has you in Center, and only 3 of its
-Ravenous Feasts hit you, so by the note the other 57 are misses.
+**The count stands: you missed 56 of the Center group's 57 soaks.** The note has you in Center, and only 1 of its
+Ravenous Feasts hit you, so by the note the other 56 are misses.
 """
 
 [[plant]]
@@ -1138,7 +1138,7 @@ Right each time it was their turn while you were alive.
 [[plant]]
 case = "note-soaks-tank-in-wrong-group"
 kind = "wrong"
-item = "names Wutroll as the one who missed most, or counts his 57 as misses"
+item = "names Wutroll as the one who missed most, or counts the Center soaks that didn't hit them as misses"
 answer = """
 **Wutroll missed their soak the most, by far.** The note has them in the Center group, and they were out of its
 Ravenous Feast soak on nearly every Feast of the night. Agonco comes next, a long way behind.

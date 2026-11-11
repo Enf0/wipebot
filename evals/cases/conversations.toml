@@ -89,19 +89,20 @@ note = "twin-fangs-2026-10-21.txt"
 where = "in a DM"
 earlier = [
     ["Wutroll", "who missed the most soaks on twin fangs last night?"],
-    ["Wipebot", """Wutroll, by far: 57 of the Center group's 60 Ravenous Feast soaks missed. After that Agonco, \
-with 14 of 59."""],
+    ["Wipebot", """Wutroll, by far: 56 of the Center group's 57 Ravenous Feast soaks missed. After that Agonco, \
+with 13 of 57."""],
 ]
 question = """come on, I never soak with center, I go with one of the side groups. the note just has me in the \
 wrong group"""
 asker = "Wutroll"
 boss = "The Twin Fangs"
-expect = """Agrees, and the log bears it out: Wutroll was hit by only 3 of Center's 60 soaks but by another group's
-soak 55 times, so they were soaking, with another group than the note lists them in; those are not 57 misses. Of
-the players soaking with their own group, Agonco missed the most, 14 of 59."""
+expect = """Agrees, and the log bears it out: Wutroll was hit by only 1 of Center's 57 soaks but by another group's
+soak 55 times, so they were soaking, with another group than the note lists them in; those are not 56 misses. Of
+the players soaking with their own group, Agonco missed the most, 13 of 57."""
 facts = ["after Agonco: Attractîv, Draiman and Dscopi, 5 each",
          "176 Ravenous Feast hits over 35 pulls"]
-wrong = ["holds to Wutroll having missed 57 soaks",
+derived = ["56"]  # 57 - 1: Center's soaks while Wutroll was alive, less the one that hit them
+wrong = ["holds to Wutroll having missed 56 soaks",
          "agrees, but still ranks Wutroll first among those who missed",
          "says the log can't tell either way"]
 

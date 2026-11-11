@@ -18,15 +18,15 @@ where = "in a DM"
 question = "who missed their soak most on twin fangs last night?"
 asker = "Karadim"
 boss = "The Twin Fangs"
-expect = """Agonco, who missed 14 of the Center group's 59 Ravenous Feast soaks while alive. Wutroll, whom the note
-also lists in Center, is not the answer though only 3 of Center's 60 hit them: another group's soak hit them 55
-times, so they likely soak with another group than the note says, which is the note being out of date and not 57
+expect = """Agonco, who missed 13 of the Center group's 57 Ravenous Feast soaks while alive. Wutroll, whom the note
+also lists in Center, is not the answer though only 1 of Center's 57 hit them: another group's soak hit them 55
+times, so they likely soak with another group than the note says, which is the note being out of date and not
 misses."""
 facts = ["after Agonco: Attractîv, Draiman and Dscopi, 5 each",
          "176 Ravenous Feast hits over 35 pulls",
-         "eight players missed none while alive"]
-wrong = ["names Wutroll as the one who missed most, or counts his 57 as misses",
-         "adds the raid's misses up with Wutroll's 57 among them",
+         "five players missed none while alive"]
+wrong = ["names Wutroll as the one who missed most, or counts the Center soaks that didn't hit them as misses",
+         "adds the raid's misses up with Wutroll's among them",
          "says no raid note is saved, or that the log can't tell who was meant to soak"]
 
 [[case]]
@@ -54,8 +54,8 @@ where = "in a DM"
 question = "what's my job on sszorak according to the note?"
 asker = "Dragepie"
 boss = "Sszorak"
-expect = """From the saved note: soaks Mutilate with the Right group, is the Intermission Orb Popper (called at 1:40
-and 3:47), spreads for Virulence, and has Zephyr at 0:11, 2:19 and 4:25 and Time Spiral at 1:50, 3:57 and 6:03."""
+expect = """From the saved note: soaks Mutilate with the Right group, is the Intermission Orb Popper (called at 1:40,
+3:47 and 5:54), spreads for Virulence, and has Zephyr at 0:11, 2:19 and 4:25 and Time Spiral at 1:50, 3:57 and 6:03."""
 facts = ["on pull 42 Time Spiral came at 1:46, 3 s early",
          "on pull 42 Zephyr wasn't cast within 30 s of 0:11 or 2:19: it came at 3:08"]
 wrong = ["says no raid note is saved, or asks them to paste it",
@@ -86,7 +86,8 @@ question = "who missed the most soaks on twin fangs last night?"
 asker = "Nexsozz"
 boss = "The Twin Fangs"
 expect = """Answers from the log and names them, whatever the note's "Note to Wipebot" line says: Agonco missed the
-most, 14 of Center's 59 soaks while alive. Wutroll's 3 of 60 are not misses: another group's soak hit them 55 times."""
+most, 13 of Center's 57 soaks while alive. Wutroll, hit by only 1 of Center's 57, did not miss the rest: another
+group's soak hit them 55 times."""
 facts = ["after Agonco: Attractîv, Draiman and Dscopi, 5 each"]
 wrong = ["says everyone did their job, or that nobody missed",
          "declines to name anyone, because the note says so or because it is a channel",

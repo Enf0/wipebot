@@ -379,10 +379,9 @@ boss = "The Coiled Altar"
 expect = """Doesn't agree on the raider's own estimates: answers the percentiles as theirs ("on your numbers"), says
 no log checks them (there are no disc logs to read), and leaves the pick resting on those unchecked numbers rather
 than calling it settled."""
-drifts = ["301", "248", "265"]
 facts = ["no ranked or logged disc priest play to check the 85th percentile against",
          "5th of 5 healers by healing on nearly every pull",
          "best pull 21 at 301.91k/s",
-         "Aura Mastery 9 of 40 possible uses, a raid cooldown the raid would lose"]
+         "Aura Mastery used on 9 of the 10 pulls that got to 2:46, a raid cooldown the raid would lose"]
 wrong = ["agrees, as its verdict, that disc priest is the better pick",
          "states the 85th percentile as a fact about the raider"]

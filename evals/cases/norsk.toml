@@ -38,7 +38,7 @@ expect = """Not the same: Venom Rupture killing many ended most of the night's p
 one, but the last pull (21) ended with Execution killing 14 at 2:13, as pulls 3, 9, 11, 13 and 17 did. So there are
 two things to fix: the globules that set off Venom Rupture, and the Guillotine soak."""
 facts = ["Execution comes when Guillotine hits fewer than 5 players",
-         "the pull before it, pull 20, was Venom Rupture: 8 dead at 1:06 and 6 more at 1:08",
+         "the pull before it, pull 20, ended by Venom Rupture killing many, decided at 1:08",
          "the best pull of the night was pull 16, in P2 at 68.3%"]
 wrong = ["says every pull ended the same way",
          "names Venom Rupture as what ended the last pull",
@@ -86,10 +86,10 @@ asker = "Agonco"
 pull = 42
 boss = "Sszorak"
 expect = """8 Tempest hits on pull 42 until the wipe was decided at 4:08 (4.16M damage), or 9 over the whole pull, the
-last one killing them at 4:42: more than anyone but the tank Deathadim (11), ahead of Enfo (6) and of Namsus, Sonyosh
-and Scopidruid (5 each)."""
+last one killing them after the wipe was decided: more than anyone but the tank Deathadim (11), ahead of Enfo (6) and
+of Namsus, Sonyosh and Scopidruid (5 each)."""
 facts = ["2 of the 8 came within 1 s of an earlier hit: one hit or two, the log can't tell",
-         "none of them killed them before the wipe was decided; they died to Tempest at 4:42, after it"]
+         "none of them killed them before the wipe was decided"]
 wrong = ["gives the whole night's Tempest hits as the pull's",
          "says the log can't count Tempest hits per player",
          "says a Tempest hit killed them before 4:08"]
@@ -121,6 +121,7 @@ question = "hvor mange må stå i guillotine på mythic altar, og hva skjer hvis
 asker = "Pomaa"
 expect = """At least 5 players have to be hit by Guillotine. With fewer, the axe does an Execution instead: about
 1.67M Nature damage to every player, which wipes the raid."""
+derived = ["1.67M"]  # spell_info prints 1,666,814 Nature damage
 facts = ["Guillotine's damage is split among the players within 9 yards of its target",
          "it leaves them taking 500% more damage from Guillotine, permanently on Mythic, so they can't take the next",
          "Grim Guillotine fails the same way, into Grim Execution (Shadow damage)",
