@@ -60,10 +60,12 @@ In any run with a baseline, a case that moved beyond noise is asked again, up to
 three answers put an unchanged case there in most runs (`--no-confirm` skips it).
 
 The judge (Sonnet by default, `checks.py`) asks one question for `expect`, one for `wrong` and one to count the
-`facts`. A failed check is asked twice more and the majority kept, since the judge's usual error is failing a right
-answer on a detail; an undecided judge is asked again. Its recorded score with today's prompts (17 October,
-`just evals --agreement`): it failed 27 of 33 answers labelled wrong and passed 92 of 101 labelled right. So a suite
-of all-right answers reads about 91%, and a pass rate of 90% sits at the judge's ceiling.
+`facts`. A failed check is asked again and the majority of three kept, since the judge's usual error is failing a
+right answer on a detail: a second fail settles it, and only a pass there asks the third vote, so a failed check
+costs two calls or three and the verdicts are those of asking all three. An undecided judge is asked again. Its
+recorded score with today's prompts (17 October, `just evals --agreement`): it failed 27 of 33 answers labelled
+wrong and passed 92 of 101 labelled right. So a suite of all-right answers reads about 91%, and a pass rate of 90%
+sits at the judge's ceiling.
 
 ### What a pass means
 

@@ -11,7 +11,7 @@ import json
 import re
 from collections import Counter
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from statistics import median
 
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, query
@@ -72,6 +72,7 @@ class Verdict:
     ok: bool | None  # None: the judge couldn't tell
     reason: str = ""
     cost_usd: float = 0.0
+    votes: list[bool | None] = field(default_factory=list)  # each vote behind it, in the order asked (judge_majority)
 
 
 EXPECT = """You check one thing about an answer from a World of Warcraft raid-analysis bot that raiders ask in
@@ -137,21 +138,27 @@ async def judge(prompt: str, model: str) -> Verdict:
     return Verdict({"PASS": True, "FAIL": False}.get(verdicts[-1]), " ".join(reason.split()), cost)
 
 
-FAIL_VOTES = 3  # a failed check is judged this many times in all, the majority kept
+FAIL_VOTES = 3  # a failed check is judged up to this many times in all, the majority kept
 
 
 async def judge_majority(prompt: str, model: str) -> Verdict:
-    """The judge's verdict, and on a fail two more, the majority kept: the judge's error is mostly failing a right
-    answer on a detail (evals/labels.jsonl), and a fail asked again often comes back a pass. A pass is kept as is."""
+    """The judge's verdict, and on a fail the majority of three: the judge's error is mostly failing a right answer
+    on a detail (evals/labels.jsonl), and a fail asked again often comes back a pass. A pass is kept as is, and so is
+    a judge that couldn't tell. Only the votes the verdict needs are asked: after a fail, one more; a second vote
+    that isn't a pass settles the fail (a third could not turn it), and only a pass there asks the third, which
+    decides. The verdicts are those of asking all three every time; a failed check costs two calls, or three."""
     first = await judge(prompt, model)
-    if first.ok is not False:
-        return first
-    more = await asyncio.gather(*(judge(prompt, model) for _ in range(FAIL_VOTES - 1)))
-    votes = [first, *more]
-    cost = sum(v.cost_usd for v in votes)
+    votes = [first]
+    if first.ok is False:
+        votes.append(await judge(prompt, model))
+        if votes[-1].ok is True:
+            votes.append(await judge(prompt, model))
+    if len(votes) == 1:
+        return Verdict(first.ok, first.reason, first.cost_usd, [first.ok])
     fails, passes = sum(v.ok is False for v in votes), sum(v.ok is True for v in votes)
-    kept = first if fails >= passes else next(v for v in more if v.ok is True)
-    return Verdict(fails < passes, f"{kept.reason} ({fails} of {len(votes)} judges failed it)", cost)
+    kept = first if fails >= passes else votes[1]  # passed: the first pass's reason
+    return Verdict(fails < passes, f"{kept.reason} ({fails} of {len(votes)} judges failed it)",
+                   sum(v.cost_usd for v in votes), [v.ok for v in votes])
 
 
 MODELS: set[str] = set()  # the models the judge's replies came from, by full name: for a run's record

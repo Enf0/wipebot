@@ -1,4 +1,6 @@
 """How the judge's replies are read (evals/checks.py), with canned replies in place of the model."""
+from itertools import product
+
 import pytest
 
 from evals import checks
@@ -56,21 +58,62 @@ async def test_a_pass_is_kept_without_asking_again(replies):
     assert v.ok is True and len(asked) == 1
 
 
-async def test_a_fail_is_judged_twice_more_and_the_majority_kept(replies):
+async def test_a_fail_is_judged_again_and_the_majority_of_three_kept(replies):
     queue, asked = replies
     queue.extend(["Misses the add.\nFAIL", "It's there.\nPASS", "Names the adds.\nPASS"])
     v = await checks.judge_majority("p", "sonnet")
-    assert v.ok is True and len(asked) == checks.FAIL_VOTES
+    assert v.ok is True and len(asked) == checks.FAIL_VOTES and v.votes == [False, True, True]
     assert v.reason == "It's there (1 of 3 judges failed it)" and v.cost_usd == pytest.approx(0.03)
     queue.extend(["Misses the add.\nFAIL", "It's there.\nPASS", "Wrong boss.\nFAIL"])
     v = await checks.judge_majority("p", "sonnet")
     assert v.ok is False and v.reason == "Misses the add (2 of 3 judges failed it)"
 
 
-async def test_undecided_votes_leave_a_fail_standing(replies):
-    queue, _ = replies
-    queue.extend(["Misses it.\nFAIL", *["Hmm.\nUNKNOWN"] * 2 * checks.JUDGE_TRIES])
-    assert (await checks.judge_majority("p", "sonnet")).ok is False
+async def test_a_second_fail_settles_it_without_a_third_vote(replies):
+    queue, asked = replies
+    queue.extend(["Misses the add.\nFAIL", "Wrong boss.\nFAIL"])
+    v = await checks.judge_majority("p", "sonnet")
+    assert v.ok is False and len(asked) == 2 and v.votes == [False, False]
+    assert v.reason == "Misses the add (2 of 2 judges failed it)" and v.cost_usd == pytest.approx(0.02)
+
+
+async def test_an_undecided_second_vote_leaves_the_fail_standing_unasked_further(replies):
+    queue, asked = replies
+    queue.extend(["Misses it.\nFAIL", *["Hmm.\nUNKNOWN"] * checks.JUDGE_TRIES])
+    v = await checks.judge_majority("p", "sonnet")
+    assert v.ok is False and v.votes == [False, None] and len(asked) == 1 + checks.JUDGE_TRIES and not queue
+
+
+# Each row: the votes the judge would give if asked three times (F fail, P pass, U couldn't tell), the verdict, and
+# how many of them the rule asks. The verdict is the one of asking all three, as the rule did until 10 November: a
+# pass or an undecided first vote is kept, whatever the other two would say; after a fail, the answer passes only
+# when both other votes pass. All 27 combinations.
+OTHER_TWO = ["".join(two) for two in product("PFU", repeat=2)]
+VOTES = [*((f"P{two}", True, 1) for two in OTHER_TWO), *((f"U{two}", None, 1) for two in OTHER_TWO),
+         ("FFF", False, 2), ("FFP", False, 2), ("FFU", False, 2),
+         ("FPF", False, 3), ("FPP", True, 3), ("FPU", False, 3),
+         ("FUF", False, 2), ("FUP", False, 2), ("FUU", False, 2)]
+
+
+@pytest.mark.parametrize(("votes", "verdict", "asked"), VOTES)
+async def test_the_majority_asks_only_the_votes_it_needs_and_rules_as_three_would(monkeypatch, votes, verdict,
+                                                                                  asked):
+    given = [{"P": True, "F": False, "U": None}[v] for v in votes]
+    queue = [checks.Verdict(ok, f"vote {n}", 0.01) for n, ok in enumerate(given, 1)]
+
+    async def judge(prompt: str, model: str) -> checks.Verdict:
+        return queue.pop(0)
+    monkeypatch.setattr(checks, "judge", judge)
+    v = await checks.judge_majority("p", "sonnet")
+    # all three asked at once, as before: the first vote unless it failed, else failed unless more passed than failed
+    fails, passes = given.count(False), given.count(True)
+    of_three = given[0] if given[0] is not False else fails < passes
+    assert v.ok is verdict is of_three
+    assert v.votes == given[:asked] and len(queue) == 3 - asked and v.cost_usd == pytest.approx(0.01 * asked)
+
+
+def test_the_table_of_votes_holds_every_combination_once():
+    assert sorted(votes for votes, _, _ in VOTES) == sorted("".join(three) for three in product("PFU", repeat=3))
 
 
 async def test_facts_are_read_one_line_each_in_any_wording(replies):
