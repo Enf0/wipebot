@@ -28,6 +28,9 @@ of seven steps with a part for each kind of question, on commit e3d450a) ran on 
   expected from run to run), Sonnet 77 against the 74 its one-file rates predict, Haiku 73 against 68. It went in
   for the size it saves, not for a gain the runs show. Neither skill makes Sonnet call more tools.
 - Haiku costs half what Sonnet does per answer and passes about as many on one trial; neither is close to Opus.
+- With the split skill on commit 8be93f8, Opus in the plugin (Claude Code with Wipebot's plugin, 92 cases) passed
+  248 of 276 answers on three trials (90%, $76.12), now the plugin's baseline, and as ChatGPT gets it (the connector
+  alone) 81 of 92 on one trial (88%, $21.69), the connector's first full run.
 
 ## 29 October 2026
 
