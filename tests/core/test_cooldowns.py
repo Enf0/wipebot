@@ -3,7 +3,9 @@ lists the spec's spells and the player's talents allow."""
 import pytest
 
 from tests.support import RESTO_SPELLS
+from wipebot.core import knowledge
 from wipebot.core.report import cooldowns
+from wipebot.core.text import clock
 
 # Two Restoration Shaman cooldowns on one choice node, and one on its own node
 TREE = {"specNodes": [
@@ -170,3 +172,28 @@ async def test_on_a_kill_cooldowns_count_to_its_end_and_a_cast_of_the_same_name_
     lines = await cooldowns.cooldown_lines(rep, kill, p, [{"abilityGameID": 2, "timestamp": kill["startTime"] + 1000}])
     assert lines[0].endswith(": none")  # nothing up at the pull
     assert "  Burst [1] (dps): 1/7 at 0:01 (ready again at 1:01, unused)" in lines
+
+
+async def test_the_top_comparisons_phase_is_named_as_every_tool_names_it(rep, monkeypatch):
+    """Pull 33 of the tests' night goes P1, P2 and back to P1 at 2:05. warcraft_cli numbers the phases in the order
+    the pull went through them, so compare_with_top with phase=3 said "phase P3 (2:05-2:50)" for the stretch
+    player_pull calls "P1 Sszorak (2nd time)"."""
+    f = rep.fight(33)
+    back = f["phaseTransitions"][2]["startTime"] - f["startTime"]
+    assert cooldowns.phase_at(rep, f, back) == "P1 Sszorak (2nd time)"
+    asked = []
+
+    async def packet(code, fight_id, player, phase):
+        asked.append(phase)
+        return {"phase": {"selected": {"phase": 3, "label": "P3", "start_ms": back, "end_ms": 170_000}},
+                "player": {"name": "Draiman", "spec_slug": "rogue-assassination"}, "comparison": {"status": "none"}}
+    monkeypatch.setattr(knowledge.top_parses, "cooldown_comparison", packet)
+    text = await knowledge.cooldown_comparison_text(rep.code, f["id"], "Draiman", 3,
+                                                    lambda at_ms: cooldowns.phase_at(rep, f, at_ms))
+    assert asked == [3]
+    assert text.startswith(f"Draiman (rogue-assassination), phase P1 Sszorak (2nd time) ({clock(back)}-2:50) of this "
+                           "pull.")
+    assert "P3" not in text
+    # Without the pull's phases to name it by, the stretch is its times alone: never warcraft_cli's own number.
+    bare = await knowledge.cooldown_comparison_text(rep.code, f["id"], "Draiman", 3)
+    assert bare.startswith(f"Draiman (rogue-assassination), {clock(back)}-2:50 of this pull.")

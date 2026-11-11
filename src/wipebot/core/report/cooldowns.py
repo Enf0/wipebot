@@ -117,7 +117,7 @@ async def cooldown_lines(rep: Report, f: dict, p: Player, casts: list[dict]) -> 
     return lines
 
 
-def _phase_at(rep: Report, f: dict, at_ms: float) -> str:
+def phase_at(rep: Report, f: dict, at_ms: float) -> str:
     """'P1 Sszorak (2nd time)' for a moment of a pull, '' when the boss has no phases."""
     seen: Counter = Counter()
     label = ""
@@ -155,7 +155,7 @@ def _ready_again(rep: Report, f: dict, sp: dict, times: list[float], possible: i
     ready, alive_then = back
     if not alive_then:
         return " (died before it was ready again)"
-    phase = _phase_at(rep, f, ready)
+    phase = phase_at(rep, f, ready)
     return f" (ready again at {clock(ready)}" + (f" in {phase}" if phase else "") + ", unused)"
 
 

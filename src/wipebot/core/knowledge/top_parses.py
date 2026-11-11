@@ -1,6 +1,7 @@
 """A player's cooldowns against Lorrgs' top parses of their spec on the boss (warcraft_cli's cooldown packet)."""
 import math
 from collections import Counter, defaultdict
+from collections.abc import Callable
 
 from ..text import clock, fight_url, plural
 from . import fetch
@@ -19,9 +20,12 @@ async def cooldown_comparison(report_code: str, fight_id: int, player: str, phas
                            "--actor-name", player, "--phase", str(phase))
 
 
-async def cooldown_comparison_text(report_code: str, fight_id: int, player: str, phase: int = 1) -> str:
+async def cooldown_comparison_text(report_code: str, fight_id: int, player: str, phase: int = 1,
+                                   phase_at: Callable[[float], str] | None = None) -> str:
     """compare_with_top's cooldowns aspect: one player's cooldown casts in a phase of a pull, next to top parses of
-    the same spec and boss."""
+    the same spec and boss. `phase` is the pull's phase in the order it went through them, as warcraft_cli counts
+    them; `phase_at` names the phase at a moment of the pull (ms into it) as the report's tools do: warcraft_cli's
+    own label numbers them in that order ("P3" for a first phase gone back to), which is no phase's name here."""
     data = await cooldown_comparison(report_code, fight_id, player, phase)
     ph = (data.get("phase") or {}).get("selected") or {}
     me = data.get("player") or {}
@@ -32,8 +36,12 @@ async def cooldown_comparison_text(report_code: str, fight_id: int, player: str,
         if lo <= c["timestamp_ms"] <= hi:  # warcraft_cli lists the whole pull's casts
             mine[c["spell"]["name"]].append(clock(c["timestamp_ms"]))
     comp = data.get("comparison") or {}
-    window = (f"phase {ph.get('label', phase)} ({clock(ph.get('start_ms', 0))}-{clock(ph['end_ms'])})"
-              if ph.get("end_ms") else "the whole pull (the boss has no phases)")
+    if ph.get("end_ms"):
+        span = f"{clock(ph.get('start_ms', 0))}-{clock(ph['end_ms'])}"
+        label = phase_at(ph.get("start_ms", 0)) if phase_at else ""
+        window = f"phase {label} ({span})" if label else span
+    else:
+        window = "the whole pull (the boss has no phases)"
     lines = [f"{me.get('name')} ({me.get('spec_slug')}), {window} of this pull.",
              "Their cooldown casts: " + ("; ".join(f"{n} at {', '.join(t)}" for n, t in mine.items()) or "none")]
     if comp.get("status") != "ready":

@@ -1604,7 +1604,9 @@ async def compare_with_top(
         "build (talents, gear, stats, consumables), casts (per minute, per spell), cooldowns (when, in one phase); "
         "omit for all three"))] = None,
     pull: Pull = None, boss: Boss = None,
-    phase: Annotated[int, Field(description="for cooldowns: the boss phase, 1 for the first")] = 1,
+    phase: Annotated[int, Field(description=(
+        "for cooldowns: the pull's phase in the order it went through them, 1 for the first (a phase it went back "
+        "to counts again)"))] = 1,
     spec: Annotated[str | None, Field(description="without a player: spec and class, e.g. 'balance druid'")] = None,
     difficulty: Difficulty = None,
     kills: Annotated[top.Ranking, Field(description=(
@@ -1669,7 +1671,8 @@ async def compare_with_top(
     async def cooldowns_part() -> str:
         f, p = rep.fight(pull, boss), rep.player(player)
         early = (await cooldowns.prepull(rep, [f], p))[f["id"]]
-        return (await knowledge.cooldown_comparison_text(rep.code, f["id"], p.name, phase)
+        return (await knowledge.cooldown_comparison_text(rep.code, f["id"], p.name, phase,
+                                                         lambda at_ms: cooldowns.phase_at(rep, f, at_ms))
                 + f"\n{p.name}'s own buffs already up at the pull (cast or drunk before it, so not in their casts): "
                 + (", ".join(early) or "none"))
     run = {"build": lambda: build.compare_build(rep, player, pull, boss),
