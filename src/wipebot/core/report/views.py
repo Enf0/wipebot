@@ -1042,7 +1042,6 @@ def meter_headline(m: Meter, said: Stated | None = None) -> dict:
 TREND_TYPES = {"DamageDone": "damage", "Healing": "healing", "DamageTaken": "damage taken", "Casts": "casts"}
 TREND_TITLES = {"Casts": "Casts"}  # a table's title where the meters (tables.METERS) have none
 TREND_MIN_PULLS = 2  # one pull is no trend
-THIRDS_MIN = 6  # fewer counted pulls have no thirds, as player_night's and progress's (coaching.night_trend)
 TREND_TOP = 3  # each pull's biggest rows named, as breakdown by pull names them
 
 
@@ -1145,17 +1144,8 @@ async def _mechanic_trend(rep: Report, a: dict) -> Trend | None:
 
 def trend_thirds(rates: list[float], resets: list[bool]) -> list[tuple[list[int], float]] | None:
     """The pulls in thirds, first, middle and last, each with its median rate: (the third's pulls, as indexes; the
-    median). Resets are left out, and fewer than THIRDS_MIN counted pulls have none, as in player_night's trend
-    (coaching.night_trend), whose median this is too: the upper of two middle ones."""
-    counted = [i for i, reset in enumerate(resets) if not reset]
-    if len(counted) < THIRDS_MIN:
-        return None
-    third = len(counted) // 3
-    out = []
-    for part in (counted[:third], counted[third:-third], counted[-third:]):
-        found = sorted(rates[i] for i in part)
-        out.append((part, found[len(found) // 2]))
-    return out
+    median), None for too few pulls. tables.thirds, which breakdown by pull's text states too."""
+    return tables.thirds(rates, resets)
 
 
 async def trend_view(rep: Report, tool: str, args: dict, mark: str | None = None) -> dict:
@@ -1216,10 +1206,7 @@ def trend_headline(t: Trend, nos: list[int], rates: list[float],
     counted."""
     head = f"{t.player.name if t.player else 'The raid'}'s {t.subject} per {t.per}"
     if thirds:
-        a, b, c = (t.text(rate) for _, rate in thirds)
-        n = sum(len(part) for part, _ in thirds)
-        return _headline(f"{head}: {a} in the first third of the {n} pulls, {b} in the middle and {c} in the last "
-                         "(each third's median pull).")
+        return _headline(f"{head}: {tables.thirds_text(thirds, t.text)}.")
     if len(nos) <= TREND_LISTED:
         return _headline(f"{head}: " + ", ".join(f"{t.text(r)} on pull {no}" for no, r in zip(nos, rates, strict=True))
                          + ".")

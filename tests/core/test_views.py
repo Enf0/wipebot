@@ -25,7 +25,7 @@ from tests.support.recorded import CASES, LOCAL, LOCAL_RECORDED, NOT_LOCAL, Repl
 from wipebot.core import server
 from wipebot.core.classes import CLASS_COLORS, WHITE
 from wipebot.core.notebook import Notebook
-from wipebot.core.report import FactError, maps, views
+from wipebot.core.report import FactError, maps, tables, views
 from wipebot.core.report import note as notes
 from wipebot.core.report.coaching import TimeLost, time_lost
 from wipebot.core.report.ending import EndCast, Ending, HalfDead, KeptBuff, LeadIn, MassDeath, mass_death_of
@@ -653,12 +653,39 @@ async def test_a_counts_rate_is_handed_on_to_the_one_decimal_its_headline_writes
 
 def test_a_trends_thirds_leave_resets_out_and_need_six_counted_pulls():
     """As player_night's trend (coaching.night_trend): the pulls in thirds, the middle one taking the rest, each
-    third's median the upper of two middle pulls, resets not counted, and no thirds for fewer than six."""
+    third's median the upper of two middle pulls, resets not counted, and no thirds for fewer than six. One
+    function (tables.thirds) for the card and for breakdown by pull's text, and one wording of what it found."""
     rates = [10.0, 30.0, 0.0, 20.0, 40.0, 50.0, 70.0, 60.0]
     resets = [False, False, True, False, False, False, False, False]
     assert views.trend_thirds(rates, resets) == [([0, 1], 30.0), ([3, 4, 5], 40.0), ([6, 7], 70.0)]
     assert views.trend_thirds(rates[:6], resets[:6]) is None  # five counted
     assert views.trend_thirds(rates[:5] + [1.0, 2.0], resets[:5] + [False, False]) is not None
+    assert views.trend_thirds is not tables.thirds and views.trend_thirds(rates, resets) == tables.thirds(rates, resets)
+    assert tables.thirds_text(tables.thirds(rates, resets) or [], lambda rate: f"{rate:.1f}") == (
+        "30.0 in the first third of the 7 pulls, 40.0 in the middle and 70.0 in the last (each third's median pull)")
+
+
+async def test_breakdown_by_pull_states_the_thirds_medians_its_trends_card_does(recorded):
+    """The card's headline gave the median pull of each third of the night, which its tool's text didn't have: a
+    number on the card with nothing in the answer's text behind it. The text now states them under its heading,
+    in the card's words, and says which pull the count leaves out. Two pulls have no thirds, nor has an aura."""
+    args = {"data_type": "Casts", "ability": "Flash Heal", "boss": "Sszorak", "group_by": "pull"}
+    text, failed = await server.call("breakdown", {"report": REPORT} | args)
+    data = (await server.view_data("trend", report=REPORT, tool="breakdown", args=args)).structured_content
+    assert not failed and data and len(data["pulls"]) == 33 and sum(r["reset"] for r in data["pulls"]) == 1
+    said = data["headline"]["text"].removeprefix("The raid's Flash Heal casts per minute: ").removesuffix(".")
+    a, b, c = (f"{t['rate']:.1f}" for t in data["thirds"])
+    assert said == f"{a} in the first third of the 32 pulls, {b} in the middle and {c} in the last (each third's " \
+                   "median pull)"
+    lines = text.splitlines()
+    assert lines[1] == f"  Per minute: {said}; 1 reset left out." and len(lines) == 2 + 33
+    # each third's median is one of its own pulls' rates, as that pull's row writes it
+    for third in data["thirds"]:
+        assert any(f"  Sszorak pull {no} (" in line and f"({third['rate']:.1f}/min)" in line
+                   for no in third["pulls"] for line in lines[2:])
+    few, _ = await server.call(CASES["damage-by-pull"].tool, CASES["damage-by-pull"].args)
+    aura, _ = await server.call(CASES["debuffs-by-pull"].tool, CASES["debuffs-by-pull"].args)
+    assert "third" not in few + aura
 
 
 async def test_only_an_amount_by_pull_is_a_trend(recorded):
@@ -702,6 +729,8 @@ async def test_the_whole_nights_healing_by_pull_is_a_trend_in_thirds(local):
     text, _ = await server.call("breakdown", {"report": REPORT} | args)
     for r in data["pulls"]:
         assert f"({clock(r['seconds'] * 1000)}): {short(r['amount'])} ({short(r['rate'])}/s)" in text, r["pull"]
+    assert text.splitlines()[1] == (f"  Per second: {a} in the first third of the 32 pulls, {b} in the middle and {c} "
+                                    "in the last (each third's median pull); 1 reset left out.")
 
 
 async def test_breakdown_gives_a_views_key_only_for_a_ranking_or_a_trend(recorded, monkeypatch):

@@ -2,9 +2,11 @@
 import json
 import math
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Literal, get_args
 
+from ..pulls import is_reset
 from ..text import clock, fold, name_key, ordinal, plural, short
 from .base import ROLE_NAMES, FactError, Player, Report, pull_window
 from .casting import cast_rows
@@ -262,20 +264,60 @@ async def _kicks_text(rep: Report, q: Asked) -> str:
 
 
 async def _by_pull(rep: Report, q: Asked) -> str:
+    """The table pull by pull: each pull's total over its counted time and its three biggest rows. Under the
+    heading, for a table summed per pull over enough pulls for thirds (`thirds`): the median pull of each third of
+    the night, which the trend's card states as its headline."""
     lines = [f"{q.head}, by pull:"]
     per_pull = await _per_pull_tables(rep, q.fights, q.data_type, q.filters, q.ids, q.ends, q.starts)
+    per = 60 if q.data_type == "Casts" else 1  # casts a minute, an amount a second, as each pull's row has them
+    rates = []
     for f, tables_ in zip(q.fights, per_pull, strict=True):
         rows, tt, _ = _merged_rows(tables_, q.data_type, "ability" if q.player else "player", q.ids != [None])
         rows = _without_moved(rows, q.data_type)[0]
         # WCL's time is cut at the cutoff too
         end, start = q.ends.get(f["id"], f["endTime"]), q.starts.get(f["id"], f["startTime"])
         d = (tt if q.cutoff and tt else end - start) / 1000
-        total = (_fmt_value(sum(v for _, v, _ in rows), q.data_type, d, tt)
-                 if q.data_type not in ("Buffs", "Debuffs") else "")
+        amount = sum(v for _, v, _ in rows)
+        rates.append(amount / d * per if d else 0.0)
+        total = _fmt_value(amount, q.data_type, d, tt) if q.data_type not in ("Buffs", "Debuffs") else ""
         top = ", ".join(f"{n} {_fmt_value(v, q.data_type, d, tt)}" for n, v, _ in rows[:3])
         parts = [total, f"top {top}" if top else ""]
         lines.append(f"  {rep.label(f)} ({clock(d * 1000)}): " + "; ".join(x for x in parts if x))
+    resets = [is_reset(f) for f in q.fights]
+    if q.data_type in UNTIL_DECIDED_TYPES and (found := thirds(rates, resets)):
+        left = f"; {plural(sum(resets), 'reset')} left out" if any(resets) else ""
+        said = thirds_text(found, (lambda rate: f"{rate:.1f}") if q.data_type == "Casts" else short)
+        lines.insert(1, f"  Per {'minute' if q.data_type == 'Casts' else 'second'}: {said}{left}.")
     return "\n".join(lines)
+
+
+THIRDS_MIN = 6  # fewer counted pulls have no thirds, as player_night's and progress's (coaching.night_trend)
+
+
+def thirds(rates: list[float], resets: list[bool]) -> list[tuple[list[int], float]] | None:
+    """Pulls in thirds, first, middle and last, each with its median rate: (the third's pulls, as indexes; the
+    median). Resets are left out, and fewer than THIRDS_MIN counted pulls have none, as in player_night's trend
+    (coaching.night_trend), whose median this is too: the upper of two middle ones. The one reading of a trend's
+    medians: breakdown by pull's line (`_by_pull`) and the trend card's headline and dashed lines
+    (views.trend_thirds) are both this."""
+    counted = [i for i, reset in enumerate(resets) if not reset]
+    if len(counted) < THIRDS_MIN:
+        return None
+    third = len(counted) // 3
+    out = []
+    for part in (counted[:third], counted[third:-third], counted[-third:]):
+        found = sorted(rates[i] for i in part)
+        out.append((part, found[len(found) // 2]))
+    return out
+
+
+def thirds_text(found: list[tuple[list[int], float]], text: Callable[[float], str]) -> str:
+    """The thirds' medians (`thirds`) in words, each rate written by `text`: "1.67M in the first third of the 32
+    pulls, 1.65M in the middle and 1.87M in the last (each third's median pull)". The words of breakdown by pull's
+    line and of the trend card's headline (views.trend_headline), so the two can't state it differently."""
+    a, b, c = (text(rate) for _, rate in found)
+    n = sum(len(part) for part, _ in found)
+    return f"{a} in the first third of the {n} pulls, {b} in the middle and {c} in the last (each third's median pull)"
 
 
 async def _without_ability(rep: Report, q: Asked) -> str:

@@ -1862,7 +1862,8 @@ async def breakdown(
     By ability, or for one `ability`, each row has its hits (and periodic ticks), average hit and crit rate ("why
     does their Starsurge hit harder?"); damage taken by ability also names who took most of each. By player, each
     row has the player's spec, and damage or healing on one kill each player's parse against their spec: the way
-    to compare players of different specs ("who played well on the kill?").
+    to compare players of different specs ("who played well on the kill?"). By pull, each pull's total and three
+    biggest rows, and over six pulls or more the median pull of each third of the night.
     Reading it: healing is capped by the damage taken, so its overhealing (healing past full health) is high where
     the raid took little and isn't a fault on its own.
     Not for who stood in one mechanic (mechanic_hits), the damage spikes and the healing cooldowns in them
