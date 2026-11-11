@@ -251,7 +251,7 @@ async def _first_hits(rep: Report, fights: list[dict]) -> str:
              + (", ".join(f"{n} {k}" for n, k in first.most_common()) or "nobody")
              + (f"; at least {EARLY_GAP_MS / 1000:g} s ahead of everyone else: "
                 + ", ".join(f"{n} {k}" for n, k in ahead.most_common()) if ahead else "") + ".")
-    legend = (f"{rep.boss_key(fights[0])}'s first hits, a pull a row (pull: the first player to hit the boss, with "
+    legend = (f"First hits on {rep.boss_key(fights[0])}, a pull a row (pull: the first player to hit the boss, with "
               "what and how far into the pull, then how long before the next player's first hit and whose; the log has "
               "no pull timer, so how early against a countdown can't be told; a first hit well ahead of the next "
               "player's is someone pulling on their own):")

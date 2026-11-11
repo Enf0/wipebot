@@ -1,5 +1,5 @@
 First on the boss over 42 pulls: Zebinomage 13, Krøpling 9, Scopidruid 7, Pomaa 5, Deathadim 3, Martin 2, Agonco 1, Sonyosh 1, Enfo 1; at least 1 s ahead of everyone else: Martin 1.
-Sszorak's first hits, a pull a row (pull: the first player to hit the boss, with what and how far into the pull, then how long before the next player's first hit and whose; the log has no pull timer, so how early against a countdown can't be told; a first hit well ahead of the next player's is someone pulling on their own):
+First hits on Sszorak, a pull a row (pull: the first player to hit the boss, with what and how far into the pull, then how long before the next player's first hit and whose; the log has no pull timer, so how early against a countdown can't be told; a first hit well ahead of the next player's is someone pulling on their own):
   1: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before Pomaa
   2: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before Pomaa
   3: Zebinomage (Arcane Blast) at 0.0 s, 0.2 s before Pomaa

@@ -353,7 +353,8 @@ async def test_who_pulled_leads_the_answer_that_was_asked_for_it(recorded):
     lines = text.splitlines()
     assert lines[0].startswith("First on the boss over 42 pulls: Zebinomage 13, Krøpling 9, ")
     assert lines[0].endswith("; at least 1 s ahead of everyone else: Martin 1.")
-    assert lines[1].startswith("Sszorak's first hits, a pull a row (pull: the first player to hit the boss, ")
+    # "First hits on", not the boss's own: "Entombed Sentinels's first hits" reads as theirs, and badly
+    assert lines[1].startswith("First hits on Sszorak, a pull a row (pull: the first player to hit the boss, ")
     assert lines[2] == "  1: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before Pomaa"
     assert [line.split(":")[0].strip() for line in lines[2:44]] == [str(n) for n in range(1, 43)]
     assert lines[44] == "" and lines[45].startswith("Sszorak: 42 pulls on the night (")
