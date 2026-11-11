@@ -117,6 +117,10 @@ API: `wcl-api.md`.
   and "ready" keeps to the base number and to spells the player cast at least once that night (of the defensive and
   tank spells off cooldown at a callout on the recorded Sszorak night, a fifth had never been cast by that player on
   any pull: talents not taken and passives).
+- Lorrgs' `event_type` says what it follows a spell by: "cast" for most, "applybuff" for one it follows by its
+  buff. Of the spells tagged `raid_cd` in the 40 specs' lists (the evals' frozen data, October 2026) only a
+  Restoration Shaman's Ascendance is "applybuff", with `duration` 0. The healing tool reads how long a press of
+  such a cooldown lasted from its buff in the log (wcl-api.md), and keeps Lorrgs' `duration` for every other.
 - A note may plan a spell again inside its cooldown, and the planned times alone don't show a shorter one: the
   recorded Sszorak note plans Stampeding Roar 73 to 102 s apart against a base of 120 s, the druid's closest two
   casts of it that night were 126 s apart, and the use planned at 1:40 was cast on none of the 11 pulls they were

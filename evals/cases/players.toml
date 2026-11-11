@@ -296,11 +296,12 @@ boss = "The Twin Fangs"
 expect = """Mostly well; the main miss came late: the 6:29-6:37 spike (1.82M/s taken; Venomous Emergence at 6:18, Stir
 the Depths at 6:31) got no healing cooldown until Zephyr at 6:44 and Darkness at 6:48, while Avenging Wrath, not used
 again after 3:32, sat ready through it. The five spikes are close in size (1.73M/s to 1.85M/s), so which one an answer
-calls the biggest doesn't matter. Calling the 7:36-7:44 spike thin too is fair, and so is naming the 1:58-2:05 spike
-with none up, as healing lists it (Ascendance at 1:52 came just before it), as long as the verdict stays mostly well."""
+calls the biggest doesn't matter. Calling the 7:36-7:44 spike thin too is fair. The 1:58-2:05 spike had Ascendance up
+in it, pressed at 1:52, as healing lists it: calling that spike thin, with one healing cooldown, is fair as long as the
+verdict stays mostly well; saying it had none is not."""
 facts = ["Stir the Depths at 0:52, 2:00, 3:41, 4:49, 6:31, 7:39; Ravenous Feast at 1:07, 2:15, 3:57, 5:04, 6:46, 7:54",
-         """each of the first four cycles got healing cooldowns; the second only Ascendance at 1:52 and Zephyr at
-2:16""",
+         """each of the first four cycles got healing cooldowns; the second only Ascendance at 1:52, still up through
+the 1:58-2:05 spike, and Zephyr at 2:16""",
          "the 4:49 cycle got Rallying Cry at 4:47, Ascendance at 4:53, Spirit Link Totem at 5:04 and Rewind at 5:09",
          """the 7:36-7:44 spike got none either: Aura Mastery and Stasis at 7:24 came before it, Ascendance at 7:54
 went into the Feast, and Avenging Wrath sat ready""",

@@ -4,7 +4,7 @@ import asyncio
 import math
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from ..knowledge import KnowledgeError
@@ -12,7 +12,7 @@ from ..text import clock, ids_line, plural, short
 from ..wcl import WCLError
 from .base import COOLDOWNS_NOT_LOGGED, Player, PullRef, Report, dead_since, unavailable
 from .casting import casting, raid_pauses, without
-from .cooldowns import one_per_use
+from .cooldowns import buff_end, one_per_use
 from .taken import Taken, raid_taken
 
 # A spike: raid damage taken at SPIKE_TIMES the pull's median or more, averaged over SPIKE_AVG_MS. The timeline
@@ -32,8 +32,12 @@ NIGHT_SPIKES = 3  # a boss's pulls: each pull's biggest
 # its worst moment is still where a healing cooldown was wanted. Over a boss's pulls, those without one are left out.
 SAME_SPIKE_MS = 10_000  # spikes in different pulls starting this close to the first of them: the same moment
 COOLDOWN_LEAD_MS = 5_000  # a healing cooldown this soon before a spike was used for it (a totem goes down first)
-# Pressed earlier, it counts while it lasts by Lorrgs' duration through half the spike or more: Avenging Wrath at 3:32
-# lasts through 3:39-3:47, which read "none" (The Twin Fangs), but an opener's last second isn't the 0:20 spike's.
+# Pressed earlier, it counts while it lasts through half the spike or more: Avenging Wrath at 3:32 lasts through
+# 3:39-3:47, which read "none" (The Twin Fangs), but an opener's last second isn't the 0:20 spike's. It lasts by
+# Lorrgs' duration. A cooldown Lorrgs follows by its buff, not its cast, has none there (0 s: Lorrgs measures each
+# use from the log), so it lasts as the buff its press put on the healer did in the log: on that kill Ascendance at
+# 1:52.99 gave 18 s of it, through the 1:58-2:05 spike, which read "none" for a press 10 ms outside the 5 s.
+BUFF_TRACKED = "applybuff"  # Lorrgs' `event_type` of such a cooldown; every other raid cooldown's is "cast"
 ABILITIES_NAMED = 2  # the abilities behind each spike
 AT_DEATH_MS = 5_000  # death_recap: each healer's casts in this window before a death
 CASTS_NAMED = 4
@@ -203,14 +207,15 @@ async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict
                 more: Sequence[Spike] = ()) -> dict[int, dict]:
     """Each spike's damage by ability, healing by player, healers' casting and cooldowns, and deaths, and of the
     spikes in `more` (a pull's others) only the cooldowns up in them, which need no table; returns each pull's
-    whole Healing table (until decided), for the healing outside the spikes. Tables in one query each."""
+    whole Healing table (until decided), for the healing outside the spikes. Tables in one query each, and one more
+    for the buffs of the cooldowns Lorrgs follows by their buff, where the pulls' healers have one."""
     windows = [(s.fight["id"], {"startTime": s.start, "endTime": s.end}) for s in spikes]
-    taken, healed, whole, casts, backs, used = await asyncio.gather(
-        rep.tables(windows, "DamageTaken", viewBy="Ability", hostilityType="Friendlies"),
-        rep.tables(windows, "Healing"),
-        rep.tables([(f["id"], {"endTime": ends[f["id"]]}) for f in fights], "Healing"),
-        rep.events_for([(f["id"], {}) for f in fights], "Casts"),
-        rep.resurrects(fights), rep.defensive_casts())
+    (taken, healed, whole), (casts, backs, used, buffs) = await asyncio.gather(
+        asyncio.gather(rep.tables(windows, "DamageTaken", viewBy="Ability", hostilityType="Friendlies"),
+                       rep.tables(windows, "Healing"),
+                       rep.tables([(f["id"], {"endTime": ends[f["id"]]}) for f in fights], "Healing")),
+        asyncio.gather(rep.events_for([(f["id"], {}) for f in fights], "Casts"),
+                       rep.resurrects(fights), rep.defensive_casts(), _tracked_buffs(rep, fights)))
     by_fight = {f["id"]: c for f, c in zip(fights, casts, strict=True)}
     pauses = dict(zip([f["id"] for f in fights], await asyncio.gather(*(raid_pauses(rep, f) for f in fights)),
                       strict=True))
@@ -220,9 +225,15 @@ async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict
     own = {(f["id"], pid): [c for c in by_fight[f["id"]] if c.get("sourceID") == pid]
            for f in fights for pid in {pid for pid, _ in cds} | {p.id for p in rep.pull_players(f).values()
                                                                 if p.role == "healer"}}
-    # (pull, healer) -> each healing cooldown of theirs with its casts in the pull
-    presses = {(fid, pid): {name: (sp, [c["timestamp"] for c in casts if c["type"] == "cast" and rep.is_spell(c, sp)])
-                            for (who, name), sp in cds.items() if who == pid} for (fid, pid), casts in own.items()}
+    pull_end = {f["id"]: f["endTime"] for f in fights}
+
+    def theirs(fid: int, pid: int, sp: dict) -> tuple[dict, list[float], dict[float, float]]:
+        at = [c["timestamp"] for c in own[fid, pid] if c["type"] == "cast" and rep.is_spell(c, sp)]
+        return sp, at, _ran_out(rep, pid, sp, at, buffs.get(fid, []), pull_end[fid])
+    # (pull, healer) -> each healing cooldown of theirs with its casts in the pull, and when the buff of each press
+    # ran out where Lorrgs follows the cooldown by its buff
+    presses = {(fid, pid): {name: theirs(fid, pid, sp) for (who, name), sp in cds.items() if who == pid}
+               for fid, pid in own}
 
     def uses(fid: int, pid: int, name: str, at: list[float]) -> set[tuple[int, str, float]]:
         """The uses these casts belong to: a channel logs a cast for each tick, and its first is the press."""
@@ -252,28 +263,63 @@ async def _fill(rep: Report, fights: list[dict], spikes: list[Spike], ends: dict
                 mine.dead_s = (s.end - max(gone, s.start)) / 1000
             gaps = without(casting(own[f["id"], p.id], s.end, died).gaps, pauses[f["id"]])
             mine.idle_s = sum(max(0.0, min(b, s.end) - max(a, s.start)) for a, b in gaps) / 1000
-            for name, (sp, theirs) in presses[f["id"], p.id].items():
-                if at := _up(theirs, sp, s.start, s.end):
+            for name, (sp, times, until) in presses[f["id"], p.id].items():
+                if at := _up(times, sp, s.start, s.end, until):
                     s.cooldowns.append(f"{name} ({p.name}) at {clock(at[0] - t0)}")
                     s.up |= uses(f["id"], p.id, name, at)
-                elif (p.id, name) in pressed and gone is None and _ready(theirs, sp, s.start):
+                elif (p.id, name) in pressed and gone is None and _ready(times, sp, s.start):
                     s.ready.append(f"{name} ({p.name})")
                     mine.ready += 1
             s.healers[p.id] = mine
     for s in more:
         for p in (p for p in rep.pull_players(s.fight).values() if p.role == "healer"):
-            for name, (sp, theirs) in presses[s.fight["id"], p.id].items():
-                if at := _up(theirs, sp, s.start, s.end):
+            for name, (sp, times, until) in presses[s.fight["id"], p.id].items():
+                if at := _up(times, sp, s.start, s.end, until):
                     s.cooldowns.append(f"{name} ({p.name}) at {clock(at[0] - s.fight['startTime'])}")
                     s.up |= uses(s.fight["id"], p.id, name, at)
     return {f["id"]: w for f, w in zip(fights, whole, strict=True)}
 
 
-def _up(times: list[float], sp: dict, start: float, end: float) -> list[float]:
+def _up(times: list[float], sp: dict, start: float, end: float, until: Mapping[float, float] = {}) -> list[float]:
     """The casts of healing cooldown `sp` up in `start`-`end`: pressed in it or up to COOLDOWN_LEAD_MS before it, or
-    earlier and lasting, by Lorrgs' duration, through half of it."""
+    earlier and lasting through half of it. A cast lasts until its time in `until` (when the buff that press gave
+    ran out in the log, `_ran_out`), and by Lorrgs' duration when it has none there."""
     lasts, middle = 1000 * (sp.get("duration") or 0), (start + end) / 2
-    return [t for t in times if start - COOLDOWN_LEAD_MS <= t <= end or t < start and t + lasts >= middle]
+    return [t for t in times
+            if start - COOLDOWN_LEAD_MS <= t <= end or t < start and until.get(t, t + lasts) >= middle]
+
+
+def _ran_out(rep: Report, pid: int, sp: dict, times: list[float], buffs: list[dict],
+             pull_end: float) -> dict[float, float]:
+    """For a healing cooldown Lorrgs follows by its buff: each press of it (a use's first cast) -> when the buff it
+    put on the healer ran out, from the pull's `buffs` (`_tracked_buffs`). The buff is the healer's own on
+    themselves, so a totem's or another player's isn't theirs. A press no such buff came with isn't in it, and no
+    press of another cooldown is: those last by Lorrgs' duration."""
+    if sp.get("event_type") != BUFF_TRACKED:
+        return {}
+    own = [e for e in buffs if e.get("sourceID") == pid == e.get("targetID") and rep.is_spell(e, sp)]
+    return {t: end for t in one_per_use(times) if (end := buff_end(t, own, pull_end)) is not None}
+
+
+async def _tracked_buffs(rep: Report, fights: list[dict]) -> dict[int, list[dict]]:
+    """Per pull, the buff events over the whole pull, in time order, of its healers' cooldowns that Lorrgs follows
+    by their buff, on whoever has one: every such pull's in one query, and no query when no pull has such a
+    cooldown (a raid without a Restoration Shaman)."""
+    found = await asyncio.gather(*(_buff_filter(rep, f) for f in fights))
+    exprs = {f["id"]: expr for f, expr in zip(fights, found, strict=True) if expr}
+    if not exprs:
+        return {}
+    events = await rep.events_for([(fid, {"filterExpression": expr}) for fid, expr in exprs.items()], "Buffs")
+    return {fid: sorted(got, key=lambda e: e["timestamp"]) for fid, got in zip(exprs, events, strict=True)}
+
+
+async def _buff_filter(rep: Report, f: dict) -> str | None:
+    """The filter for the buffs of a pull's healing cooldowns that Lorrgs follows by their buff, None when it has
+    none. From that pull's healers alone: the filter is part of the key its answer is kept under (fetch.py), so a
+    pull asked alone and with the night's others reads one answer, fetched once."""
+    spells = [sp for sp in (await _healing_cooldowns(rep, [f])).values() if sp.get("event_type") == BUFF_TRACKED]
+    ids = sorted(rep.spell_ids(spells))
+    return f"ability.id in ({', '.join(map(str, ids))})" if ids else None
 
 
 def _ready(times: list[float], sp: dict, at: float) -> bool:

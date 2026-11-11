@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `MCP` **A pull's card reads cleanly on a phone.** The boss box keeps each % with what it is ("best of this log: WCL 4.5%"), where a narrow card left "WCL 4.5%" on a line of its own like a second answer. A damage peak's number is no longer written over the spike beside it: it stands next to its own peak, or stays in the tooltip when there's no room.
 
   ![The Coiled Altar pull 3 on a phone in Claude's dark theme: the boss box "P2 0.5%, WCL 50.1% · best of this log: WCL 4.5%", and in the chart "8.6M" beside the first of two damage spikes at the line the wipe was decided at](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/pull-card-phone.webp)
+- `Agent` **Ascendance counts for a damage spike it was still up in.** A healing cooldown pressed more than 5 s before a spike counts for it while it lasts, and a Restoration Shaman's Ascendance had no duration to last by, so it never did: on a Twin Fangs kill the 1:58-2:05 spike listed no healing cooldown, with Ascendance pressed at 1:52 and up until 2:10, which reads as the healers leaving the spike uncovered. How long each press of Ascendance lasted is now read from its buff in the log: that spike lists "Ascendance (Enfo) at 1:52", and the shaman has 2 healing cooldowns in a spike where it said 1. A press whose buff ran out before half the spike still isn't counted for it.
 
 ## [1.1.0] - 2026-11-11
 

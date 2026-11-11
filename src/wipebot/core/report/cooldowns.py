@@ -187,6 +187,37 @@ def one_per_use(times: list[float], apart_ms: float = REPEAT_CAST_MS) -> list[fl
     return out
 
 
+REFRESH_MS = 50  # a buff removed and gained again this close together is one buff refreshed
+COVER_MS = 1000  # a spell's own buff is its cast's when it comes this close to it, before or after
+
+
+def aura_end(auras: list[dict], i: int, pull_end: float) -> float:
+    """When the buff gained at `auras[i]` ran out: its first removal not gained again at once (a buff refreshed as
+    a removal and a gain at the same moment, as Fury of the Aspects is, runs on), or the pull's end."""
+    aura = auras[i].get("abilityGameID")
+    for j in range(i + 1, len(auras)):
+        x = auras[j]
+        if x["type"] != "removebuff" or x.get("abilityGameID") != aura:
+            continue
+        soon = (y for y in auras[j + 1:] if y["timestamp"] <= x["timestamp"] + REFRESH_MS)
+        if not any(y["type"] == "applybuff" and y.get("abilityGameID") == aura for y in soon):
+            return x["timestamp"]
+    return pull_end
+
+
+def buff_end(press: float, auras: list[dict], pull_end: float) -> float | None:
+    """When the buff a press put on its caster ran out, from the caster's own aura events of the spell in time
+    order; None when no buff came with the press. Its buff is the one gained or refreshed nearest the press within
+    COVER_MS of it: the aura can be logged a millisecond before the cast, and a press while a proc has the same
+    buff up shows as a refresh. It lasts as `aura_end` reads it. A buff gained with no press near it (a proc) is
+    never asked about, so it is nobody's press."""
+    near = [i for i, e in enumerate(auras)
+            if e["type"] in ("applybuff", "refreshbuff") and abs(e["timestamp"] - press) <= COVER_MS]
+    if not near:
+        return None
+    return aura_end(auras, min(near, key=lambda i: abs(auras[i]["timestamp"] - press)), pull_end)
+
+
 BOSS_CAST_MS = 2_000  # one boss cast logged under two abilities (Mutilate [1277027] and [1277031]) is one
 
 

@@ -106,6 +106,48 @@ def test_a_channelled_cooldown_counts_once_however_many_ticks_it_logs():
     assert cooldowns.one_per_use([*ticks, 200_000]) == [16_000, 200_000]
 
 
+def test_a_buff_refreshed_by_a_removal_and_a_gain_at_once_runs_on():
+    # Fury of the Aspects, an Evoker's Bloodlust, is removed and gained again every few seconds, as in
+    # BVxPYCk6XQwWmgLd fight 11: one 40 s buff, not one of 2 s, or buff_at_casts said Bloodlust was never up.
+    fury, other = 390386, 1
+    auras = [{"type": "applybuff", "abilityGameID": fury, "timestamp": 1000},
+             {"type": "removebuff", "abilityGameID": fury, "timestamp": 3000},
+             {"type": "applybuff", "abilityGameID": other, "timestamp": 3000},
+             {"type": "applybuff", "abilityGameID": fury, "timestamp": 3000},
+             {"type": "removebuff", "abilityGameID": fury, "timestamp": 41000},
+             {"type": "applybuff", "abilityGameID": fury, "timestamp": 60000}]
+    assert cooldowns.aura_end(auras, 0, 99000) == 41000
+    assert cooldowns.aura_end(auras, 5, 99000) == 99000
+
+
+def test_a_press_lasts_as_long_as_the_buff_it_put_on_its_caster():
+    # Lorrgs follows a Restoration Shaman's Ascendance by its buff and gives it no duration, so how long a press
+    # lasted is the log's to say. On The Twin Fangs kill (dTQMvNbBcPh6mDrA fight 23) the press 1:52.990 into the pull
+    # has its buff from a millisecond before the cast to 2:10.990, 18 s.
+    def aura(kind: str, ms: int) -> dict:
+        return {"type": kind, "abilityGameID": 114052, "timestamp": ms}
+    pull_end = 480_000
+    assert cooldowns.buff_end(112_990, [aura("applybuff", 112_989), aura("removebuff", 130_990)], pull_end) == 130_990
+    # A proc (Deeply Rooted Elements) puts the same buff up for 6 s with no cast. No press near it: nobody's press.
+    # A press while one is up shows as a refresh, and lasts until the buff is removed.
+    procs = [aura("applybuff", 40_000), aura("removebuff", 46_000),
+             aura("applybuff", 100_000), aura("refreshbuff", 103_000), aura("removebuff", 121_000)]
+    assert cooldowns.buff_end(103_000, procs, pull_end) == 121_000
+    assert cooldowns.buff_end(60_000, procs, pull_end) is None  # the proc at 0:40 isn't the buff of a press at 1:00
+    # Its buff is the one gained nearest the press: not the refresh of one that ran out just before it
+    after = [aura("applybuff", 94_000), aura("refreshbuff", 99_200), aura("removebuff", 99_600),
+             aura("applybuff", 100_000), aura("removebuff", 118_000)]
+    assert cooldowns.buff_end(100_000, after, pull_end) == 118_000
+    # Removed and gained again at once (within REFRESH_MS), it runs on; still up when the pull ends, it ends with it
+    again = [aura("applybuff", 10_000), aura("removebuff", 28_000), aura("applybuff", 28_020),
+             aura("removebuff", 34_000)]
+    assert cooldowns.buff_end(10_000, again, pull_end) == 34_000
+    assert cooldowns.buff_end(470_000, [aura("applybuff", 470_000)], pull_end) == pull_end
+    # No buff came with the press (an instant, a totem, whose buff is the totem's): nothing measured
+    assert cooldowns.buff_end(10_000, [], pull_end) is None
+    assert cooldowns.buff_end(10_000, [aura("removebuff", 10_000)], pull_end) is None
+
+
 async def test_cooldowns_count_until_the_wipe_was_decided(rep, pull, monkeypatch):
     # Pull 13 was decided at 2:32 (the enrage) and lasted 2:42: an 80 s cooldown fits twice, not three times, and
     # a press in the fallout doesn't count.

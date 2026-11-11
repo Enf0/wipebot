@@ -239,20 +239,6 @@ def test_a_nights_best_pull_is_one_long_enough_to_judge():
     assert coaching.best_pulls([short], "dps") == [short]  # none long enough: the short ones
 
 
-def test_a_buff_refreshed_by_a_removal_and_a_gain_at_once_runs_on():
-    # Fury of the Aspects, an Evoker's Bloodlust, is removed and gained again every few seconds, as in
-    # BVxPYCk6XQwWmgLd fight 11: one 40 s buff, not one of 2 s, or buff_at_casts said Bloodlust was never up.
-    fury, other = 390386, 1
-    auras = [{"type": "applybuff", "abilityGameID": fury, "timestamp": 1000},
-             {"type": "removebuff", "abilityGameID": fury, "timestamp": 3000},
-             {"type": "applybuff", "abilityGameID": other, "timestamp": 3000},
-             {"type": "applybuff", "abilityGameID": fury, "timestamp": 3000},
-             {"type": "removebuff", "abilityGameID": fury, "timestamp": 41000},
-             {"type": "applybuff", "abilityGameID": fury, "timestamp": 60000}]
-    assert coaching._aura_end(auras, 0, 99000) == 41000
-    assert coaching._aura_end(auras, 5, 99000) == 99000
-
-
 def _night_pull(no: int, until_s: float, uses: dict[str, list[float]], reset: bool = False) -> coaching.NightPull:
     """A made-up pull of a night for its cooldowns: how long the player had (alive, the wipe not decided) and when
     they used each, in seconds."""

@@ -1,5 +1,7 @@
 """The healing tool's reading of the raid's damage taken, on made-up damage."""
-from tests.support import damage_graph
+import pytest
+
+from tests.support import RESTO_SPELLS, damage_graph
 from wipebot.core.report import fight, healing
 from wipebot.core.report.taken import Taken
 
@@ -104,6 +106,103 @@ def test_a_cooldown_pressed_before_a_spike_counts_while_it_lasts():
     assert healing._up([1_000], wrath, 20_000, 27_000) == []
     assert healing._up([213_000], rewind, start, end) == [213_000]
     assert healing._up([212_000], rewind, start, end) == []
+
+
+def test_a_cooldown_followed_by_its_buff_counts_while_that_buff_lasted_in_the_log():
+    # Lorrgs gives a Restoration Shaman's Ascendance no duration (it follows the spell by its buff and measures each
+    # use from the log), so pressed more than 5 s before a spike it never counted. On The Twin Fangs kill the press at
+    # 1:52.99 missed the 5 s before the 1:58-2:05 spike by 10 ms, and the spike read "none" with the buff up until
+    # 2:10.99. The press now lasts until its buff ran out; one with no buff measured keeps Lorrgs' duration.
+    ascendance, start, end = {"duration": 0}, 118_000, 125_000
+    assert healing._up([112_990], ascendance, start, end, {112_990: 130_990}) == [112_990]
+    assert healing._up([112_990], ascendance, start, end) == []
+    assert healing._up([112_990], ascendance, start, end, {112_990: 121_000}) == []  # gone before half the spike
+    # What the log measured stands, also against a duration Lorrgs gives; another cast keeps Lorrgs'
+    assert healing._up([100_000, 101_000], {"duration": 20}, 110_000, 116_000, {100_000: 102_000}) == [101_000]
+
+
+ASCENDANCE = {"spell_id": 114052, "name": "Ascendance", "cooldown": 180.0, "duration": 0.0, "tags": ["raid_cd"],
+              "spell_type": "shaman-restoration", "event_type": "applybuff"}  # as Lorrgs lists it
+
+
+def _one_spike(rep, patch_wcl, casts: list[dict], buffs: list[dict]) -> list[dict]:
+    """Pull 13 with one spike, 0:19-0:29, the healers' `casts` in it, and `buffs` for what is asked of its buffs by
+    a filter; returns the filters those were asked with, as they come."""
+    f, asked = rep.fight(13), []
+    events = rep.wcl.events
+
+    async def served(code, fight_id, data_type, **filters):
+        if data_type == "Casts" and fight_id == f["id"] and filters.get("hostilityType") != "Enemies":
+            return casts
+        if data_type == "Buffs" and "filterExpression" in filters:
+            asked.append({"fight": fight_id, **filters})
+            return buffs
+        return await events(code, fight_id, data_type, **filters)
+
+    async def many(code, fights, data_type, **filters):
+        return [await served(code, fid, data_type, **filters, **own) for fid, own in fights]
+    patch_wcl(rep, graph_windows=_windows(rep, {i: 300.0 for i in range(20, 28)}), events=served, events_many=many)
+    return asked
+
+
+@pytest.mark.parametrize("source, holder, gone_s, listed", [
+    ("Enfo", "Enfo", 29, True),  # their own buff from the press ran through the spike
+    ("Enfo", "Enfo", 13, False),  # it was gone after 2 s
+    ("another", "Enfo", 29, False),  # on them, from someone else (a totem's buff is the totem's): not their press's
+    ("another", "another", 29, False),  # another shaman's own, from a press of theirs at that second
+])
+async def test_a_cooldown_followed_by_its_buff_is_up_in_a_spike_its_buff_ran_through(rep, patch_wcl, fake_knowledge,
+                                                                                    source, holder, gone_s, listed):
+    # Ascendance pressed 8 s before a spike, outside the 5 s before it: up in the spike when the buff the press put
+    # on the healer ran through it, listed at the press's time and counted once for the healer. A proc of theirs
+    # earlier in the pull, with no press, is no part of it.
+    fake_knowledge(spec_spells=[*RESTO_SPELLS, ASCENDANCE])
+    f = rep.fight(13)
+    t0 = f["startTime"]
+    ids = {"Enfo" if p.name == "Enfo" else "another": p.id for p in reversed(rep.pull_players(f).values())}
+
+    def buff(kind: str, s: float, source: str = "Enfo", holder: str = "Enfo") -> dict:
+        return {"timestamp": t0 + 1000 * s, "type": kind, "sourceID": ids[source], "targetID": ids[holder],
+                "abilityGameID": 114052}
+    casts = [{"timestamp": t0 + 11_000, "type": "cast", "sourceID": ids["Enfo"], "abilityGameID": 114052}]
+    buffs = [buff("applybuff", 1), buff("removebuff", 7),
+             buff("applybuff", 10.999, source, holder), buff("removebuff", gone_s, source, holder)]
+    asked = _one_spike(rep, patch_wcl, casts, buffs)
+    lines = (await healing.healing(rep, 13)).splitlines()
+    assert lines[1].startswith("0:19-0:29 (10 s): ")
+    up = lines[3].split("lasting through half of it): ")[1].split(";")[0]
+    row = next(line for line in lines if line.startswith("  Enfo (Restoration Shaman): "))
+    assert up == ("Ascendance (Enfo) at 0:11" if listed else "none")
+    assert f"; {1 if listed else 0} healing cooldown{'' if listed else 's'} in a spike, 0 left ready in one" in row
+    # One query: the pull's buffs of that spell over the whole pull
+    assert asked == [{"fight": f["id"], "filterExpression": "ability.id in (114052)"}]
+
+
+async def test_a_pull_without_a_cooldown_followed_by_its_buff_asks_for_no_buffs(rep, patch_wcl):
+    # Only a cooldown Lorrgs follows by its buff is read from the pull's buffs: a raid whose healers have none (the
+    # rep's, with Spirit Link Totem, a cast to Lorrgs) pays no query for it, and its cooldowns last by Lorrgs'.
+    f = rep.fight(13)
+    enfo = next(p.id for p in rep.pull_players(f).values() if p.name == "Enfo")
+    casts = [{"timestamp": f["startTime"] + 16_000, "type": "cast", "sourceID": enfo, "abilityGameID": 98008}]
+    asked = _one_spike(rep, patch_wcl, casts, [])
+    assert "Spirit Link Totem (Enfo) at 0:16; " in await healing.healing(rep, 13)
+    assert asked == []
+
+
+async def test_a_pulls_buffs_are_asked_for_by_its_own_healers_cooldowns(rep, patch_wcl, monkeypatch):
+    # The filter is part of the key a pull's answer is kept under. Built from the healers of every pull asked about,
+    # a pull read alone and then with the night's others would have two keys, and be fetched twice.
+    first, second = rep.fights[:2]
+    made_up = {**ASCENDANCE, "spell_id": 1, "name": "Made Up"}
+
+    async def kits(rep, fights):  # a healer with Ascendance in the first pull, one with another such cooldown after
+        return {(1, sp["name"]): sp for f in fights for sp in [ASCENDANCE if f is first else made_up]}
+    monkeypatch.setattr(healing, "_healing_cooldowns", kits)
+    asked = _one_spike(rep, patch_wcl, [], [])
+    assert await healing._tracked_buffs(rep, [first, second]) == {first["id"]: [], second["id"]: []}
+    await healing._tracked_buffs(rep, [first])  # kept from the night's read
+    assert asked == [{"fight": first["id"], "filterExpression": "ability.id in (114052)"},
+                     {"fight": second["id"], "filterExpression": "ability.id in (1)"}]
 
 
 async def test_a_pull_without_damage_taken_recorded_says_so_in_a_line(rep):

@@ -29,6 +29,16 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   bosses being the actors with `subType: "Boss"`. The deaths after an enrage name whatever ability hit last.
 - For aura events (Buffs, Debuffs) the `sourceID` filter selects the player who has the aura; the events keep
   their real source. A dying player's auras are removed about 20 ms before the death event.
+- Buffs events asked by a `filterExpression` alone, with no `sourceID`, come for everyone who has the aura, each
+  with its real `sourceID` and its holder as `targetID`: all 13,413 events of the 121 such answers in the evals'
+  frozen data carried both (checked 2026-11-11), as `applybuff`, `removebuff` and `refreshbuff`.
+- A press's own buff starts on the caster at the cast or a millisecond before it, and as a `refreshbuff` when a
+  proc already had the buff up: of a Restoration Shaman's 19 Ascendance presses in 7 of that data's reports, the
+  buff (114052, from and on the caster) came as an `applybuff` at the cast's millisecond (8) or 1 ms before it
+  (5), or as a `refreshbuff` at it (6), and ran 14.6 to 24.0 s from the cast until its `removebuff` (18.0 s for
+  7), but 0.4 s for one whose caster died 39 ms after the removal; 48 more gains of that aura had no cast within
+  1 s (procs, about 6 s each on the two kills read). Lorrgs gives the spell 0 s, so the healing tool reads how long
+  a press lasted from these events (`cooldowns.buff_end`).
 - `events(dataType: Healing)` takes `targetID` for the healing a player received.
 - A `cast` event's `targetID` is the player a spell was cast on, where it has one: on the four recorded raid-note
   nights (October and November 2026) every cast event of Guardian Spirit, Blessing of Sacrifice and Time Dilation

@@ -1,7 +1,7 @@
 The raid's 4 biggest damage spikes of 5 (by the damage taken in them) and the healing into them, The Twin Fangs pull 7 (https://www.warcraftlogs.com/reports/dTQMvNbBcPh6mDrA#fight=23). A spike: raid damage taken at 1.5x the pull's median or more over 5 s, at least 3 s long.
 1:58-2:05 (7 s): 1.77M/s taken (Stir the Depths 28%, Toxic Fumes 27%); healing 1.04M/s, 59% of the damage taken.
   Healers: Agonco 128.42k/s (4% overheal); Enfo 431.99k/s (0% overheal); Lïzårðmâñ 176.69k/s (1% overheal)
-  Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): none; ready and unused (by healers who press them this report): Zephyr (Lïzårðmâñ)
+  Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): Ascendance (Enfo) at 1:52; ready and unused (by healers who press them this report): Zephyr (Lïzårðmâñ)
 3:39-3:47 (8 s): 1.78M/s taken (Stir the Depths 25%, Toxic Fumes 24%); healing 1.69M/s, 95% of the damage taken.
   Healers: Agonco 406.40k/s (9% overheal); Enfo 537.77k/s (5% overheal); Lïzårðmâñ 228.39k/s (3% overheal)
   Healing cooldowns up in it (pressed in it or up to 5 s before, or earlier and lasting through half of it): Avenging Wrath (Agonco) at 3:32; ready and unused (by healers who press them this report): none
@@ -16,6 +16,6 @@ The one other spike, with less damage in all than the 4 above (time, length, dam
 Who was meant to press which healing cooldown isn't in the log, and The Dragonfell Tribe has no raid note saved for The Twin Fangs that night; a healing cooldown ready and unused isn't a missed assignment (raids plan each cooldown for chosen moments and hold it through the others).
 Each healer in the 4 biggest spikes against the rest of the time (healing on a wipe is capped by the damage taken, so a healer topping a quiet stretch shows high overheal; no cast begun leaves out raid-wide stuns; healing cooldowns in a spike count all 5 spikes, left ready the 4 biggest):
   Agonco (Holy Paladin): 302.60k/s (10% overheal) in those spikes, 207.81k/s (29% overheal) the rest of the time; casting throughout in those 31 s; 1 healing cooldown in a spike, 2 left ready in one
-  Enfo (Restoration Shaman): 423.78k/s (2% overheal) in those spikes, 304.82k/s (14% overheal) the rest of the time; casting throughout in those 31 s; 1 healing cooldown in a spike, 0 left ready in one
+  Enfo (Restoration Shaman): 423.78k/s (2% overheal) in those spikes, 304.82k/s (14% overheal) the rest of the time; casting throughout in those 31 s; 2 healing cooldowns in a spike, 0 left ready in one
   Lïzårðmâñ (Preservation Evoker): 194.06k/s (2% overheal) in those spikes, 216.95k/s (18% overheal) the rest of the time; no cast begun for 3 s, dead for 4 s in those 31 s; 0 healing cooldowns in a spike, 2 left ready in one
 Ability ids: Stir the Depths [1292806], Toxic Fumes [1294976], Eternal Venom [1290480], Coiling Ichor [1290878]

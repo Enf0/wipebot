@@ -15,7 +15,7 @@ from ..wcl import WCLError
 from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report, unavailable
 from .build import gear_stats, hero_of, prepared
 from .casting import alive, cast_counts, casting, casting_lines, raid_pauses, without
-from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
+from .cooldowns import COVER_MS, NOT_ON_COOLDOWN, OVER_BASE, aura_end, cooldown_lines, cooldown_use, prepull
 from .deaths import UNTOLD, Replayed, in_mass_hits, lived, replay_deaths, savers
 from .ending import BEFORE_NOTE, FALLOUT_NOTE, MASS_HIT, MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
@@ -953,21 +953,6 @@ async def _resource_casts(rep: Report, f: dict, p: Player, kind: int, spell_ids:
 LUST_NAMES = ("lust", "bloodlust", "heroism", "hero")  # what raiders call Bloodlust and its kin
 LUST_SAME_MS = 100  # a buff gained this close to a player's Sated (& co.) came with it
 LUST_LASTED = 0.75  # and lasted at least this share of Bloodlust's duration, or until the pull ended
-REFRESH_MS = 50  # a buff removed and gained again this close together is one buff refreshed
-
-
-def _aura_end(auras: list[dict], i: int, pull_end: int) -> int:
-    """When the buff gained at `auras[i]` ran out: its first removal not gained again at once (a buff refreshed as
-    a removal and a gain at the same moment, as Fury of the Aspects is, runs on), or the pull's end."""
-    aura = auras[i].get("abilityGameID")
-    for j in range(i + 1, len(auras)):
-        x = auras[j]
-        if x["type"] != "removebuff" or x.get("abilityGameID") != aura:
-            continue
-        soon = (y for y in auras[j + 1:] if y["timestamp"] <= x["timestamp"] + REFRESH_MS)
-        if not any(y["type"] == "applybuff" and y.get("abilityGameID") == aura for y in soon):
-            return x["timestamp"]
-    return pull_end
 
 
 async def _buff_ids(rep: Report, buff: str, items: list[tuple[dict, Player]]) -> tuple[set[int], str]:
@@ -989,7 +974,7 @@ async def _buff_ids(rep: Report, buff: str, items: list[tuple[dict, Player]]) ->
         for i, e in enumerate(auras):
             if e["type"] != "applybuff" or not any(abs(e["timestamp"] - t) <= LUST_SAME_MS for t in sated):
                 continue
-            end = _aura_end(auras, i, f["endTime"])
+            end = aura_end(auras, i, f["endTime"])
             if end - e["timestamp"] >= LUST_LASTED * duration or end >= f["endTime"] - LUST_GROUP_MS:
                 found.add(e["abilityGameID"])
     names = sorted({rep.ability(i) for i in found})
@@ -1022,9 +1007,6 @@ def _spans(auras: list[dict]) -> list[tuple[float, float]]:
             spans.append((since, e["timestamp"]))
             since = None
     return spans + ([(since, math.inf)] if since is not None else [])
-
-
-COVER_MS = 1000  # a spell's own buff counted as its cast's from this soon after it
 
 
 async def _gained_while(rep: Report, f: dict, p: Player, auras: list[dict], spell_ids: set[int],
