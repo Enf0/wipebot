@@ -124,3 +124,36 @@ async def test_the_night_at_a_glance_names_a_boss_difficulty_once_and_its_length
     monkeypatch.setattr(rep, "by_boss", {rep.boss_key(f): rep.by_boss["Sszorak"]})
     text = await night.overview(rep)
     assert "- Sszorak (Mythic): 33 pulls" in text and "(Mythic) (Mythic)" not in text
+
+
+async def test_each_pull_folds_the_post_into_the_row_and_says_the_guild_best_once(rep, monkeypatch):
+    # With each_pull every pull's post used to follow the rows: 33 posts, each with the guild's best and its link,
+    # the first death and the % its row has. The row now carries what only the post had: the first three deaths, the
+    # killing blows until the wipe was decided and how many died after it. The guild's best stands once, above.
+    before = GuildBest(40.0, "abcDEF123", 7, 4, 1_700_000_000_000.0)
+
+    async def guild_best(fight: dict) -> GuildBest:
+        return before
+    monkeypatch.setattr(rep, "guild_best", guild_best)
+    plain, each = await night.progress(rep, "Sszorak"), await night.progress(rep, "Sszorak", each_pull=True)
+    assert each.count("https://www.warcraftlogs.com/reports/abcDEF123#fight=7") == 1 and "**" not in each
+    rows = [line for line in each.splitlines() if line.startswith("  ")]
+    assert len(rows) == len(rep.by_boss["Sszorak"]) == 33
+    assert rows[12] == (
+        "  13: 62.6% P1 (2nd time) 2:42, ended by the boss gaining Unbound Ferocity and keeping it to the end, decided "
+        "at 2:32; first deaths Scopidruid (Ula'tek's Presence, 0:48) · Draiman (no killing blow recorded, 0:53) · "
+        "Attractîv (Venomous Surge, 1:28); killed by Ula'tek's Presence ×1 · no killing blow recorded ×1 · Venomous "
+        "Surge ×1 · Raging Crosswinds ×1 (15 later deaths: fallout); boss Unbound Ferocity from 2:32 · best of the "
+        "night until then")
+    # what the row says is what the pull's post says, for every pull
+    for f, row in zip(rep.by_boss["Sszorak"], rows, strict=True):
+        post = (await rep.summary(f)).splitlines()
+        first = next((line.removeprefix("First deaths: ") for line in post if line.startswith("First deaths")), None)
+        killed = next((line for line in post if line.startswith("Killed by")), None)
+        assert first is None or f"; first deaths {first}; killed by " in row
+        assert killed is None or killed.split(": ", 1)[1] in row
+    # the rest of the answer is the plain one's, but for the legend
+    assert each.splitlines()[len(rows) + 2:] == plain.splitlines()[len(rows) + 2:]
+    assert "the first 3 deaths, the killing blows of the deaths until the wipe was decided, how many died after it" \
+        in each.splitlines()[0]
+    assert each.startswith("Sszorak (Mythic): 33 pulls on the night (") and plain.startswith("Sszorak: 33 pulls on")

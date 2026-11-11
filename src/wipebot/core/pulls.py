@@ -393,17 +393,23 @@ def subject(s: PullSummary, url: str) -> str:
     return f"{head}{', '.join([*_outcome(s, str), length])} ({url})" + ("; " + ", ".join(ranks) if ranks else "") + "."
 
 
+def killers_until(s: PullSummary) -> tuple[str, int]:
+    """The killing blows of the deaths until the wipe was decided ('Virulence ×3 · Tempest ×1', every death's on a
+    kill), and how many deaths came after it: its fallout."""
+    counted = [d for d in s.deaths if not d.fallout] if s.decided else s.deaths
+    return killers_text(counted), len(s.deaths) - len(counted)
+
+
 def killed_by(s: PullSummary) -> str | None:
     """'Killed by: Virulence ×3 · Tempest ×1', the deaths until the wipe was decided by their killing blows, with how
     many came after it; None without a death."""
     if not s.deaths:
         return None
-    counted = [d for d in s.deaths if not d.fallout]
-    if s.decided is None or len(counted) == len(s.deaths):
-        return "Killed by: " + killers_text(counted)
-    later = plural(len(s.deaths) - len(counted), "later death")
+    killers, later = killers_until(s)
+    if s.decided is None or not later:
+        return "Killed by: " + killers
     return (f"Killed by, until the wipe was decided at {clock(s.decided.at_ms)} ({s.decided.why}): "
-            + (killers_text(counted) or "none") + f" ({later}: fallout)")
+            + (killers or "none") + f" ({plural(later, 'later death')}: fallout)")
 
 
 def trend_line(s: PullSummary) -> str | None:

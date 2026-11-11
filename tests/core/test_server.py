@@ -178,7 +178,8 @@ async def test_an_argument_of_the_wrong_kind_is_told_in_a_sentence():
         await server.mcp.call_tool("progress", {"report": CODE, "weeks": "many", "each_pull": "sometimes"})
     assert str(e.value) == (
         "progress can't take 'sometimes' as `each_pull`: it should be a valid boolean, unable to interpret input. "
-        "`each_pull` is: also each pull's post (first deaths, every killer, the trend). "
+        "`each_pull` is: each pull's row also names its first three deaths and the killing blows until the wipe was "
+        "decided, with how many died after it. "
         "progress can't take 'many' as `weeks`: it should be a valid integer, unable to parse string as an integer. "
         "`weeks` is: also the boss on each of the guild's raid nights over this many weeks back (1-12), for \"are "
         "we doing better than last week?\": reads every night, slow.")

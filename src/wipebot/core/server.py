@@ -1512,8 +1512,9 @@ async def raid_prep(pull: Pull = None, boss: Boss = None, report: Report_ = None
 async def progress(boss: Annotated[str | None, Field(description=(
                        "boss name, or part of it; omit for the whole night: every boss at a glance, then the latest "
                        "boss's pulls"))] = None,
-                   each_pull: Annotated[bool, Field(description="also each pull's post (first deaths, every "
-                                                                "killer, the trend)")] = False,
+                   each_pull: Annotated[bool, Field(description=(
+                       "each pull's row also names its first three deaths and the killing blows until the wipe was "
+                       "decided, with how many died after it"))] = False,
                    first_hits: Annotated[bool, Field(description="also who hit the boss first on each pull, for "
                                                                  "\"who pulls early?\"")] = False,
                    weeks: Annotated[int | None, Field(description=(
@@ -1536,11 +1537,10 @@ async def progress(boss: Annotated[str | None, Field(description=(
     night's pulls on the boss, the kill, the best wipe before it and how the pulls ended, then the best wipe night
     by night."""
     rep = await lib().report(report)
-    # The overview asks Warcraft Logs other things than the pulls do: both at once. The posts read what the
-    # pulls' lines just fetched, so they come after.
-    texts = list(await asyncio.gather(*([] if boss else [night.overview(rep)]), night.progress(rep, boss)))
-    if each_pull or first_hits:
-        texts.append(await night.each_pull(rep, boss, each_pull, first_hits))
+    # The overview asks Warcraft Logs other things than the pulls do: both at once.
+    texts = list(await asyncio.gather(*([] if boss else [night.overview(rep)]), night.progress(rep, boss, each_pull)))
+    if first_hits:
+        texts.append(await night.first_hits(rep, boss))
     if weeks:
         texts.append(night.weeks_text(rep.boss_key(rep.by_boss[rep.boss(boss)][-1]), weeks,
                                       await boss_nights(rep, boss, weeks)))

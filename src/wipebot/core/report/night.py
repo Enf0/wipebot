@@ -17,6 +17,7 @@ from ..pulls import (
     by_phase,
     difficulty_name,
     is_reset,
+    killers_until,
     mass_hits,
     pct_text,
     phase_health,
@@ -202,13 +203,9 @@ async def roster(rep: Report) -> str:
     return "\n".join(lines)
 
 
-async def each_pull(rep: Report, boss: str | None = None, posts: bool = True, first_hits: bool = False) -> str:
-    """Every pull on a boss: its post (pulls.py), and/or who hit the boss first on each."""
-    fights = rep.by_boss[rep.boss(boss)]
-    out = [await rep.summary(f) for f in fights] if posts else []
-    if first_hits:
-        out.append(await _first_hits(rep, fights))
-    return "\n\n".join(out)
+async def first_hits(rep: Report, boss: str | None = None) -> str:
+    """Who hit the boss first on each of a boss's pulls."""
+    return await _first_hits(rep, rep.by_boss[rep.boss(boss)])
 
 
 FIRST_HIT_WINDOW_MS = 5_000  # a pull's first hits on the boss are looked for this long after it began
@@ -329,7 +326,23 @@ def _record(before: GuildBest, fights: list[dict], best: tuple[int, dict, float]
     return f" Tonight's best wipe, {said} on pull {i}, didn't get as far: the guild's best stands."
 
 
-async def progress(rep: Report, boss: str | None = None) -> str:
+async def _died(rep: Report, f: dict, deaths: list[dict], each_pull: bool) -> str:
+    """The deaths in a pull's row: 'first death Dragepie (Tempest, 0:40)'; with `each_pull` the first few, then the
+    killing blows of the deaths until the wipe was decided and how many came after it, as the pull's post has them."""
+    if not each_pull or not deaths:
+        return "first death " + (f"{rep.names[deaths[0]['targetID']]} ("
+                                 f"{rep.ability(deaths[0].get('killingAbilityGameID'))}, "
+                                 f"{clock(deaths[0]['timestamp'] - f['startTime'])})" if deaths else "-")
+    s = await rep.summarized(f)
+    killers, later = killers_until(s)
+    return ("first deaths " + " · ".join(f"{d.player} ({d.ability}, {clock(d.at_ms)})" for d in s.deaths[:FIRST_DEATHS])
+            + f"; killed by {killers or 'none'}" + (f" ({plural(later, 'later death')}: fallout)" if later else ""))
+
+
+async def progress(rep: Report, boss: str | None = None, each_pull: bool = False) -> str:
+    """A boss's pulls on the night, a row each, then what the night adds up to. `each_pull`: a row names the pull's
+    first deaths and what killed until the wipe was decided, as its post does; what else a post says (how the pull
+    ranks, the guild's best) is in the rows' marks and said once above them."""
     b = rep.boss(boss)
     fights = rep.by_boss[b]
     await rep.decided_cuts(fights)  # every pull's deaths, boss buffs, battle res and council bosses' deaths at once
@@ -337,8 +350,12 @@ async def progress(rep: Report, boss: str | None = None) -> str:
     how_far = ("phase and the boss's health in it as raiders count a wipe, then Warcraft Logs' % of the whole fight, "
                "which ranks wipes across phases" if phased else "boss %, phase")
     wcl = "WCL " if phased else ""
-    lines = [f"{b}: {plural(len(fights), 'pull')} on the night (pull, {how_far}, duration, what ended it "
-             "(pull_summary's \"Ended by\") and when the wipe was decided, first death, buffs the boss gained and kept "
+    died = (f"the first {FIRST_DEATHS} deaths, the killing blows of the deaths until the wipe was decided, how many "
+            "died after it" if each_pull else "first death")
+    # the difficulty each pull's post named, once: the boss's name has it only where the night has two
+    named = f"{b} ({difficulty_name(fights[0])})" if each_pull and rep.boss_key(fights[0]) == fights[0]["name"] else b
+    lines = [f"{named}: {plural(len(fights), 'pull')} on the night (pull, {how_far}, duration, what ended it "
+             f"(pull_summary's \"Ended by\") and when the wipe was decided, {died}, buffs the boss gained and kept "
              "to the end)"]
     before = await rep.guild_best(fights[0])
     marks, best = _marks(fights, before)
@@ -361,8 +378,6 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         for d in early[:FIRST_DEATHS]:
             first_killers[rep.ability(d.get("killingAbilityGameID"))] += 1
         pct = 0.0 if f["kill"] else wipe_pct(f)
-        first = (f"{rep.names[deaths[0]['targetID']]} ({rep.ability(deaths[0].get('killingAbilityGameID'))}, "
-                 f"{clock(deaths[0]['timestamp'] - f['startTime'])})" if deaths else "-")
         result = wipe_text(f) if phased and not f["kill"] else " ".join(
             x for x in (pct_text(pct), phase_label(f)) if x)  # a boss without phases has no label
         decided = await rep.decided_at(f)
@@ -372,8 +387,8 @@ async def progress(rep: Report, boss: str | None = None) -> str:
         if not f.get("inProgress"):
             ends[kind_of_end(ending)] += 1
         end = _end_buffs(buffs, enrages, decided)
-        lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_ended(ending, decided)}; first death "
-                     f"{first}{end}{marks.get(i, '')}")
+        lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_ended(ending, decided)}; "
+                     f"{await _died(rep, f, deaths, each_pull)}{end}{marks.get(i, '')}")
     wipes = wipe_pcts(fights)
     if thirds := wipe_thirds(wipes):
         lines.append(f"Average {wcl}wipe % (resets left out): " + "first third {:.1f}, middle {:.1f}, last third {:.1f}"
