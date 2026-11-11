@@ -249,6 +249,8 @@ def waited(calls: Iterable[ToolCall]) -> float | None:
 @dataclass
 class Trial:
     answer: str = ""
+    # a follow-up's answers before the last, in turn: what the raider had read, for a reader; no judge sees them
+    earlier: list[str] = field(default_factory=list)
     model: str = ""  # the model that answered, by the full name the API gave
     error: str = ""  # why it's an error
     seconds: float = 0.0
@@ -419,6 +421,8 @@ async def trial(case: dict, library: server.Library, model: str, judge_model: st
                     keep(answer, turn)
                     prompts.append(answer.prompt)
                     t.loaded += answer.loaded
+                    if turn < len(questions(case)) - 1:
+                        t.earlier.append(answer.full)
         except Exception as e:
             t.error, t.seconds = f"{type(e).__name__}: {e}", round(time.time() - started, 1)
             t.calls, t.waited_s = calls, waited(ran)

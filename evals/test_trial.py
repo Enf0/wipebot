@@ -1,6 +1,7 @@
 """One answer from the question to its verdict (evals.run.trial), with a made-up session and judge: no model."""
 import asyncio
 import time
+from dataclasses import asdict
 from types import SimpleNamespace
 from typing import Any
 
@@ -65,6 +66,25 @@ async def test_an_answer_passes_when_the_judge_passes_both_checks(asking):
     verdicts["wrong"] = False
     t = await ask()
     assert not t.passed and not t.errored and not t.broke  # a wrong answer
+
+
+async def test_a_follow_up_keeps_its_earlier_answers_for_the_reader_and_no_judge_sees_them(asking, monkeypatch):
+    answers, _, ask = asking
+    judged = []
+
+    async def judge(prompt: str, model: str) -> Verdict:
+        judged.append(prompt)
+        return Verdict(True, "because", 0.01)
+    monkeypatch.setattr(run, "judge_majority", judge)
+    case = CASE | {"question": ["Why did we wipe?", "But would a Barkskin have saved them?"]}
+    answers.extend([Answer("15 of 21 died to the enrage.", 0.10, [call()]), Answer("No: it was the enrage.", 0.10)])
+    t = await ask(case)
+    assert t.passed and t.answer == "No: it was the enrage." and t.earlier == ["15 of 21 died to the enrage."]
+    assert len(judged) == 2 and not any("15 of 21" in prompt for prompt in judged)
+    assert "15 of 21" not in run.asked(case)
+    assert run.Trial(**asdict(t)).earlier == t.earlier  # in the run's file, beside the answer
+    answers.append(Answer("The boss enraged.", 0.10, [call()]))
+    assert (await ask()).earlier == []  # one question: nothing before it
 
 
 async def test_a_crashed_tool_fails_the_answer_the_judge_passed(asking):
@@ -185,7 +205,6 @@ async def test_a_report_that_cannot_be_read_is_an_error_not_a_crash_of_the_run(a
 def test_a_saved_trial_reads_the_same_a_second_time():
     """--summary, --record and --save-baseline RESULTS settle a saved run again: a capped answer stays a failed
     answer, and nothing else changes sides either."""
-    from dataclasses import asdict
     ok, case = {"ok": True, "reason": ""}, {"id": "a", "question": "why?", "kind": "wipe"}
     crash = {"name": "progress", "failed": True, "result": "progress failed with an unexpected error: TypeError"}
     refused = {"name": "progress", "failed": True, "result": "auth_failed: HTTP 401"}
