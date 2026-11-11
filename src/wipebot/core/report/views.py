@@ -485,7 +485,7 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
     (pull_summary's "Ended by") and first death; the night's best, the guild's best before it, how the pulls ended
     and the killers of each pull's first deaths, the trend in thirds; and the night's other bosses. With `nights`
     (progress's `weeks`), the boss on each raid night: its pulls, the kill or the best wipe and the phase it got to,
-    and what ended most pulls."""
+    and what ended most pulls, led by their own sentence (weeks_headline)."""
     fights = rep.by_boss[boss]
     await rep.decided_cuts(fights)
     before = await rep.guild_best(fights[0])
@@ -526,7 +526,8 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
         "thirds": [round(t, 1) for t in thirds] if thirds else None,
         "bosses": [{"boss": b, "pulls": len(fs), "kill": any(f["kill"] for f in fs),
                     "best": min(wipe_pcts(fs), default=None)} for b, fs in rep.by_boss.items()],
-    } | ({"weeks": [weeks_row(n) for n in nights]} if nights is not None else {})
+    } | ({"weeks": [weeks_row(n) for n in nights]} if nights is not None else {}) | (
+        {"weeks_headline": weeks_headline(nights)} if nights else {})
 
 
 def weeks_row(n: BossNight) -> dict:
@@ -1352,6 +1353,26 @@ def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
     if live := len(rows) - len(ended):
         counts.append(f"still going {live}")
     return _headline(f"{plural(len(rows), 'pull')}: {'; '.join(counts)}.")  # one of them has a comma of its own
+
+
+def weeks_headline(nights: list[BossNight]) -> dict:
+    """The boss night by night in one sentence of progress's `weeks`: the night it died and on which pull of it;
+    else the furthest wipe of the nights, in the text's words for it (BossNight.best_text: the phase and the boss's
+    health in it on a boss counted by phase) with its pull and its night. That night is the last one the text marks
+    "further than any night before" (the first with a wipe where it marks none), and when it is the last night the
+    sentence says so in those words."""
+    if kill := next((n for n in nights if n.kill), None):
+        return _headline(f"Killed on {day(kill.start_ms)}, on pull {kill.kill} of that night.")
+    wiped = [(n.best, n) for n in nights if n.best]
+    if not wiped:
+        return _headline("No wipe past a reset " + ("that night." if len(nights) == 1 else "on these nights."))
+    (_, pull), far = min(wiped, key=lambda x: x[0][0])  # the earliest of two as far: the text's "further" is strict
+    when, best = day(far.start_ms), f"best wipe {far.best_text()}, on pull {pull}"
+    if len(wiped) == 1:
+        return _headline(f"B{best[1:]} of {when}.")
+    if far is nights[-1]:
+        return _headline(f"{when} got further than any night before: {best}.")
+    return _headline(f"{when} is still the furthest: {best}.")
 
 
 def player_headline(out: dict, lost: TimeLost) -> dict:

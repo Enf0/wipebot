@@ -2856,6 +2856,78 @@ def test_a_nights_headline_reads_as_a_sentence_for_every_way_a_pull_ends():
     assert said([row(4, live=True)]) == "Pull 4 is still going."
 
 
+def made_up_nights(*bests: tuple, kill: int | None = None) -> list:
+    """Raid nights on a boss a week apart from Thu 9 Oct 2025, each with its best wipe ((WCL %, pull) or with the
+    phase and the boss's health in it too; None for a night of resets); the last one killed it on pull `kill`."""
+    from wipebot.core.report.night import BossNight
+    week = 7 * 86400 * 1000
+    return [BossNight(1_760_040_000_000 + i * week, 12, kill if i == len(bests) - 1 else None,
+                      (best[0], best[1]) if best else None, (), f"night{i}", *(best[2:] if best else ()))
+            for i, best in enumerate(bests)]
+
+
+def test_night_by_night_the_headline_is_the_kill_else_the_furthest_wipe_in_the_texts_words():
+    """progress's weeks as a card once led with nothing. Its sentence names the best wipe as the text does, by its
+    phase and the boss's health in it on a boss counted by phase, and says "further than any night before" of the
+    night the text says it of."""
+    said = lambda *bests, **more: views.weeks_headline(made_up_nights(*bests, **more))  # noqa: E731
+    assert said((40.2, 7), (34.1, 42)) == {
+        "text": "Thu 16 Oct got further than any night before: best wipe 34.1%, on pull 42.", "kind": ""}
+    assert said((34.1, 42), (40.2, 7))["text"] == "Thu 9 Oct is still the furthest: best wipe 34.1%, on pull 42."
+    assert said((40.2, 7), (34.1, 3), (34.1, 9))["text"] == (  # as far is not further
+        "Thu 16 Oct is still the furthest: best wipe 34.1%, on pull 3.")
+    assert said((70.5, 16, "P2", 68.3))["text"] == "Best wipe P2 68.3% (WCL 70.5%), on pull 16 of Thu 9 Oct."
+    assert said((80.0, 2), (70.5, 16, "P2", 68.3))["text"] == (
+        "Thu 16 Oct got further than any night before: best wipe P2 68.3% (WCL 70.5%), on pull 16.")
+    assert said(None, (34.1, 42))["text"] == "Best wipe 34.1%, on pull 42 of Thu 16 Oct."
+    assert said((34.1, 42), (2.0, 12), kill=14)["text"] == "Killed on Thu 16 Oct, on pull 14 of that night."
+    assert said(None)["text"] == "No wipe past a reset that night."
+    assert said(None, None)["text"] == "No wipe past a reset on these nights."
+
+
+@pytest.mark.parametrize("bests", [((40.2, 7), (34.1, 42)), ((34.1, 42), (40.2, 7), (36.0, 3)), ((34.1, 4),),
+                                   ((50.0, 1), (40.0, 2), (30.0, 3)), ((40.0, 1), (40.0, 2)), (None, (40.0, 2)),
+                                   ((40.0, 1), (30.0, 2), None), ((60.0, 5, "P1", 20.0), (70.5, 16, "P2", 68.3))])
+def test_night_by_night_the_headlines_night_is_the_last_the_text_marks_further(bests):
+    """The furthest night is worked out twice, in weeks_text's marks and for the card: held together here. The card's
+    night is the text's last "further than any night before" (its first night with a wipe where none is marked), and
+    the card says those words only of the last night, where the text's last line says them."""
+    from wipebot.core.report import night
+    nights = made_up_nights(*bests)
+    lines = night.weeks_text("Sszorak", len(nights), nights).splitlines()[1:-1]
+    marked = [i for i, line in enumerate(lines) if "further than any night before" in line]
+    far = nights[marked[-1] if marked else next(i for i, n in enumerate(nights) if n.best)]
+    said = views.weeks_headline(nights)["text"]
+    assert f"best wipe {far.best_text()}, on pull {far.best[1]}" in said[0].lower() + said[1:]
+    assert views.day(far.start_ms) in said
+    assert ("got further than any night before" in said) == ("further than any night before" in lines[-1])
+
+
+async def test_the_night_by_night_card_leads_with_its_headline(monkeypatch):
+    """Asked night by night, the card is the nights' best pulls: it leads with their sentence as every card does
+    with its own, and tonight's pulls keep theirs a click away."""
+    from wipebot.core import viewhost
+    nights = made_up_nights((70.5, 16, "P2", 68.3), (62.6, 21, "P2", 60.1), (55.0, 9, "P3", 91.0))
+    tonight = {"view": "night", "report": "night2", "boss": "Torvek's Forge", "difficulty": "Heroic",
+               "title": "Torvek's Forge, Thu 23 Oct", "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678",
+               "combat_ms": 600000, "guild_best": None, "phased": True, "first_n": 3, "thirds": None,
+               "ends": [["Slag Wave killing many", 2]], "firsts": [["Slag Wave", 4]],
+               "bosses": [{"boss": "Torvek's Forge", "pulls": 2, "kill": False, "best": 55.0}],
+               "pulls": [{"pull": n, "pct": pct, "kill": False, "reset": False, "live": False, "duration_ms": 300000,
+                          "phase": "P3", "health": 91.0, "ended": "Slag Wave killing many", "best": False,
+                          "first": None} for n, pct in ((8, 60.0), (9, 55.0))],
+               "weeks": [views.weeks_row(n) for n in nights], "weeks_headline": views.weeks_headline(nights)}
+    tonight["headline"] = views.night_headline(tonight["pulls"], [("Slag Wave killing many", 2)])
+    made_up_view(monkeypatch, {"view": "night", "report": "night2", "boss": tonight["boss"], "weeks": 3}, tonight)
+    further = "Thu 23 Oct got further than any night before: best wipe P3 91.0% (WCL 55.0%), on pull 9."
+    async with drawn("progress", {}, width=380) as (view, errors):
+        card = await view.evaluate(CARD)
+        assert not errors and card["lead"] == [further] and card["buttons"][0] == "Open night" and card["tall"] <= 520
+    async with drawn("progress", {}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        assert not errors and (await view.evaluate(CARD))["lead"] == [
+            further, "2 of the 2 pulls ended with Slag Wave killing many."]
+
+
 def test_a_players_nights_headline_is_their_deaths_and_what_would_have_kept_them_alive():
     assert views.player_night_headline(0, 12, 0) == {
         "text": "Never died before a wipe was decided in 12 pulls.", "kind": "good"}

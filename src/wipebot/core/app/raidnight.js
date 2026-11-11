@@ -157,11 +157,12 @@ views.night = (() => {
     return kit.svg(W0, ly + 4, o, `${D.boss}: the best pull on each raid night`);
   }
 
-  // Night by night: inline it is the card, tonight's pulls a click away (`open`)
+  // Night by night: inline it is the card, led by the nights' own sentence (views.weeks_headline), tonight's pulls
+  // a click away (`open`)
   function weeks(width, open) {
     const sub = [D.difficulty, `best pull night by night, last ${D.weeks.length === 1 ? "night" : `${D.weeks.length} nights`}`].filter(Boolean).join(" · ");
-    return `<div data-panel="weeks">${kit.card({ title: D.boss, sub, stats: weeksStats(), chart: weeksChart(width), open,
-                                                  url: open ? D.url : "" })}</div>`;
+    return `<div data-panel="weeks">${kit.card({ title: D.boss, sub, headline: D.weeks_headline, stats: weeksStats(),
+                                                  chart: weeksChart(width), open, url: open ? D.url : "" })}</div>`;
   }
 
   // How the pulls ended, and what killed each pull's first deaths: two ranked lists
