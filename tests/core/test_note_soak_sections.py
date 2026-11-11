@@ -71,3 +71,34 @@ async def test_the_recorded_night_no_longer_says_no_ability_named_orb_carriers_h
     [unchecked] = [row for row in text.splitlines() if row.startswith("Callouts not checked")]
     assert '"CC Mindcontrol" to Wutroll, Pomaa, Fappachino, Scopidruid at P2 0:09, 0:45, 1:34, 2:10, 2:59' in unchecked
     assert '"Green orb backup" to Sonyosh Namsus Martin Enfo at 0:07, 0:50, 1:32' in unchecked
+
+
+def test_a_label_with_no_players_in_a_soak_section_takes_no_callout_to_everyone():
+    """A label left empty under a soak section's heading ("Soak 2:" with no names yet) is no group of players. Taken
+    for one, its players were no one, which is how a callout to everyone reads: "Personals" to everyone was neither
+    checked nor listed, and a hit outside the soak times read as one the note may call, for a line to everyone in a
+    phase that can't be placed."""
+    plan = _plan()
+    plan.groups["Blade Soaks"]["Soak 2"] = []
+    plan.callouts += [note.Callout(60, 1, (), "Personals"), note.Callout(70, 1, (), "Stack"),
+                      note.Callout(5, 2, (), "Move")]
+    personals, unchecked = note._callouts_to_check(REP, plan, lambda c: c.at * 1000, 600_000, set())
+    assert [co.text for _, co in personals] == ["Personals"]
+    assert [co.text for _, co in unchecked if not co.players] == ["Move", "Stack"]
+    assert "Soak Blade" not in [co.text for _, co in unchecked]  # the group with players keeps its callout
+    late = note.SoakHit(130_000, "", [], set(SOAKERS), 100_000, [], [], note.OUTSIDE)
+    back = note.lay_phases([1, 2], {1: "P1", 2: "P2"}, [(2, 100_000), (1, 120_000)], in_order=False)
+    assert 2 in back.unknown  # the log goes back to a phase: "Move" in ph:2 can't be placed
+    [soaks] = note._unplaced([note.Soaks("Blade Soaks", plan.groups["Blade Soaks"], BLADE, [late])], plan, back)
+    assert soaks.hits[0].why == note.OUTSIDE  # no soak group is called in ph:2, only everyone
+
+
+async def test_the_recorded_callout_to_everyone_is_still_checked_beside_an_empty_soak_label(recorded):
+    """The Coiled Altar note with a label and no names added under "Guillotine Soaks": pull 28's "Personals" to
+    everyone at 1:47 dropped out of the check."""
+    args = CASES["raid-note-phases"].args
+    text, failed = await server.call("raid_note", args | {
+        "note": args["note"].replace("Guillotine Soaks\n", "Guillotine Soaks\nP3 Soak 4:\n", 1)})
+    assert not failed
+    assert [row[:35] for row in text.splitlines() if row.startswith("  1:47 everyone")] == [
+        '  1:47 everyone: "Personals": of 20']

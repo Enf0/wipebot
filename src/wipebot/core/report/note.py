@@ -1309,7 +1309,7 @@ def _unplaced(soaks: list[Soaks], note: Note, phases: Phases) -> list[Soaks]:
     in doubt too). The note may call that very soak, so "no group called within 20 s" isn't known of it."""
     doubt = min((at for at, label in phases.ends.values() if not label), default=math.inf)
     for s in soaks:
-        groups = {_same(ns) for ns in note.groups[s.heading].values()}
+        groups = {_same(ns) for ns in note.groups[s.heading].values() if ns}  # not a label with no players
         if any(c.phase in phases.unknown and frozenset(c.players) in groups for c in note.callouts):
             for h in s.hits:
                 if h.why == OUTSIDE and h.at >= doubt:
@@ -1445,8 +1445,9 @@ async def _planned_casts(rep: Report, f: dict, note: Note) -> list[dict]:
 def _callouts_to_check(rep: Report, note: Note, when, until: float,
                        kicks: set[int]) -> tuple[list[tuple[float, Callout]], list[tuple[float, Callout]]]:
     """The callouts up to `until` that aren't a soak group's (`_soak_sections`) or a kick assignment (`kicks`, their
-    ids), in order: those asking for personals, which the log can check, and the rest, which it can't (PERSONALS)."""
-    soak = {_same(ns) for gs in _soak_sections(rep, note).values() for ns in gs.values()}
+    ids), in order: those asking for personals, which the log can check, and the rest, which it can't (PERSONALS).
+    A label with no players is no group: its players would be no one, as a callout to everyone's are."""
+    soak = {_same(ns) for gs in _soak_sections(rep, note).values() for ns in gs.values() if ns}
     calls = sorted(((at, c) for c in note.callouts if frozenset(c.players) not in soak and id(c) not in kicks
                     and (at := when(c)) is not None and at <= until),
                    key=lambda x: x[0])
