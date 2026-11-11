@@ -403,7 +403,7 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
         decided."""
         data = await server.replay_data(report, pull, boss, at_ms, players)
         data["img_base"] = public_url + "/img/"
-        _handed_out.update([data["map"]["image"], *(x["icon"] for x in data["bosses"] + data["players"])])
+        _handed_out.update([data["map"]["image"], *views.icons(data)])  # the icons: bosses', specs', casts'
         return CallToolResult(content=[TextContent(type="text", text=f"the replay of {data['title']}")],
                               structured_content=data)
 

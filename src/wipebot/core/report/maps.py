@@ -18,9 +18,12 @@ from PIL import Image
 
 from .. import knowledge
 from ..classes import class_hex, class_rgb
+from ..pulls import pct_text
 from ..text import clock, parse_clock, plural
 from . import draw
 from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report
+from .fight import boss_casts
+from .fight import tracks as health_tracks
 from .positions import (
     MOMENT_GAP_MS,
     Event,
@@ -386,11 +389,21 @@ def pack_track(samples: list, facings: list[tuple[float, float]], start: float, 
     return base64.b64encode(struct.pack(f"<{len(out)}h", *out)).decode()
 
 
+REPLAY_HEALTH_STEP = 0.5  # boss health points closer than this many % to the last kept one are left out
+
+
+def spell_icon(spell_id: int | None) -> str | None:
+    """A spell's icon by the path the views load it at (views.icon, which this module can't import)."""
+    return f"spells/{spell_id}.jpg" if spell_id else None
+
+
 async def replay(rep: Report, f: dict, at_ms: float, focus: Collection[int] = ()) -> dict:
     """The whole pull for the replay viewer: every player's and boss's track, the deaths and when the wipe was
-    decided; the room's map and the icons by their Warcraft Logs asset path (served at /img/<path>)."""
+    decided, the phases, the boss's health and its casts (what's coming up at each moment); the room's map and the
+    icons by their Warcraft Logs asset path (served at /img/<path>)."""
     start, steps = f["startTime"], int((f["endTime"] - f["startTime"]) // REPLAY_STEP_MS) + 1
-    pos = await pull_positions(rep, f, boss_all=True)
+    (pos, (casts, found), health) = await asyncio.gather(
+        pull_positions(rep, f, boss_all=True), boss_casts(rep, f), health_tracks(rep, f))
     if (map_id := pos.map_id()) is None:
         raise FactError("no positions logged in this pull")
     bounds = await knowledge.map_bounds(map_id)
@@ -405,8 +418,21 @@ async def replay(rep: Report, f: dict, at_ms: float, focus: Collection[int] = ()
                        dead_spans(pos.samples.get(pid, []), pos.deaths.get(pid, []), f["endTime"]), origin)
             for pid in players]
     packed = await asyncio.to_thread(tracks)
+    kept_health, kept = [], None
+    for t, v in health.get("health") or []:
+        if kept is None or abs(v - kept) >= REPLAY_HEALTH_STEP:
+            kept_health.append([round(t), round(v, 1)])
+            kept = v
+    seen: set[int] = set()
+    phases = []
+    for t in f.get("phaseTransitions") or []:
+        phases.append({"ms": round(t["startTime"] - start), "label": rep.phase(f, t["id"]),
+                       "name": rep.phase_names.get((f["encounterID"], t["id"]), ""),
+                       "intermission": rep.phase(f, t["id"]).startswith("I"), "again": t["id"] in seen})
+        seen.add(t["id"])
     return {
         "title": rep.label(f),  # as the cards it opens from are titled, and as the model is told what is open
+        "boss": rep.boss_key(f),  # the encounter, as the boss's frame names it
         "step_ms": REPLAY_STEP_MS, "duration_ms": f["endTime"] - start, "at_ms": round(at_ms),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
         "map": {"image": f"maps/{map_id}-map.png", "size": [(bounds[1] - bounds[0]) / REPLAY_UNIT,
@@ -420,6 +446,14 @@ async def replay(rep: Report, f: dict, at_ms: float, focus: Collection[int] = ()
                     for (pid, p), tr in zip(players.items(), packed[len(boss_ids):], strict=True)],
         "deaths": [{"name": rep.names[d["targetID"]], "ms": d["timestamp"] - start,
                     "by": rep.ability(d.get("killingAbilityGameID"))} for d in deaths if d["targetID"] in rep.names],
+        # the phases as the pull's card bands them; the boss's health % as its line (a new bar per phase's boss), and
+        # what it ended at as pull_summary writes it; the boss's casts, those Lorrgs tracks marked
+        "phases": phases,
+        "health": kept_health,
+        "health_end": pct_text(f["bossPercentage"]) if f.get("bossPercentage") is not None else None,
+        "kill": bool(f["kill"]),
+        "casts": [{"ms": round(c.at - start), "name": c.name, "tracked": c.tracked,
+                   "icon": spell_icon(found.ids.get(c.name))} for c in casts],
     }
 
 

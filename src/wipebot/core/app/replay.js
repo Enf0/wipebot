@@ -8,10 +8,13 @@ views.replay = (() => {
 
   const MARKUP = `
     <div class="head"><h1 id="rp-title"></h1><span id="rp-clock"></span><span id="rp-event"></span></div>
-    <div id="rp-stage"><canvas id="rp-map" aria-label="Map of the boss room"></canvas><div id="rp-tip"></div></div>
+    <div id="rp-stage"><canvas id="rp-map" aria-label="Map of the boss room"></canvas>
+      <div id="rp-boss" hidden><img alt=""><div><div class="who"><b></b><span></span></div><div class="bar"><i></i><span></span></div></div></div>
+      <div id="rp-next" hidden><h3>Coming up</h3><ol></ol></div>
+      <div id="rp-tip"></div></div>
     <div class="controls">
       <button id="rp-play" aria-label="Play">▶</button>
-      <div id="rp-timeline" role="slider" tabindex="0" aria-label="Time in the pull"><div id="rp-track"></div><div id="rp-done"></div><div id="rp-thumb"></div></div>
+      <div id="rp-timeline" role="slider" tabindex="0" aria-label="Time in the pull"><div id="rp-track"></div><div id="rp-done"></div><div id="rp-phases"></div><div id="rp-thumb"></div></div>
       <button id="rp-speed" aria-label="Playback speed">1×</button>
       <button id="rp-full" aria-label="Open the replay in fullscreen" title="Fullscreen" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
     </div>
@@ -51,6 +54,7 @@ views.replay = (() => {
     view = null;
     $("rp-title").textContent = R.title;
     $("rp-timeline").querySelectorAll(".mark").forEach((m) => m.remove());
+    phaseBar();
     for (const d of R.deaths) addMark(d.ms, "", `${d.name} died (${d.by})`);
     if (R.decided) addMark(R.decided.ms, "decided", `Wipe decided: ${R.decided.why}`);
     const row = $("rp-moments");
@@ -64,6 +68,10 @@ views.replay = (() => {
       row.appendChild(b);
     });
     image(R.map.image); R.bosses.forEach((b) => image(b.icon)); R.players.forEach((p) => image(p.icon));
+    const boss = $("rp-boss");  // the boss's frame: its icon, name, the phase and its health
+    boss.hidden = !R.health.length && !R.phases.length;
+    if (R.bosses.length) boss.querySelector("img").src = R.img_base + R.bosses[0].icon;
+    $("rp-next").hidden = !R.casts.length;
     seek(R.at_ms, true);
     fit();
     app.log(`opened at ${clock(t)} (asked ${clock(R.at_ms)}, ${R.title}, ${$("rp-map").clientWidth}x${$("rp-map").clientHeight})`);
@@ -118,7 +126,10 @@ views.replay = (() => {
     t = Math.max(0, Math.min(ms, R.duration_ms));
     follow(jump);
     const pct = 100 * t / R.duration_ms;
-    $("rp-thumb").style.left = pct + "%"; $("rp-done").style.width = pct + "%";
+    $("rp-thumb").style.left = pct + "%";
+    const done = $("rp-done");  // the phase bar's played part is the whole bar, cut off where the pull is
+    if (R.phases.length > 1) { done.style.width = ""; done.style.clipPath = `inset(0 ${100 - pct}% 0 0)`; }
+    else { done.style.clipPath = ""; done.style.width = pct + "%"; }
     $("rp-clock").textContent = `${clock(t)} / ${clock(R.duration_ms)}`;
     const tl = $("rp-timeline");  // a slider in whole seconds, as the clock counts them, read out as a time
     tl.setAttribute("aria-valuemin", "0"); tl.setAttribute("aria-valuemax", Math.floor(R.duration_ms / 1000));
@@ -128,7 +139,105 @@ views.replay = (() => {
       : (R.decided && t >= R.decided.ms && t - R.decided.ms < 4000 ? `Wipe decided: ${R.decided.why}`
          : m ? momentText(m) : "");
     $("rp-moments").querySelectorAll("button").forEach((b, n) => b.classList.toggle("on", P[n] === m));
+    bossFrame();
+    comingUp();
     draw();
+  }
+
+  // ---- phases, the boss's health and what it casts next ----
+  // Each phase its own colour (the categorical four, in the order the phases first came), a phase the fight went back
+  // to the colour it had; the played part full, the rest faded; its label under it where there is room.
+  function phaseColors() {
+    const order = [];
+    R.phases.forEach((p) => { if (!order.includes(p.label)) order.push(p.label); });
+    return (p) => `var(--cat-${(order.indexOf(p.label) % 4) + 1})`;
+  }
+  function phaseAt(ms) { let cur = null; for (const p of R.phases) if (p.ms <= ms) cur = p; return cur; }
+  function phaseBar() {
+    const tl = $("rp-timeline"), row = $("rp-phases");
+    row.replaceChildren();
+    tl.classList.toggle("phased", R.phases.length > 1);
+    if (R.phases.length < 2) { $("rp-track").replaceChildren(); $("rp-done").replaceChildren(); return; }
+    const color = phaseColors();
+    const parts = R.phases.map((p, i) => ({ p, from: p.ms, to: i + 1 < R.phases.length ? R.phases[i + 1].ms : R.duration_ms }));
+    for (const layer of [$("rp-track"), $("rp-done")]) {
+      layer.replaceChildren(...parts.map(({ p, from, to }) => {
+        const seg = document.createElement("i");
+        seg.style.left = (100 * from / R.duration_ms) + "%"; seg.style.width = (100 * (to - from) / R.duration_ms) + "%";
+        seg.style.background = color(p);
+        return seg;
+      }));
+    }
+    for (const { p, from, to } of parts) {
+      const tag = document.createElement("span");  // text only: phase names come from Warcraft Logs
+      tag.textContent = p.name ? `${p.label} ${p.name}` : p.label;
+      tag.title = `${tag.textContent}${p.again ? " (again)" : ""}: ${clock(from)} to ${clock(to)}`;
+      tag.style.left = (100 * from / R.duration_ms) + "%"; tag.style.maxWidth = (100 * (to - from) / R.duration_ms) + "%";
+      tag.style.setProperty("--c", color(p));
+      row.appendChild(tag);
+    }
+  }
+
+  // The boss's health at ms, along its line (a new bar, the next phase's boss, starts where it jumps up)
+  function healthAt(ms) {
+    const h = R.health;
+    if (!h.length) return null;
+    if (ms <= h[0][0]) return h[0][1];
+    for (let i = 1; i < h.length; i++) {
+      if (h[i][0] < ms) continue;
+      const [a, pa] = h[i - 1], [b, pb] = h[i];
+      return pb - pa > 10 ? pa : pa + (pb - pa) * (ms - a) / Math.max(1, b - a);
+    }
+    return R.kill && ms >= R.duration_ms - 1000 ? 0 : h[h.length - 1][1];
+  }
+  function bossFrame() {
+    const frame = $("rp-boss");
+    if (frame.hidden) return;
+    const ph = phaseAt(t), pct = healthAt(t), end = t >= R.duration_ms - 500;
+    frame.querySelector(".who b").textContent = R.boss;  // the encounter, then the phase as the bar labels it
+    frame.querySelector(".who span").textContent = ph && R.phases.length > 1 ? (ph.name ? `${ph.label} ${ph.name}` : ph.label) : "";
+    if (ph && R.phases.length > 1) frame.style.setProperty("--c", phaseColors()(ph)); else frame.style.removeProperty("--c");
+    const bar = frame.querySelector(".bar");
+    bar.hidden = pct === null;
+    if (pct !== null) {
+      bar.querySelector("i").style.width = Math.max(0, Math.min(100, pct)) + "%";
+      // at the very end, the % pull_summary states; before, the line's, to a tenth
+      bar.querySelector("span").textContent = end && !R.kill && R.health_end ? R.health_end : end && R.kill ? "0%" : `${pct.toFixed(1)}%`;
+    }
+  }
+
+  // The boss's next casts, as the log has them: those within NEXT_MS, soonest first, at most NEXT_SHOWN, each with a
+  // bar running out as it comes; one just cast stays a moment as "now". Lorrgs' tracked casts are marked.
+  const NEXT_MS = 20000, NEXT_SHOWN = 4, NOW_MS = 1500;
+  let nextKey = "";
+  function comingUp() {
+    const box = $("rp-next");
+    if (box.hidden) return;
+    const shown = $("rp-stage").clientWidth < 480 ? 2 : NEXT_SHOWN;  // on a phone, two: the map stays in sight
+    const soon = R.casts.filter((c) => c.ms - t > -NOW_MS && c.ms - t <= NEXT_MS).slice(0, shown);
+    const key = soon.map((c) => c.ms + c.name).join("|") + (t >= R.duration_ms - 500 ? "end" : "");
+    const list = box.querySelector("ol");
+    if (key !== nextKey) {  // rebuild only when the casts shown change; the bars and seconds move every frame
+      nextKey = key;
+      list.replaceChildren(...soon.map((c) => {
+        const li = document.createElement("li");
+        if (c.tracked) li.className = "tracked";
+        const img = document.createElement("img"); img.alt = "";
+        if (c.icon) img.src = R.img_base + c.icon; else img.style.visibility = "hidden";
+        const name = document.createElement("span"); name.className = "nm"; name.textContent = c.name;
+        const left = document.createElement("span"); left.className = "in";
+        const bar = document.createElement("i");
+        li.append(bar, img, name, left);
+        return li;
+      }));
+      if (!soon.length) { const li = document.createElement("li"); li.className = "none"; li.textContent = t >= R.duration_ms - 500 ? (R.kill ? "killed" : "the pull is over") : "no boss cast in the next 20 s"; list.appendChild(li); }
+    }
+    soon.forEach((c, n) => {
+      const li = list.children[n], left = c.ms - t;
+      li.classList.toggle("now", left <= 0);
+      li.querySelector(".in").textContent = left <= 0 ? "now" : `${Math.ceil(left / 1000)} s`;
+      li.querySelector("i").style.width = (left <= 0 ? 100 : 100 * (1 - left / NEXT_MS)) + "%";
+    });
   }
 
   // The view follows the living, the boss and the plan's spots at the moment (at least LEAST yards across, at the stage's 3:2),

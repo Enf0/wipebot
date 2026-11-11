@@ -222,6 +222,47 @@ table.pulls td.fallout { color: var(--muted); }
 .mark { position: absolute; top: calc(50% - 7px); width: 3px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--dead); }
 .mark.decided { background: var(--decided); width: 3px; top: calc(50% - 10px); height: 20px; }
 .mark.plan { background: var(--gold); top: calc(50% - 5px); height: 10px; }
+/* the phase bar: the timeline's track in each phase's colour, the played part full, a label under each */
+#rp-timeline.phased { height: 44px; }
+#rp-timeline.phased #rp-track, #rp-timeline.phased #rp-done { left: 0; right: 0; top: 12px; height: 6px; background: none; border-radius: 3px; overflow: hidden; }
+#rp-track i, #rp-done i { position: absolute; top: 0; bottom: 0; }
+#rp-track i { opacity: .35; }
+#rp-timeline.phased #rp-done i { box-shadow: inset -1px 0 0 var(--bg); }
+#rp-timeline.phased #rp-thumb { top: 7px; }
+#rp-timeline.phased .mark { top: 8px; }
+#rp-timeline.phased .mark.decided { top: 5px; }
+#rp-timeline.phased .mark.plan { top: 10px; }
+#rp-phases span { position: absolute; top: 24px; padding-left: 4px; border-left: 2px solid var(--c); font-size: 11px; line-height: 14px;
+                  color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+/* over the stage, which is dark in either theme: the boss's frame (top left) and its next casts (top right) */
+#rp-boss, #rp-next { position: absolute; top: 8px; pointer-events: none; background: rgba(11, 16, 30, .82); color: #ecf0f8;
+                     border: 1px solid #2b3552; border-radius: 8px; font-size: 12px; line-height: 1.3; }
+#rp-boss { left: 8px; display: flex; gap: 8px; align-items: center; padding: 6px 8px; width: min(280px, 48%); border-left: 3px solid var(--c, #2b3552); }
+#rp-boss[hidden], #rp-next[hidden] { display: none; }
+#rp-boss > img { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #f5c542; flex: none; }
+#rp-boss > div { flex: 1; min-width: 0; }
+#rp-boss .who { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; overflow: hidden; }
+#rp-boss .who b { flex: none; max-width: 100%; font-weight: 650; color: #f5c542; overflow: hidden; text-overflow: ellipsis; }
+#rp-boss .who span { flex: 1; min-width: 0; color: #9aa3b8; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+#rp-boss .bar { position: relative; height: 14px; margin-top: 3px; border-radius: 3px; background: #232c44; overflow: hidden; }
+#rp-boss .bar[hidden] { display: none; }
+#rp-boss .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#c43c3c, #8f2020); }
+#rp-boss .bar span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 14px; font-weight: 650;
+                     font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
+#rp-next { right: 8px; padding: 6px 8px 7px; width: min(220px, 44%); }
+#rp-next h3 { margin: 0 0 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #9aa3b8; }
+#rp-next ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+#rp-next li { position: relative; display: flex; gap: 6px; align-items: center; height: 20px; padding: 0 6px 0 2px; border-radius: 4px;
+              background: #1a2238; overflow: hidden; font-variant-numeric: tabular-nums; }
+#rp-next li i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(122, 162, 255, .28); }
+#rp-next li.tracked i { background: rgba(245, 197, 66, .3); }
+#rp-next li.now i { background: rgba(251, 142, 10, .5); }
+#rp-next li img { position: relative; width: 16px; height: 16px; border-radius: 3px; flex: none; }
+#rp-next li .nm { position: relative; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#rp-next li.tracked .nm { font-weight: 650; }
+#rp-next li .in { position: relative; color: #c5ccdb; font-size: 11px; }
+#rp-next li.none { color: #9aa3b8; background: none; font-size: 11px; }
+@media (max-width: 480px) { #rp-boss, #rp-next { font-size: 11px; } #rp-next h3 { display: none; } #rp-boss > img { display: none; } }
 #rp-moments { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 2px 0; }
 #rp-moments button { height: 28px; font-size: 12.5px; padding: 0 8px; font-variant-numeric: tabular-nums; }
 #rp-moments button.on { border-color: var(--gold); color: var(--gold-ink); }

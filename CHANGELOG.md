@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `MCP` **See a raid plan as raidstrats.gg draws it.** Asked for the plan as it is ("what's our plan for this boss?"), Wipebot shows each plan with the names saved on its spots: in ChatGPT the plan itself, its scenes a click apart and your own spots lit when you ask where you stand; in Claude a link that opens it.
 
   ![The plan's card in Claude: "Wowutils - P1 Orb Carriers", The Coiled Altar, with a link that opens it on raidstrats.gg](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/raid-plan-link.webp)
+- `MCP` **The replay shows the phases, the boss's health and what it casts next.** The replay's timeline is coloured by phase, each named under it, and a phase the fight went back to keeps its colour. A frame at the top left gives the boss, the phase and its health as the pull plays, a new bar for each phase's boss as raiders count it ("P2 97.5%"). At the top right, "Coming up" counts down the boss's next casts in the log over the coming 20 s, those Lorrgs tracks in bold.
+
+  ![The Coiled Altar pull 12's replay at 3:08: the frame "The Coiled Altar, P2 Stage Two: Usurper's Reprisal" with its health at 97.5%, "Coming up" with Spiritcackle in 1 s, Dread Bolt in 5 s, Gloombomb in 8 s and Dread Bolt in 9 s, and under the map the timeline coloured blue for P1 and purple for P2](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/replay-phases-timers.webp)
 
 ## [1.0.0] - 2026-11-11
 
