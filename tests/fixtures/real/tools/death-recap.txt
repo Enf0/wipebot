@@ -1,4 +1,6 @@
 Scopidruid (Balance Druid) died at 0:48 on Sszorak pull 13 (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Killing blow: Ula'tek's Presence [1285965].
+Damage in the 10 s before death, by ability: Raging Crosswinds 503.30k in 9 hits, Venomous Surge 282.79k in 2 hits, Ula'tek's Presence 270.07k in 5 hits; 1.06M in all. The biggest hit: Raging Crosswinds 377.69k at 0:47, to 6% health. The killing blow: Ula'tek's Presence 50.23k at 0:48.
+Would have kept them alive, if pressed (replayed below; secondary to what killed them): a healthstone.
 Damage taken in the 10 s before death (time, ability, source, amount, health after):
   0:39 Ula'tek's Presence from Environment: 43.62k (440 absorbed) -> 95% hp
   0:40 Raging Crosswinds from Sszorak: 11.38k (114 absorbed) -> 99% hp
@@ -17,15 +19,14 @@ Damage taken in the 10 s before death (time, ability, source, amount, health aft
   0:47 Raging Crosswinds from Sszorak: 377.69k -> 6% hp
   0:48 Ula'tek's Presence from Environment: 50.23k (overkill 12.72k) -> 0% hp
 Ability ids: Ula'tek's Presence [1285965], Raging Crosswinds [1285616], Venomous Surge [1306120]
-Total 1.06M damage in the window.
 Healing received in the window: 237.96k effective (+138.58k overhealing), most from Lïzårðmâñ 86.91k, Enfo 75.14k, Namsus 33.22k, Scopidruid 14.99k.
   per second: 0:38 +43.18k · 0:39 +0 · 0:40 +43.74k · 0:41 +11.38k · 0:42 +19.50k · 0:43 +24.77k · 0:44 +20.50k · 0:45 +13.84k · 0:46 +31.97k · 0:47 +29.08k · 0:48 +0
 Healers in the 5 s before the death (their casts, on the dying player marked): Cptola (Holy Paladin): Reclamation ×4, Holy Shock ×2, Eternal Flame; Enfo (Restoration Shaman): Chain Heal ×2, Healing Stream Totem; Namsus (Holy Priest): Benediction, Spatial Rift; Lïzårðmâñ (Preservation Evoker): Temporal Anomaly, Echo, Twin Flame, Dream Breath
 Buffs from others on them at death (gained during the pull): Riptide (Enfo, from 0:29), Rune of Lingering (Namsus, from 0:47), Elemental Resistance (Enfo, from 0:47), Visage (Lïzårðmâñ, from 0:47)
 Enemy debuffs on them at death: Turbulent Gusts (from 0:47)
 Personal defensives (list and cooldowns from Lorrgs; use times from the log):
-  Barkskin: last used at 0:30 (60 s cooldown), on cooldown
+  Barkskin: last used at 0:30 (60 s cooldown), on cooldown until 1:30
 Healthstones and healing potions before death: 0; combat potions (they don't heal): 1
 Other deaths within 15 s: Draiman (no killing blow recorded, 0:53)
-If pressed at the start of the lethal burst (0:44, the first hit after they were last at 60%+ health; a heal after the last hit 1 s or more before the killing hit, time to see it; 12.72k overkill to make up; healing as it was; secondary to what killed them):
+If pressed (12.72k overkill to make up, healing as it was; a defensive at the start of the lethal burst, 0:44, the first hit after they were last at 60%+ health; a heal after the last hit 1 s or more before the killing hit, time to see it):
   a healthstone (if they had one; none used this pull) (heals 25% of maximum health): heals 215.34k pressed 1.1 s before the killing hit: would have kept them alive

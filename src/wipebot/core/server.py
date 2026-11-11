@@ -632,10 +632,11 @@ async def death_recap(player: Player, pull: Pull = None, boss: Boss = None,
                       death: Annotated[int, Field(description="which death of this player in the pull")] = 1,
                       report: Report_ = None, *, ctx: Context) -> str | CallToolResult:
     """For "what killed X?", "could they have lived?": the first deaths of a wipe.
-    One death in detail: every damage taken event in the 10 s before it with health after each hit, the
-    killing blow, the healing they received and what each healer cast in the last 5 s (on them or others, no
-    cast, dead), the player's defensives and whether each was ready, healthstone and potion, and other deaths
-    close by.
+    One death in detail: the killing blow, the damage of the 10 s before it added up by ability with the biggest
+    hit, and whether a ready defensive or a healthstone would have kept them alive; then every damage taken event
+    with health after each hit, the healing they received and what each healer cast in the last 5 s (on them or
+    others, no cast, dead), the player's defensives and whether each was ready or until when on cooldown,
+    healthstone and potion, and other deaths close by.
     Reading it: "ready" is off cooldown, not that it was theirs to press then: the raid note (raid_note) plans
     defensives and external cooldowns; whether the hit could be avoided, boss_guide says.
     Not for everyone's defensives and healthstones over a boss's pulls (defensives).

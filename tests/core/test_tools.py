@@ -297,3 +297,28 @@ async def test_who_pulled_leads_the_answer_that_was_asked_for_it(recorded):
     assert lines[2] == "  1: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before Pomaa"
     assert [line.split(":")[0].strip() for line in lines[2:44]] == [str(n) for n in range(1, 43)]
     assert lines[44] == "" and lines[45].startswith("Sszorak: 42 pulls on the night (")
+
+
+async def test_a_death_recap_leads_with_what_did_the_damage_and_whether_they_could_have_lived(recorded):
+    # The answer to "what killed X, could they have lived?" closed the recap, after twenty rows of hits. It now
+    # follows the first line: the window added up by ability (a 50k tick was the killing blow of a death a 378k hit
+    # caused), then the replay's answer; the rows and the replay's working stay below.
+    text, failed = await server.call("death_recap", CASES["death-recap"].args)
+    assert not failed
+    lines = text.splitlines()
+    assert lines[0].endswith("Killing blow: Ula'tek's Presence [1285965].")
+    assert lines[1] == (
+        "Damage in the 10 s before death, by ability: Raging Crosswinds 503.30k in 9 hits, Venomous Surge 282.79k in 2 "
+        "hits, Ula'tek's Presence 270.07k in 5 hits; 1.06M in all. The biggest hit: Raging Crosswinds 377.69k at 0:47, "
+        "to 6% health. The killing blow: Ula'tek's Presence 50.23k at 0:48.")
+    assert lines[2] == ("Would have kept them alive, if pressed (replayed below; secondary to what killed them): a "
+                        "healthstone.")
+    assert lines[3].startswith("Damage taken in the 10 s before death (")
+    # the line's sums are the rows' own: each ability's hits and the total
+    rows = re.findall(r"^  \d+:\d\d (.+?) from .+?: ([\d.]+)k", text, re.MULTILINE)
+    assert len(rows) == 16 and [name for name, _ in rows].count("Raging Crosswinds") == 9
+    assert abs(sum(float(k) for name, k in rows if name == "Raging Crosswinds") - 503.30) < 0.05
+    assert "  Barkskin: last used at 0:30 (60 s cooldown), on cooldown until 1:30" in lines
+    assert sum(line.startswith("If pressed (12.72k overkill to make up") for line in lines) == 1
+    assert "Total 1.06M damage in the window." not in lines  # said once, in the line that adds it up
+

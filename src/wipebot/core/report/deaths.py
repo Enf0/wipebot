@@ -33,16 +33,17 @@ async def death_recap(rep: Report, player: str, pull: PullRef = None, boss: str 
         raise FactError(f"{p.name} died {len(own)} time(s) on {rep.label(f)}")
     d = own[death - 1]
     t0, at = f["startTime"], d["timestamp"]
-    (hits, hit_lines), healing, healers, auras, defensive_lines = await asyncio.gather(
+    (hits, what, hit_lines), healing, healers, auras, defensive_lines = await asyncio.gather(
         _hits(rep, f, p, d), _healing_received(rep, f, p, at), heals.at_death(rep, f, p, at),
         _aura_lines(rep, f, p, at), _defensives(rep, f, p, at))
     others = [x for x in deaths if x is not d and abs(x["timestamp"] - at) <= CASCADE_MS]
     burst = [x for x in others if abs(x["timestamp"] - at) <= BURST_MS]
     pressed, raid_cds = await asyncio.gather(_if_pressed_lines(rep, f, p, d, hits),
                                              _raid_cooldowns_lines(rep, f, [d, *burst]))
+    # What killed them and whether anything ready would have changed it lead; the hits and the rest are the detail.
     lines = [f"{p.label} died at {clock(at - t0)} on {rep.label(f)} ({rep.url(f)}). "
-             f"Killing blow: {rep.ability_ref(d.get('killingAbilityGameID'))}.", *hit_lines, *healing, *healers, *auras,
-             *defensive_lines]
+             f"Killing blow: {rep.ability_ref(d.get('killingAbilityGameID'))}.", *what, *_verdict(pressed), *hit_lines,
+             *healing, *healers, *auras, *defensive_lines]
     if others:
         lines.append(f"Other deaths within {CASCADE_MS // 1000} s: " + ", ".join(
             f"{rep.names[x['targetID']]} ({rep.ability(x.get('killingAbilityGameID'))}, "
@@ -50,9 +51,47 @@ async def death_recap(rep: Report, player: str, pull: PullRef = None, boss: str 
     return "\n".join(lines + pressed + raid_cds)
 
 
-async def _hits(rep: Report, f: dict, p: Player, d: dict) -> tuple[list[dict], list[str]]:
-    """The damage a player took in the window before a death, and its lines: each hit with their health after it,
-    and where they were last when nothing is named as the killing blow."""
+def _verdict(pressed: list[str]) -> list[str]:
+    """The replay's answer in one line, for the top of a death's recap: what would have kept them alive, of what
+    was ready (`if_pressed`'s lines, which stay below as the working). None when the death couldn't be replayed."""
+    tried = [line.strip() for line in pressed[1:] if line.startswith("  ")]
+    if not tried:
+        return []
+    if saved := savers(pressed):
+        return [f"Would have kept them alive, if pressed (replayed below; secondary to what killed them): "
+                f"{', '.join(saved)}."]
+    unsure = sum("can't" in line for line in tried)
+    return ["Nothing that was ready would have kept them alive on its own (replayed below)"
+            + (f"; {unsure} of {len(tried)} can't be told" if unsure else "") + "."]
+
+
+def damage_by_ability(rep: Report, f: dict, hits: list[dict]) -> str:
+    """What did the damage before a death, added up by ability, most first, with the biggest hit and the health it
+    left, and the killing blow's own hit: a death's killing blow is often a small tick after the hit that did it."""
+    by: dict[str, list[dict]] = defaultdict(list)
+    for h in hits:
+        by[rep.ability(h["abilityGameID"])].append(h)
+    total = sum(h.get("amount", 0) for h in hits)
+    parts = [f"{name} {short(sum(h.get('amount', 0) for h in own))} in {plural(len(own), 'hit')}"
+             for name, own in sorted(by.items(), key=lambda kv: -sum(h.get("amount", 0) for h in kv[1]))]
+    line = (f"Damage in the {RECAP_WINDOW_MS // 1000} s before death, by ability: {', '.join(parts)}; "
+            f"{short(total)} in all.")
+    big = max(hits, key=lambda h: h.get("amount", 0))
+    last = next((h for h in reversed(hits) if h.get("overkill")), None)
+    hp = (f", to {100 * big['hitPoints'] / big['maxHitPoints']:.0f}% health"
+          if big.get("resourceActor") == 2 and big.get("maxHitPoints") else "")
+    line += (f" The biggest hit{' was the killing blow' if big is last else ''}: {rep.ability(big['abilityGameID'])} "
+             f"{short(big.get('amount', 0))} at {clock(big['timestamp'] - f['startTime'])}{hp}.")
+    if last is not None and last is not big:
+        line += (f" The killing blow: {rep.ability(last['abilityGameID'])} {short(last.get('amount', 0))} at "
+                 f"{clock(last['timestamp'] - f['startTime'])}.")
+    return line
+
+
+async def _hits(rep: Report, f: dict, p: Player, d: dict) -> tuple[list[dict], list[str], list[str]]:
+    """The damage a player took in the window before a death; what it adds up to, for the top of the recap (by
+    ability, and where they were last when nothing is named as the killing blow); and its lines, each hit with their
+    health after it."""
     t0, at = f["startTime"], d["timestamp"]
     # For DamageTaken, WCL's sourceID filter selects the player who took the damage.
     hits = await rep.events(f["id"], "DamageTaken", sourceID=p.id, hostilityType="Friendlies",
@@ -75,13 +114,13 @@ async def _hits(rep: Report, f: dict, p: Player, d: dict) -> tuple[list[dict], l
         lines.append("  (no damage events recorded)")
     else:
         lines.append(ids_line({rep.ability(h["abilityGameID"]): h["abilityGameID"] for h in hits}))
+    what = [damage_by_ability(rep, f, hits)] if hits else []
     if not d.get("killingAbilityGameID"):
         if moved := await positions.last_moves(rep, f, p.id, at):
-            lines.append("No killing blow recorded. " + moved)
+            what.append("No killing blow recorded. " + moved)
     elif line := killed_outright(rep, f, d, hits):
-        lines.append(line)
-    lines.append(f"Total {short(sum(h.get('amount', 0) for h in hits))} damage in the window.")
-    return hits, lines
+        what.append(line)
+    return hits, what, lines
 
 
 def killed_outright(rep: Report, f: dict, d: dict, hits: list[dict]) -> str:
@@ -165,10 +204,9 @@ async def if_pressed(rep: Report, f: dict, p: Player, d: dict, hits: list[dict])
     burst = hits[above[-1] + 1:] if above and above[-1] + 1 < len(hits) else hits
     start = burst[0]["timestamp"]
     t0 = f["startTime"]
-    lines = [f"If pressed at the start of the lethal burst ({clock(start - t0)}, the first hit after they were last "
-             f"at {BURST_FROM_PCT}%+ health; a heal after the last hit {REACT_MS / 1000:g} s or more before the "
-             f"killing hit, time to see it; {short(overkill)} overkill to make up; healing as it was; secondary to "
-             "what killed them):"]
+    lines = [f"If pressed ({short(overkill)} overkill to make up, healing as it was; a defensive at the start of the "
+             f"lethal burst, {clock(start - t0)}, the first hit after they were last at {BURST_FROM_PCT}%+ health; a "
+             f"heal after the last hit {REACT_MS / 1000:g} s or more before the killing hit, time to see it):"]
     casts = await _their_casts(rep, f, p, d["timestamp"])
     spells = await rep.defensive_spells(p)
     pressed = await _used_ever(rep, p, spells)
@@ -322,7 +360,8 @@ async def _defensives(rep: Report, f: dict, p: Player, at: float) -> list[str]:
                 state = "not used this pull, so ready if talented"
             else:
                 state = (f"last used at {clock(last - t0)} ({sp['cooldown']:.0f} s cooldown), "
-                         + ("ready again" if kind == "ready" else "on cooldown"))
+                         + ("ready again" if kind == "ready"
+                            else f"on cooldown until {clock(last - t0 + 1000 * sp['cooldown'])}"))
             if sp["name"] in active:
                 state += ", active at death"
             lines.append(f"  {sp['name']}: {state}")
