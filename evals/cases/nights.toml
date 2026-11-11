@@ -21,8 +21,8 @@ wrong = ["names the Mutilate soak, rather than the missed Serpent's Fury stacks,
 id = "night-healing-cooldowns"  # from the raiders' own question (answer #265)
 tools = ["boss_guide", "healing"]
 question = "When do we take the most damage on Sszorak, and are our healing cooldowns in the right place?"
-expect = """The damage comes in waves at the same moments every pull. The healing cooldowns go on the second wave,
-at 1:04-1:17 (2.7 and 2.2 per spike), and almost none on the first, at 0:20-0:27 (Virulence and Mutilated Gash, 0.1
+expect = """The damage comes in waves at the same moments every pull. The healing cooldowns go mostly on the second
+wave, at 1:04-1:17 (2.7 and 2.2 per spike), and fewer on the first, at 0:20-0:27 (Virulence and Mutilated Gash, 1.1
 per spike), which came in 21 pulls."""
 facts = ["in the first wave healing kept pace without cooldowns: 3.07M/s against 3.14M/s taken",
          "Venomous Surge at 0:31-0:40 got no healing cooldown in any of its 6 spikes, healing 2.25M/s against 3.40M/s",
@@ -289,8 +289,8 @@ question = "Make us a healing cooldown plan for Sszorak from tonight's pulls."
 asker = "Enfo"
 boss = "Sszorak"
 expect = """A plan of healing cooldowns by time over the fight, which cooldown when, built from the night's kill and its
-spikes, with a cooldown on the Virulence and Mutilated Gash wave around 0:23-0:28; it says the log can't show who
-was assigned."""
+spikes, with a cooldown on the Virulence and Mutilated Gash wave around 0:23-0:28. Where it names cooldowns left
+ready and unused, it doesn't call them missed or someone's job: the log can't show who was assigned."""
 facts = ["the 0:23-0:28 spike: 3.55M/s taken, 0.8 healing cooldowns per spike, 17 deaths",
          "on each of the 6 pulls that spike came, a healing cooldown was ready and unused",
          "the Viscous Cyst bursts at 1:41-1:43 are a mechanic to handle, not only a cooldown to add",
