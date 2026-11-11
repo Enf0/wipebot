@@ -423,6 +423,31 @@ async def test_a_pull_gets_past_what_ended_earlier_pulls_not_past_pulls_nothing_
         "This pull got past what ended the most earlier pulls: Venom Burst killing many (3 of 4).")
 
 
+async def test_a_pull_did_not_get_past_what_came_on_it_too(rep, monkeypatch):
+    # Pulls 1-3 of the tests' night ended as the boss gained Unbound Ferocity. On pull 5 it gained it at 1:17, after
+    # the wipe was decided at 1:14: the summary said "the boss gained Unbound Ferocity at 1:17 ... so it's fallout"
+    # and, a line on, that the pull "got past" the boss gaining it. Pull 4, where the boss never gained it, did.
+    # The time is the line above's to say: it is given here only for a buff no line above names.
+    late, clear = rep.fight(5, "Sszorak"), rep.fight(4, "Sszorak")
+    assert await fight._same_ending(rep, late, await pull_ending(rep, late)) == (
+        "This pull ended the way 1 earlier pull on Sszorak in this log did (pull 4): deaths leading into Mutilate "
+        "killing many. What ended the most earlier pulls (3 of 4), the boss gaining Unbound Ferocity and keeping it to "
+        "the end, came on this pull too, after the wipe was decided.")
+    assert await fight._same_ending(rep, clear, await pull_ending(rep, clear)) == (
+        "This pull got past what ended the most earlier pulls: the boss gaining Unbound Ferocity and keeping it to the "
+        "end (3 of 3).")
+    # A hit that ended most earlier pulls and came here behind another, or after deaths that led into it, came too.
+    hit = Ending("moments", 20, 120_000, (MassDeath(60_000, "Venom Burst", (901,), 4, 1),))
+
+    async def endings(_, fights):
+        return [hit, hit, hit, None][:len(fights)]
+    monkeypatch.setattr(fight, "pull_endings", endings)
+    behind = Ending("moments", 20, 120_000, (MassDeath(30_000, "Tail Swipe", (902,), 4, 1), *hit.moments))
+    assert await fight._same_ending(rep, rep.fight(5, "Sszorak"), behind) == (
+        "What ended the most earlier pulls (3 of 4), Venom Burst killing many, came on this pull too, after what "
+        "ended it.")
+
+
 async def test_a_fight_on_no_raid_difficulty_says_so_and_is_no_difficulty_10(rep, monkeypatch):
     # A Mythic+ run reaches Warcraft Logs as one fight with a difficulty that is no raid's: "(difficulty 10)" with
     # "raid size 5" and "the boss dead" read as a bug. The raid's own pulls carry no such line.

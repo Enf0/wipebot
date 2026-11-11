@@ -426,10 +426,10 @@ def kind_of_end(e: Ending | None) -> str:
             return RESET
         case "live":
             return LIVE
-    return ("deaths leading into " if e.led_in else "") + _moment_kind(e.moments[0])
+    return ("deaths leading into " if e.led_in else "") + moment_kind(e.moments[0])
 
 
-def _moment_kind(m: Moment) -> str:
+def moment_kind(m: Moment) -> str:
     match m:
         case MassDeath(ability=""):
             return "many dying at once, no killing blow"

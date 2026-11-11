@@ -8,7 +8,16 @@ from dataclasses import dataclass, field
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError
-from ..pulls import DIFFICULTIES, killed_by, pct_text, phase_health, phase_label, subject, trend_line
+from ..pulls import (
+    DIFFICULTIES,
+    END_BUFF_WINDOW_MS,
+    killed_by,
+    pct_text,
+    phase_health,
+    phase_label,
+    subject,
+    trend_line,
+)
 from ..text import clock, exact, ids_line, ordinal, parse_clock, plural, ranges, short
 from ..wcl import WCL, WCLError
 from . import rows
@@ -25,7 +34,17 @@ from .base import (
     half_dead,
     unavailable,
 )
-from .ending import ALIVE, Ending, KeptBuff, ending_text, kind_of_end, pull_ending, pull_endings, ruled_out
+from .ending import (
+    ALIVE,
+    Ending,
+    KeptBuff,
+    ending_text,
+    kind_of_end,
+    moment_kind,
+    pull_ending,
+    pull_endings,
+    ruled_out,
+)
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -152,8 +171,8 @@ async def _same_ending(rep: Report, f: dict, ended: Ending | None) -> str | None
     if not earlier:
         return None
     await rep.decided_cuts(earlier)  # every earlier pull's deaths, buffs and battle res at once
-    kinds = {rep.pull_no(x): kind_of_end(e)
-             for x, e in zip(earlier, await pull_endings(rep, earlier), strict=True)}
+    ends = await pull_endings(rep, earlier)
+    kinds = {rep.pull_no(x): kind_of_end(e) for x, e in zip(earlier, ends, strict=True)}
     this = kind_of_end(ended)
     same = [n for n, k in kinds.items() if k == this]
     nothing = ("a reset", "a kill", ALIVE)  # no pull gets past these: nothing in the log ended them
@@ -163,9 +182,45 @@ async def _same_ending(rep: Report, f: dict, ended: Ending | None) -> str | None
     if same:
         parts.append(f"ended the way {plural(len(same), 'earlier pull')} on {f['name']} in this log did (pull"
                      f"{'s' if len(same) > 1 else ''} {ranges(same)}): {this}")
+    here = None
     if common and common != this and most >= REPEAT_ENDINGS:
-        parts.append(f"got past what ended the most earlier pulls: {common} ({most} of {len(earlier)})")
-    return ("This pull " + "; it ".join(parts) + ".") if parts else None
+        of = f"{most} of {len(earlier)}"
+        came = await _came_here(rep, f, ended, next(e for e in ends if kind_of_end(e) == common))
+        if came is None:
+            parts.append(f"got past what ended the most earlier pulls: {common} ({of})")
+        else:
+            here = f"What ended the most earlier pulls ({of}), {common}, came on this pull too{came}."
+    return " ".join(([f"This pull {'; it '.join(parts)}."] if parts else []) + ([here] if here else [])) or None
+
+
+async def _came_here(rep: Report, f: dict, ended: Ending, earlier: Ending | None) -> str | None:
+    """Where this pull had what ended most earlier pulls (the first moment of `earlier`, one of them) and so didn't
+    get past it, the words to follow "came on this pull too"; None where it didn't come. It came as a moment of
+    this pull's own ending, behind the one that leads or after deaths that led into it, or as a buff the boss gained
+    in the pull's last END_BUFF_WINDOW_MS and kept: no part of the ending when it came after the wipe was decided
+    or as a phase began. The words say when it came, unless a line above does (the ending's moments, a buff after
+    the wipe was decided), and what it came after."""
+    if earlier is None or earlier.kind != "moments":
+        return None
+    led, decided = earlier.moments[0], await rep.decided_at(f)
+    at, said = None, True
+    if hit := next((m for m in ended.moments if moment_kind(m) == moment_kind(led)), None):
+        at = hit.at_ms
+    elif isinstance(led, KeptBuff):
+        up: dict[tuple[int, int], float] = {}
+        for e in await rep.boss_buffs(f):
+            if rep.ability(e["abilityGameID"]) == led.name and e["type"] in ("applybuff", "removebuff"):
+                key = (e["targetID"], e["abilityGameID"])
+                up.setdefault(key, e["timestamp"]) if e["type"] == "applybuff" else up.pop(key, None)
+        if kept := [t for t in up.values() if f["endTime"] - t <= END_BUFF_WINDOW_MS]:
+            at = min(kept) - f["startTime"]
+            said = bool(decided and at > decided.at_ms and led.name in {name for name, _ in await rep.end_buffs(f)})
+    if at is None:
+        return None
+    first = ended.moments[0].at_ms if ended.moments else ended.half_dead_ms
+    return ("" if said else f", at {clock(at)}") + (
+        ", after the wipe was decided" if decided and at > decided.at_ms
+        else ", after what ended it" if first is not None and at > first else "")
 
 
 @dataclass
