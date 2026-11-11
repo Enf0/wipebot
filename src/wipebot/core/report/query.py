@@ -390,7 +390,7 @@ class _Events:
 
 
 def _fight_line(rep: Report, fight_id: int, detailed: bool = True) -> str:
-    """'21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% health)', a legend's entry for a fight;
+    """'21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.6% health)', a legend's entry for a fight;
     '21 = Sszorak pull 13' alone when not `detailed`."""
     f = rows.pull_at(rep, 0, fight_id)
     if f is None:

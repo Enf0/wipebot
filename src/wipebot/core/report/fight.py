@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError
-from ..pulls import DIFFICULTIES, killed_by, phase_health, phase_label, subject, trend_line
+from ..pulls import DIFFICULTIES, killed_by, pct_text, phase_health, phase_label, subject, trend_line
 from ..text import clock, exact, ids_line, ordinal, parse_clock, plural, ranges, short
 from ..wcl import WCL, WCLError
 from . import rows
@@ -40,9 +40,9 @@ RAID_WIDE = 3  # a damage dealer's or tank's cooldown is a raid cooldown when it
 
 
 def boss_left(f: dict) -> str:
-    """'the boss at 62.63%' (WCL's own precision), or the health being unknown; on a boss counted by phase, the
-    phase too ('the boss at 80.8% health in P2'). A kill is 'the boss dead': WCL often leaves one at 0.01% (an
-    Entombed Sentinels kill), which reads as a near miss."""
+    """'the boss at 62.6% health' (to one decimal, as a wipe's % is given everywhere: pct_text), or the health being
+    unknown; on a boss counted by phase, the phase too ('the boss at 80.8% health in P2'). A kill is 'the boss
+    dead': WCL often leaves one at 0.01% (an Entombed Sentinels kill), which reads as a near miss."""
     if f.get("kill"):
         return "the boss dead"
     pct = f.get("bossPercentage")
@@ -50,8 +50,9 @@ def boss_left(f: dict) -> str:
         return "the boss's health not logged"
     phase = f" in {phase_label(f)}" if phase_health(f) is not None else ""
     fight = f.get("fightPercentage")  # what the summaries call the wipe: phases weighed in (wipe_pct)
-    return f"the boss at {pct}% health{phase}" + (f" (the wipe at {fight:.1f}%, phases weighed in)"
-                                                  if fight is not None and abs(fight - pct) >= 0.05 else "")
+    apart = fight is not None and abs(fight - pct) >= 0.05 and pct_text(fight) != pct_text(pct)
+    return f"the boss at {pct_text(pct)} health{phase}" + (f" (the wipe at {pct_text(fight)}, phases weighed in)"
+                                                           if apart else "")
 
 
 NOT_A_RAID = ("Not a raid pull: Warcraft Logs gives this fight no raid difficulty, as it does a dungeon run. It is "
@@ -216,7 +217,7 @@ async def pull_timeline(rep: Report, pull: PullRef = None, boss: str | None = No
 
 
 def _timeline_head(rep: Report, f: dict, of: str) -> str:
-    """'Sszorak pull 13 timeline, 2:25-2:40 (link). Ended at 2:42 with the boss at 62.59% health.'; `of` is the
+    """'Sszorak pull 13 timeline, 2:25-2:40 (link). Ended at 2:42 with the boss at 62.6% health.'; `of` is the
     window and what the timeline is narrowed to."""
     return (f"{rep.label(f)} timeline{of} ({rep.url(f)}). Ended at {clock(f['endTime'] - f['startTime'])} with "
             f"{boss_left(f)}." + (" KILL." if f["kill"] else ""))

@@ -11,4 +11,4 @@ Raid size 20. Deaths until then, in order (time from pull start, players alive a
 3. 1:28 Attractîv (Balance Druid) - Venomous Surge [1312156] (17 alive)
 4. 1:29 Zebinomage (Arcane Mage) - Raging Crosswinds [1312219] (16 alive)
 Fallout, 15 deaths after the wipe was decided at 2:32 (the boss gained Unbound Ferocity), by killing blow (when, who): Mutilated Gash [1285998] ×9 (2:33 Sinnatony; 2:34 Lïzårðmâñ, Peggerino, Pomaa, Krøpling, Sveini, Fappachino; 2:35 Enfo, Sonyosh) · Ula'tek's Presence [1285965] ×1 (2:34 Cptola) · Melee [1] ×1 (2:36 Deathadim) · Venomous Surge [1306120] ×4 (2:42 Martin, Nexsozz, Dragepie, Wutroll); 1 of 20 alive after the last.
-Pull ended at 2:42 with the boss at 62.59% health.
+Pull ended at 2:42 with the boss at 62.6% health.

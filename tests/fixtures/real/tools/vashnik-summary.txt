@@ -19,4 +19,4 @@ Raid size 20. Deaths until then, in order (time from pull start, players alive a
 11. 6:25 Pomaa (Fury Warrior) - Congealing Bolt [1305833] (11 alive)
 12. 6:28 Sinnatony (Arms Warrior) - Caustic Explosion [1295209] (10 alive)
 Fallout, 9 deaths after the wipe was decided at 6:28 (half the raid was dead), by killing blow (when, who): Congealing Bolt [1305833] ×2 (6:33 Nalaw; 6:41 Nexsozz) · Melee [1] ×1 (6:35 Sonyosh) · Malignant Burst [1280189] ×5 (6:40 Providence, Enfo, Miralupa, Peggerino, Martin) · Caustic Explosion [1295209] ×1 (6:40 Fappachino); 1 of 20 alive after the last.
-Pull ended at 6:41 with the boss at 9.43% health.
+Pull ended at 6:41 with the boss at 9.4% health.

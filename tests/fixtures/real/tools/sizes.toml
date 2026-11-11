@@ -5,12 +5,12 @@
 # `just snapshot` lowers a line when its output shrank and adds a new case's. It never raises one: an output that
 # outgrew its budget by more than a tenth (or 200 characters, where that is more) fails the test until its line is
 # raised here by hand, with the reason in the commit.
-pull-summary = 1697
-vashnik-summary = 2319
-altar-summary = 3456
-timeline = 6278
-timeline-window = 1568
-timeline-player = 2468
+pull-summary = 1696
+vashnik-summary = 2318
+altar-summary = 3455
+timeline = 6277
+timeline-window = 1567
+timeline-player = 2467
 death-recap = 3497
 death-recap-thrown = 3306
 mechanic-hits = 6033
@@ -82,8 +82,8 @@ resource-at-casts = 734
 spell-info = 96
 boss-tooltips = 1152
 boss-guide-mechanic = 1607
-wcl-query = 494
-wcl-query-pulls = 494
+wcl-query = 493
+wcl-query-pulls = 493
 wcl-query-schema = 6050
 web-lookup-read = 3238
 web-lookup-guide-part = 4268

@@ -234,7 +234,7 @@ async def test_events_come_as_rows_with_the_time_into_the_pull_and_names(rep):
     text = await query_text(cast(WCL, Points(100, answer)), q, rep, boss="Sszorak")
     lines = text.splitlines()
     # the fights first: what the ids in the query and the answer are, before anything is read by them
-    assert lines[1] == "Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% health)."
+    assert lines[1] == "Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.6% health)."
     assert lines[2] == '{"reportData":{"report":{"events":{"data":"events 1 below","nextPageTimestamp":null}}}}'
     assert lines[3] == (f"Events 1 (reportData.report.events.data): {len(deaths)} in Sszorak pull 13, times from the "
                         "pull's start.")
@@ -298,7 +298,7 @@ async def test_a_reports_other_times_read_into_their_pull_and_a_fights_field_kee
     text = await query_text(cast(WCL, Points(100, answer)), both, rep, boss="Sszorak")
     assert ('{"startTime":"0:02.197 of Sszorak pull 13","endTime":"2:42.854 of Sszorak pull 13"},'
             '{"startTime":"0:01.000 of Sszorak pull 14","endTime":"0:05.500 of Sszorak pull 14"}') in text
-    assert text.splitlines()[1].startswith("Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% "
+    assert text.splitlines()[1].startswith("Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.6% "
                                             "health); 22 = Sszorak pull 14 (")
 
 

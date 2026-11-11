@@ -25,4 +25,4 @@ Raid size 23. Deaths until then, in order (time from pull start, players alive a
 18. 7:20 Wutroll (Brewmaster Monk) - Coalesced Venom [1282408] (8 alive)
 Fallout, 7 deaths after the wipe was decided at 7:20 (half the raid was dead at 7:16, in one moment's deaths that ran to 7:20), by killing blow (when, who): Coalesced Venom [1282408] ×1 (7:22 Miralupa) · Melee [1] ×3 (7:25 Nalaxd; 7:26 Fappachino; 7:28 Biblethump) · Venom Rupture [1299838] ×3 (7:26 Lïzårðmâñ, Zebinomage, Agonco); 1 of 23 alive after the last.
 The boss gained Soulbound at 7:08, when Hex Lord Malacrass died, and kept it to the end; 5 players had died before that. A buff gained as another boss dies comes with killing that boss, not from a timer: look it up before calling it an enrage.
-Pull ended at 7:29 with the boss at 0.83% health in P3 (the wipe at 0.3%, phases weighed in).
+Pull ended at 7:29 with the boss at 0.8% health in P3 (the wipe at 0.3%, phases weighed in).

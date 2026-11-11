@@ -1,4 +1,4 @@
-Sszorak pull 13 timeline, 0:30-0:50, only Scopidruid's casts (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.
+Sszorak pull 13 timeline, 0:30-0:50, only Scopidruid's casts (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.6% health.
 Every cast Scopidruid and their pets began or finished, and their deaths: 38 events in Sszorak pull 13, times from the pull's start.
 Counted: 24 cast, 13 begincast, 1 death; by ability: Wrath 25 (12 cast, 13 begincast), Starsurge 4, Moonfire 2, Barkskin 1, Starfall 1, Solar Eclipse 1, Empowering Venom 1, Incarnation: Chosen of Elune 1 and 1 more (1 event); from: Scopidruid 37; on: Sszorak 19, Scopidruid 1.
 0:30.196 cast: Scopidruid → Barkskin

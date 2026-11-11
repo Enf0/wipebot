@@ -29,13 +29,15 @@ def test_a_kill_reads_as_the_boss_dead_not_its_last_percent():
     """Warcraft Logs often leaves a kill at 0.01%, which a model reads as a near miss ("finished at 0.01%, so it was
     close"): a kill's end says the boss died."""
     assert boss_left({"kill": True, "bossPercentage": 0.01}) == "the boss dead"
-    assert boss_left({"kill": False, "bossPercentage": 62.59}) == "the boss at 62.59% health"
+    # one precision: pull_summary opened with "wipe at 62.6%" and closed with "the boss at 62.59% health"
+    assert boss_left({"kill": False, "bossPercentage": 62.59}) == "the boss at 62.6% health"
+    assert boss_left({"kill": False, "bossPercentage": 62.56, "fightPercentage": 62.61}) == "the boss at 62.6% health"
 
 
 def test_a_wipe_says_its_bosss_health_and_the_wipe_percent_when_phases_make_them_differ():
     # Ula'tek: the summaries say "wipe at 6.4%" (phases weighed in) where the boss had 8.95% health
     assert boss_left({"kill": False, "bossPercentage": 8.95, "fightPercentage": 6.4}) == (
-        "the boss at 8.95% health (the wipe at 6.4%, phases weighed in)")
+        "the boss at 8.9% health (the wipe at 6.4%, phases weighed in)")
 
 
 def test_a_wipe_on_a_boss_counted_by_phase_names_the_phase_its_health_is_in():

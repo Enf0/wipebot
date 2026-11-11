@@ -298,7 +298,7 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
     monkeypatch.setattr(rep, "events_for", events_for)
     lines = (await fight.pull_timeline(rep, 13, "Sszorak", end="0:40", ability="tempest")).splitlines()
     assert lines[0] == ("Sszorak pull 13 timeline, 0:00-0:40, only Tempest (https://www.warcraftlogs.com/reports/"
-                        "KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.59% health.")
+                        "KBYT4xXn7VNjDgh8#fight=21). Ended at 2:42 with the boss at 62.6% health.")
     assert lines[1] == ("What the log has of Tempest (its casts, its hits on players and their pets, its debuff going "
                         "on and off players, its buff on the boss, the deaths it dealt): 26 events in Sszorak pull 13, "
                         "times from the pull's start.")
