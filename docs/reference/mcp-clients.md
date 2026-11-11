@@ -136,7 +136,8 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
     question's part and the examples, about 9 KB. With only the connector, Opus called it first in 31 of 33
     answers; on the 11 cases that failed connector-only in 1.0.0's full run, three trials each, 19 of 33 passed
     with it and 11 of 33 without (the plugin: 22 of 33), at a median 61 s against 46 s and $0.32 against $0.25 an
-    answer. The cases that passed without it weren't run.
+    answer. The full connector-only run with it (18ef819, three trials): 252 of 279, called first in 273 answers,
+    a median 40 s; 1.0.0's without it was 81 of 92 on one trial, a median 37 s, and the plugin's 248 of 276.
   - Why claude.ai drops server instructions isn't stated anywhere; the issue is open as a backlog enhancement.
   - How an answer looks (length, prose style, formatting) has no place in any of these (concluded 2026-10-25): the
     review criteria above reject descriptions that tell Claude how to behave, OpenAI keeps personality out of server

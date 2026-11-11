@@ -18,12 +18,12 @@
   "verdict": "VERDICT: cannot tell: 11 of this run's 92 cases not compared."
  },
  "connector": {
-  "commit": "8be93f8",
+  "commit": "18ef819",
   "date": "2026-11-11",
-  "trials": "1 trials",
-  "passed": 81,
-  "of": 92,
+  "trials": "3-6 trials",
+  "passed": 252,
+  "of": 279,
   "errors": 0,
-  "verdict": "VERDICT: cannot tell: 79 of this run's 92 cases not compared; too few answers (13 on 13 cases)."
+  "verdict": "VERDICT: cannot tell: 80 of this run's 92 cases not compared. Look: the total is 1.9 spreads below the baseline's."
  }
 }
