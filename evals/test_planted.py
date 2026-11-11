@@ -44,6 +44,8 @@ def test_a_plant_is_read_with_its_case_kind_item_and_answer(tmp_path):
 @pytest.mark.parametrize(("text", "why"), [
     ("[[plants]]\ncase = 'a'", "[[plant]] tables and nothing else"),
     (WRONG + "[defaults]\nreport = 'x'", "[[plant]] tables and nothing else"),
+    ('plant = ["wipe-a"]', "[[plant]] tables and nothing else"),
+    (WRONG.replace("[[plant]]", "[[plant]"), "it isn't TOML: "),
     (WRONG.replace('"wrong"', '"soft"'), "plant 1 (wipe-a): kind is wrong or vague"),
     (WRONG.replace("item =", "wrong ="), "a wrong plant has the keys answer, case, item, kind"),
     (WRONG + 'note = "why"', "a wrong plant has the keys answer, case, item, kind"),
@@ -271,18 +273,39 @@ async def test_the_real_majority_rule_decides_and_its_votes_and_cost_are_kept(tm
     assert (saved["votes"], saved["cost_usd"]) == (3, 0.03)
 
 
+async def test_a_judge_that_never_decides_is_asked_three_times_for_its_one_vote_and_the_plant_is_not_judged(
+        tmp_path, monkeypatch, capsys):
+    asked = []
+
+    async def ask(prompt: str, model: str) -> tuple[str, float]:
+        asked.append(prompt)
+        return "It could be read either way.\nUNKNOWN", 0.01
+    monkeypatch.setattr(checks, "_ask_judge", ask)
+    path, results = tmp_path / "planted.toml", tmp_path / "not" / "there" / "yet"
+    path.write_text(TWO.split("\n\n")[0], encoding="utf-8")
+    assert await planted.planted("sonnet", "", path, results) == 1
+    assert len(asked) == checks.JUDGE_TRIES  # more calls than the estimate's three a plant count: it says so
+    saved = json.loads(next(results.glob("planted-*.json")).read_text("utf-8"))  # the folder is made for it
+    assert (saved["plants"][0]["verdict"], saved["plants"][0]["votes"]) == ("not judged", [None])
+    assert (saved["votes"], saved["cost_usd"]) == (1, 0.03)
+    assert capsys.readouterr().out.endswith("(judge sonnet, 1 vote, $0.03)\n"
+                                            "Exits non-zero: 1 plant could not be judged.\n")
+
+
 async def test_the_cost_is_said_before_the_judge_is_asked(run):
     _, out, _, _ = await run(fails)
     said = ("2 plants (1 wrong, 1 vague), judged by sonnet: 2 to 6 judge calls, 4 if it fails every plant twice "
-            "running. About $0.04 at 1 cent a call, at most $0.06. Billed to your Claude Code login.\n")
+            "running (more only where it gives no verdict and is asked again). About $0.04 at 1 cent a call, $0.06 "
+            "at three a plant. Billed to your Claude Code login.\n")
     assert out.startswith(said) and out.index(said) < out.index("the judge is asked")
 
 
-def test_the_estimate_counts_three_votes_a_plant_at_most():
+def test_the_estimate_counts_three_votes_a_plant_and_says_what_can_make_it_more():
     plants = [Plant("a", "wrong", "x", "y")] * 110 + [Plant("a", "vague", "x")] * 20
     assert planted.estimate(plants, "sonnet") == (
         "130 plants (110 wrong, 20 vague), judged by sonnet: 130 to 390 judge calls, 260 if it fails every plant "
-        "twice running. About $2.60 at 1 cent a call, at most $3.90.")
+        "twice running (more only where it gives no verdict and is asked again). About $2.60 at 1 cent a call, "
+        "$3.90 at three a plant.")
 
 
 async def test_a_stale_plant_stops_the_run_before_the_judge_is_asked(run):
@@ -300,6 +323,8 @@ async def test_k_picks_the_plants_by_their_case_and_a_run_that_picks_none_fails(
     code, out, _, prompts = await run(fails, only="no-such-case")
     assert code == 1 and prompts == [] and out == "Exits non-zero: no plant is picked by -k no-such-case " \
                                                   "(planted.toml).\n"
+    code, out, _, prompts = await run(fails, "plant = []")
+    assert code == 1 and prompts == [] and out == "Exits non-zero: the file holds no plant (planted.toml).\n"
 
 
 async def test_the_saved_file_is_read_past_by_the_lint_and_the_coverage_report(run, tmp_path):

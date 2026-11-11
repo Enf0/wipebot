@@ -63,11 +63,15 @@ def some(n: int) -> str:
 
 
 def load_plants(path: Path = PLANTS) -> list[Plant]:
-    """The file's plants, in its order. A malformed file is refused: a key it doesn't take or lacks, an unknown
-    kind, an empty answer or item, a vague plant with a number in it (a specific), or the same plant twice (a case's
-    vague one, or its wrong one for the same item)."""
-    spec = tomllib.loads(path.read_text(encoding="utf-8"))
-    if set(spec) != {"plant"} or not isinstance(spec["plant"], list):
+    """The file's plants, in its order. A malformed file is refused: text that isn't TOML, a key it doesn't take or
+    lacks, an unknown kind, an empty answer or item, a vague plant with a number in it (a specific), or the same
+    plant twice (a case's vague one, or its wrong one for the same item)."""
+    try:
+        spec = tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as e:
+        raise SystemExit(f"{path.name}: it isn't TOML: {e}") from None
+    if set(spec) != {"plant"} or not isinstance(spec["plant"], list) \
+            or not all(isinstance(entry, dict) for entry in spec["plant"]):
         raise SystemExit(f"{path.name}: it holds [[plant]] tables and nothing else")
     plants, seen = [], set()
     for n, entry in enumerate(spec["plant"], 1):
@@ -132,11 +136,13 @@ def judge_prompt(plant: Plant, case: dict) -> tuple[str, str]:
 
 def estimate(plants: list[Plant], judge_model: str) -> str:
     """What a run will ask and about what it costs, said before it asks: the judge is asked once per plant, again
-    when it fails it and a third time when those two votes differ (checks.judge_majority)."""
+    when it fails it and a third time when those two votes differ (checks.judge_majority). Three a plant is no hard
+    ceiling: a call that brings no verdict is made again (checks.judge), and the line says so."""
     n, kinds = len(plants), Counter(p.kind for p in plants)
     return (f"{some(n)} ({', '.join(f'{kinds[k]} {k}' for k in KINDS if kinds[k])}), judged by {judge_model}: "
-            f"{n} to {3 * n} judge calls, {2 * n} if it fails every plant twice running. About "
-            f"${2 * n * CALL_USD:.2f} at {CALL_USD * 100:.0f} cent a call, at most ${3 * n * CALL_USD:.2f}.")
+            f"{n} to {3 * n} judge calls, {2 * n} if it fails every plant twice running (more only where it gives "
+            f"no verdict and is asked again). About ${2 * n * CALL_USD:.2f} at {CALL_USD * 100:.0f} cent a call, "
+            f"${3 * n * CALL_USD:.2f} at three a plant.")
 
 
 def counted(found: list[dict]) -> dict[str, dict[str, int]]:
@@ -173,7 +179,7 @@ def keep(folder: Path, found: list[dict], **about) -> Path:
     """A run's file, planted-<stamp>.json beside the runs' (the Evals workflow sends every file of the folder to the
     eval-results release): each plant with its case, kind and item, the question the judge saw, its verdict, votes,
     reason and cost. It has no `mode` and no `cases`, so the lint and the coverage report read past it."""
-    folder.mkdir(exist_ok=True)
+    folder.mkdir(parents=True, exist_ok=True)  # the judge is paid by now: no missing folder loses what it said
     out = folder / f"planted-{datetime.now():%Y%m%d-%H%M%S}.json"
     out.write_text(json.dumps({"planted": counted(found), **about, "date": f"{datetime.now(UTC):%Y-%m-%d}",
                                "votes": sum(len(f["votes"]) for f in found),
@@ -197,7 +203,8 @@ async def planted(judge_model: str, only: str = "", path: Path = PLANTS, results
               f"Rewrite them first ({path.name}).")
         return 1
     if not plants:
-        print(f"Exits non-zero: no plant is picked by -k {only} ({path.name}).")
+        print("Exits non-zero: " + (f"no plant is picked by -k {only}" if only else "the file holds no plant")
+              + f" ({path.name}).")
         return 1
     print(estimate(plants, judge_model) + (f" Billed to {billed_to}." if billed_to else ""), flush=True)
     jobs = asyncio.Semaphore(JOBS)
@@ -225,7 +232,8 @@ async def planted(judge_model: str, only: str = "", path: Path = PLANTS, results
             out = keep(results or HERE / "results", judged, judge=judged_by(judge_model),
                        judge_models=sorted(checks.MODELS), commit=commit(), filter=only, billed_to=billed_to)
             print(f"\nsaved {out}\n", flush=True)
-    print("\n".join(report(judged)) + f"\n(judge {judge_model}, {sum(len(f['votes']) for f in judged)} votes, "
+    votes = sum(len(f["votes"]) for f in judged)
+    print("\n".join(report(judged)) + f"\n(judge {judge_model}, {votes} vote{'' if votes == 1 else 's'}, "
           f"${sum(f['cost_usd'] for f in judged):.2f})")
     if unjudged := sum(f["verdict"] == NOT_JUDGED for f in judged):
         print(f"Exits non-zero: {some(unjudged)} could not be judged.")
