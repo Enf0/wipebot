@@ -19,7 +19,7 @@ ask which is theirs, unless the host says how to find it.
   `progress`.
 - A player: [Judging a player](judging-a-player.md), then `player_pull`, or `player_night` for a night.
 - A plan for the next raid (cooldowns, the raid's make-up, night against night): [Planning](planning.md).
-- How a boss works, the guild's note or plan, loot: [Explaining a boss](explaining-a-boss.md), then `boss_guide`.
+- How a boss works (`boss_guide`), the guild's note or plan, loot: [Explaining a boss](explaining-a-boss.md).
 
 [Worked examples](examples.md): a pull, a night and a player.
 
@@ -34,8 +34,8 @@ ask which is theirs, unless the host says how to find it.
 
 - Before judging a mechanic, or a buff the boss kept to the end, read `boss_guide` with it as `mechanic`. A missed
   mechanic brings an enrage as often as a timer does.
-- A hit aimed at a tank that kills another player shows where they stood: say so ("the frontal only hits players
-  in front of the boss, so they stood there").
+- State a cause that follows from how a mechanic works: a hit aimed at a tank that kills another player shows
+  where they stood ("the frontal only hits players in front of the boss, so they stood there").
 - Fix a death with what the guide says to do about the mechanic (where to stand, what to soak or kick). Name a
   defensive or a healthstone only when a replay (`death_recap`) says it would have kept them alive, after the
   cause.
@@ -43,9 +43,9 @@ ask which is theirs, unless the host says how to find it.
 
 ## 5. Check, then stop
 
-Check a "why" with more than one tool: checking is cheap, a wrong answer isn't. Stop when the lead and each change
-rest on a line a tool printed. Before saying something can't be found or done, try other arguments (all pulls,
-another report), another tool, `web_lookup` and `wcl_query`, then say what you tried.
+Check a "why" with more than one tool. Stop when the lead and each change rest on a line a tool printed. Before
+saying something can't be found or done, try other arguments (all pulls, another report), another tool,
+`web_lookup` and `wcl_query`, then say what you tried.
 
 ## 6. Write the answer
 
