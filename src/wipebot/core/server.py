@@ -1520,8 +1520,13 @@ async def raid_plan(plan: Annotated[str | None, Field(description=(
     if show:
         if not plan:
             plan = await _every_plan(rep)
-        text = unpulled + await plans.plan_show(rep, plan, boss, player)
-        return CallToolResult(content=[TextContent(type="text", text=text)])
+        embeds: list[dict] = []
+        text = unpulled + await plans.plan_show(rep, plan, boss, player, embeds)
+        # the plans on raidstrats.gg, for a host that shows views (the remote server's: app/plan.js); a client
+        # without them would read this in place of the text (_shown)
+        apps = setup().remote is not None and _supports_apps(ctx)
+        shown = {"view": "plan", "report": rep.code, "plans": embeds} if embeds and apps else None
+        return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=shown)
     if not plan:
         plan = await _saved_plans(rep, pull, boss)
     # A host that shows the replay viewer gets the pull against the plan from pull_map with `plan` (the viewer is

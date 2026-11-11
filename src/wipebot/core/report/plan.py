@@ -18,7 +18,7 @@ from ..classes import class_rgb
 from ..text import clock, fold, parse_clock, plural
 from . import maps, saved
 from .base import FactError, Player, PullRef, Report
-from .plan_export import Plan, Scene, describe, parse, scene_link
+from .plan_export import Plan, Scene, describe, embed_url, parse, scene_link
 from .positions import Facts, Mechanic, Moment, facts, mechanic, pull_positions, window, window_positions
 
 MIN_FIT = 4  # a fit turns, scales and moves the plan (four numbers): it needs more players than that to mean anything
@@ -303,10 +303,13 @@ async def plan_check(rep: Report, text: str, pull: PullRef = None, boss: str | N
         (m for o in overlays for m in o["moments"]), key=lambda m: m["ms"])} if overlays else None)
 
 
-async def plan_show(rep: Report, text: str, boss: str | None = None, player: str | None = None) -> str:
+async def plan_show(rep: Report, text: str, boss: str | None = None, player: str | None = None,
+                    embeds: list[dict] | None = None) -> str:
     """The newest version of each plan for `boss` (else the latest pull's boss), every scene in words (describe),
     with no pull. The report names the raiders the plan's labels mean; with `player`, each scene that names them
-    (on a spot, or in the side panel) is cut to their part (`_own_part`)."""
+    (on a spot, or in the side panel) is cut to their part (`_own_part`). `embeds` gets each shown plan's embed on
+    raidstrats.gg, for a view: its name, the embed's address (which also opens on its own) and the spots
+    of `player`."""
     plans = parse(text)
     wanted = boss or rep.boss(None)
     found = [p for p in plans if p.boss and (knowledge.matches_boss(wanted, p.boss)
@@ -353,6 +356,10 @@ async def plan_show(rep: Report, text: str, boss: str | None = None, player: str
         if player and not named:
             lines.append(f"{player} isn't named on this plan: spots are by number, filled by the night's "
                          "assignment.")
+        if embeds is not None and (url := embed_url(p)):
+            spots = [s for sc in p.scenes for s in sc.spots + [x for g in sc.panel for x, _ in g.spots]]
+            mine = {s.slot for s in spots if s.slot is not None and is_asked(s.label, s.role)}
+            embeds.append({"name": p.name, "boss": p.boss, "embed": url, "highlight": sorted(mine)})
     return "\n".join(lines)
 
 

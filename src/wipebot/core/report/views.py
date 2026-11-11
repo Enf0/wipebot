@@ -94,7 +94,7 @@ from .top import cast_comparison
 APP = resources.files("wipebot.core").joinpath("app")
 # The page's parts, in the order they're joined: the bridge to the host first, then what draws, then the views.
 SCRIPTS = ["bridge.js", "kit.js", "pull.js", "player.js", "night.js", "death.js", "raidnight.js", "meter.js",
-           "trend.js", "replay.js", "note.js", "versus.js", "mana.js", "main.js"]
+           "trend.js", "replay.js", "note.js", "versus.js", "mana.js", "plan.js", "main.js"]
 # The drawings only the Discord bot posts, as pictures (viewhost's Painter): in Claude and ChatGPT no tool's result
 # names them and no view opens them, so the page those load leaves their script out (a fifth of it)
 PICTURES_ONLY = frozenset({"note.js", "versus.js", "mana.js"})

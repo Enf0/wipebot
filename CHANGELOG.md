@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `MCP` **See a raid plan as raidstrats.gg draws it.** Asked for the plan as it is ("what's our plan for this boss?"), Wipebot shows each plan with the names saved on its spots: in ChatGPT the plan itself, its scenes a click apart and your own spots lit when you ask where you stand; in Claude a link that opens it.
+
+  ![The plan's card in Claude: "Wowutils - P1 Orb Carriers", The Coiled Altar, with a link that opens it on raidstrats.gg](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/raid-plan-link.webp)
+
 ## [1.0.0] - 2026-11-11
 
 ### Added

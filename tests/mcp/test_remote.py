@@ -743,20 +743,21 @@ def test_pull_tools_open_the_views_which_read_the_app_only_tools(client):
     assert "their casts against top players a click away" in tools["player_pull"]["description"]
     assert tools["pull_map"]["description"].endswith("with plan, the plan's spots on it and a button per moment.")
     assert "the user also sees the pull drawn" in tools["pull_summary"]["description"]
-    # raid_plan has no view: a host shows it on every call, and most of its answers have no pull to play
-    assert "ui" not in (tools["raid_plan"].get("_meta") or {})
+    # raid_plan's view is its plan on raidstrats.gg, with show only: most of its answers have no pull to play, and
+    # the page draws nothing for them (app/main.js)
+    assert tools["raid_plan"]["_meta"]["ui"]["resourceUri"] == remote.VIEWS_APP
     assert "call pull_map with plan, which shows its replay." in tools["raid_plan"]["description"]
     for app_only in ("view_data", "pull_replay", "viewer_log"):
         assert tools[app_only]["_meta"]["ui"] == {"resourceUri": remote.VIEWS_APP, "visibility": ["app"]}
     page = call("resources/read", {"uri": remote.VIEWS_APP})["contents"][0]
     assert page["mimeType"] == "text/html;profile=mcp-app" and "pull_replay" in page["text"]
     assert "view_data" in page["text"] and "/*SCRIPT*/" not in page["text"]
-    assert page["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC]}
+    assert page["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC], "frameDomains": ["https://raidstrats.gg"]}
     # a stale tool list: the replay viewer's addresses from before the views, and an older views page
     for older in ("ui://wipebot/pull-map-0123456789.html", "ui://wipebot/views-0123456789.html"):
         again = call("resources/read", {"uri": older})["contents"][0]
         assert again["text"] == page["text"] and again["mimeType"] == page["mimeType"]
-        assert again["_meta"]["ui"]["csp"] == {"resourceDomains": [PUBLIC]}
+        assert again["_meta"]["ui"]["csp"] == page["_meta"]["ui"]["csp"]
 
 
 def test_every_tool_a_host_shows_a_view_for_says_what_the_user_sees(client):
@@ -769,9 +770,11 @@ def test_every_tool_a_host_shows_a_view_for_says_what_the_user_sees(client):
              if (ui := (t.get("_meta") or {}).get("ui")) and "app" not in ui.get("visibility", [])]
     assert {t["name"] for t in shown} >= {"pull_map", "pull_summary", "player_pull", "death_recap", "progress"}
     for tool in shown:
-        note = tool["description"].rsplit("\n", 1)[-1]
+        saving = server.SAVING.get(tool["name"])  # this server saves notes and plans: said after the note
+        note = tool["description"].removesuffix(f"\n{saving}" if saving else "").rsplit("\n", 1)[-1]
         assert note.startswith("In Claude") and "the user" in note, tool["name"]
-        assert tool["name"] == "pull_map" or " sentence" in note, tool["name"]
+        # no card: the replay, and raid_plan's plan as raidstrats.gg draws it
+        assert tool["name"] in ("pull_map", "raid_plan") or " sentence" in note, tool["name"]
         if tool["name"] == "progress":
             night, weeks = note.split("; with weeks, ")
             assert "in a sentence" in night and "in a sentence" in weeks

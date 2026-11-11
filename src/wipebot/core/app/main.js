@@ -4,10 +4,10 @@
   // A host that hands back a stored result without its structuredContent (Claude Desktop on reopening a chat) still
   // has the tool's name and arguments: these views can be drawn again from them.
   const BY_TOOL = { pull_summary: "pull", player_pull: "player", player_night: "player_night", death_recap: "death", progress: "night" };
-  // The tools only some of whose calls have a view (a ranking of players, a trend by pull: the server says which,
+  // The tools only some of whose calls have a view (a ranking of players, a trend by pull, a plan as it is: the server says which,
   // by the result's key). A host draws the page for every call, so for these it stays empty, at no height, while
   // the tool runs and for a call without a view: no placeholder, and no line saying there is nothing.
-  const SOMETIMES = new Set(["breakdown", "mechanic_hits"]);
+  const SOMETIMES = new Set(["breakdown", "mechanic_hits", "raid_plan"]);
   const tool = () => app.context().toolInfo?.tool?.name;
   // A host need not say which tool the page is for (hostContext.toolInfo is optional): then it may be one of these,
   // and the page draws only what a result's key names.

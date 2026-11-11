@@ -1268,12 +1268,12 @@ async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps
 def test_the_tools_with_a_card_are_the_ones_whose_result_carries_its_key():
     """One list in three places, held together here: the tools the remote server gives the views' page to (a host
     draws a card on every call of those), the tools whose result carries the view's key (server._shown, and pull_map
-    with its replay's), and the tools the mock host gives a key."""
+    with its replay's, and raid_plan with its plan's embed), and the tools the mock host gives a key."""
     from wipebot.core import viewhost
     keyed = set(re.findall(r'await _shown\("(\w+)"', Path(server.__file__).read_text(encoding="utf-8")))
     remote = (Path(server.__file__).parents[1] / "mcp" / "remote.py").read_text(encoding="utf-8")
     listed = re.search(r"server\.register\(mcp, setup, meta=\{(.*?)\}", remote, re.DOTALL)
-    assert listed and set(re.findall(r'"(\w+)": shown', listed[1])) == keyed | {"pull_map"}
+    assert listed and set(re.findall(r'"(\w+)": shown', listed[1])) == keyed | {"pull_map", "raid_plan"}
     assert keyed == viewhost.SHOWN and keyed < set(server.VIEW_TOOLS)
     # and in the page: the tools only some of whose calls have a view (it draws nothing for the others), and the
     # rest, whose view it can draw again from the tool's arguments
@@ -1282,7 +1282,8 @@ def test_the_tools_with_a_card_are_the_ones_whose_result_carries_its_key():
     always = re.search(r"const BY_TOOL = \{(.*?)\}", main)
     assert sometimes and always
     ranked = {tool for tool in keyed if server.VIEW_TOOLS[tool] == "meter"}
-    assert set(re.findall(r'"(\w+)"', sometimes[1])) == ranked == {"breakdown", "mechanic_hits"}
+    assert set(re.findall(r'"(\w+)"', sometimes[1])) == ranked | {"raid_plan"}
+    assert ranked == {"breakdown", "mechanic_hits"}
     assert dict(re.findall(r'(\w+): "(\w+)"', always[1])) == {t: server.VIEW_TOOLS[t] for t in keyed - ranked}
 
 
@@ -1333,8 +1334,9 @@ def test_the_page_claude_and_chatgpt_load_holds_only_the_views_they_show():
 
     def defined(page: str) -> set[str]:
         return set(re.findall(r"^views\.(\w+) = ", page, re.MULTILINE))
-    # pull_map's result is its replay; breakdown grouped by pull is a trend (server.view_key)
-    shown = {server.VIEW_TOOLS[tool] for tool in viewhost.SHOWN} | {"replay", "trend"}
+    # pull_map's result is its replay; breakdown grouped by pull is a trend (server.view_key); raid_plan's with show
+    # is its plan on raidstrats.gg
+    shown = {server.VIEW_TOOLS[tool] for tool in viewhost.SHOWN} | {"replay", "trend", "plan"}
     assert defined(hosted) == shown and set(re.findall(r'\bopen\("(\w+)"', hosted)) <= shown
     assert defined(painted) - defined(hosted) == {"note", "versus", "mana"}
     assert all(name in views.SCRIPTS for name in views.PICTURES_ONLY)

@@ -125,6 +125,25 @@ class PlanLink:
         return bool(self.names or self.scene_names)
 
 
+def embed_url(plan: Plan) -> str:
+    """raidstrats.gg's embed of the plan (embed-doc) with the names on its numbered spots (`names=`): a scene's own
+    where it names a number otherwise than the first scene that does. "" for a plan with no link there."""
+    found = links(plan.link) if plan.link else []
+    if not found:
+        return ""
+    names: dict[int, str] = {}
+    own: dict[tuple[int, int], str] = {}
+    for n, sc in enumerate(plan.scenes, 1):
+        for spot in sc.spots + [s for g in sc.panel for s, _ in g.spots]:
+            if spot.slot is None or not (label := " ".join(re.sub(r"[,:]", " ", spot.label).split())):
+                continue
+            if names.setdefault(spot.slot, label) != label:
+                own[n, spot.slot] = label
+    entries = [f"{k}:{v}" for k, v in sorted(names.items())] + [f"{s}/{k}:{v}" for (s, k), v in sorted(own.items())]
+    query = {"embed": "true", "id": found[0].plan_id} | ({"names": ",".join(entries)} if entries else {})
+    return "https://raidstrats.gg/planner?" + urllib.parse.urlencode(query)
+
+
 def links(text: str) -> list[PlanLink]:
     """Every raidstrats.gg plan link in a text, in order: `planner?view=<id>` (or `id=`, or `planner/<custom
     link>`), with `players=Name|class,...` or `names=Name,...` read as raidstrats.gg's embed does (embed-doc): an

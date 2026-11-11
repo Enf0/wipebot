@@ -306,3 +306,8 @@ svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2
 .tally .bar { height: 10px; border-radius: 3px; background: var(--panel); overflow: hidden; }
 .tally .bar i { display: block; height: 100%; opacity: .8; }
 .tally .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
+
+/* raid_plan's plan as raidstrats.gg draws it (plan.js): its embed at the planner's 16:9 and its scene tabs */
+.pl-tabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 2px 8px; }
+.pl-box { position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; overflow: hidden; background: var(--panel); }
+.pl-box iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

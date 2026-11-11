@@ -150,3 +150,15 @@ def test_a_links_raiders_are_written_on_the_plans_numbered_spots_a_scenes_own_fi
         [(1, "Brøn"), (2, "Halvard"), (3, "")], [(1, "Brøn"), (2, "Rowan"), (3, "")]]
     assert plan.scenes[0].items[3]["label"] == "Gloom"  # an ability with a number isn't a spot
     assert plan_export.with_names(made, plan_export.PlanLink("p")) == made  # no raiders: the plan as it is
+
+
+def test_a_plans_embed_carries_the_names_on_its_numbered_spots_a_scenes_own_where_they_differ():
+    spots = [{**ICON, "icon": "roles/tank.svg", "label": "Brøn", "slotIndex": 1, "x": 10, "y": 10},
+             {**ICON, "icon": "classes/mage", "label": "Hal, v", "slotIndex": 2, "x": 20, "y": 10},
+             {**ICON, "icon": "roles/healer.svg", "label": "3", "slotIndex": 3, "x": 30, "y": 10}]
+    other = [dict(spots[0]), {**spots[1], "label": "Rowan"}]
+    made = export({"planName": "Made up", "boss": "Sszorak", "planLink": "https://raidstrats.gg/planner?view=p-1",
+                   "scenes": [{"name": "1", "items": spots}, {"name": "2", "items": other}]})
+    url = plan_export.embed_url(plan_export.parse(made)[0])
+    assert url == "https://raidstrats.gg/planner?embed=true&id=p-1&names=1%3ABr%C3%B8n%2C2%3AHal+v%2C2%2F2%3ARowan"
+    assert plan_export.embed_url(plan_export.parse(export({"planName": "No link", "scenes": []}))[0]) == ""

@@ -102,7 +102,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
              "within a minute of the last as a line the user opens.")
     server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
                                        "player_night": shown, "death_recap": shown, "progress": shown,
-                                       "breakdown": shown, "mechanic_hits": shown},
+                                       "breakdown": shown, "mechanic_hits": shown, "raid_plan": shown},
                     notes={"breakdown": ranks.format(what=(
                                "the user also sees a ranking by player drawn as a damage meter (damage, healing, "
                                "damage taken, kicks, dispels) under a sentence on who is first against the median, "
@@ -137,7 +137,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                                        "guild's best, with each pull's own view a click away; with weeks, the night "
                                        "of the kill or, with none, the night that got furthest in a sentence, and "
                                        "each raid night's best pull.",
-                           "raid_plan": "In Claude, the user sees no map from raid_plan: for the pull against the "
+                           "raid_plan": "In Claude and ChatGPT, with show, the user also sees each plan's name with "
+                                        "a link to it on raidstrats.gg, which shows it with the names saved on its "
+                                        "spots; in ChatGPT, the plan itself, drawn there. For the pull against the "
                                         "plan, call pull_map with plan, which shows its replay."})
     mcp.add_tool(server.guarded(_my_characters(signin), setup), name="my_characters",
                  title=server.title("my_characters"), annotations=server.READ_ONLY, structured_output=False,
@@ -360,8 +362,11 @@ def _officer(signin: SignIn) -> Callable[[], tuple[str, int]]:
 
 # ---------- the views (an MCP App: report/views.py, the page in core/app/) ----------
 
+FRAMED = ["https://raidstrats.gg"]  # raid_plan's plan, in its embed where the host allows the frame (app/plan.js)
+
+
 def _views_csp(public_url: str) -> ResourceCsp:
-    return ResourceCsp(resource_domains=[public_url])  # the room's map and the icons, from /img/
+    return ResourceCsp(resource_domains=[public_url], frame_domains=FRAMED)  # the room's map and icons, from /img/
 
 
 def _views_app(public_url: str, setup: server.Setup) -> Apps:
