@@ -22,7 +22,9 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   the new one (in beta from 20 October 2026) adds database and user points: "Point types" below.
 - `report.fights(killType: Encounters)`: fight `startTime`/`endTime` are ms relative to the report start.
   Report `startTime`/`endTime` are UNIX ms. `inProgress` is true while a pull is still being logged.
-- `difficulty`: 1 LFR, 3 Normal, 4 Heroic, 5 Mythic. `lastPhase` 0 means the boss has no phases.
+- `difficulty`: 1 LFR, 3 Normal, 4 Heroic, 5 Mythic. `lastPhase` 0 means the boss has no phases. A Mythic+ run
+  logged with the raid is a fight of difficulty 10 in the same report (PjKR7hQwtYpd8WDz: Temple of Sethraliss
+  beside 10 Heroic and 12 Mythic pulls), so a report's hardest raid difficulty is not its highest number.
 - Phases repeat: `phaseTransitions` lists every phase entered (Sszorak goes P1 → P2 "Howling Maelstrom", the
   intermission → P1), so `lastPhase` 1 at 2:40 means the second time in P1. `report.phases` names them.
 - Enrages and other boss states only show as enemy buffs: `events(dataType: Buffs, hostilityType: Enemies)`,

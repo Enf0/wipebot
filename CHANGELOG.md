@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Agent` **A night two raiders logged counts once.** Two raiders logging the same night give two logs with every pull in both, and a player's deaths over the weeks counted each of those pulls and deaths twice ("54 pulls" on a night of 27). So did the times a tank took the boss with each spell. Each pull now counts once, from the first log that has it.
 - `Agent` **"What do I keep dying to?" and "who's been raiding?" count tonight too.** A player's deaths night by night over the weeks, and who raided which nights, take the guild's raid nights from Warcraft Logs' attendance, which can lack a log uploaded within the hour: the night you asked about was then missing, and a rogue who had just pulled Sszorak 40 times was told they weren't in a pull on it. The night of the log you ask about is now among them, and the weeks are counted back from that night, so a later night isn't.
+- `Agent` **A dungeon run in the log no longer hides the guild's raid nights.** With a Mythic+ run logged beside the raid's pulls, the guild's raid nights were looked up on the dungeon's difficulty and few or none were found: a player's deaths over the weeks came back empty, and who raided which nights listed 1 night of 9. They are looked up on the hardest raid difficulty in the log.
 
 ## [1.2.0] - 2026-11-11
 

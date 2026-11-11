@@ -45,6 +45,19 @@ async def test_attendance_counts_a_night_once_and_leaves_out_other_difficulties(
     assert lines[-1] == "Nights raided, of 2: Torvek 2, Mirelle 1, Brightleaf 0 (+1 benched)"
 
 
+async def test_raid_nights_are_on_the_raids_difficulty_when_the_log_holds_a_dungeon_run_too(rep, patch_wcl):
+    rep.guild_id, rep.zone_id, rep.guild_name = 14169, 53, "The Copper Lanterns"
+    t = rep.end_ms - 7 * 86400 * 1000
+    logs = [{"code": "A", "startTime": t, "players": [{"name": "Torvek", "presence": 1}]}]
+    patch_wcl(rep, attendance=logs, guild_reports=[{"code": "A", "pulls_by_difficulty": {5: 9}}],
+              guild_members={"Torvek"})
+    assert {f["difficulty"] for f in rep.fights} == {5}
+    rep.fights = [*rep.fights, {**rep.fights[-1], "id": 999, "difficulty": 10}]  # a Mythic+ key after the raid
+    nights, difficulty, _ = await night.raid_nights(rep, 2)
+    assert difficulty == 5 and [n["codes"] for n in nights] == [["A"]]
+    assert "Mythic raid nights" in (await night.attendance(rep, 2)).splitlines()[0]
+
+
 async def test_the_nights_up_to_a_report_hold_its_own_when_attendance_lacks_it(rep, patch_wcl):
     rep.guild_id, rep.zone_id, rep.guild_name = 14169, 53, "The Copper Lanterns"
     week, hour = 7 * 86400 * 1000, 3600 * 1000

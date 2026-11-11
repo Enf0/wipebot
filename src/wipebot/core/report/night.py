@@ -149,7 +149,7 @@ async def raid_nights(rep: Report, weeks: int) -> tuple[list[dict], int, dict[st
                                                       rep.wcl.guild_members(rep.guild_id))
     except WCLError as e:
         raise FactError(f"Warcraft Logs attendance unavailable: {e}") from e
-    hardest = max(f.get("difficulty") or 0 for f in rep.fights)
+    hardest = max((d for f in rep.fights if (d := f.get("difficulty")) in DIFFICULTIES), default=0)  # not a dungeon's
     pulls = {r["code"]: (r.get("pulls_by_difficulty") or {}).get(hardest, 0) for r in reports}
     logs = [log for log in logs if pulls.get(log["code"], RAID_PULLS) >= RAID_PULLS]
     not_guild: dict[str, str] = {}  # code -> why
