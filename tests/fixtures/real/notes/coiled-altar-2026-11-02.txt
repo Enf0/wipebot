@@ -101,7 +101,7 @@ time:136;ph:3;tag:Cptola;spellid:31884;
 time:144;ph:3;tag:everyone;spellid:1282403;text:Ignore orbs;colors:1 0.16 0.16 1;DisplayType:Text;
 time:152;ph:3;tag:Namsus;spellid:200183;
 time:152;ph:3;tag:Namsus;spellid:1236616;
-time:158;ph:3;tag:everyone;spellid:46221;text:Nuke boss;TTS:Nuke boss, retards;DisplayType:Text;
+time:158;ph:3;tag:everyone;spellid:46221;text:Nuke boss;TTS:Nuke boss;DisplayType:Text;
 time:159;ph:3;tag:Enfo;spellid:192077;
 time:159;ph:3;tag:Miralupa;spellid:64843;
 time:172;ph:3;tag:everyone;spellid:1310882;text:Gloombombs to Narnia;colors:0.2 0.4 1 1;DisplayType:Text;
