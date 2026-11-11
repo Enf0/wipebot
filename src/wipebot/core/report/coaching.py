@@ -445,8 +445,9 @@ HELD_SHARE = 0.75  # ... on this share of the pulls it was used on
 def held_at(first_uses: list[float]) -> float | None:
     """The moment of the fight a cooldown is held for, from when it was first used on each pull (ms into it): their
     median, when the first use comes late and at the same time pull after pull (a raid cooldown assigned to a boss
-    cast). None for one pressed at the pull or whenever, or used on too few pulls to tell. The player's own timing
-    decides, not a tag: a healer's own throughput cooldown is a raid cooldown to Lorrgs too."""
+    cast, or one pressed late every pull: the same time each pull doesn't say it is the right one, so the text says
+    only that it came then). None for one pressed at the pull or whenever, or used on too few pulls to tell. The
+    player's own timing decides, not a tag: a healer's own throughput cooldown is a raid cooldown to Lorrgs too."""
     if len(first_uses) < HELD_PULLS:
         return None
     at = statistics.median(first_uses)
@@ -705,9 +706,10 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
     if cds.used:
         lines.append("Major cooldowns over the night (list from Lorrgs, uses from the log; uses / possible if "
                      "pressed on cooldown from the pull until they died or the wipe was decided"
-                     + ("; one first used late and at the same time pull after pull is held for that moment of "
-                        "the fight: it is counted on the pulls that got there with them alive and the wipe not "
-                        "decided" if cds.held else "")
+                     + ("; one first used late and at about the same time pull after pull is counted on the pulls "
+                        "that got to that time with them alive and the wipe not decided, and the same time each "
+                        "pull doesn't say it is the right one: compare_with_top cooldowns gives when top players "
+                        "press it" if cds.held else "")
                      + "; each pull below has the times, 0:00 for one up at the pull): "
                      + ", ".join(_cooldown_text(rep, cds, n) for n in cds.used if n not in never))
     if cds.unavailable:
@@ -743,7 +745,8 @@ def _cooldown_text(rep: Report, cds: NightCooldowns, name: str) -> str:
         return cds.text(name, cds.used[name], cds.possible[name], True) + _first_use(rep, cds.first_use[name])
     last = max(cds.first_use[name], key=lambda x: x[1])
     return (f"{name} used on {held.used} of the {plural(held.reached, 'pull')} that got to {clock(held.at_ms)} "
-            f"(held for then: its median first use, latest pull {rep.pull_no(last[0])} at {clock(last[1])}"
+            f"(first pressed about then pull after pull: its median first use, latest pull {rep.pull_no(last[0])} at "
+            f"{clock(last[1])}"
             + (f"; {plural(cds.used[name], 'use')} over the night" if cds.used[name] != held.used else "") + ")")
 
 

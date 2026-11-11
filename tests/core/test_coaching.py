@@ -273,9 +273,11 @@ def test_a_cooldown_held_for_a_moment_is_counted_on_the_pulls_that_got_to_it():
     assert cds.held == {"Spirit Link Totem": coaching.Held(71_000, 3, 4)}  # pull 7 got to 1:11 without a use
     assert (cds.used["Spirit Link Totem"], cds.possible["Spirit Link Totem"]) == (3, 7)  # as pressed from the pull
     rep = cast(coaching.Report, SimpleNamespace(pull_no=lambda f: f["id"]))
+    # The same time each pull is all code knows, not that it's the right one: "held for then" read as good timing for
+    # a Holy Priest's Apotheosis at 1:03, which top Holy Priests press at 0:18-0:26.
     assert coaching._cooldown_text(rep, cds, "Spirit Link Totem") == (
-        "Spirit Link Totem used on 3 of the 4 pulls that got to 1:11 (held for then: its median first use, latest "
-        "pull 6 at 1:17)")
+        "Spirit Link Totem used on 3 of the 4 pulls that got to 1:11 (first pressed about then pull after pull: its "
+        "median first use, latest pull 6 at 1:17)")
     # One pressed at the pull stays uses against possible uses, and so does one used too rarely to tell.
     assert coaching._cooldown_text(rep, cds, "Heroism") == (
         "Heroism 7/7 (first use on 7 pulls: median 0:02, latest pull 6 at 0:04)")

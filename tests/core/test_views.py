@@ -2054,7 +2054,7 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     assert len(data["cooldowns"]) == 2 and "cooldowns_total" not in data
     for c in data["cooldowns"]:
         said, _, more = c["said"].partition(" (")
-        assert f"{said} (held for then" in line and (not more or f"; {more}" in line), c
+        assert f"{said} (first pressed about then pull after pull" in line and (not more or f"; {more}" in line), c
         assert re.fullmatch(r"\d+ of \d+", c["count"]) and c["of"].startswith("pulls that got to ") and "/" not in said
     # and each pull's are the words of its row in the text: the times, or "unused" on a pull that got to the moment
     for r in data["pulls"]:
