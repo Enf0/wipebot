@@ -344,6 +344,11 @@ async def test_a_spell_the_page_links_without_a_name_is_named_by_its_link(monkey
     assert str(none.value) == ("no guide for The Coiled Altar names 'March of the Damned'; its abilities, as "
                                "Wowhead's guide links them: Guillotine, Gravebound, manifestation of dread, Ula'tek's "
                                "Presence")
+    # a name the page has only in a link's address is printed as the log writes it, where the call has a log
+    with pytest.raises(KnowledgeError) as none:
+        await bosses.boss_mechanic_text("The Coiled Altar", "The Venomous Abyss", "mythic", "March of the Damned",
+                                        logged=["Melee", "Manifestation of Dread", "Ula’tek’s Presence", "Sever"])
+    assert str(none.value).endswith("links them: Guillotine, Gravebound, Manifestation of Dread, Ula’tek’s Presence")
 
     async def raids():
         return [("The Venomous Abyss", ["Sszorak", "The Coiled Altar"])]

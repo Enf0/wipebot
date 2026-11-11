@@ -294,11 +294,14 @@ def _fix_day(h: Hotfix) -> date:
     return datetime.fromtimestamp(h.when, UTC).date()
 
 
-async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: str) -> str:
+async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: str,
+                             logged: Iterable[str] = ()) -> str:
     """boss_guide's strategy topic for one mechanic: the hotfixes naming it, its Wowhead tooltip, then each guide's
     sections about it: a section titled for it whole, of the rest the paragraphs naming it (a long one cut to the
     sentences naming it and the few after). Of the boss's tooltips only the mechanic's are read, found by the
-    names Wowhead's guide links its spells under."""
+    names Wowhead's guide links its spells under. When no guide names it, the boss's abilities are listed, one
+    that is among `logged` (a report's ability names) as the log writes it: a name read from a link's address has
+    lost its capitals and apostrophes ("manifestation of dread", `_spell_names`)."""
     (guides, missing), linked, fixes = await asyncio.gather(boss_guides(boss, raid, difficulty), _linked_spells(boss),
                                                             _hotfixes(boss))
     tips = await _tooltips([i for i, name in linked.items() if _key(name) == _key(mechanic)][:TOOLTIPS_NAMED])
@@ -314,7 +317,8 @@ async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: st
             continue
         parts.append(_cut(g, _repeats_out(strategy_text(replace(g, sections=kept))), GUIDE_CHARS))
     if not (found or tips):
-        known = ", ".join(dict.fromkeys(linked.values()))
+        written = {_key(name): name for name in logged}
+        known = ", ".join(dict.fromkeys(written.get(_key(name), name) for name in linked.values()))
         raise KnowledgeError(f"no guide for {boss} names {mechanic!r}"
                              + (f"; its abilities, as Wowhead's guide links them: {known}" if known else ""))
     return _tight("\n\n".join(parts + [f"(Not available: {e})" for e in missing]))
