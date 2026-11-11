@@ -206,9 +206,9 @@ async def test_the_pull_cards_boss_health_is_what_the_texts_first_line_states(re
     head = text.splitlines()[0]
     if case == "altar-summary":  # counted by phase
         phase, health = data["got"].split(" ")
-        assert f"wipe in **{phase} at {health}** (WCL {data['got_wcl']})" in head and phase == data["phase"]
+        assert f": wipe in {phase} at {health} (WCL {data['got_wcl']}), " in head and phase == data["phase"]
     else:
-        assert f"wipe at **{data['got']}**" in head and data["got_wcl"] is None
+        assert f": wipe at {data['got']}, " in head and data["got_wcl"] is None
     assert re.fullmatch(r"(P\d+ )?\d+\.\d%", data["got"])
     assert data["got"].endswith(data["health_end"])  # the health line's end: the same number
     async with drawn(tool, args) as (view, errors):
@@ -1806,7 +1806,7 @@ async def test_the_player_night_view_states_what_player_night_states(local):
         assert re.fullmatch(r"\d+ of \d+", c["count"]) and c["of"].startswith("pulls that got to ") and "/" not in said
     # and each pull's are the words of its row in the text: the times, or "unused" on a pull that got to the moment
     for r in data["pulls"]:
-        row = next(x for x in text.splitlines() if x.startswith(f"  pull {r['pull']} ("))
+        row = next(x for x in text.splitlines() if x.startswith(f"  {r['pull']} ("))
         assert row.endswith("; cooldowns " + ", ".join(r["cooldowns"])) if r["cooldowns"] else "; cooldowns " not in row
     assert any("unused" in c for r in data["pulls"] for c in r["cooldowns"])
     # a reset's death is no death of the night's: not in the count, the killers' chips or the thirds
