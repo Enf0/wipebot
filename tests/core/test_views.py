@@ -212,6 +212,51 @@ async def test_the_raid_night_view_states_what_progress_states(recorded):
     assert [r["pull"] for r in data["pulls"] if r["best"]] == [2, 3, 7, 13]
 
 
+async def test_the_night_card_prints_each_wipes_percent_as_progress_writes_it(recorded, monkeypatch):
+    """The night's card rounded a wipe's % itself, to a whole number from 10% up: "63%" in pull 13's row, on the
+    best wipe's tile and bar and on the boss's chip, under a text that says 62.6%, and the thirds as "78% → 75% →
+    76%" for the text's 77.7, 75.4 and 76.1. Each % is written where the text's is (pulls.pct_text) and printed."""
+    from wipebot.core import viewhost
+    data = await raid_night_data()
+    text, _ = await server.call("progress", NIGHT_OF_PULLS.args)
+    for r in data["pulls"]:
+        assert re.search(rf"^  {r['pull']}: {re.escape(r['pct_text'])} ", text, re.MULTILINE), r["pull"]
+    assert "first third {}, middle {}, last third {}".format(*data["thirds_text"]) in text
+    async with drawn("progress", NIGHT_OF_PULLS.args, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
+        tiles = await view.evaluate(STAT_TILES)
+        cells = await view.locator("table.pulls tbody tr").evaluate_all(
+            "trs => trs.map((tr) => tr.children[1].textContent.replace(' ★', ''))")
+        chips = await view.locator(".chips.bosses .chip").all_inner_texts()
+        marks = await view.evaluate("() => [...document.querySelectorAll('svg text')].map((t) => t.textContent)")
+        tip = await view.locator('[data-pull-col="13"]').first.get_attribute("data-tip")
+    assert not errors and [t.upper() for t in tiles] == [
+        "BEST WIPE\n62.6%\nPULL 13", "AVERAGE WIPE %\n77.7 → 75.4 → 76.1\nFIRST, MIDDLE, LAST THIRD"]
+    assert cells == ["reset" if r["reset"] else r["pct_text"] for r in data["pulls"]] and cells[12] == "62.6%"
+    assert chips == ["Vashnik the Malignant · 2 pulls, killed", "Sszorak · 33 pulls, best 62.6%"]
+    assert "62.6%" in marks and tip.startswith("Pull 13: 62.6% left (P1 (2nd time)), 2:42")
+    # A boss counted by phase, made up, with halves that round two ways: 68.25 is "68.2%" as the text writes it
+    # and was "68%" here; a page that rounds for itself writes "68.3%"
+    night = {"view": "night", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "difficulty": "Heroic",
+             "title": "Torvek's Forge, Mon 1 Jan", "url": "https://www.warcraftlogs.com/reports/AbCdEfGh12345678",
+             "combat_ms": 600000, "phased": True, "first_n": 3, "thirds": [70.25, 61.0, 55.55],
+             "guild_best": {"pct": 41.25, "day": "Thu 9 Oct", "pull": 7, "phase": "P3", "health": 12.25},
+             "ends": [["Slag Wave killing many", 2]], "firsts": [["Slag Wave", 4]],
+             "bosses": [{"boss": "Torvek's Forge", "pulls": 2, "kill": False, "best": 55.25}],
+             "pulls": [{"pull": n, "pct": pct, "kill": False, "reset": False, "live": False, "duration_ms": 300000,
+                        "phase": "P2 (2nd time)", "health": health, "ended": "Slag Wave killing many",
+                        "best": False, "first": None} for n, pct, health in ((1, 60.0, 80.0), (2, 55.25, 68.25))]}
+    night["headline"] = views.night_headline(night["pulls"], [("Slag Wave killing many", 2)])
+    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, written(night))
+    async with drawn("progress", {}, width=380) as (view, errors):
+        tiles = [t.split("\n")[:2] for t in await view.evaluate(STAT_TILES)]
+        marks = await view.evaluate("() => [...document.querySelectorAll('svg text')].map((t) => t.textContent)")
+        tip = await view.locator('[data-pull-col="2"]').first.get_attribute("data-tip")
+    assert not errors and [[a.upper(), b] for a, b in tiles] == [
+        ["BEST WIPE", "P2 68.2%"], ["GUILD BEST BEFORE", "P3 12.2%"], ["AVERAGE WIPE %", "70.2 → 61.0 → 55.5"]]
+    assert "P2 68.2%" in marks and "guild best before: P3 12.2%" in marks
+    assert tip.startswith("Pull 2: P2 (2nd time) at 68.2% (WCL 55.2%), 5:00")
+
+
 @pytest.mark.parametrize("case", ["pull-summary", "vashnik-summary", "altar-summary"])
 async def test_the_pull_cards_boss_health_is_what_the_texts_first_line_states(recorded, case):
     """The card's "Boss" number was the log's raw boss health ("62.59%") under a text that leads with "wipe at
@@ -2294,6 +2339,18 @@ def made_up_view(monkeypatch, key: dict, data: dict) -> None:
     monkeypatch.setattr(server, "view_data", view_data)
 
 
+def written(night: dict) -> dict:
+    """A made-up night with every % written beside its number, as views.night_view hands them to the page."""
+    for r in night["pulls"]:
+        r |= {"pct_text": views.pct_text(r["pct"]), "health_text": views._pct(r["health"])}
+    for b in night["bosses"]:
+        b["best_text"] = views._pct(b["best"])
+    if best := night.get("guild_best"):
+        best |= {"pct_text": views.pct_text(best["pct"]), "health_text": views._pct(best["health"])}
+    night["thirds_text"] = [f"{t:.1f}" for t in night["thirds"]] if night["thirds"] else None
+    return night
+
+
 async def test_a_pulls_chip_is_a_fingers_target_on_a_touch_screen_and_a_small_one_with_a_mouse(monkeypatch):
     """A chip is 20 px high where a mouse points at it; under a finger it grows and reaches into the gaps around
     it, 44 px each way, without reaching over the chip beside it."""
@@ -2325,7 +2382,7 @@ async def test_a_night_of_one_pull_counts_one_pull(monkeypatch):
              "pulls": [{"pull": 1, "pct": 0.0, "kill": True, "reset": False, "live": False, "duration_ms": 240000,
                         "phase": "", "health": None, "ended": "a kill", "best": False, "first": None}]}
     from wipebot.core import viewhost
-    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, night)
+    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, written(night))
     async with drawn("progress", {}) as (view, errors):
         card = (await view.locator("body").inner_text()).lower()
     async with drawn("progress", {}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, more):
@@ -3133,7 +3190,8 @@ async def test_the_night_by_night_card_leads_with_its_headline(monkeypatch):
                           "first": None} for n, pct in ((8, 60.0), (9, 55.0))],
                "weeks": [views.weeks_row(n) for n in nights], "weeks_headline": views.weeks_headline(nights)}
     tonight["headline"] = views.night_headline(tonight["pulls"], [("Slag Wave killing many", 2)])
-    made_up_view(monkeypatch, {"view": "night", "report": "night2", "boss": tonight["boss"], "weeks": 3}, tonight)
+    made_up_view(monkeypatch, {"view": "night", "report": "night2", "boss": tonight["boss"], "weeks": 3},
+                 written(tonight))
     further = "Thu 23 Oct got further than any night before: best wipe P3 91.0% (WCL 55.0%), on pull 9."
     async with drawn("progress", {}, width=380) as (view, errors):
         card = await view.evaluate(CARD)
@@ -3233,7 +3291,8 @@ def made_up_trend() -> dict:
     rates = [1_200_000, 200_000, 1_310_000, 1_280_000, 1_400_000, 1_520_000, 1_610_000]
     own = [210_000, 30_000, None, 228_000, 240_000, 251_000, 262_000]
     pulls = [{"pull": n, "kill": n == 7, "reset": n == 2, "pct": 0.0 if n == 7 else 90.0 - 10 * n,
-              "seconds": 60.0 * n, "amount": rate * 60.0 * n, "rate": rate, "mine": mine,
+              "pct_text": None if n == 7 else f"{90.0 - 10 * n:.1f}%", "seconds": 60.0 * n,
+              "amount": rate * 60.0 * n, "rate": rate, "mine": mine,
               "top": [["Mirelle", rate * 20.0 * n], ["Torvald", rate * 15.0 * n]]}
              for n, (rate, mine) in enumerate(zip(rates, own, strict=True), 1)]
     return {"view": "trend", "report": "AbCdEfGh12345678", "boss": "Torvek's Forge", "tool": "breakdown",
@@ -3254,7 +3313,7 @@ async def test_a_trend_tells_a_kill_and_a_reset_from_a_wipe_and_draws_the_askers
     "null%" for a log without one); the one asking has their own row, which says where they weren't in a pull."""
     from wipebot.core import viewhost
     trend = made_up_trend()
-    trend["pulls"][4]["pct"] = None  # Warcraft Logs gave pull 5 no percent
+    trend["pulls"][4] |= {"pct": None, "pct_text": None}  # Warcraft Logs gave pull 5 no percent
     key = {k: trend[k] for k in ("view", "report", "boss", "tool", "args")} | {"mark": "Mirelle"}
     made_up_view(monkeypatch, key, trend)
     tip = "(n) => document.querySelector(`[data-pull-col=\"${n}\"]`).dataset.tip"
@@ -3432,11 +3491,11 @@ async def test_asked_about_the_whole_night_the_card_leads_with_its_bosses(monkey
                         "phase": "", "health": None, "ended": "Slag Wave killing many", "best": False,
                         "first": None} for n, pct in ((1, 41.5), (2, 60.0))]}
     night["headline"] = views.night_headline(night["pulls"], [("Slag Wave killing many", 2)])
-    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, night)
+    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, written(night))
     chips = '() => [...document.querySelectorAll(".chips.bosses .chip")].map((b) => [b.textContent, b.className])'
     async with drawn("progress", {"report": night["report"]}) as (view, errors):
-        assert await view.evaluate(chips) == [["Ashen Warden · 1 pull, killed", "chip"],
-                                              ["Torvek's Forge · 2 pulls, best 42%", "chip on"]]
+        assert await view.evaluate(chips) == [["Ashen Warden · 1 pull, killed", "chip"],  # the best once read "42%"
+                                              ["Torvek's Forge · 2 pulls, best 41.5%", "chip on"]]
         under = "document.querySelector('.chips.bosses + [data-panel] h1').textContent"  # then that boss's card
         assert await view.evaluate(under) == "Torvek's Forge"
         assert (await view.evaluate(CARD))["lead"] == ["2 of the 2 pulls ended with Slag Wave killing many."]

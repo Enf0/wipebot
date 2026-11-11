@@ -24,10 +24,12 @@ views.night = (() => {
     return { hued: hues.has, svg: (w) => quiet(w) ? `fill="${quiet(w)}"` : hues.svg(w), css: (w) => quiet(w) ? `background:${quiet(w)}` : hues.css(w) };
   }
 
-  const pct = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
-  // how far a wipe got as raiders say it: on a boss counted by phase the phase and the boss's health in it ("P2 64%"),
-  // else the boss's % (the bars stand on Warcraft Logs' % of the whole fight, which ranks wipes across phases)
-  const said = (r) => r.health != null ? `${r.phase.split(" ")[0]} ${pct(r.health)}` : pct(r.pct);
+  // Every % the card prints comes written as progress's text writes it (views.night_view's `*_text`: "62.6%"); the
+  // numbers beside them are for the bars. The page rounded for itself once: "63%" under a text saying 62.6%.
+  // How far a wipe got as raiders say it: on a boss counted by phase the phase and the boss's health in it
+  // ("P2 64.0%"), else the boss's % (the bars stand on Warcraft Logs' % of the whole fight, which ranks wipes across
+  // phases)
+  const said = (r) => r.health_text ? `${r.phase.split(" ")[0]} ${r.health_text}` : r.pct_text;
 
   // The card's numbers. What ended the most pulls is the headline of a night without a kill (views.night_headline):
   // here only after a kill, and counted as there and in the list of endings, over every pull that ended.
@@ -41,7 +43,7 @@ views.night = (() => {
         : best ? ["Best wipe", said(best), "", `pull ${best.pull}`] : null,
       g ? ["Guild best before", said(g), "", beat ? "beaten tonight" : g.day] : null,
       kill && top ? ["Ended most pulls", top[0].replace(/ killing many$/, ""), "decided", `${top[1]} of ${ended}${/killing many$/.test(top[0]) ? ", killing many" : ""}`] : null,
-      D.thirds ? ["Average wipe", D.thirds.map((t) => `${Math.round(t)}%`).join(" → "), "", D.phased ? "WCL %, first, middle, last third" : "first, middle, last third"] : null,
+      D.thirds ? ["Average wipe %", D.thirds_text.join(" → "), "", D.phased ? "WCL %, first, middle, last third" : "first, middle, last third"] : null,
     ];
   }
 
@@ -49,7 +51,7 @@ views.night = (() => {
   function bosses() {
     if (D.bosses.length < 2) return "";
     return `<div class="chips bosses">${D.bosses.map((b) => `<button class="chip${b.boss === D.boss ? " on" : ""}" data-boss="${kit.esc(b.boss)}">`
-      + `${kit.esc(b.boss)} · ${kit.plural(b.pulls, "pull")}${b.kill ? ", killed" : b.best != null ? `, best ${pct(b.best)}` : ""}</button>`).join("")}</div>`;
+      + `${kit.esc(b.boss)} · ${kit.plural(b.pulls, "pull")}${b.kill ? ", killed" : b.best != null ? `, best ${b.best_text}` : ""}</button>`).join("")}</div>`;
   }
 
   const sub = () => [D.difficulty, kit.plural(D.pulls.length, "pull"), `${Math.round(D.combat_ms / 60000)} min in combat`, D.title.split(", ").pop()].filter(Boolean).join(" · ");
@@ -67,7 +69,7 @@ views.night = (() => {
     const line = [];
     D.pulls.forEach((r, i) => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
-      const left = r.health != null ? `${r.phase} at ${pct(r.health)} (WCL ${pct(v)})` : `${pct(v)} left${r.phase ? ` (${r.phase})` : ""}`;
+      const left = r.health_text ? `${r.phase} at ${r.health_text} (WCL ${r.pct_text})` : `${r.pct_text}${r.pct != null ? " left" : ""}${r.phase ? ` (${r.phase})` : ""}`;
       const tip = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : r.live ? "still going" : left}, ${kit.clock(r.duration_ms)}`
         + `\nEnded by: ${r.ended}` + (r.first ? `\nFirst death: ${r.first.name} (${r.first.by}, ${kit.clock(r.first.ms)})` : "");
       if (r.kill) o += `<path d="M${cx} ${y(0) - 12} l4 8 l-8 0z" fill="var(--gold)"/>`;
@@ -108,7 +110,7 @@ views.night = (() => {
     const n = phaseNo(p);
     return n ? `color-mix(in srgb, var(--blue) ${Math.round(35 + 65 * (top > 1 ? (n - 1) / (top - 1) : 1))}%, var(--line))` : "var(--muted)";
   }
-  const best = (r) => r.kill ? "kill" : r.pct == null ? "–" : r.phase ? `${r.phase.split(" ")[0]} ${pct(r.health ?? r.pct)}` : pct(r.pct);
+  const best = (r) => r.kill ? "kill" : r.pct == null ? "–" : r.phase ? `${r.phase.split(" ")[0]} ${r.health_text || r.pct_text}` : r.pct_text;
 
   function weeksStats() {
     const W = D.weeks, kill = W.find((r) => r.kill), first = W[0], last = W[W.length - 1];
@@ -131,7 +133,7 @@ views.night = (() => {
     W.forEach((r, i) => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
       const tip = `${r.day}: ${kit.plural(r.pulls, "pull")}, ${r.kill ? `killed on pull ${r.kill}` : r.pct == null ? "no wipe past a reset"
-        : `best wipe ${r.health != null ? `${r.phase} at ${pct(r.health)} (WCL ${pct(r.pct)})` : `${pct(r.pct)}${r.phase ? ` (${r.phase})` : ""}`} on pull ${r.pull}`}`
+        : `best wipe ${r.health_text ? `${r.phase} at ${r.health_text} (WCL ${r.pct_text})` : `${r.pct_text}${r.phase ? ` (${r.phase})` : ""}`} on pull ${r.pull}`}`
         + (r.ended ? `\nEnded most pulls: ${r.ended[0]} (${r.ended[1]})` : "");
       if (r.kill) o += `<path d="M${cx} ${y(0) - 14} l5 10 l-10 0z" fill="var(--gold)"/>`;
       else if (r.pct != null) o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="3" fill="${phaseColor(r.phase, top)}"/>`;
@@ -179,7 +181,7 @@ views.night = (() => {
 
   function table() {
     const color = colorOf();
-    const rows = D.pulls.map((r) => `<tr data-pull="${r.pull}"${kit.opens()}><td>${r.pull}</td><td>${r.kill ? "kill" : r.reset ? "reset" : r.pct != null ? pct(r.pct) : "–"}${r.best ? " ★" : ""}</td>`
+    const rows = D.pulls.map((r) => `<tr data-pull="${r.pull}"${kit.opens()}><td>${r.pull}</td><td>${r.kill ? "kill" : r.reset ? "reset" : r.pct != null ? r.pct_text : "–"}${r.best ? " ★" : ""}</td>`
       + `<td>${r.phase || ""}</td><td>${kit.clock(r.duration_ms)}</td><td><span class="dot" style="${color.css(r.ended)}"></span>${kit.esc(r.ended)}</td>`
       + `<td>${r.first ? `${kit.esc(r.first.name)} (${kit.esc(r.first.by)}, ${kit.clock(r.first.ms)})` : ""}</td></tr>`).join("");
     return `<div class="section-title">Pull by pull (click one for its view; ★ best of the night until then)</div><div class="scroll-x"><table class="pulls"><thead><tr>`

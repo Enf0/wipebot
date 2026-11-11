@@ -19,8 +19,8 @@ views.trend = (() => {
   const total = (v) => D.count ? String(Math.round(v)) : kit.short(v);
   const change = (now, was) => { const p = Math.round((now / was - 1) * 100); return p ? `${p > 0 ? "+" : "−"}${Math.abs(p)}%` : "the same"; };
   const counted = () => D.pulls.filter((r) => !r.reset);
-  // how far a wipe got, as the tools write it ("62.6%"); a log without it has none
-  const left = (r) => r.pct == null ? "" : `${r.pct.toFixed(1)}%`;
+  // how far a wipe got, written as the tools write it (views.trend_view: "62.6%"); a log without it has none
+  const left = (r) => r.pct_text || "";
   const result = (r) => r.kill ? "kill" : r.reset ? "reset" : left(r) || "–";
 
   function stats() {

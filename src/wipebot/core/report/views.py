@@ -257,7 +257,7 @@ async def _best(rep: Report, f: dict) -> dict | None:
     earlier = wipe_pcts([g for g in rep.by_boss[rep.boss_key(f)]
                          if g.get("difficulty") == f.get("difficulty") and g["startTime"] < f["startTime"]])
     tonight, before = min(earlier, default=None), await rep.guild_best(f)
-    return {"tonight": pct_text(tonight) if tonight is not None else None,
+    return {"tonight": _pct(tonight),
             "new_tonight": tonight is not None and pct < tonight,
             "guild": {"pct": pct_text(before.pct), "day": day(before.start_ms)} if before else None,
             "new_guild": before is not None and pct < min(before.pct, tonight if tonight is not None else before.pct)}
@@ -495,7 +495,8 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
     (pull_summary's "Ended by") and first death; the night's best, the guild's best before it, how the pulls ended
     and the killers of each pull's first deaths, the trend in thirds; and the night's other bosses. With `nights`
     (progress's `weeks`), the boss on each raid night: its pulls, the kill or the best wipe and the phase it got to,
-    and what ended most pulls, led by their own sentence (weeks_headline)."""
+    and what ended most pulls, led by their own sentence (weeks_headline). Every % comes as a number, for a bar's
+    height, and written as the text writes it (`*_text`), for the page to print."""
     fights = rep.by_boss[boss]
     await rep.decided_cuts(fights)
     before = await rep.guild_best(fights[0])
@@ -516,9 +517,11 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
         if new:
             best = pct
         first = deaths[0] if deaths else None
-        rows.append({"pull": rep.pull_no(f), "pct": pct, "kill": bool(f["kill"]), "reset": is_reset(f),
-                     "live": bool(f.get("inProgress")), "duration_ms": round(f["endTime"] - f["startTime"]),
-                     "phase": phase_label(f), "health": phase_health(f), "ended": kind_of_end(e), "best": starred,
+        rows.append({"pull": rep.pull_no(f), "pct": pct, "pct_text": pct_text(pct), "kill": bool(f["kill"]),
+                     "reset": is_reset(f), "live": bool(f.get("inProgress")),
+                     "duration_ms": round(f["endTime"] - f["startTime"]), "phase": phase_label(f),
+                     "health": phase_health(f), "health_text": _pct(phase_health(f)),
+                     "ended": kind_of_end(e), "best": starred,
                      "first": {"name": rep.names.get(first["targetID"], "?"),
                                "by": rep.ability(first.get("killingAbilityGameID")),
                                "ms": round(first["timestamp"] - f["startTime"])} if first else None})
@@ -529,13 +532,16 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
         "headline": night_headline(rows, ends.most_common()),
         "difficulty": DIFFICULTIES.get(fights[0].get("difficulty"), ""), "url": rep.url(fights[0]).split("#")[0],
         "combat_ms": round(sum(f["endTime"] - f["startTime"] for f in fights)), "pulls": rows,
-        "guild_best": {"pct": before.pct, "day": day(before.start_ms), "pull": before.pull_no,
-                       "phase": before.phase, "health": before.health} if before else None,
+        "guild_best": {"pct": before.pct, "pct_text": pct_text(before.pct), "day": day(before.start_ms),
+                       "pull": before.pull_no, "phase": before.phase, "health": before.health,
+                       "health_text": _pct(before.health)} if before else None,
         "phased": by_phase(fights),
         "ends": ends.most_common(), "firsts": firsts.most_common(6), "first_n": FIRST_DEATHS,
         "thirds": [round(t, 1) for t in thirds] if thirds else None,
-        "bosses": [{"boss": b, "pulls": len(fs), "kill": any(f["kill"] for f in fs),
-                    "best": min(wipe_pcts(fs), default=None)} for b, fs in rep.by_boss.items()],
+        "thirds_text": [f"{t:.1f}" for t in thirds] if thirds else None,  # as progress's "Average wipe %" line
+        "bosses": [{"boss": b, "pulls": len(fs), "kill": any(f["kill"] for f in fs), "best": best,
+                    "best_text": _pct(best)} for b, fs in rep.by_boss.items()
+                   for best in [min(wipe_pcts(fs), default=None)]],
     } | ({"weeks": [weeks_row(n) for n in nights]} if nights is not None else {}) | (
         {"weeks_headline": weeks_headline(nights)} if nights else {})
 
@@ -543,9 +549,17 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
 def weeks_row(n: BossNight) -> dict:
     """One raid night on the boss, as progress's `weeks` states it."""
     top = next(((what, k) for what, k in n.ends if what not in (KILL, RESET)), None)
+    pct = n.best[0] if n.best else None
     return {"day": day(n.start_ms), "start_ms": round(n.start_ms), "report": n.code, "pulls": n.pulls,
-            "kill": n.kill, "pct": n.best[0] if n.best else None, "pull": n.best[1] if n.best else None,
-            "phase": n.best_phase, "health": n.best_health, "ended": list(top) if top else None}
+            "kill": n.kill, "pct": pct, "pct_text": _pct(pct), "pull": n.best[1] if n.best else None,
+            "phase": n.best_phase, "health": n.best_health, "health_text": _pct(n.best_health),
+            "ended": list(top) if top else None}
+
+
+def _pct(pct: float | None) -> str | None:
+    """A boss % written as the text writes one (pulls.pct_text: "62.6%"), None where there is none. The night's card
+    draws its bars from the numbers and writes these: it rounded for itself, to "63%" under a text saying 62.6%."""
+    return pct_text(pct) if pct is not None else None
 
 
 async def death_view(rep: Report, f: dict, player: str, death: int = 1) -> dict:
@@ -1223,6 +1237,7 @@ async def trend_view(rep: Report, tool: str, args: dict, mark: str | None = None
     # given, never writes 20.3 under a headline's 20.2 (20.249 handed on as 20.25)
     places = 1 if t.count else 2
     pulls = [{"pull": no, "kill": bool(f["kill"]), "reset": reset, "pct": 0.0 if f["kill"] else wipe_pct(f),
+              "pct_text": None if f["kill"] else _pct(wipe_pct(f)),  # how far a wipe got, written as the text does
               "seconds": round(s, 3), "amount": round(v, 1), "rate": round(r, places),
               "top": [[n, round(x, 1)] for n, x in sorted(row.items(), key=lambda kv: (-kv[1], kv[0]))[:TREND_TOP]
                       if x]}
