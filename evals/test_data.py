@@ -64,6 +64,24 @@ def test_without_access_fetch_says_how_a_run_gets_the_data_instead(store, monkey
     assert not data.CACHE.exists()
 
 
+def test_fetch_waits_while_the_release_is_without_its_asset(store, monkeypatch, capsys):
+    """The release's workflow replaces the asset after a run: a fetch then finds none for a while, and waits."""
+    real, tries, waits = data.download, [], []
+
+    def download(repo, tag, asset, dest):
+        tries.append(1)
+        return f"no {asset} in the release {tag}\n" if len(tries) < 3 else real(repo, tag, asset, dest)
+    monkeypatch.setattr(data, "download", download)
+    monkeypatch.setattr(data.time, "sleep", waits.append)
+    data.fetch()
+    assert _answers(data.CACHE) == 3 and len(tries) == 3 and waits == [data.SWAP_WAIT_S] * 2
+    assert "trying again" in capsys.readouterr().out
+    monkeypatch.setattr(data, "download", lambda repo, tag, asset, dest: f"no {asset} in the release {tag}\n")
+    with pytest.raises(SystemExit, match="no eval-cache.sqlite.zst in the release"):
+        data.fetch(replace=True)
+    assert len(waits) == 2 + data.SWAP_TRIES - 1
+
+
 def test_an_asset_that_isnt_the_cache_is_not_put_in_place(tmp_path):
     bad = tmp_path / data.ASSET
     from compression import zstd

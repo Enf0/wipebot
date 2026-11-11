@@ -23,6 +23,9 @@ TAG = "eval-data"
 ASSET = "eval-cache.sqlite.zst"
 DELTAS = "eval-data"  # the folder its workflow (.github/workflows/eval-data.yml there) merges into the release
 MAX_DELTA = 90 * 1024**2  # under git's 100 MB for a file on GitHub
+# The release's workflow replaces the asset after a run that pushed answers, leaving the release without it for about
+# a minute, just when the next run, queued behind that one, fetches it: a fetch waits that out.
+SWAP_TRIES, SWAP_WAIT_S = 6, 30
 
 
 def download(repo: str, tag: str, asset: str, dest: Path) -> str:
@@ -77,7 +80,14 @@ def fetch(replace: bool = False) -> None:
     if CACHE.exists() and not replace:
         sys.exit(f"{CACHE} is here already: `python -m evals.data fetch --replace` replaces it")
     with tempfile.TemporaryDirectory() as tmp:
-        if error := download(REPO, TAG, ASSET, Path(tmp) / ASSET):
+        for left in reversed(range(SWAP_TRIES)):
+            error = download(REPO, TAG, ASSET, Path(tmp) / ASSET)
+            if not left or not error.startswith(f"no {ASSET} in the release"):
+                break
+            print(f"{ASSET} isn't in the release just now (its workflow replaces it after a run): trying again in "
+                  f"{SWAP_WAIT_S} s", flush=True)
+            time.sleep(SWAP_WAIT_S)
+        if error:
             sys.exit(f"couldn't download {ASSET} from {REPO} (gh needs an account that may read it):\n{error}"
                      "Without access, `just evals` fetches what the cases read on its first run (evals/README.md).")
         answers = unpack(Path(tmp) / ASSET, CACHE)
