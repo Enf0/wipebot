@@ -3,6 +3,32 @@
 How the Claude models answer the eval cases (`evals/cases/`), in each way Wipebot is used, with what an answer costs
 and how long it takes. Each section is a snapshot of the suite and the judge that day.
 
+## 11 November 2026
+
+The 104 bot cases of 11 November, judged by Sonnet, run in the bot (medium effort) on the code before 1.0.0. Opus's
+three trials (commit 69b21e9) are the bot's baseline; Sonnet ran three trials of the same commit (one asked for, made
+three by a fault in the runner since fixed) and Haiku one (e996bab, the same answers' code). The split skill (a core
+of seven steps with a part for each kind of question, on commit e3d450a) ran on all three models before it went in.
+
+| Model | Skill | Passed | Cases right every trial | Median s | 90% within s | Slowest s | Tool calls | Per answer, judge included | One run |
+|---|---|---|---|---|---|---|---|---|---|
+| Opus | one file | 273/312 (88%) | 80/104 | 29 | 46 | 134 | 4.1 | $0.18 | $55.88 (3 trials) |
+| Sonnet | one file | 222/312 (71%) | 60/104 | 23 | 32 | 74 | 2.5 | $0.09 | $27.85 (3 trials) |
+| Haiku | one file | 68/104 (65%) | 68/104 | 25 | 41 | 83 | 3.4 | $0.05 | $4.82 (1 trial) |
+| Opus | split | 198/229 (86%) | 84/104 | 26 | 43 | 124 | 4.2 | $0.18 | $41.29 (auto) |
+| Sonnet | split | 77/104 (74%) | 77/104 | 23 | 33 | 79 | 2.5 | $0.09 | $9.67 (1 trial) |
+| Haiku | split | 73/104 (70%) | 73/104 | 19 | 40 | 77 | 3.5 | $0.05 | $4.80 (1 trial) |
+
+- On their first trial alone, Opus passed 95 of the 104 cases, Sonnet 72 and Haiku 68. Opus stays the bot's model.
+- Sonnet's answers are longer (a median of 210 words against Opus's 173) and built on fewer tool calls: on the 20
+  cases where it fell two or more answers behind it made 3.1 calls an answer against Opus's 5.0, most often leaving
+  out `pull_timeline`, and answered from the first tool's summary. Most of its misses are the main point, not a wrong
+  claim (78 failed on the point against Opus's 23 of 312).
+- The split skill is no worse on any model: Opus 276 of 312 counted as the baseline counts (+3, within the ±5.4
+  expected from run to run), Sonnet 77 against the 74 its one-file rates predict, Haiku 73 against 68. It went in
+  for the size it saves, not for a gain the runs show. Neither skill makes Sonnet call more tools.
+- Haiku costs half what Sonnet does per answer and passes about as many on one trial; neither is close to Opus.
+
 ## 29 October 2026
 
 The 91 cases of 29 October in the bot and the 84 with the plugin, all three times, judged by Sonnet (the bot's run on
