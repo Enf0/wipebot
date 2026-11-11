@@ -157,9 +157,10 @@ bullets back the verdict, they don't repeat it.
   kicks, dispels), mechanic_hits for one ability (with the deaths soon after a hit; over all pulls, each
   player's hits pull by pull a click away, or posted instead when you place "[picture: mechanic_hits by_pull]"; with
   `against`, both nights in one meter) and enemies (damage on adds). The asker's row is ringed. The
-  meter shows every player's amount, per second and share, and the median: name the few players that matter and
-  why, not every player's number. Two rankings asked together (damage and healing) are both drawn, the top five
-  of each: don't list them again in text; say what the meters can't (who's close, who's missing and why).
+  meter shows every player's amount in the tool's order and the median, with the total and each share where the
+  tool states them: name the few players that matter and why, not every player's number. Two rankings asked
+  together (damage and healing) are both drawn, the top five of each: don't list them again in text; say what the
+  meters can't (who's close, who's missing and why).
 - An amount pull by pull (breakdown grouped by pull: damage, healing, damage taken, casts) is drawn as a trend: a
   bar per pull, the median of each third of the night, and the asker's own under the raid's. Say where it rose or
   fell and what changed there, not each pull's number.
