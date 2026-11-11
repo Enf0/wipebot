@@ -218,18 +218,19 @@ async def test_events_come_as_rows_with_the_time_into_the_pull_and_names(rep):
          "{ data nextPageTimestamp } } } }")
     text = await query_text(cast(WCL, Points(100, answer)), q, rep, boss="Sszorak")
     lines = text.splitlines()
-    assert lines[1] == '{"reportData":{"report":{"events":{"data":"events 1 below","nextPageTimestamp":null}}}}'
-    assert lines[2] == (f"Events 1 (reportData.report.events.data): {len(deaths)} in Sszorak pull 13, times from the "
+    # the fights first: what the ids in the query and the answer are, before anything is read by them
+    assert lines[1] == "Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% health)."
+    assert lines[2] == '{"reportData":{"report":{"events":{"data":"events 1 below","nextPageTimestamp":null}}}}'
+    assert lines[3] == (f"Events 1 (reportData.report.events.data): {len(deaths)} in Sszorak pull 13, times from the "
                         "pull's start.")
-    assert lines[3].startswith(f"Counted: {len(deaths)} death; on: ")
+    assert lines[4].startswith(f"Counted: {len(deaths)} death; on: ")
     first = deaths[0]
     blow = first["killingAbilityGameID"]
-    assert lines[4] == (f"{exact(first['timestamp'] - f['startTime'])} death: {rep.names[first['targetID']]}; killer "
+    assert lines[5] == (f"{exact(first['timestamp'] - f['startTime'])} death: {rep.names[first['targetID']]}; killer "
                         f"{rep.actor(first['killerID'])}, killingAbility {rep.ability(blow)}")
     assert re.fullmatch(r"0:48\.\d{3} death: Scopidruid; killer Environment, killingAbility Ula'tek's Presence",
-                        lines[4])
-    assert f"Ula'tek's Presence [{blow}]" in lines[-2] and lines[-2].startswith("Ability ids: ")
-    assert lines[-1] == "Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% health)."
+                        lines[5])
+    assert f"Ula'tek's Presence [{blow}]" in lines[-1] and lines[-1].startswith("Ability ids: ")
     assert str(first["timestamp"]) not in text  # no report ms left to convert
 
 
@@ -246,7 +247,7 @@ async def test_events_over_several_pulls_come_under_each_pull_and_long_lists_are
     assert f"Counted: {len(few)} death; on: " in text
     # a night's fights are named in short: the pull each id is, without its length and ending
     ids = [f["id"] for f in fights]
-    assert text.splitlines()[-1] == (
+    assert text.splitlines()[1] == (
         "Fights: " + "; ".join(f"{i} = Sszorak pull {n}" for n, i in enumerate(ids[:30], 1)) + "; and 3 more.")
     # the whole night's: over three parts, so cut to one, and counted in full
     deaths = [d for f in fights for d in await rep.deaths(f)]
@@ -282,7 +283,7 @@ async def test_a_reports_other_times_read_into_their_pull_and_a_fights_field_kee
     text = await query_text(cast(WCL, Points(100, answer)), both, rep, boss="Sszorak")
     assert ('{"startTime":"0:02.197 of Sszorak pull 13","endTime":"2:42.854 of Sszorak pull 13"},'
             '{"startTime":"0:01.000 of Sszorak pull 14","endTime":"0:05.500 of Sszorak pull 14"}') in text
-    assert text.splitlines()[-1].startswith("Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% "
+    assert text.splitlines()[1].startswith("Fights: 21 = Sszorak pull 13 (2:42 long, ended with the boss at 62.59% "
                                             "health); 22 = Sszorak pull 14 (")
 
 
@@ -329,9 +330,9 @@ async def test_another_report_a_query_names_is_read_for_its_names_only_when_the_
     assert '"a":{"events":{"data":"events 1 below"}}' in text and " death: Scopidruid; " in text
     assert '"b":{"table":{"data":{"entries":[{"name":"X","total":5}]}}}' in text
     assert '"c":{"events":{"data":[{"timestamp":' in text  # as logged
-    assert "Fights of report Other12345678901: 21 = Sszorak pull 13" in text
-    assert text.endswith("Report Private123456789 couldn't be read for its names (Warcraft Logs won't show report "
-                         "Private123456789): its ids and times are as logged.")
+    assert text.splitlines()[1].startswith("Fights of report Other12345678901: 21 = Sszorak pull 13")
+    assert text.splitlines()[2] == ("Report Private123456789 couldn't be read for its names (Warcraft Logs won't "
+                                    "show report Private123456789): its ids and times are as logged.")
 
 
 async def test_the_reports_a_query_names_are_read_at_once_and_only_so_many_of_them(rep):

@@ -501,18 +501,19 @@ class _Answer:
         return out
 
     def text(self, room: int | None = None) -> str:
-        """The whole answer: the JSON, each events list's rows, the legend and the notes. With `room`, cut to that
-        many characters: the JSON's lists to their first items (`_cut`), and each events list to the rows that fit
-        its share of what's left, both saying how much was left out."""
-        tail = [*self.legend, *self.notes]
+        """The whole answer: the legend and the notes, which say how the rest reads and so come first (in a long
+        answer, in its first part), then the JSON and each events list's rows. With `room`, cut to that many
+        characters: the JSON's lists to their first items (`_cut`), and each events list to the rows that fit its
+        share of what's left, both saying how much was left out."""
+        first = [*self.legend, *self.notes]
         if room is None:
-            return "\n".join([_json(self.shown), *(line for n, ev in enumerate(self.events, 1)
-                                                   for line in _rows(n, ev)), *tail])
-        room -= sum(len(line) + 1 for line in tail)
+            return "\n".join([*first, _json(self.shown), *(line for n, ev in enumerate(self.events, 1)
+                                                           for line in _rows(n, ev))])
+        room -= sum(len(line) + 1 for line in first)
         shown = _cut(self.shown, room if not self.events else room // 3)
         each = (room - len(shown)) // max(len(self.events), 1)
-        return "\n".join([shown, *(line for n, ev in enumerate(self.events, 1) for line in _rows(n, ev, each)),
-                          *tail])
+        return "\n".join([*first, shown, *(line for n, ev in enumerate(self.events, 1)
+                                           for line in _rows(n, ev, each))])
 
 
 def _at(data: object, path: tuple[str, ...]) -> object:
