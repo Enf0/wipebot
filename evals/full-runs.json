@@ -1,12 +1,12 @@
 {
  "bot": {
-  "commit": "7a827d7",
+  "commit": "382f5f8",
   "date": "2026-11-11",
-  "trials": "2-6 trials",
-  "passed": 205,
-  "of": 242,
+  "trials": "3-6 trials",
+  "passed": 287,
+  "of": 318,
   "errors": 0,
-  "verdict": "VERDICT: cannot tell: 14 of this run's 104 cases not compared."
+  "verdict": "VERDICT: no change shown: a drop of 9.0 answers (2.8 points) or more would have shown."
  },
  "plugin": {
   "commit": "442af31",
