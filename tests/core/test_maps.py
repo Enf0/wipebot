@@ -73,3 +73,27 @@ def test_a_mechanics_count_on_the_map_is_of_moments_and_says_so():
     assert maps._what(cast(Report, None), mech, "The Lost Explorers pull 1") == [
         "Splinters [1312853] hitting players on The Lost Explorers pull 1: 2 moments, what came within 2 s of each "
         "other counted as one (also logged, in events: ends 9; `event` picks another)."]
+
+
+def test_a_debuff_that_ran_out_far_apart_says_when_on_each(rep):
+    """One cast's debuff is one moment, whenever each player lost it: "2:42: on 18" named the middle player's second
+    for ends from 2:36 to 3:01, and "on" for a debuff ending. Ends that came together keep one time."""
+    f = {"id": 1, "startTime": 0, "endTime": 200_000}
+    a, b, c, d = (rep.player(name).id for name in ("Sonyosh", "Cptola", "Enfo", "Pomaa"))
+    stints: positions.Stints = {a: [(153_000, 156_700)], b: [(153_100, 157_700)], c: [(153_200, 181_400)],
+                                d: [(153_300, 181_500)]}
+    [m] = positions._moments(f, "ends", stints, [], [], set())
+    fx = positions.Facts(m, cast(positions.Positions, None), [], None)
+    assert maps._moment_line(rep, fx, "ends") == (
+        "  2:36-3:01: ran out on 4: 2:36 Sonyosh, Cptola · 3:01 Enfo, Pomaa; hit by someone else's: nobody")
+    [put_on] = positions._moments(f, "applied", stints, [], [], set())
+    assert maps._moment_line(rep, positions.Facts(put_on, cast(positions.Positions, None), [], None), "applied") == (
+        "  2:33: on 4: Sonyosh, Cptola, Enfo, Pomaa; hit by someone else's: nobody")
+    together: positions.Stints = {p: [(153_000, 160_000 + 300 * n)] for n, p in enumerate((a, b, c, d))}
+    [m] = positions._moments(f, "ends", together, [], [], set())
+    assert maps._moment_line(rep, positions.Facts(m, cast(positions.Positions, None), [], None), "ends") == (
+        "  2:40: ran out on 4: Sonyosh, Cptola, Enfo, Pomaa; hit by someone else's: nobody")
+    mech = positions.Mechanic("Helical Toxins", [1284590], "ends", {1: [m]}, {"ends": 4, "cast": 0, "hit": 0})
+    assert maps._what(rep, mech, "pull 5") == [
+        "Helical Toxins [1284590] running out on players on pull 5: 1 moment, the debuffs put on within 2 s of each "
+        "other counted as one."]

@@ -29,6 +29,7 @@ from .positions import (
     Positions,
     at,
     bosses,
+    bunch,
     dead_since,
     dead_spans,
     distance_yd,
@@ -229,15 +230,24 @@ def _what(rep: Report, mech: Mechanic, where: str) -> list[str]:
     note = (f" (also logged, in events: {', '.join(others)}; `event` picks another)" if others else "")
     if mech.event is None:
         raise FactError(f"{mech.name} didn't happen on {where}" + note)
-    return [head + f": {plural(len(mech.all()), 'moment')}, what came within {MOMENT_GAP_MS / 1000:g} s of each other "
+    one = "the debuffs put on" if mech.event == "ends" else "what came"  # a debuff's ends follow how it was put on
+    return [head + f": {plural(len(mech.all()), 'moment')}, {one} within {MOMENT_GAP_MS / 1000:g} s of each other "
             "counted as one" + note + "."]
 
 
-def _moment_line(rep: Report, fx: Facts) -> str:
-    m = fx.moment
+def _moment_line(rep: Report, fx: Facts, event: Event | None = None) -> str:
+    """One moment's row: when, on whom, in the order it reached them. A debuff running out (`event` "ends") is one
+    moment for the players it was put on together, who may lose it far apart: past MOMENT_GAP_MS the row gives the
+    span and each time's players, where the middle player's time said "2:42: on 18" of ends from 2:36 to 3:01."""
+    m, t0 = fx.moment, fx.moment.f["startTime"]
     names = [rep.names[p] for p in sorted(m.on, key=lambda p: m.on[p])]
-    verb = "on" if m.carried else "hit"
-    parts = [f"{verb} {len(names)}: " + ", ".join(names)]
+    verb = "ran out on" if event == "ends" else "on" if m.carried else "hit"
+    when, listed = clock(m.at - t0), ", ".join(names)
+    ends = bunch([(at, p) for p, at in m.on.items()])
+    if event == "ends" and len(ends) > 1:
+        when = f"{clock(ends[0][0][0] - t0)}-{clock(ends[-1][-1][0] - t0)}"
+        listed = " · ".join(f"{clock(g[0][0] - t0)} {', '.join(rep.names[p] for _, p in g)}" for g in ends)
+    parts = [f"{verb} {len(names)}: {listed}"]
     if m.carried:
         parts.append("hit by someone else's: " + (", ".join(
             f"{rep.names[dst]} by {rep.names[src]}'s" + (f" ({yd:.0f} yd apart)" if yd is not None else "")
@@ -245,7 +255,7 @@ def _moment_line(rep: Report, fx: Facts) -> str:
     if fx.closest:
         a, b, yd = fx.closest
         parts.append(f"the closest two with it: {rep.names[a]} and {rep.names[b]}, {yd:.0f} yd apart")
-    return f"  {clock(m.at - m.f['startTime'])}: " + "; ".join(parts)
+    return f"  {when}: " + "; ".join(parts)
 
 
 async def _pull_mechanic(rep: Report, f: dict, mech: Mechanic, focus: set[int], draw_it: bool,
@@ -262,7 +272,7 @@ async def _pull_mechanic(rep: Report, f: dict, mech: Mechanic, focus: set[int], 
     moments = mech.all()
     pos = await pull_positions(rep, f)
     found = [facts(m, pos) for m in moments]
-    lines += [_moment_line(rep, fx) for fx in found]
+    lines += [_moment_line(rep, fx, mech.event) for fx in found]
     best = max(found, key=lambda fx: (len(fx.merged()), -fx.moment.at))
     m = best.moment
     pos = await pull_positions(rep, f, boss_near=m.at)
