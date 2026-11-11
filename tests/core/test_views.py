@@ -3245,7 +3245,8 @@ async def test_the_model_is_told_what_the_user_opened_and_where_a_replay_stopped
         assert await told() == [f"The user is now looking at Sszorak pull 13 (report {REPORT})."]
         await view.get_by_role("button", name="Replay").click()
         await view.locator("#rp-map").wait_for()
-        replay = "The user is now looking at the replay of Sszorak · pull 13 at"
+        assert await view.locator("#rp-title").inner_text() == "Sszorak pull 13"  # titled as the card it opened from
+        replay = "The user is now looking at the replay of Sszorak pull 13 at"
         assert (await told())[-1] == f"{replay} 0:45 (report {REPORT})."
         for _ in range(4):  # scrubbing says the moment once, where it stopped
             await view.locator("#rp-timeline").press("ArrowRight")

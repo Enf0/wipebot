@@ -406,7 +406,7 @@ async def replay(rep: Report, f: dict, at_ms: float, focus: Collection[int] = ()
             for pid in players]
     packed = await asyncio.to_thread(tracks)
     return {
-        "title": f"{rep.boss_key(f)} · pull {rep.pull_no(f)}",
+        "title": rep.label(f),  # as the cards it opens from are titled, and as the model is told what is open
         "step_ms": REPLAY_STEP_MS, "duration_ms": f["endTime"] - start, "at_ms": round(at_ms),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
         "map": {"image": f"maps/{map_id}-map.png", "size": [(bounds[1] - bounds[0]) / REPLAY_UNIT,
