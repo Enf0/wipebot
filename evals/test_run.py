@@ -480,6 +480,13 @@ async def test_auto_that_looks_low_becomes_a_three_trial_run():
     assert compared(base, run).lines[-1].startswith("VERDICT: no change shown, but look")
 
 
+async def test_a_run_of_set_trials_that_looks_low_keeps_its_trials():
+    """A one-trial run well below the baseline (another model's, say) stays one trial: only auto asks a third."""
+    source = answers_like_the_baseline(**{f"s{i}": [False] * 6 for i in range(30)})
+    _, run, said = await asked(1, source, confirm=False)
+    assert "a third time" not in said and run["trials"] == 1
+
+
 async def test_auto_shows_a_rise_only_as_three_trials_would():
     """Twelve of the others one answer better, and ten steady cases wrong on their third answer only: at two
     answers each that reads as a rise, which three trials don't show. So the third answers are asked."""

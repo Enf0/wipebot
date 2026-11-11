@@ -971,7 +971,9 @@ async def ask_all(cases: list[dict], base: dict | None, trials: int | str, judge
     await asyncio.gather(*(one(c) for c in cases for _ in range(plan[c["id"]])))
     if not base or judge_warning(base, so_far()):
         return
-    short = [c for c in cases if plan[c["id"]] < UNSETTLED_TRIALS]
+    # only with auto: a run of a set number of trials keeps it, so a cheaper model's one-trial run, below the
+    # baseline as it will be, isn't made three
+    short = [c for c in cases if plan[c["id"]] < UNSETTLED_TRIALS] if trials == "auto" else []
     if short and ((low := compared(base, so_far()).low) >= ESCALATE or low <= -SHOWN):
         print(f"\nThe total is {abs(low):.1f} spreads {'below' if low > 0 else 'above'} the baseline's: asking the "
               f"{len(short)} steady cases a third time, as a three-trial run would.\n", flush=True)
