@@ -505,6 +505,12 @@ class Replayed:
     mass: MassDeath | None = None  # the hit killing many it was one of (mass_death): no one player's to fix
 
 
+def in_mass_hits(replayed: list[Replayed]) -> list[Replayed]:
+    """A player's deaths in a hit killing many, of their replayed deaths (replay_deaths): every one of them, a second
+    death in a pull too. The one count defensives and player_night both state."""
+    return [r for r in replayed if r.mass]
+
+
 async def replay_deaths(rep: Report, p: Player, fights: list[dict], whole_pull: bool = False) -> list[Replayed]:
     """Each of a player's deaths on `fights` (before each wipe was decided, unless `whole_pull`), replayed with
     what was ready."""
@@ -543,7 +549,7 @@ async def _deaths_replayed(rep: Report, p: Player, fights: list[dict], whole_pul
                     for f in fights if f not in attempts for d in await rep.deaths(f) if d["targetID"] == p.id]:
         lines.append(f"Not counted, {plural(len(on_reset), 'death')} on a reset (the boss untouched, no attempt): "
                      f"{', '.join(on_reset)}.")
-    if mass := [(r, m) for r in replayed if (m := r.mass)]:
+    if mass := [(r, m) for r in in_mass_hits(replayed) if (m := r.mass)]:
         lines.append(f"Not replayed, {plural(len(mass), 'death')} in a hit killing many (the raid's to stop; a "
                      f"defensive would only have bought seconds of a pull it lost): "
                      + ", ".join(f"pull {rep.pull_no(r.f)} {clock(r.d['timestamp'] - r.f['startTime'])} "

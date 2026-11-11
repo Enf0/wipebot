@@ -16,7 +16,7 @@ from .base import LUST_GROUP_MS, ROLE_NAMES, FactError, Player, PullRef, Report,
 from .build import gear_stats, hero_of, prepared
 from .casting import alive, cast_counts, casting, casting_lines, raid_pauses, without
 from .cooldowns import NOT_ON_COOLDOWN, OVER_BASE, cooldown_lines, cooldown_use, prepull
-from .deaths import Replayed, replay_deaths, savers
+from .deaths import Replayed, in_mass_hits, replay_deaths, savers
 from .ending import MASS_HIT, MASS_NOTE, mass_death
 from .ranks import Spread, benchmark_line, kills_spread, parse
 from .tables import totals_by_name
@@ -495,7 +495,7 @@ async def player_night(rep: Report, player: str, boss: str | None = None) -> str
     (pulls, skipped, unavailable_why), replayed, lost = await asyncio.gather(
         night_pulls(rep, p, fights), replay_deaths(rep, p, fights), _night_lost_at_cap(rep, p, fights))
     return _night_text(rep, p, b, pulls, night_cooldowns(pulls, skipped, unavailable_why), lost,
-                       _night_lived(rep, pulls, replayed))
+                       _night_lived(rep, pulls, replayed), len(in_mass_hits(replayed)))
 
 
 def night_lived(rep: Report, pulls: list[NightPull], replayed: list[Replayed]) -> list[tuple[int, dict, list[str],
@@ -644,16 +644,30 @@ def _night_trend(pulls: list[NightPull], role: str, what: str) -> str | None:
             f"{deaths}; {what} per second alive, median, {rates}.")
 
 
+def _first_deaths(judged: list[NightPull]) -> str:
+    """'first death on 5 pulls (6 counting 1 in a hit killing many), among the first 3 deaths on 8 pulls': how often
+    a death of theirs that counts was the pull's first or among its first few, and in brackets the pulls `progress`
+    lists them first on, with those whose first death was theirs but doesn't count."""
+    counted = [pull for pull in judged if pull.counted]
+    theirs = [pull for pull in judged if pull.death and pull.death[0] == 0]  # the pull's first death was theirs
+    first = sum(pull.counted for pull in theirs)
+    also = [f"{n} {what}" for n, what in ((sum(pull.mass for pull in theirs), "in a hit killing many"),
+                                          (sum(pull.fallout for pull in theirs), "after the wipe was decided")) if n]
+    early = sum(pull.death[0] < FIRST_DEATHS for pull in counted if pull.death)
+    return (f"first death on {plural(first, 'pull')}"
+            + (f" ({len(theirs)} counting {' and '.join(also)})" if also else "")
+            + f", among the first {FIRST_DEATHS} deaths on {plural(early, 'pull')}")
+
+
 def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: NightCooldowns,
-                lost: str | None = None, lived: str | None = None) -> str:
+                lost: str | None = None, lived: str | None = None, mass: int = 0) -> str:
+    """player_night's text. `mass`: their deaths in a hit killing many (deaths.in_mass_hits, as defensives counts
+    them: a second death in a pull too)."""
     main_role = Counter(pull.played.role for pull in pulls).most_common(1)[0][0]
     what = "healing" if main_role == "healer" else "damage"
     judged = [pull for pull in pulls if not pull.reset]  # a reset is no pull of the night's, in any count below
     resets = len(pulls) - len(judged)
     counted = [pull for pull in judged if pull.counted]
-    mass = sum(pull.mass for pull in judged)
-    first = sum(pull.death[0] == 0 for pull in counted if pull.death)
-    early = sum(pull.death[0] < FIRST_DEATHS for pull in counted if pull.death)
     dead_s, counted_s = sum(pull.dead_s for pull in judged), sum(pull.counted_s for pull in judged)
     ranked = [((pull.mine or {}).get("total", 0) / max(pull.alive_s, 1), rep.pull_no(pull.f))
               for pull in best_pulls(pulls, main_role)]
@@ -669,8 +683,7 @@ def _night_text(rep: Report, p: Player, b: str, pulls: list[NightPull], cds: Nig
              f"{plural(len(judged), 'pull')} (" + (f"{plural(resets, 'reset')} left out; " if resets else "")
              + "later deaths are fallout and don't count"
              + (f"; nor {plural(mass, 'death')} in a hit killing many, the raid's to stop" if mass else "")
-             + "); first death "
-             f"{plural(first, 'time')}, among the first {FIRST_DEATHS} deaths {plural(early, 'time')}; dead for "
+             + f"); {_first_deaths(judged)}; dead for "
              f"{dead_s:.0f} s of the {counted_s:.0f} s before each wipe was decided "
              f"({100 * dead_s / max(counted_s, 1):.0f}%: no output then)."]
     if best:

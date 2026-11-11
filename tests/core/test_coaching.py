@@ -6,7 +6,19 @@ from typing import cast
 from tests.support import CODE, RESTO_SPELLS, FakeWCL, Night
 from wipebot.core import server
 from wipebot.core.pulls import Decided
-from wipebot.core.report import Player, Report, adds, build, coaching, deaths, healing, mechanics, ranks, tables
+from wipebot.core.report import (
+    Player,
+    Report,
+    adds,
+    build,
+    coaching,
+    deaths,
+    healing,
+    mechanics,
+    night,
+    ranks,
+    tables,
+)
 
 
 async def test_the_resource_judged_is_the_one_the_spec_spends(rep, patch_wcl, fake_knowledge):
@@ -140,6 +152,33 @@ async def test_a_reset_is_no_pull_of_a_players_night_in_any_count(rep):
     assert "Not counted, 1 death on a reset (the boss untouched, no attempt): pull 9 0:11." in own
     hits = await mechanics.mechanic_hits(rep, "Mutilate", boss="Sszorak", all_pulls=True)
     assert "on all 32 Sszorak pulls (1 reset left out)" in hits
+
+
+async def test_a_players_deaths_in_hits_killing_many_are_one_count_in_every_tool(rep):
+    """Cptola died twice on pull 11 of the tests' night, at 1:21 alone and at 1:47 as one of 13 killed at once:
+    player_night said "nor 8 deaths in a hit killing many" (a pull once) where defensives said 9."""
+    for who, n in (("Cptola", 9), ("Scopidruid", 7), ("Enfo", 9)):
+        assert f"nor {n} deaths in a hit killing many" in await coaching.player_night(rep, who, "Sszorak")
+        assert f"Not replayed, {n} deaths in a hit killing many" in await deaths.defensives(rep, "Sszorak", player=who)
+        row = next(x for x in (await deaths.defensives(rep, "Sszorak")).splitlines() if x.startswith(f"- {who} "))
+        assert f"and died {n} in hits killing many" in row
+
+
+async def test_a_players_first_deaths_are_counted_as_progress_lists_them_and_as_theirs(rep):
+    """`progress` lists Scopidruid as the first death of pulls 5, 6, 10, 13, 15 and 22 of the tests' night, and
+    player_night said "first death 5 times": pull 10's was one of 4 killed at once, not counted as theirs, with
+    nothing to say so. Dragepie is first on pulls 1 and 7, pull 1's after the boss's enrage decided the wipe."""
+    rows = (await night.progress(rep, "Sszorak")).splitlines()
+
+    def listed(who: str) -> int:
+        return sum(f"first death {who} (" in row and "reset" not in row for row in rows)
+    assert (listed("Scopidruid"), listed("Dragepie"), listed("Draiman"), listed("Cptola")) == (6, 2, 1, 4)
+    for who, said in (("Scopidruid", "first death on 5 pulls (6 counting 1 in a hit killing many), among the first 3 "
+                                     "deaths on 8 pulls;"),
+                      ("Dragepie", "first death on 1 pull (2 counting 1 after the wipe was decided), among"),
+                      ("Draiman", "first death on 0 pulls (1 counting 1 in a hit killing many), among"),
+                      ("Cptola", "first death on 4 pulls, among the first 3 deaths on 12 pulls;")):
+        assert said in (await coaching.player_night(rep, who, "Sszorak")).splitlines()[0]
 
 
 async def test_a_pull_still_going_is_left_out_of_the_night(fake_knowledge):
