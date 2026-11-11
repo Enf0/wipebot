@@ -236,3 +236,6 @@ async def test_the_fight_a_link_names_is_the_calls_default_pull_and_boss(night):
     await lib.report(f"https://www.warcraftlogs.com/reports/{CODE}#fight=5")
     with pytest.raises(ValueError, match="fight 5 in the link isn't a boss pull of report"):
         rep.fight()  # trash: the latest pull is no answer about it
+    # a call about the night, or one naming its own pull, reads no pull from the link: the boss is the latest's
+    assert rep.boss(None) == "Sszorak" and rep.label(rep.fight(5)) == "Sszorak pull 5"
+    assert rep.label(rep.fight("kill", "Vashnik")) == "Vashnik the Malignant pull 2"

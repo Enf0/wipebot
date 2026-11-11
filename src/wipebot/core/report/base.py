@@ -315,15 +315,19 @@ class Report(Fetched):
             return f"{fight['name']} ({difficulty_name(fight)})"
         return fight["name"]
 
-    def linked(self) -> dict | None:
+    def linked(self, or_error: bool = True) -> dict | None:
         """The pull the call's link to this report named (`link_fights`), None without one. A fight that isn't one
-        of the report's boss pulls (trash, a number it doesn't have) is an error: the latest pull would be an
-        answer about another fight."""
+        of the report's boss pulls (trash, a number it doesn't have) is an error where the link's pull is what
+        the call reads: the latest pull would be an answer about another fight. Without `or_error` it is None,
+        for the boss of a call that names its own pull or is about the night (the call's first line then says
+        that the link named no pull: server._link_note)."""
         fight_id = (link_fights.get() or {}).get(self.code)
         if fight_id is None:
             return None
         if f := next((f for f in self.fights if f["id"] == fight_id), None):
             return f
+        if not or_error:
+            return None
         counts = ", ".join(f"{b} {len(fs)}" for b, fs in self.by_boss.items())
         raise FactError(f"fight {fight_id} in the link isn't a boss pull of report {self.code} (trash, or a fight it "
                         f"doesn't have): name a pull, or give the report without a fight for its latest pull (pulls "
@@ -332,9 +336,10 @@ class Report(Fetched):
     def boss(self, name: str | None) -> str:
         """The boss matching a name or part of it (knowledge.matches_boss): the one the name is whole before those
         it is part of, and of several the one pulled last, which the call's result then says (`read_as`). With no
-        name, the boss of the pull the call's link named (`linked`), else of the latest pull."""
+        name, the boss of the pull the call's link named (`linked`), else of the latest pull, as with a link to
+        a fight that is no boss pull."""
         if not name:
-            return self.boss_key(self.linked() or self.fights[-1])
+            return self.boss_key(self.linked(or_error=False) or self.fights[-1])
         matches = [b for b in self.by_boss if knowledge.matches_boss(name, b)]
         if not matches:
             raise FactError(self._no_boss(name))

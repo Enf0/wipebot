@@ -273,6 +273,24 @@ async def test_a_link_to_a_fight_that_is_no_boss_pull_says_so(recorded):
         await server.call("pull_summary", {"report": LINK + "#fight=5"})
 
 
+TRASH = ("Fight 5 in the link isn't a boss pull of this report (trash, or a fight it doesn't have), so the link was "
+         "read as the report alone.\n")
+
+
+async def test_a_tool_about_the_night_says_nothing_of_the_pull_a_link_names(recorded):
+    """ "Fight 21 in the link is Sszorak pull 13." led the boss's night and the roster, which read no pull."""
+    night, failed = await server.call("progress", {"report": LINK + "#fight=21", "boss": "Sszorak"})
+    assert not failed and night + "\n" == await run(CASES["progress"])
+    there, failed = await server.call("roster", {"report": LINK + "?fight=21&type=damage-done"})
+    assert not failed and there + "\n" == await run(CASES["roster"])
+
+
+async def test_a_call_naming_its_pulls_takes_a_link_to_trash_and_says_it_named_none(recorded):
+    """It was refused as a call reading the link's pull is, though only when it named no boss."""
+    text, failed = await server.call("compare_pulls", {"report": LINK + "#fight=5", "pull": 12, "other": 13})
+    assert not failed and text + "\n" == TRASH + await run(CASES["compare-pulls"])
+
+
 async def test_breakdown_takes_a_pull_by_name_as_the_other_tools_do(recorded):
     text, failed = await server.call("breakdown", {"report": "KBYT4xXn7VNjDgh8", "data_type": "DamageTaken",
                                                     "group_by": "ability", "pulls": ["best wipe"]})

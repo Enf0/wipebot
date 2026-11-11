@@ -251,6 +251,38 @@ async def test_a_boss_name_read_one_of_several_ways_is_said_in_the_results_first
     assert await server.guarded(pulls)(boss="vashnik heroic") == "Vashnik the Malignant (Heroic): 1 pulls"
 
 
+async def test_a_link_to_a_fight_is_noted_only_where_a_pull_is_read_and_trash_is_no_error_about_the_night(
+        monkeypatch, night):
+    """Fight 21 is Sszorak pull 13, fight 5 trash between the two bosses, and the latest pull is Sszorak's."""
+    monkeypatch.setattr(server.DEFAULT, "library", server.Library(CODE, wcl=FakeWCL(night).client()))
+    link = f"https://www.warcraftlogs.com/reports/{CODE}"
+    trash = ("Fight 5 in the link isn't a boss pull of this report (trash, or a fight it doesn't have), so the link "
+             "was read as the report alone.\n")
+
+    async def a_night(boss: str | None = None, report: str | None = None) -> str:
+        return f"{(await server.lib().report(report)).boss(boss)}'s night"
+
+    async def a_pull(pull: int | None = None, boss: str | None = None, report: str | None = None) -> str:
+        rep = await server.lib().report(report)
+        return rep.label(rep.fight(pull, boss))
+    a_night, a_pull = server.guarded(a_night), server.guarded(a_pull)
+    # about the night: the link chooses the boss, and no line says which pull it was, since none was read
+    assert await a_night(boss=None, report=link + "#fight=2") == "Vashnik the Malignant's night"
+    assert await a_night(boss=None, report=link + "#fight=21") == "Sszorak's night"
+    assert await a_night(boss="Vashnik", report=link + "?fight=21&type=healing") == "Vashnik the Malignant's night"
+    # trash: the night is still what was asked for, and the first line says the link named no pull
+    assert await a_night(boss=None, report=link + "#fight=5") == trash + "Sszorak's night"
+    assert await a_night(boss="Vashnik", report=link + "#fight=5") == trash + "Vashnik the Malignant's night"
+    # about a pull: which pull the link's fight is; a call naming its own pull is read, trash or not
+    assert await a_pull(pull=None, boss=None, report=link + "#fight=21") == (
+        "Fight 21 in the link is Sszorak pull 13.\nSszorak pull 13")
+    assert await a_pull(pull=5, boss=None, report=link + "#fight=5") == trash + "Sszorak pull 5"
+    assert await a_pull(pull=1, boss="Vashnik", report=link + "#fight=5") == trash + "Vashnik the Malignant pull 1"
+    for boss in (None, "Sszorak"):  # the link's pull is what the call reads: the latest would be another fight
+        with pytest.raises(ToolError, match="fight 5 in the link isn't a boss pull of report"):
+            await a_pull(pull=None, boss=boss, report=link + "#fight=5")
+
+
 async def test_a_mechanic_no_guide_names_is_answered_from_its_tooltip(monkeypatch, rep, patch_wcl, fake_knowledge):
     """An ability asked for by its name in the log, which no guide has under this boss or another: what its tooltip
     says, by the ids the report has it under, where the call used to end in an error after a long search."""
@@ -259,7 +291,8 @@ async def test_a_mechanic_no_guide_names_is_answered_from_its_tooltip(monkeypatc
     spell, name = next((i, n) for i, n in rep.abilities.items() if list(rep.abilities.values()).count(n) == 1)
     asked = []
 
-    async def none_names(boss, raid, difficulty, mechanic):
+    async def none_names(boss, raid, difficulty, mechanic, logged):
+        assert name in logged  # the log's names, for the abilities listed when no guide names the one asked for
         raise server.KnowledgeError(f"no guide for {boss} names {mechanic!r}")
 
     async def tooltips(ids):

@@ -333,14 +333,19 @@ def _told(e: Exception) -> str:
 
 
 async def _link_note(kwargs: dict) -> str:
-    """For a call about pulls whose report link names a fight: which pull that fight is, since a fight's number
-    isn't its pull's number on the boss, and that another was read when the call named one. '' otherwise."""
+    """For a call whose report link names a fight, '' otherwise. One about pulls: which pull that fight is, since a
+    fight's number isn't its pull's number on the boss, and that another was read when the call named one. One
+    about a boss's night says nothing of a pull, which it didn't read. Either, where the fight is no boss pull and
+    the call answered all the same (it named its pull, or is about the night): that the link named none."""
     report, named = kwargs.get("report"), link_fights.get()
     if not (report and named and {"pull", "pulls", "boss"} & kwargs.keys()):
         return ""
     code, fight_id = report_link(report)
     rep = await lib().report(code)
     if (f := next((f for f in rep.fights if f["id"] == fight_id), None)) is None:
+        return (f"Fight {fight_id} in the link isn't a boss pull of this report (trash, or a fight it doesn't have), "
+                "so the link was read as the report alone.")
+    if not {"pull", "pulls"} & kwargs.keys():
         return ""
     note = f"Fight {fight_id} in the link is {rep.label(f)}"
     try:
@@ -426,8 +431,8 @@ async def _in_time(fn, setup: Setup, args: tuple, kwargs: dict) -> object:
 def guarded(fn, setup: Setup = DEFAULT):
     """`fn` as a tool of a server with `setup`. Bad arguments and source failures reach the model as readable tool
     errors. A question about the pull that just ended, before the live log has it, waits for it a little. A report
-    link naming a fight makes that pull the call's default, and the result's first line says which pull it is, as
-    it says which boss a name fitting several was read as (report.base.read_as).
+    link naming a fight makes that pull the call's default, and the result's first line says which pull it is
+    (`_link_note`), as it says which boss a name fitting several was read as (report.base.read_as).
     A call that takes longer than DEADLINE_S (REMOTE_DEADLINE_S serving many users) ends with an error saying which
     source it was waiting for. Serving many users, each call is logged with its user, kept (Remote.record; one its
     client gave up on as cancelled, with how long it ran) and read with their Warcraft Logs token
@@ -2013,7 +2018,11 @@ async def _boss_guide(boss: str, topic: str, difficulty: str | None, raid: str |
             difficulty = "mythic"
     difficulty = "mythic" if difficulty.lower() == "mythic" else "heroic"
     if mechanic:
-        return await knowledge.boss_mechanic_text(boss, raid, difficulty, mechanic)
+        try:  # the log's own names for the boss's abilities, where the call has a report
+            logged = list((await lib().report(report)).abilities.values())
+        except (FactError, WCLError):
+            logged = []
+        return await knowledge.boss_mechanic_text(boss, raid, difficulty, mechanic, logged)
     return await knowledge.boss_guide_text(boss, raid, difficulty)
 
 
