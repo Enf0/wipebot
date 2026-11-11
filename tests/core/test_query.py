@@ -420,3 +420,22 @@ async def test_a_cut_answer_with_several_lists_of_events_is_one_part_and_says_wh
     assert 3 <= last < 36
     assert (f"… Events {last + 1} to 36 are left out whole ({36 - last} lists, {(36 - last) * 400:,} events "
             "together): ask for them in a query of their own.") in many
+
+async def test_a_page_of_events_says_it_is_one_and_where_the_next_starts(rep):
+    """Events come a page at a time, and a page's counts and sums read as the whole pull's: the list now says that
+    more follow, from when, and that its counts are the page's."""
+    f = rep.fight(13, "Sszorak")
+    deaths = await rep.deaths(f)
+    more = deaths[3]["timestamp"]
+    q = ("{ reportData { report(code: $code) { events(fightIDs: [$fight(13)], dataType: Deaths, limit: 3) "
+         "{ data nextPageTimestamp } } } }")
+    answer = {"reportData": {"report": {"events": {"data": deaths[:3], "nextPageTimestamp": more}}}}
+    lines = (await query_text(cast(WCL, Points(100, answer)), q, rep, boss="Sszorak")).splitlines()
+    assert lines[2] == ('{"reportData":{"report":{"events":{"data":"events 1 below","nextPageTimestamp":'
+                        + f"{more}}}}}}}}}")
+    assert lines[3] == ("Events 1 (reportData.report.events.data): 3 in Sszorak pull 13, times from the pull's start. "
+                        f"A page of more: the next starts at {exact(more - f['startTime'])} of Sszorak pull 13 "
+                        f"(startTime: {more}), and the counts are of this page alone.")
+    answer["reportData"]["report"]["events"]["nextPageTimestamp"] = None  # the last page: nothing to say
+    lines = (await query_text(cast(WCL, Points(100, answer)), q, rep, boss="Sszorak")).splitlines()
+    assert lines[3] == "Events 1 (reportData.report.events.data): 3 in Sszorak pull 13, times from the pull's start."

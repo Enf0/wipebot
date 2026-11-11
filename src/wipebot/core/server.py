@@ -1913,9 +1913,10 @@ async def wcl_query(query: Annotated[str | None, Field(description=(
     `phase` as the other tools name it (P2, I1). An answer over 3 parts is cut to one: each list then ends with
     how many items were left out, the counts are of all its events, and lists of events with no room left are
     named as left out whole. Events come a page at a time (nextPageTimestamp, in the report's ms, is where the
-    next starts); table and rankings are JSON inside the answer. Rankings are kept per partition (a patch's), and
-    a new one is empty for a while: an empty ranking may need zone(id) { partitions } and an older `partition`;
-    item level brackets are zone(id) { brackets }, counted from its min in steps of its bucket."""
+    next starts): a list that is one page of more says so, and its counts are that page's. Table and rankings are
+    JSON inside the answer. Rankings are kept per partition (a patch's), and a new one is empty for a while: an
+    empty ranking may need zone(id) { partitions } and an older `partition`; item level brackets are zone(id) {
+    brackets }, counted from its min in steps of its bucket."""
     if schema_type:
         return await queries.schema_text(lib().wcl, schema_type)
     if not query:

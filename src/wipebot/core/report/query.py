@@ -381,10 +381,12 @@ def _fight_of(rep: Report, fight: dict) -> dict | None:
 
 @dataclass
 class _Events:
-    """One list of events in an answer: the keys down to it, the report it is of, and the events."""
+    """One list of events in an answer: the keys down to it, the report it is of, and the events; `more_from` is
+    where the next page starts (the report's ms) when the list is one page of more (its `nextPageTimestamp`)."""
     path: tuple[str, ...]
     rep: Report
     events: list[dict]
+    more_from: float | None = None
 
 
 def _fight_line(rep: Report, fight_id: int, detailed: bool = True) -> str:
@@ -446,7 +448,7 @@ class _Shown:
                 fights.add(f["id"])
             return {k: v if k in TIME_KEYS else _phases(rep, f, v) if k == "phaseTransitions" and f
                     else self.of(v, (*path, k), code, of_pull) for k, v in node.items()}
-        shown = {}
+        shown, lists = {}, len(self.events)
         for k, v in node.items():
             if k in TIME_KEYS and _is_ms(v) and (
                     f := rows.pull_at(rep, v, node.get("fight") if isinstance(node.get("fight"), int) else None)):
@@ -454,6 +456,10 @@ class _Shown:
                 shown[k] = exact(v - f["startTime"]) + (f" of {rep.label(f)}" if of_pull else "")
             else:
                 shown[k] = self.of(v, (*path, k), code, of_pull)
+        if _is_ms(more := node.get("nextPageTimestamp")):  # a page of more: of the lists of events right under it
+            for ev in self.events[lists:]:
+                if len(ev.path) == len(path) + 1:
+                    ev.more_from = more
         return shown
 
 
@@ -566,11 +572,18 @@ def _json(node: object) -> str:
 
 
 def _rows(n: int, ev: _Events, room: int | None = None) -> list[str]:
-    """An events list as lines: what it is and how its times read, then its rows (`rows.listed`: counted when
-    long or cut, under their pulls, with the ids of the abilities named). With `room`, only the first rows that
-    fit it."""
-    listed = rows.listed(ev.rep, ev.events, room=room)
-    return [f"Events {n} ({'.'.join(ev.path)}): {len(ev.events)}{listed.where}.", *listed.lines]
+    """An events list as lines: what it is, how its times read and whether it is one page of more, then its rows
+    (`rows.listed`: counted when long or cut, under their pulls, with the ids of the abilities named). With `room`,
+    only the first rows that fit it."""
+    page = ""
+    if ev.more_from is not None:  # the counts and sums under it read as the whole pull's otherwise
+        f = rows.pull_at(ev.rep, ev.more_from)
+        at = f"{exact(ev.more_from - f['startTime'])} of {ev.rep.label(f)}" if f else (
+            f"{exact(ev.more_from)} of the report")
+        page = (f" A page of more: the next starts at {at} (startTime: {ev.more_from:.0f}), and the counts are of "
+                "this page alone.")
+    listed = rows.listed(ev.rep, ev.events, room=None if room is None else room - len(page))
+    return [f"Events {n} ({'.'.join(ev.path)}): {len(ev.events)}{listed.where}.{page}", *listed.lines]
 
 
 def _cut(node: object, room: int) -> str:
