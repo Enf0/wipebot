@@ -20,6 +20,7 @@ from evals.run import (
     summary,
     uncalled,
 )
+from wipebot.core import server
 
 CASE = {"id": "a", "report": "R", "question": "Why did we wipe?", "expect": "An enrage.", "wrong": ["deaths"]}
 
@@ -260,7 +261,9 @@ def test_the_plugin_mode_loads_the_plugin_members_get_without_its_connector():
     folder = Path(plugin_folder())
     manifest = json.loads((folder / ".claude-plugin" / "plugin.json").read_text())
     assert "mcpServers" not in manifest and manifest["version"]
-    assert {p.name for p in (folder / "skills" / "raid-log-analysis").iterdir()} >= {"SKILL.md", "examples.md"}
+    # the core and every part it sends a question to: a part the plugin left out could not be read
+    shipped = {p.name for p in (folder / "skills" / "raid-log-analysis").iterdir()}
+    assert shipped == {p.name for p in server.SKILL.iterdir()} and {"SKILL.md", "examples.md"} < shipped
 
 
 def test_skill_use_counts_answers_that_loaded_it_and_the_files_read():

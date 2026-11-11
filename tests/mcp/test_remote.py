@@ -12,7 +12,7 @@ from typing import cast
 import pytest
 from starlette.testclient import TestClient
 
-from wipebot.core import accounts
+from wipebot.core import accounts, server
 from wipebot.mcp import plugin, remote, signin
 from wipebot.mcp.signin import Access, SignIn
 
@@ -180,6 +180,9 @@ def test_the_plugin_is_this_connector_and_the_skill(client):
         manifest = json.loads(z.read(".claude-plugin/plugin.json"))
         readme = z.read("README.md").decode()
     assert {"README.md", "skills/raid-log-analysis/SKILL.md"} <= names
+    # The skill is its core and the parts the core sends a client to read: every file of the folder is in the zip.
+    parts = {f"skills/raid-log-analysis/{f.name}" for f in server.SKILL.iterdir()}
+    assert parts <= names and len(parts) > 2
     assert manifest["name"] == "wipebot" and manifest["mcpServers"] == {"Wipebot": {"type": "http",
                                                                                      "url": PUBLIC + "/mcp"}}
     assert str(GUILD) in manifest["description"] and len(manifest["version"]) == 8 and "{" not in readme

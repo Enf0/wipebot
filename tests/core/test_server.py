@@ -94,6 +94,35 @@ def test_the_skill_is_a_valid_agent_skill():
     assert all((server.SKILL / f).read_text(encoding="utf-8").strip() in whole for f in linked)
 
 
+def test_the_skill_is_a_core_that_links_each_part_once_by_its_title():
+    """SKILL.md is the core, what every answer needs; what one kind of question needs is a part, a file beside it.
+    A client with the plugin reads a part when the core sends it there, and the bot gets them all in its prompt, in
+    the order of the core's links (server.skill): so a part the core doesn't link reaches nobody, and one linked
+    twice would be in the prompt twice. The bot has no file to open and finds a part by its name, so a link's text
+    is the title its file opens with."""
+    body = (server.SKILL / "SKILL.md").read_text(encoding="utf-8").split("---", 2)[2]
+    links = re.findall(r"\[([^\]]+)\]\(([\w-]+\.md)\)", body)
+    names = [name for _, name in links]
+    assert sorted(names) == sorted(f.name for f in server.SKILL.iterdir() if f.name != "SKILL.md")
+    assert len(names) == len(set(names)) > 1
+    parts = [(server.SKILL / name).read_text(encoding="utf-8").strip() for name in names]
+    assert [part.splitlines()[0] for part in parts] == [f"# {title}" for title, _ in links]
+    whole = server.skill()
+    assert whole.startswith(body.strip())
+    assert [whole.count(part) for part in parts] == [1] * len(parts)
+    assert [whole.index(part) for part in parts] == sorted(whole.index(part) for part in parts)
+
+
+def test_the_skill_stays_within_its_size():
+    """The core is read with every question and the bot's prompt carries all of it on every answer, so each has a
+    limit, in words as str.split counts them: SKILL.md 800 with its front matter, a part 500, all of it 3,400 (it
+    was 4,638 as one file with its examples). A rule that comes in takes the place of one that goes, or becomes a
+    line of a tool's output."""
+    words = {f.name: len(f.read_text(encoding="utf-8").split()) for f in server.SKILL.iterdir()}
+    assert words["SKILL.md"] <= 800
+    assert {name: n for name, n in words.items() if name != "SKILL.md" and n > 500} == {}
+    assert sum(words.values()) <= 3400
+
 
 async def test_the_skill_and_instructions_name_only_the_cores_tools():
     """The skill and instructions.md are for every host, so the tools and arguments they name are the core's: not
