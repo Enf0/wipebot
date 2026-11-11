@@ -2419,7 +2419,6 @@ def viewer_at(track: str, times_ms: list[float]) -> list:
     return json.loads(subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True).stdout)
 
 
-@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
 def made_up_scene(*dots: maps.Dot) -> maps.Scene:
     """A map's scene on made-up positions (hundredths of a yard), in a room 1,000 yd across."""
     return maps.Scene("Made-up Boss · pull 1", "0:10", 1, (-50_000.0, 50_000.0, -50_000.0, 50_000.0), dots=list(dots))
@@ -2493,6 +2492,7 @@ def test_one_player_far_from_the_raid_does_not_shrink_the_map_to_a_dot():
     assert draw.in_view(thrown, 10_800, 0)
 
 
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
 def test_the_replay_reads_the_tracks_as_they_were_packed():
     samples = [(0.0, 0.0, 0.0), (1000.0, 1000.0, 0.0), (2000.0, 1000.0, 1000.0), (3000.0, 2000.0, 1000.0)]
     facings = [(0.0, 0.17453), (1000.0, 6.10865), (2000.0, 1.5708), (3000.0, 1.5708)]  # 10°, 350°, 90°, 90°
