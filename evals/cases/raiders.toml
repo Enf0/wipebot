@@ -281,7 +281,7 @@ Mythic Twin Fangs kill, 95% on Monday 26 October, after Heroic kills between 62%
 drifts = ["95%", "75.2", "62%", "77%"]
 facts = ["Mythic average of each boss's best kill 75.2 over 7 bosses",
          "the Mythic kill at item level 335"]
-wrong = ["says it can't find Martin because he isn't in the report",
+wrong = ["says it can't find Martin because they aren't in the report",
          "gives another player's parses as Martin's"]
 
 [[case]]

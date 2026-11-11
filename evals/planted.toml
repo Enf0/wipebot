@@ -717,10 +717,10 @@ ranking, the fastest kills, not the newest first kills. So 4 healers is the usua
 [[plant]]
 case = "real-history-raider-not-in-log"
 kind = "wrong"
-item = "says it can't find Martin because he isn't in the report"
+item = "says it can't find Martin because they aren't in the report"
 answer = """
-**I can't find Martin: he isn't in this report, so there are no parses of his to read.** Link a report he raided
-in, or have him ask me himself, and I can go through his Twin Fangs kills.
+**I can't find Martin: they aren't in this report, so there are no parses of theirs to read.** Link a report they
+raided in, or have them ask me themselves, and I can go through their Twin Fangs kills.
 """
 
 [[plant]]
