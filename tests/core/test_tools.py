@@ -32,6 +32,7 @@ from wipebot.core import server
 from wipebot.core.report import fight, maps
 from wipebot.core.report import note as notes
 from wipebot.core.text import clock
+from wipebot.core.wcl import Unreadable, WCLError
 
 
 @pytest.fixture
@@ -351,8 +352,9 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
     # raid's answer to each cast does ("did we have cooldowns for it?"), from 10 s before the cast to 5 s after
     assert lines[-3] == "Ability ids: Tempest [1287072, 1287083]" and len(lines) == 3 + 26 + 1 + 2
     assert lines[-2:] == [
-        "Raid and healing cooldowns pressed around each Tempest cast, from 10 s before it to 5 s after (pull_timeline "
-        "without ability has every cooldown, with the deaths and the raid's damage taken):",
+        "Raid and healing cooldowns pressed around each of the boss's Tempest casts, from 10 s before it to 5 s after; "
+        "one pressed earlier isn't listed, also when it was still running (pull_timeline without ability has every "
+        "cooldown, with the boss's other casts, the deaths and the raid's damage taken):",
         "  0:16: healing cooldowns Apotheosis (Namsus) 0:15"]
     assert asked == [("DamageTaken", [{"abilityID": 1287072}, {"abilityID": 1287083}])]
     # by or on one player; and a window with nothing of it
@@ -369,7 +371,11 @@ async def test_a_timeline_of_one_ability_lists_what_the_log_has_of_it_to_the_mil
 
 async def test_the_cooldowns_around_a_boss_s_own_casts_say_none_and_skip_one_cast_too_often(recorded, monkeypatch):
     """A healing answer said four Imbibes went "without a cooldown": the ability's rows showed only the boss, and the
-    cooldowns pressed for each cast were in the plain timeline it didn't read. A line per cast now follows the rows."""
+    cooldowns pressed around each cast were in the plain timeline it didn't read. A line per cast now follows the
+    rows, and its header says what the lines leave out, as a fact and not a maybe: a cooldown pressed earlier isn't
+    listed, also when it was still running (Apotheosis at 1:30 through the 1:48 Imbibe), and the plain timeline has
+    the boss's other casts, which the same cooldowns stand near (Ravage 1:07, Mutilate 1:11 and Venomous Surge 1:16
+    on Sszorak pull 33)."""
     t0 = 1_000_000
 
     async def pressed(rep, f):
@@ -384,14 +390,42 @@ async def test_the_cooldowns_around_a_boss_s_own_casts_say_none_and_skip_one_cas
         return [fight.BossCast(t0 + s * 1000, "Roar", True, 1, 1) for s in seconds]
     lines = await fight._covered(rep, f, [*roars(60, 120), fight.BossCast(t0 + 90_000, "Bite", True, 1, 1)],
                                  {"Roar"}, t0, t0 + 200_000)
-    assert lines[0].startswith("Raid and healing cooldowns pressed around each Roar cast, from 10 s before it to 5 s ")
+    assert lines[0].startswith("Raid and healing cooldowns pressed around each of the boss's Roar casts, from 10 s "
+                               "before it to 5 s after; one pressed earlier isn't listed, also when it was still ")
     # from 10 s before the cast's second to 5 s after it; healing cooldowns first; a cast with none says so
     assert lines[1:] == ["  1:00: healing cooldowns Tranquility (Dru) 0:50, Revival (Monk) 1:05; raid cooldowns "
-                         "Rallying Cry (War) 0:58", "  2:00: none"]
+                         "Rallying Cry (War) 0:58", "  2:00: none pressed then"]
     assert len(await fight._covered(rep, f, roars(60, 120), {"Roar"}, t0 + 100_000, t0 + 200_000)) == 2  # a window
-    assert await fight._covered(rep, f, roars(60, 120), {"Roar"}, t0, t0 + 30_000) == []  # none of its casts in it
-    # a cast every few seconds isn't something cooldowns are planned for: no lines
-    assert await fight._covered(rep, f, roars(*range(10, 140, 10)), {"Roar"}, t0, t0 + 200_000) == []
+    assert await fight._covered(rep, f, roars(60, 120), {"Roar"}, t0, t0 + 30_000) == []  # its casts come later
+    # a window on the ability's hits, after its cast: the cast is named, so the cooldowns around it can be asked for
+    assert await fight._covered(rep, f, roars(60, 120), {"Roar"}, t0 + 70_000, t0 + 80_000) == [
+        "The boss cast Roar at 1:00, before this window: the raid and healing cooldowns pressed around that cast come "
+        "with a window that holds it."]
+    # more casts than a line each is worth reading: said, with how to get them (a Vashnik kill's 20 Malignant
+    # Catalysts got nothing, unsaid, where the wipe's 6 got their lines)
+    assert await fight._covered(rep, f, roars(*range(10, 140, 10)), {"Roar"}, t0, t0 + 200_000) == [
+        "The boss cast Roar 13 times here: the raid and healing cooldowns pressed around each cast come with 12 casts "
+        "or fewer (a window: start, end); pull_timeline without ability has every cooldown."]
+    assert len(await fight._covered(rep, f, roars(*range(10, 130, 10)), {"Roar"}, t0, t0 + 200_000)) == 1 + 12
+    # a cast a second (the Lost Explorers' Mighty Thud printed the same cooldowns six times over) is one cast, from
+    # 10 s before its first second to 5 s after its last
+    pulsed = await fight._covered(rep, f, roars(60, 61, 62, 64, 120), {"Roar"}, t0, t0 + 200_000)
+    assert pulsed[1:] == ["  1:00-1:04: healing cooldowns Tranquility (Dru) 0:50, Revival (Monk) 1:05, Divine Hymn "
+                          "(Pri) 1:06; raid cooldowns Rallying Cry (War) 0:58", "  2:00: none pressed then"]
+    # a start inside the cast's second (copied from a row's m:ss.mmm) still has the cast
+    assert len(await fight._covered(rep, f, roars(60), {"Roar"}, t0 + 60_005, t0 + 70_000)) == 2
+
+    async def down(rep, f):
+        raise WCLError("Warcraft Logs timed out")
+    monkeypatch.setattr(fight, "raid_cooldown_casts", down)  # the rows in hand still come, with what is missing
+    assert (await fight._covered(rep, f, roars(60), {"Roar"}, t0, t0 + 200_000))[0].startswith(
+        "The raid and healing cooldowns around each cast: unavailable")
+
+    async def refused(rep, f):
+        raise Unreadable(rep.code)
+    monkeypatch.setattr(fight, "raid_cooldown_casts", refused)  # a report made private since: the call fails with that
+    with pytest.raises(Unreadable):
+        await fight._covered(rep, f, roars(60), {"Roar"}, t0, t0 + 200_000)
 
 
 async def test_a_timeline_of_an_ability_not_the_boss_s_own_ends_with_its_tracked_casts(recorded, monkeypatch):

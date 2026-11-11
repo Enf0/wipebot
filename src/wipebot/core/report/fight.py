@@ -20,7 +20,7 @@ from ..pulls import (
     trend_line,
 )
 from ..text import clock, exact, ids_line, ordinal, parse_clock, plural, ranges, short
-from ..wcl import WCL, WCLError
+from ..wcl import WCL, Unreadable, WCLError
 from . import rows
 from .adds import ADD_GROUP_MS, add_wave, boss_units, interruptible_casts
 from .base import (
@@ -58,8 +58,9 @@ NTH_ABILITY = re.compile(r" \(\d+\w\w ability\)$")  # "Ravage (2nd ability)": an
 DAMAGE_BUCKET_MS = 5_000  # raid damage taken is shown per this much time
 BOSS_HEALTH = 1000  # WCL's Resources graph: abilityID 1000 is health, 100 + a power type that power
 RAID_WIDE = 3  # a damage dealer's or tank's cooldown is a raid cooldown when it buffs or heals this many others
-COVER_BEFORE_MS, COVER_AFTER_MS = 10_000, 5_000  # a cooldown pressed this close to a boss's cast was pressed for it
-COVERED_CASTS = 12  # an ability the boss casts more often in the window has no cooldowns planned for each cast
+COVER_BEFORE_MS, COVER_AFTER_MS = 10_000, 5_000  # the cooldowns listed with a boss's cast: pressed this close to it
+COVERED_CASTS = 12  # more casts of the ability in the window: no line for each, a narrower window asked for instead
+COVER_PULSE_MS = 2_000  # the boss's casts of one ability this close together are one (Mighty Thud: a cast a second)
 
 
 def boss_left(f: dict) -> str:
@@ -359,23 +360,42 @@ def _against(f: dict, casts: list[BossCast], names: set[str], lo: float, hi: flo
 async def _covered(rep: Report, f: dict, casts: list[BossCast], names: set[str], lo: float, hi: float) -> list[str]:
     """The raid and healing cooldowns pressed around each of the boss's own casts of an ability from `lo` to `hi`, a
     line per cast: "did we have cooldowns for it?" is asked of the ability, whose rows alone show only the boss.
-    None when the boss doesn't cast it there, or casts it too often for cooldowns to be planned on each cast."""
-    mine = sorted({c.at for c in casts if c.name in names and lo <= c.at <= hi})
-    if not mine or len(mine) > COVERED_CASTS:
-        return []
+    None when the boss doesn't cast it; a line that asks for another window when its cast came before this one (the
+    window is on its hits) or it is cast more than COVERED_CASTS times. A cooldown pressed earlier isn't listed, also
+    when it was still running: the header says so, since "none pressed then" isn't "no cooldown up"."""
+    runs: list[list[float]] = []  # [first second, last second] of each cast, one for casts a second or two apart
+    for at in sorted({c.at for c in casts if c.name in names and lo - 1000 < c.at <= hi}):  # `at`: the cast's second
+        if runs and at - runs[-1][1] <= COVER_PULSE_MS:
+            runs[-1][1] = at
+        else:
+            runs.append([at, at])
+    what, t0 = " and ".join(sorted(names)), f["startTime"]
+    if not runs:
+        before = max((c.at for c in casts if c.name in names and c.at < lo), default=None)
+        return [] if before is None else [
+            f"The boss cast {what} at {clock(before - t0)}, before this window: the raid and healing cooldowns pressed "
+            "around that cast come with a window that holds it."]
+    if len(runs) > COVERED_CASTS:
+        return [f"The boss cast {what} {len(runs)} times here: the raid and healing cooldowns pressed around each cast "
+                f"come with {COVERED_CASTS} casts or fewer (a window: start, end); pull_timeline without ability has "
+                "every cooldown."]
     try:
         pressed = await raid_cooldown_casts(rep, f)
-    except KnowledgeError as e:
+    except Unreadable:  # Warcraft Logs won't show the report any more: the call says so, not the rows of a copy
+        raise
+    except (KnowledgeError, WCLError) as e:
         return [unavailable("The raid and healing cooldowns around each cast", e)]
-    lines, t0 = [], f["startTime"]
-    for at in mine:  # `at` is the cast's second: the cast itself fell up to a second later
-        near = [c for c in pressed if at - COVER_BEFORE_MS <= c[0] < at + 1000 + COVER_AFTER_MS]
+    lines = []
+    for first, last in runs:  # the cast itself fell up to a second after its second began
+        near = [c for c in pressed if first - COVER_BEFORE_MS <= c[0] < last + 1000 + COVER_AFTER_MS]
         kinds = [f"{kind}s " + ", ".join(f"{name} ({who}) {clock(t - t0)}" for t, k, name, who in near if k == kind)
                  for kind in ("healing cooldown", "raid cooldown") if any(k == kind for _, k, _, _ in near)]
-        lines.append(f"  {clock(at - t0)}: " + ("; ".join(kinds) or "none"))
-    return [f"Raid and healing cooldowns pressed around each {' and '.join(sorted(names))} cast, from "
-            f"{COVER_BEFORE_MS // 1000} s before it to {COVER_AFTER_MS // 1000} s after (pull_timeline without ability "
-            "has every cooldown, with the deaths and the raid's damage taken):", *lines]
+        lines.append(f"  {clock(first - t0)}" + (f"-{clock(last - t0)}" if last > first else "") + ": "
+                     + ("; ".join(kinds) or "none pressed then"))
+    return [f"Raid and healing cooldowns pressed around each of the boss's {what} casts, from "
+            f"{COVER_BEFORE_MS // 1000} s before it to {COVER_AFTER_MS // 1000} s after; one pressed earlier isn't "
+            "listed, also when it was still running (pull_timeline without ability has every cooldown, with the boss's "
+            "other casts, the deaths and the raid's damage taken):", *lines]
 
 
 async def _run(source, what: str, rep: Report, f: dict) -> Found:
