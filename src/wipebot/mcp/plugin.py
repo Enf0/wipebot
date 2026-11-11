@@ -33,7 +33,10 @@ def plugin_files(name: str, guild: str, mcp_url: str) -> dict[str, bytes]:
     # `extensions` sign-in settings drop it): they find the sign-in from the server's own OAuth metadata.
     files["mcp.json"] = _json({"$schema": f"{AGENT_PLUGINS}/mcp.schema.json",
                                "mcpServers": {_slug(name): {"type": "streamable-http", "url": mcp_url}}})
-    version = hashlib.sha256(b"".join(files[k] for k in sorted(files)) + manifest.encode()).hexdigest()[:8]
+    # OpenAI's manifest counts too, less Wipebot's release in it: ChatGPT and Codex offer an update only for a new
+    # version, and a new release of the same plugin is no change.
+    portable = re.sub(rb'"version": "[^"]*"', b"", _portable(name, guild, mcp_url, ""))
+    version = hashlib.sha256(b"".join(files[k] for k in sorted(files)) + manifest.encode() + portable).hexdigest()[:8]
     files[".claude-plugin/plugin.json"] = manifest.replace("{version}", version).encode()
     files["plugin.json"] = _portable(name, guild, mcp_url, version)
     return files
@@ -59,7 +62,7 @@ def _portable(name: str, guild: str, mcp_url: str, version: str) -> bytes:
                                f"player did and why their damage or healing is low. The {name} connector reads the "
                                "reports from Warcraft Logs and computes every number in code; the raid-log-analysis "
                                "skill says how to read them. Sign in with your Warcraft Logs account.",
-            "developerName": name, "category": CATEGORY, "capabilities": ["Read"], "websiteURL": site,
+            "developerName": name, "category": CATEGORY, "capabilities": ["Read", "Write"], "websiteURL": site,
             "privacyPolicyURL": f"{site}/privacy", "defaultPrompt": PROMPTS}}}})
 
 
