@@ -577,19 +577,19 @@ async def roster(weeks: Annotated[int | None, Field(description=(
 async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = None, *,
                        ctx: Context) -> str | CallToolResult:
     """For "why did we wipe?", "who wiped us?", "what do we fix?": start here.
-    One pull: its post, how it ended, phases, raid size, every death in order with spec, killing ability [id] and
-    players still alive, when half the raid was dead, and any buff the boss gained and kept to the end, such as
-    an enrage.
+    One pull: how far it got and how that ranks, how it ended, how far the last wipes got and the phases; then
+    raid size and every death until the wipe was decided, a row each with spec, killing ability [id] and players
+    still alive, the deaths after it (its fallout) in one line by killing blow, and any buff the boss gained and
+    kept to the end that didn't decide it.
     Reading it: "Ended by" is computed from the log alone (one ability killing many within 2 s or in pulses within
     6 s, a buff the boss gained and kept, half the raid dead, or deaths spread out, from the first that stayed dead),
     with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
     says. A pull that ended with the raid alive names the boss's cast that landed on the living as it ended, when
     the log has one; otherwise the log doesn't say why it ended.
-    Deaths after the wipe was decided are marked as fallout of it. Phases are numbered as raiders count them, in
-    every tool: stages P1, P2, P3 and intermissions I1, I2; "P1 (2nd time)" is a phase the fight went back to. The
-    post compares the wipe with this log's earlier pulls and with the guild's best in its earlier logs: only "new
-    guild best" is a best ever. "No killing blow recorded" means the log names no killing hit (death_recap shows
-    the damage before it and where the player was last)."""
+    Phases are numbered as raiders count them, in every tool: stages P1, P2, P3 and intermissions I1, I2; "P1 (2nd
+    time)" is a phase the fight went back to. The first line compares the wipe with this log's earlier pulls and
+    with the guild's best in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded"
+    means the log names no killing hit (death_recap shows the damage before it and where the player was last)."""
     text = await fight.pull_summary(await lib().report(report), pull, boss)
     return await _shown("pull_summary", {"pull": pull, "boss": boss, "report": report}, text, ctx)
 

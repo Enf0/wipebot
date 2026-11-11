@@ -348,30 +348,79 @@ def killers_text(deaths: list[Death]) -> str:
     return " · ".join([f"{name} ×{n}" for name, n in shown] + ([others] if rest else []))
 
 
-def format_summary(s: PullSummary) -> str:
-    head = f"**{s.boss}** ({s.difficulty}) · pull {s.pull_no}"
-    if s.kill:
-        return f"{head} · **KILL** · {clock(s.duration_ms)} · {plural(len(s.deaths), 'death')}"
+def _phased(s: PullSummary) -> bool:
+    """Whether raiders count the boss by phase: the phase and its health lead, Warcraft Logs' % beside them."""
+    return s.phase is not None and s.phase_health is not None
 
-    phased = s.phase is not None and s.phase_health is not None  # as raiders count it: the phase, its health
-    wcl = "WCL " if phased else ""  # the % that ranks wipes, then, is Warcraft Logs' own
+
+def _outcome(s: PullSummary, bold: Callable[[str], str]) -> list[str]:
+    """How far a pull that is no kill got, in parts: 'wipe at 62.6%' (or a reset, or in progress), then its phase
+    where the boss isn't counted by phase. `bold` marks what stands out, as a post in a channel shows it."""
+    phased = _phased(s)
     if s.live:
         pct = f", the boss at {s.boss_pct:.1f}% so far" if s.boss_pct is not None else ""
         if phased:
             pct = f", {s.phase} at {s.phase_health:.1f}% so far"
-        parts = [head, f"**in progress**{pct}"]
+        parts = [bold("in progress") + pct]
     else:
-        pct = f" at **{s.boss_pct:.1f}%**" if s.boss_pct is not None else " (boss health not logged)"
+        pct = f" at {bold(f'{s.boss_pct:.1f}%')}" if s.boss_pct is not None else " (boss health not logged)"
         if phased:
-            pct = f" in **{s.phase} at {s.phase_health:.1f}%**" + (
+            pct = f" in {bold(f'{s.phase} at {s.phase_health:.1f}%')}" + (
                 f" (WCL {s.boss_pct:.1f}%)" if s.boss_pct is not None else "")
-        parts = [head, f"{'reset' if s.reset else 'wipe'}{pct}"]
+        parts = [f"{'reset' if s.reset else 'wipe'}{pct}"]
     if s.phase and not phased:
         parts.append(s.phase)
-    parts.append(clock(s.duration_ms))
-    if s.boss_pct is not None and not s.reset and not s.live:
-        parts += best_marks(s.boss_pct, s.best_pct, s.guild_best, wcl)
-    lines = [" · ".join(parts)]
+    return parts
+
+
+def _ranks(s: PullSummary) -> list[str]:
+    """How a wipe ranks among the log's earlier pulls and the guild's earlier logs (`best_marks`); none for a kill,
+    a reset or a pull still going."""
+    if s.kill or s.boss_pct is None or s.reset or s.live:
+        return []
+    return best_marks(s.boss_pct, s.best_pct, s.guild_best, "WCL " if _phased(s) else "")
+
+
+def subject(s: PullSummary, url: str) -> str:
+    """A pull in one plain sentence, the first line of a tool's answer about it: the post's first line without what
+    a channel shows in bold, and the pull's own link before any other. Only a new guild best keeps the post's mark
+    (`best_marks`): Wipebot in Discord finds it by that."""
+    head = f"{s.boss} ({s.difficulty}) pull {s.pull_no}: "
+    if s.kill:
+        return f"{head}kill in {clock(s.duration_ms)}, {plural(len(s.deaths), 'death')} ({url})."
+    length = f"{clock(s.duration_ms)} {'logged so far' if s.live else 'long'}"
+    ranks = _ranks(s)
+    return f"{head}{', '.join([*_outcome(s, str), length])} ({url})" + ("; " + ", ".join(ranks) if ranks else "") + "."
+
+
+def killed_by(s: PullSummary) -> str | None:
+    """'Killed by: Virulence ×3 · Tempest ×1', the deaths until the wipe was decided by their killing blows, with how
+    many came after it; None without a death."""
+    if not s.deaths:
+        return None
+    counted = [d for d in s.deaths if not d.fallout]
+    if s.decided is None or len(counted) == len(s.deaths):
+        return "Killed by: " + killers_text(counted)
+    later = plural(len(s.deaths) - len(counted), "later death")
+    return (f"Killed by, until the wipe was decided at {clock(s.decided.at_ms)} ({s.decided.why}): "
+            + (killers_text(counted) or "none") + f" ({later}: fallout)")
+
+
+def trend_line(s: PullSummary) -> str | None:
+    """'Last 5: 68.1 → 79.5 → 62.6', how far the last wipes on the boss got with this one, oldest first (Warcraft
+    Logs' % on a boss counted by phase); None for a first wipe, a reset or a pull still going."""
+    if len(s.trend) < 2 or s.reset or s.live:
+        return None
+    return f"Last {len(s.trend)}{' (WCL %)' if _phased(s) else ''}: " + " → ".join(f"{p:.1f}" for p in s.trend)
+
+
+def format_summary(s: PullSummary) -> str:
+    """The post about a pull, as a channel shows it: progress with each_pull and compare_pulls print it."""
+    head = f"**{s.boss}** ({s.difficulty}) · pull {s.pull_no}"
+    if s.kill:
+        return f"{head} · **KILL** · {clock(s.duration_ms)} · {plural(len(s.deaths), 'death')}"
+
+    lines = [" · ".join([head, *_outcome(s, lambda text: f"**{text}**"), clock(s.duration_ms), *_ranks(s)])]
     if s.boss_buffs:
         def note(name: str, at: float) -> str:
             # with a decided moment that another thing decided, the buff is no enrage: gained after it (fallout),
@@ -385,13 +434,5 @@ def format_summary(s: PullSummary) -> str:
     if s.deaths:
         first = " · ".join(f"{d.player} ({d.ability}, {clock(d.at_ms)})" for d in s.deaths[:FIRST_DEATHS])
         lines.append(f"First deaths: {first}")
-        counted = [d for d in s.deaths if not d.fallout]
-        if s.decided is None or len(counted) == len(s.deaths):
-            lines.append("Killed by: " + killers_text(counted))
-        else:
-            later = plural(len(s.deaths) - len(counted), "later death")
-            lines.append(f"Killed by, until the wipe was decided at {clock(s.decided.at_ms)} ({s.decided.why}): "
-                         + (killers_text(counted) or "none") + f" ({later}: fallout)")
-    if len(s.trend) > 1 and not s.reset and not s.live:
-        lines.append(f"Last {len(s.trend)}{' (WCL %)' if phased else ''}: " + " → ".join(f"{p:.1f}" for p in s.trend))
+    lines += [line for line in (killed_by(s), trend_line(s)) if line]
     return "\n".join(lines)

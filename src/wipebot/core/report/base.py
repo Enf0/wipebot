@@ -23,6 +23,7 @@ from ..pulls import (
     NO_KILLING_BLOW,
     Decided,
     GuildBest,
+    PullSummary,
     carried_buffs,
     difficulty_name,
     end_buffs,
@@ -925,15 +926,20 @@ class Report(Fetched):
         return (f"only {share[0]} of its {plural(share[1], 'player')} are in {self.guild_name}: it may be a pug or "
                 f"another group logged to the guild's page rather than a guild raid night")
 
-    async def summary(self, fight: dict) -> str:
+    async def summarized(self, fight: dict) -> PullSummary:
+        """A pull's summary as facts: what its post (`summary`) and pull_summary's first lines are written from."""
         same = self.by_boss[self.boss_key(fight)]
         await self.all_deaths(same)
         await self.boss_buff_events(same)
         await self.resurrects(same)
         decided = await self.decided_at(fight)
-        return format_summary(summarize(fight, same, await self.deaths(fight), self.names, self.abilities,
-                                     await self.boss_buffs(fight), await self.routine_buffs(fight),
-                                     await self.guild_best(fight), decided))
+        return summarize(fight, same, await self.deaths(fight), self.names, self.abilities,
+                         await self.boss_buffs(fight), await self.routine_buffs(fight),
+                         await self.guild_best(fight), decided)
+
+    async def summary(self, fight: dict) -> str:
+        """The post about a pull (pulls.format_summary)."""
+        return format_summary(await self.summarized(fight))
 
     async def guild_best(self, fight: dict) -> GuildBest | None:
         """The guild's furthest wipe on the fight's boss and difficulty in its logs of the weeks before this one

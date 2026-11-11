@@ -8,7 +8,7 @@ import pytest
 
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import server
-from wipebot.core.pulls import Decided, mass_hits
+from wipebot.core.pulls import Decided, GuildBest, mass_hits
 from wipebot.core.report import fight
 from wipebot.core.report.ending import (
     Ending,
@@ -21,6 +21,7 @@ from wipebot.core.report.ending import (
     pull_ending,
     pull_endings,
 )
+from wipebot.core.text import clock
 
 T0 = 1_000_000  # a pull late in the log: times in the text are from its start
 PULL = {"id": 1, "kill": False, "fightPercentage": 40.0, "startTime": T0, "endTime": T0 + 120_000}
@@ -122,15 +123,82 @@ async def test_the_deaths_behind_an_enrage_the_raid_has_met_are_no_mechanic_to_f
         "fallout if that buff is an enrage, what ended the pull if it is part of the stage).")
 
 
-async def test_death_rows_name_only_the_buff_that_decided_the_wipe(rep):
+async def test_the_fallout_names_only_what_decided_the_wipe(rep):
     # Pull 13: the boss's enrage at 2:32 decided the wipe, and the deaths after it say so. Pull 5: the same buff came
-    # at 1:17, after half the raid was dead at 1:14: it has its own line, and no death is told by it.
+    # at 1:17, after half the raid was dead at 1:14: it has its own line, once, and no death is told by it.
     text = await fight.pull_summary(rep, 13)
-    assert "alive, after the boss gained Unbound Ferocity)" in text
+    assert "Fallout, 15 deaths after the wipe was decided at 2:32 (the boss gained Unbound Ferocity), by" in text
     late = await fight.pull_summary(rep, 5)
-    assert "The boss gained Unbound Ferocity at 1:17 and kept it to the end" in late
-    assert "alive, after the boss gained" not in late and "alive, after half the raid was dead)" in late
-    assert "Boss buffs at the end: **Unbound Ferocity** (from 1:17, after the wipe was decided)" in late
+    assert "Fallout, 9 deaths after the wipe was decided at 1:14 (half the raid was dead), by" in late
+    assert late.count("the boss gained Unbound Ferocity at 1:17") == 1 and "Not an enrage buff: the boss gained" in late
+    assert "The boss gained Unbound Ferocity" not in late  # nor a second line about a buff that decided nothing
+
+
+async def test_pull_summary_leads_with_the_pull_and_how_it_ended(rep):
+    # What the model reads first is the answer: the pull in a plain sentence with its own link, then "Ended by". The
+    # post's lines that the rows below restate (first deaths, the buffs at the end) and its bold are the post's alone.
+    lines = (await fight.pull_summary(rep, 13)).splitlines()
+    assert lines[0] == ("Sszorak (Mythic) pull 13: wipe at 62.6%, P1 (2nd time), 2:42 long "
+                        "(https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21); best of this log so far.")
+    assert lines[1].startswith("Ended by (from the log, earliest first): the boss gained Unbound Ferocity at 2:32")
+    assert not [line for line in lines if line.startswith(("First deaths", "Boss buffs at the end")) or "**" in line]
+    assert lines.count("Last 5: 68.1 → 79.5 → 70.8 → 70.4 → 62.6") == 1
+    # every buff the boss kept is said once: the one that decided the wipe by "Ended by", with no line repeating it
+    assert sum("gained Unbound Ferocity at 2:32" in line for line in lines) == 1
+    kill = (await fight.pull_summary(rep, 2, "vashnik")).splitlines()
+    assert kill[0] == ("Vashnik the Malignant (Mythic) pull 2: kill in 6:56, 4 deaths "
+                       "(https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=2).")
+    assert "Raid size 20. Deaths in order (time from pull start" in kill[3] and kill[4].startswith("1. 1:38 ")
+
+
+async def test_the_deaths_after_the_wipe_was_decided_are_one_line_with_every_death_in_it(rep):
+    # Pull 13: four deaths until the enrage, a row each; the fifteen after it by killing blow, each with its second
+    # and its player, in the order the first of each came, and the players left after the last.
+    f = rep.fight(13)
+    deaths = await rep.deaths(f)
+    lines = (await fight.pull_summary(rep, 13)).splitlines()
+    rows = [line for line in lines if line[:1].isdigit() and ". " in line[:4]]
+    assert len(rows) == 4 and rows[-1].endswith("(16 alive)")
+    assert "(15 later deaths: fallout)" in lines[lines.index("") + 1]
+    assert lines[lines.index("") + 2].startswith("Raid size 20. Deaths until then, in order (")
+    (fallout,) = [line for line in lines if line.startswith("Fallout")]
+    assert fallout == (
+        "Fallout, 15 deaths after the wipe was decided at 2:32 (the boss gained Unbound Ferocity), by killing blow "
+        "(when, who): Mutilated Gash [1285998] ×9 (2:33 Sinnatony; 2:34 Lïzårðmâñ, Peggerino, Pomaa, Krøpling, Sveini, "
+        "Fappachino; 2:35 Enfo, Sonyosh) · Ula'tek's Presence [1285965] ×1 (2:34 Cptola) · Melee [1] ×1 (2:36 "
+        "Deathadim) · Venomous Surge [1306120] ×4 (2:42 Martin, Nexsozz, Dragepie, Wutroll); 1 of 20 alive after the "
+        "last.")
+    for d in deaths[4:]:  # each of them by name and second
+        assert f"{rep.names[d['targetID']]}" in fallout and clock(d["timestamp"] - f["startTime"]) in fallout
+    # a first pull that the enrage decided with everyone alive: no row, and all of them in the line
+    first = (await fight.pull_summary(rep, 1)).splitlines()
+    at = first.index("Raid size 20. Deaths until then, in order (time from pull start, players alive after it, a "
+                     "battle res or self-res counted):")
+    assert first[at + 1] == "none" and first[at + 2].startswith("Fallout, 19 deaths after the wipe was decided at 0:39")
+
+
+async def test_the_post_keeps_its_text_and_the_bot_finds_its_marks_in_pull_summary(rep, monkeypatch):
+    # The post (progress with each_pull, compare_pulls) is written from the same facts and reads as it did. Wipebot
+    # in Discord looks in pull_summary's answer for the post's mark of a new guild best and takes the first pull
+    # link in it for the picture: the mark is kept as the post writes it, and the pull's own link comes first.
+    f = rep.fight(13)
+    assert (await rep.summary(f)).splitlines() == [
+        "**Sszorak** (Mythic) · pull 13 · wipe at **62.6%** · P1 (2nd time) · 2:42 · best of this log so far",
+        "Boss buffs at the end: **Unbound Ferocity** (from 2:32)",
+        "First deaths: Scopidruid (Ula'tek's Presence, 0:48) · Draiman (no killing blow recorded, 0:53) · Attractîv "
+        "(Venomous Surge, 1:28)",
+        "Killed by, until the wipe was decided at 2:32 (the boss gained Unbound Ferocity): Ula'tek's Presence ×1 · no "
+        "killing blow recorded ×1 · Venomous Surge ×1 · Raging Crosswinds ×1 (15 later deaths: fallout)",
+        "Last 5: 68.1 → 79.5 → 70.8 → 70.4 → 62.6"]
+    before = GuildBest(70.0, "abcDEF123", 7, 4, 1_700_000_000_000.0)
+
+    async def guild_best(fight: dict) -> GuildBest:
+        return before
+    monkeypatch.setattr(rep, "guild_best", guild_best)
+    first = (await fight.pull_summary(rep, 13)).splitlines()[0]
+    assert "**new guild best!** (before this log: 70.0% on " in first and first.count("**") == 2
+    assert first.index(rep.url(f)) < first.index("https://www.warcraftlogs.com/reports/abcDEF123#fight=7")
+    assert "**new guild best!**" in await rep.summary(f)
 
 
 def test_a_hit_killing_many_counts_whole_whatever_else_kills_meanwhile(rep, deaths):
@@ -340,7 +408,7 @@ async def test_a_fight_on_no_raid_difficulty_says_so_and_is_no_difficulty_10(rep
     assert fight.NOT_A_RAID not in await fight.pull_summary(rep, 12, "Sszorak")
     monkeypatch.setitem(rep.fight(13, "Sszorak"), "difficulty", 10)
     lines = (await fight.pull_summary(rep, 13, "Sszorak")).splitlines()
-    assert lines[0].startswith("**Sszorak** (difficulty 10, not a raid's) · pull ")
+    assert lines[0].startswith("Sszorak (difficulty 10, not a raid's) pull ")
     assert fight.NOT_A_RAID in lines and "a key's level, its timer or its trash" in fight.NOT_A_RAID
 
 

@@ -82,13 +82,19 @@ async def test_the_pull_view_states_what_pull_summary_states(recorded):
     data = await pull_data()
     text, failed = await server.call("pull_summary", PULL_CASE.args)
     assert not failed
-    deaths = re.findall(r"^\d+\. (\d+:\d\d) (\S+)", text, re.MULTILINE)
-    assert [(clock(d["ms"]), d["name"]) for d in data["deaths"]] == deaths
+    # the deaths until the wipe was decided are the text's rows, the fallout its one line, in the card's order
+    rows = re.findall(r"^\d+\. (\d+:\d\d) (\S+)", text, re.MULTILINE)
+    assert [(clock(d["ms"]), d["name"]) for d in data["deaths"] if not d["fallout"]] == rows
+    (fallout,) = re.findall(r"^Fallout, (\d+) deaths after the wipe was decided at (\S+) \((.+?)\), by .+?: (.+);",
+                            text, re.MULTILINE)
+    after = [d for d in data["deaths"] if d["fallout"]]
     decided = data["decided"]
-    assert decided and f"gained {decided['why'].removeprefix('the boss gained ')} at {clock(decided['ms'])}" in text
+    assert decided and fallout[:3] == (str(len(after)), clock(decided["ms"]), decided["why"])
+    assert all(d["name"] in fallout[3] and f"{clock(d['ms'])} " in fallout[3] for d in after)
+    assert f"gained {decided['why'].removeprefix('the boss gained ')} at {clock(decided['ms'])}" in text
     assert [d["fallout"] for d in data["deaths"]] == [d["ms"] > decided["ms"] for d in data["deaths"]]
     assert f"{data['boss_pct']}% health" in text
-    assert f"**{data['boss']}** ({data['difficulty']}) · pull {data['pull']}" in text
+    assert text.startswith(f"{data['boss']} ({data['difficulty']}) pull {data['pull']}: ")
     # the card's headline is the text's "Ended by", without its ids and what to look up
     headline = data["headline"]["text"]
     assert headline == "The boss gained Unbound Ferocity at 2:32 and kept it to the end, with 16 of 20 alive."
@@ -765,7 +771,7 @@ async def test_pull_summary_gives_its_views_key_only_to_a_client_that_shows_apps
     no_apps = await server.mcp.call_tool("pull_summary", PULL_CASE.args)
     assert isinstance(no_apps, CallToolResult) and no_apps.structured_content is None
     first = no_apps.content[0]
-    assert isinstance(first, TextContent) and first.text.startswith("**Sszorak**")
+    assert isinstance(first, TextContent) and first.text.startswith("Sszorak (Mythic) pull 13: ")
     monkeypatch.setattr(server, "_supports_apps", lambda ctx: True)  # claude.ai, ChatGPT
     result = await server.mcp.call_tool("pull_summary", PULL_CASE.args)
     assert isinstance(result, CallToolResult)

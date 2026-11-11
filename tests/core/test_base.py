@@ -174,11 +174,11 @@ async def test_a_hit_killing_many_under_way_when_half_the_raid_died_counts_whole
     assert at == deaths[11]["timestamp"] - f["startTime"]
     text = await fight.pull_summary(rep, 28)
     assert "Viscous Cyst [1287205] killed 7 within 1 s at 1:38" in text and "(8 alive)" in text
-    assert "Half the raid was dead at 1:38, in one moment's deaths that ran to 1:39; later deaths" in text
-    assert text.count("after half the raid was dead") == 5
+    assert ("Fallout, 5 deaths after the wipe was decided at 1:39 (half the raid was dead at 1:38, in one moment's "
+            "deaths that ran to 1:39), by killing blow") in text
     # Pull 19: half the raid dead at 1:43, in the middle of the ten one Viscous Cyst kills within 2 s.
     text = await fight.pull_summary(rep, 19)
-    assert "Half the raid was dead at 1:43, in one moment's deaths that ran to 1:45;" in text
+    assert "(half the raid was dead at 1:43, in one moment's deaths that ran to 1:45)" in text
 
 
 async def test_a_buff_the_boss_carried_through_an_earlier_wipe_is_the_fights_not_an_enrage(rep, monkeypatch):
@@ -391,7 +391,7 @@ async def test_a_player_casting_after_their_death_came_back_by_themselves(rep, p
     assert counts[:2] == [raid - 1, raid - 1]  # one died, the shaman came back
     # two readings of the pull agree on who was alive at its end: the one battle res taken, the other not
     assert counts[-1] == alive_at(deaths, backs[f["id"]], raid, f["endTime"])
-    assert f"({counts[-1]} alive" in (await fight.pull_summary(rep, rep.pull_no(f), "Vashnik")).splitlines()[-3]
+    assert f"({counts[-1]} alive)" in (await fight.pull_summary(rep, rep.pull_no(f), "Vashnik")).splitlines()[-2]
     assert await rep.resurrects(pulls) == backs and len(asked) == 2  # remembered
 
 

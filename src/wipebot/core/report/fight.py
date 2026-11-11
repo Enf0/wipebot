@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from .. import knowledge
 from ..cache import FOREVER
 from ..knowledge import KnowledgeError
-from ..pulls import DIFFICULTIES, is_reset, phase_health, phase_label
+from ..pulls import DIFFICULTIES, killed_by, phase_health, phase_label, subject, trend_line
 from ..text import clock, exact, ids_line, ordinal, parse_clock, plural, ranges, short
 from ..wcl import WCL, WCLError
 from . import rows
@@ -24,7 +24,7 @@ from .base import (
     half_dead,
     unavailable,
 )
-from .ending import ALIVE, Ending, ending_text, kind_of_end, pull_ending, pull_endings, ruled_out
+from .ending import ALIVE, Ending, KeptBuff, ending_text, kind_of_end, pull_ending, pull_endings, ruled_out
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -58,13 +58,16 @@ NOT_A_RAID = ("Not a raid pull: Warcraft Logs gives this fight no raid difficult
 
 
 async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
+    """One pull, the answer first: what it was, how it ended, how that compares with earlier pulls; then the deaths
+    until the wipe was decided, a row each, and the fallout after it in one line."""
     f = rep.fight(pull, boss)
     deaths = await rep.deaths(f)
     raid = await rep.raid_size(f)
     buffs = await rep.end_buffs(f)
     decided = await rep.decided_at(f)
     backs = (await rep.resurrects([f]))[f["id"]]
-    lines = [await rep.summary(f), f"Warcraft Logs: {rep.url(f)}"]
+    s = await rep.summarized(f)
+    lines = [subject(s, rep.url(f))]
     if f.get("difficulty") not in DIFFICULTIES:
         lines.append(NOT_A_RAID)
     ended = await pull_ending(rep, f)
@@ -74,24 +77,32 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
         lines.append(not_it)
     if again := await _same_ending(rep, f, ended):
         lines.append(again)
+    if trend := trend_line(s):
+        lines.append(trend)
     if phases := rep.phases(f):
         lines.append(f"Phases: {phases}")
-    lines += ["", f"Raid size {raid}. Deaths in order (time from pull start, players alive after it, a battle res "
-                  "or self-res counted):"]
-    half = decided.at_ms if decided and not decided.enrage else None
-    for i, (d, alive) in enumerate(zip(deaths, alive_after(deaths, backs, raid), strict=True)):
+    alive = alive_after(deaths, backs, raid)
+    later = [d for d in deaths if decided and d["timestamp"] - f["startTime"] > decided.at_ms]  # fallout
+    lines += ["", *([killed] if (killed := killed_by(s)) else []),
+              f"Raid size {raid}. Deaths {'until then, ' if later else ''}in order (time from pull start, players "
+              "alive after it, a battle res or self-res counted):"]
+    for i, (d, left) in enumerate(zip(deaths[:len(deaths) - len(later)], alive, strict=False)):
         p = rep.players.get(rep.names[d["targetID"]].lower())
-        at = d["timestamp"] - f["startTime"]
-        notes = [f"{alive} alive"]
-        if decided and decided.enrage and at > decided.at_ms:  # only the buff that decided the wipe: another
-            notes.append(f"after the boss gained {decided.enrage}")  # the boss kept has its own line below
-        if half is not None and at > half:
-            notes.append("after half the raid was dead")
         who = p.label if p else rep.names[d["targetID"]]
-        lines.append(f"{i + 1}. {clock(at)} {who} - {rep.ability_ref(d.get('killingAbilityGameID'))}"
-                     f" ({', '.join(notes)})")
-    if not deaths:
+        lines.append(f"{i + 1}. {clock(d['timestamp'] - f['startTime'])} {who} - "
+                     f"{rep.ability_ref(d.get('killingAbilityGameID'))} ({left} alive)")
+    if len(later) == len(deaths):
         lines.append("none")
+    half = decided.at_ms if decided and not decided.enrage else None
+    ran = ""
+    if half is not None:  # the moment half the raid was dead, when its deaths ran on past it
+        at = clock(half_dead(deaths, backs, raid) - f["startTime"])
+        ran = "" if at == clock(half) else f" at {at}, in one moment's deaths that ran to {clock(half)}"
+    if later and decided:
+        lines.append(_fallout(rep, f, later, f"{clock(decided.at_ms)} ({decided.why}{ran})", alive[-1], raid))
+    elif ran:
+        lines.append(f"Half the raid was dead{ran}.")
+    told = {m.name for m in ended.moments if isinstance(m, KeptBuff)} if ended else set()  # "Ended by" has these
     boss_deaths = [(e["timestamp"] - f["startTime"], rep.actors.get(e["targetID"], {}).get("name") or "a boss")
                    for e in await rep.events(f["id"], "Deaths", hostilityType="Enemies")
                    if e.get("targetID") in rep.bosses] if buffs else []
@@ -103,19 +114,26 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
             lines.append(f"The boss gained {name} at {clock(gained)}, when {partner} died, and kept it to the end; "
                          f"{plural(before, 'player')} had died before that. A buff gained as another boss dies "
                          "comes with killing that boss, not from a timer: look it up before calling it an enrage.")
-        else:
+        elif name not in told and not (not_it and decided and gained > decided.at_ms):  # nor in what it wasn't
             lines.append(f"The boss gained {name} at {clock(gained)} and kept it to the end; "
                          f"{plural(before, 'player')} had died before that. Look the buff up: an enrage makes every "
                          "later death its fallout.")
-    if half is not None:
-        at = clock(half_dead(deaths, backs, raid) - f["startTime"])
-        ran = "" if at == clock(half) else f", in one moment's deaths that ran to {clock(half)}"
-        lines.append(f"Half the raid was dead at {at}{ran}; later deaths are fallout of the wipe.")
-    if is_reset(f):
-        lines.append("The boss was untouched: this was a reset, not an attempt.")
-    ended = "Logged so far" if f.get("inProgress") else "Pull ended"
-    lines.append(f"{ended} at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}.")
+    ended_at = "Logged so far" if f.get("inProgress") else "Pull ended"
+    lines.append(f"{ended_at} at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}.")
     return "\n".join(lines)
+
+
+def _fallout(rep: Report, f: dict, deaths: list[dict], decided: str, alive: int, raid: int) -> str:
+    """The deaths after a wipe was decided, in one line: what decided it said once, then each killing blow with when
+    it killed whom, in the order the first of each came."""
+    by_blow: dict[int | None, dict[str, list[str]]] = {}
+    for d in deaths:
+        at = clock(d["timestamp"] - f["startTime"])
+        by_blow.setdefault(d.get("killingAbilityGameID"), {}).setdefault(at, []).append(rep.names[d["targetID"]])
+    blows = [f"{rep.ability_ref(blow)} ×{sum(map(len, at.values()))} ("
+             + "; ".join(f"{when} {', '.join(who)}" for when, who in at.items()) + ")" for blow, at in by_blow.items()]
+    return (f"Fallout, {plural(len(deaths), 'death')} after the wipe was decided at {decided}, by killing blow (when, "
+            f"who): {' · '.join(blows)}; {alive} of {raid} alive after the last.")
 
 
 REPEAT_ENDINGS = 3  # an ending that ended this many earlier pulls is the one to say this pull got past
