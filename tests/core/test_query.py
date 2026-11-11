@@ -379,3 +379,16 @@ async def test_an_answer_about_no_report_is_shown_as_warcraft_logs_gave_it():
                                                                          "report": {"code": "Abc", "fightID": 3}}]}}}}
     text = await query_text(cast(WCL, Points(100, answer)), "{ worldData { encounter(id: 1) { fightRankings } } }")
     assert text.splitlines()[1:] == [query_module._json(answer)]
+
+
+async def test_a_fights_phases_asked_for_alone_are_named_too(rep):
+    """`fights(fightIDs: [21]) { phaseTransitions { id startTime } }`, the shortest way to ask when a phase began:
+    with neither the fight's id nor its start in the answer the phases kept Warcraft Logs' ids, unnamed."""
+    f = rep.fight(13, "Sszorak")
+    answer = {"reportData": {"report": {"fights": [{"phaseTransitions": f["phaseTransitions"]}, {"name": "Sszorak"}]}}}
+    q = ("{ reportData { report(code: $code) { fights(fightIDs: $fights) { name phaseTransitions { id startTime } } } "
+         "} }")
+    text = await query_text(cast(WCL, Points(100, answer)), q, rep, boss="Sszorak")
+    assert ('"phaseTransitions":[{"id":1,"startTime":"0:00.000","phase":"P1 Sszorak"},{"id":2,"startTime":"1:39.990",'
+            '"phase":"P2 Howling Maelstrom"},{"id":1,"startTime":"2:05.000","phase":"P1 Sszorak"}]') in text
+    assert '{"name":"Sszorak"}' in text  # a fight the answer says nothing to place by stays as it came

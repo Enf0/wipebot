@@ -367,6 +367,16 @@ def _phases(rep: Report, f: dict, transitions: object) -> object:
     return shown
 
 
+def _fight_of(rep: Report, fight: dict) -> dict | None:
+    """The pull an item of a `fights` field is: by its id, else by its start, else by its first phase's start
+    (`fights(fightIDs: [21]) { phaseTransitions { id startTime } }` has neither); None when nothing places it."""
+    if isinstance(fight.get("id"), int):
+        return rows.pull_at(rep, 0, fight["id"])
+    phases = fight.get("phaseTransitions")
+    starts = [fight.get("startTime"), *(t.get("startTime") for t in phases or [] if isinstance(t, dict))]
+    return next((f for at in starts if isinstance(at, (int, float)) and (f := rows.pull_at(rep, at))), None)
+
+
 @dataclass
 class _Events:
     """One list of events in an answer: the keys down to it, the report it is of, and the events."""
@@ -427,10 +437,11 @@ class _Shown:
         if not isinstance(node, dict):
             return node
         if path in self.asked.fight_lists:  # a fight of a `fights` field: its own start and end, in the report's ms
+            f = _fight_of(rep, node)
             if isinstance(node.get("id"), int):
                 fights.add(node["id"])
-            f = (rows.pull_at(rep, 0, node["id"]) if isinstance(node.get("id"), int)
-                 else rows.pull_at(rep, node["startTime"]) if _is_ms(node.get("startTime")) else None)
+            elif f:
+                fights.add(f["id"])
             return {k: v if k in TIME_KEYS else _phases(rep, f, v) if k == "phaseTransitions" and f
                     else self.of(v, (*path, k), code, of_pull) for k, v in node.items()}
         shown = {}
