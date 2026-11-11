@@ -347,7 +347,7 @@ async def test_a_night_counts_the_casts_let_through_while_kicking_another_beside
     assert lines[1] == ("  Mirelle (Kick #2 left): kicked 0 of 3; not kicked 3, kicked another cast on 2: p1 1:42 "
                         "(kicked the 1:44 cast), p2 1:42, p3 1:42 (kicked the 1:44 cast)")
     assert "  Halvard (Kick #3 left): kicked 1 of 3; covered 2 (Mirelle 2)" in lines
-    assert "  Their casts that went through, per assignment: \"Kick #2 left\" 3" in lines
+    assert lines[-1].endswith("(missed: its player was alive at the callout): \"Kick #2 left\" 3 missed")
 
 
 async def test_the_recorded_kicks_one_cast_late_are_said_and_still_count_as_their_cast_going_through(monkeypatch):

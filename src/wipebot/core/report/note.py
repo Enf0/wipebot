@@ -2211,10 +2211,8 @@ def _night_kicks(rep: Report, checks: list[PullCheck], asked: Asked | None = Non
                        f"on {len(mine)}" + (": " + ", ".join(f"p{rep.pull_no(f)} {clock(k.cast[0])}" for f, k in mine)
                                             if mine else ""))
         return out
-    through = Counter(k.callout.text for _, k in rows if k.cast[1] == "went through")
-    if through:
-        out.append("  Their casts that went through, per assignment: " + ", ".join(
-            f"\"{t}\" {n}" for t, n in _by_count(through)))
+    if through := _went_through(k for _, k in rows):
+        out.append(through)
     if lost:
         out.append(f"  Pulls whose wipe was decided within {LOST_AFTER_MS // 1000} s after casts on assignments went "
                    f"through, {len(lost)} of {len(checks)} (when it was decided, then the casts, first one first): "
@@ -2222,6 +2220,29 @@ def _night_kicks(rep: Report, checks: list[PullCheck], asked: Asked | None = Non
                                for c, before in lost))
         out.append(_first_through(rep, lost))
     return out
+
+
+MISSED, WHILE_DEAD, WHILE_AWAY = "missed", "while dead", "while not in the pull"
+
+
+def _went_through(kicks: Iterable[KickCheck]) -> str:
+    """'"Kick #2 left" 4 missed; "Kick #1 right" 1 missed, 3 while dead': per assignment, its casts that went
+    through over a night, those its player missed alive apart from those that went through while they were dead (or
+    not in the pull) at the callout, which they could not have kicked. Most missed first: one number for both put
+    an assignment with one cast missed and three while its player lay dead level with four missed alive. '' when
+    none went through."""
+    by: dict[str, Counter] = defaultdict(Counter)
+    for k in kicks:
+        if k.cast[1] == "went through":
+            by[k.callout.text][MISSED if k.state == "alive" else WHILE_DEAD if k.state.startswith("dead")
+                               else WHILE_AWAY] += 1
+    if not by:
+        return ""
+    return ("  Their casts that went through, per assignment, most missed first (missed: its player was alive at the "
+            "callout): " + "; ".join(
+                f"\"{text}\" " + ", ".join(f"{by[text][how]} {how}" for how in (MISSED, WHILE_DEAD, WHILE_AWAY)
+                                           if by[text][how])
+                for text in sorted(by, key=lambda text: (-by[text][MISSED], text))))
 
 
 def _first_through(rep: Report, lost: list[tuple[PullCheck, list[KickCheck]]]) -> str:
