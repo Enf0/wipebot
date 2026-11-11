@@ -46,7 +46,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import CallToolResult, ImageContent, TextContent, ToolAnnotations
 from pydantic import Field, ValidationError
 
-from . import clock, knowledge, notebook, raidstrats, viserio, wcl
+from . import clock, knowledge, notebook, raidstrats, viserio, wcl, words
 from .cache import cut_off, waiting_for
 from .knowledge import KnowledgeError
 from .library import (  # noqa: F401 (imported from here too)
@@ -508,6 +508,8 @@ Pull = Annotated[int | str | None, Field(description="pull number on the boss, o
                                                     "or last; omit for the latest")]
 Boss = Annotated[str | None, Field(description="boss name, or part of it; omit for the boss of the latest pull")]
 Player = Annotated[str, Field(description="character name as in the log (accents optional)")]
+Language = Annotated[str | None, Field(description="the language the answer is written in when it isn't English, "
+                                                   "e.g. no: the view's labels are in it")]
 WholePull = Annotated[bool, Field(description="include what happened after the wipe was decided (the boss's "
                                               "enrage or half the raid dead)")]
 
@@ -840,7 +842,7 @@ async def _ranking_key(rep: Report, tool: str, args: dict) -> dict | None:
     if not (found := await views.meters_of(rep, tool, asked, await _other(asked))):
         return None
     key = {"view": "meter", "report": rep.code, "boss": rep.boss(args.get("boss")), "tool": tool, "args": asked,
-           "label": f"{found[0].title}, {found[0].scope}"}
+           "label": f"{views.meter_title(found[0].title)}, {views.meter_scope(found[0].scope)}"}
     pulls = ((args.get("pulls") or []) if tool == "breakdown" else [] if args.get("all_pulls")
              else [args.get("pull")])
     if len(pulls) == 1:  # one pull: its link on Warcraft Logs
@@ -857,6 +859,18 @@ async def view_key(tool: str, args: dict) -> dict | None:
     view = VIEW_TOOLS.get(tool)
     if found := mcp._tool_manager.get_tool(tool):
         args = _numbers_as_text(found.parameters, args)
+    said = words.language(args.get("language"))  # the answer's language, when the views have it: the key's `lang`
+    args = {k: v for k, v in args.items() if k != "language"}
+    token = words.lang.set(said)
+    try:
+        key = await _view_key(tool, view, args)
+    finally:
+        words.lang.reset(token)
+    return key | {"lang": said} if key and said != "en" else key
+
+
+async def _view_key(tool: str, view: str | None, args: dict) -> dict | None:
+    """view_key's key, worded (a folded ranking's label) in the language set."""
     if tool == "compare_with_top" and args.get("player") and args.get("against"):  # two raid mates side by side
         return await _versus_key(args)
     if view is None or (tool == "compare_with_top" and not (args.get("player")
@@ -945,8 +959,10 @@ async def view_data(view: Annotated[str, Field(description="which view: pull, pl
                     weeks: Annotated[int | None, Field(description="the night view with the boss's best pull on "
                                                                    "each raid night over this many weeks back",
                                                        ge=1, le=12)] = None,
+                    lang: Annotated[str | None, Field(description="the language of the view's words")] = None,
                     ) -> CallToolResult:
     """What a view draws, for the pull (and player) its tool was asked about."""
+    words.lang.set(words.language(lang))
     if view in ("meter", "trend"):
         args = _as_called(tool, args)
     rep = await lib().report(report)
@@ -1897,7 +1913,7 @@ async def breakdown(
     target: Annotated[str | None, Field(description=(
         "DamageDone on one enemy only, by its name (an add, a boss of a council), for \"who did the most damage "
         "to it?\", with start and end for a window"))] = None,
-    report: Report_ = None,
+    report: Report_ = None, language: Language = None,
     *, ctx: Context,
 ) -> str | CallToolResult:
     """For "who did the most or the least damage?", "what hurt us most?", "who kicked or dispelled?", "who played
@@ -1922,7 +1938,8 @@ async def breakdown(
                                   whole_pull, start, end, least, target)
     return await _shown("breakdown", _given(data_type=data_type, group_by=group_by, pulls=pulls, boss=boss,
                                             player=player, ability=ability, cutoff=cutoff, whole_pull=whole_pull,
-                                            start=start, end=end, least=least, target=target, report=report),
+                                            start=start, end=end, least=least, target=target, report=report,
+                                            language=language),
                         text, ctx)
 
 

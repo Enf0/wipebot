@@ -20,7 +20,7 @@ views.meter = (() => {
     ROWS = key.rows || 0;  // fewer where a picture shares the answer with another meter (the Discord bot's)
     ASKER = key.mark || "";
     MARK = ASKER.toLowerCase();
-    D = await app.callTool("view_data", { view: "meter", report: key.report, tool: key.tool, args: key.args });
+    D = await app.callTool("view_data", { view: "meter", report: key.report, tool: key.tool, args: key.args, lang: kit.lang() });
     render();
   }
 
@@ -50,11 +50,11 @@ views.meter = (() => {
     if (m.then) return thenStats(m);
     const mine = m.bars.findIndex(marked), b = m.bars[mine], s = m.stated, d = m.deaths;
     return [
-      s ? [m.least ? "Raid total" : "Total", s.total, "", s.per_s ? `${s.per_s} over ${s.over}` : ""] : null,
-      d && (d.killed_by || d.after) ? ["Killing blows", String(d.killed_by), d.killed_by ? "dead" : "", "deaths it dealt"] : null,
-      d && d.after ? [`Deaths within ${m.within_s} s`, String(d.after), "", "of a hit, of any cause"] : null,
-      ["Median", `${amount(m, m.median, m.median_text)}${each(m)}`, "", `of ${m.bars.length} players`],
-      b ? [b.name, `${amount(m, b.value, b.text)}${each(m)}`, "", `${kit.ordinal(mine + 1)} of ${m.bars.length}`] : null,
+      s ? [kit.t(m.least ? "Raid total" : "Total"), s.total, "", s.per_s ? kit.t("{rate} over {time}", { rate: s.per_s, time: s.over }) : ""] : null,
+      d && (d.killed_by || d.after) ? [kit.t("Killing blows"), String(d.killed_by), d.killed_by ? "dead" : "", kit.t("deaths it dealt")] : null,
+      d && d.after ? [kit.t("Deaths within {s} s", { s: m.within_s }), String(d.after), "", kit.t("of a hit, of any cause")] : null,
+      [kit.t("Median"), `${amount(m, m.median, m.median_text)}${each(m)}`, "", kit.t("of {n} players", { n: m.bars.length })],
+      b ? [b.name, `${amount(m, b.value, b.text)}${each(m)}`, "", kit.t("{rank} of {n}", { rank: kit.lang() === "en" ? kit.ordinal(mine + 1) : `${mine + 1}.`, n: m.bars.length })] : null,
     ];
   }
 
@@ -64,7 +64,7 @@ views.meter = (() => {
     const per = m.unit === "amount" && m.seconds ? ` (${kit.short(b.value / m.seconds)}/s)` : each(m);
     const mine = amount(m, b.value, b.text);
     const was = then && b.was != null ? `${amount(m, b.was, b.was_text)} on ${then.was_day} (${kit.ordinal(b.was_rank)})` : then ? `not there on ${then.was_day}` : "";
-    const tip = [`${b.name}${b.spec ? ` (${b.spec})` : ""}: ${mine}${m.unit === "amount" ? per : ` ${m.unit}`}`, was, b.note, b.share ? `${b.share} of the total` : "",
+    const tip = [`${b.name}${b.spec ? ` (${b.spec})` : ""}: ${mine}${m.unit === "amount" ? per : ` ${m.unit}`}`, was, b.note, b.share ? kit.t("{share} of the total", { share: b.share }) : "",
                  b.died_after || b.killed_by ? `${kit.plural(b.died_after, "death")} within ${m.within_s} s of a hit (any cause), ${b.killed_by} with it as the killing blow` : ""].filter(Boolean).join("\n");
     const tick = then && b.was != null ? `<span class="was" style="left:${along(Math.min(1, b.was / max))}"></span>` : "";
     // the last column: the change against the other night, else the share of the total its tool states (none: empty)
@@ -89,12 +89,12 @@ views.meter = (() => {
       + (below ? `<li class="gap" aria-hidden="true">⋮</li>${bar(m, m.bars[ranks[mine]], ranks[mine], top)}` : "");
     const rest = ranks.slice(SHOWN, LISTED).filter((i) => !marked(m.bars[i])).map((i) =>
       `<span style="white-space:nowrap">${i + 1} ${kit.esc(m.bars[i].name)} ${amount(m, m.bars[i].value, m.bars[i].text)}</span>`);
-    if (m.bars.length > LISTED) rest.push(`${m.bars.length - LISTED} more${LISTED === SHOWN ? " players" : ""}`);
+    if (m.bars.length > LISTED) rest.push(kit.t(LISTED === SHOWN ? "{n} more players" : "{n} more", { n: m.bars.length - LISTED }));
     const more = rest.length ? `<div class="note">${rest.join(" · ")}</div>` : "";
     const keys = m.then ? `<div class="legend"><span><i class="tick"></i>${kit.esc(m.then.was_day)}</span><span>bar: ${kit.esc(m.then.day)}</span>`
       + (mine >= 0 ? "<span>ringed: the one asking</span>" : "") + "</div>" : "";
     const plain = !m.then && !m.bars.some((b) => b.share);  // no share stated: no column for one
-    return `<div class="meter-rows${m.then ? " then" : plain ? " plain" : ""}"><ol>${shown}</ol>${m.then ? "" : `<div class="median" style="left:${med.toFixed(2)}%"><span>median</span></div>`}</div>${more}${keys}`;
+    return `<div class="meter-rows${m.then ? " then" : plain ? " plain" : ""}"><ol>${shown}</ol>${m.then ? "" : `<div class="median" style="left:${med.toFixed(2)}%"><span>${kit.t("median")}</span></div>`}</div>${more}${keys}`;
   }
 
   // A meter's card: the first of a host's, with the buttons; every one is a picture's panel
@@ -103,15 +103,15 @@ views.meter = (() => {
     const title = m.then ? `${m.title}, ${m.then.was_day} → ${m.then.day}` : m.title;
     // who it never hit: named in a picture and in fullscreen, counted on a card when many
     const few = picture || full || m.others.length <= 6;
-    const others = !m.others.length ? "" : `<div class="note">Not hit: ${few ? kit.esc(m.others.join(", ")) : kit.plural(m.others.length, "player")}</div>`;
+    const others = !m.others.length ? "" : `<div class="note">${kit.t("Not hit: {who}", { who: few ? kit.esc(m.others.join(", ")) : kit.t("{n} players", { n: m.others.length }) })}</div>`;
     // a mechanic's deaths are among a card's numbers already: their line is the picture's and fullscreen's
     const deaths = m.bars.some((b) => b.died_after || b.killed_by);
     const note = m.note && (picture || full || !deaths) ? `<div class="note">${deaths ? SKULL : ""}${kit.esc(m.note)}</div>` : "";
     return `<section data-panel class="meter">${kit.card({
       title, sub: m.scope, icon: kit.iconImg(D.img_base, m.icon), headline: m.headline, stats: stats(m), chart: rows(m) + others + note,
       // fullscreen has more only where the card left players out, or the hits per pull are under it
-      open: first && (m.bars.length > INLINE || (m.pulls || []).length > 1 || D.meters.length > 1) ? "Open ranking" : "",
-      buttons: first && D.by_pull ? [["meter-by-pull", "By pull"]] : [], url: first ? D.url : "" })}</section>`;
+      open: first && (m.bars.length > INLINE || (m.pulls || []).length > 1 || D.meters.length > 1) ? kit.t("Open ranking") : "",
+      buttons: first && D.by_pull ? [["meter-by-pull", kit.t("By pull")]] : [], url: first ? D.url : "" })}</section>`;
   }
 
   // Over several pulls, a mechanic's hits per player per pull: a row per player (in the meter's order, its tool's), a

@@ -34,7 +34,8 @@
     status.replaceChildren(kit.el('<span class="msg" id="status-msg"></span>'));
     status.firstChild.textContent = text;
     if (!retry) return;
-    const again = kit.el("<button>Try again</button>");
+    const again = kit.el("<button></button>");
+    again.textContent = kit.t("Try again");
     again.onclick = retry;
     status.append(again);
   }
@@ -45,7 +46,7 @@
     root.replaceChildren();
     if (stack.length > 1) {
       const prev = stack[stack.length - 2];
-      const back = kit.el(`<button class="back">← ${kit.esc(prev.title || "Back")}</button>`);
+      const back = kit.el(`<button class="back">← ${kit.esc(prev.title || kit.t("Back"))}</button>`);
       back.onclick = () => { stack.pop(); const p = stack[stack.length - 1]; go(p.view, p.key); };
       const bar = kit.el('<div class="head"></div>');
       bar.append(back);
@@ -78,8 +79,9 @@
   // A ranking or trend after the first of an answer (the server's `folded`: server._fold): one line saying what it
   // is, which opens it. Each call's card is a page of its own, so a card can't know of the others.
   function fold(view, key) {
-    const line = kit.el('<div class="folded"><span class="what"></span><button class="primary">Show</button></div>');
-    line.firstChild.textContent = key.label || "A ranking";
+    const line = kit.el('<div class="folded"><span class="what"></span><button class="primary"></button></div>');
+    line.lastChild.textContent = kit.t("Show");
+    line.firstChild.textContent = key.label || kit.t("A ranking");
     line.lastChild.onclick = () => go(view, key);
     root.replaceChildren(line);
   }
@@ -101,6 +103,7 @@
     started = asked;
     told = false;
     stack = [{ view, key }];
+    kit.speak(key.lang);
     if (key.folded && !app.picture() && app.context().displayMode !== "fullscreen") fold(view, key);
     else go(view, key);
   }

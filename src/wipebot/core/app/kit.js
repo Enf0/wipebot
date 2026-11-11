@@ -11,6 +11,13 @@ const kit = (() => {
   const ordinal = (n) => { const r = n % 100, t = n % 10; return `${n}${r >= 11 && r <= 13 ? "th" : ["th", "st", "nd", "rd"][t] || "th"}`; };
   // 1 pull, 2 pulls: a count with its noun
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  // The page's own words in the answer's language (WORDS: core/app/words.json, English the key; a line without a
+  // translation stays English): the language its tool's result names (key.lang, the one the model said it answers
+  // in), else the host's own (hostContext.locale)
+  let LANG = "en";
+  const speak = (lang) => { const l = String(lang || app.context().locale || "en").toLowerCase().split(/[-_]/)[0]; LANG = ["nb", "nn"].includes(l) ? "no" : l; };
+  const t = (en, fields = {}) => ((WORDS[LANG] || {})[en] || en).replace(/\{(\w+)\}/g, (_, k) => fields[k]);
+  const lang = () => LANG;
   // Which of n marks in a row are numbered when only one in `every` has room: each `every`th, and the last always,
   // the one before it giving way where the two would touch
   const numbered = (i, n, every) => i === n - 1 || (i % every === 0 && n - 1 - i >= every);
@@ -250,6 +257,6 @@ const kit = (() => {
   document.addEventListener("focusout", hide);
 
   return { esc, clock, short, exact, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, legend, opens, fit, numbered,
-           CARD, card, press, frame, watch, looking, step, hatch };
+           CARD, card, press, frame, watch, looking, step, hatch, t, speak, lang };
 })();
 const views = {};  // each view: views.<name>.show(root, key, open, asked), drawn into root

@@ -93,6 +93,6 @@ layers = [
     "report",
     "knowledge | accounts | notebook | pulls",
     "wcl | clock",
-    "cache | text | classes",
+    "cache | text | classes | words",
 ]
 exhaustive = true

@@ -8,6 +8,8 @@ import asyncio
 import dataclasses
 import functools
 import hashlib
+import json
+import re
 import statistics
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -30,6 +32,8 @@ from ..pulls import (
     wipe_text,
 )
 from ..text import clock, day, ordinal, plural, short
+from ..words import say
+from .. import words
 from . import adds, mana, mechanics, tables, versus
 from . import note as notes
 from .base import ROLE_NAMES, Player, PullRef, Report, alive_after, pull_window
@@ -114,6 +118,7 @@ def page(pictures: bool = False) -> str:
     style = APP.joinpath("page.css").read_text(encoding="utf-8")
     script = "\n".join(APP.joinpath(name).read_text(encoding="utf-8") for name in SCRIPTS
                        if pictures or name not in PICTURES_ONLY)
+    script = f"const WORDS = {json.dumps(words.catalogue(), ensure_ascii=False)};\n{script}"
     return shell.replace("/*STYLE*/", style).replace("/*SCRIPT*/", script)
 
 
@@ -1043,8 +1048,8 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
 
     def one(m: Meter, said: Stated) -> dict:
         median = statistics.median(b.value for b in m.bars)
-        return {"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 3),
-                "icon": icon(m.ability), "note": m.note, "others": m.others, "headline": meter_headline(m, said),
+        return {"title": meter_title(m.title), "scope": meter_scope(m.scope), "unit": m.unit, "seconds": round(m.seconds, 3),
+                "icon": icon(m.ability), "note": meter_note(m.note), "others": m.others, "headline": meter_headline(m, said),
                 # the heading's own: "(0:10 of combat; total 14.83M, 1.48M/s)"; of a kind of add, what it "took",
                 # which enemies states with no rate and no time
                 "stated": {"total": short(said.total), "over": clock(m.seconds * 1000) if m.seconds else "",
@@ -1075,6 +1080,30 @@ async def _by_pull_call(rep: Report, tool: str, args: dict) -> dict | None:
     return {"tool": tool, "args": by_pull} if len(pulls) >= TREND_MIN_PULLS else None
 
 
+def meter_title(title: str) -> str:
+    """A ranking's title in the view's language: the table's name (tables.METERS), with the ability and the enemy
+    it is of as the log names them."""
+    for en in tables.METERS.values():
+        if title == en or title.startswith((f"{en}:", f"{en} on ")):
+            return say(en) + title[len(en):]
+    return title
+
+
+def meter_scope(scope: str) -> str:
+    """A ranking's pulls in the view's language: the boss and the pull as they are, what cut them short worded."""
+    for en in (", each until its wipe was decided", ", until the wipe was decided"):
+        scope = scope.replace(en, say(en))
+    return scope
+
+
+def meter_note(note: str) -> str:
+    """The line under a ranking in the view's language."""
+    if found := re.fullmatch(r"Parses: Warcraft Logs' (\w+) percentiles against the same spec on this kill\.", note):
+        return say("Parses: Warcraft Logs' {metric} percentiles against the same spec on this kill.",
+                   metric=found[1])
+    return note
+
+
 def meter_headline(m: Meter, said: Stated | None = None) -> dict:
     """A ranking in one sentence of its tool's rows: who is first (with `least`, last), with how much, for one in
     only some of the pulls in how many as their row says it (`said`), and how that stands against the median of the
@@ -1090,11 +1119,16 @@ def meter_headline(m: Meter, said: Stated | None = None) -> dict:
     there = said.rows.get(b.name, ("", ""))[1] if said else ""
     with_ = f"{amount(b.value)}{f', {there}' if there else ''}"
     median = statistics.median(x.value for x in m.bars)
-    place = "last" if m.least else "first"
+    place = say("last" if m.least else "first")
     if not median:
-        return _headline(f"{b.name} is {place} of the {len(m.bars)} players ranked with {with_}.")
-    against = f"{100 * b.value / median:.0f}% of" if m.least else f"{b.value / median:.1f} times"
-    return _headline(f"{b.name} is {place} with {with_}, {against} the median of the {len(m.bars)} players ranked.")
+        return _headline(say("{name} is {place} of the {n} players ranked with {amount}.", name=b.name, place=place,
+                             n=len(m.bars), amount=with_))
+    if m.least:
+        return _headline(say("{name} is {place} with {amount}, {share}% of the median of the {n} players ranked.",
+                             name=b.name, place=place, amount=with_, share=f"{100 * b.value / median:.0f}",
+                             n=len(m.bars)))
+    return _headline(say("{name} is {place} with {amount}, {times} times the median of the {n} players ranked.",
+                         name=b.name, place=place, amount=with_, times=f"{b.value / median:.1f}", n=len(m.bars)))
 
 
 # ---- a trend by pull: one amount pull by pull over a night ----
