@@ -758,7 +758,9 @@ def test_pull_tools_open_the_views_which_read_the_app_only_tools(client):
 
 def test_every_tool_a_host_shows_a_view_for_says_what_the_user_sees(client):
     """A host shows these tools' views on every call, and the model can't see them: the description's note tells
-    it what the user already has in front of them. A view added without its note would be redrawn in text."""
+    it what the user already has in front of them. A view added without its note would be redrawn in text. Every
+    card leads with one sentence of its tool's facts (the replay is no card), and its note says so, or the answer
+    would open with that sentence again: progress's for the night and for the night-by-night card `weeks` draws."""
     call, _ = session(client)
     shown = [t for t in call("tools/list", {})["tools"]
              if (ui := (t.get("_meta") or {}).get("ui")) and "app" not in ui.get("visibility", [])]
@@ -766,6 +768,10 @@ def test_every_tool_a_host_shows_a_view_for_says_what_the_user_sees(client):
     for tool in shown:
         note = tool["description"].rsplit("\n", 1)[-1]
         assert note.startswith("In Claude") and "the user" in note, tool["name"]
+        assert tool["name"] == "pull_map" or " sentence" in note, tool["name"]
+        if tool["name"] == "progress":
+            night, weeks = note.split("; with weeks, ")
+            assert "in a sentence" in night and "in a sentence" in weeks
 
 
 @pytest.fixture
