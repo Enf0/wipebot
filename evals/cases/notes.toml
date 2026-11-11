@@ -71,10 +71,11 @@ question = "was my divine hymn on time on the last pull?"
 asker = "Miralupa"
 pull = 42
 boss = "Sszorak"
-expect = """Late: the note plans Divine Hymn at 0:16 and 2:23, and on pull 42 it was cast at 0:18, 3 s late, and at
-2:35, 13 s late. The one planned at 4:30 came after the wipe was decided at 4:08, so it isn't counted."""
-facts = ["Apotheosis was late too: planned at 1:03 and cast at 1:15, planned at 3:10 and cast at 3:17"]
-wrong = ["says the Hymns were on time",
+expect = """The first was, the second was late: the note plans Divine Hymn at 0:16 and 2:23, and on pull 42 it was cast
+at 0:18, which counts as on time (under 3 s from the plan), and at 2:35, 13 s late. The one planned at 4:30 came
+after the wipe was decided at 4:08, so it isn't counted."""
+facts = ["Apotheosis was late both times: planned at 1:03 and cast at 1:15, planned at 3:10 and cast at 3:17"]
+wrong = ["says the second Hymn, cast at 2:35, was on time",
          "counts the Hymn planned at 4:30 as missed",
          "says no raid note is saved, or asks them to paste it"]
 

@@ -1173,7 +1173,7 @@ the note's timings and stay with your group, and you're doing your job.
 [[plant]]
 case = "note-hymn-on-time"
 kind = "wrong"
-item = "says the Hymns were on time"
+item = "says the second Hymn, cast at 2:35, was on time"
 answer = """
 **Yes: your Divine Hymns were on time on the last pull.** Each one came within a few seconds of the time the note
 plans it for, so there is nothing to move.

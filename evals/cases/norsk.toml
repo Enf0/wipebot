@@ -104,11 +104,11 @@ question = "brukte jeg roarene mine til riktig tid i går, i forhold til noten?"
 asker = "Attractîv"
 boss = "The Twin Fangs"
 expect = """Mostly not: of the Stampeding Roars the saved note plans for them (0:58, 2:00, 3:35, 4:36 and 6:10), 41
-were not cast within 30 s of the planned time while they were alive; over the night one came on time, one 2 s early
-and one 29 s late."""
+were not cast within 30 s of the planned time while they were alive; over the night two came on time and one 29 s
+late."""
 facts = ["the 0:58 roar: on time once, not cast on 24 pulls",
          "the 2:00 roar: not cast on 12 pulls",
-         "61 planned uses over the night"]
+         "61 planned uses over the night, 16 of them on pulls they were not in"]
 wrong = ["says the roars were on time, or mostly on time",
          "says no raid note is saved, or asks them to paste it",
          "judges the roars by how often they were pressed, without the note's times"]

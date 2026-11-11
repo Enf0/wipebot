@@ -134,12 +134,12 @@ note = "sszorak-2026-10-12.txt"
 where = "in a DM"
 earlier = [
     ["Miralupa", "was my divine hymn on time on the last pull?"],
-    ["Wipebot", """Late both times it counted on pull 42: the note has it at 0:16 and you cast it at 0:18, 3 s \
-late, and at 2:23 you cast it at 2:35, 13 s late. The one planned at 4:30 came after the wipe was decided at 4:08, so \
-it isn't counted."""],
+    ["Wipebot", """The first was, the second was late: the note has it at 0:16 and you cast it at 0:18, on time, \
+and at 2:23 you cast it at 2:35, 13 s late. The one planned at 4:30 came after the wipe was decided at 4:08, so it \
+isn't counted."""],
     ["Miralupa", "ok fair. and apotheosis?"],
-    ["Wipebot", """Late as well: planned at 1:03 and cast at 1:15, 13 s late, and planned at 3:10 and cast at 3:17, \
-7 s late."""],
+    ["Wipebot", """Late both times: planned at 1:03 and cast at 1:15, 13 s late, and planned at 3:10 and cast at \
+3:17, 7 s late."""],
 ]
 question = "and did I do the soaks I'm down for?"
 asker = "Miralupa"
