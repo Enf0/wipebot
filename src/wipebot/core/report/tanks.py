@@ -5,7 +5,7 @@ from collections import Counter, defaultdict
 from .. import knowledge
 from ..knowledge import KnowledgeError
 from ..text import clock, date, day, plural
-from .base import Player, PullRef, Report
+from .base import Player, PullRef, Report, same_pull
 
 # After who taunted when: what the log can't show of a swap.
 SWAPS_NOT_LOGGED = ("Whose turn it was to taunt, and at how many stacks, isn't in the log: the raid note or the "
@@ -146,8 +146,11 @@ async def aggro_history(reports: list[Report], tanks: list[str], weeks: int) -> 
     every boss: how often, and the last time. What a tank's kit can taunt with, as the log shows it (a Death Knight's
     Death Grip takes a boss as well as Dark Command does)."""
     took: dict[str, dict[str, list]] = {t: {} for t in tanks}  # tank -> spell -> [times, (when, last pull)]
+    read: list[tuple[Report, dict]] = []  # a night logged twice counts each pull once: the first log's
     for rep in sorted(reports, key=lambda r: r.start_ms):
-        fights = [f for f in rep.fights if f.get("encounterID") and not f.get("inProgress")]
+        fights = [f for f in rep.fights if f.get("encounterID") and not f.get("inProgress")
+                  and not any(same_pull(rep, f, r2, f2) for r2, f2 in read)]
+        read += [(rep, f) for f in fights]
         for f, t in zip(fights, await rep.tables([(f["id"], {}) for f in fights], "Threat"), strict=True):
             for at, who, how, _ in _aggro_bands(rep, t):
                 if who in took and how not in ("Melee", "?"):  # the boss turning on its own isn't a taunt

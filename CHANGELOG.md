@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A night two raiders logged counts once.** Two raiders logging the same night give two logs with every pull in both, and a player's deaths over the weeks counted each of those pulls and deaths twice ("54 pulls" on a night of 27). So did the times a tank took the boss with each spell. Each pull now counts once, from the first log that has it.
+
 ## [1.2.0] - 2026-11-11
 
 ### Added

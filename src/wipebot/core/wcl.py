@@ -994,7 +994,7 @@ class WCL:
         return fights[0].get("talentImportCode") or ""
 
     async def attendance(self, guild_id: int, zone_id: int, since_ms: float) -> list[dict]:
-        """The guild's logs of a raid since a time, newest first, each with `code`, `startTime` and `players`
+        """The guild's logs of a raid since a time, newest first, each once, with `code`, `startTime` and `players`
         (`name`, `type` = class, `presence`: 1 there, 2 benched). Two people logging one night are two logs."""
         out: list[dict] = []
         for page in range(1, ATTENDANCE_PAGES + 1):
@@ -1003,7 +1003,7 @@ class WCL:
             out += [n for n in got.get("data") or [] if n["startTime"] >= since_ms]
             if not got.get("has_more_pages") or any(n["startTime"] < since_ms for n in got.get("data") or []):
                 break
-        return out
+        return list({n["code"]: n for n in out}.values())  # a log uploaded between two pages' reads is on both
 
     async def guild_progress(self, guild_id: int, zone_id: int) -> dict:
         """A guild's progress rank in a raid on Warcraft Logs: {'world': n, 'region': n, 'realm': n}, the ones it

@@ -65,6 +65,16 @@ GUILD_BEST_WEEKS = 16  # "new best" counts the guild's logs this far back: a rai
 ROLES = {"tanks": "tank", "healers": "healer"}  # WCL's playerDetails keys; the rest ("dps") are damage dealers
 ROLE_NAMES = {"tank": "tanks", "healer": "healers", "dps": "damage dealers"}
 REPEAT_CAST_MS = 10_000  # the same player's same cast again this soon is one use (a channel logs each tick)
+SAME_PULL_MS = 60_000  # a boss pull beginning this close to one in the night's other log is that pull, logged twice
+
+
+def same_pull(rep: Report, fight: dict, other: Report, its: dict) -> bool:
+    """Whether a pull is one already read, of the same night: two raiders logging a night log each pull, their
+    clocks seconds apart. Two pulls of one log are two pulls, however soon the second began."""
+    if rep.code == other.code:
+        return fight["id"] == its["id"]
+    return (fight["encounterID"] == its["encounterID"] and fight.get("difficulty") == its.get("difficulty")
+            and abs(rep.start_ms + fight["startTime"] - other.start_ms - its["startTime"]) < SAME_PULL_MS)
 
 
 def dead_since(deaths: list[dict], backs: list[float], who: int, at: float) -> float | None:

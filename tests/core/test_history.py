@@ -1,7 +1,9 @@
 """Raiders over the season (report/history.py): the guild's ranking per role, and one player's ranked kills."""
+import re
+
 import pytest
 
-from wipebot.core.report import FactError, history
+from wipebot.core.report import FactError, Report, history
 
 GUILD = "The Copper Lanterns"
 
@@ -114,3 +116,24 @@ def test_all_stars_name_their_partition_and_a_low_standing_is_a_percentile():
     # What a partition is, is said once for a list of summaries, and only where one is named
     assert history._partitions_note([summary, summary]) == [history.PARTITIONS]
     assert history._partitions_note([history._zone_summary({**z, "allStars": z["allStars"][:1]})]) == []
+
+
+async def test_a_players_deaths_count_a_night_logged_twice_once(rep):
+    name = next(p.name for p in rep.players.values())
+    one = await history.deaths_by_night([(rep.start_ms, [rep])], name, 5)
+    pulls = int(re.findall(r": (\d+) pulls on ", one)[0])
+    assert pulls > 1 and len(one.splitlines()) == 2
+    twin = Report(rep.wcl, "TWIN")  # the other raider's log of the same pulls, its clock seconds off
+    await twin.load()
+    twin.start_ms = rep.start_ms + 4_000
+    assert await history.deaths_by_night([(rep.start_ms, [rep, twin])], name, 5) == one
+    assert await history.deaths_by_night([(rep.start_ms, [rep, rep])], name, 5) == one  # the log listed twice
+    twin.start_ms = rep.end_ms + 600_000  # a second log of the evening, of pulls after the first's: each counts
+    both = await history.deaths_by_night([(rep.start_ms, [rep, twin])], name, 5)
+    assert re.findall(r": (\d+) pulls on ", both) == [str(2 * pulls)]
+    # the night's first log doesn't have the player (it began before they joined): the second log's pulls count
+    twin.start_ms = rep.start_ms - 4_000
+    twin.players = {i: p for i, p in twin.players.items() if p.name != name}
+    with pytest.raises(FactError):
+        twin.player(name)
+    assert await history.deaths_by_night([(rep.start_ms, [twin, rep])], name, 5) == one

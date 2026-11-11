@@ -1,7 +1,7 @@
 """The guild's nights (report/night.py): who raided which nights. The night's overview and progress are pinned by
 the tool cases (test_tools.py)."""
 from wipebot.core.pulls import GuildBest, wipe_pcts
-from wipebot.core.report import night, views
+from wipebot.core.report import Report, night, views
 
 
 async def test_kill_rankings_are_kept_once_every_kill_is_ranked(rep, patch_wcl):
@@ -54,6 +54,13 @@ async def test_a_boss_night_counts_its_pulls_once_with_the_kill_the_best_wipe_an
     # the same night logged twice (two raiders' logs) counts each pull once
     again = await night.boss_night([rep, rep], rep.start_ms, f["encounterID"], f.get("difficulty"))
     assert again == one
+    twin = Report(rep.wcl, "TWIN")  # the other raider's log of the same pulls, its clock seconds off
+    await twin.load()
+    twin.start_ms = rep.start_ms + 4_000
+    assert await night.boss_night([rep, twin], rep.start_ms, f["encounterID"], f.get("difficulty")) == one
+    twin.start_ms = rep.end_ms + 600_000  # a second log of the evening, of pulls after the first's: each counts
+    both = await night.boss_night([rep, twin], rep.start_ms, f["encounterID"], f.get("difficulty"))
+    assert both and both.pulls == 2 * one.pulls
     assert await night.boss_night([rep], rep.start_ms, 999_999, f.get("difficulty")) is None
 
 

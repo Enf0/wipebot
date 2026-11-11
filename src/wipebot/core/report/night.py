@@ -28,7 +28,7 @@ from ..pulls import (
 )
 from ..text import clock, clusters, date, ordinal, plural, ranges, span
 from ..wcl import GUILD_REPORTS_S, WCLError
-from .base import GUILD_RUN_SHARE, FactError, Report, unavailable
+from .base import GUILD_RUN_SHARE, FactError, Report, same_pull, unavailable
 from .ending import FALLOUT_NOTE, Ending, KeptBuff, deaths_from, kind_of_end, pull_endings
 
 
@@ -525,7 +525,7 @@ async def boss_night(reps: list[Report], start_ms: float, encounter: int, diffic
     pulls: list[tuple[Report, dict]] = []
     for r in reps:
         for f in boss_pulls(r, encounter, difficulty):
-            if not any(abs(f2["startTime"] + r2.start_ms - f["startTime"] - r.start_ms) < 60_000 for r2, f2 in pulls):
+            if not any(same_pull(r, f, r2, f2) for r2, f2 in pulls):
                 pulls.append((r, f))
     if not pulls:
         return None

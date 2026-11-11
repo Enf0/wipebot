@@ -511,3 +511,16 @@ def test_a_player_over_some_pulls_has_the_spec_played_most_in_them_and_only_thei
     assert over(holy, fights[1:]).label == "Cptola (Holy Paladin)"
     assert over(holy, fights).also == ("Protection",)
     assert over(holy, fights[:1]).role == "tank"
+
+
+async def test_a_pull_is_the_same_as_one_in_the_nights_other_log_begun_within_a_minute(rep):
+    first, second = rep.fights[0], rep.fights[1]
+    twin = Report(rep.wcl, "TWIN")
+    await twin.load()
+    twin.start_ms = rep.start_ms + 4_000  # the other raider's clock, seconds off
+    assert base.same_pull(twin, twin.fights[0], rep, first) and not base.same_pull(twin, twin.fights[1], rep, first)
+    assert not base.same_pull(twin, {**twin.fights[0], "encounterID": 1}, rep, first)  # another boss at that time
+    assert not base.same_pull(twin, {**twin.fights[0], "difficulty": 4}, rep, first)  # another group's Heroic pull
+    # one log: a pull is itself (a log listed twice), and a second pull is one however soon it began
+    soon = {**second, "startTime": first["startTime"] + 20_000}
+    assert base.same_pull(rep, first, rep, first) and not base.same_pull(rep, soon, rep, first)

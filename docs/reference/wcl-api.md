@@ -179,8 +179,11 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   difficulty in the listing, without loading it.
 - `guild.attendance(zoneID, limit, page)` lists the guild's logs of a raid with `players {name type presence}`
   (presence 2 = benched): two people logging one night are two entries (3gBPRJMjfxbCX8K4 and 8TcXMAP2gHQGr9pW),
-  and alt and side runs are in it (a 71-player log), so filter by pulls on the raid's difficulty. Wipebot keeps
-  an answer for an hour (`reports(guildID:)` for 5 min), so it can lack a log uploaded since: `progress` over the
+  and alt and side runs are in it (a 71-player log), so filter by pulls on the raid's difficulty. The two logs
+  hold the same pulls, each beginning at most 5 s from its twin by the logs' own clocks (every Mythic pull: 16
+  of 16 that night, 27 of 27 and 12 of 12 on two others): what reads a night's logs side by side counts a pull
+  once (`report.base.same_pull`). A log uploaded between two pages' reads is on both pages. Wipebot keeps an
+  answer for an hour (`reports(guildID:)` for 5 min), so it can lack a log uploaded since: `progress` over the
   weeks adds its own report's night when it isn't there.
 - `guild.members(limit, page) { data { name } }` is the game's guild roster, alts included (several hundred
   names for one guild). Raiders log their pugs to the guild's page too; the share of a log's players in it tells

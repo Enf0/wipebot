@@ -12,7 +12,7 @@ from ..knowledge import KnowledgeError, spaced
 from ..pulls import DIFFICULTIES, attempt
 from ..text import clock, date, fight_url, ordinal, plural, short
 from ..wcl import WCLError
-from .base import ROLE_NAMES, FactError, Report, unavailable
+from .base import ROLE_NAMES, FactError, Report, same_pull, unavailable
 from .ending import mass_death
 
 TREND_KILLERS = 6  # the abilities named for what a player keeps dying to
@@ -29,6 +29,7 @@ async def deaths_by_night(nights: list[tuple[float, list[Report]]], player: str,
         pulls = early = first = mass = 0
         killers: Counter = Counter()
         bosses: set[str] = set()
+        counted: list[tuple[Report, dict]] = []  # a night logged twice counts each pull once: the first log's
         for rep in reps:
             try:
                 p = rep.player(player)
@@ -43,9 +44,11 @@ async def deaths_by_night(nights: list[tuple[float, list[Report]]], player: str,
             else:
                 wanted = set(rep.by_boss)
             fights = [f for b, fs in rep.by_boss.items() if b in wanted for f in fs
-                      if f.get("difficulty") == difficulty and attempt(f) and rep.was_in(f, p)]
+                      if f.get("difficulty") == difficulty and attempt(f) and rep.was_in(f, p)
+                      and not any(same_pull(rep, f, r2, f2) for r2, f2 in counted)]
             if not fights:
                 continue
+            counted += [(rep, f) for f in fights]
             decided = await rep.decided_cuts(fights)
             for f in fights:
                 bosses.add(f["name"])

@@ -211,6 +211,20 @@ async def test_guild_reports_follow_every_page(monkeypatch):
     assert asked == [1, 2]
 
 
+async def test_attendance_lists_a_log_once_when_two_pages_hold_it(monkeypatch):
+    w = WCL()
+    # a log uploaded between the two pages' reads pushed B from the first page onto the second
+    a, b, c, old = ({"code": code, "startTime": t} for code, t in (("A", 30), ("B", 20), ("C", 10), ("OLD", 1)))
+    pages = {1: ([a, b], True), 2: ([b | {"players": [{"name": "Torvek"}]}, c, old], True)}
+
+    async def query(_q, cache_for=None, **variables):
+        data, more = pages[variables["page"]]
+        return {"guildData": {"guild": {"attendance": {"data": data, "has_more_pages": more}}}}
+    monkeypatch.setattr(w, "query", query)
+    logs = await w.attendance(1, 2, since_ms=5)
+    assert [n["code"] for n in logs] == ["A", "B", "C"] and logs[1]["players"]  # where it first was, as last read
+
+
 async def test_the_latest_ranked_kills_are_found_by_halving_to_the_last_page(monkeypatch):
     w = WCL()
     last = 13  # pages 1 to 13 have kills, 13 only two
