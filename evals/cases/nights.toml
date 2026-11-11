@@ -231,8 +231,11 @@ boss = "The Twin Fangs"
 expect = """Only the Spawn of Vexhul have deaths in the log, wave by wave over the night: the first wave's first and
 last deaths come at about 0:42 and 0:47 (medians; ranges 0:40-0:47 and 0:45-0:55 over the 24 pulls that reached it),
 the second wave's at about 1:45 and 1:48 (ranges 1:43-1:47 and 1:47-1:51 over 9 pulls); either the medians or the
-ranges carry the point. The Barbed Bulwarks and the Broodlings of Ithraz have no death recorded, so the log can't show
-how fast they were killed. Whether the Spawns die fast enough is the answer's to judge, either way."""
+ranges carry the point. "The three adds" may be read as the three Spawn of each wave (the guides' "Three Spawn of
+Vexhul appear together") or as the three kinds of add; either reading is fine. An answer that takes up the Barbed
+Bulwarks or the Broodlings of Ithraz says they have no death recorded (the Broodlings took no damage), so the log
+can't show how fast they were killed; one that keeps to the Spawns needn't mention them. Whether the Spawns die fast
+enough is the answer's to judge, either way."""
 facts = ["Spawn of Vexhul: 105 came over 24 pulls, 95 died",
          "most of their Corrosive Spits went through: 99 of 175",
          "the Broodlings took no damage at all",
@@ -244,6 +247,8 @@ facts = ["Spawn of Vexhul: 105 came over 24 pulls, 95 died",
 # pull 26's first spits begin at 0:37-0:39, and the two that went through land at 0:43 and 0:44, after the first Spawn
 # died at 0:41 (its spit, begun at 0:37, never landed). A kill at the raid's item level (compare_pulls) kills its
 # waves about as fast, so the expect leaves the pace to the answer.
+# The raider's "three adds" fits the three Spawn of a wave as well as the three kinds of add: the wrong item, not the
+# expect, guards the Bulwarks and the Broodlings.
 wrong = ["states, as something the log shows, when the Barbed Bulwarks or the Broodlings of Ithraz died or how fast they were killed"]
 
 # ---- The raid leader's harder questions, written from the tools' output before any answer was read: ranking

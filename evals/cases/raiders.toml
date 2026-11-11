@@ -158,7 +158,7 @@ pull = 1
 boss = "The Lost Explorers"
 expect = """Names no culprit, because the log can't show who popped a crate (on Mythic Splinters hits the
 whole raid, and no one is recorded breaking the crates); it shows when crates were popped too fast, and that the
-crates weren't what killed most of the nine: Splinters killed only Miralupa."""
+crates weren't what killed most of the nine: Splinters landed the killing blow only on Miralupa."""
 facts = ["Splinters hit the raid 51 times, 36 while the bleed from an earlier one was still up, 13 of those within a second of each other",
          "Splinters reached 4 stacks at 0:35 and 5 at 0:40",
          "five deaths at 3:28-3:44 in Scrollsage Iku's Binding Anguish: Attractîv and Pomaa to Blink Nova, Zebinomage and Providence to Elemental Explosion, Sveini to Malevolent Presence",
@@ -167,7 +167,9 @@ facts = ["Splinters hit the raid 51 times, 36 while the bleed from an earlier on
          "one player pops every crate: 2 stacks, let the bleed drop, then 2 more"]
 wrong = ["names a player as one who popped crates too fast or took too many, even as a likely guess",
          "says the log shows who popped or stepped on a crate",
-         "says the crates (Splinters) caused most of the deaths"]
+         """says the crates (Splinters) caused most of the deaths, or ties the Elemental Explosion or Malevolent
+         Presence deaths at 3:43-3:44 to them (saying the Splinters stacks left Pomaa lower for the Blink Nova that
+         killed them at 3:28 is fine)"""]
 
 [[case]]
 id = "twin-fangs-mythic-changes"  # every running hotfix post, not only the newest (answers #484, #485, #493)
