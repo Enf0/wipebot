@@ -22,10 +22,12 @@ from ..pulls import (
     NO_KILLING_BLOW,
     by_phase,
     is_reset,
+    pct_text,
     phase_health,
     phase_label,
     wipe_pct,
     wipe_pcts,
+    wipe_text,
 )
 from ..text import clock, day, ordinal, plural, short
 from . import adds, mana, mechanics, tables, versus
@@ -184,10 +186,15 @@ async def pull_view(rep: Report, f: dict) -> dict:  # noqa: PLR0915 (one dict, f
         "view": "pull", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
         "title": rep.label(f), "difficulty": DIFFICULTIES.get(f.get("difficulty"), ""),
         "url": rep.url(f), "kill": bool(f["kill"]), "live": bool(f.get("inProgress")), "duration_ms": round(length),
-        "boss_pct": f.get("bossPercentage"), "raid": raid, "best": await _best(rep, f),
-        # on a boss counted by phase (pulls.phase_health), boss_pct is the phase's health, and the wipe's own %
-        # (what ranks wipes, as "best" compares them) Warcraft Logs' measure of the whole fight
-        "phase": phase_label(f) if phase_health(f) is not None else None, "wcl_pct": wipe_pct(f),
+        "raid": raid, "best": await _best(rep, f),
+        # how far the wipe got as pull_summary's first line states it (pulls.wipe_text: "62.6%", or on a boss
+        # counted by phase "P3 0.8%" with, in `got_wcl`, Warcraft Logs' measure of the whole fight, what ranks wipes
+        # as "best" compares them); health_end is the boss's health at the pull's end, where the health line ends,
+        # written as that first line writes a %
+        "got": None if f["kill"] or wipe_pct(f) is None else wipe_text(f, wcl=False),
+        "got_wcl": pct_text(wipe_pct(f)) if phase_health(f) is not None else None,
+        "health_end": pct_text(f["bossPercentage"]) if f.get("bossPercentage") is not None else None,
+        "phase": phase_label(f) if phase_health(f) is not None else None,
         "ranking": (await kill_rankings(rep)).get(f["id"]) if f["kill"] else None,
         "headline": pull_headline(f, ended, len(deaths)),
         "decided": {"ms": round(decided.at_ms), "why": decided.why} if decided else None,
@@ -468,12 +475,14 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
         pct = 0.0 if f["kill"] else wipe_pct(f)
         new = (not f["kill"] and not is_reset(f) and not f.get("inProgress") and pct is not None
                and (best is None or pct < best))
+        # the night's first wipe is its best until then by being first: unmarked, as in progress's text (night._marks)
+        starred = new and best is not None
         if new:
             best = pct
         first = deaths[0] if deaths else None
         rows.append({"pull": rep.pull_no(f), "pct": pct, "kill": bool(f["kill"]), "reset": is_reset(f),
                      "live": bool(f.get("inProgress")), "duration_ms": round(f["endTime"] - f["startTime"]),
-                     "phase": phase_label(f), "health": phase_health(f), "ended": kind_of_end(e), "best": new,
+                     "phase": phase_label(f), "health": phase_health(f), "ended": kind_of_end(e), "best": starred,
                      "first": {"name": rep.names.get(first["targetID"], "?"),
                                "by": rep.ability(first.get("killingAbilityGameID")),
                                "ms": round(first["timestamp"] - f["startTime"])} if first else None})

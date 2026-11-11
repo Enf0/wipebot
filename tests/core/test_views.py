@@ -95,7 +95,7 @@ async def test_the_pull_view_states_what_pull_summary_states(recorded):
     assert all(d["name"] in fallout[3] and f"{clock(d['ms'])} " in fallout[3] for d in after)
     assert f"gained {decided['why'].removeprefix('the boss gained ')} at {clock(decided['ms'])}" in text
     assert [d["fallout"] for d in data["deaths"]] == [d["ms"] > decided["ms"] for d in data["deaths"]]
-    assert f"{data['boss_pct']}% health" in text
+    assert f"wipe at {data['got']}" in text and data["health_end"] == data["got"] == "62.6%"
     assert text.startswith(f"{data['boss']} ({data['difficulty']}) pull {data['pull']}: ")
     # the card's headline is the text's "Ended by", without its ids and what to look up
     headline = data["headline"]["text"]
@@ -183,6 +183,39 @@ async def test_the_raid_night_view_states_what_progress_states(recorded):
     what, most = data["ends"][0]  # the card's headline: what ended the most pulls, counted over all of them
     assert data["headline"]["text"] == f"{most} of the {len(data['pulls'])} pulls ended with {what}."
     assert "first third {:.1f}, middle {:.1f}, last third {:.1f}".format(*data["thirds"]) in text
+    # a pull is starred where the text marks it the best of the night until then: the night's first wipe is that by
+    # being first, and the text leaves it unmarked (the table once starred it)
+    for r in data["pulls"]:
+        row = next(x for x in text.splitlines() if x.startswith(f"  {r['pull']}: "))
+        assert r["best"] == ("best of the night until then" in row), r["pull"]
+    assert [r["pull"] for r in data["pulls"] if r["best"]] == [2, 3, 7, 13]
+
+
+@pytest.mark.parametrize("case", ["pull-summary", "vashnik-summary", "altar-summary"])
+async def test_the_pull_cards_boss_health_is_what_the_texts_first_line_states(recorded, case):
+    """The card's "Boss" number was the log's raw boss health ("62.59%") under a text that leads with "wipe at
+    62.6%": it is the text's own words for how far the wipe got, on a boss counted by phase the phase and its health
+    with Warcraft Logs' % beside it. The end of the health line is named with the boss's health written the same
+    way, so one card has one number."""
+    tool, args = CASES[case].tool, CASES[case].args
+    key = await server.view_key(tool, args)
+    assert key
+    data = (await server.view_data(**asked(key))).structured_content
+    text, failed = await server.call(tool, args)
+    assert data and not failed
+    head = text.splitlines()[0]
+    if case == "altar-summary":  # counted by phase
+        phase, health = data["got"].split(" ")
+        assert f"wipe in **{phase} at {health}** (WCL {data['got_wcl']})" in head and phase == data["phase"]
+    else:
+        assert f"wipe at **{data['got']}**" in head and data["got_wcl"] is None
+    assert re.fullmatch(r"(P\d+ )?\d+\.\d%", data["got"])
+    assert data["got"].endswith(data["health_end"])  # the health line's end: the same number
+    async with drawn(tool, args) as (view, errors):
+        stats = await view.evaluate('() => [...document.querySelectorAll(".stat")].map((e) => e.innerText)')
+        ends = await view.evaluate("() => [...document.querySelectorAll('svg text')].map((t) => t.textContent)")
+    assert not errors and stats[0].upper().startswith(f"BOSS\n{data['got']}".upper()), stats[0]
+    assert data["health_end"] in ends and not [t for t in ends if re.fullmatch(r"\d+\.\d\d%", t)]
 
 
 async def test_the_raid_night_view_draws_and_a_pulls_bar_opens_that_pull(recorded, tmp_path):
@@ -1329,7 +1362,7 @@ async def test_the_pull_view_draws_in_a_host_without_errors(recorded, tmp_path):
     for s in taken:
         assert not s.errors, (s.path.name, s.errors)
         assert s.height > 100 and s.path.stat().st_size > 10_000
-        assert "Scopidruid 0:48" in s.text and f"{data['boss_pct']}%" in s.text
+        assert "Scopidruid 0:48" in s.text and f"BOSS\n{data['got']}\n" in s.text.upper()
         assert data["headline"]["text"] in s.text  # how it ended, over the numbers
     inline, full = taken[0], taken[-1]
     assert "Open pull" in inline.text and "deaths (19)" not in inline.text.lower()
@@ -1380,7 +1413,7 @@ async def test_the_pull_chart_names_both_axes_and_draws_the_cooldowns_its_tool_p
         said = {t["said"]: t for t in chart["texts"]}
         assert not errors and said["100%"]["cls"] == said["0%"]["cls"] == "tg" and said["0"]["cls"] == "tm"
         assert said["0%"]["y"] == said["0"]["y"]
-        assert said["100%"]["y"] < said[f"{data['boss_pct']}%"]["y"] < said["0%"]["y"]
+        assert said["100%"]["y"] < said[data["health_end"]]["y"] < said["0%"]["y"]
         assert (chart["raid"], chart["healers"]) == (raid + 1, healers + 1)  # each mark, and its key in the legend
         assert "raid cooldown" in said and "healer cooldown" in said
         assert f"decided {clock(data['decided']['ms'])}" in said and (data["decided"]["why"] in said) == why
@@ -2754,7 +2787,7 @@ async def test_asked_about_the_whole_night_the_card_leads_with_its_bosses(monkey
              "bosses": [{"boss": "Ashen Warden", "pulls": 1, "kill": True, "best": None},
                         {"boss": "Torvek's Forge", "pulls": 2, "kill": False, "best": 41.5}],
              "pulls": [{"pull": n, "pct": pct, "kill": False, "reset": False, "live": False, "duration_ms": 300000,
-                        "phase": "", "health": None, "ended": "Slag Wave killing many", "best": n == 1,
+                        "phase": "", "health": None, "ended": "Slag Wave killing many", "best": False,
                         "first": None} for n, pct in ((1, 41.5), (2, 60.0))]}
     night["headline"] = views.night_headline(night["pulls"], [("Slag Wave killing many", 2)])
     made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, night)

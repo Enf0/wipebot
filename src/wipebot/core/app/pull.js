@@ -24,11 +24,11 @@ views.pull = (() => {
       out.push(["Speed", `${kit.ordinal(D.ranking.speed)} percentile`, "", "against other kills of the boss"]);
       out.push(["Execution", `${kit.ordinal(D.ranking.execution)} percentile`, "", "deaths and damage taken"]);
     }
-    if (!D.kill && D.boss_pct != null) {
-      const where = D.phase && D.wcl_pct != null ? [`WCL ${D.wcl_pct.toFixed(1)}%`] : [];
+    if (D.got) {  // how far the wipe got, as pull_summary's first line states it
+      const where = D.got_wcl ? [`WCL ${D.got_wcl}`] : [];
       if (b && b.new_guild) where.push("new guild best");
       else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log ${wcl}${b.tonight.toFixed(1)}%`);
-      out.push(["Boss", `${D.phase ? `${D.phase} ` : ""}${D.boss_pct}%`, b && b.new_guild ? "best" : "", where.join(" · ")]);
+      out.push(["Boss", D.got, b && b.new_guild ? "best" : "", where.join(" · ")]);
     }
     out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), "",
               D.decided && D.deaths.length > counted().length ? `${D.deaths.length - counted().length} after it: fallout` : ""]);
@@ -185,7 +185,7 @@ views.pull = (() => {
       o += `<path d="${d}" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linejoin="round"/>`;
       const [lastMs, lastPct] = D.health[D.health.length - 1], endY = yH(lastPct);
       o += `<circle cx="${x(lastMs)}" cy="${endY}" r="3.5" fill="var(--gold)"/>`;
-      o += kit.text(W - R + 5, endY + 4, `${D.kill ? 0 : (D.boss_pct ?? lastPct)}%`, "tg", 'font-weight="600"', kit.SIZE.value);
+      o += kit.text(W - R + 5, endY + 4, D.kill ? "0%" : (D.health_end ?? `${lastPct}%`), "tg", 'font-weight="600"', kit.SIZE.value);
       if (endY - 7 > top + 10) o += kit.text(W - R + 5, top + 8, "100%", "tg");
       if (endY + 5 < bottom - 11) o += kit.text(W - R + 5, bottom, "0%", "tg");
     }

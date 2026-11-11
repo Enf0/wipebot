@@ -7,7 +7,7 @@
 "url": "https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8",
 "combat_ms": 3297346,
 "pulls": [
-  {"pull": 1, "pct": 86.13, "kill": false, "reset": false, "live": false, "duration_ms": 45265, "phase": "P1", "health": null, "ended": "the boss gaining Unbound Ferocity and keeping it to the end", "best": true, "first": {"name": "Dragepie", "by": "Tempest", "ms": 40022}},
+  {"pull": 1, "pct": 86.13, "kill": false, "reset": false, "live": false, "duration_ms": 45265, "phase": "P1", "health": null, "ended": "the boss gaining Unbound Ferocity and keeping it to the end", "best": false, "first": {"name": "Dragepie", "by": "Tempest", "ms": 40022}},
   {"pull": 2, "pct": 84.63, "kill": false, "reset": false, "live": false, "duration_ms": 44592, "phase": "P1", "health": null, "ended": "the boss gaining Unbound Ferocity and keeping it to the end", "best": true, "first": {"name": "Wutroll", "by": "Melee", "ms": 40348}},
   {"pull": 3, "pct": 79.26, "kill": false, "reset": false, "live": false, "duration_ms": 87140, "phase": "P1", "health": null, "ended": "the boss gaining Unbound Ferocity and keeping it to the end", "best": true, "first": {"name": "Pomaa", "by": "Virulence", "ms": 38666}},
   {"pull": 4, "pct": 80.93, "kill": false, "reset": false, "live": false, "duration_ms": 88271, "phase": "P1", "health": null, "ended": "deaths leading into Mutilate killing many", "best": false, "first": {"name": "Cptola", "by": "Tempest", "ms": 42074}},
