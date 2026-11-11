@@ -31,26 +31,36 @@ views.player_night = (() => {
   }
 
   const KILLERS_SHOWN = 5;
-  // What killed them before each wipe was decided, the most deaths first: a chip per pull, in the colour of what to
-  // do differently where a ready defensive or a healthstone would have kept them alive (the defensives tool's
-  // replay), dashed where it can't tell
+  // What killed them before each wipe was decided, the most deaths first: a chip per pull, as player_night's text
+  // reads that death (x.saved, views.player_night_view): in the colour of what to do differently where a ready
+  // defensive or a healthstone would have kept them alive, plain where nothing ready would have, dashed where the
+  // log can't tell (x.why: not replayed, or a ready spell's effect can't be told)
+  const LIVED = "a ready defensive or a healthstone would have kept them alive";
   function killers() {
     if (!D.killers.length) return "";
     const shown = D.killers.slice(0, KILLERS_SHOWN), rest = D.killers.slice(KILLERS_SHOWN);
     const chip = (k, x) => {
       const cls = x.saved === true ? "fix" : x.outright ? "outright" : x.saved === false ? "" : "unknown";
-      const how = x.saved === true ? "a ready defensive or a healthstone would have kept them alive"
+      const how = x.saved === true ? LIVED
         : x.outright ? "killed outright: no hit logged after high health, so nothing ready would have stopped it"
-        : x.saved === false ? "nothing ready would have kept them alive" : "can't tell: no overkill or health logged";
+        : x.saved === false ? "nothing ready would have kept them alive" : `can't tell${x.why ? `: ${x.why}` : ""}`;
       return `<button class="chip ${cls}" data-pull-chip="${x.pull}"${kit.tip(`Pull ${x.pull}: died ${kit.clock(x.ms)} (#${x.place})${to(k)}; ${how}`)}>${x.pull}</button>`;
     };
     const rows = shown.map((k) => `<li><span class="kn">${kit.iconImg(D.img_base, k.icon)}${kit.esc(k.by)}</span>`
       + `<span class="kc">${k.pulls.length}</span><span class="chips">${k.pulls.map((x) => chip(k, x)).join("")}</span></li>`).join("");
     const more = rest.length ? `<div class="note">and ${rest.length} other abilit${rest.length === 1 ? "y" : "ies"}, `
       + `${kit.plural(rest.reduce((n, k) => n + k.pulls.length, 0), "death")}</div>` : "";
+    // The key: each of the two marked kinds of chip the rows drawn have, on the first pull that is one, so the
+    // sample is never a pull of another kind and no kind is named that the night lacks
+    const drawn = shown.flatMap((k) => k.pulls).sort((a, b) => a.pull - b.pull);
+    const sample = (is, cls, words) => {
+      const x = drawn.find(is);
+      return x ? `<span class="key"><span class="chip ${cls} sample">${x.pull}</span>${words}</span>` : "";
+    };
+    const key = sample((x) => x.saved === true, "fix", `a pull where ${LIVED}`)
+      + sample((x) => x.saved == null, "unknown", "a pull where the log can't tell");
     return `<div class="section-title">What killed ${kit.esc(D.player.name)} before each wipe was decided</div>`
-      + `<ul class="killers">${rows}</ul>${more}`
-      + `<div class="note"><span class="chip fix sample">12</span> a pull where a ready defensive or a healthstone would have kept them alive</div>`;
+      + `<ul class="killers">${rows}</ul>${more}` + (key ? `<div class="note keys">${key}</div>` : "");
   }
 
   // Their cooldowns over the night, each as player_night's text counts it: uses of possible uses, or, for one held

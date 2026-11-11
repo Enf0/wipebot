@@ -154,6 +154,7 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 .chip.unknown { border-style: dashed; }
 .chip.outright { text-decoration: line-through; }
 .chip.sample { display: inline-block; text-align: center; cursor: default; margin-right: 4px; }
+.note.keys .key + .key { margin-left: 12px; }
 [data-panel] + [data-panel] { margin-top: 10px; }
 .ranked { list-style: none; margin: 0 2px 8px; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) auto; gap: 4px 10px; align-items: center; font-size: 12.5px; }
 .ranked li { display: contents; }

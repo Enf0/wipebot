@@ -45,6 +45,7 @@ from .coaching import (
     dead_spans,
     death_note,
     night_cooldowns,
+    night_lived,
     night_pulls,
     night_trend,
     resource_use,
@@ -56,6 +57,7 @@ from .deaths import (
     CASCADE_MS,
     RECAP_WINDOW_MS,
     SAVED,
+    UNTOLD,
     Replay,
     Standing,
     defensive_state,
@@ -384,12 +386,18 @@ async def _against_top(rep: Report, f: dict, p, ids: dict[str, int]) -> dict | s
                       round(statistics.median([sum(v or 0 for v in x.cpm.values()) for x in c.found]))]}
 
 
+# Why a death that counts has no answer where it wasn't replayed, in player_night's and defensives' words (one that
+# was replayed and still has none: deaths.UNTOLD)
+NOT_REPLAYED = "no overkill or health logged"
+
+
 async def player_night_view(rep: Report, boss: str, player: str) -> dict:
     """One player across every pull on a boss, as player_night states it: per pull their output per second alive and
     rank in their role, their first death (its place among the pull's deaths, and whether it came after the wipe
     was decided) and their major cooldowns in the words of the pull's row; over the night, the deaths that counted,
-    time dead, their best pull, and each cooldown as its text counts it: uses of possible uses, or, for one held for
-    a moment of the fight, the pulls that got there and on how many it was used. No total over the cooldowns: the
+    each with whether something ready would have kept them alive as the text reads it (coaching.night_lived), time
+    dead, their best pull, and each cooldown as its text counts it: uses of possible uses, or, for one held for a
+    moment of the fight, the pulls that got there and on how many it was used. No total over the cooldowns: the
     text states none."""
     p = rep.player(player)
     fights = [f for f in rep.pulls_with(p, rep.by_boss[boss]) if not f.get("inProgress")]
@@ -421,21 +429,19 @@ async def player_night_view(rep: Report, boss: str, player: str) -> dict:
         })
     counted = [r for r in rows if r["death"] and not r["reset"] and not r["death"]["fallout"]
                and not r["death"]["mass"]]  # as NightPull.counted: a reset is no pull of the night's
-    # each death before its wipe was decided, replayed with what was ready (the defensives tool's replay): True when a
-    # ready defensive or a healthstone would have kept them alive, False when nothing ready would have, None can't tell
-    # (the deaths the card counts: their first in each pull, a later one after a battle res left out, as above)
-    replays = {(rep.pull_no(r.f), round(r.d["timestamp"] - r.f["startTime"])): r for r in replayed}
+    # each death that counts, replayed with what was ready, in the one reading player_night's text gives of it
+    # (coaching.night_lived, deaths.lived): True when a ready defensive or a healthstone would have kept them alive,
+    # False when nothing ready would have, None when the log can't tell, with why in the text's words
+    outright = {(rep.pull_no(r.f), r.d["timestamp"]) for r in replayed if r.outright}
     saved_by: Counter = Counter()
     killers: dict[str, dict[str, Any]] = {}
-    for r in counted:
-        replay = replays.get((r["pull"], r["death"]["ms"]))
-        more = replay.more if replay else Replay()
-        saved_by.update(savers(more))
+    for r, (no, d, more, ok, done) in zip(counted, night_lived(rep, pulls, replayed), strict=True):
+        saved_by.update(more)
         k = killers.setdefault(r["death"]["by"], {"by": r["death"]["by"], "no_blow": r["death"]["no_blow"],
                                                   "icon": r["death"]["icon"], "pulls": []})
-        k["pulls"].append({"pull": r["pull"], "ms": r["death"]["ms"], "place": r["death"]["place"],
-                           "saved": bool(savers(more)) if more else False if replay and replay.outright else None,
-                           "outright": bool(replay and replay.outright)})
+        k["pulls"].append({"pull": no, "ms": r["death"]["ms"], "place": r["death"]["place"], "saved": ok,
+                           "outright": (no, d["timestamp"]) in outright}
+                          | ({"why": UNTOLD if done else NOT_REPLAYED} if ok is None else {}))
     judged = [x["saved"] for k in killers.values() for x in k["pulls"]]
     dead_s, counted_s = (sum(x.dead_s for x in pulls if not x.reset),  # unrounded and without resets, as the text
                          sum(x.counted_s for x in pulls if not x.reset))

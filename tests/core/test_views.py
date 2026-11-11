@@ -1538,7 +1538,7 @@ async def test_every_text_a_view_draws_reads_against_what_is_behind_it(recorded,
     2.2:1 on a light panel, and a pull's chip a number at 70% or on a tint its colour did not read on."""
     from wipebot.core import viewhost
     night = made_up_night()  # a chip of each kind: would have lived, nothing ready, can't tell, killed outright
-    night["killers"][0]["pulls"] += [{"pull": 5, "ms": 150000, "place": 9, "saved": None},
+    night["killers"][0]["pulls"] += [{"pull": 5, "ms": 150000, "place": 9, "saved": None, "why": views.NOT_REPLAYED},
                                      {"pull": 6, "ms": 180000, "place": 2, "saved": False, "outright": True}]
     key = {"report": night["report"], "boss": night["boss"], "player": "Mirelle"}
     seen: dict[str, list[dict]] = {}
@@ -1562,7 +1562,7 @@ async def test_every_text_a_view_draws_reads_against_what_is_behind_it(recorded,
     assert low == []
     # and it looked at what it says: a chip of each kind, and how many died at once written in three marks
     assert {t["cls"] for t in seen["player_night"] if t["cls"].startswith("chip")} == {
-        "chip", "chip fix", "chip unknown", "chip outright", "chip fix sample"}
+        "chip", "chip fix", "chip unknown", "chip outright", "chip fix sample", "chip unknown sample"}
     assert sum(t["cls"] == "tb" for t in seen["pull_summary"]) == 3
 
 
@@ -2383,7 +2383,8 @@ async def test_a_night_says_a_death_with_no_killing_blow_as_the_log_does(monkeyp
     night["killers"] = [{"by": "Slag Wave", "icon": "spells/1.jpg",
                          "pulls": [{"pull": 2, "ms": 60000, "place": 1, "saved": True}]},
                         {"by": "no killing blow recorded", "no_blow": True, "icon": None,
-                         "pulls": [{"pull": 4, "ms": 120000, "place": 4, "saved": None}]}]
+                         "pulls": [{"pull": 4, "ms": 120000, "place": 4, "saved": None,
+                                    "why": views.NOT_REPLAYED}]}]
     from wipebot.core import viewhost
     made_up_view(monkeypatch, {"view": "player_night", "report": night["report"], "player": "Mirelle"}, night)
     async with drawn("player_night", {}, mode="fullscreen", width=viewhost.FULL_WIDTH) as (view, errors):
@@ -2392,9 +2393,75 @@ async def test_a_night_says_a_death_with_no_killing_blow_as_the_log_does(monkeyp
         bars = [await tip(f'[data-pull-col="{n}"]') for n in (2, 4)]
     assert not errors
     assert chips[0].startswith("Pull 2: died 1:00 (#1) to Slag Wave; ")
-    assert chips[1].startswith("Pull 4: died 2:00 (#4), no killing blow recorded; can't tell")
+    assert chips[1] == f"Pull 4: died 2:00 (#4), no killing blow recorded; can't tell: {views.NOT_REPLAYED}"
     assert bars[0].split("\n")[1:3] == ["280k/s alive, rank 2 of 4 healers by total", "died 1:00 (#1) to Slag Wave"]
     assert "died 2:00 (#4), no killing blow recorded" in bars[1].split("\n")
+
+
+async def test_a_nights_death_is_read_on_its_card_as_player_nights_text_reads_it(rep, monkeypatch):
+    """Whether something ready would have kept them alive is one reading (deaths.lived, through coaching.night_lived)
+    with three answers. The card had its own with two for a death that was replayed: one whose only ready spell
+    "would have only if it held ... so can't be sure" was drawn as a death nothing ready would have stopped, beside
+    a text that says it can't tell. Four of Draiman's deaths on the tests' night, with made-up replays."""
+    from wipebot.core.report import coaching, deaths
+    stone = deaths.Pressed("a healthstone", deaths.SAVED, True, "if they had one; none used this pull")
+    short_of = deaths.Pressed("Barkskin", deaths.NOT_ENOUGH, False)
+    unsure = deaths.Pressed("Cloak of Shadows", f"{deaths.SAVED} only if it held for all 5 s, so can't be sure", None)
+    replays = [deaths.Replay("If pressed:", rows) for rows in ((unsure, stone), (short_of,), (unsure, short_of))]
+    p = rep.player("Draiman")
+    pulls, *_ = await coaching.night_pulls(rep, p, rep.by_boss["Sszorak"])
+    died = [(x, x.death[1]) for x in pulls if x.counted and x.death]
+    made = [deaths.Replayed(x.f, d, more, False)
+            for (x, d), more in zip(died[:4], [*replays, deaths.Replay()], strict=True)]
+    made.append(deaths.Replayed(died[4][0].f, died[4][1], deaths.Replay(), True))  # one that killed outright
+
+    async def replay_deaths(*_):
+        return made
+    monkeypatch.setattr(views, "replay_deaths", replay_deaths)
+    data = await views.player_night_view(rep, "Sszorak", "Draiman")
+    chips = {x["pull"]: x for k in data["killers"] for x in k["pulls"]}
+    would, wouldnt, cant, unlogged, outright = (chips[rep.pull_no(x.f)] for x, _ in died[:5])
+    assert (would["saved"], wouldnt["saved"], outright["saved"]) == (True, False, False)
+    assert "why" not in would and "why" not in wouldnt and outright["outright"] and not wouldnt["outright"]
+    assert cant["saved"] is None and cant["why"] == deaths.UNTOLD  # was False: "nothing ready would have"
+    assert unlogged["saved"] is None and unlogged["why"] == views.NOT_REPLAYED
+    # and the counts over them are the text's own line
+    lived, text = data["lived"], coaching._night_lived(rep, pulls, made)
+    assert text and f"alive at {lived['saved']} of the {lived['of']} deaths that count" in text
+    assert f"; can't tell at {lived['unknown']} ({views.NOT_REPLAYED} at {lived['unknown'] - 1}, " in text
+    assert text.endswith(f"{deaths.UNTOLD} at 1).") and lived["by"] == [("a healthstone", 1)]
+    assert [lived["saved"], lived["outright"], lived["of"]] == [1, 1, len(died)]
+
+
+KEYS = """() => [...document.querySelectorAll(".note.keys .key")].map((k) =>
+    [k.querySelector(".chip").textContent, k.querySelector(".chip").className, k.textContent])"""
+
+
+async def test_the_night_cards_key_shows_a_pull_that_is_one_and_names_no_kind_the_night_lacks(monkeypatch):
+    """The key under the chips once showed a chip "12" in the colour of a death a defensive would have stopped,
+    whatever the night: on the recorded night pull 12 is a death the text can't tell for, and the key was drawn on
+    a night with no such death at all. Its sample is the first pull that is one, of each kind the rows have."""
+    def night_with(*chips: tuple[int, bool | None]) -> dict:
+        night = made_up_night()
+        night["killers"] = [{"by": "Slag Wave", "icon": "spells/1.jpg", "pulls": [
+            {"pull": n, "ms": 60000, "place": 1, "saved": saved}
+            | ({"why": views.NOT_REPLAYED} if saved is None else {}) for n, saved in chips]}]
+        made_up_view(monkeypatch, {"view": "player_night", "report": night["report"], "player": "Mirelle"}, night)
+        return night
+
+    lived, cant = "a pull where a ready defensive or a healthstone would have kept them alive", "the log can't tell"
+    night_with((2, False), (4, None), (5, True), (6, True), (7, None))
+    async with drawn("player_night", {}) as (view, errors):
+        assert await view.evaluate(KEYS) == [["5", "chip fix sample", f"5{lived}"],
+                                             ["4", "chip unknown sample", f"4a pull where {cant}"]]
+        tip = await view.locator('[data-pull-chip="4"]').get_attribute("data-tip")
+        assert tip.endswith(f"; can't tell: {views.NOT_REPLAYED}") and not errors
+    night_with((2, False), (4, None))  # no death a defensive would have stopped: that kind is not in the key
+    async with drawn("player_night", {}) as (view, errors):
+        assert await view.evaluate(KEYS) == [["4", "chip unknown sample", f"4a pull where {cant}"]] and not errors
+    night_with((2, False), (4, False))  # neither kind: no key
+    async with drawn("player_night", {}) as (view, errors):
+        assert await view.evaluate(KEYS) == [] and await view.locator(".note.keys").count() == 0 and not errors
 
 
 async def test_a_result_for_the_mock_host_leaves_the_in_process_tools_as_they_were(monkeypatch):
