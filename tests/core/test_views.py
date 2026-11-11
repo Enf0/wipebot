@@ -329,9 +329,9 @@ def test_the_night_cards_quiet_endings_are_the_cores():
 @pytest.mark.parametrize("case", METER_CASES)
 async def test_a_meter_ranks_the_players_its_tool_states(recorded, case):
     """A meter is its tool's own rows: every bar a player its text names with the amount it states there, and
-    around them only what the text states (its total and shares, which no table of kicks or adds has). Dispels are
-    the one sum left: the text lists who dispelled each debuff, and a bar is a player's dispels over those lists,
-    a count and an order of players the text itself doesn't state."""
+    around them only what the text states (its total and shares, which no table of kicks has; of adds the damage
+    the kind took, and no shares). Dispels are the one sum left: the text lists who dispelled each debuff, and a
+    bar is a player's dispels over those lists, a count and an order of players the text itself doesn't state."""
     data = await meter_data(case)
     text, failed = await server.call(CASES[case].tool, CASES[case].args)
     assert not failed
@@ -340,10 +340,10 @@ async def test_a_meter_ranks_the_players_its_tool_states(recorded, case):
     for m in data["meters"]:
         values = [b["value"] for b in m["bars"]]
         assert len(values) >= 3 and values == sorted(values, reverse=True), m["title"]
-        assert "total" not in m and (m["stated"] is None) == (m["unit"] != "amount" or CASES[case].tool == "enemies")
+        assert "total" not in m and (m["stated"] is None) == (m["unit"] != "amount")
         for b in m["bars"]:
             assert b["name"] in text, (m["title"], b["name"])
-            assert bool(b["share"]) == bool(m["stated"])
+            assert bool(b["share"]) == (bool(m["stated"]) and CASES[case].tool != "enemies")
             if m["unit"] == "kicks":
                 assert re.search(rf"^  {re.escape(b['name'])}: {round(b['value'])}\b", text, re.MULTILINE)
             elif m["unit"] == "dispels":
@@ -487,14 +487,18 @@ async def test_against_another_night_the_changes_are_the_ones_the_text_writes(re
 async def test_enemies_meter_is_the_one_list_its_text_states_and_says_when_that_is_not_by_wave(recorded, case):
     """enemies lists who damaged the most damaged kind of add; its meter is that list. Each player's damage on
     every kind summed was a meter too, a number the text states nowhere, and with by_wave the picture showed the
-    whole pull's sums under an answer about waves without saying so."""
+    whole pull's sums under an answer about waves without saying so. The damage that kind took is on its line in
+    the text ("took 175.13M") and was nowhere on the meter: it is the meter's total, as written there, with no
+    rate, time or shares, which the text doesn't state of it."""
     from wipebot.core.report import adds
     data = await meter_data(case)
     text, _ = await server.call("enemies", CASES[case].args)
     [m] = data["meters"]
-    assert m["title"] != adds.EVERY_KIND and m["title"].startswith("Damage on ") and m["stated"] is None
+    assert m["title"] != adds.EVERY_KIND and m["title"].startswith("Damage on ")
     kind = m["title"].removeprefix("Damage on ")
-    assert re.search(rf"^  {re.escape(kind)}: ", text, re.MULTILINE)
+    took = re.search(rf"^  {re.escape(kind)}: .*?, took ([\d.]+[kMB]?)(?:;|$)", text, re.MULTILINE)
+    assert took and m["stated"] == {"total": took.group(1), "over": "", "per_s": ""}
+    assert not any(b["share"] for b in m["bars"])
     for b in m["bars"]:
         assert f"{b['name']} {short(b['value'])}" in text, b["name"]
     by_wave = bool(CASES[case].args.get("by_wave"))
@@ -601,6 +605,7 @@ async def test_the_meter_draws_a_panel_per_meter_without_errors(recorded, tmp_pa
     assert s.height > 100 and s.path.name == "discord-dark-680-inline.png"  # as the bot posts it: no card in a host
     for m in data["meters"]:
         assert m["title"] in s.text and m["bars"][0]["name"] in s.text
+        assert f"TOTAL\n{m['stated']['total']}\nMEDIAN\n" in s.text.upper()  # what the kind took, and nothing under it
 
 
 # ---- the trend: an amount pull by pull, from breakdown grouped by pull and mechanic_hits over every pull ----

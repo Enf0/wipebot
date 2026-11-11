@@ -909,7 +909,8 @@ async def note_plan_view(rep: Report, text: str, boss: str, source: str = "", pl
 class Stated:
     """What a meter's tool states around its rows and a Meter has no field for, handed to the page as stated."""
     # breakdown by player (tables.stated): its heading's total (0: none stated), and by player their share of it as
-    # their row writes it ("13%") and, for one in only some of the pulls, in how many and their rate over those
+    # their row writes it ("13%") and, for one in only some of the pulls, in how many and their rate over those.
+    # enemies: the damage the kind of add took, its line's "took 175.13M" (adds.meters' Meter.total), and no shares
     total: float = 0
     rows: dict[str, tuple[str, str]] = dataclasses.field(default_factory=dict)
     # mechanic_hits' "Total" line: the deaths with it as the killing blow, and of any cause soon after a hit
@@ -946,10 +947,11 @@ async def _ranked(rep: Report, tool: str, args: dict, other: Report | None = Non
             return [(_as_its_text_ranks(rep.names, found, h, order), Stated(deaths=(killed_by, died_after)))]
         case "enemies":
             # Each player's damage on every kind of add summed (adds.EVERY_KIND) is a number enemies' text states
-            # nowhere: the picture is the list it does state, who damaged the most damaged kind over the pull. Its
-            # waves (`by_wave`) are the text's alone, and the picture says it isn't one of them
+            # nowhere: the picture is the list it does state, who damaged the most damaged kind over the pull, with
+            # the damage that kind took as its line states it. Its waves (`by_wave`) are the text's alone, and the
+            # picture says it isn't one of them
             whole = ", the whole pull, not by wave" if a.get("by_wave") and not a.get("all_pulls") else ""
-            return [(dataclasses.replace(m, scope=m.scope + whole), Stated())
+            return [(dataclasses.replace(m, scope=m.scope + whole), Stated(total=m.total))
                     for m in await adds.meters(rep, a.get("pull"), a.get("boss"), bool(a.get("all_pulls")))
                     if m.title != adds.EVERY_KIND]
     return []
@@ -1008,9 +1010,9 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
     """A tool's ranking of players as in-game damage meters draw it (meters_of): per meter each player's amount,
     their class colour, spec and role, and what the tool's text states around them, as it states it (Stated): the
     total, its rate and the combat time of breakdown's heading, each row's share of it and "in N of M pulls", a
-    mechanic's deaths. Nothing here is summed over the bars. With it the ranking in one sentence (the card's
-    headline); and, for one over several pulls that its tool also states pull by pull, the call whose trend shows
-    it (`by_pull`: the trend view's tool and args)."""
+    mechanic's deaths, the damage a kind of add took. Nothing here is summed over the bars. With it the ranking in
+    one sentence (the card's headline); and, for one over several pulls that its tool also states pull by pull, the
+    call whose trend shows it (`by_pull`: the trend view's tool and args)."""
     found = await _ranked(rep, tool, args, other)
     if not found:
         raise ValueError(f"{tool} ranks no players here")
@@ -1048,8 +1050,9 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
         median = statistics.median(b.value for b in m.bars)
         return {"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 3),
                 "icon": icon(m.ability), "note": m.note, "others": m.others, "headline": meter_headline(m, said),
-                # the heading's own: "(0:10 of combat; total 14.83M, 1.48M/s)"
-                "stated": {"total": short(said.total), "over": clock(m.seconds * 1000),
+                # the heading's own: "(0:10 of combat; total 14.83M, 1.48M/s)"; of a kind of add, what it "took",
+                # which enemies states with no rate and no time
+                "stated": {"total": short(said.total), "over": clock(m.seconds * 1000) if m.seconds else "",
                            "per_s": f"{short(said.total / m.seconds)}/s" if m.seconds else ""} if said.total else None,
                 "median": median, "bars": [bar(m, said, b) for b in m.bars]} | (
                     {f"median_{k}": v for k, v in written(m, median).items()}) | (

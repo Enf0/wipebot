@@ -43,8 +43,9 @@ views.meter = (() => {
     ];
   }
 
-  // The card's numbers, each as its tool states it: breakdown's total with its rate and combat time, a mechanic's
-  // deaths (its text's "Total" line). Who is first and by how much is its headline
+  // The card's numbers, each as its tool states it: breakdown's total with its rate and combat time, what a kind of
+  // add took (enemies' "took", with neither), a mechanic's deaths (its text's "Total" line). Who is first and by how
+  // much is its headline
   function stats(m) {
     if (m.then) return thenStats(m);
     const mine = m.bars.findIndex(marked), b = m.bars[mine], s = m.stated, d = m.deaths;
