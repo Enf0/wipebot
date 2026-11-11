@@ -103,7 +103,12 @@ views.note = (() => {
     const rows = C0.uses.map((u, r) => r).filter((r) => reached(r) >= D.few);
     const C = { uses: rows.map((r) => C0.uses[r]), pulls: C0.pulls.map((p) => ({ pull: p.pull, cells: rows.map((r) => p.cells[r]) })) };
     const fewer = C0.uses.length - rows.length;
-    const labelW = 230, top = 26, colW = Math.max(SQ + 3, Math.min(16, 540 / C.pulls.length)), right = 70;
+    // the label column is as wide as its longest row (the time, the icon, the name, the spell), so no name runs into
+    // the squares; past LABEL_MOST a spell's name is cut
+    const LABEL_MOST = 300, nameX = (u) => (D.img_base && u.icon ? 56 : 40);
+    const spellX = (u) => nameX(u) + kit.width(u.player, kit.SIZE.label, 600) + 5;
+    const labelW = Math.min(LABEL_MOST, Math.max(230, Math.ceil(Math.max(...C.uses.map((u) => spellX(u) + kit.width(u.spell)))) + 8));
+    const top = 26, colW = Math.max(SQ + 3, Math.min(16, 540 / C.pulls.length)), right = 70;
     const w = labelW + C.pulls.length * colW + right, h = top + C.uses.length * ROW + 4;
     let body = "";
     C.pulls.forEach((p, i) => { if (p.pull === 1 || p.pull % 5 === 0) body += kit.text(labelW + i * colW + SQ / 2, 14, String(p.pull), "tm", 'text-anchor="middle"'); });
@@ -111,8 +116,8 @@ views.note = (() => {
       const y = top + r * ROW, at = `${u.phase > 1 ? `P${u.phase} ` : ""}${kit.clock(u.at_s * 1000)}`;
       body += kit.text(0, y + SQ - 0.5, at);
       body += kit.icon(D.img_base, u.icon, 40, y - 1, 12, u.spell);
-      body += `<text x="${D.img_base && u.icon ? 56 : 40}" y="${y + SQ - 0.5}" font-size="${kit.SIZE.label}"><tspan font-weight="600" class="cls" style="--c:${kit.esc(u.color)}">${kit.esc(u.player)}</tspan>`
-        + `<tspan class="tm" dx="5">${kit.esc(u.spell)}</tspan></text>`;
+      body += `<text x="${nameX(u)}" y="${y + SQ - 0.5}" font-size="${kit.SIZE.label}"><tspan font-weight="600" class="cls" style="--c:${kit.esc(u.color)}">${kit.esc(u.player)}</tspan>`
+        + `<tspan class="tm" dx="5">${kit.esc(kit.fit(u.spell, labelW - 8 - spellX(u)))}</tspan></text>`;
       let on = 0, seen = 0;
       C.pulls.forEach((p, i) => {
         const c = p.cells[r];
