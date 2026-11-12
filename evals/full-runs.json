@@ -9,13 +9,13 @@
   "verdict": "VERDICT: no change shown: a drop of 9.0 answers (2.8 points) or more would have shown."
  },
  "plugin": {
-  "commit": "442af31",
-  "date": "2026-11-11",
-  "trials": "2-3 trials",
-  "passed": 183,
-  "of": 205,
+  "commit": "382f5f8",
+  "date": "2026-11-12",
+  "trials": "3-6 trials",
+  "passed": 256,
+  "of": 279,
   "errors": 0,
-  "verdict": "VERDICT: cannot tell: 11 of this run's 92 cases not compared."
+  "verdict": "VERDICT: no change shown: a drop of 8.4 answers (3.0 points) or more would have shown."
  },
  "connector": {
   "commit": "18ef819",
