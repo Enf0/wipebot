@@ -745,7 +745,8 @@ allerede er fulle, og det er for mye uansett hvordan man ser på det. Stat-rekke
 [[plant]]
 case = "real-holy-paladin-tasks-pushback"
 kind = "wrong"
-item = "says the two holy priests or the healer comp explain much of the gap"
+item = """says the two holy priests or the healer comp explain much of the gap (calling the 10% share of the
+         healing partly the raid around them is not this)"""
 answer = """
 **The gap is mostly the healer comp: with two holy priests beside you there is less healing left for a paladin to
 do.** That explains much of the distance to the top Holy Paladins on pull 12. The rest is casts: Beacon of Virtue
@@ -755,7 +756,8 @@ and Divine Toll went out less often than theirs.
 [[plant]]
 case = "real-disc-on-your-numbers"
 kind = "wrong"
-item = "agrees, as its verdict, that disc priest is the better pick"
+item = """agrees, as its verdict, that disc priest is the better pick ("on your numbers, yes" is not that, when the
+answer says no log backs those numbers)"""
 answer = """
 **Yes, we agree: disc priest is the better pick.** With the orbs and soaks working, a disc priest played that well
 brings the raid more than your paladin does now. Make the switch.
