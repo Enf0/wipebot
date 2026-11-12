@@ -554,14 +554,20 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
              "healthstones and potions, each defensive's uses, deaths, and at how many deaths each defensive they "
              "used on this "
              "boss was off cooldown but unused (ignoring charges and cooldown reduction; whether one was needed is for "
-             "the death recap; deaths in a hit killing many apart, the raid's to stop); defensives never cast are a "
-             "talent choice or passive, not a miss:"]
+             "the death recap; deaths in a hit killing many apart, the raid's to stop), and how many of those "
+             "deaths a ready defensive or a healthstone would have kept them alive through, each replayed (`player` "
+             "has each death's); defensives never cast are a talent choice or passive, not a miss:"]
+    who = {pid: next(here[pid] for here in played.values() if pid in here) for pid in pulls_in}
+    died = [pid for pid in pulls_in if deaths[pid]]
+    # each of their own deaths replayed with what was ready, as `player` gives them one by one: the count here
+    replays = dict(zip(died, await asyncio.gather(*(replay_deaths(rep, who[pid], fights, whole_pull)
+                                                    for pid in died)), strict=True))
+    saved = {pid: sum(lived(r.more, r.outright) is True for r in rs if not r.mass) for pid, rs in replays.items()}
     for pid in sorted(pulls_in, key=lambda i: (-deaths[i], rep.names.get(i, ""))):
         kit = {sp["name"] for here in played.values() if pid in here
                for sp in kits[(here[pid].class_name, here[pid].spec)]}
-        q = next(here[pid] for here in played.values() if pid in here)
-        lines.append(_kit_line(q, pulls_in[pid], stones[pid], uses[pid], (deaths[pid], in_mass[pid]),
-                               ready_at_death[pid], kit))
+        lines.append(_kit_line(who[pid], pulls_in[pid], stones[pid], uses[pid], (deaths[pid], in_mass[pid]),
+                               ready_at_death[pid], kit, saved.get(pid)))
     if missing:
         lines.append(missing)
     elif not any(kits.values()):
@@ -570,7 +576,7 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
 
 
 def _kit_line(q: Player, pulls: int, stones: int, uses: Counter, died: tuple[int, int], ready_at: Counter,
-              kit: set[str]) -> str:
+              kit: set[str], saved: int | None = None) -> str:
     """defensives' line for a player: pulls, healthstones and potions, each defensive's uses, their deaths (`died`:
     their own, and in hits killing many) with the defensives ready but unused at their own, and those never cast."""
     own, mass = died
@@ -580,6 +586,8 @@ def _kit_line(q: Player, pulls: int, stones: int, uses: Counter, died: tuple[int
     if own:
         ready = ", ".join(f"{n} at {k}" for n, k in ready_at.most_common() if uses[n])
         line += f"; died {own}" + (f", ready but unused: {ready}" if ready else "")
+        if saved is not None:
+            line += f"; a ready defensive or a healthstone would have kept them alive through {saved} of them"
     if mass:
         line += f"; {'and ' if own else ''}died {mass} in hits killing many"
     if never := sorted(kit - set(uses)):

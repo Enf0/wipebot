@@ -1,5 +1,5 @@
 The Coiled Altar (Heroic) pull 1: wipe in P3 at 0.8% (WCL 0.3%), 7:29 long (https://www.warcraftlogs.com/reports/8TcXMAP2gHQGr9pW#fight=1); **new guild best!** (before this log: P3 9.6% (WCL 4.1%) on Mon 31 Aug (pull 13, https://www.warcraftlogs.com/reports/WK6MapzxYjqLGPNJ#fight=24)).
-Ended by (from the log, earliest first): Coalesced Venom [1282408] killed 5 in pulses within 6 s from 7:14 (one ability killing many in a few seconds: find which mechanic failed); then half the raid was dead at 7:16. Before it, 4 deaths one after another from 6:57, a tank among them, none brought back: what each left short may be what lost it.
+Ended by (from the log, earliest first): Coalesced Venom [1282408] killed 5 in pulses within 6 s from 7:14 (one ability killing many in a few seconds: find which mechanic failed); then half the raid was dead at 7:16. Before it, 4 deaths one after another from 6:57, a tank among them (tank_swaps shows whether a taunt was late), none brought back: what each left short may be what lost it.
 Not an enrage buff: no buff the boss gained near the end decided it. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
 Phases: P1 Stage One: Serpent's Bargain 0:00 → P2 Stage Two: Usurper's Reprisal 1:38 → I1 Intermission: The Claimed Vessel 3:17 → P3 Stage Three: Coiled Union 3:55
 

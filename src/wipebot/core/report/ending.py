@@ -306,7 +306,9 @@ def moment_text(m: Moment, raid: int) -> str:
 
 
 def _lead_in_text(lead_in: LeadIn) -> str:
-    tanks = f", {'a tank' if lead_in.tanks == 1 else f'{lead_in.tanks} tanks'} among them" if lead_in.tanks else ""
+    # a tank's death is read against the swap, which another tool has: said here, where the death is first seen
+    tanks = (f", {'a tank' if lead_in.tanks == 1 else f'{lead_in.tanks} tanks'} among them (tank_swaps shows "
+             "whether a taunt was late)") if lead_in.tanks else ""
     return f"{lead_in.deaths} deaths one after another from {clock(lead_in.first_ms)}{tanks}, none brought back"
 
 
@@ -330,7 +332,8 @@ def ending_text(e: Ending | None) -> str | None:
         case "live":
             return f"Ended by: not yet, the pull is still going ({clock(e.end_ms)} logged so far)."
         case "reset":
-            return "Ended by: a reset (the boss untouched)."
+            return ("Ended by: a reset (the boss untouched): not an attempt. Its deaths are how the raid reset, not a "
+                    "mechanic that failed: nothing in them to fix or to plan cooldowns for.")
         case "cascade":
             return (f"Ended by: deaths from {clock(deaths_from(e) or 0)} until half the raid was dead at "
                     f"{clock(e.half_dead_ms or 0)}, no single hit killing many: start from the first death and follow "
