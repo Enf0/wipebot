@@ -1886,6 +1886,24 @@ async def test_the_replays_timeline_tells_a_screen_reader_where_it_is(recorded):
         assert not errors
 
 
+@pytest.mark.parametrize("width", [380, 760])
+async def test_the_replays_boss_frame_and_next_casts_leave_the_raid_in_sight_on_a_phone(recorded, width):
+    """On a card 380 wide the boss's frame and its next casts lay over the top third of the map, on the players
+    they were about. There they stand over the map, side by side, and the map keeps its 3:2; on a wide card they
+    lie in its top corners."""
+    case = CASES["pull-map"]
+    async with drawn(case.tool, case.args, width=width) as (view, errors):
+        box = "(e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }"
+        room, boss, coming = [await view.locator(part).evaluate(box) for part in ("#rp-map", "#rp-boss", "#rp-next")]
+        assert await view.locator("#rp-boss").is_visible() and await view.locator("#rp-next").is_visible()
+        assert abs((room[2] - room[0]) / (room[3] - room[1]) - 1.5) < 0.02
+        if width < 480:
+            assert boss[3] <= room[1] and coming[3] <= room[1] and boss[2] <= coming[0]
+        else:
+            assert room[1] < boss[1] < boss[3] < room[3] and room[1] < coming[1] < coming[3] < room[3]
+        assert not errors
+
+
 async def test_the_replay_opens_in_fullscreen_from_its_own_button_and_keeps_its_controls_in_sight(recorded):
     """pull_map's replay had no way to fullscreen; and there its 3:2 stage at the frame's full width put play and
     the timeline under the fold (a page of 808 px in a frame of 760). The stage now takes the height that is left."""

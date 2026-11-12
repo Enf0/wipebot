@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `Agent` **"The orb" is found under the name the game gives it.** Raiders say "the orb" or "the totems"; the log says Mutagenic Venom, and a guide writes "orbs" in one sentence and the debuff's name in the next. Asked what the guides say about a mechanic, Wipebot read only the sentences with the word exactly as asked, so "orb" missed all that is written about "orbs", among it the line naming the debuff a carried orb puts on a player, and an answer could say the log doesn't show whether a healer carried an orb when it lists the three times they did. The guides are now read for the word in the singular and the plural, an ability's name too ("Malignant Totems"), and Wipebot looks up the game's name for a raider's word before saying the log lacks it.
+- `MCP` **The replay keeps the raid in sight on a phone.** On a narrow screen the boss's frame and its next casts lay over the top third of the map, on the very players they were about. They now stand above the map, side by side, and the map keeps its full size.
+
+  ![The replay of Sszorak pull 13 on a phone in Claude's dark theme: the boss's health bar and its next two casts in a row above the map, the raid and the marked player clear under them](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/replay-phone.webp)
+- `MCP` **A player's night explains its pull numbers in full on a phone.** "survivable with a ready defensive or a healthstone" ran off the edge of a narrow screen. It now wraps onto a second line.
 
 ## [1.2.1] - 2026-11-12
 

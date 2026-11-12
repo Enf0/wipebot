@@ -85,7 +85,8 @@ views.replay = (() => {
     if (!stage) return;
     $("rp-full").hidden = full || !app.canGoFullscreen();
     const waiting = document.getElementById("status");  // the placeholder, still there while this view opens
-    const rest = document.getElementById("app").offsetHeight - stage.offsetHeight - (waiting ? waiting.offsetHeight : 0);
+    // everything but the map: on a phone the stage holds the boss's frame and its next casts over the map too
+    const rest = document.getElementById("app").offsetHeight - $("rp-map").offsetHeight - (waiting ? waiting.offsetHeight : 0);
     stage.style.setProperty("--rp-rest", `${rest}px`);
   }
 
@@ -447,7 +448,7 @@ views.replay = (() => {
         death ? `died at ${clock(death.ms)} (${death.by})` : near ? `${Math.round(near[0])} yd from ${near[1]}` : "");
       tip.style.display = "block";
       tip.style.left = Math.min(x + 14, rect.width - tip.offsetWidth - 4) + "px";
-      tip.style.top = Math.max(4, y - tip.offsetHeight - 10) + "px";
+      tip.style.top = e.target.offsetTop + Math.max(4, y - tip.offsetHeight - 10) + "px";  // the map may start lower in the stage
       draw();
     });
     $("rp-map").addEventListener("pointerleave", () => { $("rp-tip").style.display = "none"; hover = -1; draw(); });
