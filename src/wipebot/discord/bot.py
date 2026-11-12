@@ -26,7 +26,7 @@ from wipebot.core.library import LatestRaids
 from wipebot.core.report import FactError
 from wipebot.core.wcl import WCLError
 
-from . import budget, commands, config, emojis, host, logincmd, news, progress, texts
+from . import budget, commands, config, emojis, host, keys, logincmd, news, progress, texts
 from .chat import DISCORD_LIMIT, Conversations, SlowStart, split_message
 from .commands import REPORT_LINK
 from .discord_text import unlinked_to_fit
@@ -879,7 +879,8 @@ class WipeBot(discord.Client):
                               "answer_in_dm": answer_in_dm},
                        icons=self.icons, server_id=s.discord_guild_id, user_id=user.id,
                        language=self.store.language(s.discord_guild_id),
-                       env=own.env() if (own := self.store.server_key(s.discord_guild_id)) else None,
+                       env=own.env(self.store.model(s.discord_guild_id))
+                       if (own := self.store.server_key(s.discord_guild_id)) else None,
                        wcl_token=signed[1] if (signed := self.store.login(user.id)) else None,
                        wcl_private=private[1] if (private := self.store.private_login(user.id)) else None,
                        private_hint=logincmd.PRIVATE_HINT if logincmd.callback_url() else None,
@@ -1273,8 +1274,8 @@ class WipeBot(discord.Client):
         return channel
 
     async def _open_session(self, code: str, env: dict | None = None) -> Session:
-        """A session on the bot's own key, or on `env`: a server's own (Context.env)."""
-        session = Session(self.library, code, self.model, log_tool, self.name,
+        """A session on the bot's own key, or on `env`: a server's own (Context.env), with the model it chose."""
+        session = Session(self.library, code, (env or {}).get(keys.MODEL_ENV) or self.model, log_tool, self.name,
                           env=config.model_env() if env is None else env)
         try:
             return await session.__aenter__()

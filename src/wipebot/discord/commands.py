@@ -27,7 +27,7 @@ from wipebot.core.report import note as notes
 from wipebot.core.report import plan_export as plans
 from wipebot.core.wcl import WCLError
 
-from . import budget, config, keycmd, logincmd, news, texts
+from . import budget, config, keycmd, logincmd, models, news, texts
 from .store import ServerSettings, Store
 
 if TYPE_CHECKING:
@@ -219,6 +219,54 @@ def server_options(store: Store, discord_guild_id: int, footer: bool | None, lan
     return told
 
 
+NO_KEY_FOR_MODEL = ("The model can be chosen once this server answers on its own AI key: add one with the button "
+                    "under `/wipebot setup`.")
+
+
+async def choose_model(store: Store, discord_guild_id: int, chosen: str, default: str) -> str:
+    """/wipebot setup model: the server's answers run on `chosen`, one of the models its own key reaches, or with
+    models.DEFAULT on the bot's own (`default`) again; what was done, for the admin."""
+    if (key := store.server_key(discord_guild_id)) is None:
+        return NO_KEY_FOR_MODEL
+    if chosen.strip().lower() == models.DEFAULT:
+        store.set_model(discord_guild_id, None)
+        return f"Answers here run on my default model again ({default})."
+    try:
+        model = models.find(await models.available(key), chosen.strip())
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        return f"Couldn't ask {keycmd.NAMES[key.provider]} which models the key reaches ({e}). Nothing was changed."
+    if model is None:
+        return (f"This server's key reaches no model `{chosen.strip()[:80]}`: pick one from the list the option "
+                "shows as you type. Nothing was changed.")
+    store.set_model(discord_guild_id, model.id)
+    untested = "" if model.claude else (" I'm only tested on the Claude models: another may answer worse or not at "
+                                        "all, and the cost line under answers can be off for it (the key's own page "
+                                        "has the real cost).")
+    return (f"Answers here now run on **{model.name}** (`{model.id}`), from the next question on.{untested} "
+            f"`model: {models.DEFAULT}` goes back to my default ({default}).")
+
+
+async def model_choices(store: Store, discord_guild_id: int | None, typed: str,
+                        default: str) -> list[app_commands.Choice[str]]:
+    """What the model option shows as an admin types: the bot's default, then the models the server's key reaches
+    that match, at most what Discord shows. Without a key of its own, or when the provider can't be asked, only a
+    line saying so (choosing it changes nothing)."""
+    key = store.server_key(discord_guild_id) if discord_guild_id else None
+    if key is None:
+        return [app_commands.Choice(name="Add the server's own AI key first (the button under /wipebot setup)",
+                                    value=models.DEFAULT)]
+    try:
+        found = await models.available(key)
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        log.warning("couldn't list the models of a server's %s key: %s", key.provider, e)
+        return [app_commands.Choice(name=f"Couldn't ask {keycmd.NAMES[key.provider]} for the key's models: try again",
+                                    value=models.DEFAULT)]
+    first = [app_commands.Choice(name=f"My default ({default})"[:models.LABEL], value=models.DEFAULT)] \
+        if all(w in f"default {default}".lower() for w in typed.lower().split()) else []
+    return first + [app_commands.Choice(name=m.label(), value=m.id)
+                    for m in models.matching(found, typed, models.SHOWN - len(first))]
+
+
 def server_language(text: str) -> str | None:
     """A language's name as an admin gave it ("norwegian" is Norwegian); None for what can't be one."""
     name = " ".join(text.split())
@@ -271,7 +319,8 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False, keyles
                      "key",
                      "`/wipebot setup` with options: `link:` the guild on Warcraft Logs, `role:` who can chat, "
                      "`officers:`, `footer:` and `steps:` (the small lines under answers), `language:` of posts, "
-                     "`news:` the channel for what's new in each release",
+                     "`model:` the model answers run on (with the server's own AI key), `news:` the channel for "
+                     "what's new in each release",
                      "`/usage` shows you a button to post the AI budget in the channel"]
     commands.append("Officers save a raid note or plan by pasting it to me.")
     parts.append("**Commands:**\n" + "\n".join(f"- {c}" for c in commands))
@@ -389,18 +438,21 @@ def build(bot: WipeBot) -> app_commands.Group:
                            steps="End answers with a small line of the steps they went through (what they looked at)",
                            language="The server's language, e.g. Norwegian: for posts and what's new (questions get "
                                     "answers in theirs)",
+                           model="The model answers run on, from the ones the server's own AI key reaches (type to "
+                                 "search)",
                            news="Post what's new in each release of wipebot to this channel",
                            news_stop="Stop posting what's new")
     async def setup(interaction: discord.Interaction, link: str | None = None,
                     role: discord.Role | None = None, officers: discord.Role | None = None,
                     footer: bool | None = None, language: str | None = None, steps: bool | None = None,
-                    news: discord.TextChannel | None = None, news_stop: bool = False) -> None:
+                    model: str | None = None, news: discord.TextChannel | None = None,
+                    news_stop: bool = False) -> None:
         """Alone: the server's setup and what's left to do, with the AI key's buttons. Options left out keep what's
         set; the footer, steps, language and news are the server's even before it's connected to a guild."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         guild = in_guild(interaction)
         gid = guild.id
-        if not (link or role or officers or news or news_stop) and footer is None and steps is None \
+        if not (link or role or officers or news or news_stop or model) and footer is None and steps is None \
                 and language is None:
             notes = ""
             if (s := bot.store.settings(gid)) is not None:  # run again by a signed-in member: the guild is its own
@@ -434,6 +486,8 @@ def build(bot: WipeBot) -> app_commands.Group:
             settings, notes = await verify(bot, settings, interaction.user.id)
             told.append("wipebot is set up:\n" + describe(settings) + (f"\n{notes}" if notes else ""))
         told += server_options(bot.store, gid, footer, language, steps)
+        if model:
+            told.append(await choose_model(bot.store, gid, model, bot.model))
         preview = None
         if news or news_stop:
             said, preview = news_channel(bot, guild, news, news_stop)
@@ -441,6 +495,10 @@ def build(bot: WipeBot) -> app_commands.Group:
         await interaction.followup.send("\n".join(told), ephemeral=True)
         if preview:
             await interaction.followup.send(view=preview, ephemeral=True)
+
+    @setup.autocomplete("model")
+    async def setup_models(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        return await model_choices(bot.store, interaction.guild_id, current, bot.model)
 
     return group
 
@@ -487,7 +545,9 @@ def overview(bot: WipeBot, discord_guild_id: int, notes: str = "") -> str:
         parts.append(describe(s) + ("\n\n" + (f"{notes}\n" if notes else "") + describe_notes(store, gid)
                                     if keeps else ""))
     name = bot.user.name if bot.user else "the bot"
-    parts.append("**AI key:** " + keycmd.status(store, gid, name, bot.own_keys))
+    parts.append("**AI key:** " + keycmd.status(store, gid, name, bot.own_keys)
+                 + ("\n**Model:** " + (f"`{chosen}`" if (chosen := store.model(gid)) else f"my default ({bot.model})")
+                    + ", changed with `model:`" if store.server_key_info(gid) else ""))
     channel, language = store.news_channel(gid), store.language(gid)
     extra = [x for on, x in ((store.footer(gid), "what they cost"), (store.steps(gid), "the steps they went "
                                                                                        "through")) if on]
@@ -495,7 +555,7 @@ def overview(bot: WipeBot, discord_guild_id: int, notes: str = "") -> str:
                  + "\n**Language** of posts: " + (language or "none set, so English")
                  + "\n**Answers end with:** " + (" and ".join(extra) or "nothing extra"))
     parts.append("Change any of it with this command's options: `link:`, `role:`, `officers:`, `footer:`, "
-                 "`steps:`, `language:`, `news:`.")
+                 "`steps:`, `language:`, `model:`, `news:`.")
     parts.append(f"wipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>.")
     return "\n\n".join(parts)
 

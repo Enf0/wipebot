@@ -115,7 +115,8 @@ ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "offi
                  ("logins", "private_expires", "REAL"), ("server_options", "news_channel", "INTEGER"),
                  ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
                  ("logins", "guild", "TEXT"), ("server_settings", "verified_by", "INTEGER"),
-                 ("server_settings", "verified_at", "REAL"), ("interactions", "rounds", "INTEGER")]
+                 ("server_settings", "verified_at", "REAL"), ("interactions", "rounds", "INTEGER"),
+                 ("server_options", "model", "TEXT")]
 
 
 class Store:
@@ -221,7 +222,8 @@ class Store:
                 footer INTEGER,          -- the cost line under answers (/wipebot setup footer:); NULL: the default
                 news_channel INTEGER,    -- where what's new in each release is posted (setup news:); NULL: nowhere
                 language TEXT,           -- the server's language (/wipebot setup language:); NULL: none set
-                steps INTEGER            -- the steps line under answers (/wipebot setup steps:); NULL: the default
+                steps INTEGER,           -- the steps line under answers (/wipebot setup steps:); NULL: the default
+                model TEXT               -- the model its answers run on, on its own key (setup model:); NULL: the bot's
             );
             CREATE TABLE IF NOT EXISTS bot_state (  -- the bot's own, not a server's
                 key TEXT PRIMARY KEY,    -- news: the latest release's post (news.Post), posted or not
@@ -465,7 +467,11 @@ class Store:
                                 "DESC LIMIT ?", (since, discord_guild_id, limit)).fetchall()
 
     def save_server_key(self, discord_guild_id: int, key: keys.ServerKey, added_by: int) -> None:
-        """Keep a server's own model key, encrypted, in place of any before."""
+        """Keep a server's own model key, encrypted, in place of any before. The model chosen on a key of another
+        provider goes with it: the two name their models differently."""
+        before = self.server_key_info(discord_guild_id)
+        if before and before[0] != key.provider:
+            self.set_model(discord_guild_id, None)
         self._db.execute("INSERT OR REPLACE INTO server_keys VALUES (?, ?, ?, ?, ?)",
                          (discord_guild_id, key.provider, keys.seal(key.key), added_by, time.time()))
         self._db.commit()
@@ -528,6 +534,18 @@ class Store:
                          "(discord_guild_id) DO UPDATE SET language = excluded.language", (discord_guild_id, language))
         self._db.commit()
 
+    def model(self, discord_guild_id: int) -> str | None:
+        """The model an admin chose for the server's answers on its own key, as its provider names it; None when
+        they chose none, and the bot's own answers."""
+        row = self._db.execute("SELECT model FROM server_options WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        return row[0] if row else None
+
+    def set_model(self, discord_guild_id: int, model: str | None) -> None:
+        self._db.execute("INSERT INTO server_options (discord_guild_id, model) VALUES (?, ?) ON CONFLICT "
+                         "(discord_guild_id) DO UPDATE SET model = excluded.model", (discord_guild_id, model))
+        self._db.commit()
+
     def state(self, key: str) -> str | None:
         row = self._db.execute("SELECT value FROM bot_state WHERE key = ?", (key,)).fetchone()
         return row[0] if row else None
@@ -542,7 +560,8 @@ class Store:
                                 (discord_guild_id,)).fetchone()
 
     def drop_server_key(self, discord_guild_id: int) -> bool:
-        """Forget a server's own key; whether it had one."""
+        """Forget a server's own key, and the model chosen on it; whether it had one."""
+        self._db.execute("UPDATE server_options SET model = NULL WHERE discord_guild_id = ?", (discord_guild_id,))
         dropped = self._db.execute("DELETE FROM server_keys WHERE discord_guild_id = ?",
                                    (discord_guild_id,)).rowcount
         self._db.commit()

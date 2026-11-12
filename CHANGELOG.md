@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **A server picks the model its answers run on.** A server that answers on its own AI key was tied to the model the bot's host had set, Claude Opus on the public Wipebot, at about 15 cents an answer. `/wipebot setup model:` now lists the models the server's key reaches as an admin types, asked of OpenRouter or Anthropic with that key: the Claude models first, then with an OpenRouter key every other model there that can call tools, each with its price. The server's answers run on the one picked from the next question on, and `default` goes back to the bot's own. Wipebot is tested on the Claude models, and Opus answers best ([models.md](docs/models.md)): Haiku costs about a cent an answer and misses the point more often, and a model outside Claude may answer worse or not at all.
+
 ## [1.2.2] - 2026-11-12
 
 ### Fixed

@@ -15,6 +15,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from .config import OPENROUTER_URL
 
 PROVIDERS = ("openrouter", "anthropic")
+MODEL_ENV = "ANTHROPIC_MODEL"  # Claude Code's own name for the model a session runs on
 
 
 @dataclass(frozen=True)
@@ -22,11 +23,14 @@ class ServerKey:
     provider: str  # one of PROVIDERS
     key: str = field(repr=False)  # never in a repr, which a log line or a traceback may print
 
-    def env(self) -> dict[str, str]:
-        """What Claude Code needs in its environment to answer on this key (as config.model_env for the bot's)."""
+    def env(self, model: str | None = None) -> dict[str, str]:
+        """What Claude Code needs in its environment to answer on this key (as config.model_env for the bot's), and
+        on `model`, the one the server chose for its answers (MODEL_ENV), when it chose one."""
+        chosen = {MODEL_ENV: model} if model else {}
         if self.provider == "openrouter":
-            return {"ANTHROPIC_BASE_URL": OPENROUTER_URL, "ANTHROPIC_AUTH_TOKEN": self.key, "ANTHROPIC_API_KEY": ""}
-        return {"ANTHROPIC_API_KEY": self.key, "ANTHROPIC_BASE_URL": "", "ANTHROPIC_AUTH_TOKEN": ""}
+            return {"ANTHROPIC_BASE_URL": OPENROUTER_URL, "ANTHROPIC_AUTH_TOKEN": self.key, "ANTHROPIC_API_KEY": "",
+                    **chosen}
+        return {"ANTHROPIC_API_KEY": self.key, "ANTHROPIC_BASE_URL": "", "ANTHROPIC_AUTH_TOKEN": "", **chosen}
 
 
 def _fernet() -> Fernet:

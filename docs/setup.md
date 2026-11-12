@@ -196,7 +196,8 @@ answer and tool calls for 90 days, for reviewing answers. All of it stays in `./
 to the model. Tell your guild.
 
 The bot's answers cost about $0.15-0.25 each with Claude Opus, the default, and at most $2; Haiku
-(`WIPEBOT_MODEL=haiku`) costs about a cent and answers less well ([models.md](models.md)).
+(`WIPEBOT_MODEL=haiku`) costs about a cent and answers less well ([models.md](models.md)). A server that
+answers on its own key picks its model itself, from the ones the key reaches (`/wipebot setup model:`).
 
 ## Upgrading and backups
 
