@@ -259,6 +259,30 @@ def test_a_list_is_kept_whole_only_where_the_cut_comes_into_it_from_the_sentence
         "Embers open. One. Two.\n... - Embers: spread out.\nSentence 0 about the tanks. Sentence 1 about the tanks.")
 
 
+def test_a_mechanic_is_found_in_the_singular_and_the_plural():
+    """A guide writes "Ember Totems" of the Ember Totem, and "orbs" in the sentence before the one that names the
+    debuff a carried orb puts on a player: asked for one way, the other was left out."""
+    g = Guide("icy-veins", "A guide", "https://guide", None, [
+        ("Phase 1", "Kill the Ember Totems first.\n\nThe tanks swap.\n\nAn Ember Totem's pulse hurts."),
+        ("Mythic", "Purple orbs never touch.\n\nPicking up an orb applies Cinder Mark.\n\nBring an absorb."),
+        ("Tanks", "The orbit is wide, and a pas de deux follows.\n\nThe boss's Pass is a frontal."),
+        ("Timer", "The boss goes berserk at 8:00."),
+        ("Movement", "Dodge the tornadoes.\n\nTwo Furies spawn.\n\nThe runes glow: run to a marked player."),
+    ])
+    for asked, found in (("tornado", "Dodge the tornadoes."), ("Fury", "Two Furies spawn."),
+                         ("runes", "The runes glow: run to a marked player.")):
+        assert bosses.mechanic_sections(g, asked) == [("Movement", found)]
+    assert bosses.mechanic_sections(g, "rune") == bosses.mechanic_sections(g, "runes")  # and no "run" from "runes"
+    assert dict(bosses.mechanic_sections(g, "Ember Totem")) == {
+        "Phase 1": "Kill the Ember Totems first.\n\nAn Ember Totem's pulse hurts."}
+    for asked in ("orb", "orbs", "Orbs"):
+        assert dict(bosses.mechanic_sections(g, asked)) == {
+            "Mythic": "Purple orbs never touch.\n\nPicking up an orb applies Cinder Mark."}
+    # a name ending in "ss" is no plural: "Pass" is not "pas"
+    assert bosses.mechanic_sections(g, "Pass") == [("Tanks", "The boss's Pass is a frontal.")]
+    assert bosses.mechanic_sections(g, "enrages") == [("Timer", "The boss goes berserk at 8:00.")]
+
+
 def test_an_enrage_is_found_under_either_name():
     """Guides say enrage or berserk for the same timer, and the model asks with either."""
     g = Guide("method", "A guide", "https://guide", None, [
@@ -341,6 +365,9 @@ def test_one_mechanic_gets_the_hotfixes_naming_it_and_a_count_of_the_rest():
         "Newer than Icy Veins (The Venomous Abyss › The Coiled Altar):",
         "- October 13, 2026: Gravebound's fragments last 2 sec longer.",
         "(2 other hotfixes to The Coiled Altar don't name it: boss_guide without `mechanic` lists them.)"]
+    assert bosses.hotfixes_after("The Coiled Altar", guides, fixes, "orb").splitlines()[2:] == [  # the plural too
+        "- October 13, 2026: Orbs reduced to 4.",
+        "(2 other hotfixes to The Coiled Altar don't name it: boss_guide without `mechanic` lists them.)"]
     assert bosses.hotfixes_after("The Coiled Altar", guides, fixes, "Guillotine").startswith(
         "# No hotfix naming Guillotine since 2026-08-13 (3 other hotfixes to The Coiled Altar don't name it: "
         "boss_guide without `mechanic` lists them). Source:")
@@ -390,6 +417,40 @@ async def test_one_mechanic_reads_its_own_tooltips_not_the_boss_s_sixty(monkeypa
     assert asked == []
     assert await bosses.mechanic_tooltips_text([7, 8, 7]) == (
         "Tooltip (Wowhead, spell 7): What spell 7 does.\nTooltip (Wowhead, spell 8): What spell 8 does.")
+
+
+async def test_a_raiders_word_gets_no_promise_of_a_tooltip(monkeypatch):
+    """"soak" is in the guide and no ability is called that: the first line promised "its tooltip" and none
+    followed. It says there is none and why; an ability asked for in the plural still gets its own."""
+    asked = []
+    monkeypatch.setattr(fetch, "cli", wowhead_boss(ALTAR, asked))
+
+    async def first_line(mechanic):
+        text = await bosses.boss_mechanic_text("The Coiled Altar", "The Venomous Abyss", "mythic", mechanic)
+        assert "Soak Guillotine in a group." in text
+        return text.splitlines()[0], text.count("Tooltip (Wowhead")
+    for name in ("Guillotine", "guillotines"):
+        line, tooltips = await first_line(name)
+        assert tooltips == 1 and "its tooltip, then the parts" in line and "No tooltip" not in line
+    assert asked == [1, 1]
+    line, tooltips = await first_line("soak")
+    assert tooltips == 0 and "its tooltip, then" not in line and asked == [1, 1]
+    assert line.endswith("No tooltip: Wowhead's guide links no ability called soak; `mechanic` with the name of one "
+                         "it links gives that ability's.")
+    assert "log" not in line  # what a log has is not this line's to say: an answer took it for "the log has no soak"
+
+
+async def test_an_ability_asked_for_by_its_own_name_gets_its_own_tooltip(monkeypatch):
+    """The plural finds an ability named in the singular, but a name is read as itself first: "Fangs" is not the
+    other ability called "Fang"."""
+    pair = {"linked_entities": {"items": [{"entity_type": "spell", "id": 1, "name": "Fang"},
+                                          {"entity_type": "spell", "id": 2, "name": "Fangs"}]},
+            "body": {"section_chunks": [{"title": "Strategy", "content_raw": "Soak [spell=1], dodge [spell=2]."}]}}
+    asked = []
+    monkeypatch.setattr(fetch, "cli", wowhead_boss(pair, asked))
+    for name in ("Fangs", "Fang"):
+        await bosses.boss_mechanic_text("The Coiled Altar", "The Venomous Abyss", "mythic", name)
+    assert asked == [2, 1]
 
 
 # How Wowhead's page lists the spells it links (the shape of November 2026, the writing made up): one linked only

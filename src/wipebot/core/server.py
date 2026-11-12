@@ -1983,8 +1983,9 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
                          "strategy (the default): how every mechanic works and how to handle it; tooltips: only "
                          "each ability's tooltip numbers, no strategy; loot"))] = "strategy",
                      mechanic: Annotated[str | None, Field(description=(
-                         "for strategy: one ability's name or id ([id] in pull_summary), for only what the guides "
-                         "say about it and its tooltip; omit for the whole guides"))] = None,
+                         "for strategy: one ability's name or id ([id] in pull_summary), or a raider's word for a "
+                         "mechanic (orb), for only what the guides say about it and its tooltip; omit for the whole "
+                         "guides"))] = None,
                      difficulty: Annotated[Literal["Mythic", "Heroic", "Normal"] | None, Field(description=(
                          "omit for the report's; Normal reads the Heroic guides"))] = None,
                      raid: Annotated[str | None, Field(description="raid name; omit to use the report's")] = None,

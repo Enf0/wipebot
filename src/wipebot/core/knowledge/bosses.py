@@ -299,14 +299,23 @@ async def boss_mechanic_text(boss: str, raid: str, difficulty: str, mechanic: st
     """boss_guide's strategy topic for one mechanic: the hotfixes naming it, its Wowhead tooltip, then each guide's
     sections about it: a section titled for it whole, of the rest the paragraphs naming it (a long one cut to the
     sentences naming it and the few after). Of the boss's tooltips only the mechanic's are read, found by the
-    names Wowhead's guide links its spells under. When no guide names it, the boss's abilities are listed, one
-    that is among `logged` (a report's ability names) as the log writes it: a name read from a link's address has
-    lost its capitals and apostrophes ("manifestation of dread", `_spell_names`)."""
+    names Wowhead's guide links its spells under, in the singular or the plural (`_forms`); the first line promises
+    a tooltip only when one follows, and says why none does (a raider's word, "orb", is no ability's name). When
+    no guide names it, the boss's abilities are listed, one that is among `logged` (a report's ability names) as
+    the log writes it: a name read from a link's address has lost its capitals and apostrophes ("manifestation of
+    dread", `_spell_names`)."""
     (guides, missing), linked, fixes = await asyncio.gather(boss_guides(boss, raid, difficulty), _linked_spells(boss),
                                                             _hotfixes(boss))
-    tips = await _tooltips([i for i, name in linked.items() if _key(name) == _key(mechanic)][:TOOLTIPS_NAMED])
-    parts = [f"{mechanic} on {boss}: its tooltip, then the parts of each guide that name it (boss_guide without "
-             "`mechanic` reads the whole guides).", hotfixes_after(boss, guides, fixes, mechanic)]
+    forms = _forms(_key(mechanic))  # the name as asked first: "Fangs" is not another ability called "Fang"
+    named = ([i for i, name in linked.items() if _key(name) == _key(mechanic)]
+             or [i for i, name in linked.items() if _key(name) in forms])
+    tips = await _tooltips(named[:TOOLTIPS_NAMED])
+    none = ("" if tips else " No tooltip: none could be read from Wowhead." if named else
+            f" No tooltip: Wowhead's guide links no ability called {mechanic}; `mechanic` with the name of one it "
+            "links gives that ability's.")
+    parts = [f"{mechanic} on {boss}: {'its tooltip, then ' if tips else ''}the parts of each guide that name it "
+             f"(boss_guide without `mechanic` reads the whole guides).{none}",
+             hotfixes_after(boss, guides, fixes, mechanic)]
     parts += [f"Tooltip (Wowhead, spell {s.id}): {s.text}" for s in tips[:2]]
     found = False
     for g in guides:
@@ -365,12 +374,31 @@ def _plain(s: str) -> str:
 SAME_MECHANIC = ({"enrage", "berserk"},)
 
 
+ES_PLURAL = ("o", "s", "x", "z", "ch", "sh")  # a word ending so takes "es": tornadoes, passes, crashes
+
+
+def _forms(name: str) -> set[str]:
+    """A plain name with its plural and, of a plural, its singular, as English forms them by rule ("orbs",
+    "tornadoes", "furies"): a guide writes "Malignant Totems" of the Malignant Totem, and what a raider asks for
+    as "orbs" is "the orb" in the next sentence. A name ending in "ss" is no plural."""
+    ones = {name}
+    if len(name) > 2 and name.endswith("s") and not name.endswith("ss"):
+        ones.add(name[:-1])
+        if name.endswith("ies"):
+            ones.add(name[:-3] + "y")
+        elif name.endswith("es") and name[:-2].endswith(ES_PLURAL):
+            ones.add(name[:-2])
+    return (ones | {one + "s" for one in ones} | {one + "es" for one in ones if one.endswith(ES_PLURAL)}
+            | {one[:-1] + "ies" for one in ones if one.endswith("y")})
+
+
 def _names(text: str, mechanic: str) -> bool:
-    """Whether `text` names the mechanic, as a whole name ("Searing Brand's damage" too, not "Searing Brandish")."""
-    plain = _plain(mechanic)
-    names = next((same for same in SAME_MECHANIC if plain in same), {plain})
+    """Whether `text` names the mechanic, as a whole name ("Searing Brand's damage" too, not "Searing Brandish"), in
+    the singular or the plural, or under another name guides use for the same thing."""
+    forms = _forms(_plain(mechanic))
+    forms |= {form for same in SAME_MECHANIC if same & forms for name in same for form in _forms(name)}
     words = f" {_plain(text)} "
-    return any(f" {name} " in words or f" {name}'s " in words for name in names)
+    return any(f" {form} " in words or f" {form}'s " in words for form in forms)
 
 
 def mechanic_sections(g: Guide, mechanic: str) -> list[tuple[str, str]]:
