@@ -1,6 +1,7 @@
 Vashnik the Malignant (Mythic) pull 16: wipe at 9.4%, 6:41 long (https://www.warcraftlogs.com/reports/kTMfFRQ324Hvx6G7#fight=38); best of this log so far.
 Ended by: deaths from 4:36 until half the raid was dead at 6:28, no single hit killing many: start from the first death and follow what each left short.
 Not an enrage buff: no buff the boss gained near the end decided it. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
+Tank deaths before that: Deathadim died at 5:13 to Melee [1] (no swap debuff past 1 stack on them); Wutroll died at 6:16 to Melee [1] with Dripping Fangs 3 at 6:15 (had the boss since 5:15; Deathadim dead since 5:13: no tank to swap to). Whose taunt it was isn't in the log; tank_swaps has the pull's swaps.
 This pull ended the way 2 earlier pulls on Vashnik the Malignant in this log did (pulls 5, 8): deaths one after another; it got past what ended the most earlier pulls: Malignance killing many (4 of 15).
 Last 5: 60.2 → 54.5 → 71.9 → 76.8 → 9.4
 

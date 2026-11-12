@@ -306,9 +306,7 @@ def moment_text(m: Moment, raid: int) -> str:
 
 
 def _lead_in_text(lead_in: LeadIn) -> str:
-    # a tank's death is read against the swap, which another tool has: said here, where the death is first seen
-    tanks = (f", {'a tank' if lead_in.tanks == 1 else f'{lead_in.tanks} tanks'} among them (tank_swaps shows "
-             "whether a taunt was late)") if lead_in.tanks else ""
+    tanks = f", {'a tank' if lead_in.tanks == 1 else f'{lead_in.tanks} tanks'} among them" if lead_in.tanks else ""
     return f"{lead_in.deaths} deaths one after another from {clock(lead_in.first_ms)}{tanks}, none brought back"
 
 

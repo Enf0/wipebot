@@ -39,6 +39,7 @@ from .ending import (
     ALIVE,
     Ending,
     KeptBuff,
+    MassDeath,
     ending_text,
     kind_of_end,
     moment_kind,
@@ -47,6 +48,7 @@ from .ending import (
     ruled_out,
 )
 from .taken import raid_taken
+from .tanks import tank_deaths_line
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -103,6 +105,8 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
         lines.append(text)
     if not_it := ruled_out(ended, buffs, decided):
         lines.append(not_it)
+    if tank := await _tank_deaths(rep, f, ended, decided):
+        lines.append(tank)
     if again := await _same_ending(rep, f, ended):
         lines.append(again)
     if trend := trend_line(s):
@@ -147,6 +151,17 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     ended_at = "Logged so far" if f.get("inProgress") else "Pull ended"
     lines.append(f"{ended_at} at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}.")
     return "\n".join(lines)
+
+
+async def _tank_deaths(rep: Report, f: dict, ended: Ending | None, decided) -> str | None:
+    """A wipe's tank deaths before what ended it, against the swap as tank_swaps has it (tank_deaths_line): before
+    the first hit killing many, whose deaths are the raid's to stop, and before the wipe was decided."""
+    if ended is None or ended.kind == "reset":
+        return None
+    hit = next((m.at_ms for m in ended.moments if isinstance(m, MassDeath)), None)
+    until = min([t for t in (hit - 1 if hit is not None else None, decided.at_ms if decided else None)
+                 if t is not None], default=None)
+    return await tank_deaths_line(rep, f, until)
 
 
 def _death_rows(rep: Report, f: dict, deaths: list[dict], alive: list[int]) -> list[str]:
