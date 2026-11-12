@@ -9,13 +9,13 @@
   "verdict": "VERDICT: no change shown: a drop of 9.4 answers (2.9 points) or more would have shown."
  },
  "plugin": {
-  "commit": "382f5f8",
+  "commit": "3732362",
   "date": "2026-11-12",
   "trials": "3-6 trials",
-  "passed": 256,
+  "passed": 257,
   "of": 279,
   "errors": 0,
-  "verdict": "VERDICT: no change shown: a drop of 8.4 answers (3.0 points) or more would have shown."
+  "verdict": "VERDICT: no change shown: a drop of 10.4 answers (3.7 points) or more would have shown."
  },
  "connector": {
   "commit": "7da2bc1",
