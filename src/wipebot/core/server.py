@@ -25,6 +25,7 @@ Where each tool's work is done, under report/ unless another folder is named:
 """
 import asyncio
 import base64
+import contextlib
 import functools
 import inspect
 import logging
@@ -34,12 +35,12 @@ import re
 import secrets
 import time
 from collections import deque
-from collections.abc import Awaitable, Callable, Generator
-from contextlib import contextmanager
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from importlib import resources
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -147,16 +148,22 @@ class UserLimits:
     `own_points` says whether it's on it, None: as the account's limit says) and `calls` tool calls, over the last
     hour; None is no limit. A call counts from when it starts (`start`), so calls sent at once don't all pass, and
     its points when it ends (`spent`): they aren't known before, so the points can still be passed by what was
-    running when they ran out."""
+    running when they ran out. That is at most AT_ONCE calls: a user's calls past it wait their turn (`turn`), and
+    are held to the points again when it comes, so calls sent all at once don't spend the hour everyone shares
+    before the first of them is counted."""
     points: float | None = None
     calls: int | None = None
     own_points: bool | None = None
     _spent: dict[str, deque[list[float]]] = field(default_factory=dict)  # user -> [when, points] per call
+    _turns: dict[str, asyncio.Semaphore] = field(default_factory=dict)  # user -> their calls running now
 
-    def refusal(self, user: str, reads_logs: bool = True) -> str | None:
+    AT_ONCE: ClassVar[int] = 8  # a user's calls that run at once: an answer's own calls, and its views', are fewer
+
+    def refusal(self, user: str, reads_logs: bool = True, calls_too: bool = True) -> str | None:
         """Why the user's next call isn't answered, or None: what they asked for in the last hour, what the server
         gives one user, and the minutes until enough of it is over an hour old. A call that reads no log
-        (`reads_logs` False: a tool that takes no report) is held to the calls only."""
+        (`reads_logs` False: a tool that takes no report) is held to the calls only; one counted already and
+        asked again as its turn comes (`calls_too` False), to the points only."""
         now, calls = time.time(), self._spent.get(user)
         while calls and calls[0][0] < now - 3600:
             calls.popleft()
@@ -165,7 +172,7 @@ class UserLimits:
             return None
         # (when the user is under the limit again, what they asked for and are given, what still answers)
         reached: list[tuple[float, str, str]] = []
-        if self.calls is not None and len(calls) >= self.calls:
+        if calls_too and self.calls is not None and len(calls) >= self.calls:
             reached.append((calls[len(calls) - self.calls][0], f"{plural(len(calls), 'tool call')} in the last hour, "
                             f"and this server gives one user {self.calls} an hour", ""))
         spent = sum(p for _, p in calls)
@@ -189,6 +196,15 @@ class UserLimits:
         call = [time.time(), 0.0]
         self._spent.setdefault(user, deque()).append(call)
         return call
+
+    def turn(self, user: str) -> asyncio.Semaphore:
+        """What a user's call holds while it runs: AT_ONCE of theirs at a time, the rest waiting."""
+        return self._turns.setdefault(user, asyncio.Semaphore(self.AT_ONCE))
+
+    def uncount(self, user: str, call: list[float]) -> None:
+        """A call counted (`start`) and then refused: a refused call isn't counted."""
+        with contextlib.suppress(KeyError, ValueError):
+            self._spent[user].remove(call)
 
     def spent(self, call: list[float], points: dict) -> None:
         """What the Warcraft Logs queries of a call (`start`) cost (wcl.Points.record), once it ended."""
@@ -260,6 +276,22 @@ def _limited(remote: Remote, user: str | None, reads_logs: bool) -> list[float] 
     if refused := remote.limits.refusal(user, reads_logs):
         raise ToolError(refused)
     return remote.limits.start(user)
+
+
+@asynccontextmanager
+async def _turn(remote: Remote, user: str | None, reads_logs: bool,
+                counted: list[float] | None) -> AsyncGenerator[None]:
+    """Within it, the counted call by `user` runs as one of the few of theirs that run at once (UserLimits.turn),
+    having waited for the others. What those spent meanwhile counts: a ToolError when the points ran out while it
+    waited, and the call is then not counted."""
+    if not (remote.limits and user and counted is not None):
+        yield
+        return
+    async with remote.limits.turn(user):
+        if reads_logs and (refused := remote.limits.refusal(user, calls_too=False)):
+            remote.limits.uncount(user, counted)
+            raise ToolError(refused)
+        yield
 
 
 def _text(result: object) -> str:
@@ -462,8 +494,9 @@ def guarded(fn, setup: Setup = DEFAULT):
         try:
             counted = _limited(remote, user, reads_logs)
             # the user's own points pay first; what the call cost is kept with it
-            with _as_user(remote, user), wcl.counting_points() as points:
-                result = await run(*args, **kwargs)
+            async with _turn(remote, user, reads_logs, counted):
+                with _as_user(remote, user), wcl.counting_points() as points:
+                    result = await run(*args, **kwargs)
             failed, out = False, _text(result)
             return result
         except ToolError as e:

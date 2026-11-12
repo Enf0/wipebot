@@ -9,7 +9,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from tests.support import CODE, NOTE, FakeWCL
 from tests.support.recorded import CASES
-from wipebot.core import notebook, server
+from wipebot.core import notebook, server, wcl
 from wipebot.core.report import FactError, Report
 
 # The tools that don't read a report, so take none; every other tool takes `report`.
@@ -763,6 +763,34 @@ async def test_calls_sent_at_once_are_counted_as_they_start(monkeypatch):
     got = await asyncio.gather(*(server.guarded(tool, setup)() for _ in range(8)), return_exceptions=True)
     assert [r for r in got if r == "ok"] == ["ok", "ok"]
     assert all("asked for 2 tool calls" in str(r) for r in got if r != "ok") and len(limits._spent["1"]) == 2
+
+
+async def test_calls_sent_at_once_run_a_few_at_a_time_and_stop_once_the_points_are_spent(monkeypatch):
+    """A call's points are known only as it ends, so calls sent all at once each passed the points check and spent
+    the hour everyone shares: a user's calls run UserLimits.AT_ONCE at a time, and each is held to the points
+    again as its turn comes."""
+    from mcp.server.auth.middleware import auth_context
+    monkeypatch.setattr(auth_context, "get_access_token", lambda: type("T", (), {"subject": "1", "client_id": "c"})())
+    limits = server.UserLimits(points=100, calls=50)
+    setup = server.Setup(remote=server.Remote(guilds=list, user_name=str, limits=limits))
+    running, most = 0, 0
+
+    async def of_a_log(report: str | None = None) -> str:
+        nonlocal running, most
+        running += 1
+        most = max(most, running)
+        await asyncio.sleep(0.01)
+        assert (points := wcl._points.get()) is not None
+        points.add({"total": 30})
+        running -= 1
+        return "ok"
+    got = await asyncio.gather(*(server.guarded(of_a_log, setup)() for _ in range(30)), return_exceptions=True)
+    assert most == limits.AT_ONCE and [r for r in got if r == "ok"] == ["ok"] * limits.AT_ONCE
+    assert all("Warcraft Logs points in the last hour" in str(r) for r in got if r != "ok")
+    assert len(limits._spent["1"]) == limits.AT_ONCE  # a call refused as its turn came isn't counted
+    other = type("T", (), {"subject": "2", "client_id": "c"})()
+    monkeypatch.setattr(auth_context, "get_access_token", lambda: other)
+    assert await server.guarded(of_a_log, setup)() == "ok"  # another user's calls wait for nobody
 
 
 async def test_past_the_points_limit_a_tool_that_reads_no_log_still_answers(monkeypatch):
