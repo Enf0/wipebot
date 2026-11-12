@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-12
+
 ### Fixed
 
 - `MCP` **One user's burst of calls no longer spends the hour everyone shares.** A server many guilds share gives each user a number of Warcraft Logs points an hour, counted as each tool call ends. Calls sent all at once were each checked before any had ended, so together they could spend several times one user's points, and everyone else was told to ask again later. A user's calls now run eight at a time, and each is held to the points again as its turn comes.
