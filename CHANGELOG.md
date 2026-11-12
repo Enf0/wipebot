@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-12
+
 ### Fixed
 
 - `Agent` **A reset is no longer read as a wipe.** When the raid resets a pull with the boss untouched, the pull's summary now says in one line that it was no attempt, instead of listing the deaths one by one, which smaller models went on to analyse as a wipe.
