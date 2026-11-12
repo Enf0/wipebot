@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-12
+
 ### Fixed
 
 - `Agent` **A player's buffs and debuffs are the ones on them.** Asked which buffs or debuffs one player had in a pull, Wipebot listed only the ones that player had applied: a boss's debuff on them, Bloodlust or a buff from another player was missing, so an answer could say a healer never carried an orb they carried three times. The list now holds every buff or debuff the player had, whoever applied it, and any list cut at 25 rows now says how many more it left out.
