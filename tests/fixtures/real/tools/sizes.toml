@@ -6,7 +6,7 @@
 # outgrew its budget by more than a tenth (or 200 characters, where that is more) fails the test until its line is
 # raised here by hand, with the reason in the commit.
 pull-summary = 1696
-vashnik-summary = 2318
+vashnik-summary = 2600
 altar-summary = 3455
 timeline = 6276
 timeline-window = 1567

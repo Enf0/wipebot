@@ -76,11 +76,16 @@ def _tooltip(name: str, text: str, item: bool) -> str:
         facts.append(f"{m[1]} {m[2]} cooldown")
     effect = None if item else parse_effect(text)
     if effect:
-        what = {"immunity": "Immune to all damage" if not effect.only else "Magic immunity",
-                "heal": f"Heals you for {effect.pct:g}% of your maximum health",
-                "reduction": f"Reduces {'magic ' if effect.only == 'magic' else ''}damage taken"
-                             f"{' from area-of-effect attacks' if effect.only == 'aoe' else ''} by {effect.pct:g}%"}
-        facts.append(what[effect.kind] + (f" for {effect.duration_s:g} sec" if effect.duration_s else "")
+        if effect.kind == "immunity":  # no pct: the other wordings mustn't be formatted for it
+            what = "Immune to all damage" if not effect.only else "Magic immunity"
+        elif effect.kind == "heal":
+            what = f"Heals you for {effect.pct:g}% of your maximum health"
+        elif effect.kind == "absorb":
+            what = f"Shields you, absorbing [{effect.pct:g} / 100 * Total Health] damage"
+        else:
+            what = (f"Reduces {'magic ' if effect.only == 'magic' else ''}damage taken"
+                    f"{' from area-of-effect attacks' if effect.only == 'aoe' else ''} by {effect.pct:g}%")
+        facts.append(what + (f" for {effect.duration_s:g} sec" if effect.duration_s else "")
                      + (f" to allies within {effect.radius_yd:g} yards" if effect.radius_yd else ""))
     return ". ".join(facts) + "."
 

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Agent` **A reset is no longer read as a wipe.** When the raid resets a pull with the boss untouched, the pull's summary now says in one line that it was no attempt, instead of listing the deaths one by one, which smaller models went on to analyse as a wipe.
+- `Agent` **A pull's summary says when a tank died before the wipe, and how the swap stood.** For example "Wutroll died at 1:03 to Ravage with Ravage 2 (had the boss since 0:38; Deathadim took it at 1:05: too late for that hit)". It took a second tool to see that, which smaller models didn't call.
 - `Agent` **The timeline names who got a debuff when up to five players did.** It named three at most and wrote "Mutagenic Venom on 4 players" for a group's orbs, so an answer couldn't say who carried one.
 - `Agent` **A pushback about your own raid is checked in the log.** "We don't have an overheal problem" was sometimes answered from the guides alone; the healing over the night is now read first. The comparison with top players also marks which of the spells you cast far less often are instant, and says it doesn't read what a top player had to carry in their fight.
 - `Agent` **Equal numbers share a rank** when one night's hits from a mechanic are set against another night's, and a player's night says what its counts of deaths a defensive would have prevented are counts of.

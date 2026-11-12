@@ -330,7 +330,8 @@ def ending_text(e: Ending | None) -> str | None:
         case "live":
             return f"Ended by: not yet, the pull is still going ({clock(e.end_ms)} logged so far)."
         case "reset":
-            return "Ended by: a reset (the boss untouched)."
+            return ("Ended by: a reset (the boss untouched): not an attempt. Its deaths are how the raid reset, not a "
+                    "mechanic that failed: nothing in them to fix or to plan cooldowns for.")
         case "cascade":
             return (f"Ended by: deaths from {clock(deaths_from(e) or 0)} until half the raid was dead at "
                     f"{clock(e.half_dead_ms or 0)}, no single hit killing many: start from the first death and follow "

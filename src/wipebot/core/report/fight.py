@@ -39,6 +39,7 @@ from .ending import (
     ALIVE,
     Ending,
     KeptBuff,
+    MassDeath,
     ending_text,
     kind_of_end,
     moment_kind,
@@ -47,6 +48,7 @@ from .ending import (
     ruled_out,
 )
 from .taken import raid_taken
+from .tanks import tank_deaths_line
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
@@ -104,24 +106,24 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
         lines.append(text)
     if not_it := ruled_out(ended, buffs, decided):
         lines.append(not_it)
+    if tank := await _tank_deaths(rep, f, ended, decided):
+        lines.append(tank)
     if again := await _same_ending(rep, f, ended):
         lines.append(again)
     if trend := trend_line(s):
         lines.append(trend)
     if phases := rep.phases(f):
         lines.append(f"Phases: {phases}")
+    if ended is not None and ended.kind == "reset":  # no "wipe decided", no fallout: its deaths in one line
+        lines += ["", _reset_deaths(rep, f, deaths, raid),
+                  f"Pull ended at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}."]
+        return "\n".join(lines)
     alive = alive_after(deaths, backs, raid)
     later = [d for d in deaths if decided and d["timestamp"] - f["startTime"] > decided.at_ms]  # fallout
     lines += ["", *([killed] if (killed := killed_by(s)) else []),
               f"Raid size {raid}. Deaths {'until then, ' if later else ''}in order (time from pull start, players "
               "alive after it, a battle res or self-res counted):"]
-    for i, (d, left) in enumerate(zip(deaths[:len(deaths) - len(later)], alive, strict=False)):
-        p = rep.players.get(rep.names[d["targetID"]].lower())
-        who = p.label if p else rep.names[d["targetID"]]
-        lines.append(f"{i + 1}. {clock(d['timestamp'] - f['startTime'])} {who} - "
-                     f"{rep.ability_ref(d.get('killingAbilityGameID'))} ({left} alive)")
-    if len(later) == len(deaths):
-        lines.append("none")
+    lines += _death_rows(rep, f, deaths[:len(deaths) - len(later)], alive) or ["none"]
     half = decided.at_ms if decided and not decided.enrage else None
     ran = ""
     if half is not None:  # the moment half the raid was dead, when its deaths ran on past it
@@ -150,6 +152,39 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     ended_at = "Logged so far" if f.get("inProgress") else "Pull ended"
     lines.append(f"{ended_at} at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}.")
     return "\n".join(lines)
+
+
+async def _tank_deaths(rep: Report, f: dict, ended: Ending | None, decided) -> str | None:
+    """A wipe's tank deaths before what ended it, against the swap as tank_swaps has it (tank_deaths_line): before
+    the first hit killing many, whose deaths are the raid's to stop, and before the wipe was decided."""
+    if ended is None or ended.kind == "reset":
+        return None
+    hit = next((m.at_ms for m in ended.moments if isinstance(m, MassDeath)), None)
+    until = min([t for t in (hit - 1 if hit is not None else None, decided.at_ms if decided else None)
+                 if t is not None], default=None)
+    return await tank_deaths_line(rep, f, until)
+
+
+def _death_rows(rep: Report, f: dict, deaths: list[dict], alive: list[int]) -> list[str]:
+    """A numbered row for each death: when, who (with their spec), the killing blow and how many were alive after."""
+    out = []
+    for i, (d, left) in enumerate(zip(deaths, alive, strict=False)):
+        p = rep.players.get(rep.names[d["targetID"]].lower())
+        who = p.label if p else rep.names[d["targetID"]]
+        out.append(f"{i + 1}. {clock(d['timestamp'] - f['startTime'])} {who} - "
+                   f"{rep.ability_ref(d.get('killingAbilityGameID'))} ({left} alive)")
+    return out
+
+
+def _reset_deaths(rep: Report, f: dict, deaths: list[dict], raid: int) -> str:
+    """A reset's deaths in one line: how many died from when, by killing blow. No row each, which reads as a wipe to
+    work through."""
+    if not deaths:
+        return f"Raid size {raid}. Nobody died in it."
+    blows = Counter(rep.ability_ref(d.get("killingAbilityGameID")) for d in deaths)
+    return (f"Raid size {raid}. {len(deaths)} died in the reset from {clock(deaths[0]['timestamp'] - f['startTime'])}"
+            f", by killing blow: {' · '.join(f'{blow} ×{n}' for blow, n in blows.most_common())}. The other tools "
+            "leave a reset's deaths out of a night's and a player's counts.")
 
 
 def _fallout(rep: Report, f: dict, deaths: list[dict], decided: str, alive: int, raid: int) -> str:
