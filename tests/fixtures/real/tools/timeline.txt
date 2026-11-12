@@ -4,7 +4,7 @@ Sszorak pull 13 timeline (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#
 0:03 healing cooldown: Avenging Wrath (Cptola)
 0:08 boss casts Ravage (2 abilities); Ravage on Wutroll
 0:12 boss casts Mutilate (2 abilities); Mutilated Gash on 10 players
-0:15 Tempest on 4 players; healing cooldown: Apotheosis (Namsus)
+0:15 Tempest on Cptola, Dragepie, Krøpling, Sveini; healing cooldown: Apotheosis (Namsus)
 0:16 boss casts Tempest
 0:20 boss casts Mutilate (2 abilities); Mutilated Gash on 9 players
 0:23 raid cooldown: Anti-Magic Zone (Nexsozz)
@@ -57,7 +57,7 @@ Sszorak pull 13 timeline (https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#
 2:03 healing cooldown: Avenging Wrath (Cptola)
 2:05 phase P1 (Sszorak); boss loses Dig In; Corroding Venom on Deathadim
 2:06 Viscous Cyst on 16 players
-2:07 Caustic Residue on 5 players
+2:07 Caustic Residue on Cptola, Krøpling, Namsus, Nexsozz, Sonyosh
 2:13 healing cooldown: Stasis (Store) (Lïzårðmâñ)
 2:15 boss casts Mutilate (2 abilities); Mutilated Gash on 6 players
 2:19 boss casts Tempest

@@ -526,8 +526,9 @@ def _night_lived(rep: Report, pulls: list[NightPull], replayed: list[Replayed]) 
     why = (f"no overkill or health logged at {unlogged}, {UNTOLD} at {untold}" if unlogged and untold
            else UNTOLD if untold else "no overkill or health logged")
     return (f"A ready defensive or a healthstone would have kept them alive at {len(saved)} of the "
-            f"{plural(len(found), 'death')} that count (death_recap replays each)"
-            + (f": pull{'s' if len(saved) > 1 else ''} {', '.join(str(n) for n, _ in saved)}; "
+            f"{plural(len(found), 'death')} that count (as above; death_recap replays each)"
+            + (f": pull{'s' if len(saved) > 1 else ''} {', '.join(str(n) for n, _ in saved)}; by what would have, "
+               "each on its own (a death can have several): "
                + ", ".join(f"{s} {n}" for s, n in by.most_common()) if saved else "")
             + (f"; can't tell at {len(unknown)} ({why})" if unknown else "") + ".")
 

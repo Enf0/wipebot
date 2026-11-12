@@ -209,6 +209,10 @@ NO_REPORT = ("[no Warcraft Logs report: none was linked, and there's no recent r
 
 
 LIVE = "being logged now"  # the raid is going on: the bot's prompt names these words
+# Said beside those words, where the model reads the question: the prompt's rule alone left most live answers at two
+# sentences a bullet (12 November: 2 of 5 held one, 0 of 3 before the prompt showed one).
+BETWEEN_PULLS = ("the next pull is a minute away: the verdict and at most three bullets, each its bold words and one "
+                 "sentence")
 
 
 def budget(post: bool = False, live: bool = False) -> form.Budget:
@@ -246,7 +250,7 @@ def report_line(report: Report, now: datetime | None = None, doubt: str = "",
     guild = plain(report.guild_name) if report.guild_name else "(a personal log, no guild)"
     return (f"[guild {guild}; report \"{plain(report.title)}\" ({report.code}), "
             f"logged {logged:%A %Y-%m-%d} ({ago}); today is {now:%A %Y-%m-%d}; bosses and pull counts: {bosses}"
-            + (f"; note: {doubt}" if doubt else "") + "]")
+            + (f"; note: {doubt}" if doubt else "") + (f"; {BETWEEN_PULLS}" if ago == LIVE else "") + "]")
 
 
 def asker_line(ctx: Context, report: Report | None) -> str:

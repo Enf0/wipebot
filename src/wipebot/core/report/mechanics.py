@@ -256,6 +256,19 @@ def change(now: float, then: float) -> str:
     return f"{pct:+d}%" if pct else "same"
 
 
+def _places(per: dict[str, float], shown: Callable[[float], str]) -> dict[str, tuple[int, str]]:
+    """Each player's place by their amount, most first, as (place, "2nd" or "2nd, tied"): players whose amounts
+    print the same (`shown`) share the place of the first of them, and the next place is skipped, as in sport, so
+    no order is read into equal numbers."""
+    order = sorted(per, key=lambda n: -per[n])
+    out: dict[str, tuple[int, str]] = {}
+    for i, n in enumerate(order):
+        same = [m for m in order if shown(per[m]) == shown(per[n])]
+        place = order.index(same[0]) + 1 if len(same) > 1 else i + 1
+        out[n] = (place, ordinal(place) + (", tied" if len(same) > 1 else ""))
+    return out
+
+
 async def against(rep: Report, other: Report, ability: str, boss: str | None, whole_pull: bool = False,
                   start: str | None = None, end: str | None = None) -> str:
     """mechanic_hits' `against`: the ability on the boss over this night's pulls and another night's, per minute of
@@ -267,8 +280,7 @@ async def against(rep: Report, other: Report, ability: str, boss: str | None, wh
     unit = "debuff applications" if now.h.by_debuff else "damage"
     fmt = (lambda v: f"{v:.2f}") if now.h.by_debuff else short
     a, b = now.per_minute(), then.per_minute()
-    ra = {n: i + 1 for i, n in enumerate(sorted(a, key=lambda n: -a[n]))}
-    rb = {n: i + 1 for i, n in enumerate(sorted(b, key=lambda n: -b[n]))}
+    ra, rb = _places(a, fmt), _places(b, fmt)
     total_a = sum(now.amount(w) for w in set(now.h.damage) | set(now.h.debuffs))
     total_b = sum(then.amount(w) for w in set(then.h.damage) | set(then.h.debuffs))
     per_a, per_b = total_a / max(now.total_minutes, 1e-9), total_b / max(then.total_minutes, 1e-9)
@@ -288,14 +300,14 @@ async def against(rep: Report, other: Report, ability: str, boss: str | None, wh
              f"then the other night's of {len(b)}, the change, hits, deaths of any cause within {soon} s of a hit:"]
     for n in sorted(a, key=lambda n: -a[n]):
         if n in b:
-            lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}) against {fmt(b[n])} "
-                         f"({ordinal(rb[n])}), {change(a[n], b[n])}; hits {hits_a[n]} against {hits_b[n]}; deaths "
+            lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ra[n][1]}) against {fmt(b[n])} "
+                         f"({rb[n][1]}), {change(a[n], b[n])}; hits {hits_a[n]} against {hits_b[n]}; deaths "
                          f"within {soon} s {died_a[n]} against {died_b[n]}")
         else:
-            lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}), not there the other night; "
+            lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ra[n][1]}), not there the other night; "
                          f"hits {hits_a[n]}; deaths within {soon} s {died_a[n]}")
-    if gone := sorted(set(b) - set(a), key=lambda n: rb[n]):  # by rank: a set's order changes from run to run
-        lines.append("Only the other night: " + ", ".join(f"{n} {fmt(b[n])} ({ordinal(rb[n])})" for n in gone))
+    if gone := sorted(set(b) - set(a), key=lambda n: (rb[n][0], n)):  # by rank: a set's order changes from run to run
+        lines.append("Only the other night: " + ", ".join(f"{n} {fmt(b[n])} ({rb[n][1]})" for n in gone))
     return "\n".join(lines)
 
 

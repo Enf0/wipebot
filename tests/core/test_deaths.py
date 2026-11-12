@@ -234,8 +234,9 @@ async def test_a_death_the_replay_cant_tell_is_counted_apart_in_defensives_and_t
     made = [deaths.Replayed(x.f, d, more, False) for (x, d), more in zip(died, replays, strict=True)]
     first, _, unsure, _ = (rep.pull_no(x.f) for x in counted)
     assert coaching._night_lived(rep, counted, made) == (
-        "A ready defensive or a healthstone would have kept them alive at 1 of the 4 deaths that count (death_recap "
-        f"replays each): pull {first}; a healthstone 1; can't tell at 2 (no overkill or health logged at 1, a ready "
+        "A ready defensive or a healthstone would have kept them alive at 1 of the 4 deaths that count (as above; "
+        f"death_recap replays each): pull {first}; by what would have, each on its own (a death can have several): "
+        "a healthstone 1; can't tell at 2 (no overkill or health logged at 1, a ready "
         "spell's effect can't be told at 1).")
 
     async def replay_deaths(*_):

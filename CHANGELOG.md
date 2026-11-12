@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **The timeline names who got a debuff when up to five players did.** It named three at most and wrote "Mutagenic Venom on 4 players" for a group's orbs, so an answer couldn't say who carried one.
+- `Agent` **A pushback about your own raid is checked in the log.** "We don't have an overheal problem" was sometimes answered from the guides alone; the healing over the night is now read first. The comparison with top players also marks which of the spells you cast far less often are instant, and says it doesn't read what a top player had to carry in their fight.
+- `Agent` **Equal numbers share a rank** when one night's hits from a mechanic are set against another night's, and a player's night says what its counts of deaths a defensive would have prevented are counts of.
+- `Discord` **Shorter answers between pulls.** Asked for something quick, or while the raid is being logged, the bot now more often keeps each point to one sentence.
+
 ## [1.3.1] - 2026-11-12
 
 ### Fixed

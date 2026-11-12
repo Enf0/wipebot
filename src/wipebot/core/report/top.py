@@ -474,6 +474,9 @@ def cast_rates(names: SpellNames, my_cpm: dict[str, float | None], found: list[R
     return out
 
 
+INSTANT = "instant"  # a far-fewer spell's mark when the player's every cast of it had no cast bar
+
+
 @dataclass
 class CastComparison:
     """A player's casts on a pull against top parses of their spec (`cast_comparison`)."""
@@ -493,6 +496,7 @@ class CastComparison:
     flow: Casting
     resource: str  # the resource they spend, "" for none
     my_capped: list[tuple[float, float]]  # its stretches at the cap
+    instant: Set[str] = frozenset()  # the spells they cast with no cast bar begun in this log, by listed name
 
 
 async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: str | None = None,
@@ -544,9 +548,13 @@ async def cast_comparison(rep: Report, player: str, pull: PullRef = None, boss: 
     if not found:
         return "Couldn't read the casts of any top parse."
     my_cpm = names.per_minute(mine, max(alive_s / 60, 1 / 60))
+    begun = {e["abilityGameID"] for e in events if e["type"] == "begincast"}
+    with_bar = {names.canonical(a) for a in mine if a.get("guid") in begun}
+    instant = {names.canonical(a) for a in mine if a.get("guid") in {e["abilityGameID"] for e in landed}} - with_bar
     return CastComparison(p, f, hero, bool(same_hero), healers, alive_s, ilvl, found, names, merged, mine, my_cpm,
                           cast_rates(names, my_cpm, found, lust_casts, _worn(det), up, alive_s / 60),
-                          casting(events, alive_until, [d["timestamp"] for d in own]), resource, my_capped)
+                          casting(events, alive_until, [d["timestamp"] for d in own]), resource, my_capped,
+                          instant)
 
 
 async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: str | None = None,
@@ -568,7 +576,10 @@ async def compare_casts(rep: Report, player: str, pull: PullRef = None, boss: st
              "Spell: theirs / top median (top range), per minute:" + c.merged]
     if p.role == "healer":
         lines[1:1] = await _healers_lines(rep, f, p, await rep.details(f), found)
-    lines += _rate_lines(c.names, c.mine, c.rates)
+    lines += _rate_lines(c.names, c.mine, c.rates, c.instant)
+    if any(r.flag == "far fewer" and r.name in c.instant for r in c.rates):
+        lines.append(f"{INSTANT.capitalize()}: each of their casts of that spell in this log had no cast bar, so "
+                     "moving doesn't stop it.")
     lines.append(f"Total: {sum(v or 0 for v in c.my_cpm.values()):.0f} / "
                  f"{_median([sum(v or 0 for v in x.cpm.values()) for x in found]):.0f} per "
                  "minute. Casts as Warcraft Logs' Casts table counts them (the procs and items it lists too); a spell "
@@ -663,7 +674,8 @@ async def _capped(rep: Report, code: str, fight_id: int, pid: int, events: list[
     return capped / (span["endTime"] - span["startTime"])
 
 
-def _rate_lines(names: SpellNames, mine: list[dict], rates: list[CastRate]) -> list[str]:
+def _rate_lines(names: SpellNames, mine: list[dict], rates: list[CastRate], instant: Set[str] = frozenset()
+                ) -> list[str]:
     """Each spell's casts per minute, theirs against the top parses', flagged where theirs is far off."""
     ids: dict[str, list[str]] = defaultdict(list)  # the player's ids of each spell, and its names when they differ
     own_names: dict[str, set[str]] = defaultdict(set)
@@ -680,7 +692,8 @@ def _rate_lines(names: SpellNames, mine: list[dict], rates: list[CastRate]) -> l
                          "logs")
         else:
             lines.append(f"  {r.name}{_ref(r.name, ids, own_names)}: {r.mine:.1f} / {r.median:.1f} ({r.low:.1f}-"
-                         f"{r.high:.1f})" + (f"  <- {r.flag}" if r.flag else ""))
+                         f"{r.high:.1f})" + (f"  <- {r.flag}" if r.flag else "")
+                         + (f", {INSTANT}" if r.flag == "far fewer" and r.name in instant else ""))
     return lines
 
 
@@ -691,7 +704,8 @@ def _gaps_line(my: Casting, theirs: list[Casting]) -> str:
             f"{_median(shares):.0f}% ({shares[0]:.0f}-{shares[-1]:.0f}%); cancelled casts per minute: "
             f"{60000 * sum(len(v) for v in my.cancelled.values()) / max(my.span_ms, 1):.1f} / "
             f"{_median(drops):.1f} ({drops[0]:.1f}-{drops[-1]:.1f}). A gap in a top parse is the fight's "
-            "forced movement or a long channel; more than that is time to win back.")
+            "forced movement or a long channel; more than that is time to win back. What a top player carried "
+            "or soaked in their fight isn't read here: pull_timeline with `ability` and their link shows it.")
 
 
 def _ref(n: str, ids: dict[str, list[str]], own_names: dict[str, set[str]]) -> str:

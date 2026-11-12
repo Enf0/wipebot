@@ -50,6 +50,7 @@ from .taken import raid_taken
 
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
+TIMELINE_NAMED = 5  # a debuff landing on at most this many players names them (a group's orbs); more is a count
 SAME_HIT_MS = 1_000  # debuff applications this close together are one hit of the ability; later ones another
 STACKS_SHOWN = 3  # a stacking debuff that reaches this many stacks is worth a line
 TRACKED_MARK = "◆"  # after a boss cast Lorrgs tracks for the boss: the casts its timeline is built on
@@ -579,7 +580,7 @@ async def _debuff_landings(rep: Report, f: dict) -> Found:
                 else:
                     hits.append([e])
             volleys = [len({e["targetID"] for e in hit}) for hit in hits]
-            if len(who) <= 3:
+            if len(who) <= TIMELINE_NAMED:
                 text = ", ".join(sorted(who))
             elif len(volleys) > 1 and sum(n >= 3 for n in volleys) >= 2:  # not a debuff rolling on one by one
                 text = ", then ".join(map(str, volleys)) + " players"

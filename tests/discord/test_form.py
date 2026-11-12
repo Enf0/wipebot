@@ -159,7 +159,8 @@ def test_the_budget_holds_the_numbers_the_bots_prompt_sets():
     # after its bold point a bullet has one sentence, and a second for what to do
     assert "then one sentence that backs it" in said and "and a second only where it says what to do" in said
     assert form.CHAT.bullet_sentences == 2
-    assert f"at most {NUMBER.get(form.LIVE.bullets)} one-sentence bullets, the fix first" in said
+    assert (f"at most {NUMBER.get(form.LIVE.bullets)} bullets of one sentence each, as when asked for something quick, "
+            "the fix first") in " ".join(said.split())
     assert form.LIVE.bullet_sentences == 1
 
 

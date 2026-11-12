@@ -541,3 +541,10 @@ async def test_a_timeline_window_lists_the_ids_of_what_it_names(recorded, monkey
     assert ", Viscous Cyst (64 applications)" in window and "Viscous Cyst [1287205]" in window.splitlines()[-1]
     assert "Dig In" not in window  # named by neither: still left out
 
+
+
+def test_players_whose_amounts_print_the_same_share_a_place():
+    """mechanic_hits' night against night: equal numbers get one place, marked, and the next place is skipped."""
+    from wipebot.core.report.mechanics import _places
+    places = _places({"A": 3.0, "B": 2.004, "C": 2.001, "D": 1.0}, lambda v: f"{v:.2f}")
+    assert places == {"A": (1, "1st"), "B": (2, "2nd, tied"), "C": (2, "2nd, tied"), "D": (4, "4th")}
