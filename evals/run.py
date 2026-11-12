@@ -1605,10 +1605,13 @@ def main() -> None:
         for arm in args.arms.split(","):
             parts = arm.split("+")
             efforts = [p for p in parts if p in ("low", "medium", "high", "xhigh", "max")]
-            env = os.environ | {"WIPEBOT_TRY": ",".join(p for p in parts if p not in efforts), "WIPEBOT_ARM": arm}
+            models = [p for p in parts if p in ("opus", "sonnet", "haiku")]
+            env = os.environ | {"WIPEBOT_TRY": ",".join(p for p in parts if p not in efforts + models),
+                                "WIPEBOT_ARM": arm}
             print(f"\n======== ARM {arm} ========", flush=True)
             done = subprocess.run([sys.executable, "-m", "evals.run", *rest,
-                                   *(["--effort", efforts[0]] if efforts else [])], env=env)
+                                   *(["--effort", efforts[0]] if efforts else []),
+                                   *(["--model", models[0]] if models else [])], env=env)
             print(f"======== ARM {arm} exited {done.returncode} ========", flush=True)
         return None
     args.billed_to = billed_to(args.api_key)
