@@ -294,7 +294,7 @@ async def against(rep: Report, other: Report, ability: str, boss: str | None, wh
         else:
             lines.append(f"  {n}{rep.tank_tag(n)}: {fmt(a[n])} ({ordinal(ra[n])}), not there the other night; "
                          f"hits {hits_a[n]}; deaths within {soon} s {died_a[n]}")
-    if gone := sorted(set(b) - set(a), key=lambda n: -b[n]):
+    if gone := sorted(set(b) - set(a), key=lambda n: rb[n]):  # by rank: a set's order changes from run to run
         lines.append("Only the other night: " + ", ".join(f"{n} {fmt(b[n])} ({ordinal(rb[n])})" for n in gone))
     return "\n".join(lines)
 
