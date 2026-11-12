@@ -20,8 +20,9 @@ it (pyproject.toml, checked by `just check`).
 - `just snapshot` rewrites the pinned tool outputs; then run `just evals --lint` (no model, two to five minutes) for
   cases it left stale. Recording a tool test's data: tests/README.md.
 - `just evals`: evals/README.md. `just release`: says which version CHANGELOG.md calls for and how far main is from
-  each mode's last full eval run, and with a version makes the release (changelog, version, commit, push; the Release
-  workflow makes the tag and the GitHub release). It stops past 30 answer-changing commits or 21 days since that run.
+  each mode's last eval run (of the smoke set, or a full one), and with a version makes the release (changelog,
+  version, commit, push; the Release workflow makes the tag and the GitHub release). It stops past 30 answer-changing
+  commits or 21 days since that run.
 
 ## Rules
 
@@ -58,17 +59,18 @@ it (pyproject.toml, checked by `just check`).
 - **Test against real reports, across bosses**, not only Sszorak: facts with `just call`, answers with `just ask` or
   `just evals`. At each new tier or major patch, `just call` across the new bosses with the guide sites and Lorrgs
   read live: tests and evals run on frozen data, so they can't see a source that lags or changes.
-- **Run evals per batch, not per change.** One full trial of one mode is about $15-20 of usage and 30 min, and
-  only one run at a time across sessions (parallel runs hit the usage limit):
+- **Run evals per batch, and small.** Answers and judging run on the owner's Claude login, whose weekly limit a
+  full run (hundreds of answers a mode) no longer fits, and only one run at a time across sessions:
   - always, free: `just check`, and `just evals --lint` / `--endings` after a snapshot or pull-ending change;
   - a refactor whose snapshots don't change, wording tweaks, docs: none;
   - a change that can move answers (a tool's output or description, part of the skill, the bot's prompt or tools,
     cases): only the cases of the kinds it touches (`-k a,b`; `--bot` for the bot's prompt or tools), one trial,
-    then `--trials 3` on only the cases that moved (or `--trials auto` at once);
-  - the full suite (`--trials auto`, in the modes the batch touched; about $35 for `--bot`, four fifths of
-    `--trials 3`) once before a release or big deploy, covering everything since the last one: a change that would
-    need it lands without it and says "full eval: pending" in its commit body;
-  - new baselines (`--trials 3 --save-baseline`) only when the judge or the cases changed.
+    then `--trials 3` on only the cases that moved; a handful of answers, not a kind's every case;
+  - the smoke set (`--smoke`, twelve steady cases once each, in the modes the batch touched) once before a release
+    or big deploy, covering everything since the last one; a case it fails is asked again alone (`-k <case>
+    --trials 3`) before the release goes or stops. Commit `evals/smoke-runs.json` (`--record` on the run's file);
+  - the full suite (`--trials auto`) and new baselines (`--trials 3 --save-baseline`) only on the owner's word, when
+    the login has the usage for it: a change that would want one says "full eval: pending" in its commit body.
 - **Never print or commit secrets** (`.env`; show variable names only), and keep tracked files fit to publish: no
   guild matters, hosts or one deployment's setup. Raiders' character names may appear.
 - **Commits follow Conventional Commits:** `type(scope): summary` in plain words.

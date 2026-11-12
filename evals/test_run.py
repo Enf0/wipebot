@@ -699,3 +699,15 @@ def test_the_smoke_set_is_cases_every_mode_asks_and_every_baseline_passed_each_t
     for mode in ("plugin", "connector", "bot"):  # a case a baseline now fails sometimes: put a steady one in its place
         base = json.loads(baseline(mode).read_text())
         assert not [i for i in SMOKE if i in base["failed"] or not base["passed"].get(i)], mode
+
+
+def test_a_smoke_run_is_kept_as_its_modes_last_unless_it_errored_or_asked_other_cases(tmp_path, monkeypatch):
+    from evals import run
+    monkeypatch.setattr(run, "SMOKE_RUNS", tmp_path / "smoke-runs.json")
+    tally = {"commit": "abc1234", "trials": 1, "passed": dict.fromkeys(run.SMOKE, 1) | {run.SMOKE[0]: 0}}
+    assert run.record_smoke_run(tally, "bot", "2026-11-20") == {
+        "commit": "abc1234", "date": "2026-11-20", "passed": 11, "of": 12, "errors": 0}
+    kept = (tmp_path / "smoke-runs.json").read_text()
+    assert run.record_smoke_run(tally | {"errors": {run.SMOKE[1]: 1}}, "bot", "2026-11-21") is None
+    assert run.record_smoke_run(tally | {"passed": {"wipe-adds": 1}}, "bot", "2026-11-21") is None
+    assert (tmp_path / "smoke-runs.json").read_text() == kept

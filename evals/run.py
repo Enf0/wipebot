@@ -8,7 +8,7 @@
     just evals --save-baseline        # keep this run as its mode's baseline, to compare later runs with
     just evals --save-baseline evals/results/X.json   # a saved three-trial run as the baseline (no model)
     just evals --summary evals/results/X.json         # a saved run's summary and comparison again (no model)
-    just evals --record evals/results/X.json          # a saved full run as its mode's last in evals/full-runs.json
+    just evals --record evals/results/X.json          # a saved full or smoke run as its mode's last on record
     just evals --connector-only       # as a client with only the connector: no skill, no instructions (own baseline)
     just evals --bot                  # as the Discord bot: its prompt with the skill (own baseline)
     just evals --label evals/results/X.json   # mark a run's answers pass or fail yourself (evals/labels.jsonl)
@@ -112,6 +112,8 @@ HERE = Path(__file__).resolve().parent
 CACHE, LABELS = HERE / "cache.sqlite", HERE / "labels.jsonl"
 # Each mode's last full run (every case, no -k), tracked: scripts/release.py says how far a release is from it.
 FULL_RUNS = HERE / "full-runs.json"
+# Each mode's last run of the smoke set, tracked too: the release's check where a full run doesn't fit the login.
+SMOKE_RUNS = HERE / "smoke-runs.json"
 # The smoke set (--smoke): one or two cases of each kind of question that every mode asks and every mode's baseline
 # passed on all its trials (a test holds both), so one answer each says something: a fail here is a change to look
 # at, to ask again with `-k <case> --trials 3`, where a full run would have weighed it against the rest.
@@ -601,14 +603,16 @@ async def run(args) -> int:
     def so_far() -> dict:
         return tally_of(cases, results, model=shown, commit=commit(), judge=judged_by(args.judge_model))
 
-    full = not (args.filter or args.smoke or args.held_out or args.model or args.effort)  # every case, as shipped
+    shipped = not (args.filter or args.held_out or args.model or args.effort)  # the mode's own cases, as it ships
+    full, smoke = shipped and not args.smoke, shipped and args.smoke
     try:
         await ask_all(cases, base, args.trials, args.judge_model, one, so_far, confirm=not args.no_confirm)
     finally:  # the answers are kept before anything is made of them: no fault past here loses a paid run
         tally = so_far() | {"tested": tested(results)}
         if any(results.values()):
             out = keep(HERE / "results", results, tally, mode=args.mode, connector_only=args.mode == "connector",
-                       judge_model=args.judge_model, filter=args.filter, full=full, billed_to=args.billed_to)
+                       judge_model=args.judge_model, filter=args.filter, full=full, smoke=smoke,
+                       billed_to=args.billed_to)
             print(f"\nsaved {out.relative_to(HERE.parent)}", flush=True)
     cost = sum(t.cost_usd for ts in results.values() for t in ts)
     lines, found = report(tally, results, base, args.mode,
@@ -617,6 +621,8 @@ async def run(args) -> int:
     if full:
         record_full_run(tally, args.mode, found.lines[-1] if found else "no baseline to compare with",
                         f"{datetime.now(UTC):%Y-%m-%d}")
+    if smoke:
+        record_smoke_run(tally, args.mode, f"{datetime.now(UTC):%Y-%m-%d}")
     if args.save_baseline is not None:
         save_baseline(tally, args.mode, args.accept, args.filter, out.name if any(results.values()) else "")
     return exit_code(tally, found)
@@ -697,10 +703,33 @@ def record_full_run(tally: dict, mode: str, verdict: str, day: str) -> dict | No
     return runs[mode]
 
 
+def record_smoke_run(tally: dict, mode: str, day: str) -> dict | None:
+    """Keep a run of the smoke set as its mode's last in SMOKE_RUNS, tracked like FULL_RUNS: its commit and day,
+    passes of answers and errors. One that didn't judge every case of the set is not kept."""
+    of, errors = sum(judged(tally, c) for c in tally["passed"]), sum(tally.get("errors", {}).values())
+    if errors or set(tally["passed"]) != set(SMOKE):
+        print(f"not recorded as the last {mode} smoke run: {errors} of its answers errored, or it asked other cases "
+              "than the smoke set")
+        return None
+    runs = json.loads(SMOKE_RUNS.read_text(encoding="utf-8")) if SMOKE_RUNS.exists() else {}
+    runs[mode] = {"commit": tally["commit"], "date": day, "passed": sum(tally["passed"].values()), "of": of,
+                  "errors": errors}
+    SMOKE_RUNS.write_text(json.dumps(runs, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"recorded as the last {mode} smoke run in evals/{SMOKE_RUNS.name}: commit it (scripts/release.py reads it)")
+    return runs[mode]
+
+
 def record_saved(path: Path) -> None:
-    """A saved full run as its mode's last (record_full_run), for one made where the file couldn't be committed (the
-    Evals workflow): no model. Its day is the file's own, else the date in its name, else when it was written."""
+    """A saved full run as its mode's last (record_full_run), or a saved run of the smoke set (record_smoke_run),
+    for one made where the file couldn't be committed (the Evals workflow): no model. Its day is the file's own, else
+    the date in its name, else when it was written."""
     run, _, tally = read_run(path)
+    named = re.search(r"(20\d\d)(\d\d)(\d\d)", path.stem)
+    day = run.get("date") or ("-".join(named.groups()) if named else
+                              f"{datetime.fromtimestamp(path.stat().st_mtime, UTC):%Y-%m-%d}")
+    if run.get("smoke"):
+        record_smoke_run(tally, run["mode"], day)
+        return
     if run.get("filter"):
         raise SystemExit(f"not a full run: it asked only the cases matching -k {run['filter']}")
     if run.get("full") is False:
@@ -709,9 +738,6 @@ def record_saved(path: Path) -> None:
     if (asked := sum(c["id"] in tally["passed"] for c in mine)) < COVERED * len(mine):  # a file older than `filter`
         raise SystemExit(f"not a full run: it asked {asked} of the {len(mine)} cases its mode has today")
     base = json.loads(baseline(run["mode"]).read_text()) if baseline(run["mode"]).exists() else None
-    named = re.search(r"(20\d\d)(\d\d)(\d\d)", path.stem)
-    day = run.get("date") or ("-".join(named.groups()) if named else
-                              f"{datetime.fromtimestamp(path.stat().st_mtime, UTC):%Y-%m-%d}")
     record_full_run(tally, run["mode"], compared(base, tally).lines[-1] if base else "no baseline to compare with",
                     day)
 
@@ -1520,7 +1546,8 @@ def arguments() -> argparse.ArgumentParser:
     parser.add_argument("--accept", default="", metavar="REASON",
                         help="with --save-baseline: why a run it would refuse is the baseline all the same")
     parser.add_argument("--record", metavar="RESULTS",
-                        help="keep a saved full run as its mode's last in evals/full-runs.json (no model)")
+                        help="keep a saved full run as its mode's last in evals/full-runs.json, or a saved smoke "
+                             "run in evals/smoke-runs.json (no model)")
     parser.add_argument("--summary", metavar="RESULTS",
                         help="a saved run's summary and comparison again, by today's rules (no model)")
     parser.add_argument("--held-out", action="store_true",

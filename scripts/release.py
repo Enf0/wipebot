@@ -10,10 +10,11 @@ under it, as the website, the release notes and Discord's what's new show it: th
 `--without-pictures`.
 
 It also says how far the release is from the evals: for each mode, how many commits that can change an answer and how
-many days lie since its last recorded full run (evals/full-runs.json, which a full `just evals` run writes). A commit
+many days lie since its last recorded run: of the smoke set (evals/smoke-runs.json, `just evals --smoke`, the check a
+small plan's usage affords) or a full one (evals/full-runs.json), whichever is later. A commit
 can change a mode's answers when it touches what the mode answers with (ANSWERS), or says `full eval: pending` and
 touches no mode's (a dependency, say). That is printed with or without a version and written into the release
-commit's body. Past EVAL_COMMITS such commits or EVAL_DAYS days the release stops, until a full run is recorded or
+commit's body. Past EVAL_COMMITS such commits or EVAL_DAYS days the release stops, until a run is recorded or
 `--without-evals "<reason>"` says why not; the reason goes into the commit's body too."""
 import argparse
 import datetime
@@ -27,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CHANGELOG = ROOT / "CHANGELOG.md"
 PYPROJECT = ROOT / "pyproject.toml"
 UNRELEASED = "## [Unreleased]"
-FULL_RUNS = Path("evals") / "full-runs.json"
+FULL_RUNS, SMOKE_RUNS = Path("evals") / "full-runs.json", Path("evals") / "smoke-runs.json"
 # What an answer is made of, per eval mode: a commit that touches one of these since the mode's last full run can have
 # moved its answers. The core (the tools and the skill) and the cases are every mode's; then the app that answers.
 ANSWERS = {"bot": ("src/wipebot/core", "src/wipebot/discord", "evals/cases"),
@@ -117,13 +118,16 @@ def evals_distance(today: datetime.date) -> tuple[list[str], list[str]]:
     commit counts for a mode when it touches the mode's ANSWERS, and for every mode when it says a full eval is
     pending and touches no mode's: which answers it moves, its paths can't say. A mode with no run on record, or
     one whose commit this checkout doesn't have, is said and stops nothing."""
-    path = ROOT / FULL_RUNS
-    runs = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    runs, smoke = ({} if not (ROOT / path).exists() else json.loads((ROOT / path).read_text(encoding="utf-8"))
+                   for path in (FULL_RUNS, SMOKE_RUNS))
+    for mode, last in smoke.items():  # the later of the two is the one a release counts from
+        if mode not in runs or last["date"] >= runs[mode]["date"]:
+            runs[mode] = last | {"trials": ""}
     anywhere = sorted({p for paths in ANSWERS.values() for p in paths})
     lines, past = [], []
     for mode, paths in ANSWERS.items():
         if not (last := runs.get(mode)):
-            lines.append(f"Evals, {mode}: no full run on record.")
+            lines.append(f"Evals, {mode}: no full run on record.")  # nor one of the smoke set
             continue
         days = (today - datetime.date.fromisoformat(last["date"])).days
         known = subprocess.run(["git", "cat-file", "-e", f"{last['commit']}^{{commit}}"], cwd=ROOT,
@@ -136,7 +140,9 @@ def evals_distance(today: datetime.date) -> tuple[list[str], list[str]]:
                 f" ({said} of them say{'s' * (said == 1)} a full eval is pending)" if said else "")
         else:
             commits, far = None, "an unknown number of commits (its commit isn't in this checkout)"
-        lines.append(f"Evals, {mode}: last full run {last['date']} at {last['commit']} ({last['trials']}, "
+        kind = f"full run {last['date']} at {last['commit']} ({last['trials']}, " if last["trials"] else (
+            f"smoke run {last['date']} at {last['commit']} (")
+        lines.append(f"Evals, {mode}: last {kind}"
                      f"{last['passed']}/{last['of']} answers passed, {last['errors']} errors); since then {far} "
                      f"and {some(days, 'day')}.")
         if (commits or 0) > EVAL_COMMITS or days > EVAL_DAYS:
@@ -147,16 +153,17 @@ def evals_distance(today: datetime.date) -> tuple[list[str], list[str]]:
 
 def too_far(past: list[str]) -> str:
     """What a release past the distance is told, and what the run without a version says it would be told."""
-    return (f"Too far from the last full eval run: {', '.join(past)}; the limit is {EVAL_COMMITS} commits that "
-            f"can change an answer or {EVAL_DAYS} days. Run the full suite (`just evals --trials auto`, in the "
-            "modes named) and commit evals/full-runs.json, or say why not: --without-evals \"<reason>\".")
+    return (f"Too far from the last eval run: {', '.join(past)}; the limit is {EVAL_COMMITS} commits that "
+            f"can change an answer or {EVAL_DAYS} days. Ask the smoke set (`just evals --smoke`, in the modes "
+            "named) and commit evals/smoke-runs.json, or run the full suite where the login's usage allows it "
+            "(`just evals --trials auto`, evals/full-runs.json), or say why not: --without-evals \"<reason>\".")
 
 
 def body(summary: str, distance: list[str], without_evals: str = "") -> str:
     """The release commit's body: what the version brings, then how far it is from the evals, and why it went out
     past the limit when it did."""
     return "\n\n".join(part for part in (summary, "\n".join(distance),
-                                         f"Released without a full eval run: {without_evals}" if without_evals else "")
+                                         f"Released without an eval run: {without_evals}" if without_evals else "")
                        if part)
 
 
@@ -180,7 +187,7 @@ def main() -> None:
     parser.add_argument("--without-pictures", action="store_true",
                         help="release even with lines about a picture that have none under them")
     parser.add_argument("--without-evals", default="", metavar="REASON",
-                        help=f"release although a mode's last full eval run is more than {EVAL_COMMITS} "
+                        help=f"release although a mode's last eval run is more than {EVAL_COMMITS} "
                              f"answer-changing commits or {EVAL_DAYS} days back: why, kept in the commit's body")
     args = parser.parse_args()
     changelog, pyproject = CHANGELOG.read_text(encoding="utf-8"), PYPROJECT.read_text(encoding="utf-8")

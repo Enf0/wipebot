@@ -107,7 +107,7 @@ def test_a_release_says_how_far_it_is_from_each_modes_last_full_eval_run(repo):
     assert past == []  # a mode without a record, or with a commit not here, stops nothing
     assert release.body("What it brings.", lines) == "What it brings.\n\n" + "\n".join(lines)
     assert release.body("", lines, "the suite is down").endswith(
-        "days.\nEvals, connector: no full run on record.\n\nReleased without a full eval run: the suite is down")
+        "days.\nEvals, connector: no full run on record.\n\nReleased without an eval run: the suite is down")
 
 
 def test_a_release_stops_only_past_the_distance(repo, monkeypatch):
@@ -127,6 +127,24 @@ def test_a_release_stops_only_past_the_distance(repo, monkeypatch):
     (root / "evals" / "full-runs.json").unlink()
     lines, past = release.evals_distance(datetime.date(2026, 11, 23))
     assert past == [] and lines[0] == "Evals, bot: no full run on record."
+
+
+def test_a_release_counts_from_a_smoke_run_when_it_is_the_later_one(repo):
+    root, commit = repo
+    old = commit("src/wipebot/core/server.py")
+    commit("src/wipebot/core/a.py")
+    at = commit("src/wipebot/core/b.py")
+    commit("src/wipebot/core/c.py")
+    (root / "evals").mkdir()
+    (root / "evals" / "full-runs.json").write_text(json.dumps({"bot": full_run(old, "2026-11-01"),
+                                                              "plugin": full_run(old, "2026-11-01")}))
+    (root / "evals" / "smoke-runs.json").write_text(json.dumps({
+        "bot": {"commit": at, "date": "2026-11-20", "passed": 11, "of": 12, "errors": 0},
+        "plugin": {"commit": old, "date": "2026-10-20", "passed": 12, "of": 12, "errors": 0}}))
+    lines, past = release.evals_distance(datetime.date(2026, 11, 25))
+    assert lines[0] == (f"Evals, bot: last smoke run 2026-11-20 at {at} (11/12 answers passed, 0 errors); since then "
+                        "1 commit that can change an answer and 5 days.")
+    assert lines[1].startswith("Evals, plugin: last full run 2026-11-01") and past == ["plugin (3 commits, 24 days)"]
 
 
 def test_a_commit_that_says_a_full_eval_is_pending_counts_where_no_path_says_so(repo):
@@ -164,7 +182,7 @@ def test_a_release_past_the_distance_stops_until_it_says_why(repo, monkeypatch, 
     monkeypatch.setattr(release, "run", lambda *args: ran.append(args))
     commit("src/wipebot/core/a.py")
     commit("uv.lock", "full eval: pending")
-    far = "Too far from the last full eval run: bot (2 commits, 0 days); the limit is 1 commits"
+    far = "Too far from the last eval run: bot (2 commits, 0 days); the limit is 1 commits"
     monkeypatch.setattr("sys.argv", ["release.py"])
     release.main()  # without a version it says so, and changes nothing
     assert f"A release would stop here. {far}" in capsys.readouterr().out
@@ -178,5 +196,5 @@ def test_a_release_past_the_distance_stops_until_it_says_why(repo, monkeypatch, 
     message = next(args for args in ran if args[:2] == ("git", "commit"))[-1]
     assert message.startswith("chore: Wipebot 0.3.0\n\nWhat it brings.\n\nEvals, bot: last full run ")
     assert "then 2 commits that can change an answer (1 of them says a full eval is pending) and 0 days." in message
-    assert message.endswith("\n\nReleased without a full eval run: the suite is down")
+    assert message.endswith("\n\nReleased without an eval run: the suite is down")
     assert "## [0.3.0]" in (root / "changelog.txt").read_text()

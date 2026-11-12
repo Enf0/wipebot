@@ -172,7 +172,8 @@ mode asks and every mode's baseline passed on all its trials. It is the check fo
 run doesn't fit: a twentieth of one, about a quarter of an hour. One answer per case shows what broke (a skill that
 no longer loads, a tool that fails, a prompt change that turns answers), not a drop of a few points; a case that
 fails is asked again alone (`-k <case> --trials 3`) before it's believed. It isn't a full run and leaves
-`full-runs.json` alone.
+`full-runs.json` alone: a smoke run of what the mode ships (no `-k`, model or effort) is kept as its mode's last in
+`smoke-runs.json`, tracked, and `scripts/release.py` counts a release's distance from the later of the two.
 
 A full run (no `-k`, the mode's own model and effort) is kept as its mode's last in `full-runs.json`, which is
 tracked: commit it. A run that judged fewer than nine in ten of its answers (the rest errored) is not kept.
@@ -251,7 +252,7 @@ just evals --trials 3 --save-baseline             # keep this run as the baselin
 just evals -k night-dispels --trials 3 --save-baseline  # put the cases just run into the baseline, the rest kept
 just evals --save-baseline evals/results/X.json   # a saved three-trial run as the baseline (no model)
 just evals --summary evals/results/X.json         # a saved run's summary and comparison again (no model)
-just evals --record evals/results/X.json          # a saved full run as its mode's last in full-runs.json (no model)
+just evals --record evals/results/X.json          # a saved full or smoke run as its mode's last on record (no model)
 just evals --lint                   # the cases' numbers against the tools now (no model, two to five minutes)
 just evals --coverage               # what the cases cover: tools, kinds of question, places, bosses (no model)
 just evals --endings                # pull_summary's "Ended by" against each case's `cause` (no model)
