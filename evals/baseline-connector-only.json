@@ -1,97 +1,18 @@
 {
  "model": "opus",
- "commit": "42bfeaa",
- "trials": 3,
+ "commit": "7da2bc1",
  "judge": {
   "prompts": "06d3a93296",
   "model": "sonnet"
  },
- "case_hashes": {
-  "officer-saves-note": "97b93c6c53",
-  "plan-spots-at-virulence": "0ff34df068",
-  "me-boss-loot": "eadd30e200",
-  "me-stat-priority": "055c3dbf6c",
-  "me-top-builds-unpulled-boss": "cc57257b4c",
-  "ask-unknown-asker": "48eda34062",
-  "ask-assignment": "d757c5edca",
-  "ask-boss-not-in-report": "843933a26e",
-  "night-bottleneck": "90d6ac1ff6",
-  "night-healing-cooldowns": "57382c2eea",
-  "night-not-a-dps-problem": "e652c7cdaf",
-  "night-improving": "15b1c0f55e",
-  "night-kill-what-went-right": "3b222833ae",
-  "night-raid-prep": "8bda5ce25a",
-  "night-dispels": "2a5b175ebd",
-  "night-kill-vs-best-wipe": "ad1a6b2bc7",
-  "night-summary-for-raid": "279d25436b",
-  "night-three-things-to-fix": "b9507f7489",
-  "night-better-than-last-week": "33d8f7b709",
-  "night-kicks-order-changed": "b7325f15e3",
-  "me-low-dps": "2fa0da6545",
-  "me-tank-taunts": "cfb7024cf1",
-  "me-season-parses": "68bb6144d1",
-  "me-played-well": "cf733084e5",
-  "me-energy-cap": "fe054bb4da",
-  "me-build-on-kill": "4fe9e89393",
-  "real-tornadoes-most-hits": "24272d4470",
-  "real-dps-check": "0ee46ef11f",
-  "real-tempest-most-hits": "4152931ffe",
-  "twin-fangs-mythic-changes": "18605b8855",
-  "twin-fangs-healers-at-our-item-level": "249ae4867e",
-  "wipe-enrage-hidden-by-deaths": "7d80e05772",
-  "wipe-was-a-reset": "a8e3406dad",
-  "wipe-enrage-after-collapse": "0fb0fedffe",
-  "wipe-heroic-failed-soak": "d9ea9f31e0",
-  "wipe-follow-up-next-pull": "28f13d8c90",
-  "wipe-imbibe-totems": "c236a29ada",
-  "wipe-dps-in-ravage": "f682675325",
-  "could-they-have-lived": "449835c53d",
-  "premise-more-dps": "1840010517",
-  "premise-healers": "34d0ca0360",
-  "report-wrong-answer": "cbcf70abe3",
-  "conversation-five-turns": "c520b7770c",
-  "night-who-dies-first": "5d3a63922c",
-  "night-add-control": "6ca44bf905",
-  "healers-imbibe-cooldowns": "1a82ac5379",
-  "night-adds-damage-and-waves": "11daa6fc05",
-  "plan-healing-cooldowns-sszorak": "98fd260b29",
-  "norsk-follow-up-same-thing": "227ea634ea",
-  "norsk-death-globule": "3a528eb2b6",
-  "me-healer-kill": "b3d12f2923",
-  "me-healer-holy-power": "b127d9bf95",
-  "me-low-parse-died": "dd1fab40f7",
-  "me-could-i-survive": "18a7b4541c",
-  "me-dps-hit-by-tank-mechanic": "b2d866616b",
-  "me-healer-wipe": "2f6e40af79",
-  "me-tank-mitigation": "88ff15eac8",
-  "me-cooldown-sync": "66c3865648",
-  "me-healer-realistic-target": "2e973ebc0c",
-  "healers-kill-cooldowns": "40ed4e8ccf",
-  "me-sneaky-death": "30cfc2d726",
-  "me-night-trend": "de25908986",
-  "real-last-pull": "3f7e486363",
-  "real-follow-up-who-touched-cyst": "0738b322b5",
-  "real-follow-up-defensives-saved": "6ab40775d5",
-  "real-holy-priest-night": "bbf55bcc81",
-  "real-bm-hunter-vs-top": "572a0a2255",
-  "real-subtlety-energy-follow-up": "8303eff74d",
-  "real-explorers-crates": "9a090f8837",
-  "real-healers-overheal-vs-top": "6523188ee1",
-  "real-healer-overheal-pushback": "d7c39a4cc7",
-  "real-disc-on-your-numbers": "ff74baf0ad",
-  "wipe-too-few-alive": "c3d34a8b49",
-  "wipe-who-started-it": "a9c7f5eb11",
-  "wipe-unkicked-add": "6cb7098033",
-  "wipe-adds": "2d85b27c7c",
-  "wipe-tank-death": "004df693b9",
-  "wipe-droplet-explosion": "83d7a48e8e",
-  "wipe-second-fury-not-stacked": "789d0096b9",
-  "wipe-tank-solo-soak": "be4b7a6fea",
-  "real-holy-paladin-tasks-pushback": "a9eac71a1a"
- },
- "passed": {
+ "trials": {
   "officer-saves-note": 3,
   "plan-spots-at-virulence": 3,
+  "plan-where-do-i-stand": 3,
+  "plan-who-stays-out": 3,
+  "night-kicks-order-changed": 3,
+  "report-wrong-answer": 3,
+  "conversation-five-turns": 3,
   "me-boss-loot": 3,
   "me-stat-priority": 3,
   "me-top-builds-unpulled-boss": 3,
@@ -102,88 +23,396 @@
   "night-healing-cooldowns": 3,
   "night-not-a-dps-problem": 3,
   "night-improving": 3,
-  "night-kill-what-went-right": 2,
+  "night-who-dies-first": 3,
+  "night-kill-what-went-right": 3,
   "night-raid-prep": 3,
-  "night-dispels": 2,
+  "night-add-control": 3,
+  "night-dispels": 3,
   "night-kill-vs-best-wipe": 3,
   "night-summary-for-raid": 3,
-  "night-three-things-to-fix": 2,
-  "night-better-than-last-week": 3,
-  "night-kicks-order-changed": 3,
-  "me-low-dps": 1,
-  "me-tank-taunts": 3,
-  "me-season-parses": 3,
-  "me-played-well": 3,
-  "me-energy-cap": 3,
-  "me-build-on-kill": 3,
-  "real-tornadoes-most-hits": 3,
-  "real-dps-check": 3,
-  "real-tempest-most-hits": 2,
-  "twin-fangs-mythic-changes": 3,
-  "twin-fangs-healers-at-our-item-level": 3,
-  "wipe-enrage-hidden-by-deaths": 3,
-  "wipe-was-a-reset": 3,
-  "wipe-enrage-after-collapse": 3,
-  "wipe-heroic-failed-soak": 3,
-  "wipe-follow-up-next-pull": 3,
-  "wipe-imbibe-totems": 2,
-  "wipe-dps-in-ravage": 3,
-  "could-they-have-lived": 3,
-  "premise-more-dps": 3,
-  "premise-healers": 2,
-  "report-wrong-answer": 3,
-  "conversation-five-turns": 3,
-  "night-who-dies-first": 2,
-  "night-add-control": 3,
   "healers-imbibe-cooldowns": 3,
   "night-adds-damage-and-waves": 3,
+  "night-three-things-to-fix": 3,
+  "night-better-than-last-week": 3,
   "plan-healing-cooldowns-sszorak": 3,
+  "norsk-wipe-execution": 3,
+  "norsk-same-thing-every-pull": 3,
   "norsk-follow-up-same-thing": 3,
   "norsk-death-globule": 3,
+  "norsk-own-tempest-hits": 3,
+  "norsk-guide-guillotine": 3,
+  "norsk-last-night": 3,
   "me-healer-kill": 3,
   "me-healer-holy-power": 3,
+  "me-low-dps": 3,
   "me-low-parse-died": 3,
   "me-could-i-survive": 3,
   "me-dps-hit-by-tank-mechanic": 3,
+  "me-tank-taunts": 3,
+  "me-season-parses": 3,
   "me-healer-wipe": 3,
   "me-tank-mitigation": 3,
+  "me-played-well": 3,
+  "me-energy-cap": 3,
   "me-cooldown-sync": 3,
+  "me-build-on-kill": 3,
   "me-healer-realistic-target": 3,
-  "healers-kill-cooldowns": 2,
+  "healers-kill-cooldowns": 3,
   "me-sneaky-death": 3,
   "me-night-trend": 3,
+  "me-mechanic-against-last-night": 3,
   "real-last-pull": 3,
+  "real-tornadoes-most-hits": 3,
   "real-follow-up-who-touched-cyst": 3,
-  "real-follow-up-defensives-saved": 2,
+  "real-follow-up-defensives-saved": 3,
   "real-holy-priest-night": 3,
   "real-bm-hunter-vs-top": 3,
-  "real-subtlety-energy-follow-up": 1,
-  "real-explorers-crates": 2,
+  "real-subtlety-energy-follow-up": 6,
+  "real-explorers-crates": 3,
+  "twin-fangs-mythic-changes": 3,
+  "twin-fangs-healers-at-our-item-level": 3,
+  "real-add-damage-by-wave": 3,
+  "real-raid-dps-at-a-moment": 3,
+  "real-divine-toll-holy-power": 3,
+  "real-latest-progress-kills-healers": 3,
+  "real-history-raider-not-in-log": 3,
   "real-healers-overheal-vs-top": 3,
-  "real-healer-overheal-pushback": 0,
+  "real-healer-overheal-pushback": 3,
+  "real-holy-paladin-tasks-pushback": 3,
   "real-disc-on-your-numbers": 3,
+  "server-what-we-killed-wednesday": 3,
+  "server-sszorak-on-the-5th": 3,
+  "server-channel-names-tempest": 3,
+  "server-guide-purple-orbs": 3,
+  "wipe-enrage-hidden-by-deaths": 3,
   "wipe-too-few-alive": 3,
   "wipe-who-started-it": 3,
+  "wipe-was-a-reset": 3,
+  "wipe-enrage-after-collapse": 3,
   "wipe-unkicked-add": 3,
   "wipe-adds": 3,
   "wipe-tank-death": 3,
   "wipe-droplet-explosion": 3,
+  "wipe-heroic-failed-soak": 3,
   "wipe-second-fury-not-stacked": 3,
-  "wipe-tank-solo-soak": 3,
-  "real-holy-paladin-tasks-pushback": 2
+  "wipe-follow-up-next-pull": 3,
+  "wipe-imbibe-totems": 3,
+  "wipe-tank-solo-soak": 3
+ },
+ "case_hashes": {
+  "officer-saves-note": "1a6d978235",
+  "plan-spots-at-virulence": "b4b1c4a638",
+  "plan-where-do-i-stand": "ce7a1a71ac",
+  "plan-who-stays-out": "6008756840",
+  "night-kicks-order-changed": "a8df2c0ccc",
+  "report-wrong-answer": "cbcf70abe3",
+  "conversation-five-turns": "c520b7770c",
+  "me-boss-loot": "eadd30e200",
+  "me-stat-priority": "6c945aa482",
+  "me-top-builds-unpulled-boss": "17ff7e5bd2",
+  "ask-unknown-asker": "48eda34062",
+  "ask-assignment": "8b15c2bf82",
+  "ask-boss-not-in-report": "843933a26e",
+  "night-bottleneck": "b93a926687",
+  "night-healing-cooldowns": "8e9d1f8ebd",
+  "night-not-a-dps-problem": "0b875d4298",
+  "night-improving": "7183d55c57",
+  "night-who-dies-first": "5d3a63922c",
+  "night-kill-what-went-right": "b33a478de6",
+  "night-raid-prep": "2f054c6ca6",
+  "night-add-control": "6ca44bf905",
+  "night-dispels": "342eb3e887",
+  "night-kill-vs-best-wipe": "d94365f5f5",
+  "night-summary-for-raid": "95791d8e52",
+  "healers-imbibe-cooldowns": "1a82ac5379",
+  "night-adds-damage-and-waves": "11daa6fc05",
+  "night-three-things-to-fix": "775ff5d19f",
+  "night-better-than-last-week": "d846a9f332",
+  "plan-healing-cooldowns-sszorak": "98fd260b29",
+  "norsk-wipe-execution": "b9fa9aeedc",
+  "norsk-same-thing-every-pull": "e9ee6b6a83",
+  "norsk-follow-up-same-thing": "227ea634ea",
+  "norsk-death-globule": "3a528eb2b6",
+  "norsk-own-tempest-hits": "31c1060d58",
+  "norsk-guide-guillotine": "e491b6b894",
+  "norsk-last-night": "64ae0b6947",
+  "me-healer-kill": "b3d12f2923",
+  "me-healer-holy-power": "b127d9bf95",
+  "me-low-dps": "105a12ba35",
+  "me-low-parse-died": "dd1fab40f7",
+  "me-could-i-survive": "18a7b4541c",
+  "me-dps-hit-by-tank-mechanic": "b2d866616b",
+  "me-tank-taunts": "cfb7024cf1",
+  "me-season-parses": "3b020eaab5",
+  "me-healer-wipe": "2f6e40af79",
+  "me-tank-mitigation": "88ff15eac8",
+  "me-played-well": "afd2ceb69e",
+  "me-energy-cap": "f634c1eefc",
+  "me-cooldown-sync": "66c3865648",
+  "me-build-on-kill": "0e35409edb",
+  "me-healer-realistic-target": "2e973ebc0c",
+  "healers-kill-cooldowns": "40ed4e8ccf",
+  "me-sneaky-death": "30cfc2d726",
+  "me-night-trend": "de25908986",
+  "me-mechanic-against-last-night": "790fd07285",
+  "real-last-pull": "3f7e486363",
+  "real-tornadoes-most-hits": "edab9beede",
+  "real-follow-up-who-touched-cyst": "0738b322b5",
+  "real-follow-up-defensives-saved": "6ab40775d5",
+  "real-holy-priest-night": "bbf55bcc81",
+  "real-bm-hunter-vs-top": "572a0a2255",
+  "real-subtlety-energy-follow-up": "8303eff74d",
+  "real-explorers-crates": "9a090f8837",
+  "twin-fangs-mythic-changes": "18605b8855",
+  "twin-fangs-healers-at-our-item-level": "c4b71e55de",
+  "real-add-damage-by-wave": "a6024b0dbb",
+  "real-raid-dps-at-a-moment": "51aca96bb5",
+  "real-divine-toll-holy-power": "b742763eda",
+  "real-latest-progress-kills-healers": "49a408d8de",
+  "real-history-raider-not-in-log": "c8adecd841",
+  "real-healers-overheal-vs-top": "6523188ee1",
+  "real-healer-overheal-pushback": "d7c39a4cc7",
+  "real-holy-paladin-tasks-pushback": "a9eac71a1a",
+  "real-disc-on-your-numbers": "ff74baf0ad",
+  "server-what-we-killed-wednesday": "3af21d48fc",
+  "server-sszorak-on-the-5th": "48a522b096",
+  "server-channel-names-tempest": "373fa599ba",
+  "server-guide-purple-orbs": "f27009bf98",
+  "wipe-enrage-hidden-by-deaths": "d470173290",
+  "wipe-too-few-alive": "c3d34a8b49",
+  "wipe-who-started-it": "a9c7f5eb11",
+  "wipe-was-a-reset": "a8e3406dad",
+  "wipe-enrage-after-collapse": "4f4b9e4377",
+  "wipe-unkicked-add": "6cb7098033",
+  "wipe-adds": "2d85b27c7c",
+  "wipe-tank-death": "004df693b9",
+  "wipe-droplet-explosion": "83d7a48e8e",
+  "wipe-heroic-failed-soak": "fc6ea03251",
+  "wipe-second-fury-not-stacked": "789d0096b9",
+  "wipe-follow-up-next-pull": "28f13d8c90",
+  "wipe-imbibe-totems": "1c13f58f4d",
+  "wipe-tank-solo-soak": "be4b7a6fea"
+ },
+ "parts": [
+  "expect",
+  "wrong",
+  "calls",
+  "numbers",
+  "evidence",
+  "language"
+ ],
+ "passed": {
+  "officer-saves-note": 3,
+  "plan-spots-at-virulence": 3,
+  "plan-where-do-i-stand": 3,
+  "plan-who-stays-out": 3,
+  "night-kicks-order-changed": 3,
+  "report-wrong-answer": 3,
+  "conversation-five-turns": 2,
+  "me-boss-loot": 3,
+  "me-stat-priority": 3,
+  "me-top-builds-unpulled-boss": 3,
+  "ask-unknown-asker": 3,
+  "ask-assignment": 3,
+  "ask-boss-not-in-report": 3,
+  "night-bottleneck": 3,
+  "night-healing-cooldowns": 3,
+  "night-not-a-dps-problem": 3,
+  "night-improving": 3,
+  "night-who-dies-first": 3,
+  "night-kill-what-went-right": 3,
+  "night-raid-prep": 3,
+  "night-add-control": 3,
+  "night-dispels": 1,
+  "night-kill-vs-best-wipe": 3,
+  "night-summary-for-raid": 3,
+  "healers-imbibe-cooldowns": 3,
+  "night-adds-damage-and-waves": 3,
+  "night-three-things-to-fix": 3,
+  "night-better-than-last-week": 3,
+  "plan-healing-cooldowns-sszorak": 2,
+  "norsk-wipe-execution": 3,
+  "norsk-same-thing-every-pull": 3,
+  "norsk-follow-up-same-thing": 3,
+  "norsk-death-globule": 3,
+  "norsk-own-tempest-hits": 3,
+  "norsk-guide-guillotine": 2,
+  "norsk-last-night": 3,
+  "me-healer-kill": 3,
+  "me-healer-holy-power": 3,
+  "me-low-dps": 2,
+  "me-low-parse-died": 2,
+  "me-could-i-survive": 3,
+  "me-dps-hit-by-tank-mechanic": 3,
+  "me-tank-taunts": 3,
+  "me-season-parses": 3,
+  "me-healer-wipe": 3,
+  "me-tank-mitigation": 3,
+  "me-played-well": 3,
+  "me-energy-cap": 3,
+  "me-cooldown-sync": 3,
+  "me-build-on-kill": 3,
+  "me-healer-realistic-target": 3,
+  "healers-kill-cooldowns": 3,
+  "me-sneaky-death": 3,
+  "me-night-trend": 3,
+  "me-mechanic-against-last-night": 3,
+  "real-last-pull": 3,
+  "real-tornadoes-most-hits": 3,
+  "real-follow-up-who-touched-cyst": 2,
+  "real-follow-up-defensives-saved": 1,
+  "real-holy-priest-night": 3,
+  "real-bm-hunter-vs-top": 3,
+  "real-subtlety-energy-follow-up": 5,
+  "real-explorers-crates": 2,
+  "twin-fangs-mythic-changes": 3,
+  "twin-fangs-healers-at-our-item-level": 3,
+  "real-add-damage-by-wave": 3,
+  "real-raid-dps-at-a-moment": 3,
+  "real-divine-toll-holy-power": 3,
+  "real-latest-progress-kills-healers": 3,
+  "real-history-raider-not-in-log": 3,
+  "real-healers-overheal-vs-top": 3,
+  "real-healer-overheal-pushback": 1,
+  "real-holy-paladin-tasks-pushback": 1,
+  "real-disc-on-your-numbers": 3,
+  "server-what-we-killed-wednesday": 3,
+  "server-sszorak-on-the-5th": 3,
+  "server-channel-names-tempest": 3,
+  "server-guide-purple-orbs": 3,
+  "wipe-enrage-hidden-by-deaths": 3,
+  "wipe-too-few-alive": 3,
+  "wipe-who-started-it": 3,
+  "wipe-was-a-reset": 3,
+  "wipe-enrage-after-collapse": 3,
+  "wipe-unkicked-add": 3,
+  "wipe-adds": 3,
+  "wipe-tank-death": 3,
+  "wipe-droplet-explosion": 3,
+  "wipe-heroic-failed-soak": 3,
+  "wipe-second-fury-not-stacked": 3,
+  "wipe-follow-up-next-pull": 3,
+  "wipe-imbibe-totems": 3,
+  "wipe-tank-solo-soak": 3
+ },
+ "failed": {
+  "conversation-five-turns": [
+   [
+    "expect",
+    "wrong"
+   ]
+  ],
+  "night-dispels": [
+   [
+    "expect",
+    "wrong"
+   ],
+   [
+    "expect"
+   ]
+  ],
+  "plan-healing-cooldowns-sszorak": [
+   [
+    "evidence"
+   ]
+  ],
+  "norsk-guide-guillotine": [
+   [
+    "expect",
+    "wrong"
+   ]
+  ],
+  "me-low-dps": [
+   [
+    "expect"
+   ]
+  ],
+  "me-low-parse-died": [
+   [
+    "wrong"
+   ]
+  ],
+  "real-follow-up-who-touched-cyst": [
+   [
+    "evidence"
+   ]
+  ],
+  "real-follow-up-defensives-saved": [
+   [
+    "expect"
+   ],
+   [
+    "expect"
+   ]
+  ],
+  "real-subtlety-energy-follow-up": [
+   [
+    "expect"
+   ]
+  ],
+  "real-explorers-crates": [
+   [
+    "expect"
+   ]
+  ],
+  "real-healer-overheal-pushback": [
+   [
+    "expect",
+    "evidence"
+   ],
+   [
+    "expect",
+    "evidence"
+   ]
+  ],
+  "real-holy-paladin-tasks-pushback": [
+   [
+    "expect",
+    "wrong"
+   ],
+   [
+    "expect"
+   ]
+  ]
  },
  "errors": {},
- "hard": [
-  "night-three-things-to-fix",
-  "night-better-than-last-week",
-  "real-tornadoes-most-hits",
-  "wipe-follow-up-next-pull",
-  "premise-more-dps",
-  "premise-healers"
- ],
+ "broke": {},
+ "live": {
+  "conversation-five-turns": 1,
+  "night-bottleneck": 1,
+  "night-who-dies-first": 1,
+  "night-kill-what-went-right": 2,
+  "night-add-control": 2,
+  "night-kill-vs-best-wipe": 2,
+  "night-summary-for-raid": 1,
+  "night-three-things-to-fix": 3,
+  "plan-healing-cooldowns-sszorak": 2,
+  "norsk-follow-up-same-thing": 1,
+  "me-could-i-survive": 1,
+  "real-follow-up-defensives-saved": 1,
+  "real-explorers-crates": 2,
+  "twin-fangs-healers-at-our-item-level": 2,
+  "real-holy-paladin-tasks-pushback": 1,
+  "wipe-enrage-after-collapse": 1,
+  "wipe-unkicked-add": 2,
+  "wipe-imbibe-totems": 1
+ },
+ "hard": [],
  "facts": {
   "plan-spots-at-virulence": [
    12,
+   12
+  ],
+  "plan-where-do-i-stand": [
+   9,
+   12
+  ],
+  "night-kicks-order-changed": [
+   10,
+   12
+  ],
+  "conversation-five-turns": [
+   1,
    12
   ],
   "me-stat-priority": [
@@ -195,168 +424,84 @@
    21
   ],
   "ask-assignment": [
-   7,
+   10,
    12
   ],
   "ask-boss-not-in-report": [
-   2,
+   5,
    6
   ],
   "night-bottleneck": [
-   6,
-   9
+   1,
+   12
   ],
   "night-healing-cooldowns": [
-   2,
+   7,
    9
   ],
   "night-not-a-dps-problem": [
-   10,
+   6,
    18
   ],
   "night-improving": [
-   9,
+   8,
    9
   ],
+  "night-who-dies-first": [
+   4,
+   15
+  ],
   "night-kill-what-went-right": [
-   2,
+   0,
    12
   ],
   "night-raid-prep": [
    9,
    9
   ],
+  "night-add-control": [
+   8,
+   15
+  ],
   "night-dispels": [
-   3,
+   6,
    12
   ],
   "night-kill-vs-best-wipe": [
-   1,
-   12
+   2,
+   15
   ],
   "night-summary-for-raid": [
    3,
    12
   ],
-  "night-three-things-to-fix": [
-   10,
-   12
-  ],
-  "night-better-than-last-week": [
-   3,
-   9
-  ],
-  "night-kicks-order-changed": [
-   8,
-   9
-  ],
-  "me-low-dps": [
-   12,
-   15
-  ],
-  "me-tank-taunts": [
-   9,
-   9
-  ],
-  "me-season-parses": [
-   11,
-   12
-  ],
-  "me-played-well": [
-   13,
-   18
-  ],
-  "me-energy-cap": [
-   7,
-   12
-  ],
-  "me-build-on-kill": [
-   14,
-   15
-  ],
-  "real-tornadoes-most-hits": [
-   8,
-   12
-  ],
-  "real-dps-check": [
-   10,
-   12
-  ],
-  "real-tempest-most-hits": [
-   7,
-   15
-  ],
-  "twin-fangs-mythic-changes": [
-   18,
-   18
-  ],
-  "twin-fangs-healers-at-our-item-level": [
-   1,
-   9
-  ],
-  "wipe-enrage-hidden-by-deaths": [
-   3,
-   9
-  ],
-  "wipe-was-a-reset": [
-   3,
-   3
-  ],
-  "wipe-enrage-after-collapse": [
-   5,
-   12
-  ],
-  "wipe-heroic-failed-soak": [
-   8,
-   12
-  ],
-  "wipe-follow-up-next-pull": [
-   9,
-   9
-  ],
-  "wipe-imbibe-totems": [
-   11,
-   15
-  ],
-  "wipe-dps-in-ravage": [
-   7,
-   12
-  ],
-  "could-they-have-lived": [
-   8,
-   12
-  ],
-  "premise-more-dps": [
-   6,
-   6
-  ],
-  "premise-healers": [
-   7,
-   9
-  ],
-  "conversation-five-turns": [
-   0,
-   12
-  ],
-  "night-who-dies-first": [
-   5,
-   15
-  ],
-  "night-add-control": [
-   8,
-   15
-  ],
   "healers-imbibe-cooldowns": [
-   9,
+   7,
    15
   ],
   "night-adds-damage-and-waves": [
    8,
    21
   ],
+  "night-three-things-to-fix": [
+   9,
+   12
+  ],
+  "night-better-than-last-week": [
+   3,
+   9
+  ],
   "plan-healing-cooldowns-sszorak": [
-   4,
+   3,
    15
+  ],
+  "norsk-wipe-execution": [
+   5,
+   9
+  ],
+  "norsk-same-thing-every-pull": [
+   3,
+   9
   ],
   "norsk-follow-up-same-thing": [
    3,
@@ -366,16 +511,32 @@
    9,
    9
   ],
-  "me-healer-kill": [
+  "norsk-own-tempest-hits": [
    6,
+   6
+  ],
+  "norsk-guide-guillotine": [
+   10,
+   12
+  ],
+  "norsk-last-night": [
+   2,
+   6
+  ],
+  "me-healer-kill": [
+   5,
    12
   ],
   "me-healer-holy-power": [
-   9,
+   8,
+   15
+  ],
+  "me-low-dps": [
+   7,
    15
   ],
   "me-low-parse-died": [
-   9,
+   10,
    15
   ],
   "me-could-i-survive": [
@@ -386,40 +547,68 @@
    8,
    12
   ],
+  "me-tank-taunts": [
+   9,
+   9
+  ],
+  "me-season-parses": [
+   7,
+   9
+  ],
   "me-healer-wipe": [
    15,
    15
   ],
   "me-tank-mitigation": [
-   8,
+   10,
    15
+  ],
+  "me-played-well": [
+   16,
+   18
+  ],
+  "me-energy-cap": [
+   11,
+   12
   ],
   "me-cooldown-sync": [
    9,
    9
+  ],
+  "me-build-on-kill": [
+   15,
+   15
   ],
   "me-healer-realistic-target": [
    12,
    12
   ],
   "healers-kill-cooldowns": [
-   8,
+   6,
    18
   ],
   "me-sneaky-death": [
-   9,
+   10,
    12
   ],
   "me-night-trend": [
    6,
    9
   ],
+  "me-mechanic-against-last-night": [
+   9,
+   9
+  ],
   "real-last-pull": [
-   14,
+   11,
    18
   ],
+  "real-tornadoes-most-hits": [
+   10,
+   12
+  ],
   "real-follow-up-who-touched-cyst": [
-   5,
+   7,
    12
   ],
   "real-follow-up-defensives-saved": [
@@ -427,7 +616,7 @@
    36
   ],
   "real-holy-priest-night": [
-   5,
+   10,
    18
   ],
   "real-bm-hunter-vs-top": [
@@ -435,487 +624,422 @@
    18
   ],
   "real-subtlety-energy-follow-up": [
-   7,
-   15
+   14,
+   30
   ],
   "real-explorers-crates": [
-   5,
+   9,
    18
   ],
-  "real-healers-overheal-vs-top": [
+  "twin-fangs-mythic-changes": [
+   18,
+   18
+  ],
+  "twin-fangs-healers-at-our-item-level": [
+   1,
+   9
+  ],
+  "real-add-damage-by-wave": [
+   10,
+   12
+  ],
+  "real-raid-dps-at-a-moment": [
    3,
+   3
+  ],
+  "real-divine-toll-holy-power": [
+   9,
+   9
+  ],
+  "real-latest-progress-kills-healers": [
+   8,
+   9
+  ],
+  "real-history-raider-not-in-log": [
+   5,
+   6
+  ],
+  "real-healers-overheal-vs-top": [
+   0,
    12
   ],
   "real-healer-overheal-pushback": [
    3,
    15
   ],
+  "real-holy-paladin-tasks-pushback": [
+   5,
+   18
+  ],
   "real-disc-on-your-numbers": [
-   6,
+   2,
    12
   ],
+  "server-what-we-killed-wednesday": [
+   9,
+   9
+  ],
+  "server-sszorak-on-the-5th": [
+   6,
+   9
+  ],
+  "server-channel-names-tempest": [
+   2,
+   6
+  ],
+  "server-guide-purple-orbs": [
+   3,
+   6
+  ],
+  "wipe-enrage-hidden-by-deaths": [
+   3,
+   9
+  ],
   "wipe-too-few-alive": [
-   13,
+   11,
    15
   ],
   "wipe-who-started-it": [
    9,
    15
   ],
+  "wipe-was-a-reset": [
+   3,
+   3
+  ],
+  "wipe-enrage-after-collapse": [
+   6,
+   12
+  ],
   "wipe-unkicked-add": [
-   8,
+   7,
    12
   ],
   "wipe-adds": [
-   2,
+   3,
    9
   ],
   "wipe-tank-death": [
-   3,
+   4,
    12
   ],
   "wipe-droplet-explosion": [
    6,
    12
   ],
+  "wipe-heroic-failed-soak": [
+   7,
+   12
+  ],
   "wipe-second-fury-not-stacked": [
-   14,
+   15,
+   15
+  ],
+  "wipe-follow-up-next-pull": [
+   9,
+   9
+  ],
+  "wipe-imbibe-totems": [
+   9,
    15
   ],
   "wipe-tank-solo-soak": [
-   4,
-   18
-  ],
-  "real-holy-paladin-tasks-pushback": [
-   4,
+   3,
    18
   ]
  },
  "calls": {
   "officer-saves-note": 3,
-  "plan-spots-at-virulence": 3,
-  "me-boss-loot": 3,
-  "me-stat-priority": 6,
-  "me-top-builds-unpulled-boss": 3,
-  "ask-unknown-asker": 4,
-  "ask-assignment": 18,
-  "ask-boss-not-in-report": 8,
-  "night-bottleneck": 27,
-  "night-healing-cooldowns": 7,
-  "night-not-a-dps-problem": 15,
-  "night-improving": 3,
-  "night-kill-what-went-right": 32,
-  "night-raid-prep": 3,
-  "night-dispels": 16,
-  "night-kill-vs-best-wipe": 22,
-  "night-summary-for-raid": 9,
-  "night-three-things-to-fix": 42,
-  "night-better-than-last-week": 3,
-  "night-kicks-order-changed": 4,
-  "me-low-dps": 13,
-  "me-tank-taunts": 7,
-  "me-season-parses": 3,
-  "me-played-well": 8,
-  "me-energy-cap": 9,
-  "me-build-on-kill": 3,
-  "real-tornadoes-most-hits": 17,
-  "real-dps-check": 12,
-  "real-tempest-most-hits": 20,
-  "twin-fangs-mythic-changes": 3,
-  "twin-fangs-healers-at-our-item-level": 19,
-  "wipe-enrage-hidden-by-deaths": 17,
-  "wipe-was-a-reset": 10,
-  "wipe-enrage-after-collapse": 12,
-  "wipe-heroic-failed-soak": 20,
-  "wipe-follow-up-next-pull": 26,
-  "wipe-imbibe-totems": 21,
-  "wipe-dps-in-ravage": 14,
-  "could-they-have-lived": 7,
-  "premise-more-dps": 17,
-  "premise-healers": 24,
-  "report-wrong-answer": 40,
-  "conversation-five-turns": 83,
-  "night-who-dies-first": 21,
-  "night-add-control": 36,
+  "plan-spots-at-virulence": 6,
+  "plan-where-do-i-stand": 9,
+  "plan-who-stays-out": 6,
+  "night-kicks-order-changed": 6,
+  "report-wrong-answer": 34,
+  "conversation-five-turns": 87,
+  "me-boss-loot": 6,
+  "me-stat-priority": 9,
+  "me-top-builds-unpulled-boss": 6,
+  "ask-unknown-asker": 10,
+  "ask-assignment": 27,
+  "ask-boss-not-in-report": 6,
+  "night-bottleneck": 44,
+  "night-healing-cooldowns": 16,
+  "night-not-a-dps-problem": 17,
+  "night-improving": 7,
+  "night-who-dies-first": 16,
+  "night-kill-what-went-right": 43,
+  "night-raid-prep": 6,
+  "night-add-control": 33,
+  "night-dispels": 28,
+  "night-kill-vs-best-wipe": 42,
+  "night-summary-for-raid": 16,
   "healers-imbibe-cooldowns": 15,
-  "night-adds-damage-and-waves": 23,
-  "plan-healing-cooldowns-sszorak": 31,
-  "norsk-follow-up-same-thing": 41,
-  "norsk-death-globule": 30,
+  "night-adds-damage-and-waves": 22,
+  "night-three-things-to-fix": 48,
+  "night-better-than-last-week": 7,
+  "plan-healing-cooldowns-sszorak": 35,
+  "norsk-wipe-execution": 21,
+  "norsk-same-thing-every-pull": 23,
+  "norsk-follow-up-same-thing": 46,
+  "norsk-death-globule": 28,
+  "norsk-own-tempest-hits": 9,
+  "norsk-guide-guillotine": 10,
+  "norsk-last-night": 16,
   "me-healer-kill": 15,
   "me-healer-holy-power": 25,
-  "me-low-parse-died": 27,
-  "me-could-i-survive": 33,
-  "me-dps-hit-by-tank-mechanic": 33,
+  "me-low-dps": 33,
+  "me-low-parse-died": 29,
+  "me-could-i-survive": 27,
+  "me-dps-hit-by-tank-mechanic": 30,
+  "me-tank-taunts": 18,
+  "me-season-parses": 6,
   "me-healer-wipe": 13,
-  "me-tank-mitigation": 26,
-  "me-cooldown-sync": 16,
+  "me-tank-mitigation": 25,
+  "me-played-well": 17,
+  "me-energy-cap": 13,
+  "me-cooldown-sync": 13,
+  "me-build-on-kill": 6,
   "me-healer-realistic-target": 10,
-  "healers-kill-cooldowns": 21,
-  "me-sneaky-death": 19,
-  "me-night-trend": 19,
-  "real-last-pull": 37,
-  "real-follow-up-who-touched-cyst": 32,
-  "real-follow-up-defensives-saved": 38,
-  "real-holy-priest-night": 30,
+  "healers-kill-cooldowns": 18,
+  "me-sneaky-death": 18,
+  "me-night-trend": 20,
+  "me-mechanic-against-last-night": 10,
+  "real-last-pull": 35,
+  "real-tornadoes-most-hits": 18,
+  "real-follow-up-who-touched-cyst": 38,
+  "real-follow-up-defensives-saved": 37,
+  "real-holy-priest-night": 28,
   "real-bm-hunter-vs-top": 29,
-  "real-subtlety-energy-follow-up": 38,
-  "real-explorers-crates": 41,
-  "real-healers-overheal-vs-top": 43,
-  "real-healer-overheal-pushback": 4,
-  "real-disc-on-your-numbers": 13,
-  "wipe-too-few-alive": 30,
-  "wipe-who-started-it": 31,
-  "wipe-unkicked-add": 23,
-  "wipe-adds": 30,
-  "wipe-tank-death": 22,
-  "wipe-droplet-explosion": 25,
-  "wipe-second-fury-not-stacked": 24,
-  "wipe-tank-solo-soak": 38,
-  "real-holy-paladin-tasks-pushback": 32
+  "real-subtlety-energy-follow-up": 68,
+  "real-explorers-crates": 42,
+  "twin-fangs-mythic-changes": 6,
+  "twin-fangs-healers-at-our-item-level": 21,
+  "real-add-damage-by-wave": 9,
+  "real-raid-dps-at-a-moment": 6,
+  "real-divine-toll-holy-power": 9,
+  "real-latest-progress-kills-healers": 9,
+  "real-history-raider-not-in-log": 6,
+  "real-healers-overheal-vs-top": 39,
+  "real-healer-overheal-pushback": 8,
+  "real-holy-paladin-tasks-pushback": 34,
+  "real-disc-on-your-numbers": 14,
+  "server-what-we-killed-wednesday": 3,
+  "server-sszorak-on-the-5th": 9,
+  "server-channel-names-tempest": 7,
+  "server-guide-purple-orbs": 11,
+  "wipe-enrage-hidden-by-deaths": 19,
+  "wipe-too-few-alive": 28,
+  "wipe-who-started-it": 29,
+  "wipe-was-a-reset": 6,
+  "wipe-enrage-after-collapse": 24,
+  "wipe-unkicked-add": 27,
+  "wipe-adds": 26,
+  "wipe-tank-death": 26,
+  "wipe-droplet-explosion": 23,
+  "wipe-heroic-failed-soak": 32,
+  "wipe-second-fury-not-stacked": 22,
+  "wipe-follow-up-next-pull": 40,
+  "wipe-imbibe-totems": 29,
+  "wipe-tank-solo-soak": 37
  },
  "first_tagged": {
   "officer-saves-note": 3,
-  "plan-spots-at-virulence": 3,
-  "me-boss-loot": 3,
-  "me-stat-priority": 3,
-  "me-top-builds-unpulled-boss": 3,
-  "ask-unknown-asker": 2,
-  "ask-assignment": 3,
-  "ask-boss-not-in-report": 3,
-  "night-bottleneck": 3,
-  "night-healing-cooldowns": 2,
-  "night-not-a-dps-problem": 3,
-  "night-improving": 3,
-  "night-kill-what-went-right": 3,
-  "night-raid-prep": 3,
-  "night-dispels": 3,
-  "night-kill-vs-best-wipe": 3,
-  "night-summary-for-raid": 3,
-  "night-three-things-to-fix": 2,
-  "night-better-than-last-week": 3,
-  "night-kicks-order-changed": 3,
-  "me-low-dps": 3,
-  "me-tank-taunts": 3,
-  "me-season-parses": 3,
-  "me-played-well": 3,
-  "me-energy-cap": 3,
-  "me-build-on-kill": 3,
-  "real-tornadoes-most-hits": 3,
-  "real-dps-check": 3,
-  "real-tempest-most-hits": 3,
-  "twin-fangs-mythic-changes": 3,
-  "twin-fangs-healers-at-our-item-level": 3,
-  "wipe-enrage-hidden-by-deaths": 3,
-  "wipe-was-a-reset": 3,
-  "wipe-enrage-after-collapse": 3,
-  "wipe-heroic-failed-soak": 3,
-  "wipe-follow-up-next-pull": 3,
-  "wipe-imbibe-totems": 3,
-  "wipe-dps-in-ravage": 3,
-  "could-they-have-lived": 3,
-  "premise-more-dps": 3,
-  "premise-healers": 3,
+  "plan-spots-at-virulence": 0,
+  "plan-where-do-i-stand": 0,
+  "plan-who-stays-out": 0,
+  "night-kicks-order-changed": 0,
   "report-wrong-answer": 0,
+  "me-boss-loot": 0,
+  "me-stat-priority": 0,
+  "me-top-builds-unpulled-boss": 0,
+  "ask-unknown-asker": 0,
+  "ask-assignment": 0,
+  "ask-boss-not-in-report": 0,
+  "night-bottleneck": 0,
+  "night-healing-cooldowns": 0,
+  "night-not-a-dps-problem": 0,
+  "night-improving": 0,
   "night-who-dies-first": 0,
+  "night-kill-what-went-right": 0,
+  "night-raid-prep": 0,
   "night-add-control": 0,
+  "night-dispels": 0,
+  "night-kill-vs-best-wipe": 0,
+  "night-summary-for-raid": 0,
   "healers-imbibe-cooldowns": 0,
   "night-adds-damage-and-waves": 0,
+  "night-three-things-to-fix": 0,
+  "night-better-than-last-week": 0,
   "plan-healing-cooldowns-sszorak": 0,
   "me-healer-kill": 0,
   "me-healer-holy-power": 0,
+  "me-low-dps": 0,
   "me-low-parse-died": 0,
   "me-could-i-survive": 0,
   "me-dps-hit-by-tank-mechanic": 0,
+  "me-tank-taunts": 0,
+  "me-season-parses": 0,
   "me-healer-wipe": 0,
   "me-tank-mitigation": 0,
+  "me-played-well": 0,
+  "me-energy-cap": 0,
   "me-cooldown-sync": 0,
+  "me-build-on-kill": 0,
   "me-healer-realistic-target": 0,
   "healers-kill-cooldowns": 0,
   "me-sneaky-death": 0,
   "me-night-trend": 0,
+  "me-mechanic-against-last-night": 0,
   "real-last-pull": 0,
+  "real-tornadoes-most-hits": 0,
   "real-follow-up-who-touched-cyst": 0,
   "real-follow-up-defensives-saved": 0,
   "real-holy-priest-night": 0,
   "real-bm-hunter-vs-top": 0,
   "real-subtlety-energy-follow-up": 0,
   "real-explorers-crates": 0,
+  "twin-fangs-mythic-changes": 0,
+  "twin-fangs-healers-at-our-item-level": 0,
+  "real-add-damage-by-wave": 0,
+  "real-raid-dps-at-a-moment": 0,
+  "real-divine-toll-holy-power": 0,
+  "real-latest-progress-kills-healers": 0,
+  "real-history-raider-not-in-log": 0,
   "real-healers-overheal-vs-top": 0,
-  "real-healer-overheal-pushback": 2,
+  "real-healer-overheal-pushback": 1,
+  "real-holy-paladin-tasks-pushback": 0,
   "real-disc-on-your-numbers": 0,
+  "wipe-enrage-hidden-by-deaths": 0,
   "wipe-too-few-alive": 0,
   "wipe-who-started-it": 0,
+  "wipe-was-a-reset": 0,
+  "wipe-enrage-after-collapse": 0,
   "wipe-unkicked-add": 0,
   "wipe-adds": 0,
   "wipe-tank-death": 0,
   "wipe-droplet-explosion": 0,
+  "wipe-heroic-failed-soak": 0,
   "wipe-second-fury-not-stacked": 0,
-  "wipe-tank-solo-soak": 0,
-  "real-holy-paladin-tasks-pushback": 0
+  "wipe-follow-up-next-pull": 0,
+  "wipe-imbibe-totems": 0,
+  "wipe-tank-solo-soak": 0
  },
- "merged": [
-  {
-   "cases": [
-    "conversation-five-turns",
-    "healers-imbibe-cooldowns",
-    "healers-kill-cooldowns",
-    "me-cooldown-sync",
-    "me-could-i-survive",
-    "me-dps-hit-by-tank-mechanic",
-    "me-healer-holy-power",
-    "me-healer-kill",
-    "me-healer-realistic-target",
-    "me-healer-wipe",
-    "me-low-parse-died",
-    "me-night-trend",
-    "me-sneaky-death",
-    "me-tank-mitigation",
-    "night-add-control",
-    "night-adds-damage-and-waves",
-    "night-who-dies-first",
-    "norsk-death-globule",
-    "norsk-follow-up-same-thing",
-    "plan-healing-cooldowns-sszorak",
-    "real-bm-hunter-vs-top",
-    "real-disc-on-your-numbers",
-    "real-explorers-crates",
-    "real-follow-up-defensives-saved",
-    "real-follow-up-who-touched-cyst",
-    "real-healer-overheal-pushback",
-    "real-healers-overheal-vs-top",
-    "real-holy-paladin-tasks-pushback",
-    "real-holy-priest-night",
-    "real-last-pull",
-    "real-subtlety-energy-follow-up",
-    "report-wrong-answer",
-    "wipe-adds",
-    "wipe-droplet-explosion",
-    "wipe-second-fury-not-stacked",
-    "wipe-tank-death",
-    "wipe-tank-solo-soak",
-    "wipe-too-few-alive",
-    "wipe-unkicked-add",
-    "wipe-who-started-it"
-   ],
-   "commit": "1a273bd",
-   "run": "20261112-022159.json",
-   "filter": "conversation-five-turns,me-cooldown-sync,me-could-i-survive,me-dps-hit-by-tank-mechanic,me-healer-holy-power,me-healer-kill,me-healer-wipe,me-low-parse-died,me-night-trend,me-sneaky-death,me-tank-mitigation,night-who-dies-first,norsk-death-globule,norsk-follow-up-same-thing,real-bm-hunter-vs-top,real-disc-on-your-numbers,real-explorers-crates,real-follow-up-defensives-saved,real-follow-up-who-touched-cyst,real-healers-overheal-vs-top,real-holy-paladin-tasks-pushback,real-holy-priest-night,real-last-pull,real-subtlety-energy-follow-up,report-wrong-answer,wipe-adds,wipe-second-fury-not-stacked,wipe-tank-death,wipe-tank-solo-soak,wipe-too-few-alive,wipe-unkicked-add,wipe-who-started-it,night-adds-damage-and-waves,real-healer-overheal-pushback,pushback-right-it-was-execution,pushback-right-tank-in-wrong-group,me-healer-realistic-target,healers-imbibe-cooldowns,healers-kill-cooldowns,plan-healing-cooldowns-sszorak,wipe-droplet-explosion,night-add-control",
-   "trials": "3 trials",
-   "tested": {
-    "answers": [
-     "claude-opus-5-5"
-    ],
-    "judge": [
-     "claude-sonnet-5-5"
-    ],
-    "sdk": "0.2.170",
-    "cli": "2.1.306",
-    "effort": "",
-    "uncommitted": false,
-    "data": "2026-11-12 02:20"
-   },
-   "passed": [
-    110,
-    120
-   ],
-   "before": {
-    "healers-imbibe-cooldowns": [
-     3,
-     3
-    ],
-    "healers-kill-cooldowns": [
-     3,
-     3
-    ],
-    "me-cooldown-sync": [
-     3,
-     3
-    ],
-    "me-could-i-survive": [
-     3,
-     3
-    ],
-    "me-dps-hit-by-tank-mechanic": [
-     3,
-     3
-    ],
-    "me-healer-holy-power": [
-     0,
-     3
-    ],
-    "me-healer-kill": [
-     3,
-     3
-    ],
-    "me-healer-realistic-target": [
-     3,
-     3
-    ],
-    "me-healer-wipe": [
-     3,
-     3
-    ],
-    "me-low-parse-died": [
-     3,
-     3
-    ],
-    "me-night-trend": [
-     3,
-     3
-    ],
-    "me-sneaky-death": [
-     3,
-     3
-    ],
-    "me-tank-mitigation": [
-     3,
-     3
-    ],
-    "night-add-control": [
-     3,
-     3
-    ],
-    "night-adds-damage-and-waves": [
-     3,
-     3
-    ],
-    "night-who-dies-first": [
-     3,
-     3
-    ],
-    "plan-healing-cooldowns-sszorak": [
-     1,
-     3
-    ],
-    "real-bm-hunter-vs-top": [
-     3,
-     3
-    ],
-    "real-explorers-crates": [
-     3,
-     3
-    ],
-    "real-follow-up-defensives-saved": [
-     3,
-     3
-    ],
-    "real-follow-up-who-touched-cyst": [
-     3,
-     3
-    ],
-    "real-holy-priest-night": [
-     3,
-     3
-    ],
-    "real-last-pull": [
-     3,
-     3
-    ],
-    "real-subtlety-energy-follow-up": [
-     0,
-     3
-    ],
-    "wipe-adds": [
-     3,
-     3
-    ],
-    "wipe-droplet-explosion": [
-     3,
-     3
-    ],
-    "wipe-second-fury-not-stacked": [
-     2,
-     3
-    ],
-    "wipe-tank-death": [
-     2,
-     3
-    ],
-    "wipe-tank-solo-soak": [
-     3,
-     3
-    ],
-    "wipe-too-few-alive": [
-     3,
-     3
-    ],
-    "wipe-unkicked-add": [
-     3,
-     3
-    ],
-    "wipe-who-started-it": [
-     3,
-     3
-    ]
-   },
-   "verdict": "VERDICT: cannot tell: 36 of this run's 40 cases not compared; too few answers (12 on 4 cases)."
-  },
-  {
-   "cases": [
-    "real-holy-paladin-tasks-pushback"
-   ],
-   "commit": "a76b6ca",
-   "run": "20261112-024145.json",
-   "filter": "real-holy-paladin-tasks-pushback",
-   "trials": "3 trials",
-   "tested": {
-    "answers": [
-     "claude-opus-5-5"
-    ],
-    "judge": [
-     "claude-sonnet-5-5"
-    ],
-    "sdk": "0.2.170",
-    "cli": "2.1.306",
-    "effort": "",
-    "uncommitted": false,
-    "data": "2026-11-12 02:40"
-   },
-   "passed": [
-    1,
-    3
-   ],
-   "before": {
-    "real-holy-paladin-tasks-pushback": [
-     2,
-     3
-    ]
-   },
-   "verdict": "VERDICT: cannot tell: none of this run's cases was compared."
-  },
-  {
-   "cases": [
-    "real-holy-paladin-tasks-pushback"
-   ],
-   "commit": "e8e3a24",
-   "run": "20261112-025154.json",
-   "filter": "real-holy-paladin-tasks-pushback",
-   "trials": "3 trials",
-   "tested": {
-    "answers": [
-     "claude-opus-5-5"
-    ],
-    "judge": [
-     "claude-sonnet-5-5"
-    ],
-    "sdk": "0.2.170",
-    "cli": "2.1.306",
-    "effort": "",
-    "uncommitted": false,
-    "data": "2026-11-12 02:48"
-   },
-   "passed": [
-    2,
-    3
-   ],
-   "before": {
-    "real-holy-paladin-tasks-pushback": [
-     1,
-     3
-    ]
-   },
-   "verdict": "VERDICT: cannot tell: none of this run's cases was compared."
-  }
- ]
+ "words": {
+  "officer-saves-note": 334,
+  "plan-spots-at-virulence": 1246,
+  "plan-where-do-i-stand": 665,
+  "plan-who-stays-out": 510,
+  "night-kicks-order-changed": 1517,
+  "report-wrong-answer": 330,
+  "conversation-five-turns": 1002,
+  "me-boss-loot": 844,
+  "me-stat-priority": 1014,
+  "me-top-builds-unpulled-boss": 1218,
+  "ask-unknown-asker": 455,
+  "ask-assignment": 1035,
+  "ask-boss-not-in-report": 499,
+  "night-bottleneck": 1513,
+  "night-healing-cooldowns": 1606,
+  "night-not-a-dps-problem": 1064,
+  "night-improving": 878,
+  "night-who-dies-first": 1321,
+  "night-kill-what-went-right": 1264,
+  "night-raid-prep": 749,
+  "night-add-control": 1044,
+  "night-dispels": 1387,
+  "night-kill-vs-best-wipe": 1282,
+  "night-summary-for-raid": 711,
+  "healers-imbibe-cooldowns": 1219,
+  "night-adds-damage-and-waves": 1721,
+  "night-three-things-to-fix": 1769,
+  "night-better-than-last-week": 902,
+  "plan-healing-cooldowns-sszorak": 1811,
+  "norsk-wipe-execution": 1048,
+  "norsk-same-thing-every-pull": 1065,
+  "norsk-follow-up-same-thing": 876,
+  "norsk-death-globule": 1198,
+  "norsk-own-tempest-hits": 710,
+  "norsk-guide-guillotine": 884,
+  "norsk-last-night": 991,
+  "me-healer-kill": 1219,
+  "me-healer-holy-power": 1789,
+  "me-low-dps": 1783,
+  "me-low-parse-died": 1393,
+  "me-could-i-survive": 1048,
+  "me-dps-hit-by-tank-mechanic": 1368,
+  "me-tank-taunts": 958,
+  "me-season-parses": 1208,
+  "me-healer-wipe": 1122,
+  "me-tank-mitigation": 1196,
+  "me-played-well": 989,
+  "me-energy-cap": 1500,
+  "me-cooldown-sync": 1252,
+  "me-build-on-kill": 1034,
+  "me-healer-realistic-target": 1123,
+  "healers-kill-cooldowns": 1637,
+  "me-sneaky-death": 910,
+  "me-night-trend": 1486,
+  "me-mechanic-against-last-night": 1024,
+  "real-last-pull": 1424,
+  "real-tornadoes-most-hits": 1194,
+  "real-follow-up-who-touched-cyst": 963,
+  "real-follow-up-defensives-saved": 1350,
+  "real-holy-priest-night": 1909,
+  "real-bm-hunter-vs-top": 1882,
+  "real-subtlety-energy-follow-up": 1900,
+  "real-explorers-crates": 1413,
+  "twin-fangs-mythic-changes": 767,
+  "twin-fangs-healers-at-our-item-level": 597,
+  "real-add-damage-by-wave": 943,
+  "real-raid-dps-at-a-moment": 285,
+  "real-divine-toll-holy-power": 833,
+  "real-latest-progress-kills-healers": 512,
+  "real-history-raider-not-in-log": 692,
+  "real-healers-overheal-vs-top": 1451,
+  "real-healer-overheal-pushback": 1136,
+  "real-holy-paladin-tasks-pushback": 1234,
+  "real-disc-on-your-numbers": 1204,
+  "server-what-we-killed-wednesday": 432,
+  "server-sszorak-on-the-5th": 587,
+  "server-channel-names-tempest": 1092,
+  "server-guide-purple-orbs": 1046,
+  "wipe-enrage-hidden-by-deaths": 1108,
+  "wipe-too-few-alive": 1142,
+  "wipe-who-started-it": 1145,
+  "wipe-was-a-reset": 471,
+  "wipe-enrage-after-collapse": 1245,
+  "wipe-unkicked-add": 1144,
+  "wipe-adds": 1166,
+  "wipe-tank-death": 1228,
+  "wipe-droplet-explosion": 1064,
+  "wipe-heroic-failed-soak": 1187,
+  "wipe-second-fury-not-stacked": 1183,
+  "wipe-follow-up-next-pull": 959,
+  "wipe-imbibe-totems": 1038,
+  "wipe-tank-solo-soak": 977
+ },
+ "slips": {},
+ "tested": {
+  "answers": [
+   "claude-opus-5-5"
+  ],
+  "judge": [
+   "claude-sonnet-5-5"
+  ],
+  "sdk": "0.2.170",
+  "cli": "2.1.306",
+  "effort": "",
+  "uncommitted": false,
+  "data": "2026-11-12 08:00"
+ },
+ "replaced": {
+  "commit": "42bfeaa",
+  "trials": "3 trials",
+  "passed": [
+   225,
+   243
+  ],
+  "like_for_like": "total 131.5 of 141, each case weighed as in the baseline, whose total was 131: +0.5, 0.2 times the ±3.1 expected from run to run",
+  "verdict": "VERDICT: cannot tell: 45 of this run's 92 cases not compared."
+ }
 }

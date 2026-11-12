@@ -18,12 +18,12 @@
   "verdict": "VERDICT: no change shown: a drop of 8.4 answers (3.0 points) or more would have shown."
  },
  "connector": {
-  "commit": "18ef819",
-  "date": "2026-11-11",
+  "commit": "7da2bc1",
+  "date": "2026-11-12",
   "trials": "3-6 trials",
-  "passed": 252,
+  "passed": 263,
   "of": 279,
   "errors": 0,
-  "verdict": "VERDICT: cannot tell: 80 of this run's 92 cases not compared. Look: the total is 1.9 spreads below the baseline's."
+  "verdict": "VERDICT: cannot tell: 45 of this run's 92 cases not compared."
  }
 }
