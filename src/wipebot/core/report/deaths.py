@@ -551,12 +551,11 @@ async def defensives(rep: Report, boss: str | None = None, whole_pull: bool = Fa
     scope = "until each wipe was decided (whole_pull for the rest)" if not whole_pull else "whole pulls"
     lines = [going + f"Healthstones and healing potions, and personal defensives (Lorrgs' defensive tag), on "
              f"{rep.boss_key(fights[0])}: {plural(len(fights), 'pull')}{resets}, {scope}. Per player: pulls, "
-             "healthstones and potions, each defensive's uses, deaths, and at how many deaths each defensive they "
-             "used on this "
-             "boss was off cooldown but unused (ignoring charges and cooldown reduction; whether one was needed is for "
-             "the death recap; deaths in a hit killing many apart, the raid's to stop), and how many of those "
-             "deaths a ready defensive or a healthstone would have kept them alive through, each replayed (`player` "
-             "has each death's); defensives never cast are a talent choice or passive, not a miss:"]
+             "healthstones and potions, each defensive's uses, deaths with how many of them were saveable (replayed, "
+             "a ready defensive or a healthstone would have kept them alive through the hits that killed them; "
+             "`player` has each death's), and at how many deaths each defensive they used on this boss was off "
+             "cooldown but unused (ignoring charges and cooldown reduction; deaths in a hit killing many apart, the "
+             "raid's to stop); defensives never cast are a talent choice or passive, not a miss:"]
     who = {pid: next(here[pid] for here in played.values() if pid in here) for pid in pulls_in}
     died = [pid for pid in pulls_in if deaths[pid]]
     # each of their own deaths replayed with what was ready, as `player` gives them one by one: the count here
@@ -585,9 +584,8 @@ def _kit_line(q: Player, pulls: int, stones: int, uses: Counter, died: tuple[int
             f"{stones} healthstone{'' if stones == 1 else 's'}/potion{'' if stones == 1 else 's'}, {used}")
     if own:
         ready = ", ".join(f"{n} at {k}" for n, k in ready_at.most_common() if uses[n])
-        line += f"; died {own}" + (f", ready but unused: {ready}" if ready else "")
-        if saved is not None:
-            line += f"; a ready defensive or a healthstone would have kept them alive through {saved} of them"
+        line += (f"; died {own}" + (f" ({saved} saveable)" if saved is not None else "")
+                 + (f", ready but unused: {ready}" if ready else ""))
     if mass:
         line += f"; {'and ' if own else ''}died {mass} in hits killing many"
     if never := sorted(kit - set(uses)):
