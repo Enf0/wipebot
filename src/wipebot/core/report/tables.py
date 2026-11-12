@@ -21,6 +21,7 @@ UNTIL_DECIDED_TYPES = ("DamageDone", "Healing", "DamageTaken", "Casts")  # table
 TARGETS_SHOWN = 4  # damage taken by ability: the players who took most of each
 # A table in a heading, where Warcraft Logs' name for it isn't words
 TABLE_WORDS = {"DamageDone": "Damage done", "DamageTaken": "Damage taken", "EnemyDebuffs": "Debuffs on enemies"}
+ROWS_LISTED = 25  # of a table over every pull; the rest are counted in a last line
 ENEMY_SOURCES = ("Boss", "NPC")  # Warcraft Logs' type of a row's source that is no player or pet
 OWN = "(own)"  # damage taken by ability: a row whose every hit came from a player or a pet
 BY_ANOTHER_NAME = 30  # a player's other rows named when they have none of the ability asked about
@@ -233,9 +234,9 @@ def _filters(data_type: str, p: Player | None) -> dict:
         if p:
             filters["filterExpression"] = f'source.name = "{p.name}"'
     elif p:
-        # Buffs and Debuffs filter on the player who has the aura; every other type takes sourceID, which
-        # for DamageTaken means the player who took the damage.
-        filters["targetID" if data_type in ("Buffs", "Debuffs") else "sourceID"] = p.id
+        # WCL's source is the player the table is about: who has the aura (Buffs, Debuffs), who took the damage
+        # (DamageTaken), who did it or cast (the rest). Its targetID on an aura table picks who applied the aura.
+        filters["sourceID"] = p.id
     if data_type == "DamageTaken":
         filters["hostilityType"] = "Friendlies"
     return filters
@@ -374,7 +375,7 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
     players = {p.name: p for p in rep.players.values()} if q.group_by == "player" else {}
     parsed = own = False
     ranked = list(enumerate(rows, 1))
-    for k, (name, value, extra) in ranked[::-1][:25] if least else ranked[:25]:
+    for k, (name, value, extra) in ranked[::-1][:ROWS_LISTED] if least else ranked[:ROWS_LISTED]:
         share = f", {100 * value / total:.0f}% of total" if not auras else ""
         tag = rep.tank_tag(name) if q.data_type == "DamageTaken" and q.group_by == "player" else ""
         if q.data_type == "DamageTaken" and q.group_by == "ability" and 0 < value <= s.counts[name]["own"]:
@@ -389,6 +390,10 @@ async def _summed(rep: Report, q: Asked, least: bool = False) -> str:
             extra = extra.replace("%", f"% ({short((value + over) / dur_s)}/s with it)", 1)
         lines.append(f"  {k}. {who}{tag}: {_fmt_value(value, q.data_type, dur_s, total_time)}{share}{parse}"
                      f"{_in_fewer(rep, q, p, value) if p else ''}{extra}")
+    if (left := len(ranked) - ROWS_LISTED) > 0:  # a row left out without a word reads as one that isn't there
+        by_name = auras or q.group_by == "ability"  # an aura or an ability can be asked for; a row by player can't
+        lines.append(f"  {plural(left, 'more row')} not listed, none with {'less' if least else 'more'} than the "
+                     "last listed" + (" (`ability` gives one by its name)" if by_name else ""))
     if not rows:
         lines.append("  nothing recorded")
         if q.ability and q.player and (others := await _without_ability(rep, q)):

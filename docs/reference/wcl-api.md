@@ -31,6 +31,11 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   bosses being the actors with `subType: "Boss"`. The deaths after an enrage name whatever ability hit last.
 - For aura events (Buffs, Debuffs) the `sourceID` filter selects the player who has the aura; the events keep
   their real source. A dying player's auras are removed about 20 ms before the death event.
+- An aura table takes the same filter: `table(dataType: Debuffs, sourceID: player)` lists every debuff on the
+  player, a boss's too, and `targetID: player` the auras the player applied, on anyone. On 4N9JMwBFPAjXyV3Z fight
+  26 a Holy Paladin's rows by `sourceID` were Mutagenic Venom, Guillotine, Noxious Ground, Venom Rupture and
+  Axegrinder beside their own Forbearance, Light of the Martyr and Will of the Dawn; by `targetID` only those
+  three, and their Buffs by `targetID` had Devotion Aura with 30 applications, one per raider (checked 2026-11-12).
 - Buffs events asked by a `filterExpression` alone, with no `sourceID`, come for everyone who has the aura, each
   with its real `sourceID` and its holder as `targetID`: all 13,413 events of the 121 such answers in the evals'
   frozen data carried both (checked 2026-11-11), as `applybuff`, `removebuff` and `refreshbuff`.

@@ -20,9 +20,10 @@ async def test_breakdown_says_what_it_takes(rep, args, error):
 
 
 async def test_a_players_part_is_asked_by_who_had_the_aura_cast_or_took_the_damage(rep, patch_wcl):
-    """Warcraft Logs filters Buffs and Debuffs on who has the aura, every other table on its source, which for
-    DamageTaken is who took it; debuffs on enemies are a player's by the name of who applied them. The tables
-    summed per pull stop where the wipe was decided, but with whole_pull; auras are always the whole pull."""
+    """Warcraft Logs' source is the player a table is about: for Buffs and Debuffs who has the aura (its target
+    filter picks who applied it, which left a boss's debuff and another player's buff out of a player's rows), for
+    DamageTaken who took it; debuffs on enemies are a player's by the name of who applied them. The tables summed
+    per pull stop where the wipe was decided, but with whole_pull; auras are always the whole pull."""
     asked = []
 
     def table(code, fight_ids, data_type, **filters):
@@ -34,7 +35,7 @@ async def test_a_players_part_is_asked_by_who_had_the_aura_cast_or_took_the_dama
         text = await tables.breakdown(rep, data_type, pulls=[13], player=p.name)
         assert text.endswith("nothing recorded")
     end = {"endTime": (await rep.decided_cuts([rep.fight(13)]))[rep.fight(13)["id"]]}
-    assert asked == [("Buffs", {"targetID": p.id}),
+    assert asked == [("Buffs", {"sourceID": p.id}),
                      ("DamageTaken", {"sourceID": p.id, "hostilityType": "Friendlies", **end}),
                      ("Healing", {"sourceID": p.id, **end}),
                      ("Debuffs", {"hostilityType": "Enemies", "filterExpression": 'source.name = "Enfo"'})]
@@ -60,6 +61,28 @@ async def test_a_player_with_none_of_the_ability_asked_about_gets_what_they_had_
     assert text.endswith(f"{p.name} had no {ability} here; what they had instead, most first (a talent may replace "
                          "it, or another spell do its job): Agony, Curse of the Satyr")
 
+
+
+async def test_a_list_cut_short_says_how_many_rows_it_left_out(rep, patch_wcl):
+    """A player's auras are the ones on them, the raid's buffs too, and only the 25 with most uptime are listed: a
+    potion or a defensive under those was left out without a word, which reads as one they never had. The line
+    counts the rows left out and says on which side of the last one listed they are, by what they hold: the least
+    first leaves out the ones with most."""
+    def table(code, fight_ids, data_type, **filters):  # 27 buffs on them, 25 debuffs, damage taken by 28
+        if data_type == "DamageTaken":
+            return {"entries": [{"name": f"Raider {k}", "total": 1000 * k} for k in range(1, 29)]}
+        return {"auras": [{"name": f"Aura {k}", "guid": k, "totalUptime": 1000 * (40 - k), "totalUses": 1}
+                          for k in range(1, 28 if data_type == "Buffs" else 26)], "totalTime": 100_000}
+    patch_wcl(rep, table=table)
+    lines = (await tables.breakdown(rep, "Buffs", pulls=[13], player="Enfo")).splitlines()
+    assert lines[25].startswith("  25. Aura 25:") and len(lines) == 27
+    assert lines[26].split()[:3] == ["2", "more", "rows"] and "none with more than the last" in lines[26]
+    assert "`ability`" in lines[26]  # an aura left out can be asked for by its name
+    assert "not listed" not in await tables.breakdown(rep, "Debuffs", pulls=[13], player="Enfo")
+    least = (await tables.breakdown(rep, "DamageTaken", pulls=[13], least=True)).splitlines()
+    assert least[1].startswith("  28. Raider 1:") and least[25].startswith("  4. Raider 25:")
+    assert least[26].split()[:3] == ["3", "more", "rows"] and "none with less than the last" in least[26]
+    assert "`ability`" not in least[26] and not any(row.startswith("  3. ") for row in least)
 
 
 async def test_healing_on_one_kill_gives_each_players_spec_and_parse(rep, patch_wcl):
