@@ -2,6 +2,7 @@
 
     just evals                        # every case once, as Claude with the plugin: the connector and the skill
     just evals -k wipe --trials 3     # some cases, three times each
+    just evals --smoke                # the smoke set: twelve steady cases once each, the check a small plan affords
     just evals --bot --trials auto    # twice where the baseline was sure, three times elsewhere (the full suite)
     just evals --model opus           # another model; the cases that differ from the baseline are listed
     just evals --save-baseline        # keep this run as its mode's baseline, to compare later runs with
@@ -111,6 +112,12 @@ HERE = Path(__file__).resolve().parent
 CACHE, LABELS = HERE / "cache.sqlite", HERE / "labels.jsonl"
 # Each mode's last full run (every case, no -k), tracked: scripts/release.py says how far a release is from it.
 FULL_RUNS = HERE / "full-runs.json"
+# The smoke set (--smoke): one or two cases of each kind of question that every mode asks and every mode's baseline
+# passed on all its trials (a test holds both), so one answer each says something: a fail here is a change to look
+# at, to ask again with `-k <case> --trials 3`, where a full run would have weighed it against the rest.
+SMOKE = ("wipe-enrage-hidden-by-deaths", "wipe-adds", "wipe-follow-up-next-pull", "night-three-things-to-fix",
+         "night-improving", "me-healer-wipe", "me-could-i-survive", "real-last-pull", "real-raid-dps-at-a-moment",
+         "norsk-wipe-execution", "ask-boss-not-in-report", "server-guide-purple-orbs")
 # The recorded data's "now" (wipebot.core.clock): after the guild's 12 Oct night (vjt3KLbN8g62J1H9, the
 # latest log a case relies on, ends 20:57 UTC), before the first Kith'ix log (14 Oct 00:49); the tool tests' clock.
 RECORDED_AT = datetime(2026, 10, 13, 15, 16, tzinfo=UTC).timestamp()
@@ -573,7 +580,7 @@ async def run(args) -> int:
     if args.effort:
         os.environ["WIPEBOT_EFFORT"] = args.effort  # read by the answers' sessions only
     shown = (model or config.model()) + (f", effort {e}" if (e := config.effort()) else "")
-    cases = [c for c in load_cases() if picked(c, args.filter)
+    cases = [c for c in load_cases() if picked(c, args.filter) and (not args.smoke or c["id"] in SMOKE)
              and not (args.mode != "bot" and c.get("bot_only"))  # the bot's channel rules mean nothing in claude.ai
              and not (args.mode == "bot" and c.get("client_only"))  # nor the connector's saving in Discord
              and (c["kind"] == "heldout") == args.held_out]  # the held-out cases only when asked, and then alone
@@ -594,7 +601,7 @@ async def run(args) -> int:
     def so_far() -> dict:
         return tally_of(cases, results, model=shown, commit=commit(), judge=judged_by(args.judge_model))
 
-    full = not (args.filter or args.held_out or args.model or args.effort)  # every case, as the mode ships
+    full = not (args.filter or args.smoke or args.held_out or args.model or args.effort)  # every case, as shipped
     try:
         await ask_all(cases, base, args.trials, args.judge_model, one, so_far, confirm=not args.no_confirm)
     finally:  # the answers are kept before anything is made of them: no fault past here loses a paid run
@@ -1490,6 +1497,8 @@ def arguments() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run wipebot's eval cases.")
     parser.add_argument("-k", dest="filter", default="",
                         help="only cases whose id contains this (several, comma-separated: any of them)")
+    parser.add_argument("--smoke", action="store_true",
+                        help=f"only the smoke set: {len(SMOKE)} cases every mode's baseline passed on all its trials")
     parser.add_argument("--trials", type=lambda v: v if v == "auto" else int(v), default=1,
                         help=f"answers per case (default 1), or auto: {STEADY_TRIALS} where the baseline judged a "
                              f"case the same on every trial, {UNSETTLED_TRIALS} elsewhere, and {UNSETTLED_TRIALS} "
@@ -1542,8 +1551,9 @@ def main() -> None:
     args = parser.parse_args()
     if args.trials == "auto" and args.save_baseline == "":
         parser.error("--trials auto with --save-baseline: a baseline asks every case as often, to judge the next run")
-    if args.held_out and args.save_baseline is not None:
-        parser.error("--held-out with --save-baseline: a baseline is the regular cases'")
+    if (args.held_out or args.smoke) and args.save_baseline is not None:
+        parser.error("--held-out or --smoke with --save-baseline: a baseline is the regular cases', and the smoke "
+                     "set is asked to compare with it")
     if args.summary:
         sys.exit(show_run(Path(args.summary)))
     if args.record:

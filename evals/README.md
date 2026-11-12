@@ -167,6 +167,13 @@ the same. Never merged, whatever the reason: a case with under three judged answ
 another model than the baseline's. The merged cases are counted by the checks the baseline was scored by, like its
 other cases, so a `numbers` or `form` check added since counts from the next whole baseline.
 
+`--smoke` asks the smoke set: twelve cases (`SMOKE` in `run.py`), one or two of each kind of question, that every
+mode asks and every mode's baseline passed on all its trials. It is the check for a login whose usage limit a full
+run doesn't fit: a twentieth of one, about a quarter of an hour. One answer per case shows what broke (a skill that
+no longer loads, a tool that fails, a prompt change that turns answers), not a drop of a few points; a case that
+fails is asked again alone (`-k <case> --trials 3`) before it's believed. It isn't a full run and leaves
+`full-runs.json` alone.
+
 A full run (no `-k`, the mode's own model and effort) is kept as its mode's last in `full-runs.json`, which is
 tracked: commit it. A run that judged fewer than nine in ten of its answers (the rest errored) is not kept.
 `just release` prints how many commits that can change an answer and how many days lie since each mode's last full
@@ -238,6 +245,7 @@ just evals -k wipe --trials 3       # some cases, three times each
 just evals --bot --trials auto      # the full suite: twice where the baseline was sure, three times elsewhere
 just evals --connector-only         # as a client with only the connector
 just evals --bot                    # as the Discord bot
+just evals --smoke                  # the smoke set: twelve steady cases once each (add --bot or --connector-only)
 just evals --model sonnet           # another model for the answers
 just evals --trials 3 --save-baseline             # keep this run as the baseline (--accept "<reason>" if refused)
 just evals -k night-dispels --trials 3 --save-baseline  # put the cases just run into the baseline, the rest kept

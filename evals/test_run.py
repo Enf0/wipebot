@@ -688,3 +688,14 @@ def test_the_tracked_record_of_full_runs_names_modes_the_release_script_knows():
     runs = json.loads(FULL_RUNS.read_text())
     assert set(runs) <= set(ANSWERS) and all(
         set(r) == {"commit", "date", "trials", "passed", "of", "errors", "verdict"} for r in runs.values())
+
+
+def test_the_smoke_set_is_cases_every_mode_asks_and_every_baseline_passed_each_time():
+    from evals.run import SMOKE, baseline, load_cases
+    cases = {c["id"]: c for c in load_cases()}
+    assert len(set(SMOKE)) == len(SMOKE) and set(SMOKE) <= set(cases)
+    assert not [i for i in SMOKE if cases[i]["kind"] == "heldout" or cases[i].get("bot_only")
+                or cases[i].get("client_only")]
+    for mode in ("plugin", "connector", "bot"):  # a case a baseline now fails sometimes: put a steady one in its place
+        base = json.loads(baseline(mode).read_text())
+        assert not [i for i in SMOKE if i in base["failed"] or not base["passed"].get(i)], mode
