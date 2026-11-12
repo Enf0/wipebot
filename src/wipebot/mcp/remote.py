@@ -181,6 +181,9 @@ def serve(host: str, port: int, public_url: str | None = None, site: Site | None
         raise SystemExit("a Warcraft Logs user login is saved in warcraft_cli's store; over HTTP every user would "
                          "read its private reports. Serve from an account without one.")
     wcl.client_credentials_only()  # and one saved while it runs isn't read either
+    # A tool run outside a signed-in user's call (a `site` page that draws a view for a visitor) reads no guild's
+    # saved raid notes or plans, where a single user's own copy reads every guild's
+    server.reading_guilds_from_here(frozenset())
     problems = []  # every missing or wrong setting at once, as the bot says them
     if not (credentials := wcl.client_credentials()):
         problems.append("WCL_CLIENT_ID and WCL_CLIENT_SECRET: a client from https://www.warcraftlogs.com/api/clients "
