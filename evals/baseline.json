@@ -191,7 +191,7 @@
   "wipe-unkicked-add": "6cb7098033",
   "wipe-droplet-explosion": "83d7a48e8e",
   "night-add-control": "6ca44bf905",
-  "real-holy-paladin-tasks-pushback": "352978c5e5"
+  "real-holy-paladin-tasks-pushback": "a9eac71a1a"
  },
  "parts": [
   "expect",
@@ -293,7 +293,7 @@
   "wipe-unkicked-add": 3,
   "wipe-droplet-explosion": 3,
   "night-add-control": 3,
-  "real-holy-paladin-tasks-pushback": 3
+  "real-holy-paladin-tasks-pushback": 1
  },
  "failed": {
   "officer-saves-note": [
@@ -378,6 +378,14 @@
     "expect",
     "evidence"
    ]
+  ],
+  "real-holy-paladin-tasks-pushback": [
+   [
+    "wrong"
+   ],
+   [
+    "wrong"
+   ]
   ]
  },
  "errors": {},
@@ -407,7 +415,7 @@
   "real-healers-overheal-vs-top": 2,
   "wipe-unkicked-add": 1,
   "night-add-control": 3,
-  "real-holy-paladin-tasks-pushback": 2
+  "real-holy-paladin-tasks-pushback": 1
  },
  "hard": [],
  "facts": {
@@ -756,7 +764,7 @@
    15
   ],
   "real-holy-paladin-tasks-pushback": [
-   5,
+   4,
    18
   ]
  },
@@ -852,7 +860,7 @@
   "wipe-unkicked-add": 19,
   "wipe-droplet-explosion": 21,
   "night-add-control": 27,
-  "real-holy-paladin-tasks-pushback": 26
+  "real-holy-paladin-tasks-pushback": 23
  },
  "first_tagged": {
   "officer-saves-note": 3,
@@ -1028,7 +1036,7 @@
   "wipe-unkicked-add": 1188,
   "wipe-droplet-explosion": 1037,
   "night-add-control": 1183,
-  "real-holy-paladin-tasks-pushback": 1231
+  "real-holy-paladin-tasks-pushback": 1161
  },
  "slips": {},
  "tested": {
@@ -1413,6 +1421,39 @@
     ]
    },
    "verdict": "VERDICT: cannot tell: 1 of this run's 2 cases not compared; too few answers (3 on 1 cases)."
+  },
+  {
+   "cases": [
+    "real-holy-paladin-tasks-pushback"
+   ],
+   "commit": "e8e3a24",
+   "run": "20261112-024856.json",
+   "filter": "real-holy-paladin-tasks-pushback",
+   "trials": "3 trials",
+   "tested": {
+    "answers": [
+     "claude-opus-5-5"
+    ],
+    "judge": [
+     "claude-sonnet-5-5"
+    ],
+    "sdk": "0.2.170",
+    "cli": "2.1.306",
+    "effort": "",
+    "uncommitted": false,
+    "data": "2026-11-12 02:48"
+   },
+   "passed": [
+    1,
+    3
+   ],
+   "before": {
+    "real-holy-paladin-tasks-pushback": [
+     3,
+     3
+    ]
+   },
+   "verdict": "VERDICT: cannot tell: none of this run's cases was compared."
   }
  ]
 }

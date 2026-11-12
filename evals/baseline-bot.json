@@ -107,9 +107,9 @@
   "healers-kill-cooldowns": 3,
   "real-explorers-crates": 3,
   "real-healers-overheal-vs-top": 3,
-  "real-holy-paladin-tasks-pushback": 3,
   "wipe-unkicked-add": 3,
-  "wipe-droplet-explosion": 3
+  "wipe-droplet-explosion": 3,
+  "real-holy-paladin-tasks-pushback": 3
  },
  "case_hashes": {
   "night-who-pulls-early": "784d1ef268",
@@ -213,9 +213,9 @@
   "healers-kill-cooldowns": "40ed4e8ccf",
   "real-explorers-crates": "9a090f8837",
   "real-healers-overheal-vs-top": "6523188ee1",
-  "real-holy-paladin-tasks-pushback": "352978c5e5",
   "wipe-unkicked-add": "6cb7098033",
-  "wipe-droplet-explosion": "83d7a48e8e"
+  "wipe-droplet-explosion": "83d7a48e8e",
+  "real-holy-paladin-tasks-pushback": "a9eac71a1a"
  },
  "parts": [
   "expect",
@@ -328,9 +328,9 @@
   "healers-kill-cooldowns": 3,
   "real-explorers-crates": 2,
   "real-healers-overheal-vs-top": 3,
-  "real-holy-paladin-tasks-pushback": 1,
   "wipe-unkicked-add": 3,
-  "wipe-droplet-explosion": 3
+  "wipe-droplet-explosion": 3,
+  "real-holy-paladin-tasks-pushback": 1
  },
  "failed": {
   "between-pulls-quick": [
@@ -841,10 +841,6 @@
    6,
    12
   ],
-  "real-holy-paladin-tasks-pushback": [
-   3,
-   18
-  ],
   "wipe-unkicked-add": [
    5,
    12
@@ -852,6 +848,10 @@
   "wipe-droplet-explosion": [
    5,
    12
+  ],
+  "real-holy-paladin-tasks-pushback": [
+   6,
+   18
   ]
  },
  "calls": {
@@ -956,9 +956,9 @@
   "healers-kill-cooldowns": 6,
   "real-explorers-crates": 32,
   "real-healers-overheal-vs-top": 17,
-  "real-holy-paladin-tasks-pushback": 15,
   "wipe-unkicked-add": 15,
-  "wipe-droplet-explosion": 15
+  "wipe-droplet-explosion": 15,
+  "real-holy-paladin-tasks-pushback": 17
  },
  "first_tagged": {
   "night-who-pulls-early": 3,
@@ -1038,9 +1038,9 @@
   "healers-kill-cooldowns": 3,
   "real-explorers-crates": 3,
   "real-healers-overheal-vs-top": 3,
-  "real-holy-paladin-tasks-pushback": 3,
   "wipe-unkicked-add": 3,
-  "wipe-droplet-explosion": 3
+  "wipe-droplet-explosion": 3,
+  "real-holy-paladin-tasks-pushback": 3
  },
  "words": {
   "night-who-pulls-early": 425,
@@ -1144,9 +1144,9 @@
   "healers-kill-cooldowns": 476,
   "real-explorers-crates": 560,
   "real-healers-overheal-vs-top": 545,
-  "real-holy-paladin-tasks-pushback": 519,
   "wipe-unkicked-add": 570,
-  "wipe-droplet-explosion": 461
+  "wipe-droplet-explosion": 461,
+  "real-holy-paladin-tasks-pushback": 517
  },
  "slips": {
   "night-who-pulls-early": 3,
@@ -1250,9 +1250,9 @@
   "healers-kill-cooldowns": 3,
   "real-explorers-crates": 3,
   "real-healers-overheal-vs-top": 3,
-  "real-holy-paladin-tasks-pushback": 3,
   "wipe-unkicked-add": 3,
-  "wipe-droplet-explosion": 3
+  "wipe-droplet-explosion": 3,
+  "real-holy-paladin-tasks-pushback": 3
  },
  "tested": {
   "answers": [
@@ -1656,6 +1656,39 @@
     ]
    },
    "verdict": "VERDICT: cannot tell: 1 of this run's 9 cases not compared; too few answers (24 on 8 cases): a drop of the total under 14 points could not show."
+  },
+  {
+   "cases": [
+    "real-holy-paladin-tasks-pushback"
+   ],
+   "commit": "e8e3a24",
+   "run": "20261112-024615.json",
+   "filter": "real-holy-paladin-tasks-pushback",
+   "trials": "3 trials",
+   "tested": {
+    "answers": [
+     "claude-opus-5-5"
+    ],
+    "judge": [
+     "claude-sonnet-5-5"
+    ],
+    "sdk": "0.2.170",
+    "cli": "2.1.306",
+    "effort": "",
+    "uncommitted": false,
+    "data": "2026-11-12 02:40"
+   },
+   "passed": [
+    1,
+    3
+   ],
+   "before": {
+    "real-holy-paladin-tasks-pushback": [
+     1,
+     3
+    ]
+   },
+   "verdict": "VERDICT: cannot tell: none of this run's cases was compared."
   }
  ]
 }

@@ -87,7 +87,7 @@
   "wipe-droplet-explosion": "83d7a48e8e",
   "wipe-second-fury-not-stacked": "789d0096b9",
   "wipe-tank-solo-soak": "be4b7a6fea",
-  "real-holy-paladin-tasks-pushback": "352978c5e5"
+  "real-holy-paladin-tasks-pushback": "a9eac71a1a"
  },
  "passed": {
   "officer-saves-note": 3,
@@ -170,7 +170,7 @@
   "wipe-droplet-explosion": 3,
   "wipe-second-fury-not-stacked": 3,
   "wipe-tank-solo-soak": 3,
-  "real-holy-paladin-tasks-pushback": 1
+  "real-holy-paladin-tasks-pushback": 2
  },
  "errors": {},
  "hard": [
@@ -487,7 +487,7 @@
    18
   ],
   "real-holy-paladin-tasks-pushback": [
-   5,
+   4,
    18
   ]
  },
@@ -572,7 +572,7 @@
   "wipe-droplet-explosion": 25,
   "wipe-second-fury-not-stacked": 24,
   "wipe-tank-solo-soak": 38,
-  "real-holy-paladin-tasks-pushback": 27
+  "real-holy-paladin-tasks-pushback": 32
  },
  "first_tagged": {
   "officer-saves-note": 3,
@@ -879,6 +879,39 @@
    "before": {
     "real-holy-paladin-tasks-pushback": [
      2,
+     3
+    ]
+   },
+   "verdict": "VERDICT: cannot tell: none of this run's cases was compared."
+  },
+  {
+   "cases": [
+    "real-holy-paladin-tasks-pushback"
+   ],
+   "commit": "e8e3a24",
+   "run": "20261112-025154.json",
+   "filter": "real-holy-paladin-tasks-pushback",
+   "trials": "3 trials",
+   "tested": {
+    "answers": [
+     "claude-opus-5-5"
+    ],
+    "judge": [
+     "claude-sonnet-5-5"
+    ],
+    "sdk": "0.2.170",
+    "cli": "2.1.306",
+    "effort": "",
+    "uncommitted": false,
+    "data": "2026-11-12 02:48"
+   },
+   "passed": [
+    2,
+    3
+   ],
+   "before": {
+    "real-holy-paladin-tasks-pushback": [
+     1,
      3
     ]
    },
