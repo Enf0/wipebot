@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-12
+
 ### Fixed
 
 - `Agent` **"The orb" is found under the name the game gives it.** Raiders say "the orb" or "the totems"; the log says Mutagenic Venom, and a guide writes "orbs" in one sentence and the debuff's name in the next. Asked what the guides say about a mechanic, Wipebot read only the sentences with the word exactly as asked, so "orb" missed all that is written about "orbs", among it the line naming the debuff a carried orb puts on a player, and an answer could say the log doesn't show whether a healer carried an orb when it lists the three times they did. The guides are now read for the word in the singular and the plural, an ability's name too ("Malignant Totems"), and Wipebot looks up the game's name for a raider's word before saying the log lacks it.
