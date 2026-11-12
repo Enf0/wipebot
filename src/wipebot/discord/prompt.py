@@ -288,7 +288,9 @@ def _saved_for(what: str, bosses: Sequence[str]) -> list[str]:
 # EXPERIMENT (not for main): what a smaller model is told with each question (remind), or after its answer (second).
 TRY_REMIND = """
 
-[From the bot, before you answer: one tool's summary is rarely the answer to a "why". (1) What ended a pull is its \
+[From the bot, before you answer: one tool's summary is rarely the answer to a "why". (0) Answer each thing the \
+question asks, with the ability, player, pull and night it names: what it asks for is the answer's lead, never a \
+follow-up. (1) What ended a pull is its \
 "Ended by" line, and a reset is only a reset: say so and stop. (2) Follow each hint a tool printed in brackets \
 ("look it up", "find which mechanic failed") with the tool it means: boss_guide with `mechanic` for an ability or a \
 buff the boss kept. (3) A fix comes from the guide on the mechanic that ended the pull, never from the killing blows \
@@ -296,7 +298,9 @@ alone. (4) Advice on someone's play rests on compare_with_top and spec_guide; a 
 adds and kicks on enemies; one ability across pulls or nights on mechanic_hits. (5) Answer about the pull, the player \
 and the night this question means, with the numbers as the tools printed them.]"""
 TRY_SECOND = """\
-[From the bot, not the asker: check your answer before it is posted. Does its first line say what the tools' own \
+[From the bot, not the asker: check your answer before it is posted. Does it answer each thing the question asked \
+(the ability, player, pull or night it names), in its first line and not as a follow-up? Does that line say what the \
+tools' own \
 verdict says (a pull's "Ended by", a reset), about the pull, the player and the night that were asked about? Did you \
 read boss_guide on each mechanic you give a fix for, and compare_with_top and spec_guide before advice on someone's \
 play? Did a tool print a hint in brackets that you did not follow, or is a number not as a tool printed it? If \
