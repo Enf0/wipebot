@@ -316,9 +316,39 @@ def load_cases(folder: Path = CASES) -> list[dict]:
                 case = case | {"question": post_question(case["boss"], case["pull"], name, case.get("asker"),
                                                          case.get("request", ""))}
             cases.append({"report": spec["defaults"]["report"], **case} | only | {"kind": path.stem})
+    for case in list(cases):  # EXPERIMENT (not for main): the follow-up cases asked in Norwegian, "no-<id>"
+        if case["id"] in NORSK_TRY:
+            cases.append(case | {"id": "no-" + case["id"], "question": NORSK_TRY[case["id"]], "kind": "norsk"})
     if len({c["id"] for c in cases}) != len(cases):
         raise SystemExit("two cases share an id")
     return cases
+
+
+NORSK_TRY = {
+    "conversation-five-turns": ["hvorfor wipa vi på pull 17?", "og 18?",
+                                "19 var over på et halvt minutt, hva skjedde der?", "og pull 20?",
+                                "så hva er den ene tingen vi bør øve på først?"],
+    "real-follow-up-who-touched-cyst": ["hva drepte alle på siste forsøk", "kan du se hvem som tok borti cysten"],
+    "real-follow-up-defensives-saved": ["hvem brukte minst defensives i går? der det hadde noe å si",
+                                        "men hadde det redda dem?"],
+    "real-subtlety-energy-follow-up": ["har du noen tips til meg, slushmania?",
+                                       "at energy ligger på 100 har jo med mechanics å gjøre da."],
+    "twin-fangs-healers-at-our-item-level": [
+        "kan du sjekke om de fleste Twin Fangs mythic-logger kjører 4 eller 5 healere?",
+        "hva med logger rundt vår egen ilvl, ikke topp-logger?"],
+    "real-add-damage-by-wave": ["Kan du sende meg lista over add damage på Twin Fangs da vi killa den?",
+                                "Kan du vise meg damage på de 3 siste settene med adds?"],
+    "real-latest-progress-kills-healers": [
+        "de 20 nyeste progress-killsa på coiled altar, hvor mange healere hadde de?", "sjekk bare eu- og us-logger"],
+    "real-holy-paladin-tasks-pushback": [
+        "hvordan gjorde jeg det på pull 12?",
+        "du glemmer den menneskelige faktoren. hvis jeg kunne stått stille og bare klikka raid frames hadde jeg vært "
+        "nærme jeg også, men når du må bevege deg, snu kamera, flytte orben riktig og klikke riktige frames kan mye "
+        "gå galt. med 0 assignments og samme healere hadde det sett helt annerledes ut, vi har 2 holy priests for "
+        "eksempel"],
+    "wipe-follow-up-next-pull": ["Hvorfor wipa vi på Sszorak pull 13?", "Og hva drepte Wutroll på neste pull?"],
+    "wipe-tank-solo-soak": ["Hvorfor wipa vi på pull 20?", "ok og hva burde jeg personlig ha gjort?"],
+}
 
 
 def regular(mode: str) -> list[dict]:
@@ -627,6 +657,7 @@ def keep(folder: Path, results: dict[str, list[Trial]], tally: dict, **about) ->
     judge, filter, whether it was a full run, who was billed)."""
     folder.mkdir(exist_ok=True)
     out = folder / f"{datetime.now():%Y%m%d-%H%M%S}.json"
+    about["arm"] = os.environ.get("WIPEBOT_ARM", "")
     out.write_text(json.dumps({**about, "date": f"{datetime.now(UTC):%Y-%m-%d}",
                                **{k: tally[k] for k in ("model", "trials", "commit", "judge", "tested", "case_hashes")},
                                "cases": {c: [asdict(t) for t in ts] for c, ts in results.items()}},
@@ -1506,6 +1537,7 @@ def arguments() -> argparse.ArgumentParser:
     parser.add_argument("--no-confirm", action="store_true",
                         help=f"don't ask the cases that moved beyond noise again (up to {CONFIRM_TRIALS} answers each)")
     parser.add_argument("--model", default="", help="model for the answers (default: the bot's)")
+    parser.add_argument("--arms", default="", help="EXPERIMENT: the same run once per arm (base,remind,second,high)")
     parser.add_argument("--effort", default="", choices=["", "low", "medium", "high", "xhigh", "max"],
                         help="the answers' effort (default: the bot's, WIPEBOT_EFFORT); the judge's stays")
     parser.add_argument("--judge-model", default="sonnet", help="model for the judge (default sonnet)")
@@ -1561,6 +1593,24 @@ def main() -> None:
     if args.save_baseline:  # a saved run's file: no model
         run, _, tally = read_run(Path(args.save_baseline))
         return save_baseline(tally, run["mode"], args.accept, run.get("filter", ""), Path(args.save_baseline).name)
+    if args.arms:  # EXPERIMENT (not for main): each arm in its own process, with its own results file
+        rest, skip = [], False
+        for a in sys.argv[1:]:
+            if skip:
+                skip = False
+            elif a == "--arms":
+                skip = True
+            elif not a.startswith("--arms="):
+                rest.append(a)
+        for arm in args.arms.split(","):
+            parts = arm.split("+")
+            efforts = [p for p in parts if p in ("low", "medium", "high", "xhigh", "max")]
+            env = os.environ | {"WIPEBOT_TRY": ",".join(p for p in parts if p not in efforts), "WIPEBOT_ARM": arm}
+            print(f"\n======== ARM {arm} ========", flush=True)
+            done = subprocess.run([sys.executable, "-m", "evals.run", *rest,
+                                   *(["--effort", efforts[0]] if efforts else [])], env=env)
+            print(f"======== ARM {arm} exited {done.returncode} ========", flush=True)
+        return None
     args.billed_to = billed_to(args.api_key)
     if args.label:
         label(Path(args.label))

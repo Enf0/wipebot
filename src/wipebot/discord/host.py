@@ -760,11 +760,24 @@ class Session:
         text = no_paths(prompt.message(question, ctx, report, await report.guild_run_doubt() if report else "",
                                        raids=await report.raids() if report else None))
         self._ctx = ctx
+        tries = os.environ.get("WIPEBOT_TRY", "").split(",")  # EXPERIMENT (not for main): small-model arms
+        if "remind" in tries:
+            text += prompt.TRY_REMIND
         await self._client.query(with_images(text, ctx.images) if ctx.images else text)
         self._calls[:] = ran
         answer = Answer("", prompt=text, asked=asked)
         texts: list[str] = []
         error = None
+        error = await self._receive(answer, texts, ctx, error)
+        if "second" in tries and not error and len(self._calls) > len(ran):
+            await self._client.query(prompt.TRY_SECOND)
+            error = await self._receive(answer, texts, ctx, error)
+        answer.calls = list(self._calls)
+        if error:
+            raise ModelError(error, answer)
+        return await self._finish(answer, texts, ctx)
+
+    async def _receive(self, answer: Answer, texts: list[str], ctx: Context, error):
         round_id: str | None = None
         async for msg in self._client.receive_response():
             if isinstance(msg, AssistantMessage):
@@ -785,15 +798,15 @@ class Session:
                     texts.append("".join(step))
             elif isinstance(msg, ResultMessage):
                 if msg.total_cost_usd is not None:
-                    answer.cost_usd = msg.total_cost_usd - self._spent
+                    answer.cost_usd = (answer.cost_usd or 0.0) + msg.total_cost_usd - self._spent
                     self._spent = msg.total_cost_usd
                 answer.usage, answer.turns, answer.session_id = msg.usage, msg.num_turns, msg.session_id
                 self.context_tokens = context_size(msg.usage)
                 if msg.subtype in CAPPED:  # what it wrote so far is half an answer
                     error = error or msg.subtype
-        answer.calls = list(self._calls)
-        if error:
-            raise ModelError(error, answer)
+        return error
+
+    async def _finish(self, answer: Answer, texts: list[str], ctx: Context) -> Answer:
         await pictures_drawn(answer.calls)
         text = texts[-1].strip() if texts else NO_ANSWER  # the last text is the answer
         text, answer.follow_ups = self._offers(text, read=bool(answer.calls))

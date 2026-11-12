@@ -283,3 +283,23 @@ def asker_line(ctx: Context, report: Report | None) -> str:
 
 def _saved_for(what: str, bosses: Sequence[str]) -> list[str]:
     return [f"{what} saved for " + ", ".join(bosses)] if bosses else []
+
+
+# EXPERIMENT (not for main): what a smaller model is told with each question (remind), or after its answer (second).
+TRY_REMIND = """
+
+[From the bot, before you answer: one tool's summary is rarely the answer to a "why". (1) What ended a pull is its \
+"Ended by" line, and a reset is only a reset: say so and stop. (2) Follow each hint a tool printed in brackets \
+("look it up", "find which mechanic failed") with the tool it means: boss_guide with `mechanic` for an ability or a \
+buff the boss kept. (3) A fix comes from the guide on the mechanic that ended the pull, never from the killing blows \
+alone. (4) Advice on someone's play rests on compare_with_top and spec_guide; a tank's death or taunts on tank_swaps; \
+adds and kicks on enemies; one ability across pulls or nights on mechanic_hits. (5) Answer about the pull, the player \
+and the night this question means, with the numbers as the tools printed them.]"""
+TRY_SECOND = """\
+[From the bot, not the asker: check your answer before it is posted. Does its first line say what the tools' own \
+verdict says (a pull's "Ended by", a reset), about the pull, the player and the night that were asked about? Did you \
+read boss_guide on each mechanic you give a fix for, and compare_with_top and spec_guide before advice on someone's \
+play? Did a tool print a hint in brackets that you did not follow, or is a number not as a tool printed it? If \
+anything is missing or wrong, call the tools now and write the answer again, whole, in the same form. If nothing is, \
+write the same answer again word for word. Either way, reply with only the answer, follow-ups and picture line \
+included.]"""
