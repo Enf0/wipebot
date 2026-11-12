@@ -18,12 +18,12 @@
   "verdict": "VERDICT: no change shown: a drop of 10.4 answers (3.7 points) or more would have shown."
  },
  "connector": {
-  "commit": "7da2bc1",
+  "commit": "3732362",
   "date": "2026-11-12",
   "trials": "3-6 trials",
-  "passed": 263,
-  "of": 279,
+  "passed": 270,
+  "of": 285,
   "errors": 0,
-  "verdict": "VERDICT: cannot tell: 45 of this run's 92 cases not compared."
+  "verdict": "VERDICT: no change shown: a drop of 8.4 answers (2.9 points) or more would have shown."
  }
 }
