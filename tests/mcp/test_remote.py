@@ -1018,6 +1018,8 @@ def test_the_consent_page_names_the_app_and_where_it_sends_the_user_back(client)
     assert '<a href="https://github.com/Enf0/wipebot">its source</a>' in page.text  # the AGPL's §13
     csp = page.headers["content-security-policy"]
     assert "default-src 'none'" in csp and "frame-ancestors 'none'" in csp and "script-src" not in csp
+    # the click runs on through Warcraft Logs and the callback to the app, and a browser holds all of it to this list
+    assert "form-action 'self' https://www.warcraftlogs.com https://claude.ai;" in csp
     assert page.headers["referrer-policy"] == "no-referrer" and page.headers["x-content-type-options"] == "nosniff"
     cookie = page.headers["set-cookie"].lower()
     assert "httponly" in cookie and "secure" in cookie and "samesite=lax" in cookie

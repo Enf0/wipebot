@@ -38,6 +38,7 @@ import html
 import json
 import logging
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -474,7 +475,7 @@ class SignIn(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, A
                      f'name="login" value="{html.escape(state)}"><button>Sign in with Warcraft Logs</button></form>'
                      "<p>Wipebot reads which characters you claimed on Warcraft Logs, "
                      + ("so it knows which are yours." if self.access.anyone else "to check they're in the guild."),
-                     200)
+                     200, back)
         page.set_cookie(COOKIE, nonce, max_age=LOGIN_TTL_S, path="/wcl", secure=self.public_url.startswith("https:"),
                         httponly=True, samesite="lax")
         return page
@@ -776,23 +777,41 @@ STYLE = ("body{font:16px/1.5 system-ui,sans-serif;background:#0b101e;color:#ecf0
          "main{max-width:34rem;margin:auto}h1{font-size:1.4rem}button{font:inherit;padding:.5em 1.2em;"
          "border:0;border-radius:6px;background:#3b6fd8;color:#fff;cursor:pointer}"
          "footer{margin-top:3em;font-size:.85rem;color:#9aa3b8}footer a{color:inherit}")
-# The page's own style only, a form posting here and on to Warcraft Logs, never in a frame, no referrer.
-PAGE_HEADERS = {
-    "Content-Security-Policy": "default-src 'none'; style-src 'sha256-"
-    + base64.b64encode(hashlib.sha256(STYLE.encode()).digest()).decode() + "'; form-action 'self' https://"
-    + urllib.parse.urlsplit(accounts.AUTHORIZE_URL).netloc + "; frame-ancestors 'none'; base-uri 'none'",
-    "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "no-store"}
+def _form_action(back: str = "") -> str:
+    """Where a page's form may send the browser: here, on to Warcraft Logs and, on the consent page, `back` to the
+    app that asked. A browser holds every redirect that follows a form's post to this list (Chromium does), and
+    Warcraft Logs answers a user it knows without a page of its own, so the click runs on through the callback to
+    the app in one chain: without the app's address in the list the browser stops there and shows nothing."""
+    sources = ["'self'", "https://" + urllib.parse.urlsplit(accounts.AUTHORIZE_URL).netloc]
+    u = urllib.parse.urlsplit(back)
+    if u.scheme in ("http", "https") and u.hostname and re.fullmatch(r"[A-Za-z0-9.:-]+", u.hostname):
+        host = f"[{u.hostname}]" if ":" in u.hostname else u.hostname
+        sources.append(f"{u.scheme}://{host}" + (f":{u.port}" if u.port else ""))
+    elif re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*", u.scheme):
+        sources.append(u.scheme + ":")  # an app's own scheme
+    return " ".join(sources)
 
 
-def _page(title: str, text: str, status: int) -> HTMLResponse:
-    """A sign-in page; `text` is HTML, anything from outside in it escaped."""
+def _headers(back: str = "") -> dict[str, str]:
+    """A sign-in page's headers: the page's own style only, its form held to `_form_action`, never in a frame, no
+    referrer."""
+    return {
+        "Content-Security-Policy": "default-src 'none'; style-src 'sha256-"
+        + base64.b64encode(hashlib.sha256(STYLE.encode()).digest()).decode() + f"'; form-action {_form_action(back)}"
+        "; frame-ancestors 'none'; base-uri 'none'",
+        "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-store"}
+
+
+def _page(title: str, text: str, status: int, back: str = "") -> HTMLResponse:
+    """A sign-in page; `text` is HTML, anything from outside in it escaped; `back` is where its form's click ends, an
+    app's address (the consent page's)."""
     return HTMLResponse(f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Wipebot: {title}</title>
 <style>{STYLE}</style></head>
 <body><main><h1>{title}</h1><p>{text}</p>
 <footer>Wipebot is free software (AGPL-3.0): <a href="{html.escape(server.source_url())}">its source</a>.</footer>
-</main></body></html>""", status, headers=PAGE_HEADERS)
+</main></body></html>""", status, headers=_headers(back))
 
 
 def _on_site(path: str) -> str:
