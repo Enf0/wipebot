@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-11-13
+
 ### Fixed
 
 - `MCP` **Signing in from Claude or ChatGPT no longer stops on the "Sign in to Wipebot" page.** For someone Warcraft Logs already knew, who was logged in there and had allowed Wipebot before (by signing in on the website, say), the button spun for a moment and nothing happened, in Chrome and the browsers built on it. Warcraft Logs sends such a user straight back without a page of its own, and the browser then refused the last step back to the app, which the sign-in page's security policy didn't name. The page now names the app it sends you back to.
