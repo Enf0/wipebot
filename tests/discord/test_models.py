@@ -95,3 +95,30 @@ async def test_a_chosen_model_is_the_servers_until_default_or_the_key_goes(store
     await commands.choose_model(store, 1001, "claude-haiku-9", "opus")
     store.drop_server_key(1001)
     assert store.model(1001) is None
+
+
+HAIKU = {"id": "anthropic/claude-haiku-5.5", "pricing": {
+    "prompt": "0.0000001", "completion": "0.0000005", "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "overrides": [{"min_prompt_tokens": 100000, "prompt": "0.0000005", "completion": "0.0000025",
+                   "input_cache_read": "0.00000005", "input_cache_write": "0.000000625"}]}}
+
+
+def used(read=0, written=0, cache_read=0, cache_written=0, cost=0.0) -> dict:
+    return {"inputTokens": read, "outputTokens": written, "cacheReadInputTokens": cache_read,
+            "cacheCreationInputTokens": cache_written, "costUSD": cost}
+
+
+def test_an_answer_costs_its_own_tokens_at_openrouters_price_for_the_model():
+    """Claude Code counted this answer on Haiku at $0.25: it knows no price for a model under OpenRouter's name."""
+    rates = models.rates_from_openrouter([HAIKU, {"id": "openrouter/auto", "pricing": {"prompt": "-1",
+                                                                                         "completion": "-1"}}])
+    assert list(rates) == ["anthropic/claude-haiku-5.5"]
+    before = {"anthropic/claude-haiku-5.5": used(1000, 500, 20_000, 30_000, cost=0.4)}
+    now = {"anthropic/claude-haiku-5.5": used(1100, 800, 80_000, 32_000, cost=0.65),
+           "claude-haiku-4-5": used(10, 10, cost=0.001)}  # one Claude Code prices itself
+    cost = models.cost(now, before, rates)
+    assert cost == pytest.approx(100 * 1e-7 + 300 * 5e-7 + 60_000 * 1e-8 + 2000 * 1.25e-7 + 0.001)
+    # a prompt past the model's long tier costs that tier's rates, and counts that start over are the answer's own
+    assert models.cost(now, before, rates, 120_000) == pytest.approx(5 * (cost - 0.001) + 0.001)
+    assert models.cost(before, now, rates) == pytest.approx(models.cost(before, {}, rates))

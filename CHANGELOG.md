@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Discord` **An answer's cost is the model's real price when a server picked its model.** On a server answering through OpenRouter on a model chosen with `/wipebot setup model:`, the line under an answer and `/usage`'s average counted every answer at a far higher rate than the model's: an answer on Haiku that cost a cent showed $0.25. The cost is now counted from the answer's tokens at OpenRouter's price for that model, which is what OpenRouter charges.
+
 ## [1.3.3] - 2026-11-13
 
 ### Fixed

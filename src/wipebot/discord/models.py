@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 
 DEFAULT = "default"  # the option's value for the bot's own model
 KEPT_S = 600
+PRICES_KEPT_S = 3600
+TOKENS = ("inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens")
 SHOWN = 25  # the most choices Discord shows for an option
 LABEL = 100  # and the longest a choice's name or value may be
 
@@ -102,3 +104,81 @@ def matching(models: list[Model], typed: str, limit: int = SHOWN) -> list[Model]
 
 def find(models: list[Model], chosen: str) -> Model | None:
     return next((m for m in models if m.id == chosen), None)
+
+
+@dataclass(frozen=True)
+class Rates:
+    """What a model costs per token at OpenRouter, in dollars; `above` are the rates of a request whose prompt is at
+    least `above_tokens` long, where the model has such a tier."""
+    read: float
+    written: float
+    cache_read: float
+    cache_written: float
+    above_tokens: int = 0
+    above: Rates | None = None
+
+    def cost(self, used: dict, context_tokens: int = 0) -> float:
+        """What the tokens of `used` (Claude Code's count for a model: ModelUsage's keys) cost, at the long prompt's
+        rates when the conversation's context has reached them."""
+        if self.above and context_tokens >= self.above_tokens:
+            return self.above.cost(used)
+        return (used.get("inputTokens", 0) * self.read + used.get("outputTokens", 0) * self.written
+                + used.get("cacheReadInputTokens", 0) * self.cache_read
+                + used.get("cacheCreationInputTokens", 0) * self.cache_written)
+
+
+def _rates(pricing: dict) -> Rates | None:
+    try:
+        read, written = float(pricing["prompt"]), float(pricing["completion"])
+        if read < 0 or written < 0:  # a router that picks the model: no price of its own
+            return None
+        rates = Rates(read, written, float(pricing.get("input_cache_read") or read),
+                      float(pricing.get("input_cache_write") or read))
+        tier = next((o for o in pricing.get("overrides") or [] if o.get("min_prompt_tokens")), None)
+        if tier and (above := _rates({**pricing, **tier, "overrides": []})):
+            return Rates(rates.read, rates.written, rates.cache_read, rates.cache_written,
+                         int(tier["min_prompt_tokens"]), above)
+        return rates
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def rates_from_openrouter(data: list[dict]) -> dict[str, Rates]:
+    return {m["id"]: rates for m in data if (rates := _rates(m.get("pricing") or {}))}
+
+
+_prices: tuple[float, dict[str, Rates]] = (0.0, {})
+
+
+async def openrouter_rates() -> dict[str, Rates]:
+    """OpenRouter's price of each model, by the name it is asked by, from its public list, kept an hour: Claude Code
+    knows no price for a model under OpenRouter's name and counts an answer on one at a rate of its own. Empty
+    (and asked again next time) when the list can't be read."""
+    global _prices
+    if _prices[1] and time.time() - _prices[0] < PRICES_KEPT_S:
+        return _prices[1]
+    try:
+        async with httpx.AsyncClient(timeout=10) as http:
+            r = await http.get(f"{OPENROUTER_URL}/v1/models")
+            r.raise_for_status()
+            _prices = (time.time(), rates_from_openrouter(r.json()["data"]))
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        log.warning("OpenRouter's prices: %r", e)
+        return _prices[1]  # an older list beats Claude Code's guess
+    return _prices[1]
+
+
+def cost(used: dict[str, dict], before: dict[str, dict], rates: dict[str, Rates], context_tokens: int = 0) -> float:
+    """What an answer cost: the tokens each model used since `before` (Claude Code's counts add up over a
+    conversation), at OpenRouter's price for the models it lists, else at what Claude Code counted."""
+    total = 0.0
+    for model, now in used.items():
+        was = before.get(model) or {}
+        if any((now.get(k) or 0) < (was.get(k) or 0) for k in TOKENS):  # counted from zero again
+            was = {}
+        if model in rates:
+            spent = {k: (now.get(k) or 0) - (was.get(k) or 0) for k in TOKENS}
+            total += rates[model].cost(spent, context_tokens)
+        else:
+            total += (now.get("costUSD") or 0) - (was.get("costUSD") or 0)
+    return total

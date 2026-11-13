@@ -366,6 +366,27 @@ async def test_the_models_rounds_are_counted_apart_from_the_sdks_turns(session):
     assert (called, answer.turns, answer.rounds) == ([11, 12, 13], 4, 2)
 
 
+async def test_an_answer_through_openrouter_costs_what_openrouter_charges_for_its_model(session, monkeypatch):
+    """Claude Code prices a model it doesn't know by OpenRouter's name at a rate of its own (Haiku: 20 times over)."""
+    async def rates():
+        return {"anthropic/claude-haiku-5.5": host.models.Rates(1e-7, 5e-7, 1e-8, 1.25e-7)}
+    monkeypatch.setattr(host.models, "openrouter_rates", rates)
+    session.env = {"ANTHROPIC_BASE_URL": host.OPENROUTER_URL}
+
+    def answered(total: float, read: int, written: int) -> list:
+        usage = cast(dict, {"anthropic/claude-haiku-5.5": {"inputTokens": read, "outputTokens": written,
+                                                           "costUSD": total}})
+        return [AssistantMessage([TextBlock("Yes.")], "anthropic/claude-haiku-5.5"),
+                ResultMessage("success", 10, 10, False, 1, "s1", total_cost_usd=total, usage={"input_tokens": read},
+                              model_usage=usage)]
+    session._client = cast(ClaudeSDKClient, FakeClient(answered(0.25, 10_000, 200), answered(0.5, 30_000, 600)))
+    first = await session.ask("a thread or replies?", Context())
+    second = await session.ask("and then?", Context())
+    assert first.cost_usd == pytest.approx(10_000 * 1e-7 + 200 * 5e-7)
+    assert second.cost_usd == pytest.approx(20_000 * 1e-7 + 400 * 5e-7)
+    assert session._spent == pytest.approx(first.cost_usd + second.cost_usd)
+
+
 async def test_an_answer_is_the_last_text_polished_with_its_own_cost(session):
     tools_seen = []
     session.on_tool = lambda name, args: tools_seen.append(name)

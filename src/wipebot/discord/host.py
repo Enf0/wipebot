@@ -43,7 +43,8 @@ from wipebot.core.notebook import Notebook
 from wipebot.core.notebook import Unreadable as NotesUnreadable
 from wipebot.core.report import FactError, Report
 
-from . import config, prompt
+from . import config, models, prompt
+from .config import OPENROUTER_URL
 from .discord_text import polish
 
 log = logging.getLogger(__name__)
@@ -607,7 +608,9 @@ class Session:
         self._client: ClaudeSDKClient | None = None
         self._calls: list[ToolCall] = []  # tool calls of the current question
         self._ctx: Context | None = None  # the current question's
-        self._spent = 0.0  # the SDK's cost so far, which adds up over the conversation
+        self._spent = 0.0  # the conversation's cost so far (the SDK's adds up over it)
+        self._used: dict[str, dict] = {}  # and the tokens each model used so far, as the SDK counts them
+        self._capped = 0.0  # what Claude Code's own cap (max_budget_usd) has counted, at its own prices
         self._offered: set[str] = set()  # the follow-ups the conversation's answers offered so far, casefolded
         self.context_tokens = 0  # the conversation's context after its last answer
 
@@ -615,7 +618,7 @@ class Session:
     def worn_out(self) -> bool:
         """Whether the conversation has grown past CONTEXT_LIMIT, or spent ANSWER_BUDGET_USD, and should be closed
         after this answer."""
-        return self.context_tokens >= CONTEXT_LIMIT or self._spent >= ANSWER_BUDGET_USD
+        return self.context_tokens >= CONTEXT_LIMIT or max(self._spent, self._capped) >= ANSWER_BUDGET_USD
 
     def _bot_tool(self, spec: prompt.BotTool):
         """One of the bot's own tools, run by the current question's handler (Context.tools)."""
@@ -748,6 +751,21 @@ class Session:
         with ctx.reading():
             return await self._ask(question, ctx)
 
+    async def _cost(self, msg: ResultMessage) -> float | None:
+        """What the answer that ended with `msg` cost: the SDK's cost adds up over the conversation. Through
+        OpenRouter it is counted from the tokens at OpenRouter's prices, since Claude Code knows no price for a model
+        under OpenRouter's name and counts it at a rate of its own (Haiku at twenty times its price)."""
+        self._capped = msg.total_cost_usd or self._capped
+        if msg.model_usage and self.env.get("ANTHROPIC_BASE_URL") == OPENROUTER_URL:
+            used = {model: dict(count) for model, count in msg.model_usage.items()}
+            cost = models.cost(used, self._used, await models.openrouter_rates(), context_size(msg.usage))
+            self._spent, self._used = self._spent + cost, used
+            return cost
+        if msg.total_cost_usd is None:
+            return None
+        cost, self._spent = msg.total_cost_usd - self._spent, msg.total_cost_usd
+        return cost
+
     async def _ask(self, question: str, ctx: Context) -> Answer:
         assert self._client, "use 'async with Session(...)'"
         asked = time.monotonic()
@@ -784,9 +802,7 @@ class Session:
                 if step:
                     texts.append("".join(step))
             elif isinstance(msg, ResultMessage):
-                if msg.total_cost_usd is not None:
-                    answer.cost_usd = msg.total_cost_usd - self._spent
-                    self._spent = msg.total_cost_usd
+                answer.cost_usd = await self._cost(msg)
                 answer.usage, answer.turns, answer.session_id = msg.usage, msg.num_turns, msg.session_id
                 self.context_tokens = context_size(msg.usage)
                 if msg.subtype in CAPPED:  # what it wrote so far is half an answer
