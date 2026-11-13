@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-13
+
 ### Added
 
 - `Agent` **Tank swaps over a whole night.** "Which pulls had a bad tank swap?" and "who taunts late?" no longer need a guess at the pull: `tank_swaps` with every pull on the boss lists each time a swap debuff went past one stack on the tank holding the boss, who took the boss next and when, and the tank's death at it, then how often per tank. Under it, the bosses left without their tank: a tank who died holding one (or holding both of a pair), and a player who is no tank taking one. A night of 30 pulls takes about 12 seconds the first time and 3 after.
