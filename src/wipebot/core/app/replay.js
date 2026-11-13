@@ -312,7 +312,8 @@ views.replay = (() => {
       (isDead(j) - isDead(i)) || (R.players[i].focus - R.players[j].focus));
     const spots = {};
     for (const i of order) { const pos = at(tracks[i], t); if (pos) spots[i] = px(pos[0], pos[1]); }
-    spread(spots, r * 2.05);
+    spread(spots, r * 1.7);
+    settle(spots);
     for (const i of order) {
       const p = R.players[i], pos = at(tracks[i], t);
       if (!pos) continue;
@@ -359,17 +360,43 @@ views.replay = (() => {
     }
   }
 
-  function spread(spots, gap) {  // place markers one by one; one that would cover another moves out on a spiral
-    const placed = [];
-    for (const k of Object.keys(spots)) {
-      const [x0, y0] = spots[k];
-      let x = x0, y = y0;
-      for (let step = 0; step < 60 && placed.some((p) => Math.hypot(p[0] - x, p[1] - y) < gap); step++) {
-        const a = step * 2.4, d = gap * 0.35 * Math.sqrt(step + 1);
-        x = x0 + Math.cos(a) * d; y = y0 + Math.sin(a) * d;
+  // Markers that would cover each other are pushed apart, each by half of how far they overlap: where a marker is
+  // drawn then changes little as the players move (placing them one by one, each on the first free spot of a spiral,
+  // made a stack's markers hop between spots many times a second).
+  function spread(spots, gap) {
+    const keys = Object.keys(spots), pos = keys.map((k) => spots[k].slice());
+    for (let round = 0, moved = true; round < 8 && moved; round++) {
+      moved = false;
+      for (let a = 0; a < pos.length; a++) for (let b = a + 1; b < pos.length; b++) {
+        let dx = pos[b][0] - pos[a][0], dy = pos[b][1] - pos[a][1], d = Math.hypot(dx, dy);
+        if (d >= gap) continue;
+        if (d < 0.01) { const turn = (a * 7 + b) * 2.4; dx = Math.cos(turn); dy = Math.sin(turn); d = 1; }  // on one spot
+        const push = (gap - d) / 2;
+        pos[a][0] -= dx / d * push; pos[a][1] -= dy / d * push; pos[b][0] += dx / d * push; pos[b][1] += dy / d * push;
+        moved = true;
       }
-      spots[k] = [x, y]; placed.push(spots[k]);
     }
+    keys.forEach((k, n) => { spots[k] = [pos[n][0], pos[n][1], pos[n][0] - spots[k][0], pos[n][1] - spots[k][1]]; });
+  }
+
+  // How far each marker is drawn from where its player stood eases toward what spread() gives (in SETTLE_PUSH_MS),
+  // so a marker pushed aside glides there; after a pause in drawing (the first frame, a jump in time) it is there at
+  // once. Draws again until every marker has arrived.
+  const SETTLE_PUSH_MS = 150;
+  let pushed = {}, drawnAt = 0, gliding = false;
+  function settle(spots) {
+    const now = performance.now(), dt = now - drawnAt, k = dt > 400 ? 1 : 1 - Math.exp(-dt / SETTLE_PUSH_MS);
+    drawnAt = now;
+    const next = {};
+    let far = false;
+    for (const i of Object.keys(spots)) {
+      const [x, y, dx, dy] = spots[i], was = pushed[i] || (k === 1 ? [dx, dy] : [0, 0]);
+      const o = [was[0] + (dx - was[0]) * k, was[1] + (dy - was[1]) * k];
+      if (Math.abs(dx - o[0]) > 0.5 || Math.abs(dy - o[1]) > 0.5) far = true; else { o[0] = dx; o[1] = dy; }
+      next[i] = o; spots[i] = [x - dx + o[0], y - dy + o[1]];
+    }
+    pushed = next;
+    if (far && !gliding) { gliding = true; requestAnimationFrame(() => { gliding = false; draw(); }); }
   }
 
   function ring(g, x, y, r, color, img, dead) {
