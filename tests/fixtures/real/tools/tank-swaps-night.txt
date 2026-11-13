@@ -1,0 +1,25 @@
+Tank swaps over all 32 Sszorak pulls (1 reset left out), each until its wipe was decided (the boss's enrage or half the raid dead; tank_swaps with a pull has that pull whole, every stint and taunt).
+Swap debuffs past 1 stack while that tank held the boss (Ravage: most of their stints over these pulls end at 1, and they land on the tank holding the boss), pull by pull: the tank, the stacks and when, since when they held the boss, who took the boss next, and that tank's death within 3 s of it:
+  pull 14: Wutroll Ravage 2 at 1:03 (had the boss since 0:38; Deathadim took it at 1:05), and died at 1:03 to Ravage [1277101]
+  pull 27: Deathadim Ravage 2 at 0:20 (had the boss since 0:13; Dragepie, no tank, took it at 0:28)
+  pull 29: Wutroll Ravage 2 at 1:07 (had the boss since 0:24; Pomaa, no tank, took it at 1:13), and died at 1:07 to Ravage [1277101]
+  pull 31: Deathadim Ravage 2 at 1:11 (had the boss since 0:56; Wutroll took it at 1:28)
+Per tank, how often it went past 1 on them: Wutroll 2 in 2 pulls of the 32 they tanked (pulls 14, 29); Deathadim 2 in 2 pulls of the 32 they tanked (pulls 27, 31)
+Tank deaths with it: pull 14 Wutroll, pull 29 Wutroll. In the other 28 pulls no swap debuff went past 1 while its tank held the boss.
+A boss without its tank, pull by pull: a tank's death while they held a boss (what killed them, since when they held it) and a boss taken by a player who is no tank after the pull's first seconds (until whom a tank took it back):
+  pull 3: Wutroll died at 0:55 to Mutilate [1285999] (held the boss since 0:21)
+  pull 4: Wutroll died at 0:55 to Mutilate [1285999] (held the boss since 0:43)
+  pull 5: Deathadim died at 1:14 to Mutilate [1285999] (held the boss since 1:00)
+  pull 7: Deathadim died at 2:19 to Mutilate [1285999] (held the boss since 2:06)
+  pull 11: Wutroll died at 1:48 to no killing blow recorded (held the boss since 1:29)
+  pull 14: Wutroll died at 1:03 to Ravage [1277101] (held the boss since 0:38); Deathadim died at 1:11 to Mutilate [1285999] (held the boss since 1:05)
+  pull 16: Wutroll died at 0:28 to Virulence [1300089] (held the boss since 0:21)
+  pull 18: Deathadim died at 1:02 to Mutilate [1285999] (held the boss since 0:56)
+  pull 20: Deathadim died at 0:15 to Mutilate [1285999] (held the boss since 0:11); Zebinomage, no tank, took the boss at 0:27 (no tank took it back); Krøpling, no tank, took the boss at 0:28 (no tank took it back)
+  pull 22: Wutroll died at 2:20 to no killing blow recorded (held the boss since 2:06)
+  pull 25: Wutroll died at 1:48 to no killing blow recorded (held the boss since 1:26)
+  pull 27: Wutroll died at 0:08 to Mutilate [1285999] (held the boss since 0:00); Deathadim died at 0:24 to Mutilate [1285999] (held the boss since 0:13); Dragepie, no tank, took the boss at 0:28 (no tank took it back)
+  pull 29: Wutroll died at 1:07 to Ravage [1277101] (held the boss since 0:24); Pomaa, no tank, took the boss at 1:13 (no tank took it back)
+  pull 32: Wutroll died at 1:01 to no killing blow recorded (held the boss since 0:42)
+  pull 33: Wutroll died at 2:15 to Mutilate [1285999] (held the boss since 2:06)
+Whose turn it was to taunt, and at how many stacks, isn't in the log: the raid note or the tanks' own call holds it, and tanks often trade the boss back and forth, so a late taunt is a fact, not one tank's fault.

@@ -75,11 +75,11 @@
 
   function open(view, key) { stack.push({ view, key }); go(view, key); }
 
-  // A ranking or trend after the first of an answer (the server's `folded`: server._fold): one line saying what it
+  // A card after the first of an answer (the server's `folded`: server._fold): one line saying what it
   // is, which opens it. Each call's card is a page of its own, so a card can't know of the others.
   function fold(view, key) {
     const line = kit.el('<div class="folded"><span class="what"></span><button class="primary">Show</button></div>');
-    line.firstChild.textContent = key.label || "A ranking";
+    line.firstChild.textContent = key.label || "A card";
     line.lastChild.onclick = () => go(view, key);
     root.replaceChildren(line);
   }

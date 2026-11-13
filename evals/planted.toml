@@ -202,6 +202,16 @@ further.
 """
 
 [[plant]]
+case = "night-bad-tank-swaps"
+kind = "wrong"
+item = "says no pull had a bad swap, or that the log can't show swaps"
+answer = """
+**None that the log shows.** The tanks traded Sszorak cleanly all night: Ravage never went past one stack on either
+of them in any of the 32 pulls, and neither tank died holding the boss. The tank deaths came after the wipes were
+already decided.
+"""
+
+[[plant]]
 case = "night-healing-cooldowns"
 kind = "wrong"
 item = "the healing cooldowns are well spread over every spike"

@@ -108,7 +108,7 @@ views.meter = (() => {
     const deaths = m.bars.some((b) => b.died_after || b.killed_by);
     const note = m.note && (picture || full || !deaths) ? `<div class="note">${deaths ? SKULL : ""}${kit.esc(m.note)}</div>` : "";
     return `<section data-panel class="meter">${kit.card({
-      title, sub: m.scope, icon: kit.iconImg(D.img_base, m.icon), headline: m.headline, stats: stats(m), chart: rows(m) + others + note,
+      title, sub: m.what ? `${m.what} · ${m.scope}` : m.scope, icon: kit.iconImg(D.img_base, m.icon), headline: m.headline, stats: stats(m), chart: rows(m) + others + note,
       // fullscreen has more only where the card left players out, or the hits per pull are under it
       open: first && (m.bars.length > INLINE || (m.pulls || []).length > 1 || D.meters.length > 1) ? "Open ranking" : "",
       buttons: first && D.by_pull ? [["meter-by-pull", "By pull"]] : [], url: first ? D.url : "" })}</section>`;

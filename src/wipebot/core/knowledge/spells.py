@@ -173,6 +173,12 @@ async def find_spell(spell: str) -> Spell:
     return await tooltip(int(match["id"]))
 
 
+async def spell_tip(spell_id: int) -> str:
+    """What a spell's Wowhead tooltip says under its name (range, cast time, what it does); '' when it has none."""
+    s = await tooltip(spell_id)
+    return s.text[len(s.name):].strip() if s.text.startswith(s.name) else s.text
+
+
 async def spell_text(spell: str) -> str:
     """spell_info's answer: what a spell does, by id or name."""
     s = await find_spell(spell)

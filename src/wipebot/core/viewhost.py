@@ -60,7 +60,8 @@ class Shot:
 async def tool_result(tool: str, args: dict) -> dict:
     """The tool's result as a host hands it to the page: run serving many users, as remote.py runs it, with the
     view's key a client that shows apps gets, for the tools that give one there (SHOWN) and no other. Only for this
-    call: the in-process tools are left as they were."""
+    call: the in-process tools are left as they were. A card that always comes folded (server.ALWAYS_FOLDED) comes
+    open here, where it is what one looks at."""
     was = server.DEFAULT.remote
     server.DEFAULT.remote = was or server.Remote(guilds=list, user_name=str)
     try:
@@ -71,6 +72,9 @@ async def tool_result(tool: str, args: dict) -> dict:
         raise ToolError(f"{tool} asked for input")
     if result.structured_content is None and tool in SHOWN:  # in-process no client says it shows apps: as served
         result.structured_content = await server.view_key(tool, args)
+    key = result.structured_content
+    if key and key.get("view") in server.ALWAYS_FOLDED:  # the card itself: the line that opens it is the page's test
+        result.structured_content = {k: v for k, v in key.items() if k not in ("folded", "label")}
     return result.model_dump(by_alias=True, exclude_none=True, mode="json")
 
 

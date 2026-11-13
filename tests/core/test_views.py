@@ -827,7 +827,7 @@ async def test_breakdown_gives_a_views_key_only_for_a_ranking_or_a_trend(recorde
     """breakdown and mechanic_hits carry a key only on the calls that rank players or state an amount pull by pull,
     and only for a client that shows MCP Apps: every other call is its text alone, and the page draws nothing."""
     monkeypatch.setattr(server, "_supports_apps", lambda ctx: True)
-    monkeypatch.setattr(server, "_last_ranking", {})
+    monkeypatch.setattr(server, "_last_card", {})
 
     async def key_of(case: str) -> dict | None:
         result = await server.mcp.call_tool(CASES[case].tool, CASES[case].args)
@@ -895,20 +895,27 @@ async def test_an_ability_given_by_its_id_as_a_number_is_drawn_as_its_tool_ranke
         assert page.structured_content[held] == named.structured_content[held], view
 
 
-def test_only_the_first_ranking_of_an_answer_comes_open():
-    """A host draws a card for every call of a tool with a view, and an answer ranks several things: the first
-    ranking or trend handed to a user comes open, the ones within a minute of the last folded (one line that opens),
-    and a minute later the next is open again. The other views are never folded."""
-    server._last_ranking.clear()
+def test_only_the_first_card_of_an_answer_comes_open():
+    """A host draws a card for every call of a tool with a view, and an answer looks at several things: the first
+    card handed to a user comes open, the ones within a minute of the last folded (one line that opens, saying what
+    it is), and a minute later the next is open again. The replay always comes folded."""
+    server._last_card.clear()
     try:
         meter, trend = {"view": "meter", "label": "Healing"}, {"view": "trend", "label": "Healing by pull"}
         assert server._fold(dict(meter), now=100.0) == meter
         assert server._fold(dict(trend), now=130.0) == trend | {"folded": True}
         assert server._fold(dict(meter), now=185.0) == meter | {"folded": True}  # a minute from the last, not the first
         assert server._fold(dict(meter), now=185.0 + server.FOLD_S) == meter
-        assert server._fold({"view": "pull"}, now=186.0 + server.FOLD_S) == {"view": "pull"}
+        pull = {"view": "pull", "boss": "Sszorak", "pull": 13}
+        folded = pull | {"folded": True, "label": "Sszorak pull 13"}
+        assert server._fold(dict(pull), now=186.0 + server.FOLD_S) == folded
+        assert server._fold(dict(pull), now=500.0) == pull
+        # the replay is a line even as an answer's first card
+        replay = {"view": "replay", "boss": "Sszorak", "pull": 13, "at_ms": 49_000}
+        assert server._fold(dict(replay), now=900.0) == replay | {
+            "folded": True, "label": "Sszorak pull 13: the map at 0:49"}
     finally:
-        server._last_ranking.clear()
+        server._last_card.clear()
 
 
 # ---- the raid note against every pull on a boss: kicks and planned cooldowns pull by pull, in the bot only ----
@@ -3490,6 +3497,23 @@ async def test_a_call_without_a_view_takes_no_room_in_a_host_that_names_no_tool_
             await page.frames[-1].locator(drawn_as).first.wait_for()
             assert await page.evaluate(frame) > 300 and not errors
             await page.close()
+
+
+async def test_the_replay_comes_as_one_line_that_opens_it(recorded):
+    """pull_map's replay comes folded (server._fold: always), saying which pull and moment it is of; Show opens the
+    room to play."""
+    from wipebot.core import server, viewhost
+    case = CASES["pull-map"]
+    result = await viewhost.tool_result(case.tool, case.args)
+    result["structuredContent"] = server._fold(result["structuredContent"])
+    assert result["structuredContent"]["folded"] is True
+    async with drawn(case.tool, case.args, result=result) as (view, errors):
+        assert (await view.locator(".folded").inner_text()).endswith("\nShow")
+        assert ": the map at " in await view.locator(".folded .what").inner_text()
+        assert await view.evaluate(TALL) <= 56 and await view.locator("#rp-map").count() == 0
+        await view.get_by_role("button", name="Show").click()
+        await view.locator("#rp-map").wait_for()
+        assert await view.locator(".folded").count() == 0 and not errors
 
 
 async def test_a_later_ranking_of_an_answer_is_one_line_that_opens(recorded):

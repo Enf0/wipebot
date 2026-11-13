@@ -98,6 +98,7 @@ from .report.base import (
     link_fights,
     read_as,
 )
+from .text import clock as m_ss
 from .text import day, name_key, plural
 from .wcl import WCLError
 
@@ -735,7 +736,8 @@ async def mechanic_hits(ability: Annotated[str | None, Field(description=(
         text = await mechanics.against(rep, await lib().report(against), ability, boss, whole_pull, start, end)
     else:
         text = await mechanics.mechanic_hits(rep, ability, pull, boss, all_pulls, whole_pull, start, end,
-                                             jobs=await _jobs(rep, pull, boss, all_pulls))
+                                             jobs=await _jobs(rep, pull, boss, all_pulls)
+                                             + _spots(rep, pull, boss))
     return await _shown("mechanic_hits", _given(ability=ability, pull=pull, boss=boss, all_pulls=all_pulls,
                                                 whole_pull=whole_pull, start=start, end=end, against=against,
                                                 report=report), text, ctx)
@@ -784,9 +786,9 @@ async def pull_map(pull: Pull = None, boss: Boss = None,
     if not serving_many:
         return CallToolResult(content=content)
     f = rep.fight(pull, boss)
-    return CallToolResult(content=content, structured_content={
+    return CallToolResult(content=content, structured_content=_fold({
         "view": "replay", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
-        "at_ms": round(ans.at_ms), "players": players or []})
+        "at_ms": round(ans.at_ms), "players": players or []}))
 
 
 async def _plan_map(rep: Report, pull: PullRef, boss: str | None, at: str | None, players: list[str] | None,
@@ -804,9 +806,9 @@ async def _plan_map(rep: Report, pull: PullRef, boss: str | None, at: str | None
     if not serving_many or ans.fight is None or ans.overlay is None:
         return CallToolResult(content=content)
     f = ans.fight
-    return CallToolResult(content=content, structured_content={
+    return CallToolResult(content=content, structured_content=_fold({
         "view": "replay", "report": rep.code, "pull": rep.pull_no(f), "boss": rep.boss_key(f),
-        "at_ms": ans.overlay["at_ms"], "players": players or [], "plan": ans.overlay["moments"]})
+        "at_ms": ans.overlay["at_ms"], "players": players or [], "plan": ans.overlay["moments"]}))
 
 
 def _supports_apps(ctx: Context) -> bool:
@@ -938,30 +940,56 @@ def _given(**args) -> dict:
     return {k: v for k, v in args.items() if v is not None and v is not False}
 
 
-FOLDED = ("meter", "trend")  # the views of tools that are called several times in one answer
-FOLD_S = 60  # a ranking or trend handed to the same user this soon after their last one comes folded
-_last_ranking: dict[str | None, float] = {}  # a signed-in user (the token's subject) -> when they were handed one
+# The replay comes folded even as an answer's first card: its tool's text says who stood where, and a room to play
+# takes over a phone's screen, so the user opens it when they want it (a raider's ask, November 2026)
+ALWAYS_FOLDED = ("replay",)
+FOLD_S = 60  # a card handed to the same user this soon after their last one comes folded
+_last_card: dict[str | None, float] = {}  # a signed-in user (the token's subject) -> when they were handed one
 
 
 def _fold(key: dict, now: float | None = None) -> dict:
-    """A ranking's or a trend's key, marked `folded` when the same user was handed one less than FOLD_S ago. A host
-    draws a card for every call of a tool with a view and gives the cards nothing to share, so an answer that ranks
-    three things would stack three: the first handed comes open (of calls made together the first answered, which
-    need not be the first asked), the later ones as one line that opens on a click (app/main.js). Calls a minute
-    apart are another question's; a host says nothing of which answer a call is for, so a question asked within
-    the minute gets its ranking as a line too."""
-    if key.get("view") not in FOLDED:
-        return key
+    """A view's key, marked `folded` when the same user was handed a card less than FOLD_S ago, with what the folded
+    card says it is (`label`). A host draws a card for every call of a tool with a view and gives the cards nothing
+    to share, so an answer that looks at three things would stack three cards over its text: the first handed comes
+    open (of calls made together the first answered, which need not be the first asked), the later ones as one line
+    that opens on a click (app/main.js). Calls a minute apart are another question's; a host says nothing of which
+    answer a call is for, so a question asked within the minute gets its card as a line too. The replay is always
+    a line (ALWAYS_FOLDED)."""
     from mcp.server.auth.middleware.auth_context import get_access_token
 
     token = get_access_token()
     who = token.subject if token else None
     now = time.monotonic() if now is None else now
-    for user in [u for u, at in _last_ranking.items() if now - at >= FOLD_S]:
-        del _last_ranking[user]
-    folded = who in _last_ranking
-    _last_ranking[who] = now
-    return key | {"folded": True} if folded else key
+    for user in [u for u, at in _last_card.items() if now - at >= FOLD_S]:
+        del _last_card[user]
+    folded = who in _last_card or key.get("view") in ALWAYS_FOLDED
+    _last_card[who] = now
+    return key | {"folded": True, "label": key.get("label") or _card_label(key)} if folded else key
+
+
+def _card_label(key: dict) -> str:
+    """What a folded card says it is, from its key: the view in a few words, and the pull or the player it is of."""
+    pull = f"{key.get('boss')} pull {key['pull']}" if key.get("pull") is not None else str(key.get("boss") or "")
+    player = key.get("player")
+    match key.get("view"):
+        case "replay":
+            return f"{pull}: the map at {m_ss(key.get('at_ms') or 0)}"
+        case "player":
+            return f"{player} on {pull}"
+        case "death":
+            return f"{player}'s death on {pull}"
+        case "player_night":
+            return f"{player}'s night on {pull}"
+        case "night":
+            return f"The night on {pull}"
+        case "note":
+            return f"The raid note on {pull}"
+        case "mana":
+            return f"The healers' mana on {pull}"
+        case "versus":
+            return "Two players side by side"
+        case _:
+            return pull or "A card"
 
 
 async def view_data(view: Annotated[str, Field(description="which view: pull, player, player_night, death, night, "
@@ -1037,19 +1065,26 @@ DEATHS_NIGHT_POINTS = 35  # player_history's deaths: a night read cold (7 nights
 
 @_tool
 async def tank_swaps(pull: Pull = None, boss: Boss = None,
+                     all_pulls: Annotated[bool, Field(description=(
+                         "every pull on the boss: only the swaps that went wrong, pull by pull and per tank, for "
+                         "\"which pulls had a bad swap?\", \"who taunts late?\""))] = False,
                      taunts: Annotated[bool, Field(description=(
                          "also the spells each tank has taken a boss's aggro with on the guild's recent raid nights: "
                          "only for whether a spell taunts or what a tank could have taunted with; slow (reads "
                          "every night, about 500 Warcraft Logs points)"))] = False,
                      report: Report_ = None) -> str:
-    """For "did the tanks swap?", "why did a tank die?".
+    """For "did the tanks swap?", "why did a tank die?", "who taunted wrong tonight?".
     Tank swaps on one pull: who had the boss's aggro when and what took it (usually a taunt), each tank's
     stacks of the boss's debuffs over time (one stint per application), and tank deaths. With `taunts`, also the
     spells each tank has taken a boss's aggro with on the guild's recent raid nights: what their kit can taunt
-    with, as the log shows it.
+    with, as the log shows it. With `all_pulls`, every pull on the boss until its wipe was decided instead: each time
+    a swap debuff went past 1 stack on the tank holding the boss, who took the boss next and when, that tank's
+    death at it, and how often per tank.
     Reading it: it shows when each tank taunted and their stacks then, not the swap plan (the stacks to swap at,
     whose call it is); the raid note (raid_note) holds that."""
     rep = await lib().report(report)
+    if all_pulls:
+        return await tanks.swaps_night(rep, boss)
     text = await tanks.tank_swaps(rep, pull, boss)
     names = [p.name for p in tanks.pull_tanks(rep, rep.fight(pull, boss))]
     if not (taunts and names):
@@ -1151,6 +1186,19 @@ async def _jobs(rep: Report, pull: PullRef, boss: str | None, all_pulls: bool = 
                 f"raid_note shows it as written, not checked against the log. And {NOT_AN_ASSIGNMENT}.")
     return (f"Whose kick it was isn't in the log, and {rep.guild_name}'s raid note saved for {night} assigns none "
             f"(no callout to one player as an add begins a cast, and no interrupt order); {NOT_AN_ASSIGNMENT}.")
+
+
+def _spots(rep: Report, pull: PullRef, boss: str | None) -> str:
+    """What a tool says after who was hit, of where they were meant to stand: whether the guild saved a raid plan for
+    the boss, which raid_plan checks each player's spot against. '' where the guild's plans can't be read."""
+    if not rep.guild_id or not _a_member(rep.guild_id):
+        return ""
+    f = rep.fight(pull, boss)
+    if saved_plans(notebook.Notebook(readonly=True), rep.guild_id, rep, f):
+        return (f" Where each was meant to stand is in the raid plan {rep.guild_name} saved for {rep.boss_key(f)}: "
+                "raid_plan checks where they stood against its spots.")
+    return (f" Nor where each was meant to stand: {rep.guild_name} has no raid plan saved for {rep.boss_key(f)} "
+            "(raid_plan checks spots against one).")
 
 
 # Said with every "no note or plan": what the model is tempted to put in its place.

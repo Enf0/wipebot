@@ -29,5 +29,6 @@ Battle res: 1 charge at the pull and 1 more every 3:54 (the raid's 90 min over i
 Taken: 0:32 Intercession by Cptola on Sveini (0 left, the next at 3:54); 4:22 Rebirth by Scopidruid on Algmor (0 left, none more before the pull's end). Cast but not taken (they did nothing after it; it spent no charge): 4:21 Intercession by Nalaxd on Pwnpíe.
 Could cast one, by class (an engineer's item shows only once used): Biblethump (Death Knight) · Attractîv, Scopidruid (Druid) · Agonco, Cptola, Karadim, Nalaxd, Providence (Paladin) · Peggerino, Sveini (Warlock).
 A charge was ready at 1 of the 18 deaths above (with how many of those who could cast one were alive): 0:23 Sveini (9), back at 0:32. Whom a charge was kept for isn't in the log.
+From 6:57 the raid had 3 dead and no battle res possible (no charge: 0 left, none more before the pull's end), 0:23 before the last death above.
 The boss gained Soulbound at 7:08, when Hex Lord Malacrass died, and kept it to the end; 5 players had died before that. A buff gained as another boss dies comes with killing that boss, not from a timer: look it up before calling it an enrage.
 Pull ended at 7:29 with the boss at 0.8% health in P3 (the wipe at 0.3%, phases weighed in).

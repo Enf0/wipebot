@@ -46,7 +46,7 @@ async def tank_swaps(rep: Report, pull: PullRef = None, boss: str | None = None)
     return "\n".join([*lines, *_over_one(every, aggro, t0), SWAPS_NOT_LOGGED])
 
 
-async def _stints(rep: Report, f: dict, tanks: list[Player]
+async def _stints(rep: Report, f: dict, tanks: list[Player], casts: bool = True
                   ) -> tuple[list[tuple[float, str, str, str]], dict[str, dict[str, list[list]]]]:
     """The boss's aggro in order, and per tank each debuff the boss put on them as stints ([start, peak stack, peak
     time, end], ms into the pull): what tank_swaps prints and _over_one reads."""
@@ -55,7 +55,7 @@ async def _stints(rep: Report, f: dict, tanks: list[Player]
     aggro, debuffs, _ = await asyncio.gather(
         _aggro(rep, f), rep.events_for([(f["id"], {"sourceID": p.id}) for p in tanks], "Debuffs",
                                        hostilityType="Friendlies"),
-        asyncio.gather(*(rep.casts(f, p) for p in tanks)))  # for _taunts
+        asyncio.gather(*(rep.casts(f, p) for p in tanks if casts)))  # for _taunts
     every: dict[str, dict[str, list[list]]] = {}  # tank -> debuff -> stints, for _over_one
     for p, events in zip(tanks, debuffs, strict=True):
         stints: dict[str, list[list]] = defaultdict(list)  # debuff -> [start, peak stack, peak time, end]
@@ -84,6 +84,134 @@ async def _stints(rep: Report, f: dict, tanks: list[Player]
         # A stack change or removal with no application seen first leaves an empty entry: nothing to show.
         every[p.name] = {name: runs for name, runs in stints.items() if runs}
     return aggro, every
+
+
+ON_HOLDER = 0.8  # a swap debuff lands on the tank holding the boss: this share of its applications over a night
+
+
+def _night_swaps(fights: list[dict], read: dict[int, tuple[list, dict[str, dict[str, list[list]]]]]) -> set[str]:
+    """The swap debuffs of a night's pulls (`read`: each pull's aggro and stints): _swap_debuffs by every pull's
+    stints, and of those the ones the boss puts on whoever holds it. One that lands on a tank either way is the
+    raid's."""
+    swaps = _swap_debuffs([every for _, every in read.values()])
+    landed: dict[str, list[bool]] = defaultdict(list)
+    for f in fights:
+        aggro, every = read[f["id"]]
+        for tank, stints in every.items():
+            for name, runs in stints.items():
+                for start, *_ in runs if name in swaps else ():
+                    held = [who for at, who, _, _ in aggro if at - f["startTime"] <= start]
+                    landed[name].append(bool(held) and held[-1] == tank)
+    return {name for name in swaps if sum(landed[name]) >= ON_HOLDER * len(landed[name])}
+
+
+async def swaps_night(rep: Report, boss: str | None = None) -> str:
+    """Tank swaps over every pull on a boss, each until its wipe was decided: the swap debuffs that went past 1 stack
+    while that tank held the boss (_late_swaps), pull by pull, with who took the boss next and that tank's death at
+    it, then how often per tank; and the bosses without their tank (_loose). The pulls' threat and the tanks' debuffs
+    come in one query each."""
+    pulls = rep.by_boss[rep.boss(boss)]
+    fights, left_out = rep.attempts(pulls)
+    tanks = {f["id"]: pull_tanks(rep, f) for f in fights}
+    if not any(tanks.values()):
+        return f"No tanks in the {fights[0]['name']} pulls."
+    cut = await rep.decided_cuts(fights)
+    await rep.tables([(f["id"], {}) for f in fights], "Threat")
+    await rep.events_for([(f["id"], {"sourceID": p.id}) for f in fights for p in tanks[f["id"]]], "Debuffs",
+                         hostilityType="Friendlies")
+    read = {f["id"]: await _stints(rep, f, tanks[f["id"]], casts=False) for f in fights}
+    swaps = _night_swaps(fights, read)
+    rows, deaths_with = [], []
+    times: dict[str, list[int]] = defaultdict(list)  # tank -> the pulls it happened in, once each time
+    tanked: Counter = Counter()
+    debuffs: set[str] = set()
+    for f in fights:
+        t0, until = f["startTime"], cut.get(f["id"], f["endTime"]) - f["startTime"]
+        names = {p.name for p in tanks[f["id"]]}
+        tanked.update(names)
+        aggro, every = read[f["id"]]
+        late = [x for x in _late_swaps(every, aggro, t0, swaps) if x[0] <= until]
+        if not late:
+            continue
+        died = [(d["timestamp"] - t0, d) for d in await rep.deaths(f)]
+        parts = []
+        for peak_at, tank, name, peak, since, after in late:
+            debuffs.add(name)
+            times[tank].append(rep.pull_no(f))
+            took = "nobody took it after"
+            if after:
+                took = f"{after[1]}{'' if after[1] in names else ', no tank,'} took it at {clock(after[0])}"
+            text = f"{tank} {_late_text(name, peak, peak_at, since)}; {took})"
+            fell = next(((at, d) for at, d in died if rep.names.get(d["targetID"]) == tank
+                         and peak_at <= at <= peak_at + TANK_DEATH_MS), None)
+            if fell:
+                text += f", and died at {clock(fell[0])} to {rep.ability_ref(fell[1].get('killingAbilityGameID'))}"
+                deaths_with.append(f"pull {rep.pull_no(f)} {tank}")
+            parts.append(text)
+        rows.append(f"  pull {rep.pull_no(f)}: " + "; ".join(parts))
+    lines = [f"Tank swaps over all {plural(len(fights), fights[0]['name'] + ' pull')}{left_out}, each until its wipe "
+             "was decided (the boss's enrage or half the raid dead; tank_swaps with a pull has that pull whole, every "
+             "stint and taunt)."]
+    if rows:
+        lines += [f"Swap debuffs past 1 stack while that tank held the boss ({', '.join(sorted(debuffs))}: most of "
+                  "their stints over these pulls end at 1, and they land on the tank holding the boss), pull by "
+                  "pull: the tank, the stacks and when, since when they held the boss, who took the boss next, and "
+                  f"that tank's death within {TANK_DEATH_MS // 1000} s of it:", *rows]
+        per_tank = []
+        for tank, ps in sorted(times.items(), key=lambda kv: -len(kv[1])):
+            where = sorted(set(ps))
+            per_tank.append(f"{tank} {len(ps)} in {plural(len(where), 'pull')} of the {tanked[tank]} they tanked "
+                            f"(pull{'s' * (len(where) != 1)} {', '.join(map(str, where))})")
+        lines.append("Per tank, how often it went past 1 on them: " + "; ".join(per_tank))
+        lines.append("Tank deaths with it: " + (", ".join(deaths_with) if deaths_with else "none")
+                     + f". In the other {plural(len(fights) - len(rows), 'pull')} no swap debuff went past 1 while "
+                     "its tank held the boss.")
+    else:
+        lines.append("In none of them did a swap debuff go past 1 stack while its tank held the boss (a swap debuff: "
+                     "one most of whose stints over these pulls end at 1, and that lands on the tank holding the "
+                     "boss; tanks who swap at more stacks, or hold a boss each, show none here).")
+    loose = [row for f in fights if (row := await _loose(rep, f, read[f["id"]][0], tanks[f["id"]],
+                                                         cut.get(f["id"], f["endTime"]) - f["startTime"]))]
+    if loose:
+        lines += ["A boss without its tank, pull by pull: a tank's death while they held a boss (what killed them, "
+                  "since when they held it) and a boss taken by a player who is no tank after the pull's first "
+                  "seconds (until whom a tank took it back):", *loose]
+    else:
+        lines.append("No tank died holding a boss, and no player who is no tank took one.")
+    return "\n".join([*lines, SWAPS_NOT_LOGGED])
+
+
+OPENING_MS = 10_000  # a boss on a player who is no tank this early is the pull's opening, not a boss gone loose
+
+
+async def _loose(rep: Report, f: dict, aggro: list[tuple[float, str, str, str]], tanks: list[Player],
+                 until: float) -> str | None:
+    """A pull's row of bosses without their tank until `until` (ms into the pull): each tank's death while a boss's
+    last aggro was theirs, and each time a player who is no tank took a boss after OPENING_MS. None with neither."""
+    t0, names = f["startTime"], {p.name for p in tanks}
+    several = len({boss for *_, boss in aggro}) > 1
+    events = [(at - t0, who, boss) for at, who, _, boss in aggro]
+
+    def holds(tank: str, at: float) -> list[tuple[str, float]]:
+        last: dict[str, tuple[str, float]] = {}
+        for when, who, boss in events:
+            if when <= at:
+                last[boss] = (who, when)
+        return [(boss, when) for boss, (who, when) in last.items() if who == tank]
+    parts = []
+    for d in await rep.deaths(f):
+        at, tank = d["timestamp"] - t0, rep.names.get(d["targetID"])
+        if at <= until and tank in names and (held := holds(tank, at)):
+            what = " and ".join(f"{boss if several else 'the boss'} since {clock(when)}" for boss, when in held)
+            parts.append((at, f"{tank} died at {clock(at)} to {rep.ability_ref(d.get('killingAbilityGameID'))} "
+                              f"(held {what})"))
+    for n, (at, who, boss) in enumerate(events):
+        if who in names or at < OPENING_MS or at > until:
+            continue
+        back = next(((when, tank) for when, tank, b in events[n + 1:] if b == boss and tank in names), None)
+        parts.append((at, f"{who}, no tank, took {boss if several else 'the boss'} at {clock(at)} "
+                          + (f"(until {back[1]} at {clock(back[0])})" if back else "(no tank took it back)")))
+    return f"  pull {rep.pull_no(f)}: " + "; ".join(text for _, text in sorted(parts)) if parts else None
 
 
 TANK_DEATH_MS = 3000  # a swap debuff's peak this close before a tank's death is the stack they died at
@@ -123,20 +251,32 @@ async def tank_deaths_line(rep: Report, f: dict, until_ms: float | None) -> str 
             "has the pull's swaps.")
 
 
+def _swap_debuffs(pulls: list[dict[str, dict[str, list[list]]]]) -> set[str]:
+    """The swap debuffs among the tanks' debuffs of one pull or several (each pull's stints per tank): one most of
+    whose stints peak at 1 (the other tank takes the boss before a second), and that doesn't come on two tanks at
+    once, as one on the raid does: never in one pull; over several, where there is more to tell by, in under a
+    quarter of its stints (two tanks hit by one cleave once is no raid debuff)."""
+    peaks, both = defaultdict(list), Counter()
+    for every in pulls:
+        starts = defaultdict(list)
+        for tank, stints in every.items():
+            for name, runs in stints.items():
+                peaks[name] += [peak for _, peak, _, _ in runs]
+                starts[name] += [(start, tank) for start, *_ in runs]
+        for name, ss in starts.items():
+            both[name] += sum(any(a != b and abs(x - y) <= 2000 for y, b in ss) for x, a in ss)
+    most = 0 if len(pulls) == 1 else 0.25
+    return {name for name, ps in peaks.items() if 2 * ps.count(1) > len(ps) and both[name] <= most * len(ps)}
+
+
 def _late_swaps(every: dict[str, dict[str, list[list]]], aggro: list[tuple[float, str, str, str]],
-                t0: float) -> list[tuple[float, str, str, int, float, tuple[float, str] | None]]:
-    """A swap debuff (one most of its stints on the tanks peak at 1: the other tank takes the boss before a second;
-    and never on two tanks at once, as one on the raid is) that went past 1 while the tank it was on held the boss:
-    when it peaked, on whom, the debuff, its stacks, since when they had the boss, and when who took over (None:
-    nobody)."""
-    peaks, starts = defaultdict(list), defaultdict(list)
-    for tank, stints in every.items():
-        for name, runs in stints.items():
-            peaks[name] += [peak for _, peak, _, _ in runs]
-            starts[name] += [(start, tank) for start, *_ in runs]
-    together = {name for name, ss in starts.items()
-                if any(a != b and abs(x - y) <= 2000 for x, a in ss for y, b in ss)}
-    swaps = {name for name, ps in peaks.items() if 2 * ps.count(1) > len(ps) and name not in together}
+                t0: float, swaps: set[str] | None = None
+                ) -> list[tuple[float, str, str, int, float, tuple[float, str] | None]]:
+    """A swap debuff (`swaps`, else _swap_debuffs of this pull alone) that went past 1 while the tank it was on held
+    the boss: when it peaked, on whom, the debuff, its stacks, since when they had the boss, and when who took over
+    (None: nobody)."""
+    if swaps is None:
+        swaps = _swap_debuffs([every])
     found = []
     for tank, stints in every.items():
         for name, runs in stints.items():

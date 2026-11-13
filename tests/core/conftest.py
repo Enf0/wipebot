@@ -47,7 +47,7 @@ async def rep(night, fake_knowledge) -> Report:
     """The captured night as a loaded Report (FakeWCL: everyone a Restoration Shaman, Lorrgs listing RESTO_SPELLS and
     no boss casts)."""
     fake_knowledge(spec_spells=RESTO_SPELLS, lust_debuffs=[57723], boss_spells=[], pvp_talent=False,
-                   battle_res_classes={"Druid": "Rebirth", "DeathKnight": "Raise Ally"})
+                   battle_res_classes={"Druid": "Rebirth", "DeathKnight": "Raise Ally"}, spell_tip="")
     r = Report(FakeWCL(night).client(), CODE)
     await r.load()
     return r

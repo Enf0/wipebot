@@ -43,6 +43,8 @@ mechanic-outliers = { tool = "mechanic_hits", report = "KBYT4xXn7VNjDgh8", pull 
 tank-swaps = { tool = "tank_swaps", report = "KBYT4xXn7VNjDgh8", pull = 14 }
 # what each tank took a boss with over the guild's nights: Death Grip taunts too
 tank-swaps-taunts = { tool = "tank_swaps", report = "KBYT4xXn7VNjDgh8", pull = 14, taunts = true }
+tank-swaps-night = { tool = "tank_swaps", report = "KBYT4xXn7VNjDgh8", boss = "Sszorak", all_pulls = true }
+vashnik-tank-swaps-night = { tool = "tank_swaps", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", all_pulls = true }
 vashnik-tank-swaps = { tool = "tank_swaps", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", pull = 16 }
 # the night's own kill, later in the report
 compare-with-kill = { tool = "compare_pulls", local = true, report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", pull = 16 }

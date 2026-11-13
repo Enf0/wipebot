@@ -24,4 +24,5 @@ Battle res: 1 charge at the pull and 1 more every 4:30 (the raid's 90 min over i
 Taken: 3:53 Soulstone Resurrection by Peggerino on Martin (0 left, the next at 4:30); 4:34 Soulstone Resurrection by Peggerino on Attractîv (0 left, none more before the pull's end).
 Could cast one, by class (an engineer's item shows only once used): Deathadim, Nexsozz (Death Knight) · Attractîv (Druid) · Agonco, Providence (Paladin) · Peggerino (Warlock).
 A charge was ready at 2 of the 12 deaths above (with how many of those who could cast one were alive): 3:48 Martin (6), back at 3:53 · 3:48 Attractîv (5), back at 4:34. Whom a charge was kept for isn't in the log.
+From 5:13 the raid had 3 dead and no battle res possible (no charge: 0 left, none more before the pull's end), 1:14 before the last death above.
 Pull ended at 6:41 with the boss at 9.4% health.

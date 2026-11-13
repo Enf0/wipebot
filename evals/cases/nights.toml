@@ -18,6 +18,19 @@ wrong = ["names the Mutilate soak, rather than the missed Serpent's Fury stacks,
          "the second Serpent's Fury pop is too early, stated as fact rather than a possibility"]
 
 [[case]]
+id = "night-bad-tank-swaps"  # a raider's own question (November 2026): which pull had the bad taunt, without digging
+tools = ["boss_guide", "tank_swaps"]
+question = "Which Sszorak pulls had a bad tank swap tonight?"
+expect = """Pulls 14 and 29: Wutroll died to Ravage with 2 stacks of it while still holding the boss, at 1:03 and 1:07.
+Ravage also reached 2 stacks on Deathadim in pulls 27 and 31, without a death. Saying the log doesn't show whose
+taunt it was, or what the tanks agreed, is right."""
+facts = ["in pull 14 Deathadim took the boss at 1:05, two seconds after Wutroll died",
+         "in pull 29 a player who is no tank (Pomaa) had the boss next, at 1:13",
+         "Ravage stays at 1 stack on the tanks in the other 28 pulls"]
+wrong = ["says no pull had a bad swap, or that the log can't show swaps",
+         "blames one tank's late taunt as a fact (the log doesn't show whose taunt it was)"]
+
+[[case]]
 id = "night-healing-cooldowns"  # from the raiders' own question (answer #265)
 tools = ["boss_guide", "healing"]
 question = "When do we take the most damage on Sszorak, and are our healing cooldowns in the right place?"

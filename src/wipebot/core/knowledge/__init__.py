@@ -37,6 +37,7 @@ from .spells import (
     spell_icon,
     spell_name,
     spell_text,
+    spell_tip,
 )
 from .talents import (
     build_hero,
@@ -62,7 +63,8 @@ __all__ = [
     "names_boss", "pvp_talent", "raids", "read_text", "search_text",
     "spaced",
     "spec_cooldowns_text", "spec_guide_text", "spec_spells", "spell_cooldown", "spell_name",
-    "spell_text", "talent_names", "talent_parts", "talent_trees", "tree_for", "tree_spells", "untaken_spells",
+    "spell_text", "spell_tip", "talent_names", "talent_parts", "talent_trees", "tree_for", "tree_spells",
+    "untaken_spells",
     "versions_difference",
     "wcl_image", "worn_item",
 ]

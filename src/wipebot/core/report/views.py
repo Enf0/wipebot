@@ -1044,7 +1044,8 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
     def one(m: Meter, said: Stated) -> dict:
         median = statistics.median(b.value for b in m.bars)
         return {"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 3),
-                "icon": icon(m.ability), "note": m.note, "others": m.others, "headline": meter_headline(m, said),
+                "icon": icon(m.ability), "note": m.note, "what": m.what, "others": m.others,
+                "headline": meter_headline(m, said),
                 # the heading's own: "(0:10 of combat; total 14.83M, 1.48M/s)"; of a kind of add, what it "took",
                 # which enemies states with no rate and no time
                 "stated": {"total": short(said.total), "over": clock(m.seconds * 1000) if m.seconds else "",

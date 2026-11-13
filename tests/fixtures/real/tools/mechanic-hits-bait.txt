@@ -48,4 +48,4 @@ Serpent's Fury went on Martin 57 of 98 times; each time it went on someone else 
   Sszorak pull 25 1:52: Nexsozz, kept 15 s; Martin dead since 1:48
   Sszorak pull 27 0:42: Miralupa, kept 1 s; Martin dead since 0:42
   and 11 more
-Whose job it was (a soak, a kick, a spot) isn't in the log, and The Dragonfell Tribe has no raid note saved for Sszorak that night; who did it on other pulls isn't an assignment (raids swap spots and keep reserves).
+Whose job it was (a soak, a kick, a spot) isn't in the log, and The Dragonfell Tribe has no raid note saved for Sszorak that night; who did it on other pulls isn't an assignment (raids swap spots and keep reserves). Nor where each was meant to stand: The Dragonfell Tribe has no raid plan saved for Sszorak (raid_plan checks spots against one).

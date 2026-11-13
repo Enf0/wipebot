@@ -6,6 +6,8 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 
+from .. import knowledge
+from ..knowledge import KnowledgeError
 from ..pulls import attempt
 from ..text import clock, day, ordinal, plural, short
 from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, dead_since, pull_window
@@ -31,6 +33,7 @@ class Hits:
     damage: Counter = field(default_factory=Counter)
     died_after: Counter = field(default_factory=Counter)  # deaths, of any cause, with a hit from it just before
     killed_by: Counter = field(default_factory=Counter)  # deaths where it was the killing blow
+    sources: Counter = field(default_factory=Counter)  # the enemies its hits came from (actor ids): hits each
     debuffs: Counter = field(default_factory=Counter)
     # A hit while the debuff from an earlier hit is still up: how long after the hit before it, per player
     rehit_gaps: dict[int, list[float]] = field(default_factory=lambda: defaultdict(list))
@@ -86,6 +89,8 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
              f"stacks), deaths of any cause within {HIT_THEN_DEATH_MS // 1000} s after a hit or tick, deaths with "
              f"{name} itself as the killing blow (what it leaves behind, a spawn or a debuff that kills later, "
              "counts under that ability's name)" + ("" if pulse else again) + ":"]
+    if what := await what_it_is(rep, h):
+        lines.insert(1, what)
     ranked = _ranked(rep, h, there)
     lines += [_player_line(rep, h, who, (there[1][rep.names[who]], rate) if there else None, not pulse)
               for who, rate in ranked[:PLAYERS_LISTED]]
@@ -102,6 +107,35 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
     if all_pulls:
         lines.append(_per_pull(rep, fights, h))
     return "\n".join(lines + await _applications(rep, fights, h, _counting(fights, cut, window), name) + [jobs])
+
+
+SOURCES_NAMED = 3  # the enemies an ability's hits came from that are named, most hits first
+
+
+def cast_by(rep: Report, h: Hits) -> str:
+    """'Blightscale Wretch (an add)': the enemies the ability's hits came from in the log, a boss marked from an add;
+    '' when the log names none."""
+    names: Counter = Counter()
+    for who, n in h.sources.items():
+        names[f"{rep.actor(who)} ({'the boss' if who in rep.bosses else 'an add'})"] += n
+    return ", ".join(name for name, _ in names.most_common(SOURCES_NAMED))
+
+
+async def what_it_is(rep: Report, h: Hits) -> str:
+    """One line on what the ability is, for a reader who knows the fight by its mechanics and not their names: the
+    enemies its hits came from in the log, and Wowhead's tooltip of it. '' with neither."""
+    by = cast_by(rep, h)
+    tip = ""
+    if h.ability_id:
+        try:
+            tip = await knowledge.spell_tip(h.ability_id)
+        except KnowledgeError:
+            pass
+    if not any(c.isalnum() for c in tip):
+        tip = ""
+    name = h.name or ""
+    parts = ([f"its hits came from {by}"] if by else []) + ([f"Wowhead's tooltip: {tip}"] if tip else [])
+    return f"What {name or 'it'} is: " + "; ".join(parts) if parts else ""
 
 
 def _ranked(rep: Report, h: Hits, there: tuple[dict[str, float], Counter, float] | None) -> list[tuple[int, float]]:
@@ -210,7 +244,7 @@ async def meter(rep: Report, ability: str, pull: PullRef = None, boss: str | Non
                        f"{sum(h.died_after.values())} of any cause within {HIT_THEN_DEATH_MS // 1000} s of a hit."),
                  others=sorted(n for pid, n in present.items() if pid not in who),
                  pulls=[rep.pull_no(f) for f in fights] if all_pulls else [],
-                 per_pull="debuffs" if by_debuff else "hits")
+                 per_pull="debuffs" if by_debuff else "hits", what=f"From {by}" if (by := cast_by(rep, h)) else "")
 
 
 @dataclass
@@ -427,6 +461,8 @@ async def _hits(rep: Report, fights: list[dict], ability_ids: list[int], counts:
                     all_hits[e["targetID"]].append((e["timestamp"], counts(e)))
                 if counts(e):
                     (out.ticks if e.get("tick") else out.hits)[e["targetID"]] += 1
+                    if e.get("sourceID") in rep.actors and e["sourceID"] not in rep.names:
+                        out.sources[e["sourceID"]] += 1
                     fight = e.get("fight", ids[0])
                     if e.get("tick"):
                         out.pull_ticks[fight] += 1

@@ -45,6 +45,7 @@ class Meter:
     seconds: float = 0  # combat time, for the amount per second; 0 for none
     ability: int | None = None  # the ability's id, for its icon
     note: str = ""  # a line under it, as the tool's text says it
+    what: str = ""  # a line over it on what is ranked: the enemies a mechanic's hits came from
     others: list[str] = field(default_factory=list)  # players in the pulls with no row (not hit, no kicks)
     pulls: list[int] = field(default_factory=list)  # over several pulls, their numbers, for each bar's `per_pull`
     per_pull: str = ""  # what `per_pull` counts: "hits", "debuffs"

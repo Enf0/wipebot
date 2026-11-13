@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **Tank swaps over a whole night.** "Which pulls had a bad tank swap?" and "who taunts late?" no longer need a guess at the pull: `tank_swaps` with every pull on the boss lists each time a swap debuff went past one stack on the tank holding the boss, who took the boss next and when, and the tank's death at it, then how often per tank. Under it, the bosses left without their tank: a tank who died holding one (or holding both of a pair), and a player who is no tank taking one. A night of 30 pulls takes about 12 seconds the first time and 3 after.
+- `Agent` **A mechanic's ranking says what the mechanic is.** `mechanic_hits` now opens with one line on the ability: which enemy its hits came from in the log, the boss or an add by name, and what Wowhead's tooltip says it does, for when you remember the soak and not its name. In Claude and ChatGPT the ranking's card names the enemy too. It also says whether your guild has a raid plan saved for the boss, so a question about who stood in the wrong place goes on to check spots against the plan, or says that it needs one.
+
+  ![The ranking of Axegrinder over a night on The Coiled Altar in Claude's dark theme: under the title, "From Axegrinder (an add), Zul'jan (the boss)", then who was hit most](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/meter-cast-by.webp)
+- `Agent` **A pull's summary says when the raid was three down with no battle res.** Raid leaders often call a wipe there, well before half the raid is dead. The summary now gives that moment when it came before the wipe was decided: "From 5:56 the raid had 3 dead and no battle res possible", with why (no charge left, or nobody alive who could cast one). What counts as fallout is unchanged.
+
+### Changed
+
+- `MCP` **Fewer pictures on top of an answer in Claude and ChatGPT.** Only the first card of an answer comes open; every card after it, of any kind, is one line that says what it is, with a Show button. Before, only rankings and trends did that, so an answer that looked at two pulls stacked two full cards over its text. The replay now always comes as that line, even first: the answer's text already says who stood where, and the room to play opens when you want it.
+
+  ![The line a replay comes as in Claude, "Sszorak pull 13: the map at 2:20" with a Show button, and under it the replay it opens](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/replay-folded.webp)
+
+### Fixed
+
+- `MCP` **The replay's markers no longer hop around in a stacked raid.** Markers that would cover each other were placed one by one on every frame, so in a stack each jumped between spots many times a second (about 13 to 24 jumps a second on a phone, measured on three pulls), which read as players teleporting. They are now pushed apart only as far as they overlap and glide there, and stay closer to where the player stood.
+
 ## [1.4.0] - 2026-11-13
 
 ### Added

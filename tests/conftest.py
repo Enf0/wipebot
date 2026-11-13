@@ -60,5 +60,12 @@ def _no_saved_notes(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _first_card(monkeypatch):
+    """Every test's first card comes open: no card handed in an earlier test folds it (server._fold)."""
+    from wipebot.core import server
+    monkeypatch.setattr(server, "_last_card", {})
+
+
+@pytest.fixture(autouse=True)
 def _offline(offline):
     """Every test runs offline."""

@@ -1,0 +1,31 @@
+Tank swaps over all 19 Vashnik the Malignant pulls, each until its wipe was decided (the boss's enrage or half the raid dead; tank_swaps with a pull has that pull whole, every stint and taunt).
+Swap debuffs past 1 stack while that tank held the boss (Dripping Fangs: most of their stints over these pulls end at 1, and they land on the tank holding the boss), pull by pull: the tank, the stacks and when, since when they held the boss, who took the boss next, and that tank's death within 3 s of it:
+  pull 1: Wutroll Dripping Fangs 2 at 1:06 (had the boss since 0:10; Deathadim took it at 1:06)
+  pull 2: Deathadim Dripping Fangs 2 at 0:39 (had the boss since 0:08; Wutroll took it at 0:39); Deathadim Dripping Fangs 2 at 2:03 (had the boss since 1:11; Gravecaller, no tank, took it at 2:10), and died at 2:04 to Dripping Fangs [1280934]
+  pull 3: Wutroll Dripping Fangs 2 at 1:06 (had the boss since 0:11; Deathadim took it at 1:07)
+  pull 7: Deathadim Dripping Fangs 2 at 3:27 (had the boss since 2:32; Wutroll took it at 3:32), and died at 3:28 to Melee [1]
+  pull 8: Wutroll Dripping Fangs 2 at 2:03 (had the boss since 1:59; Deathadim took it at 2:15)
+  pull 9: Deathadim Dripping Fangs 2 at 0:39 (had the boss since 0:00; Wutroll took it at 0:45); Deathadim Dripping Fangs 3 at 2:30 (had the boss since 2:02; Wutroll took it at 2:39)
+  pull 14: Deathadim Dripping Fangs 2 at 1:34 (had the boss since 0:41; Pomaa, no tank, took it at 1:51)
+  pull 16: Wutroll Dripping Fangs 3 at 6:15 (had the boss since 5:15; Zebinomage, no tank, took it at 6:20), and died at 6:16 to Melee [1]
+  pull 18: Deathadim Dripping Fangs 2 at 2:30 (had the boss since 1:35; Namsus, no tank, took it at 2:48), and died at 2:31 to Melee [1]
+  pull 19: Wutroll Dripping Fangs 2 at 6:42 (had the boss since 6:28; Deathadim took it at 6:44), and died at 6:44 to Melee [1]
+Per tank, how often it went past 1 on them: Deathadim 7 in 5 pulls of the 19 they tanked (pulls 2, 7, 9, 14, 18); Wutroll 5 in 5 pulls of the 19 they tanked (pulls 1, 3, 8, 16, 19)
+Tank deaths with it: pull 2 Deathadim, pull 7 Deathadim, pull 16 Wutroll, pull 18 Deathadim, pull 19 Wutroll. In the other 9 pulls no swap debuff went past 1 while its tank held the boss.
+A boss without its tank, pull by pull: a tank's death while they held a boss (what killed them, since when they held it) and a boss taken by a player who is no tank after the pull's first seconds (until whom a tank took it back):
+  pull 2: Deathadim died at 2:04 to Dripping Fangs [1280934] (held the boss since 1:11)
+  pull 3: Deathadim died at 2:42 to Melee [1] (held the boss since 2:05)
+  pull 4: Deathadim died at 1:53 to Congealing Bolt [1305833] (held the boss since 1:40)
+  pull 5: Deathadim died at 2:16 to Melee [1] (held the boss since 1:39)
+  pull 7: Deathadim died at 3:28 to Melee [1] (held the boss since 2:32)
+  pull 8: Deathadim died at 2:42 to Melee [1] (held the boss since 2:15); Wutroll died at 3:03 to Stygian Burst [1302489] (held the boss since 2:45); Sinnatony, no tank, took the boss at 3:05 (no tank took it back)
+  pull 10: Deathadim died at 4:56 to Melee [1] (held the boss since 4:23)
+  pull 12: Wutroll died at 2:45 to Catalytic Bile [1282616] (held the boss since 2:04)
+  pull 13: Deathadim died at 3:16 to Melee [1] (held the boss since 2:52)
+  pull 14: Deathadim died at 1:50 to Deadly Venom [1297338] (held the boss since 0:41); Pomaa, no tank, took the boss at 1:51 (no tank took it back)
+  pull 15: Providence, no tank, took the boss at 1:11 (no tank took it back)
+  pull 16: Deathadim died at 5:13 to Melee [1] (held the boss since 4:24); Wutroll died at 6:16 to Melee [1] (held the boss since 5:15); Zebinomage, no tank, took the boss at 6:20 (no tank took it back); Agonco, no tank, took the boss at 6:22 (no tank took it back); Pomaa, no tank, took the boss at 6:25 (no tank took it back); Sinnatony, no tank, took the boss at 6:27 (no tank took it back)
+  pull 17: Wutroll died at 5:32 to Dripping Fangs [1280934] (held the boss since 5:08)
+  pull 18: Deathadim died at 2:31 to Melee [1] (held the boss since 1:35)
+  pull 19: Wutroll died at 1:38 to Melee [1] (held the boss since 1:24); Wutroll died at 4:26 to Dripping Fangs [1280934] (held the boss since 4:16); Wutroll died at 6:44 to Melee [1] (held the boss since 6:28)
+Whose turn it was to taunt, and at how many stacks, isn't in the log: the raid note or the tanks' own call holds it, and tanks often trade the boss back and forth, so a late taunt is a fact, not one tank's fault.
