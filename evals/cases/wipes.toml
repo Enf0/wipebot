@@ -20,6 +20,24 @@ wrong = ["the Mutilated Gash deaths after 2:32, or the Mutilate soak, lost the p
          "the second Serpent's Fury pop was too early, stated as the cause rather than a possibility"]
 
 [[case]]
+id = "wipe-battle-res-available"  # the charges are the game's rule counted from the log: pull_summary has them
+tools = ["pull_summary", "pull_timeline"]
+question = "Could we have battle ressed anyone on Sszorak pull 13? Who had one?"
+pull = 13
+boss = "Sszorak"
+expect = """Yes: the raid had its one battle res charge ready for the whole pull and never used it, with players who
+could cast one alive at each of the four deaths before the enrage. Saying that keeping it back can be a fair call,
+or that the log doesn't show whom it was kept for, is right."""
+facts = ["one charge at the pull, the next only at 4:30, and the pull lasted 2:42",
+         "no battle res was cast in the pull",
+         "four died before the enrage: at 0:48, 0:53, 1:28 and 1:29",
+         "the Death Knights, the Druids, the Paladin and the Warlocks could cast one, by class",
+         "two of the four who died were Druids themselves"]
+wrong = ["says no battle res was available, or that it was on cooldown",
+         "says the log can't tell how many battle res the raid had",
+         "says a battle res would have saved the pull or prevented the enrage, stated as fact"]
+
+[[case]]
 id = "wipe-too-few-alive"
 cause = "ability: Mutilate"  # what an expert names first; `just evals --endings`
 tools = ["boss_guide", "mechanic_hits", "pull_map", "pull_summary", "pull_timeline"]

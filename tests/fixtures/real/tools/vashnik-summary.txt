@@ -20,4 +20,8 @@ Raid size 20. Deaths until then, in order (time from pull start, players alive a
 11. 6:25 Pomaa (Fury Warrior) - Congealing Bolt [1305833] (11 alive)
 12. 6:28 Sinnatony (Arms Warrior) - Caustic Explosion [1295209] (10 alive)
 Fallout, 9 deaths after the wipe was decided at 6:28 (half the raid was dead), by killing blow (when, who): Congealing Bolt [1305833] ×2 (6:33 Nalaw; 6:41 Nexsozz) · Melee [1] ×1 (6:35 Sonyosh) · Malignant Burst [1280189] ×5 (6:40 Providence, Enfo, Miralupa, Peggerino, Martin) · Caustic Explosion [1295209] ×1 (6:40 Fappachino); 1 of 20 alive after the last.
+Battle res: 1 charge at the pull and 1 more every 4:30 (the raid's 90 min over its 20 players), 2 in this pull's 6:41, by that rule and the res in the log, which has no count of its own.
+Taken: 3:53 Soulstone Resurrection by Peggerino on Martin (0 left, the next at 4:30); 4:34 Soulstone Resurrection by Peggerino on Attractîv (0 left, none more before the pull's end).
+Could cast one, by class (an engineer's item shows only once used): Deathadim, Nexsozz (Death Knight) · Attractîv (Druid) · Agonco, Providence (Paladin) · Peggerino (Warlock).
+A charge was ready at 2 of the 12 deaths above (with how many of those who could cast one were alive): 3:48 Martin (6), back at 3:53 · 3:48 Attractîv (5), back at 4:34. Whom a charge was kept for isn't in the log.
 Pull ended at 6:41 with the boss at 9.4% health.

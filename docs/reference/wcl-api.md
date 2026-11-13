@@ -78,6 +78,13 @@ What the GraphQL API does that its schema doesn't say, each checked against real
   `resurrect` events had no later death of the player; the ones taken show a cast of the player's within seconds
   (1.6 s and 8.4 s on two checked). So Wipebot counts a res once the player dies again or casts after it
   (`Report._taken`): one more query a night, only for the pulls with a res that no later death proves.
+- The log has no count of the raid's battle res charges. The game's rule (1 at the pull, 1 more every 90 minutes
+  over the players in the raid, counted from the pull; a res spends its charge when taken, not when cast) fits the
+  `resurrect` events: on 55 pulls with a res in KBYT4xXn7VNjDgh8, 8TcXMAP2gHQGr9pW and vjt3KLbN8g62J1H9 (checked
+  2026-11-13), no res taken came without a charge by it; a second one came 3 s after the 4:30 charge (Vashnik pull
+  2, the first taken at 1:41, so the clock runs from the pull, not from the use), 27 s after the 3:54 one in a raid
+  of 23, and two within 2 s only past 4:30. A res not taken spends nothing: one Death Knight cast Raise Ally six
+  times in 8 s on a raid with 1 charge. Wipebot counts charges from that (`report/battle_res.py`).
 - In a filter expression `timestamp` counts ms from the fight's start (`timestamp > 45043` on KBYT4xXn7VNjDgh8
   fight 27 kept the casts after a death 45.0 s in; verified 2026-10-21), and `source.name` matches accented names
   as written (`"Lïzårðmâñ"`). A `type = "cast"` filter on Casts keeps `fake` casts.

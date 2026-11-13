@@ -391,7 +391,8 @@ async def test_a_player_casting_after_their_death_came_back_by_themselves(rep, p
     assert counts[:2] == [raid - 1, raid - 1]  # one died, the shaman came back
     # two readings of the pull agree on who was alive at its end: the one battle res taken, the other not
     assert counts[-1] == alive_at(deaths, backs[f["id"]], raid, f["endTime"])
-    assert f"({counts[-1]} alive)" in (await fight.pull_summary(rep, rep.pull_no(f), "Vashnik")).splitlines()[-2]
+    rows = [x for x in (await fight.pull_summary(rep, rep.pull_no(f), "Vashnik")).splitlines() if x.endswith("alive)")]
+    assert f"({counts[-1]} alive)" in rows[-1]
     assert await rep.resurrects(pulls) == backs and len(asked) == 2  # remembered
 
 

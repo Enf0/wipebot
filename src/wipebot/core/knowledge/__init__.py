@@ -27,6 +27,7 @@ from .players import character_experience_text
 from .raidbots import choice_versions, consumable_items, enchant_names, talent_names, talent_parts, talent_trees
 from .specs import heals, spec_cooldowns_text, spec_guide_text, spec_spells
 from .spells import (
+    battle_res_classes,
     defensive_effect,
     items_granting,
     lust_debuffs,
@@ -50,8 +51,8 @@ from .talents import (
 from .top_parses import cooldown_comparison_text, top_cooldowns_text
 
 __all__ = [
-    "KnowledgeError", "boss_guide_text", "boss_loot_text", "boss_mechanic_text", "boss_naming", "boss_spells",
-    "boss_tooltips_text", "boss_words",
+    "KnowledgeError", "battle_res_classes", "boss_guide_text", "boss_loot_text", "boss_mechanic_text", "boss_naming",
+    "boss_spells", "boss_tooltips_text", "boss_words",
     "game_file", "raid_boss_spells", "spell_icon",
     "build_hero",
     "character_experience_text", "choice_versions", "class_and_spec", "consumable_items", "cooldown_comparison_text",

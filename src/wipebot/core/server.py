@@ -631,8 +631,9 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     """For "why did we wipe?", "who wiped us?", "what do we fix?": start here.
     One pull: how far it got and how that ranks, how it ended, how far the last wipes got and the phases; then
     raid size and every death until the wipe was decided, a row each with spec, killing ability [id] and players
-    still alive, the deaths after it (its fallout) in one line by killing blow, and any buff the boss gained and
-    kept to the end that didn't decide it.
+    still alive, the deaths after it (its fallout) in one line by killing blow, battle res (the raid's charges, the
+    ones taken, who could cast one, and at each of those deaths the charges ready and the casters alive), and any
+    buff the boss gained and kept to the end that didn't decide it.
     Reading it: "Ended by" is computed from the log alone (one ability killing many within 2 s or in pulses within
     6 s, a buff the boss gained and kept, half the raid dead, or deaths spread out, from the first that stayed dead),
     with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
@@ -661,9 +662,9 @@ async def pull_timeline(pull: Pull = None, boss: Boss = None,
     One pull in time order: phases, the boss's casts (◆ marks the ones Lorrgs tracks: the casts to line pulls up
     by) and buffs (enrage), the adds' casts and whether each was kicked (by whom) or went through, its debuffs on
     players and how many got each (per hit when one cast lands on several groups), a stacking debuff reaching its
-    highest stacks, deaths with players alive, Bloodlust, battle res and self-res, raid cooldowns; then the boss's
-    health and power bar (energy, rage) and raid damage taken over time. Shows what the boss did and what state it
-    was in, which deaths alone don't.
+    highest stacks, deaths with players alive, Bloodlust, battle res (with the raid's charges left) and self-res,
+    raid cooldowns; then the boss's health and power bar (energy, rage) and raid damage taken over time. Shows what
+    the boss did and what state it was in, which deaths alone don't.
     With `ability` or `player`, the log's own events instead, a row each ("when exactly was X hit by Y?", "when
     was Z cast, and on whom?", "what did X press between 2:10 and 2:25?"; in any log, a top player's by its link):
     the time into the pull as m:ss.mmm, the kind (cast, begincast for the start of a cast bar, damage,

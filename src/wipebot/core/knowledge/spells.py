@@ -1,4 +1,5 @@
 """Spells from Wowhead's tooltips (name, text, cooldown, what a defensive does) and Lorrgs (Bloodlust's debuffs)."""
+import asyncio
 import base64
 import html
 import re
@@ -216,6 +217,32 @@ async def lust_debuffs() -> list[int]:
 async def lust_duration_s() -> float:
     """How long Bloodlust and its kin last, as Lorrgs gives Bloodlust's duration."""
     return float((await _bloodlust()).get("duration") or 0)
+
+
+# The spells that bring a dead player back in combat: the game marks them in data no source we read publishes, so
+# these are the ones to ask Wowhead about, as Bloodlust is the one to ask Lorrgs about. An engineer's item isn't a
+# class's.
+BATTLE_RES_SPELLS = (20484, 61999, 20707, 391054)  # Rebirth, Raise Ally, Soulstone, Intercession
+_REQUIRES_CLASS = re.compile(r"Requires ([A-Z][A-Za-z ]+?) Requires level")
+_battle_res = Memo()
+
+
+async def battle_res_classes() -> dict[str, str]:
+    """The classes with a battle res and each one's spell, {"DeathKnight": "Raise Ally"} (Warcraft Logs' class
+    names): the class each of BATTLE_RES_SPELLS requires in its Wowhead tooltip today; a spell Wowhead no longer has,
+    or that no class is required for, is left out. Kept a day."""
+    if "all" not in _battle_res:
+        async def one(spell_id: int) -> Spell | None:
+            try:
+                return await tooltip(spell_id)
+            except NotFound:
+                return None
+        found = {m[1].replace(" ", ""): tip.name for tip in await asyncio.gather(*map(one, BATTLE_RES_SPELLS))
+                 if tip and (m := _REQUIRES_CLASS.search(tip.text))}
+        if not found:
+            raise KnowledgeError("Wowhead names no class for the battle res spells")
+        _battle_res.keep("all", found)
+    return _battle_res["all"]
 
 
 async def spell_icon(spell_id: int) -> bytes:

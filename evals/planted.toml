@@ -40,6 +40,16 @@ Tighten up the mechanics and the next pulls will go a lot further.
 """
 
 [[plant]]
+case = "wipe-battle-res-available"
+kind = "wrong"
+item = "says no battle res was available, or that it was on cooldown"
+answer = """
+**No, there was no battle res to use on pull 13.** The raid's battle res was on cooldown through the whole 2:42, so
+the four who died between 0:48 and 1:29 could not have been brought back before the enrage at 2:32. Next pull, keep
+the Druids alive so one is ready.
+"""
+
+[[plant]]
 case = "wipe-too-few-alive"
 kind = "wrong"
 item = "the deaths after 2:32 lost the pull"

@@ -64,7 +64,7 @@ def made_up_text(text: str, *seed: object) -> str:
 
 def _tooltip(name: str, text: str, item: bool) -> str:
     """A tooltip standing in for Wowhead's: the spell's or item's facts, in words the parsers read."""
-    from wipebot.core.knowledge.spells import _COOLDOWN, parse_effect
+    from wipebot.core.knowledge.spells import _COOLDOWN, _REQUIRES_CLASS, parse_effect
     facts = [name]
     if item:
         facts += re.findall(r"\b(?:Cloth|Leather|Mail|Plate|Trinket|Finger|Neck|Back|Head|Shoulder|Chest|Wrist|Hands|"
@@ -74,6 +74,8 @@ def _tooltip(name: str, text: str, item: bool) -> str:
                             r"Versatility)", text)
     elif m := _COOLDOWN.search(text):
         facts.append(f"{m[1]} {m[2]} cooldown")
+    if not item and (m := _REQUIRES_CLASS.search(text)):  # whose spell it is: the classes with a battle res
+        facts.append(f"Requires {m[1]} Requires level")
     effect = None if item else parse_effect(text)
     if effect:
         if effect.kind == "immunity":  # no pct: the other wordings mustn't be formatted for it

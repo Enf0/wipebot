@@ -27,7 +27,6 @@ from .base import (
     PARTNER_DEATH_MS,
     PARTNER_SLACK_MS,
     REPEAT_CAST_MS,
-    SAME_DEATH_MS,
     FactError,
     PullRef,
     Report,
@@ -35,6 +34,7 @@ from .base import (
     half_dead,
     unavailable,
 )
+from .battle_res import Res, battle_res, battle_res_lines, res_left
 from .ending import (
     ALIVE,
     Ending,
@@ -133,6 +133,7 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
         lines.append(_fallout(rep, f, later, f"{clock(decided.at_ms)} ({decided.why}{ran})", alive[-1], raid))
     elif ran:
         lines.append(f"Half the raid was dead{ran}.")
+    lines += await battle_res_lines(rep, f, deaths[:len(deaths) - len(later)])
     told = {m.name for m in ended.moments if isinstance(m, KeptBuff)} if ended else set()  # "Ended by" has these
     boss_deaths = [(e["timestamp"] - f["startTime"], rep.actors.get(e["targetID"], {}).get("name") or "a boss")
                    for e in await rep.events(f["id"], "Deaths", hostilityType="Enemies")
@@ -633,16 +634,18 @@ async def _lusts(rep: Report, f: dict) -> Found:
 
 
 async def _battle_res(rep: Report, f: dict) -> Found:
-    backs = (await rep.resurrects([f]))[f["id"]]
+    """Each battle res cast, with the raid's charges after one taken (battle_res.py; a raid encounter's rule), and
+    each player back by themselves."""
+    res = await battle_res(rep, f)
+    end, counted = f["endTime"] - f["startTime"], f.get("difficulty") in DIFFICULTIES and res.fits
 
-    def taken(e: dict) -> str:
-        """A res is logged when it is cast: one the player never took (Report._taken) brought nobody back."""
-        took = any(abs(t - e["timestamp"]) <= SAME_DEATH_MS for t in backs.get(e.get("targetID", -1), []))
-        return "" if took else " (not taken: they did nothing after it, and stay dead in the counts)"
-    return Found([(e["timestamp"], f"battle res: {rep.ability(e['abilityGameID'])} by "
-                                   f"{rep.actor(rep.owner(e.get('sourceID', 0)))} on {rep.actor(e.get('targetID', 0))}"
-                                   f"{taken(e)}")
-                  for e in await rep.events(f["id"], "All", filterExpression='type = "resurrect"')]
+    def outcome(r: Res) -> str:
+        if not r.taken:  # a res is logged when it is cast: one the player never took (Report._taken)
+            return " (not taken: they did nothing after it, and stay dead in the counts)"
+        return f" (taken; the raid's charges after it: {res_left(res, r.at_ms, end, after=True)})" if counted else ""
+    return Found([(f["startTime"] + r.at_ms, f"battle res: {r.spell} by {r.by} on {r.on}"
+                                             f"{f', cast {r.casts} times' if r.casts > 1 else ''}{outcome(r)}")
+                  for r in res.cast]
                  + [(e["timestamp"], f"{rep.names[e['sourceID']]} back to life by themselves (first cast since dying: "
                                      f"{rep.ability(e['abilityGameID'])})") for e in await rep.self_res(f)])
 

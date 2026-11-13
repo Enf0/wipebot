@@ -112,8 +112,9 @@ async def test_a_report_quiet_through_a_break_between_bosses_is_still_refreshed(
     assert await lib.report(CODE, max_age_s=0) is rep and len(rep.fights) == 35
 
 
-async def test_the_pull_that_just_ended_is_waited_for(live_wcl, monkeypatch):
+async def test_the_pull_that_just_ended_is_waited_for(live_wcl, monkeypatch, fake_knowledge):
     """"How did the last pull go?" a few seconds after it ended: the live log uploads it a little later."""
+    fake_knowledge(battle_res_classes={"Druid": "Rebirth"})
     live_wcl.visible -= 1
     lib = library.Library(wcl=live_wcl.client())
     monkeypatch.setattr(server.DEFAULT, "library", lib)

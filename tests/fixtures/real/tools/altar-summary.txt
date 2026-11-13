@@ -25,5 +25,9 @@ Raid size 23. Deaths until then, in order (time from pull start, players alive a
 17. 7:18 Peggerino (Demonology Warlock; also Affliction, Destruction in some pulls) - Coalesced Venom [1282408] (9 alive)
 18. 7:20 Wutroll (Brewmaster Monk) - Coalesced Venom [1282408] (8 alive)
 Fallout, 7 deaths after the wipe was decided at 7:20 (half the raid was dead at 7:16, in one moment's deaths that ran to 7:20), by killing blow (when, who): Coalesced Venom [1282408] ×1 (7:22 Miralupa) · Melee [1] ×3 (7:25 Nalaxd; 7:26 Fappachino; 7:28 Biblethump) · Venom Rupture [1299838] ×3 (7:26 Lïzårðmâñ, Zebinomage, Agonco); 1 of 23 alive after the last.
+Battle res: 1 charge at the pull and 1 more every 3:54 (the raid's 90 min over its 23 players), 2 in this pull's 7:29, by that rule and the res in the log, which has no count of its own.
+Taken: 0:32 Intercession by Cptola on Sveini (0 left, the next at 3:54); 4:22 Rebirth by Scopidruid on Algmor (0 left, none more before the pull's end). Cast but not taken (they did nothing after it; it spent no charge): 4:21 Intercession by Nalaxd on Pwnpíe.
+Could cast one, by class (an engineer's item shows only once used): Biblethump (Death Knight) · Attractîv, Scopidruid (Druid) · Agonco, Cptola, Karadim, Nalaxd, Providence (Paladin) · Peggerino, Sveini (Warlock).
+A charge was ready at 1 of the 18 deaths above (with how many of those who could cast one were alive): 0:23 Sveini (9), back at 0:32. Whom a charge was kept for isn't in the log.
 The boss gained Soulbound at 7:08, when Hex Lord Malacrass died, and kept it to the end; 5 players had died before that. A buff gained as another boss dies comes with killing that boss, not from a timer: look it up before calling it an enrage.
 Pull ended at 7:29 with the boss at 0.8% health in P3 (the wipe at 0.3%, phases weighed in).

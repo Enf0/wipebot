@@ -234,6 +234,7 @@ class Report(Fetched):
         self._details: dict[int, dict] = {}
         self._backs: dict[int, dict[int, list[float]]] = {}  # battle res and self-res
         self._self_res: dict[int, list[dict]] = {}  # the casts a player came back by themselves with (any pull)
+        self._res_casts: dict[int, list[dict]] = {}  # the resurrect events, taken or not (any pull)
         self._refreshing = asyncio.Lock()
 
     async def load(self) -> None:
@@ -660,9 +661,12 @@ class Report(Fetched):
             ids = [f["id"] for f in missing]
             finished = {i for i in ids if self._finished([i])}  # before the fetch, as in `keep`
             found: dict[int, dict[int, list[float]]] = {i: defaultdict(list) for i in ids}
+            cast: dict[int, list[dict]] = {i: [] for i in ids}
             for e in await self.events(ids, "All", filterExpression='type = "resurrect"'):
-                if (back := found.get(e.get("fight", ids[0]))) is not None:
+                if (back := found.get(fid := e.get("fight", ids[0]))) is not None:
                     back[e.get("targetID", -1)].append(e["timestamp"])
+                    cast[fid].append(e)
+            self._res_casts.update(cast)
             came = await self._came_back(missing, found)
             await self._taken(missing, found)
             for i in ids:
@@ -677,6 +681,15 @@ class Report(Fetched):
                 if i in finished:
                     self._backs[i] = found[i]
         return out
+
+    async def res_casts(self, fight: dict) -> list[dict]:
+        """A pull's battle res as Warcraft Logs has them, in order: its resurrect events, logged when the res is
+        cast, taken or not (`resurrects` has the ones taken)."""
+        await self.resurrects([fight])
+        if fight["id"] not in self._res_casts:  # remembered from a load before this was kept
+            self._res_casts[fight["id"]] = await self.events(fight["id"], "All",
+                                                              filterExpression='type = "resurrect"')
+        return sorted(self._res_casts[fight["id"]], key=lambda e: e["timestamp"])
 
     async def self_res(self, fight: dict) -> list[dict]:
         """The casts players came back to life by themselves with in a pull, in order (`_came_back`)."""
