@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-13
+
 ### Added
 
 - `Agent` **Wipebot knows whether a battle res was available.** A pull's summary now counts the raid's battle res charges (one at the pull, one more every 4:30 in a raid of 20), lists the ones taken and the ones cast but never accepted, names who could cast one by class, and says at which deaths a charge was ready with a caster alive. So "could we have ressed him at 1:28?" gets an answer from the log, and the timeline shows the charges left after each res.
