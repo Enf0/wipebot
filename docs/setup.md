@@ -192,7 +192,8 @@ days (`/usage` reads it), each server's settings and the AI key its admin added 
 removed, and the transcript Claude Code writes of each conversation (nothing reads it back: after a restart a
 conversation starts over from the messages before it). With
 `WIPEBOT_RECORD_ANSWERS=1`, the bot also keeps each question, its prompt (with the channel's messages it read),
-answer and tool calls for 90 days, for reviewing answers. All of it stays in `./data`; only what an answer needs goes
+answer and tool calls for 90 days, for reviewing answers; without it, only on servers whose admin turned on
+`/wipebot setup record:` (questions asked in that server's channels, never DMs). All of it stays in `./data`; only what an answer needs goes
 to the model. Tell your guild.
 
 The bot's answers cost about $0.15-0.25 each with Claude Opus, the default, and at most $2; Haiku

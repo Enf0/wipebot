@@ -197,10 +197,15 @@ def updated_settings(existing: ServerSettings | None, discord_guild_id: int, fou
 NO_LANGUAGE = "Give the language's name, like Norwegian or English."
 
 
+RECORDING = ("Questions asked here and their answers (with what Wipebot looked up) are now kept for 90 days, for "
+             "Wipebot's maintainer to read and improve Wipebot. DMs are never kept. Turn it off with `record: False`, "
+             "which forgets what was kept.")
+
+
 def server_options(store: Store, discord_guild_id: int, footer: bool | None, language: str | None,
-                   steps: bool | None = None) -> list[str]:
-    """/wipebot setup's footer, steps and language, kept for the server set up or not; what changed, for the admin
-    (NO_LANGUAGE alone, and nothing kept, for a language that can't be one)."""
+                   steps: bool | None = None, record: bool | None = None) -> list[str]:
+    """/wipebot setup's footer, steps, record and language, kept for the server set up or not; what changed, for the
+    admin (NO_LANGUAGE alone, and nothing kept, for a language that can't be one)."""
     if language is not None and not (name := server_language(language)):
         return [NO_LANGUAGE]
     told = []
@@ -212,6 +217,14 @@ def server_options(store: Store, discord_guild_id: int, footer: bool | None, lan
         store.set_steps(discord_guild_id, steps)
         told.append("Answers here now end with the steps they went through, like ✓ Roster · ✓ Pull summary." if steps
                     else "Answers here no longer end with the steps they went through.")
+    if record is not None:
+        if record:
+            store.set_record(discord_guild_id, True)
+            told.append(RECORDING)
+        else:
+            forgotten = store.set_record(discord_guild_id, False)
+            told.append("Questions and answers here are no longer kept"
+                        + (f", and the {forgotten} kept are forgotten." if forgotten else "."))
     if language is not None:
         store.set_language(discord_guild_id, name)
         told.append(f"The server's language is now {name}: posts after wipes and what's new are in it, and a "
@@ -318,7 +331,8 @@ def help_text(s: ServerSettings | None, admin: bool, in_dm: bool = False, keyles
         commands += ["`/wipebot setup`: how I'm set up here and what's left to do, with buttons for the server's AI "
                      "key",
                      "`/wipebot setup` with options: `link:` the guild on Warcraft Logs, `role:` who can chat, "
-                     "`officers:`, `footer:` and `steps:` (the small lines under answers), `language:` of posts, "
+                     "`officers:`, `footer:` and `steps:` (the small lines under answers), `record:` keep answers for "
+                     "Wipebot's maintainer to review, `language:` of posts, "
                      "`model:` the model answers run on (with the server's own AI key), `news:` the channel for "
                      "what's new in each release",
                      "`/usage` shows you a button to post the AI budget in the channel"]
@@ -436,6 +450,8 @@ def build(bot: WipeBot) -> app_commands.Group:
                                     "(default Manage Server)",
                            footer="End answers with a small line: their cost and Warcraft Logs points",
                            steps="End answers with a small line of the steps they went through (what they looked at)",
+                           record="Keep this server's questions and answers 90 days for Wipebot's maintainer to "
+                                  "review (never DMs)",
                            language="The server's language, e.g. Norwegian: for posts and what's new (questions get "
                                     "answers in theirs)",
                            model="The model answers run on, from the ones the server's own AI key reaches (type to "
@@ -445,7 +461,7 @@ def build(bot: WipeBot) -> app_commands.Group:
     async def setup(interaction: discord.Interaction, link: str | None = None,
                     role: discord.Role | None = None, officers: discord.Role | None = None,
                     footer: bool | None = None, language: str | None = None, steps: bool | None = None,
-                    model: str | None = None, news: discord.TextChannel | None = None,
+                    record: bool | None = None, model: str | None = None, news: discord.TextChannel | None = None,
                     news_stop: bool = False) -> None:
         """Alone: the server's setup and what's left to do, with the AI key's buttons. Options left out keep what's
         set; the footer, steps, language and news are the server's even before it's connected to a guild."""
@@ -453,7 +469,7 @@ def build(bot: WipeBot) -> app_commands.Group:
         guild = in_guild(interaction)
         gid = guild.id
         if not (link or role or officers or news or news_stop or model) and footer is None and steps is None \
-                and language is None:
+                and record is None and language is None:
             notes = ""
             if (s := bot.store.settings(gid)) is not None:  # run again by a signed-in member: the guild is its own
                 _, notes = await verify(bot, s, interaction.user.id)
@@ -485,7 +501,7 @@ def build(bot: WipeBot) -> app_commands.Group:
             bot.settings_changed(gid)
             settings, notes = await verify(bot, settings, interaction.user.id)
             told.append("wipebot is set up:\n" + describe(settings) + (f"\n{notes}" if notes else ""))
-        told += server_options(bot.store, gid, footer, language, steps)
+        told += server_options(bot.store, gid, footer, language, steps, record)
         if model:
             told.append(await choose_model(bot.store, gid, model, bot.model))
         preview = None
@@ -553,9 +569,10 @@ def overview(bot: WipeBot, discord_guild_id: int, notes: str = "") -> str:
                                                                                        "through")) if on]
     parts.append("**What's new** in each release: " + (f"posted in <#{channel}>" if channel else "not posted")
                  + "\n**Language** of posts: " + (language or "none set, so English")
-                 + "\n**Answers end with:** " + (" and ".join(extra) or "nothing extra"))
+                 + "\n**Answers end with:** " + (" and ".join(extra) or "nothing extra")
+                 + "\n**Answers kept for review:** " + ("yes, 90 days (not DMs)" if store.record(gid) else "no"))
     parts.append("Change any of it with this command's options: `link:`, `role:`, `officers:`, `footer:`, "
-                 "`steps:`, `language:`, `model:`, `news:`.")
+                 "`steps:`, `record:`, `language:`, `model:`, `news:`.")
     parts.append(f"wipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>.")
     return "\n\n".join(parts)
 

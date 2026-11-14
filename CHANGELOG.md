@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Discord` **A server can have its answers kept for review.** `/wipebot setup record:True` keeps the questions asked in the server's channels, with their answers and what the bot looked up, for 90 days, so the person who runs the bot can read where answers go wrong and fix them. It's off unless an admin turns it on, DMs are never kept, `/wipebot setup` shows whether it's on, and `record:False` stops it and deletes what was kept.
+
 ## [1.6.0] - 2026-11-14
 
 ### Added

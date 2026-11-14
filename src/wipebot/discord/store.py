@@ -116,7 +116,7 @@ ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "offi
                  ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
                  ("logins", "guild", "TEXT"), ("server_settings", "verified_by", "INTEGER"),
                  ("server_settings", "verified_at", "REAL"), ("interactions", "rounds", "INTEGER"),
-                 ("server_options", "model", "TEXT")]
+                 ("server_options", "model", "TEXT"), ("server_options", "record", "INTEGER")]
 
 
 class Store:
@@ -223,7 +223,8 @@ class Store:
                 news_channel INTEGER,    -- where what's new in each release is posted (setup news:); NULL: nowhere
                 language TEXT,           -- the server's language (/wipebot setup language:); NULL: none set
                 steps INTEGER,           -- the steps line under answers (/wipebot setup steps:); NULL: the default
-                model TEXT               -- the model its answers run on, on its own key (setup model:); NULL: the bot's
+                model TEXT,              -- the model its answers run on, on its own key (setup model:); NULL: the bot's
+                record INTEGER           -- its answers kept for review (setup record:); NULL: not kept
             );
             CREATE TABLE IF NOT EXISTS bot_state (  -- the bot's own, not a server's
                 key TEXT PRIMARY KEY,    -- news: the latest release's post (news.Post), posted or not
@@ -506,6 +507,20 @@ class Store:
                          "(discord_guild_id) DO UPDATE SET steps = excluded.steps", (discord_guild_id, int(on)))
         self._db.commit()
 
+    def record(self, discord_guild_id: int) -> bool:
+        """Whether an admin chose to have the server's questions and answers kept for review: off unless they did."""
+        row = self._db.execute("SELECT record FROM server_options WHERE discord_guild_id = ?",
+                               (discord_guild_id,)).fetchone()
+        return row is not None and bool(row[0])
+
+    def set_record(self, discord_guild_id: int, on: bool) -> int:
+        """Keep the server's answers for review or stop, which forgets those kept; how many were forgotten."""
+        self._db.execute("INSERT INTO server_options (discord_guild_id, record) VALUES (?, ?) ON CONFLICT "
+                         "(discord_guild_id) DO UPDATE SET record = excluded.record", (discord_guild_id, int(on)))
+        forgotten = 0 if on else self._forget_interactions("discord_guild_id = ?", (discord_guild_id,))
+        self._db.commit()
+        return forgotten
+
     def news_channel(self, discord_guild_id: int) -> int | None:
         """The channel an admin chose for what's new in each release; None when they chose none."""
         row = self._db.execute("SELECT news_channel FROM server_options WHERE discord_guild_id = ?",
@@ -637,11 +652,15 @@ class Store:
     def prune_interactions(self, days: float = INTERACTION_DAYS) -> int:
         """Forget answers older than `days`, with their messages and reactions; returns how many."""
         cutoff = time.time() - days * 86400
-        old = "SELECT id FROM interactions WHERE at < ?"
-        messages = f"SELECT message_id FROM answer_messages WHERE interaction IN ({old})"
-        self._db.execute(f"DELETE FROM reactions WHERE message_id IN ({messages})", (cutoff,))
-        self._db.execute(f"DELETE FROM answer_messages WHERE interaction IN ({old})", (cutoff,))
-        pruned = self._db.execute("DELETE FROM interactions WHERE at < ?", (cutoff,)).rowcount
+        pruned = self._forget_interactions("at < ?", (cutoff,))
         self._db.execute("DELETE FROM spend WHERE at < ?", (cutoff,))
         self._db.commit()
         return pruned
+
+    def _forget_interactions(self, where: str, args: tuple) -> int:
+        """Delete the answers `where` picks, with their messages and reactions (not committed); how many."""
+        picked = f"SELECT id FROM interactions WHERE {where}"
+        messages = f"SELECT message_id FROM answer_messages WHERE interaction IN ({picked})"
+        self._db.execute(f"DELETE FROM reactions WHERE message_id IN ({messages})", args)
+        self._db.execute(f"DELETE FROM answer_messages WHERE interaction IN ({picked})", args)
+        return self._db.execute(f"DELETE FROM interactions WHERE {where}", args).rowcount
