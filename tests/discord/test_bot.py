@@ -245,19 +245,20 @@ async def test_without_record_answers_nothing_of_a_question_is_kept_or_logged(bo
 
 
 
-async def test_a_server_whose_admin_chose_it_has_its_answers_kept_but_never_dms(bot, message, asked, caplog):
-    """/wipebot setup record: keeps one server's answers on a bot that keeps none; a DM isn't the server's to give,
-    and the log stays as quiet as without recording."""
+async def test_a_server_whose_admin_chose_it_has_its_answers_kept_dms_too(bot, message, asked, caplog, monkeypatch):
+    """/wipebot setup record: keeps one server's answers on a bot that keeps none, its channels' and the DMs it
+    answers for the server, and the log stays as quiet as without recording."""
     bot.record_answers = bot.posts.record_answers = False
     msg = message("<@99> why did we wipe?")
     bot.store.set_record(msg.guild.id, True)
+    monkeypatch.setattr(bot, "get_guild", lambda guild_id: SimpleNamespace(get_member=lambda i: server_member()))
     with caplog.at_level(logging.INFO, logger="wipebot.discord"):
         await bot.on_message(msg)
         await bot.on_message(message("how did I do?", dm=True))
-    assert recorded(bot.store) == [("chat", "Rowan", "why did we wipe?", "**Wiped.**", None, None)]
-    assert bot.store._db.execute("SELECT discord_guild_id FROM interactions").fetchall() == [(msg.guild.id,)]
+    assert [r[2] for r in recorded(bot.store)] == ["why did we wipe?", "how did I do?"]
+    assert bot.store._db.execute("SELECT discord_guild_id FROM interactions").fetchall() == [(msg.guild.id,), (None,)]
     assert "why did we wipe" not in caplog.text
-    assert bot.store.set_record(msg.guild.id, False) == 1  # turned off: what was kept is forgotten
+    assert bot.store.set_record(msg.guild.id, False) == 2  # turned off: what was kept is forgotten
     assert recorded(bot.store) == []
     await bot.on_message(message("<@99> why did we wipe?"))
     assert recorded(bot.store) == []

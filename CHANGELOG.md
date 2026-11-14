@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Discord` **Keeping a server's answers for review covers its DMs too.** With `/wipebot setup record:True`, the questions raiders ask the bot in DMs for that server are kept as well, and setup now says it's every channel in the server, not only the one where the command ran. `record:False` still deletes everything kept.
+
 ## [1.7.0] - 2026-11-14
 
 ### Added

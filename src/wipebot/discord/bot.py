@@ -991,11 +991,10 @@ class WipeBot(discord.Client):
                         fight: int | None, channel_id: int | None, lang: str) -> str | None:
         started = time.monotonic()
         timeout = CHAT_TIMEOUT_S if kind == "chat" else POST_TIMEOUT_S
-        in_server = None if isinstance(key, tuple) and key[:1] == ("dm",) else ctx.server_id  # a DM is no server's
 
         def record(**row) -> int:
             return self._record(kind, code, question, started, message, asker=who, fight=fight,
-                                channel_id=channel_id, server_id=in_server, **row)
+                                channel_id=channel_id, server_id=ctx.server_id, **row)
         shown = self._shown(who)
         if self.own_keys and ctx.env is None:  # the key was removed since, or a post after a wipe
             log.info("%s answer to %s refused: the server has no key of its own", kind, shown)
@@ -1083,14 +1082,14 @@ class WipeBot(discord.Client):
         """Keep a question and its answer (or why there was none) for improving the bot; returns its id. `message`
         is the question (None for a post after a wipe and for `wipebot try`); `channel_id` where an answer
         without one was posted: a channel's posts after wipes. Recording never stops an answer; nothing is kept (0)
-        unless the host keeps every answer (`record_answers`) or the server's admin chose to (/wipebot setup record:),
-        which `server_id` (None in a DM) names."""
-        if message:
-            server_id = message.guild.id if message.guild else None
+        unless the host keeps every answer (`record_answers`) or the admin of `server_id`, the server it was answered
+        for (in its channels or a DM), chose to (/wipebot setup record:)."""
         if not (self.record_answers or (server_id and self.store.record(server_id))):
             return 0
+        in_dm = message.guild is None if message else channel_id is None  # a question's or a post's in a DM
         row: dict = dict(kind=kind, report=report, question=question, asker=asker, error=error,
-                         discord_guild_id=server_id,
+                         discord_guild_id=None if in_dm else (message.guild.id if message and message.guild
+                                                              else server_id), kept_for=server_id,
                          channel_id=message.channel.id if message else channel_id,
                          message_id=message.id if message else None,
                          duration_s=round(time.monotonic() - started, 1), fight=fight)

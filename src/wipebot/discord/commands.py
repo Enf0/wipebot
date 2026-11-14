@@ -197,9 +197,9 @@ def updated_settings(existing: ServerSettings | None, discord_guild_id: int, fou
 NO_LANGUAGE = "Give the language's name, like Norwegian or English."
 
 
-RECORDING = ("Questions asked here and their answers (with what Wipebot looked up) are now kept for 90 days, for "
-             "Wipebot's maintainer to read and improve Wipebot. DMs are never kept. Turn it off with `record: False`, "
-             "which forgets what was kept.")
+RECORDING = ("Questions asked in any of this server's channels, and in DMs the bot answers for this server, are now "
+             "kept for 90 days with their answers (and what Wipebot looked up), for Wipebot's maintainer to read and "
+             "improve Wipebot. Turn it off with `record: False`, which forgets what was kept.")
 
 
 def server_options(store: Store, discord_guild_id: int, footer: bool | None, language: str | None,
@@ -223,7 +223,7 @@ def server_options(store: Store, discord_guild_id: int, footer: bool | None, lan
             told.append(RECORDING)
         else:
             forgotten = store.set_record(discord_guild_id, False)
-            told.append("Questions and answers here are no longer kept"
+            told.append("Questions and answers in this server's channels and DMs are no longer kept"
                         + (f", and the {forgotten} kept are forgotten." if forgotten else "."))
     if language is not None:
         store.set_language(discord_guild_id, name)
@@ -450,8 +450,8 @@ def build(bot: WipeBot) -> app_commands.Group:
                                     "(default Manage Server)",
                            footer="End answers with a small line: their cost and Warcraft Logs points",
                            steps="End answers with a small line of the steps they went through (what they looked at)",
-                           record="Keep this server's questions and answers 90 days for Wipebot's maintainer to "
-                                  "review (never DMs)",
+                           record="Keep this server's questions and answers (its channels and DMs) 90 days for "
+                                  "Wipebot's maintainer to review",
                            language="The server's language, e.g. Norwegian: for posts and what's new (questions get "
                                     "answers in theirs)",
                            model="The model answers run on, from the ones the server's own AI key reaches (type to "
@@ -570,7 +570,7 @@ def overview(bot: WipeBot, discord_guild_id: int, notes: str = "") -> str:
     parts.append("**What's new** in each release: " + (f"posted in <#{channel}>" if channel else "not posted")
                  + "\n**Language** of posts: " + (language or "none set, so English")
                  + "\n**Answers end with:** " + (" and ".join(extra) or "nothing extra")
-                 + "\n**Answers kept for review:** " + ("yes, 90 days (not DMs)" if store.record(gid) else "no"))
+                 + "\n**Answers kept for review:** " + ("yes, 90 days" if store.record(gid) else "no"))
     parts.append("Change any of it with this command's options: `link:`, `role:`, `officers:`, `footer:`, "
                  "`steps:`, `record:`, `language:`, `model:`, `news:`.")
     parts.append(f"wipebot is free software (AGPL-3.0): its source is at <{server.source_url()}>.")

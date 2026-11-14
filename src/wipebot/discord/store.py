@@ -116,7 +116,8 @@ ADDED_COLUMNS = [("interactions", "fight", "INTEGER"), ("server_settings", "offi
                  ("server_options", "language", "TEXT"), ("server_options", "steps", "INTEGER"),
                  ("logins", "guild", "TEXT"), ("server_settings", "verified_by", "INTEGER"),
                  ("server_settings", "verified_at", "REAL"), ("interactions", "rounds", "INTEGER"),
-                 ("server_options", "model", "TEXT"), ("server_options", "record", "INTEGER")]
+                 ("server_options", "model", "TEXT"), ("server_options", "record", "INTEGER"),
+                 ("interactions", "kept_for", "INTEGER")]
 
 
 class Store:
@@ -192,8 +193,9 @@ class Store:
                 tool_calls TEXT,         -- JSON: list of {name, args, result, failed, images, started_s, duration_s}
                                          -- (the last two from 13 Oct 2026: seconds from the question)
                 fight INTEGER,           -- feedback after a wipe: the pull's fight id (from 13 Oct 2026)
-                wcl_points TEXT          -- JSON: the Warcraft Logs points its tool calls cost, by kind (from 23 Oct
+                wcl_points TEXT,         -- JSON: the Warcraft Logs points its tool calls cost, by kind (from 23 Oct
                                          -- 2026; each tool call's under wcl_points in tool_calls)
+                kept_for INTEGER         -- the server it was answered for, in its channels or a DM (setup record:)
             );
             CREATE TABLE IF NOT EXISTS answer_messages (
                 message_id INTEGER PRIMARY KEY,  -- a Discord message holding (part of) an answer
@@ -517,7 +519,7 @@ class Store:
         """Keep the server's answers for review or stop, which forgets those kept; how many were forgotten."""
         self._db.execute("INSERT INTO server_options (discord_guild_id, record) VALUES (?, ?) ON CONFLICT "
                          "(discord_guild_id) DO UPDATE SET record = excluded.record", (discord_guild_id, int(on)))
-        forgotten = 0 if on else self._forget_interactions("discord_guild_id = ?", (discord_guild_id,))
+        forgotten = 0 if on else self._forget_interactions("kept_for = ?", (discord_guild_id,))
         self._db.commit()
         return forgotten
 

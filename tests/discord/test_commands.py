@@ -412,8 +412,8 @@ async def test_setup_keeps_the_steps_under_answers_or_not(setup, bot):
 async def test_setup_keeps_the_servers_answers_for_review_only_when_asked(setup, bot):
     assert bot.store.record(1001) is False
     told = await setup(record=True)
-    assert "kept for 90 days" in told and "DMs are never kept" in told and bot.store.record(1001) is True
-    assert await setup(record=False) == "Questions and answers here are no longer kept."
+    assert "kept for 90 days" in told and "in DMs the bot answers for this server" in told and bot.store.record(1001)
+    assert await setup(record=False) == "Questions and answers in this server's channels and DMs are no longer kept."
     assert bot.store.record(1001) is False
 
 
