@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `MCP` **Report a problem with any answer in Claude and ChatGPT.** Claude's and ChatGPT's own thumbs and flags go to them, not to Wipebot's maintainers, and offering a report used to depend on the AI noticing that you disagreed. Now the first card of an answer has a quiet "Report a problem" button in its row of buttons, and an answer without a card gets the same as one line. Pick whether something is wrong, missing or too slow, say what's off, and Send puts it in the chat, so the AI sends it to Wipebot's maintainers with your question and its answer word for word. Nothing is sent before you press Send.
+
+  ![A pull's card in Claude's dark theme with "Report a problem" beside the Warcraft Logs link, and under it the open form: three choices, what the raider wrote, Send and Cancel](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/report-a-problem.webp)
+
 ## [1.5.0] - 2026-11-13
 
 ### Added

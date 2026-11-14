@@ -376,3 +376,27 @@ svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2
 .pl-tabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 2px 8px; }
 .pl-box { position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; overflow: hidden; background: var(--panel); }
 .pl-box iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* "Report a problem" (main.js's reporter): a quiet text button in the card's row of buttons, before its link out
+   (or on a line of its own), and the form it opens under the view */
+.report { display: flex; justify-content: flex-end; padding: 8px 2px 0; }
+.report.alone { justify-content: flex-start; padding: 2px; }
+.report[hidden] { display: none; }
+.report-open { border: 0; background: none; padding: 6px 0; color: var(--muted); font-size: 12.5px; cursor: pointer;
+               text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; }
+.report-open:hover { color: var(--ink); text-decoration-color: currentColor; }
+.actions .report-open { margin-left: auto; align-self: center; }
+.actions .report-open + .out { margin-left: 14px; }
+@media (max-width: 440px) { .actions .report-open .wide { display: none; } }  /* a phone's row: "Report" */
+.report-form { margin: 10px 2px 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 8px; }
+.report-form label { font-size: 13px; font-weight: 600; }
+.report-form .kinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.report-form .kinds button { font-size: 12px; padding: 3px 10px; border-radius: 999px; color: var(--muted); background: transparent; }
+.report-form .kinds button[aria-checked="true"] { color: var(--ink); border-color: var(--ink); }
+.report-form textarea { font: inherit; font-size: 13px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 64px; }
+.report-form textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.report-who { margin: 0; font-size: 11.5px; color: var(--muted); }
+.report-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.report-row button:disabled { opacity: .5; cursor: default; }
+.report-msg { font-size: 12px; color: var(--muted); }
+.report-done { margin: 10px 2px 0; font-size: 12.5px; color: var(--muted); }

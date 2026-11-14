@@ -101,10 +101,15 @@ async def answer(name: str, args: dict) -> dict:
             result = await server.guarded(server.view_data)(**args)
             if result.structured_content is not None:
                 result.structured_content["img_base"] = ORIGIN + "/img/"  # its spells' icons (views.icon)
+                result.structured_content["can_report"] = True  # as a server that keeps its calls says
         elif name == "pull_replay":
             data = await server.guarded(server.replay_data)(**args)
             data["img_base"] = ORIGIN + "/img/"
+            data["can_report"] = True
             result = CallToolResult(content=[], structured_content=data)
+        elif name == "report_answer":  # remote.py's, which keeps the call: here, only logged
+            log.info("report: %s", args)
+            return {"content": [{"type": "text", "text": "Sent"}]}
         elif name == "viewer_log":
             log.info("view: %s", args.get("note"))
             return {"content": [{"type": "text", "text": "ok"}]}

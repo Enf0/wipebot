@@ -39,7 +39,7 @@ from typing import Annotated, Literal
 from mcp.server.apps import APP_MIME_TYPE, Apps, ResourceCsp
 from mcp.server.auth.routes import build_metadata, cors_middleware
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, Icon, TextContent, ToolAnnotations
 from pydantic import Field
@@ -94,7 +94,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
                           validate_token_resource=True,
                           client_registration_options=ClientRegistrationOptions(enabled=True),
                           revocation_options=RevocationOptions(enabled=True)),
-        auth_server_provider=signin, extensions=[_views_app(public, setup)])
+        auth_server_provider=signin, extensions=[_views_app(public, setup, reports=bool(record))])
     shown = {"ui": {"resourceUri": VIEWS_APP}, "openai/outputTemplate": VIEWS_APP}
     plan = {"ui": {"resourceUri": PLAN_APP}, "openai/outputTemplate": PLAN_APP}
     # A host shows a tool's view on every call: only tools about one pull have one (raid_plan mostly has no pull, and
@@ -104,9 +104,12 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     # (server._fold: the first answered, which of calls made together need not be the first asked).
     ranks = ("In Claude and ChatGPT, {what}. Every call that draws a card draws one: the first of an answer comes "
              "open, and each that follows within a minute of the last as a line the user opens.")
-    server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
-                                       "player_night": shown, "death_recap": shown, "progress": shown,
-                                       "breakdown": shown, "mechanic_hits": shown, "raid_plan": plan},
+    # With reports (allow_reports), every tool has the page too: the first of an answer's calls that draws no card
+    # gets the line that offers a report instead (_report_line), and the rest draw nothing, at no height
+    lined = dict.fromkeys(LINED if record else (), shown)
+    server.register(mcp, setup, meta=lined | {"pull_map": shown, "pull_summary": shown, "player_pull": shown,
+                                              "player_night": shown, "death_recap": shown, "progress": shown,
+                                              "breakdown": shown, "mechanic_hits": shown, "raid_plan": plan},
                     notes={"breakdown": ranks.format(what=(
                                "the user also sees a ranking by player drawn as a damage meter (damage, healing, "
                                "damage taken, kicks, dispels) under a sentence on who is first against the median, "
@@ -151,6 +154,7 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     server.allow_saving(mcp, setup, _officer(signin))
     if record:  # with nowhere to keep a report, there's nobody to send one to
         allow_reports(mcp, setup)
+        mcp.after = _report_line
     _any_views_address(mcp, public)
     mcp.custom_route(CALLBACK_PATH, ["GET"])(signin.callback)
     mcp.custom_route(CONSENT_PATH, ["GET", "POST"])(signin.consent)
@@ -332,6 +336,38 @@ async def report_answer(
             "about it, with their Warcraft Logs name. They read it beside the Wipebot calls behind the answer.")
 
 
+# The core's tools that may carry the line offering a report: all but the method, which an answer reads first
+LINED = [name for name, _ in server._TOOLS if name != "analysis_method"]
+_offered: dict[str | None, float] = {}  # a signed-in user -> when they were last offered a report (a card or a line)
+
+
+def _report_line(name: str, result: CallToolResult, ctx: Context) -> CallToolResult:
+    """mcp.after on a server with reports: one offer of a report per answer, wherever its calls draw. A call more
+    than server.FOLD_S after the user's last offer (as cards fold: a host says nothing of which answer a call is
+    for) makes one: an open card in its row of buttons, a folded card on its line, a call without a card as a line
+    of its own (the views' `report` view). An open card within the minute says it needn't (`no_report`), and a call
+    without one draws nothing. A call that failed, or to a client that shows no apps, is left as it was."""
+    from mcp.server.auth.middleware.auth_context import get_access_token
+
+    card = result.structured_content
+    if result.is_error or (card is None and name not in LINED) or not server._supports_apps(ctx):
+        return result
+    token = get_access_token()
+    who, now = (token.subject if token else None), time.monotonic()
+    for user in [u for u, at in _offered.items() if now - at >= server.FOLD_S]:
+        del _offered[user]
+    if who in _offered:
+        if card is not None:
+            card["no_report"] = True
+        return result
+    _offered[who] = now
+    if card is None:
+        result.structured_content = {"view": "report", "can_report": True}
+    elif card.get("folded"):  # a card that comes as a line (the replay always does): the line offers it
+        card["can_report"] = True
+    return result
+
+
 def allow_reports(mcp: MCPServer, setup: server.Setup) -> None:
     """Give a server whose calls are kept (Remote.record) report_answer: a report is a kept call whose arguments are
     the report. It loads up front where a client defers tools behind a search (as the core's ALWAYS_LOAD do): its
@@ -377,8 +413,9 @@ def _views_csp(public_url: str, framed: bool = False) -> ResourceCsp:
     return ResourceCsp(resource_domains=[public_url], frame_domains=FRAMED if framed else None)
 
 
-def _views_app(public_url: str, setup: server.Setup) -> Apps:
-    """The views' page and the tools only it calls."""
+def _views_app(public_url: str, setup: server.Setup, reports: bool = False) -> Apps:
+    """The views' page and the tools only it calls; with `reports` (the server has report_answer), the data of each
+    view says so (`can_report`), and the page offers "Report a problem", which calls report_answer itself."""
     apps = Apps()
     apps.add_html_resource(VIEWS_APP, views.page(), name=VIEWS_APP.removeprefix("ui://"), title="Wipebot",
                            csp=_views_csp(public_url), prefers_border=False)
@@ -401,6 +438,7 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
         result = await server.view_data(view, pull, boss, report, player, top, death, tool, args, weeks)
         if (data := result.structured_content) is not None:
             data["img_base"] = public_url + "/img/"  # its spells' icons (views.icon), served once it named them
+            data["can_report"] = reports
             _handed_out.update(views.icons(data))
         return result
 
@@ -413,6 +451,7 @@ def _views_app(public_url: str, setup: server.Setup) -> Apps:
         decided."""
         data = await server.replay_data(report, pull, boss, at_ms, players)
         data["img_base"] = public_url + "/img/"
+        data["can_report"] = reports
         _handed_out.update([data["map"]["image"], *views.icons(data)])  # the icons: bosses', specs', casts'
         return CallToolResult(content=[TextContent(type="text", text=f"the replay of {data['title']}")],
                               structured_content=data)

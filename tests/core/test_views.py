@@ -1279,7 +1279,7 @@ def test_the_tools_with_a_card_are_the_ones_whose_result_carries_its_key():
     from wipebot.core import viewhost
     keyed = set(re.findall(r'await _shown\("(\w+)"', Path(server.__file__).read_text(encoding="utf-8")))
     remote = (Path(server.__file__).parents[1] / "mcp" / "remote.py").read_text(encoding="utf-8")
-    listed = re.search(r"server\.register\(mcp, setup, meta=\{(.*?)\}", remote, re.DOTALL)
+    listed = re.search(r"server\.register\(mcp, setup, meta=lined \| \{(.*?)\}", remote, re.DOTALL)
     assert listed and set(re.findall(r'"(\w+)": (?:shown|plan)\b', listed[1])) == keyed | {"pull_map", "raid_plan"}
     assert keyed == viewhost.SHOWN and keyed < set(server.VIEW_TOOLS)
     # and in the page: the tools only some of whose calls have a view (it draws nothing for the others), and the
@@ -1405,6 +1405,48 @@ async def drawn(tool: str, args: dict, touch: bool = False, **setup):
             page = await viewhost._open(browser, setup, errors)
         await viewhost._settled(page)
         yield page.frames[-1], errors
+
+
+async def test_report_a_problem_goes_into_the_chat_or_where_the_host_takes_no_message_to_report_answer(recorded):
+    """Where the server takes reports, a card's row of buttons ends in "Report a problem", which opens a form under
+    the view; Send puts the report in the chat for the model to send with the question and its answer, or calls
+    report_answer itself where the host takes no message. Nothing is sent before Send, and it is offered once."""
+    async def report(**host) -> tuple[list[dict], str]:
+        async with drawn("pull_summary", PULL_CASE.args, **host) as (view, errors):
+            await view.get_by_role("button", name="Report a problem").click()
+            assert await view.locator(".report-form .report-send").is_disabled()
+            await view.get_by_role("radio", name="Something's missing").click()
+            await view.locator(".report-form textarea").fill("The first death mattered more than the buff.")
+            await view.locator(".report-form .report-send").click()
+            await view.locator(".report-done").wait_for()
+            assert not errors and await view.locator(".report-open").count() == 0
+            log = await view.page.evaluate("window.__log")
+            return [m["msg"] for m in log if m["dir"] == "←" and m["msg"].get("method") in (
+                "ui/message", "tools/call")], await view.locator(".report-done").inner_text()
+    sent, thanks = await report()
+    said = [m for m in sent if m["method"] == "ui/message"]
+    assert len(said) == 1 and said[0]["params"]["content"][0]["text"] == (
+        "Please send Wipebot's maintainers a report on this answer (something's missing, about the \"Sszorak pull "
+        "13\" card): The first death mattered more than the buff.")
+    assert "report_answer" not in str(sent) and thanks.startswith("It's in the chat")
+    sent, thanks = await report(capabilities={"serverTools": {}})  # a host that takes no message
+    reported = [m["params"]["arguments"] for m in sent if m["params"].get("name") == "report_answer"]
+    assert len(reported) == 1 and reported[0]["kind"] == "missing" and reported[0]["problem"].startswith("The first")
+    assert reported[0]["answer"].startswith("Sszorak pull 13") and thanks.startswith("Sent to the people")
+
+
+async def test_a_call_without_a_card_offers_a_report_as_a_line_and_one_already_offered_draws_nothing(recorded):
+    """remote.py's _report_line: the first call of an answer without a card gets the line; a card after an offer
+    has no button."""
+    line = {"content": [], "structuredContent": {"view": "report", "can_report": True}}
+    async with drawn("boss_guide", {"boss": "Sszorak"}, result=line) as (view, errors):
+        assert not errors and await view.locator("body").inner_text() == "Report a problem with this answer"
+    async with drawn("pull_summary", PULL_CASE.args, result={"content": [], "structuredContent": {
+            "view": "pull", "report": PULL_CASE.args["report"], "pull": 13, "boss": "Sszorak",
+            "no_report": True}}) as (view, errors):
+        assert not errors and await view.locator(".report-open").count() == 0
+    async with drawn("spell_info", {"spell": "x"}, result={"content": []}) as (view, errors):
+        assert not errors and await view.locator("body").inner_text() == ""
 
 
 def test_a_charts_text_size_is_texts_own_parameter():
@@ -3286,7 +3328,8 @@ STAT_TILES = '() => [...document.querySelectorAll(".stats .stat")].map((e) => e.
 CARD = """() => {
   const all = (sel) => [...document.querySelectorAll(sel)];
   return { lead: all(".lead").map((p) => p.textContent), stats: all(".stats .stat").length,
-           buttons: all(".actions button").map((b) => b.textContent), charts: all("#app svg:not(.out svg)").length,
+           buttons: all(".actions button:not(.report-open)").map((b) => b.textContent),
+           charts: all("#app svg:not(.out svg)").length,
            lists: all("ul.ranked").length, tables: all("table").length,
            tall: Math.ceil(document.body.getBoundingClientRect().height),
            order: all("table, ul.ranked").map((e) => e.tagName.toLowerCase()) };

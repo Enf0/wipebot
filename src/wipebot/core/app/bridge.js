@@ -4,7 +4,7 @@
 // what the user is looking at (ui/update-model-context) and has the host open a link (ui/open-link).
 const PICTURE_HOST = "wipebot-picture";  // viewhost.py's painter, which takes a still picture of a view
 const app = (() => {
-  let nextId = 1, context = {}, capabilities = {}, host = {};
+  let nextId = 1, context = {}, capabilities = {}, host = {}, reports = false;
   const pending = new Map(), listeners = { input: [], result: [], cancelled: [], context: [], teardown: [] };
   const emit = (what, value) => listeners[what].forEach((fn) => fn(value));
 
@@ -80,6 +80,7 @@ const app = (() => {
     if (!res || res.isError || res.structuredContent === undefined) {
       throw new Error(((res && res.content) || [])[0]?.text || "no data");
     }
+    if (res.structuredContent.can_report) reports = true;  // the server takes reports (report_answer)
     return res.structuredContent;
   }
 
@@ -99,6 +100,13 @@ const app = (() => {
     return request("ui/message", { role: "user", content: [{ type: "text", text }] }).catch(() => {});
   }
 
+  // The same, for a page that says whether it went: only where the host says it takes messages (hostCapabilities.message)
+  const canSendMessage = () => !!capabilities.message;
+  async function say(text) {
+    const r = await request("ui/message", { role: "user", content: [{ type: "text", text }] });
+    if (r && r.isError) throw new Error("the chat didn't take it");
+  }
+
   // What the user has on screen now, for the model to read with their next message ("why did this one go wrong?"
   // after a click on a pull). Only a host that says it takes it (hostCapabilities.updateModelContext) is told; each
   // line replaces the last.
@@ -113,6 +121,13 @@ const app = (() => {
   const canOpenLinks = () => !!capabilities.openLinks;
   function openLink(url) { return request("ui/open-link", { url }).catch(() => {}); }
 
+  // A report on what a view shows, to the server's maintainers: report_answer, called by the page on the user's
+  // own Send (the server says it takes them: a view's data has can_report). Throws what went wrong.
+  async function report(args) {
+    const res = await request("tools/call", { name: "report_answer", arguments: args });
+    if (!res || res.isError) throw new Error(((res && res.content) || [])[0]?.text || "not sent");
+  }
+
   // A note for the server's log (viewer_log): what went wrong in a host we can't open devtools in.
   function log(note) {
     request("tools/call", { name: "viewer_log", arguments: { note: String(note).slice(0, 500) } }).catch(() => {});
@@ -122,6 +137,7 @@ const app = (() => {
 
   return {
     connect, callTool, requestDisplayMode, canGoFullscreen, sendMessage, tellModel, canOpenLinks, openLink, log,
+    report, canSendMessage, say, canReport: () => reports && host.name !== PICTURE_HOST, takesReports: () => { reports = true; },
     picture: () => host.name === PICTURE_HOST,  // drawn as a still picture (the Discord bot's): no buttons
     on: (what, fn) => listeners[what].push(fn),
     context: () => context,

@@ -662,6 +662,45 @@ def test_a_user_sends_a_report_on_an_answer_kept_as_a_call_with_who_sent_it(reco
     assert (user, tool, args) == ("1", "report_answer", sent)  # Raider's Warcraft Logs id
 
 
+def test_every_tool_but_the_method_has_the_page_where_reports_are_kept(recording_client, client):
+    """With reports, every tool has the views' page, so any answer that calls one can offer a report; without, only
+    the tools with a card do."""
+    for c, lined in ((recording_client, True), (client, False)):
+        call, _ = session(c)
+        tools = {t["name"]: t for t in call("tools/list", {})["tools"]}
+        assert ("ui" in (tools["boss_guide"].get("_meta") or {})) is lined
+        assert "ui" not in (tools["analysis_method"].get("_meta") or {})
+        assert tools["pull_summary"]["_meta"]["ui"]["resourceUri"] == remote.VIEWS_APP
+
+
+def test_an_answer_offers_one_report_wherever_its_calls_draw(monkeypatch):
+    """The first call of an answer offers a report: a call with no card as a line of its own, a card in its row of
+    buttons, a folded card on its line; the calls after it within the minute don't. One that failed, or to a client
+    without apps, is left as it was."""
+    from mcp.server.mcpserver import Context
+    from mcp.types import CallToolResult, TextContent
+    no_ctx = cast(Context, None)  # the client, as _supports_apps reads it: stood in for below
+    monkeypatch.setattr(remote, "_offered", {})
+    monkeypatch.setattr(server, "_supports_apps", lambda ctx: True)
+    text = [TextContent(type="text", text="...")]
+    line = remote._report_line("boss_guide", CallToolResult(content=text), no_ctx)
+    assert line.structured_content == {"view": "report", "can_report": True}
+    assert remote._report_line("spell_info", CallToolResult(content=text), no_ctx).structured_content is None
+    card = remote._report_line("pull_summary", CallToolResult(content=text, structured_content={"view": "pull"}),
+                               no_ctx)
+    assert card.structured_content == {"view": "pull", "no_report": True}
+    remote._offered.clear()
+    folded = remote._report_line("pull_map", CallToolResult(content=text, structured_content={
+        "view": "replay", "folded": True}), no_ctx)
+    assert folded.structured_content == {"view": "replay", "folded": True, "can_report": True}
+    remote._offered.clear()
+    failed = remote._report_line("boss_guide", CallToolResult(content=text, is_error=True), no_ctx)
+    assert failed.structured_content is None and not remote._offered
+    assert remote._report_line("analysis_method", CallToolResult(content=text), no_ctx).structured_content is None
+    monkeypatch.setattr(server, "_supports_apps", lambda ctx: False)
+    assert remote._report_line("boss_guide", CallToolResult(content=text), no_ctx).structured_content is None
+
+
 def test_a_server_that_keeps_no_calls_has_no_reports_to_send(client):
     call, _ = session(client)
     assert "report_answer" not in {t["name"] for t in call("tools/list", {})["tools"]}

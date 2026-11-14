@@ -2372,9 +2372,18 @@ class Server(MCPServer):
     SDK checks them before the tool runs: it drops an argument the tool doesn't take without a word, so the call
     answers another question than the one asked, and words one of the wrong kind as pydantic does (its model's
     name, error codes and a link to its documentation). A number given where a tool takes text is taken as that
-    text (`_numbers_as_text`)."""
+    text (`_numbers_as_text`). `after`, where a server sets it, sees each call's result and may hand back another
+    (remote.py: the line that offers a report)."""
+
+    after: Callable[[str, CallToolResult, Context], CallToolResult] | None = None
 
     async def call_tool(self, name: str, arguments: dict[str, Any], context: Context | None = None) -> Any:
+        if context is None:  # as the SDK makes one, so `after` reads the same client
+            context = Context(mcp_server=self, subscriptions=self._subscriptions)
+        result = await self._call_tool(name, arguments, context)
+        return self.after(name, result, context) if self.after and isinstance(result, CallToolResult) else result
+
+    async def _call_tool(self, name: str, arguments: dict[str, Any], context: Context) -> Any:
         tool = self._tool_manager.get_tool(name)
         takes = list((tool.parameters.get("properties") or {}) if tool else ())
         # an argument left null is no argument: clients fill one in for what they don't use
@@ -2441,7 +2450,7 @@ def _ill_fitting(tool: str, schema: dict, given: dict, error: ValidationError) -
     return " ".join(told)
 
 
-def new_server(**kwargs) -> MCPServer:
+def new_server(**kwargs) -> Server:
     """An MCP server with Wipebot's name and instructions (`kwargs` for MCPServer: auth, extensions, website_url)."""
     return Server("wipebot", title="Wipebot", instructions=INSTRUCTIONS, log_level="WARNING",
                   **kwargs)  # INFO logs every request

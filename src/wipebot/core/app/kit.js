@@ -112,9 +112,11 @@ const kit = (() => {
     const all = app.picture() ? [] : [inline && open && app.canGoFullscreen() && ["card-open", open, true], ...buttons].filter(Boolean);
     const out = app.picture() || !/^https:\/\//.test(url) ? ""
       : `<a class="out" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Warcraft Logs${OUT}</a>`;
+    // "Report a problem" (main.js), quiet, before the link out, where the page offers a report (kit.report)
+    const report = kit.report && app.canReport() ? '<button type="button" class="report-open">Report<span class="wide"> a problem</span></button>' : "";
     return head(title, sub, color, inline ? "" : out, icon) + lead(headline) + stats(items.filter(Boolean).slice(0, CARD.stats), true) + chart
-      + (all.length || (inline && out) ? `<div class="actions">${all.slice(0, CARD.buttons).map(([id, label, primary]) =>
-        `<button id="${id}"${primary ? ' class="primary"' : ""}>${esc(label)}</button>`).join("")}${inline ? out : ""}</div>` : "");
+      + (all.length || (inline && out) || report ? `<div class="actions">${all.slice(0, CARD.buttons).map(([id, label, primary]) =>
+        `<button id="${id}"${primary ? ' class="primary"' : ""}>${esc(label)}</button>`).join("")}${report}${inline ? out : ""}</div>` : "");
   }
   document.addEventListener("click", (e) => {
     if (!e.target.closest) return;
@@ -250,6 +252,7 @@ const kit = (() => {
   document.addEventListener("focusout", hide);
 
   return { esc, clock, short, exact, ordinal, svg, text, line, width, el, niceMax, labels, stats, tip, hit, icon, iconImg, SIZE, cls, palette, head, plural, legend, opens, fit, numbered,
-           CARD, card, press, frame, watch, looking, step, hatch };
+           CARD, card, press, frame, watch, looking, step, hatch,
+           report: null };  // main.js: opens the form offering a report, where the page offers one
 })();
 const views = {};  // each view: views.<name>.show(root, key, open, asked), drawn into root
