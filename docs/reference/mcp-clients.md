@@ -29,6 +29,13 @@ Seen live on 2026-10-13 with claude.ai and the deployed remote server:
 - Claude Desktop (Windows, 25 October) sizes an inline view's frame a few pixels short of the page, which then
   shows a scrollbar of its own, as claude-ai-mcp#69 describes (it measures the page rather than reading
   `ui/notifications/size-changed`): the views' page hides its overflow inline.
+- Claude draws a frame for every call of a tool whose `_meta` names a `ui://` page: its header (the server's and
+  the tool's names, an "Unverified" badge for a custom connector, buttons to expand, flag and see the call) and space
+  under it, even when the page sets no height and draws nothing (seen 16 November, after 1.6.0 gave every tool the
+  page: boss_guide, defensives and tank_swaps showed empty frames). A tool with no card of its own gets no page.
+- The "Unverified" badge on a frame marks a custom connector, one added by its URL, which Anthropic hasn't reviewed
+  (https://claude.com/docs/connectors/verification, read 16 November): a directory listing is Community by default,
+  Verified once Anthropic escalates and tests it. No metadata of the server's changes it.
 - Claude's tool search picks tools by name and description; the server's instructions weigh less, so a tool's
   description says when to call it.
 

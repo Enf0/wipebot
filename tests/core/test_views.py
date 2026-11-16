@@ -270,15 +270,16 @@ async def test_the_night_card_prints_each_wipes_percent_as_progress_writes_it(re
                         "phase": "P2 (2nd time)", "health": health, "ended": "Slag Wave killing many",
                         "best": False, "first": None} for n, pct, health in ((1, 60.0, 80.0), (2, 55.25, 68.25))]}
     night["headline"] = views.night_headline(night["pulls"], [("Slag Wave killing many", 2)])
-    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, written(night))
+    written(night)["thirds_text"] = [f"P2 {t:.1f}%" for t in night["thirds"]]  # as night.thirds_text, by phase
+    made_up_view(monkeypatch, {"view": "night", "report": night["report"], "boss": night["boss"]}, night)
     async with drawn("progress", {}, width=380) as (view, errors):
         tiles = [t.split("\n")[:2] for t in await view.evaluate(STAT_TILES)]
         marks = await view.evaluate("() => [...document.querySelectorAll('svg text')].map((t) => t.textContent)")
         tip = await view.locator('[data-pull-col="2"]').first.get_attribute("data-tip")
     assert not errors and [[a.upper(), b] for a, b in tiles] == [
-        ["BEST WIPE", "P2 68.2%"], ["GUILD BEST BEFORE", "P3 12.2%"], ["AVERAGE WIPE %", "70.2 → 61.0 → 55.5"]]
+        ["BEST WIPE", "P2 68.2%"], ["GUILD BEST BEFORE", "P3 12.2%"], ["AVERAGE WIPE % IN P2", "70.2 → 61.0 → 55.5"]]
     assert "P2 68.2%" in marks and "guild best before: P3 12.2%" in marks
-    assert tip.startswith("Pull 2: P2 (2nd time) at 68.2% , 5:00")
+    assert tip.startswith("Pull 2: P2 (2nd time) at 68.2%, 5:00")
 
 
 @pytest.mark.parametrize("case", ["pull-summary", "vashnik-summary", "altar-summary"])
@@ -1279,7 +1280,7 @@ def test_the_tools_with_a_card_are_the_ones_whose_result_carries_its_key():
     from wipebot.core import viewhost
     keyed = set(re.findall(r'await _shown\("(\w+)"', Path(server.__file__).read_text(encoding="utf-8")))
     remote = (Path(server.__file__).parents[1] / "mcp" / "remote.py").read_text(encoding="utf-8")
-    listed = re.search(r"server\.register\(mcp, setup, meta=lined \| \{(.*?)\}", remote, re.DOTALL)
+    listed = re.search(r"server\.register\(mcp, setup, meta=\{(.*?)\}", remote, re.DOTALL)
     assert listed and set(re.findall(r'"(\w+)": (?:shown|plan)\b', listed[1])) == keyed | {"pull_map", "raid_plan"}
     assert keyed == viewhost.SHOWN and keyed < set(server.VIEW_TOOLS)
     # and in the page: the tools only some of whose calls have a view (it draws nothing for the others), and the
@@ -1435,12 +1436,9 @@ async def test_report_a_problem_goes_into_the_chat_or_where_the_host_takes_no_me
     assert reported[0]["answer"].startswith("Sszorak pull 13") and thanks.startswith("Sent to the people")
 
 
-async def test_a_call_without_a_card_offers_a_report_as_a_line_and_one_already_offered_draws_nothing(recorded):
-    """remote.py's _report_line: the first call of an answer without a card gets the line; a card after an offer
-    has no button."""
-    line = {"content": [], "structuredContent": {"view": "report", "can_report": True}}
-    async with drawn("boss_guide", {"boss": "Sszorak"}, result=line) as (view, errors):
-        assert not errors and await view.locator("body").inner_text() == "Report a problem with this answer"
+async def test_a_card_after_an_offer_has_no_report_button_and_a_call_without_a_card_draws_nothing(recorded):
+    """remote.py's _report_line: a card after the answer's offer has no button; a call without a card (one of the
+    tools only some of whose calls draw) draws nothing."""
     async with drawn("pull_summary", PULL_CASE.args, result={"content": [], "structuredContent": {
             "view": "pull", "report": PULL_CASE.args["report"], "pull": 13, "boss": "Sszorak",
             "no_report": True}}) as (view, errors):
@@ -1682,7 +1680,7 @@ async def test_every_text_a_view_draws_reads_against_what_is_behind_it(recorded,
     assert low == []
     # and it looked at what it says: a chip of each kind, and how many died at once written in three marks
     assert {t["cls"] for t in seen["player_night"] if t["cls"].startswith("chip")} == {
-        "chip", "chip fix", "chip unknown", "chip outright", "chip fix sample", "chip unknown sample"}
+        "chip", "chip fix", "chip unknown", "chip outright"}  # the key's samples hold no text
     assert sum(t["cls"] == "tb" for t in seen["pull_summary"]) == 3
 
 
@@ -2588,10 +2586,10 @@ KEYS = """() => [...document.querySelectorAll(".note.keys .key")].map((k) =>
     [k.querySelector(".chip").textContent, k.querySelector(".chip").className, k.textContent])"""
 
 
-async def test_the_night_cards_key_shows_a_pull_that_is_one_and_names_no_kind_the_night_lacks(monkeypatch):
+async def test_the_night_cards_key_holds_no_number_and_names_no_kind_the_night_lacks(monkeypatch):
     """The key under the chips once showed a chip "12" in the colour of a death a defensive would have stopped,
-    whatever the night: on the recorded night pull 12 is a death the text can't tell for, and the key was drawn on
-    a night with no such death at all. Its sample is the first pull that is one, of each kind the rows have."""
+    whatever the night, and later the first pull of each kind, which raiders read as a count ("2 survivable" under
+    "15 of 17 survivable"). Its sample chip is empty, one for each kind the rows have."""
     def night_with(*chips: tuple[int, bool | None]) -> dict:
         night = made_up_night()
         night["killers"] = [{"by": "Slag Wave", "icon": "spells/1.jpg", "pulls": [
@@ -2603,13 +2601,12 @@ async def test_the_night_cards_key_shows_a_pull_that_is_one_and_names_no_kind_th
     lived, cant = "survivable with a ready defensive or a healthstone", "the log can't tell"
     night_with((2, False), (4, None), (5, True), (6, True), (7, None))
     async with drawn("player_night", {}) as (view, errors):
-        assert await view.evaluate(KEYS) == [["5", "chip fix sample", f"5{lived}"],
-                                             ["4", "chip unknown sample", f"4{cant}"]]
+        assert await view.evaluate(KEYS) == [["", "chip fix sample", lived], ["", "chip unknown sample", cant]]
         tip = await view.locator('[data-pull-chip="4"]').get_attribute("data-tip")
         assert tip.endswith(f"; can't tell: {views.NOT_REPLAYED}") and not errors
     night_with((2, False), (4, None))  # no death a defensive would have stopped: that kind is not in the key
     async with drawn("player_night", {}) as (view, errors):
-        assert await view.evaluate(KEYS) == [["4", "chip unknown sample", f"4{cant}"]] and not errors
+        assert await view.evaluate(KEYS) == [["", "chip unknown sample", cant]] and not errors
     night_with((2, False), (4, False))  # neither kind: no key
     async with drawn("player_night", {}) as (view, errors):
         assert await view.evaluate(KEYS) == [] and await view.locator(".note.keys").count() == 0 and not errors

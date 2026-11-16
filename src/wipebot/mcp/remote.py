@@ -104,10 +104,9 @@ def app(signin: SignIn, host: str = "127.0.0.1", record: server.Record | None = 
     # (server._fold: the first answered, which of calls made together need not be the first asked).
     ranks = ("In Claude and ChatGPT, {what}. Every call that draws a card draws one: the first of an answer comes "
              "open, and each that follows within a minute of the last as a line the user opens.")
-    # With reports (allow_reports), every tool has the page too: the first of an answer's calls that draws no card
-    # gets the line that offers a report instead (_report_line), and the rest draw nothing, at no height
-    lined = dict.fromkeys(LINED if record else (), shown)
-    server.register(mcp, setup, meta=lined | {"pull_map": shown, "pull_summary": shown, "player_pull": shown,
+    # Only these: Claude draws a frame (the tool's name, its badge and buttons) for every call of a tool with the
+    # page, even one whose page takes no height, so a tool with no card of its own gets none
+    server.register(mcp, setup, meta={"pull_map": shown, "pull_summary": shown, "player_pull": shown,
                                               "player_night": shown, "death_recap": shown, "progress": shown,
                                               "breakdown": shown, "mechanic_hits": shown, "raid_plan": plan},
                     notes={"breakdown": ranks.format(what=(
@@ -336,21 +335,20 @@ async def report_answer(
             "about it, with their Warcraft Logs name. They read it beside the Wipebot calls behind the answer.")
 
 
-# The core's tools that may carry the line offering a report: all but the method, which an answer reads first
-LINED = [name for name, _ in server._TOOLS if name != "analysis_method"]
-_offered: dict[str | None, float] = {}  # a signed-in user -> when they were last offered a report (a card or a line)
+_offered: dict[str | None, float] = {}  # a signed-in user -> when they were last offered a report (on a card)
 
 
 def _report_line(name: str, result: CallToolResult, ctx: Context) -> CallToolResult:
-    """mcp.after on a server with reports: one offer of a report per answer, wherever its calls draw. A call more
+    """mcp.after on a server with reports: one offer of a report per answer, on the first of its cards. A card more
     than server.FOLD_S after the user's last offer (as cards fold: a host says nothing of which answer a call is
-    for) makes one: an open card in its row of buttons, a folded card on its line, a call without a card as a line
-    of its own (the views' `report` view). An open card within the minute says it needn't (`no_report`), and a call
-    without one draws nothing. A call that failed, or to a client that shows no apps, is left as it was."""
+    for) makes one: an open card in its row of buttons, a folded card on its line. An open card within the minute
+    says it needn't (`no_report`). A call without a card (only the tools with one have the page), one that failed,
+    or to a client that shows no apps, is left as it was: the model still offers report_answer when the user says
+    an answer was wrong."""
     from mcp.server.auth.middleware.auth_context import get_access_token
 
     card = result.structured_content
-    if result.is_error or (card is None and name not in LINED) or not server._supports_apps(ctx):
+    if result.is_error or card is None or not server._supports_apps(ctx):
         return result
     token = get_access_token()
     who, now = (token.subject if token else None), time.monotonic()
@@ -361,9 +359,7 @@ def _report_line(name: str, result: CallToolResult, ctx: Context) -> CallToolRes
             card["no_report"] = True
         return result
     _offered[who] = now
-    if card is None:
-        result.structured_content = {"view": "report", "can_report": True}
-    elif card.get("folded"):  # a card that comes as a line (the replay always does): the line offers it
+    if card.get("folded"):  # a card that comes as a line (the replay always does): the line offers it
         card["can_report"] = True
     return result
 

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `MCP` **No more empty cards in Claude.** Since 1.6.0 every Wipebot tool carried the cards' page so any answer could offer "Report a problem", and Claude drew a frame for each of their calls: an answer that read a boss guide or checked defensives showed empty boxes, or only a report line. Now only the tools with a picture of their own get a frame, and the answer's first card offers the report.
+- `MCP` **A player's night card no longer looks like it contradicts itself.** The key over "What killed" showed a pull number in each sample chip, which read as a count ("2 survivable" under "15 of 17 survivable"). The sample chips are now empty.
+
+  ![A player's night card in Claude's dark theme: the key over What killed shows an empty orange chip for survivable deaths and an empty dashed chip for the ones the log can't tell](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-card-key.webp)
+
 ## [1.9.0] - 2026-11-16
 
 ### Changed

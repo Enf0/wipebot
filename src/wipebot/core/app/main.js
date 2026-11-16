@@ -106,8 +106,7 @@
         form.querySelectorAll("[data-kind]").forEach((o) => o.setAttribute("aria-checked", String(o === b)));
       }; });
       what.oninput = () => { send.disabled = !what.value.trim(); };
-      const alone = root.querySelector(".report.alone");  // the line, which the form stands in for while open
-      form.querySelector(".report-cancel").onclick = () => { form.remove(); form = null; if (alone) alone.hidden = false; };
+      form.querySelector(".report-cancel").onclick = () => { form.remove(); form = null; };
       // a click, not a form's submit: a host's sandboxed frame may not allow forms
       send.onclick = async () => {
         const title = body ? body.querySelector("h1")?.textContent || view : "";
@@ -135,7 +134,6 @@
           send.disabled = false; msg.textContent = `Not sent: ${err.message}`;
         }
       };
-      if (alone) alone.hidden = true;
       root.append(form);
       what.focus();
     };
@@ -158,22 +156,8 @@
     }
   }
 
-  // The line offering a report, for a call that draws no card (remote.py's _report_line: the first of an answer's)
-  function line() {
-    empty(false);
-    kit.report = reporter("answer", {}, null);
-    root.replaceChildren(kit.el(REPORT_LINE));
-    root.firstChild.classList.add("alone");
-    root.firstChild.firstChild.textContent = "Report a problem with this answer";
-  }
-
   function start(result) {
     const sc = result && result.structuredContent;
-    if (sc && sc.view === "report") {
-      if (sc.can_report) app.takesReports();
-      if (app.canReport() && !started) { started = "report"; line(); } else if (!started) nothing();
-      return;
-    }
     let key = sc && sc.report ? sc : null;
     if (!key && !(result && result.isError)) {  // a tool that failed has nothing to draw, from its arguments either
       const view = BY_TOOL[tool()];

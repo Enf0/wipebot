@@ -53,13 +53,12 @@ views.player_night = (() => {
       + `<span class="kc">${k.pulls.length}</span><span class="chips">${k.pulls.map((x) => chip(k, x)).join("")}</span></li>`).join("");
     const more = rest.length ? `<div class="note">and ${rest.length} other abilit${rest.length === 1 ? "y" : "ies"}, `
       + `${kit.plural(rest.reduce((n, k) => n + k.pulls.length, 0), "death")}</div>` : "";
-    // The key: each of the two marked kinds of chip the rows drawn have, on the first pull that is one, so the
-    // sample is never a pull of another kind and no kind is named that the night lacks
-    const drawn = shown.flatMap((k) => k.pulls).sort((a, b) => a.pull - b.pull);
-    const sample = (is, cls, words) => {
-      const x = drawn.find(is);
-      return x ? `<span class="key"><span class="chip ${cls} sample">${x.pull}</span>${words}</span>` : "";
-    };
+    // The key: each of the two marked kinds of chip the rows drawn have, so no kind is named that the night lacks.
+    // Its sample chip holds no number: a pull's number there read as a count of such deaths, beside the card's
+    // own counts ("2 survivable" under "15 of 17")
+    const drawn = shown.flatMap((k) => k.pulls);
+    const sample = (is, cls, words) =>
+      drawn.some(is) ? `<span class="key"><span class="chip ${cls} sample" aria-hidden="true"></span>${words}</span>` : "";
     const key = sample((x) => x.saved === true, "fix", LIVED)
       + sample((x) => x.saved == null, "unknown", "the log can't tell");
     // the key over the rows, where it is seen with them, and short enough for a phone's line

@@ -161,10 +161,10 @@ svg text:is(.to, .tg, .over) { paint-order: stroke; stroke: var(--bg); stroke-wi
 .chip.fix { border-color: var(--decided); color: var(--ink); background: color-mix(in srgb, var(--decided) 14%, transparent); }
 .chip.unknown { border-style: dashed; }
 .chip.outright { text-decoration: line-through; }
-.chip.sample { display: inline-block; text-align: center; cursor: default; margin-right: 4px; }
+.chip.sample { display: inline-block; cursor: default; margin-right: 6px; }
 .note.keys { margin: 0 2px 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 /* a key's words wrap beside its sample where a phone's line is too short for them */
-.note.keys .key { display: flex; align-items: baseline; min-width: 0; }
+.note.keys .key { display: flex; align-items: center; min-width: 0; }
 .note.keys .key .chip { flex: none; }
 [data-panel] + [data-panel] { margin-top: 10px; }
 .ranked { list-style: none; margin: 0 2px 8px; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) auto; gap: 4px 10px; align-items: center; font-size: 12.5px; }
@@ -380,7 +380,6 @@ svg.skull { width: 12px; height: 12px; display: inline-block; vertical-align: -2
 /* "Report a problem" (main.js's reporter): a quiet text button in the card's row of buttons, before its link out
    (or on a line of its own), and the form it opens under the view */
 .report { display: flex; justify-content: flex-end; padding: 8px 2px 0; }
-.report.alone { justify-content: flex-start; padding: 2px; }
 .report[hidden] { display: none; }
 .report-open { border: 0; background: none; padding: 6px 0; color: var(--muted); font-size: 12.5px; cursor: pointer;
                text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; }
