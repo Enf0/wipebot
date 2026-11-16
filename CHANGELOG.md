@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-11-16
+
 ### Fixed
 
 - `MCP` **No more empty cards in Claude.** Since 1.6.0 every Wipebot tool carried the cards' page so any answer could offer "Report a problem", and Claude drew a frame for each of their calls: an answer that read a boss guide or checked defensives showed empty boxes, or only a report line. Now only the tools with a picture of their own get a frame, and the answer's first card offers the report.
