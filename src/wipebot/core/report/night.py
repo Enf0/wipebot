@@ -22,8 +22,8 @@ from ..pulls import (
     pct_text,
     phase_health,
     phase_label,
+    wipe_fights,
     wipe_pct,
-    wipe_pcts,
     wipe_text,
 )
 from ..text import clock, clusters, date, ordinal, plural, ranges, span
@@ -39,6 +39,25 @@ def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
     third = len(wipes) // 3
     early, middle, late = wipes[:third], wipes[third:-third], wipes[-third:]
     return sum(early) / len(early), sum(middle) / len(middle), sum(late) / len(late)
+
+
+def thirds_text(fights: list[dict]) -> list[str] | None:
+    """The average wipe of each third of a night's wipes (wipe_thirds) as raiders say it: '72.2'; on a boss counted
+    by phase, the phase most of the third's wipes ended in and the boss's average health in it, with how many
+    of the third's wipes that is when not all ('P1 92.0%', 'P2 70.1% (4 of 5)'). None for fewer than six wipes."""
+    wipes = wipe_fights(fights)
+    if (thirds := wipe_thirds([wipe_pct(f) or 0.0 for f in wipes])) is None:
+        return None
+    if not by_phase(fights):
+        return [f"{t:.1f}" for t in thirds]
+    n = len(wipes) // 3
+    said = []
+    for part in (wipes[:n], wipes[n:-n], wipes[-n:]):
+        phase = Counter(phase_label(f) for f in part).most_common(1)[0][0]
+        mine = [f.get("bossPercentage") or 0.0 for f in part if phase_label(f) == phase]
+        said.append(f"{phase} {sum(mine) / len(mine):.1f}%" + (f" ({len(mine)} of {len(part)})"
+                                                              if len(mine) < len(part) else ""))
+    return said
 
 
 async def overview(rep: Report) -> str:
@@ -57,7 +76,6 @@ async def overview(rep: Report) -> str:
     lines += [line for line in (no_progress, no_ranks if any(f["kill"] for f in rep.fights) else None) if line]
     for b, pulls in rep.by_boss.items():
         kills = [f for f in pulls if f["kill"]]
-        wipes = wipe_pcts(pulls)
         resets = sum(1 for f in pulls if is_reset(f))
         spent = sum(f["endTime"] - f["startTime"] for f in pulls)
         diff = f"({difficulty_name(pulls[0])})"  # the boss's key has it already when the night has two of them
@@ -73,9 +91,9 @@ async def overview(rep: Report) -> str:
             best = min((f for f in pulls if attempt(f) and not f["kill"] and wipe_pct(f) is not None),
                        key=lambda f: wipe_pct(f) or 0, default=None)
             text += f"best wipe {wipe_text(best)}" if best else "no attempt past a reset"
-        if thirds := wipe_thirds(wipes):
-            wcl = "WCL " if by_phase(pulls) else ""
-            text += f", average {wcl}wipe {thirds[0]:.1f}% early vs {thirds[2]:.1f}% late"
+        if said := thirds_text(pulls):
+            unit = "" if by_phase(pulls) else "%"
+            text += f", average wipe {said[0]}{unit} early vs {said[2]}{unit} late"
         lines.append(text)
     return "\n".join(lines)
 
@@ -374,9 +392,7 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
     fights = rep.by_boss[b]
     await rep.decided_cuts(fights)  # every pull's deaths, boss buffs, battle res and council bosses' deaths at once
     phased = by_phase(fights)
-    how_far = ("phase and the boss's health in it as raiders count a wipe, then Warcraft Logs' % of the whole fight, "
-               "which ranks wipes across phases" if phased else "boss %, phase")
-    wcl = "WCL " if phased else ""
+    how_far = "phase and the boss's health left in it, as raiders count a wipe" if phased else "boss health left, phase"
     died = (f"the first {FIRST_DEATHS} deaths, the killing blows of the deaths until the wipe was decided, how many "
             "died after it" if each_pull else "first death")
     # the difficulty each pull's post named, once: the boss's name has it only where the night has two
@@ -388,7 +404,7 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
     marks, best = _marks(fights, before)
     if before:
         record = _record(before, fights, best, phased)
-        lines.append(f"The guild's best wipe before the night: {before.text(wcl)}.{record}")
+        lines.append(f"The guild's best wipe before the night: {before.text()}.{record}")
     first_killers: Counter = Counter()
     ends: Counter = Counter()  # what ended each pull, by kind_of_end
     kept: dict[str, list[float]] = defaultdict(list)  # end buff -> when it was gained, per pull
@@ -416,10 +432,9 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
         end = _end_buffs(buffs, enrages, decided)
         lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_ended(ending, decided)}; "
                      f"{await _died(rep, f, deaths, each_pull)}{end}{marks.get(i, '')}")
-    wipes = wipe_pcts(fights)
-    if thirds := wipe_thirds(wipes):
-        lines.append(f"Average {wcl}wipe % (resets left out): " + "first third {:.1f}, middle {:.1f}, last third {:.1f}"
-                     .format(*thirds))
+    if said := thirds_text(fights):
+        lines.append("Average boss health left at a wipe (resets left out, lower got further): "
+                     + "first third {}, middle {}, last third {}".format(*said))
     for name, times in kept.items():
         how = kept_how[name]
         split = [f"{text} {len(how[key])}" + (f" (pull{'s' if len(how[key]) > 1 else ''} {ranges(how[key])})"
@@ -524,12 +539,12 @@ class BossNight:
     best_health: float | None = None  # on a boss counted by phase, the boss's health in it (phase_health)
 
     def best_text(self) -> str:
-        """The best wipe as raiders say it (wipe_text): 'P2 68.3% (WCL 70.5%)' on a boss counted by phase."""
+        """The best wipe as raiders say it (wipe_text): 'P2 68.3%' on a boss counted by phase."""
         if self.best is None:
             return "-"
         if self.best_health is None:
             return f"{self.best[0]:.1f}%"
-        return f"{self.best_phase} {self.best_health:.1f}% (WCL {self.best[0]:.1f}%)"
+        return f"{self.best_phase} {self.best_health:.1f}%"
 
 
 def boss_pulls(rep: Report, encounter: int, difficulty: int | None) -> list[dict]:
@@ -571,7 +586,7 @@ def weeks_text(boss: str, weeks: int, nights: list[BossNight]) -> str:
         return f"The guild's raid nights of the last {plural(weeks, 'week')} have no pulls on {boss}."
     lines = [f"{boss} night by night over the last {plural(weeks, 'week')} (the guild's raid nights in this raid: "
              "pulls, the kill, the best wipe before it, and how the pulls ended, by the first thing that ended each):"]
-    furthest = None  # the lowest best wipe of the nights so far: lower got further, across phases too (WCL %)
+    furthest = None  # the lowest best wipe of the nights so far: lower got further, across phases too (the fight's %)
     for i, n in enumerate(nights):
         kill = f"killed on pull {n.kill}" if n.kill else "no kill"
         best = f", best wipe {n.best_text()} (pull {n.best[1]})" if n.best else ""
@@ -580,7 +595,12 @@ def weeks_text(boss: str, weeks: int, nights: list[BossNight]) -> str:
             furthest = n.best[0]
         ends = ", ".join(f"{what} {k}" for what, k in n.ends if what != "a kill")
         lines.append(f"  {date(n.start_ms)}: {plural(n.pulls, 'pull')}, {kill}{best}; ended by {ends or 'nothing yet'}")
-    bests = [f"kill on pull {n.kill}" if n.kill else f"{n.best[0]:.1f}" if n.best else "-" for n in nights]
-    wcl = " (WCL %)" if any(n.best_health is not None for n in nights) else ""
-    lines.append(f"Best wipe night by night{wcl}: " + " → ".join(bests))
+    def said(n: BossNight) -> str:
+        if n.kill:
+            return f"kill on pull {n.kill}"
+        if n.best is None:
+            return "-"
+        return n.best_text() if n.best_health is not None else f"{n.best[0]:.1f}"
+    bests = [said(n) for n in nights]
+    lines.append("Best wipe night by night: " + " → ".join(bests))
     return "\n".join(lines)

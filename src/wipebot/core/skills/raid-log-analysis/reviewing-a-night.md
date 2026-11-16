@@ -20,9 +20,9 @@ latest: a night with several bosses in progress takes one call per boss.
 - A player who pull after pull is hit by another group's soak, or stands at another player's spot, has likely
   changed places since the note or plan was saved: say that, and count none of it as misses. A spot the plan's
   notes say moves (a player who runs out to bait) is no mistake either.
-- Improving or not is read from the best wipe and the average wipe, early against late. On a boss counted by
-  phase, say how far a wipe got as the tools write it, the phase with its health ("P2 80.8%"), never the health
-  alone.
+- Improving or not is read from the best wipe and the average wipe, early against late. A wipe's % is what the
+  boss had left, so lower got further: name the boss and say it as the tools write it ("Ula'tek at 87.3%"; on a
+  boss counted by phase the phase with its health, "P2 80.8%"), never a bare % or "WCL %".
 - On a kill, what went right is what differs from the best wipe: `compare_pulls` with `other`.
 - A summary for the raid leads with the log's own finding, then the guide's rule for it, never the guide's
   general advice alone.

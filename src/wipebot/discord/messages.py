@@ -369,4 +369,4 @@ def _result(f: dict) -> str:
     """'kill', 'reset' or how far the wipe got ('P2 68.3%' on a boss with phases), for a pull's choice in a menu."""
     if f.get("kill") or is_reset(f):
         return "kill" if f.get("kill") else "reset"
-    return wipe_text(f, wcl=False) if wipe_pct(f) is not None else "?"
+    return wipe_text(f) if wipe_pct(f) is not None else "?"

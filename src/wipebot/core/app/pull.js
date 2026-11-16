@@ -16,28 +16,28 @@ views.pull = (() => {
 
   // The card's numbers; how the pull ended is its headline (views.pull_headline). A kill: how fast and how clean,
   // against other kills of the boss. A wipe: how far it got, and where that stands against the log's earlier wipes
-  // on the boss and the guild's earlier logs, as the post says; on a boss counted by phase those are Warcraft Logs'
-  // whole-fight %, so the wipe's own leads, all named WCL. Each % comes written (views.py: the text's pct_text).
+  // on the boss and the guild's earlier logs, as the post says; on a boss counted by phase each is said by its
+  // phase and its health, as raiders count it. Each % comes written (views.py: the text's wipe_text).
   function stats() {
-    const out = [], b = D.best, wcl = D.phase ? "WCL " : "";
+    const out = [], b = D.best;
     if (D.kill && D.ranking) {
       out.push(["Speed", `${kit.ordinal(D.ranking.speed)} percentile`, "", "against other kills of the boss"]);
       out.push(["Execution", `${kit.ordinal(D.ranking.execution)} percentile`, "", "deaths and damage taken"]);
     }
     if (D.got) {  // how far the wipe got, as pull_summary's first line states it
-      const where = D.got_wcl ? [`WCL ${D.got_wcl}`] : [];
+      const where = [];
       if (b && b.new_guild) where.push("new guild best");
-      else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log: ${wcl}${b.tonight}`);
-      // a % stays on the line of what it is: a narrow card never breaks "WCL 50.1%" or "log: WCL 4.5%" in two, which
-      // once left "WCL 4.5%" on a line of its own, as if a second answer
-      const whole = (t) => t.replace(/(log: )?(WCL )?(\S+%)$/, (m) => m.replaceAll(" ", "\u00a0"));
+      else if (b && b.tonight != null) where.push(b.new_tonight ? "best of this log so far" : `best of this log: ${b.tonight}`);
+      // a % stays on the line of what it is: a narrow card never breaks "log: P2 4.5%" in two, which once left
+      // "4.5%" on a line of its own, as if a second answer
+      const whole = (t) => t.replace(/(log: )?(\S+ )?\S+%$/, (m) => m.replaceAll(" ", "\u00a0"));
       out.push(["Boss", D.got, b && b.new_guild ? "best" : "", where.map(whole).join(" · ")]);
     }
     out.push([D.decided ? `Deaths before ${kit.clock(D.decided.ms)}` : "Deaths", String(counted().length), "",
               D.decided && D.deaths.length > counted().length ? `${D.deaths.length - counted().length} after it: fallout` : ""]);
     const first = D.deaths[0];
     if (first) out.push(["First death", `${first.name} ${kit.clock(first.ms)}`, "dead", first.by]);
-    if (b && b.guild) out.push(["Guild best before", `${wcl}${b.guild.pct}`, "", b.guild.day]);
+    if (b && b.guild) out.push(["Guild best before", b.guild.pct, "", b.guild.day]);
     return out;
   }
 

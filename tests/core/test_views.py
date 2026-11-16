@@ -278,7 +278,7 @@ async def test_the_night_card_prints_each_wipes_percent_as_progress_writes_it(re
     assert not errors and [[a.upper(), b] for a, b in tiles] == [
         ["BEST WIPE", "P2 68.2%"], ["GUILD BEST BEFORE", "P3 12.2%"], ["AVERAGE WIPE %", "70.2 → 61.0 → 55.5"]]
     assert "P2 68.2%" in marks and "guild best before: P3 12.2%" in marks
-    assert tip.startswith("Pull 2: P2 (2nd time) at 68.2% (WCL 55.2%), 5:00")
+    assert tip.startswith("Pull 2: P2 (2nd time) at 68.2% , 5:00")
 
 
 @pytest.mark.parametrize("case", ["pull-summary", "vashnik-summary", "altar-summary"])
@@ -296,9 +296,9 @@ async def test_the_pull_cards_boss_health_is_what_the_texts_first_line_states(re
     head = text.splitlines()[0]
     if case == "altar-summary":  # counted by phase
         phase, health = data["got"].split(" ")
-        assert f": wipe in {phase} at {health} (WCL {data['got_wcl']}), " in head and phase == data["phase"]
+        assert f": wipe in {phase} at {health}, " in head and phase == data["phase"]
     else:
-        assert f": wipe at {data['got']}, " in head and data["got_wcl"] is None
+        assert f": wipe at {data['got']}, " in head
     assert re.fullmatch(r"(P\d+ )?\d+\.\d%", data["got"])
     assert data["got"].endswith(data["health_end"])  # the health line's end: the same number
     async with drawn(tool, args) as (view, errors):
@@ -2304,7 +2304,7 @@ def made_up_night() -> dict:
                                             (70.2, 300_000, None), (65.0, 310_000, (4, False)),
                                             (60.1, 320_000, (9, True)), (55.0, 330_000, None)], start=1):
         pulls.append({"pull": n, "kill": False, "reset": n == 1, "wipe_pct": pct, "got": f"{pct}%",
-                      "got_wcl": f"{pct}%", "duration_ms": 60000 * n,
+                      "duration_ms": 60000 * n,
                       "role": "healer", "spec": "Restoration", "per_s_alive": rate, "rank": 2, "of": 4,
                       "death": {"place": death[0], "ms": 30000 * n, "by": "Slag Wave", "icon": "spells/1.jpg",
                                 "fallout": death[1]} if death else None,
@@ -3259,9 +3259,9 @@ def test_night_by_night_the_headline_is_the_kill_else_the_furthest_wipe_in_the_t
     assert said((34.1, 42), (40.2, 7))["text"] == "Thu 9 Oct is still the furthest: best wipe 34.1%, on pull 42."
     assert said((40.2, 7), (34.1, 3), (34.1, 9))["text"] == (  # as far is not further
         "Thu 16 Oct is still the furthest: best wipe 34.1%, on pull 3.")
-    assert said((70.5, 16, "P2", 68.3))["text"] == "Best wipe P2 68.3% (WCL 70.5%), on pull 16 of Thu 9 Oct."
+    assert said((70.5, 16, "P2", 68.3))["text"] == "Best wipe P2 68.3%, on pull 16 of Thu 9 Oct."
     assert said((80.0, 2), (70.5, 16, "P2", 68.3))["text"] == (
-        "Thu 16 Oct got further than any night before: best wipe P2 68.3% (WCL 70.5%), on pull 16.")
+        "Thu 16 Oct got further than any night before: best wipe P2 68.3%, on pull 16.")
     assert said(None, (34.1, 42))["text"] == "Best wipe 34.1%, on pull 42 of Thu 16 Oct."
     assert said((34.1, 42), (2.0, 12), kill=14)["text"] == "Killed on Thu 16 Oct, on pull 14 of that night."
     assert said(None)["text"] == "No wipe past a reset that night."
@@ -3303,7 +3303,7 @@ async def test_the_night_by_night_card_leads_with_its_headline(monkeypatch):
     tonight["headline"] = views.night_headline(tonight["pulls"], [("Slag Wave killing many", 2)])
     made_up_view(monkeypatch, {"view": "night", "report": "night2", "boss": tonight["boss"], "weeks": 3},
                  written(tonight))
-    further = "Thu 23 Oct got further than any night before: best wipe P3 91.0% (WCL 55.0%), on pull 9."
+    further = "Thu 23 Oct got further than any night before: best wipe P3 91.0%, on pull 9."
     async with drawn("progress", {}, width=380) as (view, errors):
         card = await view.evaluate(CARD)
         assert not errors and card["lead"] == [further] and card["buttons"][0] == "Open night" and card["tall"] <= 520

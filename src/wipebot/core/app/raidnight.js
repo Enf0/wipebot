@@ -43,8 +43,17 @@ views.night = (() => {
         : best ? ["Best wipe", said(best), "", `pull ${best.pull}`] : null,
       g ? ["Guild best before", said(g), "", beat ? "beaten tonight" : g.day] : null,
       kill && top ? ["Ended most pulls", top[0].replace(/ killing many$/, ""), "decided", `${top[1]} of ${ended}${/killing many$/.test(top[0]) ? ", killing many" : ""}`] : null,
-      D.thirds ? ["Average wipe %", D.thirds_text.join(" → "), "", D.phased ? "WCL %, first, middle, last third" : "first, middle, last third"] : null,
+      D.thirds ? average() : null,
     ];
+  }
+
+  // the average wipe of each third as progress's text says it; on a boss counted by phase each third's is in the
+  // phase most of its wipes ended in ("P1 92.5%"), the phase said once in the label where all three share it
+  function average() {
+    const t = D.thirds_text, phase = (s) => s.split(" ")[0], one = D.phased && t.every((s) => !s.includes("(") && phase(s) === phase(t[0]));
+    if (!D.phased) return ["Average wipe %", t.join(" → "), "", "first, middle, last third"];
+    if (one) return [`Average wipe % in ${phase(t[0])}`, t.map((s) => s.slice(phase(s).length + 1, -1)).join(" → "), "", "first, middle, last third"];
+    return ["Average wipe", t.join(" → "), "", "each third's in the phase most of its wipes ended in"];
   }
 
   // The night's bosses, the one drawn marked: its pulls, and the kill or how far the best wipe got
@@ -64,12 +73,11 @@ views.night = (() => {
     const y = (v) => T + plotH - v / 100 * plotH;
     let o = "";
     for (const v of [0, 50, 100]) o += kit.line(L, y(v), W - R, y(v), "var(--line)", v ? 'opacity=".5"' : "") + kit.text(L - 6, y(v) + 4, `${v}%`, "tm", 'text-anchor="end"');
-    if (D.phased) o += kit.text(L - 6, y(75) + 4, "WCL", "tm", 'text-anchor="end"');  // the bars' %
     let best = null;
     const line = [];
     D.pulls.forEach((r, i) => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
-      const left = r.health_text ? `${r.phase} at ${r.health_text} (WCL ${r.pct_text})` : `${r.pct_text}${r.pct != null ? " left" : ""}${r.phase ? ` (${r.phase})` : ""}`;
+      const left = r.health_text ? `${r.phase} at ${r.health_text}` : `${r.pct_text}${r.pct != null ? " left" : ""}${r.phase ? ` (${r.phase})` : ""}`;
       const tip = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : r.live ? "still going" : left}, ${kit.clock(r.duration_ms)}`
         + `\nEnded by: ${r.ended}` + (r.first ? `\nFirst death: ${r.first.name} (${r.first.by}, ${kit.clock(r.first.ms)})` : "");
       if (r.kill) o += `<path d="M${cx} ${y(0) - 12} l4 8 l-8 0z" fill="var(--gold)"/>`;
@@ -133,7 +141,7 @@ views.night = (() => {
     W.forEach((r, i) => {
       const cx = x(i) + band / 2, v = r.kill ? 0 : r.pct ?? 0;
       const tip = `${r.day}: ${kit.plural(r.pulls, "pull")}, ${r.kill ? `killed on pull ${r.kill}` : r.pct == null ? "no wipe past a reset"
-        : `best wipe ${r.health_text ? `${r.phase} at ${r.health_text} (WCL ${r.pct_text})` : `${r.pct_text}${r.phase ? ` (${r.phase})` : ""}`} on pull ${r.pull}`}`
+        : `best wipe ${r.health_text ? `${r.phase} at ${r.health_text}` : `${r.pct_text}${r.phase ? ` (${r.phase})` : ""}`} on pull ${r.pull}`}`
         + (r.ended ? `\nEnded most pulls: ${r.ended[0]} (${r.ended[1]})` : "");
       if (r.kill) o += `<path d="M${cx} ${y(0) - 14} l5 10 l-10 0z" fill="var(--gold)"/>`;
       else if (r.pct != null) o += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(1, y(0) - y(v))}" rx="3" fill="${phaseColor(r.phase, top)}"/>`;
@@ -153,7 +161,7 @@ views.night = (() => {
         o += `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" fill="${phaseColor(`P${k}`, top)}"/>` + kit.text(lx + 14, ly, `P${k}`);
         lx += 44;
       }
-      if (phased) o += kit.text(lx, ly, "bar height: WCL % of the whole fight left");
+      if (phased) o += kit.text(lx, ly, "bar height: % of the whole fight left");
       ly += 6;
     }
     return kit.svg(W0, ly + 4, o, `${D.boss}: the best pull on each raid night`);

@@ -11,7 +11,6 @@
 "raid": 20,
 "best": {"tonight": "66.8%", "new_tonight": true, "guild": null, "new_guild": false},
 "got": "62.6%",
-"got_wcl": null,
 "health_end": "62.6%",
 "phase": null,
 "ranking": null,

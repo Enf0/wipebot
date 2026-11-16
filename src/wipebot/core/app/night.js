@@ -113,9 +113,8 @@ views.player_night = (() => {
   }
 
   // how far a wipe got in the words of the pull's row in the text (pulls.wipe_text): the phase and the boss's health
-  // in it on a boss counted by phase, with Warcraft Logs' % of the whole fight (what the line stands on); else the
-  // boss's %
-  const got = (r) => r.got_wcl;
+  // in it on a boss counted by phase, else the boss's %
+  const got = (r) => r.got;
 
   function tipOf(r) {
     const head = `Pull ${r.pull}: ${r.kill ? "kill" : r.reset ? "a reset" : got(r)}, ${kit.clock(r.duration_ms)}`;

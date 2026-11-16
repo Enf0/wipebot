@@ -460,7 +460,7 @@ async def test_the_guilds_best_is_its_furthest_wipe_in_earlier_logs_on_that_diff
         log("none", rep.start_ms - 86_400_000, {})])
     best = await rep.guild_best(f)
     assert best is not None and (best.pct, best.code, best.fight, best.pull_no) == (35.0, "oldest", 12, 8)
-    assert best.text("WCL ").startswith("P2 64.0% (WCL 35.0%) on ")  # as raiders count it, its phase's health
+    assert best.text().startswith("P2 64.0% on ")  # as raiders count it, its phase's health
     rep.guild_id = None  # a personal log
     assert await rep.guild_best(f) is None
 

@@ -151,7 +151,7 @@ def test_a_return_to_a_phase_is_counted_by_the_phase_entered_not_by_its_number_a
 
 def test_a_boss_whose_phases_start_a_new_health_bar_is_counted_by_phase():
     p2 = {"lastPhase": 2, "phaseTransitions": [{"id": 1}, {"id": 2}], "bossPercentage": 68.34, "fightPercentage": 70.5}
-    assert wipe_text(p2) == "P2 68.3% (WCL 70.5%)" and wipe_text(p2, wcl=False) == "P2 68.3%"
+    assert wipe_text(p2) == "P2 68.3%"
     one_bar = {"lastPhase": 1, "phaseTransitions": [{"id": 1}], "bossPercentage": 62.6, "fightPercentage": 62.6}
     assert wipe_text(one_bar) == "62.6%"  # phases on one health bar: the boss's % is the wipe's
     assert wipe_text({"lastPhase": 0, "bossPercentage": 40.0, "fightPercentage": 40.0}) == "40.0%"
