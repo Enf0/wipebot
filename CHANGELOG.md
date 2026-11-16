@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-16
+
 ### Changed
 
 - `Agent` **A wipe on a boss with phases is said by the phase's health, nothing else.** Answers and cards used to put Warcraft Logs' whole-fight % beside the phase's health ("P1 94.7% (WCL 96.2%)"), and answers repeated it as "96.2 % WCL", a number raiders don't use. Now every pull, best wipe, guild best, trend and night average reads as raiders count it, "P1 94.7%", with the boss named and lower meaning further. Warcraft Logs' % still ranks wipes across phases behind the scenes.
