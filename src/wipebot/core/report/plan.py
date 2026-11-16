@@ -23,7 +23,7 @@ from .positions import Facts, Mechanic, Moment, facts, mechanic, pull_positions,
 
 MIN_FIT = 4  # a fit turns, scales and moves the plan (four numbers): it needs more players than that to mean anything
 MIN_TOLERANCE_YD = 3  # positions are interpolated between samples a second or two apart: nearer than this is noise
-ROLES = {"tank", "healer", "mdps", "rdps", "dps", ""}  # a plan's player icon is one of these or a class
+ROLES = {"tank", "healer", "mdps", "rdps", "dps", "player", ""}  # a plan's player icon is one of these or a class
 
 
 # ---------- laying the plan over the room ----------

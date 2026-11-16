@@ -95,6 +95,37 @@ def test_a_spot_numbered_by_the_planner_is_open():
     assert [s.label for s in p.scenes[0].spots] == ["Brøndal", ""]
 
 
+def test_a_plan_of_player_circles_gives_numbered_spots_and_a_link_names_them():
+    """Circle mode (Wowutils' plans): a spot is a numbered `markers/circle` with `playerCircle`, not a raid marker; a
+    player circle with a note in it is a label. A link's raiders are written on them like on class icons."""
+    circle = {"kind": "icon", "playerCircle": True, "icon": "markers/circle", "w": 1.9, "h": 3.39}
+    data = {"planId": "c", "planName": "P1 Clear Eggs", "boss": "Ula'tek", "scenes": [{"items": [
+        {**circle, "label": "1", "markerNumber": 1, "slotIndex": 1, "x": 50, "y": 15},
+        {**circle, "label": "2", "markerNumber": 2, "slotIndex": 2, "x": 52, "y": 18},
+        {**circle, "label": "Right Soak #1\n0:40 or\n2:13", "slotIndex": 2, "x": 60, "y": 19, "w": 6.3, "h": 6.8},
+        {"kind": "icon", "icon": "markers/skull", "x": 30, "y": 30, "w": 1.9, "h": 3.39}]}]}
+    [p] = plan_export.parse(export(data))
+    assert [(s.slot, s.label, s.role) for s in p.scenes[0].spots] == [(1, "", "player"), (2, "", "player")]
+    link = plan_export.links("https://raidstrats.gg/planner?view=c&players=2%3ASonyosh%7Csh&circlemode=true")[0]
+    [named] = plan_export.parse(plan_export.with_names(export(data), link))
+    assert [s.label for s in named.scenes[0].spots] == ["", "Sonyosh"]
+    words = plan_export.describe(named.scenes[0], lambda label, icon: None, str)
+    assert [w.split(":")[0] for w in words[:2]] == ["#1 (open player spot)", "#2 Sonyosh"]
+    assert any(w.startswith('Label "Right Soak #1 0:40 or 2:13"') for w in words)
+    assert not any("circle marker" in w for w in words)
+
+
+def test_a_plan_with_no_spot_read_isnt_saved():
+    from wipebot.core import server
+    from wipebot.core.notebook import Notebook
+    data = {"planId": "e", "planName": "Empty", "boss": "Sszorak", "scenes": [{"items": [
+        {"kind": "text", "label": "Stack", "x": 10, "y": 10}]}]}
+    book = Notebook(":memory:")
+    with pytest.raises(FactError, match='"Empty" has no player spots'):
+        server.save_pasted(book, 1, export(data), "Rowan", at=1000.0)
+    assert book.plans(1) == []
+
+
 def test_a_spot_left_unnamed_gets_its_numbers_name_from_another_scene_unless_numbers_are_reused():
     icon = {"kind": "icon", "w": 2.24, "h": 3.99, "icon": "roles/rdps.svg"}
 

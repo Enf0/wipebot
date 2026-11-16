@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Agent` **A raid plan drawn with numbered player circles now saves its spots.** Saving one of Wowutils' circle-mode plans by its Viserio link gave "0 spots": its numbered circles were read as raid markers. They're now the plan's spots, with the link's raiders on them, and a plan with no spots Wipebot can read is refused with a message instead of saved empty. The reply after saving a note or a plan is shorter, too.
+
 ## [1.8.0] - 2026-11-14
 
 ### Changed

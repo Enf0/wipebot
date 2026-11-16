@@ -1393,15 +1393,18 @@ def _pull_start(guild_id: int, from_pull: FromPull | None, at: float | None, enc
 def _saved_for(what: str, kept: str, starts: list[str]) -> str:
     """The first line of what a paste saved: for pulls from now on, or from the pull it counts from."""
     if not any(starts):
-        return (f"Saved the {what}, for checking pulls against from now on ({kept}; pasted after the pulls it was "
-                'for? Paste it again with the pull it counts from, such as "from pull 1"):')
-    return f"Saved the {what}, for checking pulls against from {', '.join(dict.fromkeys(starts))} on ({kept}):"
+        return (f"Saved the {what}: pulls from now on are checked against it ({kept}). Already used it? Paste it "
+                'again with the pull it counts from, such as "from pull 1".')
+    return f"Saved the {what}: pulls from {', '.join(dict.fromkeys(starts))} on are checked against it ({kept})."
 
 
 def _save_plans(book: notebook.Notebook, guild_id: int, text: str, saved_by: str, at: float | None,
                 from_pull: FromPull | None) -> str:
     """A plan saved before gets a new version."""
     parsed = plan_export.parse(text)
+    if empty := [p.name for p in parsed if not any(sc.spots or sc.panel for sc in p.scenes)]:
+        raise FactError(f'the plan "{empty[0]}" has no player spots Wipebot can read, so nothing was saved: tell '
+                        "Wipebot's maintainers (Report a problem), or paste its export (the planner's Export button)")
     known = {p.plan_id for p in book.plans(guild_id)}
     when = [_pull_start(guild_id, from_pull, at, boss=p.boss) for p in parsed]  # all checked before any is saved
     lines = []
@@ -1412,10 +1415,10 @@ def _save_plans(book: notebook.Notebook, guild_id: int, text: str, saved_by: str
         aside = [n for sc in p.scenes for n in sc.aside]
         lines.append(f"**{p.name}**" + (f" ({p.boss})" if p.boss else "")
                      + (" (a new version)" if p.plan_id in known else "")
-                     + f": {plural(len(named), 'spot')} ({', '.join(named)})"
-                     + (f", {len(spots) - len(named)} open" if len(spots) > len(named) else "")
+                     + ": " + (f"{len(named)} of " if 0 < len(named) < len(spots) else "") + plural(len(spots), "spot")
+                     + (f" named ({', '.join(named)})" if named else ", none named yet")
                      + (f"; side panel: {', '.join(aside)}" if aside else ""))
-    return (_saved_for("raid plan", "an earlier version is kept for earlier pulls", [s for _, s in when]) + "\n"
+    return (_saved_for("raid plan", "earlier pulls keep the version before", [s for _, s in when]) + "\n"
             + "\n".join(f"- {line}" for line in lines))
 
 
@@ -1429,7 +1432,7 @@ def _save_notes(book: notebook.Notebook, guild_id: int, text: str, saved_by: str
         groups = "; ".join(f"{heading} ({', '.join(labels)})" for heading, labels in n.groups.items())
         lines.append(f"**{boss}**" + (f" ({n.difficulty})" if n.difficulty else "") + f": {notes.receipt(n)}"
                      + "".join(f"; {part}" for part in (groups, notes.not_understood(n)) if part))
-    kept = "that night's only, as a note changes with who comes: the previous one is kept for earlier pulls"
+    kept = "that night only, as a note changes with who comes; earlier pulls keep the one before"
     return (_saved_for("raid note", kept, [s for _, s in when]) + "\n"
             + "\n".join(f"- {line}" for line in lines))
 

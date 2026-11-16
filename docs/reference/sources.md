@@ -45,6 +45,10 @@ API: `wcl-api.md`.
   runs from `x1`, `y1` to `x2`, `y2`, except that an arrow attached to objects in the planner is exported with both
   ends at its start, so where it points is lost. Labels drawn on the plan in the planner may not be in the export
   until the plan is saved.
+- A plan drawn in circle mode (Wowutils' Ula'tek "P1 Clear Eggs", fetched by its Viserio link 16 November 2026) has
+  no class or role icons: each spot is an `icon` `markers/circle` with `playerCircle: true`, `markerNumber` and
+  `slotIndex` its number and `label` the number; a player circle with a note in it ("Right Soak #1\n0:40 ...") is a
+  label, with a `slotIndex` but no `markerNumber`. `presetShape` items (a `cross`) are drawn too.
 - Plans the guild uses are templates: Viserio's assignment note embeds a plan and fills each numbered spot with the
   raider assigned to that number, the same on every scene of the embed (`players=`), so a number must mean the same
   raider on every scene. Each embed (the general Raidplan section, a section per mechanic) has its own lists. Its

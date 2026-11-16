@@ -273,16 +273,17 @@ def test_a_pasted_note_or_plan_is_saved_for_the_guild_and_says_what_was_saved():
     when saved before)."""
     book = Notebook(":memory:")
     assert server.save_pasted(book, 14169, NOTE.read_text(encoding="utf-8"), "Rowan", at=1000.0) == (
-        "Saved the raid note, for checking pulls against from now on (that night's only, as a note changes with who "
-        "comes: the previous one is kept for earlier pulls; "
-        'pasted after the pulls it was for? Paste it again with the pull it counts from, such as "from pull 1"):\n'
+        "Saved the raid note: pulls from now on are checked against it (that night only, as a note changes with who "
+        "comes; earlier pulls keep the one before). "
+        'Already used it? Paste it again with the pull it counts from, such as "from pull 1".\n'
         "- **Sszorak** (Mythic): 59 timed cooldowns, 28 callouts; Mutilate Soaks (Left, Right); Intermission Orb "
         "Popper (Orb Popper); Virulence Spreads (Spread, Bait Serpent's Fury / Bite, Don't Stack); Virulence trigger "
         "(Trigger)")
     assert [(n.boss, n.saved_by, n.saved_at) for n in book.latest_notes(14169)] == [("Sszorak", "Rowan", 1000.0)]
     plan = PLAN.read_text(encoding="utf-8")
     first = server.save_pasted(book, 14169, plan, "Rowan", at=1000.0)
-    assert first.startswith("Saved the raid plan") and "(Sszorak): 16 spots" in first and "a new version" not in first
+    assert first.startswith("Saved the raid plan") and "(Sszorak): 16 of 20 spots named" in first
+    assert "a new version" not in first
     assert "(a new version)" in server.save_pasted(book, 14169, plan, "Halvard", at=2000.0)
     assert [p.saved_by for p in book.plans(14169)] == ["Rowan", "Halvard"] and book.plans(555) == []
     with pytest.raises(FactError, match="EncounterID"):
@@ -298,7 +299,7 @@ async def test_a_note_pasted_after_the_pulls_it_was_for_counts_from_the_pull_nam
     pulls = [(rep.start_ms + f["startTime"]) / 1000 for f in rep.by_boss["Sszorak"]]
     book.save_note(14169, 3420, "Sszorak", "last week's", "Halvard", at=pulls[0] - 86400 * 7)
     said = server.save_pasted(book, 14169, text, "Rowan", from_pull=(rep, 7))
-    assert said.startswith("Saved the raid note, for checking pulls against from Sszorak pull 7 of ")
+    assert said.startswith("Saved the raid note: pulls from Sszorak pull 7 of ")
     found = [book.note_for(14169, 3420, at) for at in (pulls[5], pulls[6], pulls[-1], pulls[-1] + 86400 * 7)]
     assert [n and n.saved_by for n in found] == ["Halvard", "Rowan", "Rowan", "Rowan"]
     assert '"from pull 1"' in server.save_pasted(Notebook(":memory:"), 14169, text, "Rowan")  # how, when it's late

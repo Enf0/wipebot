@@ -627,7 +627,7 @@ async def test_a_note_pasted_late_counts_from_the_pull_the_message_names(bot, me
     monkeypatch.setattr(bot.library, "report", report)
     msg = message(f"<@99> forgot this, from pull 2\n{NOTE.read_text(encoding='utf-8')}")
     await bot.on_message(msg)
-    assert msg.replies[-1].startswith("Saved the raid note, for checking pulls against from Sszorak pull 2 of ")
+    assert msg.replies[-1].startswith("Saved the raid note: pulls from Sszorak pull 2 of ")
     assert asked_for == ["LIVE1"] and [n.saved_at for n in bot.store.notebook.notes(14169, 3420)] == [1999]
     await bot.on_message(message(f"<@99> from pull 3\n{NOTE.read_text(encoding='utf-8')}"))
     assert bot.store.notebook.notes(14169, 3420)[1:] == []  # no such pull: nothing saved

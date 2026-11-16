@@ -3,9 +3,10 @@
 The planner's Export gives `raidstrats-addon-` and base64: one version byte (1), then the plan as JSON, deflated (raw,
 no header). The JSON has the plan's name, raid and boss, and `scenes`, each with `items`: `kind` (`icon`, `boss`,
 `trash`, `text`, `shape`, `line`), `label`, `x`, `y`, `w`, `h` (the item's top left corner and size, in % of the
-plan's width and height). A player's `icon` is their class or role (`roles/rdps.svg`), `slotIndex` its number (what
-an assignment note fills with a raider), `label` a name as typed (often its first letters) or nothing; a raid
-marker's `icon` is `markers/<name>`; a boss ability carries `spellId`. A `shape` is a `circle`, `triangle` (with its
+plan's width and height). A player's `icon` is their class or role (`roles/rdps.svg`), or `markers/circle` with
+`playerCircle` (a numbered player circle, no class), `slotIndex` its number (what an assignment note fills with a
+raider), `label` a name as typed (often its first letters), its number or nothing; a raid marker's `icon` is
+`markers/<name>`; a boss ability carries `spellId`. A `shape` is a `circle`, `triangle` (with its
 `corners`) or `rect`; a `line` (`line` or `arrow`) runs from `x1`, `y1` to `x2`, `y2`. A filled shape with icons
 inside is a side panel (players who stay out, notes), not the room; a text box of several lines is a note, a short
 one a label in the room.
@@ -317,8 +318,11 @@ def _text(i: dict) -> str:
 
 
 def _player(i: dict) -> bool:
-    """A player's icon: their class or role (an icon of an item or an ability isn't one)."""
-    return i.get("kind") == "icon" and not i.get("spellId") and (i.get("icon") or "").startswith(("classes/", "roles/"))
+    """A player's icon: their class or role, or a player circle (an icon of an item or an ability isn't one; a player
+    circle with a note in it is a label drawn as one)."""
+    if i.get("kind") != "icon" or i.get("spellId"):
+        return False
+    return (i.get("icon") or "").startswith(("classes/", "roles/")) or bool(i.get("playerCircle")) and not _is_note(i)
 
 
 def _is_note(i: dict) -> bool:
@@ -330,10 +334,12 @@ def _is_note(i: dict) -> bool:
 def _marker(i: dict) -> str:
     """A raid marker's name ("skull"), or ""."""
     icon = i.get("icon") or ""
-    return icon.split("/", 1)[1] if icon.startswith("markers/") else ""
+    return icon.split("/", 1)[1] if icon.startswith("markers/") and not i.get("playerCircle") else ""
 
 
 def _role(i: dict) -> str:
+    if i.get("playerCircle"):
+        return "player"  # a circle says nothing of the class or role
     return (i.get("icon") or "").rsplit("/", 1)[-1].rsplit(".", 1)[0]
 
 
@@ -418,7 +424,11 @@ class _Room:
         for i in scene.items:
             kind, at = i.get("kind"), pt(*_middle(i))
             label = " ".join((i.get("label") or "").split())
-            if kind == "icon" and (m := _marker(i)):
+            if _player(i):
+                continue
+            if kind == "icon" and i.get("playerCircle") and label:  # a player circle drawn as a label
+                self.labels.append(_Thing(label, at))
+            elif kind == "icon" and (m := _marker(i)):
                 self.markers.append(_Thing(m, at))
             elif kind == "icon" and str(i.get("spellId", "")).isdigit():  # its label says what it's for ("Gloom 1")
                 ability = spell(int(i["spellId"]))
@@ -450,7 +460,8 @@ class _Room:
         if not s.label:
             return f"{num}(open {s.role} spot)".strip()
         player = self.who(s.label, s.role)
-        return f"{num}{s.label}" + (f" ({player})" if player and player != s.label else "") + f" ({s.role})"
+        return (f"{num}{s.label}" + (f" ({player})" if player and player != s.label else "")
+                + (f" ({s.role})" if s.role != "player" else ""))
 
     def _shape(self, i: dict) -> _Shape | None:
         shape, (cx, cy) = i.get("shape"), self.pt(*_middle(i))

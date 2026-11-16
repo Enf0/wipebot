@@ -221,7 +221,7 @@ def test_a_raid_plan_pasted_again_is_a_new_version_and_every_version_is_kept(sto
     store.save_settings(settings)
     export = PLAN.read_text(encoding="utf-8")
     first = save_pasted(store, 1001, export, "Rowan", at=1000.0)
-    assert "(Sszorak): 16 spots" in first and "side panel:" in first and "a new version" not in first
+    assert "(Sszorak): 16 of 20 spots named" in first and "side panel:" in first and "a new version" not in first
     assert "(a new version)" in save_pasted(store, 1001, f"tonight's: {export}", "Halvard", at=2000.0)
     saved = store.notebook.plans(14169)  # kept for the server's guild
     assert [(p.boss, p.saved_by, p.saved_at) for p in saved] == [("Sszorak", "Rowan", 1000.0),
