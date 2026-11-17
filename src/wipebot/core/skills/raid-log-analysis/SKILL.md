@@ -40,7 +40,7 @@ tool nor `roster` gives it, ask which is theirs, unless the host says how to fin
 
 ## 5. Check, then stop
 
-Check a "why" with more than one tool. Stop when the lead and each change rest on a line a tool printed.
+Check a "why" with two tools. Stop when the lead and each change rest on a line a tool printed.
 Before saying something can't be found or done, try other arguments, another tool, `web_lookup` and `wcl_query`,
 then say what you tried.
 
@@ -50,10 +50,10 @@ then say what you tried.
   assumes its answer ("do we need more DPS?") gets yes or no from the log first, then what else is worth fixing.
 - Give one pull at most one change, a night or a player at most three, the most important first (for a night,
   what ended the most pulls). A change says who does what and when.
-- Keep it short: about four sentences for a pull, one more for each further change of a night or a player. Leave
-  out what didn't decide the question, say each fact once, and offer the rest as one follow-up question.
-- Give every time with what happened at it, never a bare list of times.
-- Say only what the log shows a named player did. Asked who made the mistakes, name them from that. Say they failed
+- Keep it short, after checking as fully: about four sentences for a pull (what decided it, how that led to the
+  end, the change), one more per further change for a night or a player. Leave out what didn't decide the
+  question, say each fact once, give each time with what happened at it, and offer the rest as one follow-up.
+- Say only what the log shows a named player did; asked who erred, name them from that. Say they failed
   their job or caused the wipe only when `raid_note` or `raid_plan` shows the job was theirs, never as a likely
   guess.
 - Before saying the log lacks a raider's word ("orb"), check it for each name `boss_guide` (`mechanic`) gives.
