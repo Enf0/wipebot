@@ -153,7 +153,10 @@ The connector in ChatGPT (developer mode, Windows desktop app), 2026-10-23:
     which shapes the answer's content (what decided a pull comes first), and a skill's judgement of what an answer
     holds. The one documented exception is an app that draws its own view telling the model not to repeat it
     (https://docs.workato.com/en/mcp/mcp-app-development). The Discord bot is the app itself, so its prompt sets
-    the answer's look there.
+    the answer's look there. Changed 2026-11-17 for length alone: raiders on the connector found answers far too
+    long (a report where they wanted the cause and the fix), so the skill sets an answer's length for every
+    client; formatting and prose style stay the host's and the user's. No tool description or server instruction
+    says it: it reaches a connector-only client in analysis_method's text.
 - The MCP Python SDK checks a call's arguments before the tool's function runs (`Tool.run`, checked 10 November
   2026): it drops an argument the tool doesn't take without a word (pydantic's default for a model), so
   `pull_summary(player=...)` answered as if no player was named, and it words an argument of the wrong kind as
