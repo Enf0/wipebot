@@ -170,7 +170,10 @@ async def test_pull_summary_leads_with_the_pull_and_how_it_ended(rep):
     kill = (await fight.pull_summary(rep, 2, "vashnik")).splitlines()
     assert kill[0] == ("Vashnik the Malignant (Mythic) pull 2: kill in 6:56, 4 deaths "
                        "(https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=2).")
-    assert "Raid size 20. Deaths in order (time from pull start" in kill[3] and kill[4].startswith("1. 1:38 ")
+    at = next(i for i, line in enumerate(kill) if line.startswith("Raid size"))
+    assert "Raid size 20. Deaths in order (time from pull start" in kill[at] and kill[at + 1].startswith("1. 1:38 ")
+    # the answer, then what backs it: the deaths come after the line that says so
+    assert kill.index("Detail, for follow-ups (the lines above are the answer):") < at
 
 
 async def test_the_deaths_after_the_wipe_was_decided_are_one_line_with_every_death_in_it(rep):
@@ -181,8 +184,9 @@ async def test_the_deaths_after_the_wipe_was_decided_are_one_line_with_every_dea
     lines = (await fight.pull_summary(rep, 13)).splitlines()
     rows = [line for line in lines if line[:1].isdigit() and ". " in line[:4]]
     assert len(rows) == 4 and rows[-1].endswith("(16 alive)")
-    assert "(15 later deaths: fallout)" in lines[lines.index("") + 1]
-    assert lines[lines.index("") + 2].startswith("Raid size 20. Deaths until then, in order (")
+    killed = next(i for i, line in enumerate(lines) if line.startswith("Killed by"))
+    assert "(15 later deaths: fallout)" in lines[killed]
+    assert lines[killed + 1].startswith("Raid size 20. Deaths until then, in order (")
     (fallout,) = [line for line in lines if line.startswith("Fallout")]
     assert fallout == (
         "Fallout, 15 deaths after the wipe was decided at 2:32 (the boss gained Unbound Ferocity), by killing blow "

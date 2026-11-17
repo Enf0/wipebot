@@ -630,8 +630,9 @@ async def roster(weeks: Annotated[int | None, Field(description=(
 async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = None, *,
                        ctx: Context) -> str | CallToolResult:
     """For "why did we wipe?", "who wiped us?", "what do we fix?": start here.
-    One pull: how far it got and how that ranks, where it was lost and how it ended, how far the last wipes got and
-    the phases; then raid size and every death until the wipe was decided, a row each with spec, killing ability [id]
+    One pull, the answer first: how far it got and how that ranks, and where it was lost ("Lost at") or, with none,
+    how it ended; then, below a "Detail, for follow-ups" line, how it ended after being lost, how far the last wipes
+    got and the phases, raid size and every death until the wipe was decided, a row each with spec, killing ability [id]
     and players still alive, the deaths after it (its fallout) in one line by killing blow, battle res (the raid's
     charges, the ones taken, who could cast one, and at each of those deaths the charges ready and the casters
     alive), and any buff the boss gained and kept to the end that didn't decide it.
@@ -1651,12 +1652,13 @@ async def progress(boss: Annotated[str | None, Field(description=(
     """How did tonight go, are we improving, what keeps wiping us, who keeps dying first, which pulls were there:
     start here for a night.
     Without a boss, the night at a glance first: every boss with pulls, kills (with speed and execution
-    percentiles), best wipe, time spent, the trend, and the guild's progress rank. Then every pull on the boss:
-    boss health left and phase (on a boss with phases, its health in the phase, as raiders count a wipe; lower
-    got further), duration, where it was lost (a failed mechanic's debuff on the whole raid) and first death of each,
-    the guild's best wipe before the night and whether the night beat it, averages over the night, where pulls were
-    lost, counted, the buffs the boss kept to the end, what killed the first 3 deaths of each pull,
-    and the night's killer. With `first_hits`, before all that: a tally of who hit the boss first ("who pulled?"),
+    percentiles), best wipe, time spent, the trend, and the guild's progress rank. Then the boss's night, what it
+    adds up to first: the night's best wipe (against the guild's best before it), where pulls were lost (a failed
+    mechanic's debuff on the whole raid), counted with what came just before it, how they ended, averages over the
+    night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull and the night's killer;
+    then, for follow-ups, a row per pull: boss health left and phase (on a boss with phases, its health in the
+    phase, as raiders count a wipe; lower got further), duration, where it was lost and first death.
+    With `first_hits`, before all that: a tally of who hit the boss first ("who pulled?"),
     then who it was on each pull, with what and how far ahead of the next player.
     Reading it: a tank tops the night's killer's "hit most" list by standing at the boss. With `weeks`: each
     night's pulls on the boss, the kill, the best wipe before it and how the pulls ended, then the best wipe night

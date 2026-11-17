@@ -23,6 +23,7 @@ SCRIPT_PULLS = 3  # with at least this many pulls to tell by
 BEFORE_MS = 2_500  # what happened in this long before it landed: what may have set it off
 FEW = 3  # what reached this many players or fewer then is about them, not the raid
 BEFORE_ROWS = 8
+NEAR_MS = 1_000  # what happened this close before it landed is counted over a night: what set it off is among it
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class RaidDebuff:
 class NoReturn:
     debuff: RaidDebuff
     before: tuple[str, ...] = ()  # what happened to a few players before it landed
+    near: tuple[str, ...] = ()  # of that, what in the NEAR_MS before, without names ("Caustic Waves hitting"), to count
 
     @property
     def at_ms(self) -> float:
@@ -123,21 +125,24 @@ def _scripted(landed: dict[int, list[tuple[float, int, int, int]]], fights: list
 
 
 def _before_rows(rep: Report, at: float, debuffs: list[dict], hits: list[dict], deaths: list[dict],
-                 raid: int) -> tuple[str, ...]:
+                 raid: int) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """What happened to a few players in the BEFORE_MS before report time `at`, earliest first: deaths, enemy
     debuffs going on or off FEW players or fewer, and hits (no ticks) of enemy abilities that reached FEW or fewer;
     then what enemy debuffs those players had on them as it began that half the raid or fewer had (what they were
-    carrying)."""
+    carrying). And, without names, what of it came in the NEAR_MS before, to count over a night."""
     t0 = at - BEFORE_MS
     rows: list[tuple[float, str]] = []
     named: set[int] = set()
+    near: set[str] = set()
 
-    def add(when: float, ids: set[int], text: str) -> None:
+    def add(when: float, ids: set[int], text: str, what: str) -> None:
         rows.append((when, text))
         named.update(ids)
+        if when >= at - NEAR_MS:
+            near.add(what)
     for d in deaths:
         if t0 <= d["timestamp"] <= at:
-            add(d["timestamp"], {d["targetID"]}, f"{rep.names.get(d['targetID'], '?')} died")
+            add(d["timestamp"], {d["targetID"]}, f"{rep.names.get(d['targetID'], '?')} died", "a death")
     for verb, kind in (("on", "applydebuff"), ("came off", "removedebuff")):
         on: dict[int, list[dict]] = defaultdict(list)
         for e in debuffs:
@@ -146,7 +151,8 @@ def _before_rows(rep: Report, at: float, debuffs: list[dict], hits: list[dict], 
                 on[e["abilityGameID"]].append(e)
         for aid, es in on.items():
             if len(ids := {e["targetID"] for e in es}) <= FEW:
-                add(es[0]["timestamp"], ids, f"{rep.ability(aid)} {verb} {_names(rep, ids)}")
+                add(es[0]["timestamp"], ids, f"{rep.ability(aid)} {verb} {_names(rep, ids)}",
+                    f"{rep.ability(aid)} {'going on' if verb == 'on' else 'coming off'}")
     struck: dict[int, list[dict]] = defaultdict(list)
     for e in hits:
         if (t0 <= e["timestamp"] <= at and not e.get("tick") and e.get("targetID") in rep.names
@@ -154,12 +160,12 @@ def _before_rows(rep: Report, at: float, debuffs: list[dict], hits: list[dict], 
             struck[e["abilityGameID"]].append(e)
     for aid, es in struck.items():
         if len(ids := {e["targetID"] for e in es}) <= FEW:
-            add(es[0]["timestamp"], ids, f"{rep.ability(aid)} hit {_names(rep, ids)}")
+            add(es[0]["timestamp"], ids, f"{rep.ability(aid)} hit {_names(rep, ids)}", f"{rep.ability(aid)} hitting")
     rows.sort()
     out = [f"{clock_ms(t - at)} {text}" for t, text in rows[-BEFORE_ROWS:]]
     if carried := _carrying(rep, debuffs, t0, named, raid):
         out.append(carried)
-    return tuple(out)
+    return tuple(out), tuple(sorted(near))
 
 
 def _carrying(rep: Report, debuffs: list[dict], t0: float, named: set[int], raid: int) -> str | None:
@@ -222,8 +228,8 @@ async def no_return(rep: Report, fights: list[dict]) -> dict[int, NoReturn]:
             n = found[f["id"]]
             at = f["startTime"] + n.at_ms
             dead = await rep.deaths(f)
-            found[f["id"]] = NoReturn(n.debuff, _before_rows(rep, at, by_id[f["id"]], struck, dead,
-                                                                await rep.raid_size(f)))
+            found[f["id"]] = NoReturn(n.debuff, *_before_rows(rep, at, by_id[f["id"]], struck, dead,
+                                                                 await rep.raid_size(f)))
     return found
 
 

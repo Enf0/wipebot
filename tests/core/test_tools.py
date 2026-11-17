@@ -484,7 +484,7 @@ async def test_who_pulled_leads_the_answer_that_was_asked_for_it(recorded):
     assert lines[1].startswith("First hits on Sszorak, a pull a row (pull: the first player to hit the boss, ")
     assert lines[2] == "  1: Krøpling (Arcane Surge) at 0.0 s, 0.2 s before Pomaa"
     assert [line.split(":")[0].strip() for line in lines[2:44]] == [str(n) for n in range(1, 43)]
-    assert lines[44] == "" and lines[45].startswith("Sszorak: 42 pulls on the night (")
+    assert lines[44] == "" and lines[45].startswith("Sszorak: 42 pulls on the night; what they add up to first")
 
 
 async def test_a_death_recap_leads_with_what_did_the_damage_and_whether_they_could_have_lived(recorded):

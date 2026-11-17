@@ -200,8 +200,9 @@ async def test_each_pull_folds_the_post_into_the_row_and_says_the_guild_best_onc
         killed = next((line for line in post if line.startswith("Killed by")), None)
         assert first is None or f"; first deaths {first}; killed by " in row
         assert killed is None or killed.split(": ", 1)[1] in row
-    # the rest of the answer is the plain one's, but for the legend
-    assert each.splitlines()[len(rows) + 2:] == plain.splitlines()[len(rows) + 2:]
+    # what the night adds up to comes first and is the plain one's; then the rows, under their legend
+    head = each.splitlines()[1:-len(rows) - 1]
+    assert head == plain.splitlines()[1:len(head) + 1] and head[-1] == ""
     assert "the first 3 deaths, the killing blows of the deaths until the wipe was decided, how many died after it" \
-        in each.splitlines()[0]
-    assert each.startswith("Sszorak (Mythic): 33 pulls on the night (") and plain.startswith("Sszorak: 33 pulls on")
+        in each.splitlines()[-len(rows) - 1]
+    assert each.startswith("Sszorak (Mythic): 33 pulls on the night;") and plain.startswith("Sszorak: 33 pulls on")

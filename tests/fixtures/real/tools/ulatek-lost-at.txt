@@ -1,13 +1,14 @@
 Ula'tek (Mythic) pull 13: wipe in P1 at 88.9%, 2:21 long (https://www.warcraftlogs.com/reports/mHwRJkjztQa3xvVG#fight=13); best of this log P1 88.0%.
 Lost at 0:43, before the log's own end below: Putrid Membrane [1301268] landed on 20 of the 20 alive at once and stayed on them, at no fixed time of the boss's pulls: a failed mechanic put it on the whole raid, where raid leaders call the wipe.
 Just before Putrid Membrane landed, what reached 3 players or fewer (deaths, debuffs, hits, seconds before it; what set it off is among them, as the guide's Putrid Membrane says): -2.4 s Stone Venom hit Wutroll · +0.0 s Caustic Waves hit Ilidim · +0.0 s Caustic Waves on Ilidim, Krøpling · having then (debuffs half the raid or fewer had): Ilidim Soul Constrictor; Krøpling Noxious Shell; Wutroll Fester Burst, Stone Venom.
-Ended by: deaths from 0:44 until half the raid was dead at 2:06, no single hit killing many: start from the first death and follow what each left short.
-Not an enrage buff: no buff the boss gained near the end decided it. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
+
+Detail, for follow-ups (the lines above are the answer):
+Ended by: deaths from 0:44 until half the raid was dead at 2:06, no single hit killing many: start from the first death and follow what each left short. It came after the pull was lost above: it sorts the fallout, not the cause.
 Tank deaths before that: Ilidim died at 2:03 to Acidic Burst [1301800] (no swap debuff past 1 stack on them). Whose taunt it was isn't in the log; tank_swaps has the pull's swaps.
+Not an enrage buff: no buff the boss gained near the end decided it. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
 This pull ended the way 2 earlier pulls on Ula'tek in this log did (pulls 6, 12): deaths one after another.
 Last 5: P1 88.7% → P1 93.0% → P1 94.1% → P1 89.3% → P1 88.9%
 Phases: P1 Stage One: Fury of the Serpent Mother 0:00
-
 Killed by, until the wipe was decided at 2:06 (half the raid was dead): Caustic Waves ×5 · Necrotic Vapors ×2 · Mephitic Thrash ×1 · Putrid Membrane ×1 · Acidic Burst ×1 · 1 other ability ×1 (8 later deaths: fallout)
 Raid size 20. Deaths until then, in order (time from pull start, players alive after it, a battle res or self-res counted):
 1. 0:44 Krøpling (Arcane Mage) - Caustic Waves [1292403] (19 alive)

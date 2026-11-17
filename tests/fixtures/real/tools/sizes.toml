@@ -5,7 +5,7 @@
 # `just snapshot` lowers a line when its output shrank and adds a new case's. It never raises one: an output that
 # outgrew its budget by more than a tenth (or 200 characters, where that is more) fails the test until its line is
 # raised here by hand, with the reason in the commit.
-pull-summary = 2316
+pull-summary = 2571
 vashnik-summary = 3386
 altar-summary = 4462
 ulatek-lost-at = 4002
@@ -34,7 +34,7 @@ pull-map = 1409
 pull-map-mechanic = 3079
 pull-map-night = 1758
 pull-map-vashnik = 5459
-progress = 7222
+progress = 8069
 list-pulls = 1610
 first-hits = 11676
 roster = 746

@@ -51,6 +51,7 @@ from .no_return import no_return_text, pull_no_return
 from .taken import raid_taken
 from .tanks import tank_deaths_line
 
+DETAIL = ("", "Detail, for follow-ups (the lines above are the answer):")
 TIMELINE_DEBUFF_GROUPS = 12  # a boss debuff landing in more separate bursts than this is ambient, not an event
 TIMELINE_GROUP_MS = 3_000  # debuff applications this close together are one event
 TIMELINE_NAMED = 5  # a debuff landing on at most this many players names them (a group's orbs); more is a count
@@ -89,13 +90,15 @@ NOT_A_RAID = ("Not a raid pull: Warcraft Logs gives this fight no raid difficult
               "fight's, and nothing here knows of a key's level, its timer or its trash.")
 
 
-async def _how_it_ended(rep: Report, f: dict, ended: Ending | None) -> list[str]:
-    """pull_summary's lines on how the pull ended: where it was lost before its end, if anywhere, then its "Ended
-    by"."""
-    lines = no_return_text(await pull_no_return(rep, f))
-    if text := ending_text(ended):
-        lines.append(text)
-    return lines
+async def _how_it_ended(rep: Report, f: dict, ended: Ending | None) -> tuple[list[str], list[str]]:
+    """pull_summary's lines on how the pull ended, as (lead, detail): where it was lost before its end leads when
+    there is such a moment, its "Ended by" then only sorts the fallout and goes below; otherwise "Ended by" leads."""
+    lost = no_return_text(await pull_no_return(rep, f))
+    text = ending_text(ended)
+    if lost:
+        return lost, [f"{text} It came after the pull was lost above: it sorts the fallout, not the cause."
+                      ] if text else []
+    return [text] if text else [], []
 
 
 async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
@@ -112,24 +115,23 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     if f.get("difficulty") not in DIFFICULTIES:
         lines.append(NOT_A_RAID)
     ended = await pull_ending(rep, f)
-    lines += await _how_it_ended(rep, f, ended)
-    if not_it := ruled_out(ended, buffs, decided):
-        lines.append(not_it)
-    if tank := await _tank_deaths(rep, f, ended, decided):
-        lines.append(tank)
-    if again := await _same_ending(rep, f, ended):
-        lines.append(again)
-    if trend := trend_line(s):
-        lines.append(trend)
-    if phases := rep.phases(f):
-        lines.append(f"Phases: {phases}")
+    lead, detail = await _how_it_ended(rep, f, ended)
+    lines += lead
+    if tank := await _tank_deaths(rep, f, ended, decided):  # beside "Ended by", which it comes before
+        (detail if detail else lines).append(tank)
     if ended is not None and ended.kind == "reset":  # no "wipe decided", no fallout: its deaths in one line
-        lines += ["", _reset_deaths(rep, f, deaths, raid),
+        lines += [*DETAIL, *detail, *_context(rep, f, s), _reset_deaths(rep, f, deaths, raid),
                   f"Pull ended at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}."]
         return "\n".join(lines)
     alive = alive_after(deaths, backs, raid)
     later = [d for d in deaths if decided and d["timestamp"] - f["startTime"] > decided.at_ms]  # fallout
-    lines += ["", *([killed] if (killed := killed_by(s)) else []),
+    res = await battle_res_lines(rep, f, deaths[:len(deaths) - len(later)])
+    not_it = ruled_out(ended, buffs, decided)
+    lines += [*DETAIL, *detail, *([not_it] if not_it else [])]
+    if again := await _same_ending(rep, f, ended):
+        lines.append(again)
+    lines += _context(rep, f, s)
+    lines += [*([killed] if (killed := killed_by(s)) else []),
               f"Raid size {raid}. Deaths {'until then, ' if later else ''}in order (time from pull start, players "
               "alive after it, a battle res or self-res counted):"]
     lines += _death_rows(rep, f, deaths[:len(deaths) - len(later)], alive) or ["none"]
@@ -142,7 +144,7 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
         lines.append(_fallout(rep, f, later, f"{clock(decided.at_ms)} ({decided.why}{ran})", alive[-1], raid))
     elif ran:
         lines.append(f"Half the raid was dead{ran}.")
-    lines += await battle_res_lines(rep, f, deaths[:len(deaths) - len(later)])
+    lines += res
     told = {m.name for m in ended.moments if isinstance(m, KeptBuff)} if ended else set()  # "Ended by" has these
     boss_deaths = [(e["timestamp"] - f["startTime"], rep.actors.get(e["targetID"], {}).get("name") or "a boss")
                    for e in await rep.events(f["id"], "Deaths", hostilityType="Enemies")
@@ -162,6 +164,11 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     ended_at = "Logged so far" if f.get("inProgress") else "Pull ended"
     lines.append(f"{ended_at} at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}.")
     return "\n".join(lines)
+
+
+def _context(rep: Report, f: dict, s) -> list[str]:
+    """The pull against the last ones, and its phases: context for follow-ups, not the answer."""
+    return [*([trend] if (trend := trend_line(s)) else []), *([f"Phases: {ph}"] if (ph := rep.phases(f)) else [])]
 
 
 async def _tank_deaths(rep: Report, f: dict, ended: Ending | None, decided) -> str | None:
