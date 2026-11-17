@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-17
+
 ### Changed
 
 - `Agent` **Shorter answers in Claude and ChatGPT.** Wipebot's method now keeps an answer to about four sentences for a pull, one more for each further fix on a night or a player, and offers the rest as one follow-up question. Times always come with what happened at them.
