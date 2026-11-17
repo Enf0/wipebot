@@ -6,12 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Agent` **Shorter answers in Claude and ChatGPT.** Wipebot's method now keeps an answer to about four sentences for a pull, one more for each further fix on a night or a player, and offers the rest as one follow-up question. Times always come with what happened at them.
+
 ## [1.11.0] - 2026-11-17
 
 ### Changed
 
 - `Agent` **Answers start from the answer.** A night's look at a boss now opens with what it adds up to: the best wipe, where pulls were lost and what most often came just before (on Ula'tek: an egg carrier hit by a wave, a carrier dying, two carriers touching), how they ended and the night's killer, with a row per pull below for follow-ups. A pull's summary puts where it was lost first and the deaths and battle res below, so answers lead with the cause, not the last deaths.
-- `Agent` **Shorter answers in Claude and ChatGPT.** Wipebot's method now keeps an answer to about four sentences for a pull, one more for each further fix on a night or a player, and offers the rest as one follow-up question. Times always come with what happened at them.
 
 ## [1.10.0] - 2026-11-17
 
