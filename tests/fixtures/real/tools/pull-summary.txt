@@ -15,4 +15,5 @@ Battle res: 1 charge at the pull and 1 more every 4:30 (the raid's 90 min over i
 None was taken.
 Could cast one, by class (an engineer's item shows only once used): Deathadim, Nexsozz (Death Knight) · Attractîv, Scopidruid (Druid) · Cptola (Paladin) · Peggerino, Sveini (Warlock).
 A charge was ready at each of the 4 deaths above (with how many of those who could cast one were alive): 0:48 Scopidruid (6) · 0:53 Draiman (6) · 1:28 Attractîv (5) · 1:29 Zebinomage (5). Whom a charge was kept for isn't in the log.
+From 0:53 the raid was down a player for good: 2 dead, battle res for only 1 (1 left), 0:35 before the last death above. Raid leaders often call the wipe here, though a raid can still kill from it.
 Pull ended at 2:42 with the boss at 62.6% health.

@@ -1,18 +1,20 @@
 # Reading a wipe
 
-Read "Ended by" in `pull_summary` first, then find why: killing blows tell how players died, not why the pull was
-lost. "Ended by", read with the guide, is one of these, and each says where the why is.
+A "Lost at" line in `pull_summary` leads the answer: find what set it off among its rows, with `boss_guide` on that
+debuff, and name who. What "Ended by" says came after is its consequence: leave it out.
+
+Otherwise read "Ended by" first, then find why: killing blows tell how players died, not why the pull was lost.
+"Ended by", read with the guide, is one of these, and each says where the why is.
 
 - A reset, the boss untouched: say so in a line.
 - The boss gained a buff and kept it to the end: when the guide calls it an enrage or berserk, find why it came.
   Where a mechanic holds it off (a stack, a soak, a kick, an energy reset), check each time it was due
-  (`pull_timeline`). Compare the players alive then with the number the mechanic needs: fewer means the earlier
-  deaths lost the pull. Enough means the mechanic was late, early or missed: check its time against the boss's
-  power and a kill's timing. Where nothing holds it off, the boss did not die in time: `compare_pulls` against a
-  kill shows where the raid fell behind, and players dead early, or in a window where the boss takes extra damage,
+  (`pull_timeline`). Fewer players alive than it needs means the earlier deaths lost the pull; enough means it was
+  late, early or missed (check its time against the boss's power and a kill's). Where nothing holds it off, the
+  boss did not die in time: `compare_pulls` against a kill shows where the raid fell behind, and players dead early
   are damage lost.
-- One ability killed many, at once or in pulses: find which mechanic failed and how (who carried it, who soaked
-  it, how many were alive for it). A death in that hit says nothing about that player's fault either way.
+- One ability killed many, at once or in pulses: find which mechanic failed and how (who carried or soaked it, how
+  many were alive for it). A death in that hit says nothing about that player's fault.
 - A raid-wide hit killed players: when a mechanic the raid missed caused the hit or made it bigger, that mechanic
   is the fix. The cooldown plan is the fix only when the guide says to use healing cooldowns for the hit and none
   came before it.
@@ -20,17 +22,15 @@ lost. "Ended by", read with the guide, is one of these, and each says where the 
 - Deaths one after another: from the first death it names, follow what each left short (a soak, a stack, a
   role).
 
-Then work back to the first domino. Call `death_recap` on the first one to three deaths that stayed dead before
-the wipe was decided. It shows a one-shot, a slow bleed that healing did not cover, or an earlier hit that made a
-later one lethal: when a small tick finished them, the cause is the hit that took most of their health. Another
-player's damage buff named as the killing blow means other players killed them (a mind control, a curse that turns
-them).
+Then work back to the first domino: `death_recap` on the first one to three deaths that stayed dead before the
+wipe was decided shows a one-shot, a bleed healing didn't cover, or an earlier hit that made a later one lethal
+(when a small tick finished them, the cause is the hit that took most of their health). Another player's damage
+buff named as the killing blow means other players killed them (a mind control, a curse that turns them).
 
 What to check a death or a moment with:
 
 - A tank's death: `tank_swaps`, against the guide's swap timing.
-- Where people stood when a mechanic went off: `pull_map` with the ability in `at` shows who had it and whose
-  burst or area hit whom.
+- Where people stood when a mechanic went off: `pull_map` with the ability in `at`.
 - Adds and their casts: `enemies`, which also says who had a kick ready when a cast went through.
 - The order of events around a moment: `pull_timeline`.
 - Whose job it was: with a raid note saved, `raid_note` shows who was meant to soak and which cooldowns were

@@ -20,6 +20,7 @@
 #   fk2z6bCw4xRLNvht  28 Mythic Coiled Altar pulls, the last the first into Stage Three, with the raid note saved
 #                     for the boss on 2 Nov (../notes)
 #   dTQMvNbBcPh6mDrA  Tue 25 Aug: Heroic Sszorak killed on pull 8, The Twin Fangs on pull 7
+#   mHwRJkjztQa3xvVG  Mon 16 Nov: 43 Mythic Ula'tek pulls, most lost to a viper hatching (Putrid Membrane)
 # All are reports of The Dragonfell Tribe, the maintainers' guild (tests/README.md). Bosses other than Sszorak are
 # where how a pull ended is easy to get wrong (a tank death, a battle res, adds).
 
@@ -27,6 +28,7 @@
 pull-summary = { tool = "pull_summary", report = "KBYT4xXn7VNjDgh8", pull = 13 }
 vashnik-summary = { tool = "pull_summary", report = "kTMfFRQ324Hvx6G7", boss = "Vashnik", pull = 16 }
 altar-summary = { tool = "pull_summary", report = "8TcXMAP2gHQGr9pW", boss = "The Coiled Altar", pull = 1 }
+ulatek-lost-at = { tool = "pull_summary", report = "mHwRJkjztQa3xvVG", boss = "Ula'tek", pull = 13 }
 timeline = { tool = "pull_timeline", report = "KBYT4xXn7VNjDgh8", pull = 13 }
 timeline-window = { tool = "pull_timeline", report = "KBYT4xXn7VNjDgh8", pull = 13, start = "2:25", end = "2:40" }
 # only one player's casts in a window, a row each to the millisecond

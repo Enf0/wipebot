@@ -3,7 +3,10 @@
 Look for patterns, not incidents. `progress` without a boss opens with every boss of the night and covers the
 latest: a night with several bosses in progress takes one call per boss.
 
-- The same ending on many pulls is the one thing to fix: say how many pulls it ended, and when in the fight. Rank
+- A "Lost before their end" line comes first: a failed mechanic that put a debuff on the whole raid is where most of
+  those pulls were really lost, earlier than how they ended. Lead with it and its count, and find what set it off
+  (`pull_summary` on two or three of those pulls lists what reached a few players just before).
+- Otherwise the same ending on many pulls is the one thing to fix: say how many pulls it ended, and when in the fight. Rank
   what to fix by the counts under "How the pulls ended", and give each with its count.
 - Never lead with "The night's killer" in an ending's place: it counts deaths, not pulls lost, so it says what
   players die to, not what to fix first.

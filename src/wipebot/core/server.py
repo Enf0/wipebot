@@ -630,15 +630,16 @@ async def roster(weeks: Annotated[int | None, Field(description=(
 async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = None, *,
                        ctx: Context) -> str | CallToolResult:
     """For "why did we wipe?", "who wiped us?", "what do we fix?": start here.
-    One pull: how far it got and how that ranks, how it ended, how far the last wipes got and the phases; then
-    raid size and every death until the wipe was decided, a row each with spec, killing ability [id] and players
-    still alive, the deaths after it (its fallout) in one line by killing blow, battle res (the raid's charges, the
-    ones taken, who could cast one, and at each of those deaths the charges ready and the casters alive), and any
-    buff the boss gained and kept to the end that didn't decide it.
+    One pull: how far it got and how that ranks, where it was lost and how it ended, how far the last wipes got and
+    the phases; then raid size and every death until the wipe was decided, a row each with spec, killing ability [id]
+    and players still alive, the deaths after it (its fallout) in one line by killing blow, battle res (the raid's
+    charges, the ones taken, who could cast one, and at each of those deaths the charges ready and the casters
+    alive), and any buff the boss gained and kept to the end that didn't decide it.
     Reading it: "Ended by" is computed from the log alone (one ability killing many within 2 s or in pulses within
     6 s, a buff the boss gained and kept, half the raid dead, or deaths spread out, from the first that stayed dead),
     with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
-    says.
+    says. "Lost at", when there is one, comes earlier: an enemy debuff landing on the whole raid and staying (a failed
+    mechanic), with what reached a few players in the seconds before it, among which is what set it off.
     Phases are numbered as raiders count them, in every tool: stages P1, P2, P3 and intermissions I1, I2; "P1 (2nd
     time)" is a phase the fight went back to. The first line compares the wipe with this log's earlier pulls and
     with the guild's best in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded"
@@ -1652,8 +1653,9 @@ async def progress(boss: Annotated[str | None, Field(description=(
     Without a boss, the night at a glance first: every boss with pulls, kills (with speed and execution
     percentiles), best wipe, time spent, the trend, and the guild's progress rank. Then every pull on the boss:
     boss health left and phase (on a boss with phases, its health in the phase, as raiders count a wipe; lower
-    got further), duration and first death of each, the guild's best wipe before the night and whether the night beat
-    it, averages over the night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull,
+    got further), duration, where it was lost (a failed mechanic's debuff on the whole raid) and first death of each,
+    the guild's best wipe before the night and whether the night beat it, averages over the night, where pulls were
+    lost, counted, the buffs the boss kept to the end, what killed the first 3 deaths of each pull,
     and the night's killer. With `first_hits`, before all that: a tally of who hit the boss first ("who pulled?"),
     then who it was on each pull, with what and how far ahead of the next player.
     Reading it: a tank tops the night's killer's "hit most" list by standing at the boss. With `weeks`: each

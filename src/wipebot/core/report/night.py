@@ -30,6 +30,7 @@ from ..text import clock, clusters, date, ordinal, plural, ranges, span
 from ..wcl import GUILD_REPORTS_S, WCLError
 from .base import GUILD_RUN_SHARE, FactError, Report, same_pull, unavailable
 from .ending import FALLOUT_NOTE, Ending, KeptBuff, deaths_from, kind_of_end, pull_endings
+from .no_return import NoReturn, no_return
 
 
 def wipe_thirds(wipes: list[float]) -> tuple[float, float, float] | None:
@@ -384,6 +385,25 @@ async def _died(rep: Report, f: dict, deaths: list[dict], each_pull: bool) -> st
             + f"; killed by {killers or 'none'}" + (f" ({plural(later, 'later death')}: fallout)" if later else ""))
 
 
+def _lost(n: NoReturn | None, i: int, lost_at: dict[str, list[tuple[int, float]]]) -> str:
+    """Where pull `i` was lost before its end, for its row in `progress`, counted in `lost_at`."""
+    if n is None:
+        return ""
+    lost_at[n.kind].append((i, n.at_ms))
+    return f", lost at {clock(n.at_ms)} ({n.kind})"
+
+
+def _lost_lines(lost_at: dict[str, list[tuple[int, float]]], pulls: int) -> list[str]:
+    """progress's lines on where pulls were lost before their end (pull_summary's "Lost at"), a line per kind."""
+    lines = []
+    for kind, lost in sorted(lost_at.items(), key=lambda kv: -len(kv[1])):
+        first = min(lost, key=lambda p: p[1])
+        lines.append(f"Lost before their end (pull_summary's \"Lost at\": a failed mechanic left a debuff on the "
+                     f"whole raid): {kind} on {len(lost)} of {plural(pulls, 'pull')}, at "
+                     f"{clusters([t for _, t in lost])}; the earliest {clock(first[1])} on pull {first[0]}.")
+    return lines
+
+
 async def progress(rep: Report, boss: str | None = None, each_pull: bool = False) -> str:
     """A boss's pulls on the night, a row each, then what the night adds up to. `each_pull`: a row names the pull's
     first deaths and what killed until the wipe was decided, as its post does; what else a post says (how the pull
@@ -397,9 +417,9 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
             "died after it" if each_pull else "first death")
     # the difficulty each pull's post named, once: the boss's name has it only where the night has two
     named = f"{b} ({difficulty_name(fights[0])})" if each_pull and rep.boss_key(fights[0]) == fights[0]["name"] else b
-    lines = [f"{named}: {plural(len(fights), 'pull')} on the night (pull, {how_far}, duration, what ended it "
-             f"(pull_summary's \"Ended by\") and when the wipe was decided, {died}, buffs the boss gained and kept "
-             "to the end)"]
+    lines = [f"{named}: {plural(len(fights), 'pull')} on the night (pull, {how_far}, duration, where it was lost "
+             "before its end (pull_summary's \"Lost at\"), what ended it (pull_summary's \"Ended by\") and when "
+             f"the wipe was decided, {died}, buffs the boss gained and kept to the end)"]
     before = await rep.guild_best(fights[0])
     marks, best = _marks(fights, before)
     if before:
@@ -410,6 +430,7 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
     kept: dict[str, list[float]] = defaultdict(list)  # end buff -> when it was gained, per pull
     kept_how: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))  # and what it was to the pull
     endings = dict(zip([f["id"] for f in fights], await pull_endings(rep, fights), strict=True))
+    lost, lost_at = await no_return(rep, fights), defaultdict(list)  # and per kind, (pull, when) lost
     for i, f in enumerate(fights, 1):
         deaths = await rep.deaths(f)
         buffs = await rep.end_buffs(f)
@@ -430,7 +451,8 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
         if not f.get("inProgress"):
             ends[kind_of_end(ending)] += 1
         end = _end_buffs(buffs, enrages, decided)
-        lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_ended(ending, decided)}; "
+        lines.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_lost(lost.get(f['id']), i, lost_at)}"
+                     f"{_ended(ending, decided)}; "
                      f"{await _died(rep, f, deaths, each_pull)}{end}{marks.get(i, '')}")
     if said := thirds_text(fights):
         lines.append("Average boss health left at a wipe (resets left out, lower got further): "
@@ -449,6 +471,7 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
                      + ", ".join(f"{ph} {n}" for ph, n in sorted(reached.items(), reverse=True)) + ".")
     lines.append("How the pulls ended, by the first thing that ended each (pull_summary's \"Ended by\"): "
                  + ", ".join(f"{what} {n}" for what, n in ends.most_common()) + ".")
+    lines += _lost_lines(lost_at, len(fights))
     lines.append(f"Killers of the first {FIRST_DEATHS} deaths per pull"
                  + (" (deaths after the boss gained one of those buffs left out)" if kept else "") + ": "
                  + ", ".join(f"{a} ×{n}" for a, n in first_killers.most_common(6)))

@@ -47,6 +47,7 @@ from .ending import (
     pull_endings,
     ruled_out,
 )
+from .no_return import no_return_text, pull_no_return
 from .taken import raid_taken
 from .tanks import tank_deaths_line
 
@@ -88,6 +89,15 @@ NOT_A_RAID = ("Not a raid pull: Warcraft Logs gives this fight no raid difficult
               "fight's, and nothing here knows of a key's level, its timer or its trash.")
 
 
+async def _how_it_ended(rep: Report, f: dict, ended: Ending | None) -> list[str]:
+    """pull_summary's lines on how the pull ended: where it was lost before its end, if anywhere, then its "Ended
+    by"."""
+    lines = no_return_text(await pull_no_return(rep, f))
+    if text := ending_text(ended):
+        lines.append(text)
+    return lines
+
+
 async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = None) -> str:
     """One pull, the answer first: what it was, how it ended, how that compares with earlier pulls; then the deaths
     until the wipe was decided, a row each, and the fallout after it in one line."""
@@ -102,8 +112,7 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     if f.get("difficulty") not in DIFFICULTIES:
         lines.append(NOT_A_RAID)
     ended = await pull_ending(rep, f)
-    if text := ending_text(ended):
-        lines.append(text)
+    lines += await _how_it_ended(rep, f, ended)
     if not_it := ruled_out(ended, buffs, decided):
         lines.append(not_it)
     if tank := await _tank_deaths(rep, f, ended, decided):

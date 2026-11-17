@@ -52,7 +52,7 @@ class BattleRes:
         return all(self.charges(r.at_ms) >= 1 for r in self.cast if r.taken)
 
 
-NO_RES_DEAD = 3  # this many dead at once with no battle res possible: where raid leaders commonly call a wipe
+SHORT_DEAD = 2  # this many dead with battle res for fewer, or a healer dead with none: where raid leaders call a wipe
 READY_SHOWN = 6  # the deaths a charge was ready at that are listed; a wipe's last seconds add many more
 RES_REPEAT_MS = 15_000  # a res cast again on the same player this soon after one not taken is the same try
 
@@ -167,27 +167,33 @@ async def battle_res_lines(rep: Report, f: dict, deaths: list[dict]) -> list[str
                      "isn't in the log.")
     elif deaths:
         lines.append(f"No charge was ready at the {plural(len(deaths), 'death')} above.")
-    if not f.get("kill") and (short := _short_handed(f, res, casters, deaths, every, backs)):
+    if not f.get("kill") and (short := _short_handed(rep, f, res, casters, deaths, every, backs)):
         lines.append(short)
     return lines
 
 
-def _short_handed(f: dict, res: BattleRes, casters: dict[int, tuple[Player, str]], deaths: list[dict],
+def _short_handed(rep: Report, f: dict, res: BattleRes, casters: dict[int, tuple[Player, str]], deaths: list[dict],
                   every: list[dict], backs: dict[int, list[float]]) -> str | None:
-    """The first of `deaths` (those until the wipe was decided) that left NO_RES_DEAD players dead at once with no
-    battle res possible: no charge ready, or nobody alive who could cast one. None when that never came before the
-    last of them: then the moment the wipe was decided says as much."""
+    """The first of `deaths` (those until the wipe was decided) that left the raid down a player for good: more dead
+    than battle res it could still give (charges ready, with someone alive to cast one), with two dead or a healer
+    among them. None when that never came before the last of them: then the moment the wipe was decided says as
+    much."""
     t0, end = f["startTime"], f["endTime"] - f["startTime"]
+    players = rep.pull_players(f)
     for d in deaths[:-1]:
         at = d["timestamp"]
-        dead = sum(dead_since(every, backs.get(who, []), who, at) is not None for who in {x["targetID"] for x in every})
-        if dead < NO_RES_DEAD:
-            continue
+        dead = [who for who in {x["targetID"] for x in every}
+                if dead_since(every, backs.get(who, []), who, at) is not None]
         alive = sum(1 for pid in casters if dead_since(every, backs.get(pid, []), pid, at) is None)
-        if res.charges(at - t0, after=True) >= 1 and alive:
+        can = max(0, res.charges(at - t0, after=True)) if alive else 0
+        healers = sorted(players[who].name for who in dead if who in players and players[who].role == "healer")
+        if len(dead) <= can or (len(dead) < SHORT_DEAD and not healers):
             continue
         why = ("nobody who could cast one was alive" if not alive
-               else f"no charge: {res_left(res, at - t0, end, after=True)}")
-        return (f"From {clock(at - t0)} the raid had {dead} dead and no battle res possible ({why}), "
-                f"{clock(deaths[-1]['timestamp'] - at)} before the last death above.")
+               else f"{res_left(res, at - t0, end, after=True)}")
+        who = f", a healer ({', '.join(healers)}) among them" if healers else ""
+        res_for = f"battle res for only {can}" if can else "no battle res"
+        return (f"From {clock(at - t0)} the raid was down a player for good: {len(dead)} dead{who}, {res_for} "
+                f"({why}), {clock(deaths[-1]['timestamp'] - at)} before the last death above. "
+                "Raid leaders often call the wipe here, though a raid can still kill from it.")
     return None
