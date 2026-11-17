@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-17
+
 ### Added
 
 - `Agent` **Where a wipe was really lost.** A failed mechanic that puts a debuff on the whole raid for good, such as a viper hatching on Ula'tek, is now where Wipebot says the pull was lost, often 20 seconds or more before half the raid is dead. It lists what happened to a few players just before (two egg carriers touching, a wave hitting a carrier), so the answer names what set it off and who. A night counts these pulls and says when they came.
