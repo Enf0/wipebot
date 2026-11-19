@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `MCP` `Discord` **A night's chart is readable again.** The best wipe's label now sits above the bars with a marker on its pull, and the guild's best before the night is named in the legend, so neither is drawn over the bars and lines any more. When all three thirds of the night ended in the same phase, the average wipe reads as one line ("86.0 → 85.3 → 85.9" in P1) instead of three.
+
+  ![A night's card in Claude's dark theme: Ula'tek, 43 pulls, the best wipe P2 70.0% named above pull 26 and the guild's best before the night as a dashed line named in the legend](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/night-chart-labels.webp)
+
 ## [1.12.0] - 2026-11-17
 
 ### Changed

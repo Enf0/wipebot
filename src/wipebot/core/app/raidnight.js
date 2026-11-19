@@ -50,9 +50,11 @@ views.night = (() => {
   // the average wipe of each third as progress's text says it; on a boss counted by phase each third's is in the
   // phase most of its wipes ended in ("P1 92.5%"), the phase said once in the label where all three share it
   function average() {
-    const t = D.thirds_text, phase = (s) => s.split(" ")[0], one = D.phased && t.every((s) => !s.includes("(") && phase(s) === phase(t[0]));
+    const t = D.thirds_text, phase = (s) => s.split(" ")[0], one = D.phased && t.every((s) => phase(s) === phase(t[0]));
     if (!D.phased) return ["Average wipe %", t.join(" → "), "", "first, middle, last third"];
-    if (one) return [`Average wipe % in ${phase(t[0])}`, t.map((s) => s.slice(phase(s).length + 1, -1)).join(" → "), "", "first, middle, last third"];
+    // all three in one phase: the phase in the label, and the thirds' "(13 of 14)" (wipes that ended in it) said once
+    if (one) return [`Average wipe % in ${phase(t[0])}`, t.map((s) => s.split(" ")[1].slice(0, -1)).join(" → "), "",
+      `first, middle, last third${t.some((s) => s.includes("(")) ? `, of the wipes that ended in ${phase(t[0])}` : ""}`];
     return ["Average wipe", t.join(" → "), "", "each third's in the phase most of its wipes ended in"];
   }
 
@@ -68,7 +70,11 @@ views.night = (() => {
   // Pull by pull: boss health left (lower is better) in the colour of what ended the pull, the night's best so far
   // (a line), the guild's best before the night (dashed)
   function chart(W, lanes) {
-    const color = colorOf(), n = D.pulls.length, L = 40, R = 16, T = 12, plotH = lanes ? 200 : app.picture() ? 130 : 110;
+    // the night's best wipe, named above the plot (a bar near 0% is too short to see, and a label among the bars sits
+    // on their tops and the lines); none after a kill
+    const top = D.pulls.some((r) => r.kill) ? -1
+      : D.pulls.reduce((b, r, i) => (!r.reset && !r.live && r.pct != null && (b < 0 || r.pct < D.pulls[b].pct) ? i : b), -1);
+    const color = colorOf(), n = D.pulls.length, L = 40, R = 16, T = top >= 0 ? 30 : 12, plotH = lanes ? 200 : app.picture() ? 130 : 110;
     const band = (W - L - R) / Math.max(n, 1), x = (i) => L + i * band, bw = Math.max(2, Math.min(20, band * 0.72));
     const y = (v) => T + plotH - v / 100 * plotH;
     let o = "";
@@ -87,16 +93,14 @@ views.night = (() => {
       o += `<rect x="${x(i)}" y="${T}" width="${band}" height="${plotH + 22}" fill="transparent" data-pull-col="${r.pull}"${kit.opens("this pull")}${kit.tip(tip)}/>`;
     });
     if (line.length > 1) o += `<path d="${line.map(([px, py], i) => `${i ? "L" : "M"}${px} ${py}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.6" pointer-events="none"/>`;
-    // the night's best wipe, named: a bar near 0% is too short to see
-    const top = D.pulls.reduce((b, r, i) => (!r.kill && !r.reset && !r.live && r.pct != null && (b < 0 || r.pct < D.pulls[b].pct) ? i : b), -1);
-    if (top >= 0 && !D.pulls.some((r) => r.kill)) o += kit.text(x(top) + band / 2, y(D.pulls[top].pct) - 6, said(D.pulls[top]), "t over", 'text-anchor="middle" font-weight="700"', kit.SIZE.value);
-    if (D.guild_best) {
-      const gy = y(D.guild_best.pct);
-      o += kit.line(L, gy, W - R, gy, "var(--gold)", 'stroke-width="1.4" stroke-dasharray="5 4" pointer-events="none"');
-      // named at the end away from the night's best bar, whose own label sits just above the line when it's close
-      const left = top >= 0 && top >= n / 2;
-      o += kit.text(left ? L + 4 : W - R, gy - 5, `guild best before: ${said(D.guild_best)}`, "tg", `text-anchor="${left ? "start" : "end"}" font-weight="600"`);
+    if (top >= 0) {
+      const cx = x(top) + band / 2, name = said(D.pulls[top]), half = kit.width(name, kit.SIZE.value, 700) / 2 + 2;
+      const tx = Math.min(W - R - half, Math.max(L + half, cx));
+      o += kit.text(tx, T - 12, name, "t", 'text-anchor="middle" font-weight="700"', kit.SIZE.value)
+        + `<path d="M${cx - 4} ${T - 8} l8 0 l-4 5z" fill="var(--ink)" pointer-events="none"/>`;
     }
+    // the guild's best before the night: a dashed line, named in the legend (the card's numbers say it too)
+    if (D.guild_best) o += kit.line(L, y(D.guild_best.pct), W - R, y(D.guild_best.pct), "var(--gold)", 'stroke-width="1.4" stroke-dasharray="5 4" pointer-events="none"');
     const every = Math.max(1, Math.ceil(24 / band));
     D.pulls.forEach((r, i) => { if (kit.numbered(i, n, every)) o += kit.text(x(i) + band / 2, T + plotH + 14, r.pull, "tm", 'text-anchor="middle"'); });
     // the legend: the coloured endings by how many pulls, the rest as one "other", then the line
@@ -106,6 +110,7 @@ views.night = (() => {
        `${w.replace(/ killing many$/, "").replace(/ and keeping it to the end$/, "")} ${k}`]);
     if (other) keys.push([(lx, ly) => `<rect x="${lx + 0.5}" y="${ly - 8.5}" width="9" height="9" rx="2" ${color.svg("")}/>`, `other ${other}`]);
     if (line.length > 1) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 12}" y2="${ly - 4}" stroke="var(--ink)" stroke-width="1.6"/>`, "best so far"]);
+    if (D.guild_best) keys.push([(lx, ly) => `<line x1="${lx}" y1="${ly - 4}" x2="${lx + 14}" y2="${ly - 4}" stroke="var(--gold)" stroke-width="1.4" stroke-dasharray="5 4"/>`, `guild best before: ${said(D.guild_best)}`]);
     const [under, ly] = kit.legend(keys, W, T + plotH + 34);
     o += under;
     return kit.svg(W, keys.length ? ly + 6 : T + plotH + 22, o, `${D.boss}: boss health left on each pull, coloured by what ended it`);
