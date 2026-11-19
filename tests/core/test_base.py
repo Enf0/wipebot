@@ -7,9 +7,9 @@ import pytest
 
 from tests.support import CODE, FakeWCL, Night
 from wipebot.core import knowledge, server
-from wipebot.core.pulls import Decided, carried_buffs, is_reset, wipe_pct
+from wipebot.core.pulls import Decided, alive_after, alive_at, carried_buffs, is_reset, wipe_pct
 from wipebot.core.report import FactError, Report, base, casting, cooldowns, deaths, fight, ranks
-from wipebot.core.report.base import alive_after, alive_at, half_dead
+from wipebot.core.report.base import half_dead
 from wipebot.core.wcl import WCL, WCLError
 
 
@@ -322,7 +322,7 @@ async def test_bosses_are_grouped_by_the_raid_the_game_puts_them_in(rep, fake_kn
 
 
 def test_a_player_brought_back_by_a_battle_res_is_alive_until_they_die_again():
-    from wipebot.core.report.base import dead_since
+    from wipebot.core.pulls import dead_since
     deaths = [{"targetID": 7, "timestamp": 171_000}, {"targetID": 7, "timestamp": 420_000}]  # 2:51, then 7:00
     backs = [176_000.0]  # a battle res at 2:56
     assert dead_since(deaths, backs, 7, 175_000) == 171_000
@@ -439,6 +439,7 @@ async def test_the_moment_a_wipe_was_decided_takes_in_the_deaths_of_that_moment(
     monkeypatch.setattr(rep, "deaths", lambda f: answer(died))
     monkeypatch.setattr(rep, "raid_size", lambda f: answer(raid))
     monkeypatch.setattr(rep, "resurrects", lambda fs: answer({1: {}}))
+    monkeypatch.setattr(rep, "lost_at", lambda f: answer(None))  # no debuff landed on the whole raid
     assert (await rep.decided_at(f)).at_ms == decided
     assert await rep.until_decided(f, whole_pull=True) == ({}, "")
 

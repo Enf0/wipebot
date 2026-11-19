@@ -201,12 +201,12 @@ async def test_groups_whose_ability_lands_on_a_player_or_two_each_time_are_not_s
 
 
 async def test_the_recorded_sszorak_night_charges_no_group_for_its_four_hits_on_a_few_players(recorded):
-    """The night of vjt3KLbN8g62J1H9: four of its 172 Mutilate hits landed on two to four players as the pull fell
-    apart (28 of the night's 328 "missed while alive"). Every hit of the night is within 20 s of a soak callout."""
+    """The night of vjt3KLbN8g62J1H9: four of its 171 Mutilate hits before the wipes were decided
+    landed on two to four players as the pull fell apart. Every hit of the night is within 20 s of a soak callout."""
     text = (TOOLS.parent / "notes" / "sszorak-2026-10-12.txt").read_text(encoding="utf-8")
     rep = await server.lib().report("vjt3KLbN8g62J1H9")
     night = await note.check_night(rep, text, "Sszorak")
     hits = [(c.f, h) for c in night.checks for s in c.soaks for h in s.hits]
     assert [(rep.pull_no(f), h.at // 1000, h.why, len(h.hit)) for f, h in hits if not h.label] == [
         (1, 8, note.UNCLEAR, 2), (3, 59, note.UNCLEAR, 2), (10, 8, note.UNCLEAR, 4), (19, 8, note.UNCLEAR, 2)]
-    assert sum(st == "alive" for _, h in hits for _, st in h.absent) == 300
+    assert sum(st == "alive" for _, h in hits for _, st in h.absent) == 298

@@ -25,8 +25,8 @@ tool nor `roster` gives it, ask which is theirs, unless the host says how to fin
 
 ## 3. Take what code decided from the output
 
-- What ended a pull is what its "Ended by" line says.
-- A death marked as fallout, or as after the wipe was decided, is never the cause and nobody's fault.
+- A pull was lost at its "Lost at", else as its "Ended by" says; a death after it (fallout) is never the cause or
+  anyone's fault.
 - Numbers, times and what a class or spec can do come from the tools, never from memory or your own counting.
 
 ## 4. Read the guide before judging

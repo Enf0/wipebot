@@ -542,8 +542,8 @@ Pull = Annotated[int | str | None, Field(description="pull number on the boss, o
                                                     "or last; omit for the latest")]
 Boss = Annotated[str | None, Field(description="boss name, or part of it; omit for the boss of the latest pull")]
 Player = Annotated[str, Field(description="character name as in the log (accents optional)")]
-WholePull = Annotated[bool, Field(description="include what happened after the wipe was decided (the boss's "
-                                              "enrage or half the raid dead)")]
+WholePull = Annotated[bool, Field(description="include what happened after the wipe was decided (where it was "
+                                              "lost, the boss's enrage or half the raid dead)")]
 
 
 # ---------- Warcraft Logs access and reports ----------
@@ -640,7 +640,8 @@ async def pull_summary(pull: Pull = None, boss: Boss = None, report: Report_ = N
     6 s, a buff the boss gained and kept, half the raid dead, or deaths spread out, from the first that stayed dead),
     with the deaths one after another that led into a moment killing many; what that ability or buff is, boss_guide
     says. "Lost at", when there is one, comes earlier: an enemy debuff landing on the whole raid and staying (a failed
-    mechanic), with what reached a few players in the seconds before it, among which is what set it off.
+    mechanic), with what reached a few players in the seconds before it, among which is what set it off; the wipe
+    was decided there, in every tool, and every death after it is fallout.
     Phases are numbered as raiders count them, in every tool: stages P1, P2, P3 and intermissions I1, I2; "P1 (2nd
     time)" is a phase the fight went back to. The first line compares the wipe with this log's earlier pulls and
     with the guild's best in its earlier logs: only "new guild best" is a best ever. "No killing blow recorded"
@@ -1654,8 +1655,9 @@ async def progress(boss: Annotated[str | None, Field(description=(
     Without a boss, the night at a glance first: every boss with pulls, kills (with speed and execution
     percentiles), best wipe, time spent, the trend, and the guild's progress rank. Then the boss's night, what it
     adds up to first: the night's best wipe (against the guild's best before it), where pulls were lost (a failed
-    mechanic's debuff on the whole raid), counted with what came just before it, how they ended, averages over the
-    night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull and the night's killer;
+    mechanic's debuff on the whole raid), counted with what came just before it, how they ended (where lost, else
+    how), averages over the night, the buffs the boss kept to the end, what killed the first 3 deaths of each pull
+    and the night's killer, both leaving out the deaths after a pull was lost;
     then, for follow-ups, a row per pull: boss health left and phase (on a boss with phases, its health in the
     phase, as raiders count a wipe; lower got further), duration, where it was lost and first death.
     With `first_hits`, before all that: a tally of who hit the boss first ("who pulled?"),
@@ -1964,7 +1966,8 @@ async def breakdown(
     cutoff: Annotated[int | None, Field(description="ignore everything after this many deaths in each pull, "
                                                     "e.g. 3 for the start of the wipe")] = None,
     whole_pull: Annotated[bool, Field(description=(
-        "include what happened after each wipe was decided (the boss's enrage or half the raid dead); "
+        "include what happened after each wipe was decided (where it was lost, the boss's enrage or half the raid "
+        "dead); "
         + ", ".join(tables.UNTIL_DECIDED_TYPES) + " leave it out by default (but with a cutoff), the other "
         "tables are always whole pulls"))] = False,
     start: Annotated[str | None, Field(description=(

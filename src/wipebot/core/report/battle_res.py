@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 from .. import knowledge
 from ..knowledge import KnowledgeError, spaced
-from ..pulls import DIFFICULTIES
+from ..pulls import DIFFICULTIES, dead_since
 from ..text import clock, plural
-from .base import SAME_DEATH_MS, Player, Report, dead_since, unavailable
+from .base import SAME_DEATH_MS, Player, Report, unavailable
 
 # The game's rule in a raid encounter since patch 6.0, which no source we read publishes as data: the raid shares
 # its battle res, 1 charge when the boss is pulled and 1 more every 90 minutes over the players in the raid, counted

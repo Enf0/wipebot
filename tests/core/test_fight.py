@@ -198,9 +198,8 @@ async def test_the_deaths_after_the_wipe_was_decided_are_one_line_with_every_dea
         assert f"{rep.names[d['targetID']]}" in fallout and clock(d["timestamp"] - f["startTime"]) in fallout
     # a first pull that the enrage decided with everyone alive: no row, and all of them in the line
     first = (await fight.pull_summary(rep, 1)).splitlines()
-    at = first.index("Raid size 20. Deaths until then, in order (time from pull start, players alive after it, a "
-                     "battle res or self-res counted):")
-    assert first[at + 1] == "none" and first[at + 2].startswith("Fallout, 19 deaths after the wipe was decided at 0:39")
+    at = first.index("Raid size 20. No deaths until then.")
+    assert first[at + 1].startswith("Fallout, 19 deaths after the wipe was decided at 0:39")
 
 
 async def test_the_post_keeps_its_text_and_the_bot_finds_its_marks_in_pull_summary(rep, monkeypatch):
@@ -528,7 +527,7 @@ async def test_a_pull_still_going_has_no_buffs_at_the_end_and_is_logged_so_far()
     assert await rep.end_buffs(rep.fight(pull)) == []
     text = await fight.pull_summary(rep, pull)
     assert "Ended by: not yet, the pull is still going (0:30 logged so far)." in text
-    assert "counted):\nnone\n" in text  # no deaths yet
+    assert "Raid size 20. No deaths.\n" in text  # no deaths yet
     assert text.endswith("\nLogged so far at 0:30 with the boss at 63.1% health.")
 
 

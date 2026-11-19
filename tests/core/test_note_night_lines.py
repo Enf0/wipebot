@@ -83,9 +83,9 @@ def test_a_job_given_to_several_players_at_the_same_moments_is_one_entry():
 
 async def test_a_use_written_twice_in_a_later_phase_is_said_once_over_a_night(recorded):
     """The Coiled Altar note with its Time Spiral at 0:14 of ph:2 written again at 0:15: the night said so once for
-    each of the 15 pulls that reached Stage Two, each with that pull's own times ("at both 2:50 and 2:51", "at both
-    2:56 and 2:57"), since P2 began at another moment on each. It is one line of the note: said once, by the note's
-    times, and still one use a pull."""
+    each of the 11 pulls that reached Stage Two before they were lost, each with that pull's own times ("at both
+    2:50 and 2:51", "at both 2:56 and 2:57"), since P2 began at another moment on each. It is one line
+    of the note: said once, by the note's times, and still one use a pull."""
     spiral = "time:14;ph:2;tag:Lïzårðmâñ;spellid:374968;"
     text = ALTAR.read_text(encoding="utf-8")
     assert text.count(spiral) == 1
@@ -96,7 +96,7 @@ async def test_a_use_written_twice_in_a_later_phase_is_said_once_over_a_night(re
         "  The note plans Lïzårðmâñ's Time Spiral [374968] at both P2 0:14 and P2 0:15: one use written twice, checked "
         "as the first"]
     assert [row for row in rows if row.startswith("    P2 0:14 Time Spiral")] == [
-        "    P2 0:14 Time Spiral [374968], 15 pulls: late 12 (9 s), not cast 2 (p13, p23), dead 1"]
+        "    P2 0:14 Time Spiral [374968], 11 pulls: late 10 (9 s), dead 1"]
     assert not [row for row in rows if row.startswith("    P2 0:15 Time Spiral")]
 
 
@@ -129,13 +129,14 @@ def test_a_players_counts_add_up_to_their_planned_uses_with_the_pulls_they_were_
 
 
 async def test_the_recorded_night_counts_the_pulls_a_raider_was_not_in(recorded):
-    """Scopidruid was in pulls 23 to 28 of the Coiled Altar night's 28: of their 64 planned uses the row counted 22
-    (late 2, not cast 18, dead 2) and left 42 out, and the 0:45 roar read "26 pulls: not cast 6"."""
+    """Scopidruid was in pulls 23 to 28 of the Coiled Altar night's 28: of their 60 planned uses before the pulls were
+    decided or lost the row counted 20 (late 2, not cast 17, dead 1) and left 40 out, and the 0:45 roar read "26
+    pulls: not cast 6"."""
     rep = await server.lib().report("fk2z6bCw4xRLNvht")
     rows = (await note.note_check(rep, ALTAR.read_text(encoding="utf-8"), boss="Coiled Altar",
                                   all_pulls=True)).splitlines()
-    assert ("  Scopidruid: 64 planned uses; late 2 (8 s), not cast 18, 2 of them on cooldown, dead 2, not in the pull "
-            "42") in rows
+    assert ("  Scopidruid: 60 planned uses; late 2 (8 s), not cast 17, 2 of them on cooldown, dead 1, not in the pull "
+            "40") in rows
     assert ("    0:45 Stampeding Roar [106898], 26 pulls: not cast 6 (p23, p24, p25, p26, p27, p28), not in the pull "
             "20") in rows
     counted = [m for row in rows if (m := re.fullmatch(r"  \S+: (\d+) planned uses?; (.*)", row))]

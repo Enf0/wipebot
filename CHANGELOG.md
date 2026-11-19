@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Agent` **Once a pull is lost, the rest is fallout.** Where Wipebot finds the moment a pull was lost, such as a viper hatching on Ula'tek, every death after it now counts as fallout everywhere: in a pull's summary, in a night's killer and first deaths, in how the pulls ended, and in a player's deaths and time dead. It also catches the pulls where the raid died within seconds of the viper, which it missed before, so a night's killer no longer fills up with the deaths that came after it.
+
 ## [1.12.1] - 2026-11-19
 
 ### Fixed

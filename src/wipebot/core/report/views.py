@@ -20,6 +20,7 @@ from ..pulls import (
     DIFFICULTIES,
     FIRST_DEATHS,
     NO_KILLING_BLOW,
+    alive_after,
     by_phase,
     is_reset,
     pct_text,
@@ -33,7 +34,7 @@ from ..pulls import (
 from ..text import clock, day, ordinal, plural, short
 from . import adds, mana, mechanics, tables, versus
 from . import note as notes
-from .base import ROLE_NAMES, Player, PullRef, Report, alive_after, pull_window
+from .base import ROLE_NAMES, Player, PullRef, Report, pull_window
 from .build import hero_of
 from .casting import alive, cast_counts, casting, raid_pauses, without
 from .coaching import (
@@ -80,7 +81,6 @@ from .ending import (
     HalfDead,
     KeptBuff,
     MassDeath,
-    kind_of_end,
     mass_death,
     pull_ending,
     pull_endings,
@@ -88,7 +88,8 @@ from .ending import (
 from .fight import DAMAGE_BUCKET_MS, boss_casts, raid_cooldown_casts, raid_damage, tracks
 from .healing import COOLDOWN_LEAD_MS
 from .meter import Meter
-from .night import BossNight, kill_rankings, thirds_text, wipe_thirds
+from .night import BossNight, early_deaths, how_ended, kill_rankings, thirds_text, wipe_thirds
+from .no_return import no_return
 from .ranks import CAPPED_HEALING, SHORT_PULL, Spread, kill_parses, kills_spread, metric_of
 from .top import cast_comparison
 
@@ -495,22 +496,21 @@ def _night_cooldown(cds: NightCooldowns, name: str) -> dict:
 
 async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = None) -> dict:
     """The raid's night on a boss, as progress states it: each pull's boss health left, phase, length, what ended it
-    (pull_summary's "Ended by") and first death; the night's best, the guild's best before it, how the pulls ended
-    and the killers of each pull's first deaths, the trend in thirds; and the night's other bosses. With `nights`
-    (progress's `weeks`), the boss on each raid night: its pulls, the kill or the best wipe and the phase it got to,
-    and what ended most pulls, led by their own sentence (weeks_headline). Every % comes as a number, for a bar's
-    height, and written as the text writes it (`*_text`), for the page to print."""
+    (pull_summary's "Lost at" where there is one, else its "Ended by") and first death; the night's best, the
+    guild's best before it, how the pulls ended and the killers of each pull's first deaths, the trend in thirds;
+    and the night's other bosses. With `nights` (progress's `weeks`), the boss on each raid night: its pulls, the
+    kill or the best wipe and the phase it got to, and what ended most pulls (its "Ended by"), led by their own
+    sentence (weeks_headline). Every % comes as a number, for a bar's height, and written as the text writes it
+    (`*_text`), for the page to print."""
     fights = rep.by_boss[boss]
     await rep.decided_cuts(fights)
     before = await rep.guild_best(fights[0])
     endings = await pull_endings(rep, fights)
+    lost = await no_return(rep, fights)
     rows, firsts, best = [], Counter(), None
     for f, e in zip(fights, endings, strict=True):
         deaths = await rep.deaths(f)
-        enrages = await rep.enrages(f)
-        cutoff = min((at for _, at in enrages), default=None)
-        early = [d for d in deaths if cutoff is None or d["timestamp"] - f["startTime"] < cutoff]
-        for d in early[:FIRST_DEATHS]:
+        for d in early_deaths(f, deaths, await rep.decided_at(f), await rep.enrages(f))[:FIRST_DEATHS]:
             firsts[rep.ability(d.get("killingAbilityGameID"))] += 1
         pct = 0.0 if f["kill"] else wipe_pct(f)
         new = (not f["kill"] and not is_reset(f) and not f.get("inProgress") and pct is not None
@@ -524,7 +524,7 @@ async def night_view(rep: Report, boss: str, nights: list[BossNight] | None = No
                      "reset": is_reset(f), "live": bool(f.get("inProgress")),
                      "duration_ms": round(f["endTime"] - f["startTime"]), "phase": phase_label(f),
                      "health": phase_health(f), "health_text": _pct(phase_health(f)),
-                     "ended": kind_of_end(e), "best": starred,
+                     "ended": how_ended(lost.get(f["id"]), e), "best": starred,
                      "first": {"name": rep.names.get(first["targetID"], "?"),
                                "by": rep.ability(first.get("killingAbilityGameID")),
                                "ms": round(first["timestamp"] - f["startTime"])} if first else None})
@@ -1379,7 +1379,7 @@ def death_headline(by: str, at_ms: float, outright: bool, last_hp: int | None, r
 def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
     """The raid's night on a boss in one sentence of progress's facts: the kill and on which pull, else what ended
     the most pulls (its "Ended by" counted over the pulls that ended, resets among them: the one count the card
-    states), in progress's words for it after "ended with", which every one of them reads after. Where no mechanic
+    states), in progress's words for it after "ended with" (or "were lost to" for its "Lost at"). Where no mechanic
     ended a pull, the pulls as progress counts them."""
     ended = [r for r in rows if not r["live"]]
     kill = next((r for r in rows if r["kill"]), None)
@@ -1388,9 +1388,9 @@ def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
                          else f"Killed on pull {kill['pull']} of {len(rows)}.")
     top = next(((what, k) for what, k in ends if what not in QUIET_ENDS), None)
     if top and len(ended) == 1:
-        return _headline(f"Pull {ended[0]['pull']} ended with {top[0]}.")
+        return _headline(f"Pull {ended[0]['pull']} {_ended_with(top[0], 'was')}.")
     if top:
-        return _headline(f"{top[1]} of the {len(ended)} pulls ended with {top[0]}.")
+        return _headline(f"{top[1]} of the {len(ended)} pulls {_ended_with(top[0], 'were')}.")
     if not ended:
         return _headline(f"Pull {rows[-1]['pull']} is still going.")
     if all(r["reset"] for r in rows):
@@ -1399,6 +1399,12 @@ def night_headline(rows: list[dict], ends: list[tuple[str, int]]) -> dict:
     if live := len(rows) - len(ended):
         counts.append(f"still going {live}")
     return _headline(f"{plural(len(rows), 'pull')}: {'; '.join(counts)}.")  # one of them has a comma of its own
+
+
+def _ended_with(what: str, be: str) -> str:
+    """How a headline says a pull's end: "ended with" progress's words for it, or, for one lost before its end
+    (night.how_ended's "lost to ..."), "was lost to"."""
+    return f"{be} {what}" if what.startswith("lost to ") else f"ended with {what}"
 
 
 def weeks_headline(nights: list[BossNight]) -> dict:

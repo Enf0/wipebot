@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 
 from .. import knowledge
 from ..knowledge import KnowledgeError
-from ..pulls import attempt
+from ..pulls import attempt, dead_since
 from ..text import clock, day, ordinal, plural, short
-from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, dead_since, pull_window
+from .base import JOBS_NOT_LOGGED, FactError, PullRef, Report, alive_ms, pull_window
 from .meter import MIN_BARS, Bar, Meter, Then
 
 HIT_THEN_DEATH_MS = 6_000  # a mechanic hit followed by death this soon counts as "died after"

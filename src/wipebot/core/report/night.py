@@ -332,6 +332,8 @@ def _ended(ending: Ending | None, decided: Decided | None) -> str:
     what = kind_of_end(ending)
     if (start := deaths_from(ending)) is not None:  # "deaths one after another", "deaths leading into ..."
         what = f"deaths from {clock(start)} " + what.removeprefix("deaths ")
+    if decided and decided.lost:  # lost earlier: the log's own end is its fallout
+        return f", then ended by {what} (fallout)"
     return f", ended by {what}" + (f", decided at {clock(decided.at_ms)}" if decided else "")
 
 
@@ -397,6 +399,21 @@ async def _died(rep: Report, f: dict, deaths: list[dict], each_pull: bool) -> st
             + f"; killed by {killers or 'none'}" + (f" ({plural(later, 'later death')}: fallout)" if later else ""))
 
 
+def early_deaths(f: dict, deaths: list[dict], decided: Decided | None, enrages: list[tuple[str, float]]) -> list[dict]:
+    """A pull's deaths that "Killers of the first deaths" reads: those until it was lost (pull_summary's "Lost at"),
+    else those before the boss gained a buff it kept to the end."""
+    if decided and decided.lost:
+        return [d for d in deaths if d["timestamp"] - f["startTime"] <= decided.at_ms]
+    cutoff = min((at for _, at in enrages), default=None)
+    return [d for d in deaths if cutoff is None or d["timestamp"] - f["startTime"] < cutoff]
+
+
+def how_ended(n: NoReturn | None, ending: Ending | None) -> str:
+    """How a pull ended, as "How the pulls ended" counts it: where it was lost before its end, as raid leaders
+    count it, else its "Ended by"."""
+    return f"lost to {n.kind}" if n else kind_of_end(ending)
+
+
 def _lost(n: NoReturn | None, i: int, lost_at: dict[str, list[tuple[int, float]]]) -> str:
     """Where pull `i` was lost before its end, for its row in `progress`, counted in `lost_at`."""
     if n is None:
@@ -406,19 +423,21 @@ def _lost(n: NoReturn | None, i: int, lost_at: dict[str, list[tuple[int, float]]
 
 
 def _lost_lines(lost: dict[int, NoReturn], lost_at: dict[str, list[tuple[int, float]]], pulls: int) -> list[str]:
-    """progress's lines on where pulls were lost before their end (pull_summary's "Lost at"), a line per kind, with
-    what most often came just before it on those pulls."""
-    lines = []
+    """progress's line on where pulls were lost before their end (pull_summary's "Lost at"), a sentence per kind,
+    with what most often came just before it on those pulls."""
+    said = []
     for kind, at in sorted(lost_at.items(), key=lambda kv: -len(kv[1])):
         first = min(at, key=lambda p: p[1])
         near = Counter(w for n in lost.values() if n.kind == kind for w in n.near)
-        just = (f" In the {NEAR_MS // 1000} s before it, what reached {FEW} players or fewer, by pulls (what set it "
-                "off is among it, as the guide says): "
-                + " · ".join(f"{w} {c}" for w, c in near.most_common(LOST_CAUSES)) + "." if near else "")
-        lines.append(f"Lost before their end (pull_summary's \"Lost at\": a failed mechanic left a debuff on the "
-                     f"whole raid): {kind} on {len(at)} of {plural(pulls, 'pull')}, at "
-                     f"{clusters([t for _, t in at])}; the earliest {clock(first[1])} on pull {first[0]}.{just}")
-    return lines
+        just = ("; just before it: " + " · ".join(f"{w} {c}" for w, c in near.most_common(LOST_CAUSES))
+                if near else "")
+        said.append(f"{kind} on {len(at)} of {plural(pulls, 'pull')}, at {clusters([t for _, t in at])}, the earliest "
+                    f"{clock(first[1])} on pull {first[0]}{just}.")
+    if not said:
+        return []
+    return [f"Lost before their end (pull_summary's \"Lost at\": a failed mechanic left a debuff on the whole raid; "
+            f"\"just before it\" is what reached {FEW} players or fewer in the {NEAR_MS // 1000} s before, by pulls, "
+            "and what set it off is among it, as the guide says): " + " ".join(said)]
 
 
 LOST_CAUSES = 6  # what came just before a night's "Lost at", the most frequent first
@@ -457,25 +476,25 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
         enrages = await rep.enrages(f)  # a buff a council boss gains as its partner dies decides nothing
         for name, at in enrages:
             kept[name].append(at)
-        cutoff = min((at for _, at in enrages), default=None)
-        early = [d for d in deaths if cutoff is None or d["timestamp"] - f["startTime"] < cutoff]
-        for d in early[:FIRST_DEATHS]:
+        decided = await rep.decided_at(f)
+        for d in early_deaths(f, deaths, decided, enrages)[:FIRST_DEATHS]:
             first_killers[rep.ability(d.get("killingAbilityGameID"))] += 1
         pct = 0.0 if f["kill"] else wipe_pct(f)
         result = wipe_text(f) if phased and not f["kill"] else " ".join(
             x for x in (pct_text(pct), phase_label(f)) if x)  # a boss without phases has no label
-        decided = await rep.decided_at(f)
         ending = None if f.get("inProgress") else endings[f["id"]]
         for name, at in enrages:
             kept_how[name][_kept_as(ending, decided, name, at)].append(i)
         if not f.get("inProgress"):
-            ends[kind_of_end(ending)] += 1
+            ends[how_ended(lost.get(f["id"]), ending)] += 1
         end = _end_buffs(buffs, enrages, decided)
         rows.append(f"  {i}: {result} {clock(f['endTime'] - f['startTime'])}{_lost(lost.get(f['id']), i, lost_at)}"
                      f"{_ended(ending, decided)}; "
                      f"{await _died(rep, f, deaths, each_pull)}{end}{marks.get(i, '')}")
     lines += _lost_lines(lost, lost_at, len(fights))
-    lines.append("How the pulls ended, by the first thing that ended each (pull_summary's \"Ended by\"): "
+    by = ("pull_summary's \"Lost at\" where there is one, its own end after it being fallout, else its \"Ended by\""
+          if lost else "pull_summary's \"Ended by\"")
+    lines.append(f"How the pulls ended, by the first thing that ended each ({by}): "
                  + ", ".join(f"{what} {n}" for what, n in ends.most_common()) + ".")
     if said := thirds_text(fights):
         lines.append("Average boss health left at a wipe (resets left out, lower got further): "
@@ -493,7 +512,9 @@ async def progress(rep: Report, boss: str | None = None, each_pull: bool = False
         lines.append("Pulls by the phase they ended in (resets left out): "
                      + ", ".join(f"{ph} {n}" for ph, n in sorted(reached.items(), reverse=True)) + ".")
     lines.append(f"Killers of the first {FIRST_DEATHS} deaths per pull"
-                 + (" (deaths after the boss gained one of those buffs left out)" if kept else "") + ": "
+                 + (" (deaths after " + " or ".join(x for x, y in (("the pull was lost", lost),
+                                                               ("the boss gained one of those buffs", kept)) if y)
+                    + " left out)" if kept or lost else "") + ": "
                  + ", ".join(f"{a} ×{n}" for a, n in first_killers.most_common(6)))
     if killer := await _nights_killer(rep, fights):
         lines.append(killer)

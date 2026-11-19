@@ -7,9 +7,9 @@ from collections import defaultdict
 from collections.abc import Collection
 from dataclasses import dataclass, replace
 
-from ..pulls import MASS_DEATH_MS, NO_KILLING_BLOW, WAVE_MS, Decided, is_reset, mass_hits, mass_of
+from ..pulls import MASS_DEATH_MS, NO_KILLING_BLOW, WAVE_MS, Decided, alive_at, is_reset, mass_hits, mass_of
 from ..text import clock
-from .base import Report, alive_at, half_dead
+from .base import Report, half_dead
 
 LEAD_IN_GAP_MS = 60_000  # deaths this close one after another lead into the moment that follows them
 END_CAST_MS = 10_000  # a debuff of the boss's landing on the living this close to the end may be what ended the pull
@@ -114,7 +114,7 @@ async def pull_ending(rep: Report, f: dict) -> Ending | None:
     deaths, backs, raid = await rep.deaths(f), (await rep.resurrects([f]))[f["id"]], await rep.raid_size(f)
     buffs = await rep.enrages(f)
     unseen = {name for name, _ in buffs} - await rep.seen_buffs(f) if buffs else set()
-    e = ending(rep, f, deaths, backs, raid, buffs, await rep.decided_at(f), unseen)
+    e = ending(rep, f, deaths, backs, raid, buffs, await rep.log_decided(f), unseen)  # the log's own end
     if e and e.kind == "alive" and (cast := await _end_cast(rep, f, deaths, backs, raid)):
         return replace(e, kind="cast", cast=cast)
     return e
@@ -126,7 +126,7 @@ async def pull_endings(rep: Report, fights: list[dict]) -> list[Ending | None]:
     await rep.decided_cuts(fights)
     alive = [f for f in fights
              if (e := ending(rep, f, await rep.deaths(f), (await rep.resurrects([f]))[f["id"]], await rep.raid_size(f),
-                             await rep.enrages(f), await rep.decided_at(f))) and e.kind == "alive"]
+                             await rep.enrages(f), await rep.log_decided(f))) and e.kind == "alive"]
     for kind, side in (("Debuffs", "Friendlies"), ("Casts", "Enemies")) if alive else ():
         await rep.events_for([(f["id"], {}) for f in alive], kind, hostilityType=side)
     return [await pull_ending(rep, f) for f in fights]
@@ -200,7 +200,7 @@ def ending(rep: Report, f: dict, deaths: list[dict], backs: dict[int, list[float
         return Ending("reset", raid, length)
     until = t0 + decided.at_ms if decided else f["endTime"]
     before = [d for d in deaths if d["timestamp"] <= until]
-    half = half_dead(deaths, backs, raid) if decided and not decided.enrage else None
+    half = half_dead(deaths, backs, raid) if decided and not decided.enrage and not decided.lost else None
     kept = [KeptBuff(gained, name, alive_at(deaths, backs, raid, t0 + gained)) for name, gained in buffs
             if t0 + gained <= until]  # gained once the wipe was decided: fallout too
     hits = _mass_deaths(rep, deaths, t0, raid)

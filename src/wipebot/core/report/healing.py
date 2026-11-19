@@ -8,9 +8,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from ..knowledge import KnowledgeError
+from ..pulls import dead_since
 from ..text import clock, ids_line, plural, short
 from ..wcl import WCLError
-from .base import COOLDOWNS_NOT_LOGGED, Player, PullRef, Report, dead_since, unavailable
+from .base import COOLDOWNS_NOT_LOGGED, Player, PullRef, Report, unavailable
 from .casting import casting, raid_pauses, without
 from .cooldowns import buff_end, one_per_use
 from .taken import Taken, raid_taken

@@ -25,11 +25,11 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..knowledge import KnowledgeError
-from ..pulls import DIFFICULTIES, Decided
+from ..pulls import DIFFICULTIES, Decided, dead_since
 from ..text import clock, name_key, plural, ranges, short
 from . import saved
 from .adds import interruptible_casts, kicked_tonight
-from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, dead_since, unavailable
+from .base import REPEAT_CAST_MS, FactError, Player, PullRef, Report, unavailable
 from .cooldowns import spell_at
 
 MATCH_S = 30  # a planned cooldown is matched to the player's nearest cast of it this close to its time

@@ -12,6 +12,7 @@ from ..knowledge import KnowledgeError
 from ..pulls import (
     DIFFICULTIES,
     END_BUFF_WINDOW_MS,
+    alive_after,
     killed_by,
     pct_text,
     phase_health,
@@ -30,7 +31,6 @@ from .base import (
     FactError,
     PullRef,
     Report,
-    alive_after,
     half_dead,
     unavailable,
 )
@@ -96,7 +96,7 @@ async def _how_it_ended(rep: Report, f: dict, ended: Ending | None) -> tuple[lis
     lost = no_return_text(await pull_no_return(rep, f))
     text = ending_text(ended)
     if lost:
-        return lost, [f"{text} It came after the pull was lost above: it sorts the fallout, not the cause."
+        return lost, [f"{text} It came after the pull was lost above: its deaths are fallout."
                       ] if text else []
     return [text] if text else [], []
 
@@ -131,11 +131,9 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     if again := await _same_ending(rep, f, ended):
         lines.append(again)
     lines += _context(rep, f, s)
-    lines += [*([killed] if (killed := killed_by(s)) else []),
-              f"Raid size {raid}. Deaths {'until then, ' if later else ''}in order (time from pull start, players "
-              "alive after it, a battle res or self-res counted):"]
-    lines += _death_rows(rep, f, deaths[:len(deaths) - len(later)], alive) or ["none"]
-    half = decided.at_ms if decided and not decided.enrage else None
+    lines += [killed] if (killed := killed_by(s)) else []
+    lines += _deaths_until(rep, f, deaths[:len(deaths) - len(later)], alive, raid, bool(later))
+    half = decided.at_ms if decided and not decided.enrage and not decided.lost else None
     ran = ""
     if half is not None:  # the moment half the raid was dead, when its deaths ran on past it
         at = clock(half_dead(deaths, backs, raid) - f["startTime"])
@@ -164,6 +162,14 @@ async def pull_summary(rep: Report, pull: PullRef = None, boss: str | None = Non
     ended_at = "Logged so far" if f.get("inProgress") else "Pull ended"
     lines.append(f"{ended_at} at {clock(f['endTime'] - f['startTime'])} with {boss_left(f)}.")
     return "\n".join(lines)
+
+
+def _deaths_until(rep: Report, f: dict, deaths: list[dict], alive: list[int], raid: int, later: bool) -> list[str]:
+    """The deaths until the wipe was decided, a row each, under the raid's size; one line when there were none."""
+    if rows := _death_rows(rep, f, deaths, alive):
+        return [f"Raid size {raid}. Deaths {'until then, ' if later else ''}in order (time from pull start, players "
+                "alive after it, a battle res or self-res counted):", *rows]
+    return [f"Raid size {raid}. No deaths{' until then' if later else ''}."]
 
 
 def _context(rep: Report, f: dict, s) -> list[str]:

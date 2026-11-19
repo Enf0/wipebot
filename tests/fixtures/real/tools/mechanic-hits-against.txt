@@ -1,25 +1,25 @@
 Boss 'The Coiled Altar' is read as The Coiled Altar (Mythic), pulled last; The Coiled Altar (Heroic) matches it too.
-Axegrinder, this night against another, per minute of the pulls each player was in (each until its wipe was decided), as the nights' pulls differ in number and length: Wed 28 Oct, 29 pulls (75 min) against Mon 26 Oct, 20 pulls (37 min).
-Raid: 11.34M damage per minute against 8.94M (+27%); deaths of any cause within 6 s of a hit 1.26 per minute against 1.12 (95 against 42); 22 against 9 with Axegrinder as the killing blow.
+Axegrinder, this night against another, per minute of the pulls each player was in (each until its wipe was decided), as the nights' pulls differ in number and length: Wed 28 Oct, 29 pulls (72 min) against Mon 26 Oct, 20 pulls (36 min).
+Raid: 11.30M damage per minute against 8.94M (+26%); deaths of any cause within 6 s of a hit 1.02 per minute against 0.91 (73 against 33); 19 against 9 with Axegrinder as the killing blow.
 Per player, most damage per minute this night first: per minute and rank of the 20 this night, then the other night's of 20, the change, hits, deaths of any cause within 6 s of a hit:
-  Wutroll (tank): 1.35M (1st) against 857.25k (3rd), +58%; hits 10 against 5; deaths within 6 s 2 against 1
-  Karadim (tank): 1.18M (2nd) against 1.22M (1st), -3%; hits 12 against 10; deaths within 6 s 6 against 5
-  Enfo: 951.35k (3rd) against 347.08k (11th), +174%; hits 16 against 5; deaths within 6 s 5 against 2
-  Attractîv: 844.26k (4th) against 689.99k (4th), +22%; hits 6 against 6; deaths within 6 s 11 against 6
-  Cptola: 770.47k (5th) against 396.71k (10th), +94%; hits 12 against 6; deaths within 6 s 8 against 6
-  Sveini: 743.81k (6th), not there the other night; hits 5; deaths within 6 s 10
-  Namsus: 606.47k (7th) against 521.67k (7th), +16%; hits 11 against 2; deaths within 6 s 1 against 1
-  Sonyosh: 583.41k (8th) against 578.09k (6th), +1%; hits 9 against 3; deaths within 6 s 10 against 3
-  Dscopi: 570.09k (9th) against 278.37k (13th), +105%; hits 8 against 4; deaths within 6 s 8 against 2
-  Lïzårðmâñ: 551.50k (10th) against 417.35k (9th), +32%; hits 5 against 3; deaths within 6 s 8 against 1
-  Peggerino: 536.99k (11th) against 622.08k (5th), -14%; hits 8 against 4; deaths within 6 s 5 against 2
-  Miralupa: 410.82k (12th) against 1.04M (2nd), -61%; hits 6 against 8; deaths within 6 s 0 against 0
-  Dragepie: 399.66k (13th) against 422.94k (8th), -6%; hits 1 against 2; deaths within 6 s 3 against 1
-  Nexsozz: 365.34k (14th) against 250.33k (14th), +46%; hits 10 against 0; deaths within 6 s 4 against 1
-  Slushmania: 314.09k (15th) against 300.22k (12th), +5%; hits 5 against 2; deaths within 6 s 2 against 5
-  Pomaa: 284.69k (16th) against 209.81k (16th), +36%; hits 5 against 0; deaths within 6 s 2 against 0
-  Zebinomage: 284.44k (17th) against 151.46k (18th), +88%; hits 5 against 3; deaths within 6 s 5 against 1
-  Nalaxd: 257.94k (18th) against 176.77k (17th), +46%; hits 28 against 1; deaths within 6 s 3 against 3
-  Krøpling: 245.04k (19th) against 126.42k (19th), +94%; hits 2 against 1; deaths within 6 s 2 against 0
-  Martin: 219.42k (20th) against 224.31k (15th), -2%; hits 9 against 2; deaths within 6 s 0 against 2
-Only the other night: Algmor 114.57k (20th)
+  Wutroll (tank): 1.38M (1st) against 843.51k (3rd), +63%; hits 10 against 5; deaths within 6 s 1 against 0
+  Karadim (tank): 1.16M (2nd) against 1.19M (1st), -2%; hits 12 against 10; deaths within 6 s 3 against 4
+  Enfo: 964.78k (3rd) against 351.62k (11th), +174%; hits 16 against 5; deaths within 6 s 3 against 1
+  Attractîv: 846.19k (4th) against 666.48k (4th), +27%; hits 6 against 6; deaths within 6 s 9 against 4
+  Sveini: 773.58k (5th), not there the other night; hits 5; deaths within 6 s 10
+  Cptola: 759.43k (6th) against 399.04k (10th), +90%; hits 11 against 6; deaths within 6 s 7 against 5
+  Namsus: 612.34k (7th) against 521.32k (7th), +17%; hits 10 against 2; deaths within 6 s 0 against 1
+  Sonyosh: 581.52k (8th) against 571.26k (6th), +2%; hits 7 against 3; deaths within 6 s 7 against 2
+  Dscopi: 563.76k (9th) against 271.62k (13th), +108%; hits 8 against 3; deaths within 6 s 7 against 1
+  Peggerino: 558.79k (10th) against 640.78k (5th), -13%; hits 8 against 4; deaths within 6 s 5 against 2
+  Lïzårðmâñ: 533.44k (11th) against 429.89k (8th), +24%; hits 4 against 3; deaths within 6 s 5 against 1
+  Miralupa: 408.45k (12th) against 1.06M (2nd), -61%; hits 6 against 8; deaths within 6 s 0 against 0
+  Dragepie: 390.00k (13th) against 420.23k (9th), -7%; hits 1 against 2; deaths within 6 s 1 against 1
+  Nexsozz: 366.50k (14th) against 257.85k (14th), +42%; hits 10 against 0; deaths within 6 s 3 against 1
+  Slushmania: 295.07k (15th) against 296.68k (12th), -1%; hits 5 against 2; deaths within 6 s 2 against 4
+  Zebinomage: 276.52k (16th) against 150.28k (18th), +84%; hits 5 against 3; deaths within 6 s 5 against 1
+  Nalaxd: 259.70k (17th) against 182.08k (17th), +43%; hits 28 against 1; deaths within 6 s 2 against 3
+  Pomaa: 258.13k (18th) against 216.12k (16th), +19%; hits 4 against 0; deaths within 6 s 1 against 0
+  Krøpling: 245.07k (19th) against 130.22k (19th), +88%; hits 2 against 1; deaths within 6 s 2 against 0
+  Martin: 205.96k (20th) against 231.06k (15th), -11%; hits 8 against 2; deaths within 6 s 0 against 2
+Only the other night: Algmor 118.02k (20th)

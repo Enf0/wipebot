@@ -17,6 +17,8 @@ from wipebot.core.pulls import (
     NO_KILLING_BLOW,
     Decided,
     PullSummary,
+    alive_after,
+    alive_at,
     attempt,
     format_summary,
     mass_hits,
@@ -24,7 +26,7 @@ from wipebot.core.pulls import (
     summarize,
 )
 from wipebot.core.report import Report, coaching, mechanics, night, ranks
-from wipebot.core.report.base import DEATH_BURST_MS, DEATH_GAP_MS, alive_after, alive_at, alive_ms
+from wipebot.core.report.base import DEATH_BURST_MS, DEATH_GAP_MS, alive_ms
 
 REPORTS = sorted({c.args["report"] for c in CASES.values() if "report" in c.args})
 MIN_PULLS = 100  # about half the reports' pulls: those some case read every death and battle res of
@@ -211,7 +213,7 @@ async def test_half_the_raid_dead_is_a_death_with_half_the_raid_dead(recorded):
     """A wipe decided by half the raid dead is decided at a death, with at least ⌈n/2⌉ of the n players dead (a
     battle res counted), at the first moment that was so, or within the burst of deaths or the hit killing many
     it fell in."""
-    halves = [p for p in recorded.pulls if p.decided and not p.decided.enrage]
+    halves = [p for p in recorded.pulls if p.decided and not p.decided.enrage and not p.decided.lost]
     assert halves
     for p in halves:
         t0, at = p.f["startTime"], p.decided.at_ms

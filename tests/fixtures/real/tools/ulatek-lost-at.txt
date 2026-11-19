@@ -3,29 +3,15 @@ Lost at 0:43, before the log's own end below: Putrid Membrane [1301268] landed o
 Just before Putrid Membrane landed, what reached 3 players or fewer (deaths, debuffs, hits, seconds before it; what set it off is among them, as the guide's Putrid Membrane says): -2.4 s Stone Venom hit Wutroll · +0.0 s Caustic Waves hit Ilidim · +0.0 s Caustic Waves on Ilidim, Krøpling · having then (debuffs half the raid or fewer had): Ilidim Soul Constrictor; Krøpling Noxious Shell; Wutroll Fester Burst, Stone Venom.
 
 Detail, for follow-ups (the lines above are the answer):
-Ended by: deaths from 0:44 until half the raid was dead at 2:06, no single hit killing many: start from the first death and follow what each left short. It came after the pull was lost above: it sorts the fallout, not the cause.
-Tank deaths before that: Ilidim died at 2:03 to Acidic Burst [1301800] (no swap debuff past 1 stack on them). Whose taunt it was isn't in the log; tank_swaps has the pull's swaps.
+Ended by: deaths from 0:44 until half the raid was dead at 2:06, no single hit killing many: start from the first death and follow what each left short. It came after the pull was lost above: its deaths are fallout.
 Not an enrage buff: no buff the boss gained near the end decided it. Unless the guide names a cast that ends the fight on a timer, deaths lost it, not a damage check.
 This pull ended the way 2 earlier pulls on Ula'tek in this log did (pulls 6, 12): deaths one after another.
 Last 5: P1 88.7% → P1 93.0% → P1 94.1% → P1 89.3% → P1 88.9%
 Phases: P1 Stage One: Fury of the Serpent Mother 0:00
-Killed by, until the wipe was decided at 2:06 (half the raid was dead): Caustic Waves ×5 · Necrotic Vapors ×2 · Mephitic Thrash ×1 · Putrid Membrane ×1 · Acidic Burst ×1 · 1 other ability ×1 (8 later deaths: fallout)
-Raid size 20. Deaths until then, in order (time from pull start, players alive after it, a battle res or self-res counted):
-1. 0:44 Krøpling (Arcane Mage) - Caustic Waves [1292403] (19 alive)
-2. 0:44 Peggerino (Demonology Warlock) - Caustic Waves [1292403] (18 alive)
-3. 1:04 Zebinomage (Arcane Mage) - Caustic Waves [1292403] (18 alive)
-4. 1:48 Sonyosh (Elemental Shaman) - Necrotic Vapors [1286835] (17 alive)
-5. 1:49 Martin (Marksmanship Hunter; also Beast Mastery in some pulls) - Necrotic Vapors [1286835] (16 alive)
-6. 1:50 Pomaa (Fury Warrior) - Mephitic Thrash [1296301] (15 alive)
-7. 1:55 Dragepie (Augmentation Evoker) - Putrid Membrane [1308275] (14 alive)
-8. 1:55 Agonco (Retribution Paladin) - Caustic Waves [1292403] (13 alive)
-9. 2:00 Slushmania (Assassination Rogue) - Caustic Waves [1292403] (12 alive)
-10. 2:03 Ilidim (Vengeance Demon Hunter) - Acidic Burst [1301800] (11 alive)
-11. 2:06 Krøpling (Arcane Mage) - Melee [1] (10 alive)
-Fallout, 8 deaths after the wipe was decided at 2:06 (half the raid was dead), by killing blow (when, who): Putrid Membrane [1308275] ×2 (2:08 Nalaxd; 2:16 Enfo) · Melee [1] ×4 (2:09 Scopidruid; 2:11 Draiman; 2:14 Holyola; 2:20 Wutroll) · Caustic Waves [1292403] ×1 (2:09 Mintbyape) · Acidic Burst [1301800] ×1 (2:15 Nexsozz); 2 of 20 alive after the last.
+Killed by, until the wipe was decided at 0:43 (Putrid Membrane landed on the whole raid: lost there): none (19 later deaths: fallout)
+Raid size 20. No deaths until then.
+Fallout, 19 deaths after the wipe was decided at 0:43 (Putrid Membrane landed on the whole raid: lost there), by killing blow (when, who): Caustic Waves [1292403] ×6 (0:44 Krøpling, Peggerino; 1:04 Zebinomage; 1:55 Agonco; 2:00 Slushmania; 2:09 Mintbyape) · Necrotic Vapors [1286835] ×2 (1:48 Sonyosh; 1:49 Martin) · Mephitic Thrash [1296301] ×1 (1:50 Pomaa) · Putrid Membrane [1308275] ×3 (1:55 Dragepie; 2:08 Nalaxd; 2:16 Enfo) · Acidic Burst [1301800] ×2 (2:03 Ilidim; 2:15 Nexsozz) · Melee [1] ×5 (2:06 Krøpling; 2:09 Scopidruid; 2:11 Draiman; 2:14 Holyola; 2:20 Wutroll); 2 of 20 alive after the last.
 Battle res: 1 charge at the pull and 1 more every 4:30 (the raid's 90 min over its 20 players), 1 in this pull's 2:21, by that rule and the res in the log, which has no count of its own.
 Taken: 1:01 Rebirth by Scopidruid on Krøpling (0 left, none more before the pull's end).
 Could cast one, by class (an engineer's item shows only once used): Nexsozz (Death Knight) · Scopidruid (Druid) · Agonco, Nalaxd (Paladin) · Peggerino (Warlock).
-A charge was ready at 2 of the 11 deaths above (with how many of those who could cast one were alive): 0:44 Krøpling (5), back at 1:01 · 0:44 Peggerino (4). Whom a charge was kept for isn't in the log.
-From 0:44 the raid was down a player for good: 2 dead, battle res for only 1 (1 left), 1:22 before the last death above. Raid leaders often call the wipe here, though a raid can still kill from it.
 Pull ended at 2:21 with the boss at 88.9% health in P1 (the wipe at 92.1%, phases weighed in).

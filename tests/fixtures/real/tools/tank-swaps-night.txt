@@ -17,7 +17,6 @@ A boss without its tank, pull by pull: a tank's death while they held a boss (wh
   pull 18: Deathadim died at 1:02 to Mutilate [1285999] (held the boss since 0:56)
   pull 20: Deathadim died at 0:15 to Mutilate [1285999] (held the boss since 0:11); Zebinomage, no tank, took the boss at 0:27 (no tank took it back); Krøpling, no tank, took the boss at 0:28 (no tank took it back)
   pull 22: Wutroll died at 2:20 to no killing blow recorded (held the boss since 2:06)
-  pull 25: Wutroll died at 1:48 to no killing blow recorded (held the boss since 1:26)
   pull 27: Wutroll died at 0:08 to Mutilate [1285999] (held the boss since 0:00); Deathadim died at 0:24 to Mutilate [1285999] (held the boss since 0:13); Dragepie, no tank, took the boss at 0:28 (no tank took it back)
   pull 29: Wutroll died at 1:07 to Ravage [1277101] (held the boss since 0:24); Pomaa, no tank, took the boss at 1:13 (no tank took it back)
   pull 32: Wutroll died at 1:01 to no killing blow recorded (held the boss since 0:42)

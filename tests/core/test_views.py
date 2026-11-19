@@ -224,9 +224,12 @@ async def test_the_raid_night_view_states_what_progress_states(recorded):
         first = f" first death {d['name']} ({d['by']}, {clock(d['ms'])})" if d else ""
         assert re.search(rf"^  {r['pull']}: .*{clock(r['duration_ms'])}[^;]*;{re.escape(first)}", text, re.MULTILINE), r
     ends = ", ".join(f"{w} {n}" for w, n in data["ends"])
-    assert f"(pull_summary's \"Ended by\"): {ends}." in text
+    assert f"else its \"Ended by\"): {ends}." in text  # a night with pulls lost before their end
     what, most = data["ends"][0]  # the card's headline: what ended the most pulls, counted over all of them
     assert data["headline"]["text"] == f"{most} of the {len(data['pulls'])} pulls ended with {what}."
+    lost = next((w, k) for w, k in data["ends"] if w.startswith("lost to "))
+    assert views.night_headline(data["pulls"], [lost])["text"] == (
+        f"{lost[1]} of the {len(data['pulls'])} pulls were {lost[0]}.")
     assert "first third {:.1f}, middle {:.1f}, last third {:.1f}".format(*data["thirds"]) in text
     # a pull is starred where the text marks it the best of the night until then: the night's first wipe is that by
     # being first, and the text leaves it unmarked (the table once starred it)
@@ -428,7 +431,7 @@ async def test_a_mechanics_meter_is_in_its_texts_order_by_what_the_text_ranks_by
     assert [(b["name"], b["text"], b["note"]) for b in m["bars"]] == [
         (name, rate, f"{counts}, {damage}") for name, counts, rate, damage in rows]
     assert [b["name"] for b in m["bars"]][:3] == ["Deathadim", "Krøpling", "Sveini"]
-    assert m["headline"]["text"] == ("Deathadim is first with 2.14 hits per minute of the pulls they were in, 2.5 "
+    assert m["headline"]["text"] == ("Deathadim is first with 2.15 hits per minute of the pulls they were in, 2.5 "
                                      "times the median of the 22 players ranked.")
     assert all(b["share"] == "" for b in m["bars"]) and m["stated"] is None  # its text states no total of hits
 
@@ -1061,9 +1064,9 @@ async def test_the_note_boards_planned_cooldowns_have_the_texts_one_band(recorde
     cast = [c for p in data["cooldowns"]["pulls"] for c in p["cells"] if c and "off_s" in c]
     assert data["cooldowns"]["on_time_s"] == notes.ON_TIME_S
     # the state is the note check's, of the unrounded time: the tenth of a second the cell carries is at the band's
-    # edge for six of the night's 537 presses (2.96 s is on time and reads 3.0), which the paler tier went by
+    # edge for six of the night's 536 presses (2.96 s is on time and reads 3.0), which the paler tier went by
     on, off = ([abs(c["off_s"]) for c in cast if (c["state"] == "on time") == yes] for yes in (True, False))
-    assert max(on) <= notes.ON_TIME_S <= min(off) and len(on) == 279 and len(off) == 258
+    assert max(on) <= notes.ON_TIME_S <= min(off) and len(on) == 278 and len(off) == 258
     assert (on + off).count(notes.ON_TIME_S) == 6
     from wipebot.core import viewhost
     panel, args = '[data-panel="cooldowns"]', CASES["raid-note-night"].args
@@ -2104,7 +2107,8 @@ async def test_the_player_night_view_states_what_player_night_states(local):
     n = sum(not r["reset"] for r in data["pulls"])  # a reset is no pull of the night's, in the text and the view
     assert f"Died before the wipe was decided on {data['died']} of {n} pulls" in text
     assert data["headline"]["text"].startswith(f"Died before the wipe was decided on {data['died']} of {n} pulls; ")
-    assert data["headline"]["text"].endswith(f"; {data['lived']['saved']} of those {data['died']} deaths were "
+    were = "was" if data["lived"]["saved"] == 1 else "were"
+    assert data["headline"]["text"].endswith(f"; {data['lived']['saved']} of those {data['died']} deaths {were} "
                                              "survivable with a ready defensive or a healthstone.")
     assert f"dead for {data['dead_s']} s of the {data['counted_s']} s" in text and f"({data['dead_pct']}%" in text
     best = f"pull {data['best']['pull']} ({kit_short(data['best']['per_s_alive'])}/s"
@@ -3169,7 +3173,7 @@ async def test_death_recap_notes_a_death_as_player_pull_does_and_replays_only_th
             assert was.note == await coaching.death_note(rep, f, d)
             assert was.theirs == (not was.fallout and was.mass is None)
             kinds["fallout" if was.fallout else "mass" if was.mass else "before"] += 1
-    assert kinds == {"before": 183, "fallout": 310, "mass": 129}  # every kind is there to compare
+    assert kinds == {"before": 177, "fallout": 352, "mass": 93}  # every kind is there to compare
     # the recorded death, as if it had been each kind: only what the death was to its wipe is made up
     f = rep.fight(DEATH_CASE.args["pull"])
     hit = MassDeath(47_000, "Ula'tek's Presence", (1285965,), 4, 2)
@@ -3365,7 +3369,7 @@ async def test_a_ranking_and_a_trend_are_the_card_too(recorded, width):
     rows = "document.querySelectorAll('.meter-rows li:not(.gap)').length"
     async with drawn(case.tool, case.args, width=width) as (view, errors):
         card = await view.evaluate(CARD)
-        assert card["lead"] == ["Deathadim is first with 2.14 hits per minute of the pulls they were in, 2.5 times "
+        assert card["lead"] == ["Deathadim is first with 2.15 hits per minute of the pulls they were in, 2.5 times "
                                 "the median of the 22 players ranked."]
         assert 1 <= card["stats"] <= 4 and card["buttons"] == ["Open ranking", "By pull"] and card["tables"] == 0
         assert await view.evaluate(rows) == 8 and "14 more players" in await view.locator("body").inner_text()

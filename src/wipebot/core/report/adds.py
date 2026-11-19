@@ -6,8 +6,9 @@ from collections.abc import Callable
 
 from .. import knowledge
 from ..knowledge import KnowledgeError
+from ..pulls import dead_since
 from ..text import clock, few, plural, short
-from .base import JOBS_NOT_LOGGED, SAME_DEATH_MS, PullRef, Report, dead_since, unavailable
+from .base import JOBS_NOT_LOGGED, SAME_DEATH_MS, PullRef, Report, unavailable
 from .meter import MIN_BARS, Bar, Meter
 
 ADD_GROUP_MS = 15_000  # an add's casts this close together are one wave of them

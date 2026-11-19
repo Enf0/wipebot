@@ -9,17 +9,9 @@ with the guide); progress gives it per pull and counts it over the night."""
 from collections import defaultdict
 from dataclasses import dataclass
 
-from ..pulls import is_reset
 from ..text import clock
-from .base import Report, alive_at, dead_since
+from .base import Report
 
-LAND_MS = 2_000  # one debuff lands on everyone it reaches within this
-MANY = 0.75  # of the living, at least this share got it
-STAYS_MS = 15_000  # and it was still on them this long after, or at the pull's end or their death
-KEPT = 0.9  # on at least this share of those it landed on
-SAME_TIME_MS = 3_000  # landing this close to the same time into the pull on a kill, or ...
-SCRIPTED = 0.6  # ... on this share of the boss's pulls that lasted past it, is the fight's script
-SCRIPT_PULLS = 3  # with at least this many pulls to tell by
 BEFORE_MS = 2_500  # what happened in this long before it landed: what may have set it off
 FEW = 3  # what reached this many players or fewer then is about them, not the raid
 BEFORE_ROWS = 8
@@ -49,79 +41,6 @@ class NoReturn:
     def kind(self) -> str:
         """What it was, in a few words to count a night's pulls by."""
         return f"{self.debuff.name} landing on the raid"
-
-
-def _enemy_debuffs(rep: Report, events: list[dict]) -> dict[int, list[dict]]:
-    """A pull's debuffs on players from enemies (no player's, no player's pet's), by ability id, in time order."""
-    out: dict[int, list[dict]] = defaultdict(list)
-    for e in sorted(events, key=lambda e: e["timestamp"]):
-        if e.get("targetID") in rep.names and rep.owner(e.get("sourceID", -1)) not in rep.names:
-            out[e["abilityGameID"]].append(e)
-    return out
-
-
-def _landings(rep: Report, f: dict, events: list[dict], deaths: list[dict], backs: dict[int, list[float]],
-              raid: int) -> list[tuple[float, int, int, int]]:
-    """Each time an enemy debuff landed on nearly every living player (at least half the raid alive) and stayed on
-    them: (ms into the pull, ability id, players it landed on, players alive)."""
-    found = []
-    for aid, es in _enemy_debuffs(rep, events).items():
-        applied = [e for e in es if e["type"] == "applydebuff"]
-        i = 0
-        while i < len(applied):
-            at = applied[i]["timestamp"]
-            run = [e for e in applied[i:] if e["timestamp"] - at <= LAND_MS]
-            hit = {e["targetID"] for e in run}
-            alive = alive_at(deaths, backs, raid, at)
-            if alive * 2 < raid or len(hit) < max(FEW, MANY * alive):
-                i += 1
-                continue
-            i += len(run)
-            if f["endTime"] - at < STAYS_MS:  # too near the end to tell it stays: the pull's ending says the rest
-                continue
-            off = {e["targetID"] for e in es if e["type"] == "removedebuff" and e["targetID"] in hit
-                   and at < e["timestamp"] <= at + STAYS_MS}
-            off = {who for who in off if dead_since(deaths, backs.get(who, []), who, at + STAYS_MS) is None}
-            if len(hit) - len(off) >= KEPT * len(hit):
-                found.append((at - f["startTime"], aid, len(hit), alive))
-    return sorted(found)
-
-
-def _phase_at(f: dict, at_ms: float) -> tuple[int | None, float]:
-    """The phase a moment of a pull fell in (Warcraft Logs' id, None for a boss without phases) and how far into it."""
-    t0, phase = f["startTime"], (None, f["startTime"])
-    for t in f.get("phaseTransitions") or []:
-        if t.get("startTime") is not None and t["startTime"] <= t0 + at_ms:
-            phase = (t["id"], t["startTime"])
-    return phase[0], t0 + at_ms - phase[1]
-
-
-def _scripted(landed: dict[int, list[tuple[float, int, int, int]]], fights: list[dict], aid: int, f: dict,
-              at_ms: float) -> bool | None:
-    """Whether the debuff lands about then, into the pull or into its phase, on a kill of the boss or on most of its
-    pulls that got that far: the fight's own. None when too few pulls got that far to tell."""
-    phase, into = _phase_at(f, at_ms)
-
-    def got_to(g: dict, same_phase: bool) -> bool:
-        if not same_phase:
-            return g["endTime"] - g["startTime"] > at_ms + SAME_TIME_MS
-        starts = [t["startTime"] for t in g.get("phaseTransitions") or [] if t["id"] == phase]
-        return any(g["endTime"] - start > into + SAME_TIME_MS for start in starts)
-
-    def lands(g: dict, same_phase: bool) -> bool:
-        return any(a == aid and (abs(_phase_at(g, t)[1] - into) <= SAME_TIME_MS and _phase_at(g, t)[0] == phase
-                                 if same_phase else abs(t - at_ms) <= SAME_TIME_MS)
-                   for t, a, _, _ in landed.get(g["id"], ()))
-    told = False
-    for same_phase in (False, True) if phase is not None else (False,):
-        reached = [g for g in fights if got_to(g, same_phase)]
-        if any(g["kill"] and lands(g, same_phase) for g in reached):
-            return True
-        if len(reached) >= SCRIPT_PULLS:
-            told = True
-            if sum(lands(g, same_phase) for g in reached) >= SCRIPTED * len(reached):
-                return True
-    return False if told else None
 
 
 def _before_rows(rep: Report, at: float, debuffs: list[dict], hits: list[dict], deaths: list[dict],
@@ -198,28 +117,13 @@ def clock_ms(rel: float) -> str:
 
 
 async def no_return(rep: Report, fights: list[dict]) -> dict[int, NoReturn]:
-    """Each wipe's point of no return among `fights` (one boss's), by fight id; a wipe with none is left out. The
-    pulls' enemy debuffs come in one query, and the hits before each debuff that landed in one more. Every pull of
-    the boss in the report is read to tell the fight's script from a failure."""
-    if not fights:
-        return {}
-    every = [g for g in rep.by_boss[rep.boss_key(fights[0])] if not is_reset(g) and not g.get("inProgress")]
-    debuffs = await rep.events_for([(g["id"], {}) for g in every], "Debuffs", hostilityType="Friendlies")
-    landed: dict[int, list[tuple[float, int, int, int]]] = {}
-    for g, events in zip(every, debuffs, strict=True):
-        landed[g["id"]] = _landings(rep, g, events, await rep.deaths(g), (await rep.resurrects([g]))[g["id"]],
-                                    await rep.raid_size(g))
-    by_id = dict(zip((g["id"] for g in every), debuffs, strict=True))
-    wipes = [f for f in fights if not f["kill"] and f["id"] in by_id]
+    """Each wipe's point of no return among `fights` (one boss's), by fight id (Report.lost_at; a wipe with none
+    is left out), with what happened to a few players just before it: the hits then in one query."""
     found: dict[int, NoReturn] = {}
-    for f in wipes:
-        decided = await rep.decided_at(f)
-        until = decided.at_ms if decided else None
-        first = next(((t, a, n, alive) for t, a, n, alive in landed[f["id"]]
-                      if (until is None or t <= until) and _scripted(landed, every, a, f, t) is False), None)
-        if first:
-            found[f["id"]] = NoReturn(RaidDebuff(first[0], rep.ability(first[1]), (first[1],), first[2], first[3]))
-    lead = [f for f in wipes if f["id"] in found]
+    for f in fights:
+        if x := await rep.lost_at(f):
+            found[f["id"]] = NoReturn(RaidDebuff(x.at_ms, rep.ability(x.ability), (x.ability,), x.hit, x.alive))
+    lead = [f for f in fights if f["id"] in found]
     if lead:
         windows = [(f["id"], {"startTime": f["startTime"] + found[f["id"]].at_ms - BEFORE_MS,
                               "endTime": f["startTime"] + found[f["id"]].at_ms + 1}) for f in lead]
@@ -227,9 +131,8 @@ async def no_return(rep: Report, fights: list[dict]) -> dict[int, NoReturn]:
         for f, struck in zip(lead, hits, strict=True):
             n = found[f["id"]]
             at = f["startTime"] + n.at_ms
-            dead = await rep.deaths(f)
-            found[f["id"]] = NoReturn(n.debuff, *_before_rows(rep, at, by_id[f["id"]], struck, dead,
-                                                                 await rep.raid_size(f)))
+            found[f["id"]] = NoReturn(n.debuff, *_before_rows(rep, at, await rep.raid_debuffs(f), struck,
+                                                                 await rep.deaths(f), await rep.raid_size(f)))
     return found
 
 

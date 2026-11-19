@@ -25,13 +25,17 @@ WAVE_MS = 6000  # deaths to one named ability this close together, in pulses, ar
 
 @dataclass(frozen=True)
 class Decided:
-    """When a wipe was decided, and what decided it: the boss gaining a buff it kept to the end (`enrage`, its name),
-    or half the raid dead. Deaths up to it count; later ones are its fallout."""
+    """When a wipe was decided, and what decided it: a failed mechanic's debuff landing on the whole raid (`lost`),
+    the boss gaining a buff it kept to the end (`enrage`, its name), or half the raid dead. Deaths up to it count;
+    later ones are its fallout."""
     at_ms: float  # from the pull's start
     enrage: str = ""  # the buff that decided it; "" when half the raid dead did
+    lost: str = ""  # or the enemy debuff whose landing on the whole raid lost it earlier (Report.lost_at)
 
     @property
     def why(self) -> str:
+        if self.lost:
+            return f"{self.lost} landed on the whole raid: lost there"
         return f"the boss gained {self.enrage}" if self.enrage else "half the raid was dead"
 
 
@@ -454,3 +458,27 @@ def format_summary(s: PullSummary) -> str:
         lines.append(f"First deaths: {first}")
     lines += [line for line in (killed_by(s), trend_line(s)) if line]
     return "\n".join(lines)
+
+
+def dead_since(deaths: list[dict], backs: list[float], who: int, at: float) -> float | None:
+    """When a player died and stayed dead up to `at` (their last death before it, with no battle res after it in
+    `backs`), or None for one alive then."""
+    died = max((d["timestamp"] for d in deaths if d["targetID"] == who and d["timestamp"] <= at), default=None)
+    return died if died is not None and not any(died < b <= at for b in backs) else None
+
+
+def alive_after(deaths: list[dict], backs: dict[int, list[float]], raid: int) -> list[int]:
+    """Players alive right after each death, in order: a battle res (`backs`, per player) brings one back."""
+    dead: dict[int, float] = {}
+    out = []
+    for d in deaths:
+        dead = {who: at for who, at in dead.items() if not any(at < b <= d["timestamp"] for b in backs.get(who, []))}
+        dead[d["targetID"]] = d["timestamp"]
+        out.append(raid - len(dead))
+    return out
+
+
+def alive_at(deaths: list[dict], backs: dict[int, list[float]], raid: int, at: float) -> int:
+    """Players alive at a moment (report ms), a battle res counted."""
+    return raid - sum(dead_since(deaths, backs.get(who, []), who, at) is not None
+                      for who in {d["targetID"] for d in deaths})

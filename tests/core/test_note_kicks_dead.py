@@ -53,7 +53,7 @@ async def test_the_recorded_night_ranks_a_tanks_one_missed_kick_below_the_four_m
     assert not failed
     [line] = [row for row in text.splitlines() if row.startswith("  Their casts that went through")]
     assert line.split(": ", 2)[2] == (
-        '"Kick #2 left" 6 missed; "Kick #3 left" 5 missed; "Kick #2 right" 4 missed; "Kick #4 left" 4 missed; '
-        '"Kick #5 left" 3 missed; "Kick #3 right" 2 missed, 1 while dead; "Kick #1 left" 1 missed, 1 while dead; '
-        '"Kick #1 right" 1 missed, 3 while dead; "Kick #4 right" 1 missed, 1 while dead; "Kick #5 right" 1 missed')
+        '"Kick #2 left" 6 missed; "Kick #2 right" 4 missed; "Kick #3 left" 4 missed; "Kick #4 left" 4 missed; '
+        '"Kick #3 right" 2 missed, 1 while dead; "Kick #1 left" 1 missed, 1 while dead; "Kick #1 right" 1 missed, 3 '
+        'while dead; "Kick #4 right" 1 missed; "Kick #5 left" 1 missed; "Kick #5 right" 1 missed')
     assert "  Karadim (Kick #1 right): kicked 56 of 57; not kicked 1: p32 1:39; dead for 3 more" in text.splitlines()

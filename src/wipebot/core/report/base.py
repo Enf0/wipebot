@@ -24,6 +24,7 @@ from ..pulls import (
     Decided,
     GuildBest,
     PullSummary,
+    alive_after,
     carried_buffs,
     difficulty_name,
     end_buffs,
@@ -39,6 +40,7 @@ from ..pulls import (
 from ..text import clock, fight_url, name_key, parse_clock, plural, ranges
 from ..wcl import WCL, Unreadable, WCLError, boss_ids
 from .fetch import Fetched
+from .landings import AHEAD_MS, WITH_HIT_MS, Landing, landings, scripted
 
 SAME_DEATH_MS = 1_000  # a player's deaths this close together are one death listed twice
 # One hit's deaths are logged 0-40 ms apart, a fall's or a knockback's up to a few hundred: deaths this close one after
@@ -77,13 +79,6 @@ def same_pull(rep: Report, fight: dict, other: Report, its: dict) -> bool:
             and abs(rep.start_ms + fight["startTime"] - other.start_ms - its["startTime"]) < SAME_PULL_MS)
 
 
-def dead_since(deaths: list[dict], backs: list[float], who: int, at: float) -> float | None:
-    """When a player died and stayed dead up to `at` (their last death before it, with no battle res after it in
-    `backs`), or None for one alive then."""
-    died = max((d["timestamp"] for d in deaths if d["targetID"] == who and d["timestamp"] <= at), default=None)
-    return died if died is not None and not any(died < b <= at for b in backs) else None
-
-
 def alive_ms(deaths: list[dict], backs: list[float], who: int, start: float, end: float) -> float:
     """How long a player was alive from `start` to `end` (report ms): dead from each death until a battle res in
     `backs` brought them back."""
@@ -96,23 +91,6 @@ def alive_ms(deaths: list[dict], backs: list[float], who: int, start: float, end
         elif back and down is not None:
             dead, down = dead + at - down, None
     return end - start - dead - (end - down if down is not None else 0)
-
-
-def alive_after(deaths: list[dict], backs: dict[int, list[float]], raid: int) -> list[int]:
-    """Players alive right after each death, in order: a battle res (`backs`, per player) brings one back."""
-    dead: dict[int, float] = {}
-    out = []
-    for d in deaths:
-        dead = {who: at for who, at in dead.items() if not any(at < b <= d["timestamp"] for b in backs.get(who, []))}
-        dead[d["targetID"]] = d["timestamp"]
-        out.append(raid - len(dead))
-    return out
-
-
-def alive_at(deaths: list[dict], backs: dict[int, list[float]], raid: int, at: float) -> int:
-    """Players alive at a moment (report ms), a battle res counted."""
-    return raid - sum(dead_since(deaths, backs.get(who, []), who, at) is not None
-                      for who in {d["targetID"] for d in deaths})
 
 
 def half_dead(deaths: list[dict], backs: dict[int, list[float]], raid: int) -> float | None:
@@ -235,6 +213,8 @@ class Report(Fetched):
         self._backs: dict[int, dict[int, list[float]]] = {}  # battle res and self-res
         self._self_res: dict[int, list[dict]] = {}  # the casts a player came back by themselves with (any pull)
         self._res_casts: dict[int, list[dict]] = {}  # the resurrect events, taken or not (any pull)
+        self._debuffs: dict[int, list[dict]] = {}  # a pull's debuffs on players (raid_debuffs)
+        self._landed: dict[str, tuple[list[dict], dict[int, list[Landing]]]] = {}  # per boss (lost_at)
         self._refreshing = asyncio.Lock()
 
     async def load(self) -> None:
@@ -807,7 +787,56 @@ class Report(Fetched):
         return [(name, at) for name, at in await self.end_buffs(fight) if not await self._partner_died(fight, at)]
 
     async def decided_at(self, fight: dict) -> Decided | None:
-        """When a wipe was decided, and by what: the boss gaining a buff it kept to the end (an
+        """When a wipe was decided, and by what: where it was lost (lost_at, moved to the last death of the moment
+        it falls in, as `log_decided` is), when that came before what `log_decided` finds; deaths after that moment
+        are its fallout. None for a kill or a wipe with none."""
+        decided = await self.log_decided(fight)
+        if lost := await self.lost_at(fight):
+            at = await self._moment_end(fight, lost.at_ms)
+            if decided is None or at < decided.at_ms:
+                return Decided(at, lost=self.ability(lost.ability))
+        return decided
+
+    async def lost_at(self, fight: dict) -> Landing | None:
+        """Where a wipe was lost before its log's own end: the first enemy debuff that landed on the whole raid and
+        stayed (landings), at least AHEAD_MS before half the raid was dead or the boss's enrage (`log_decided`), not
+        with a hit killing many (WITH_HIT_MS before it or during it: that hit's own moment), at no fixed time of the
+        boss's pulls (scripted: a kill's or most pulls'). None for a kill or a wipe with none. Every pull of the boss
+        is read, its debuffs in one query (raid_debuffs)."""
+        if fight["kill"] or is_reset(fight) or fight.get("inProgress"):
+            return None
+        every, landed = await self._landed_on(fight)
+        decided = await self.log_decided(fight)
+        raid = await self.raid_size(fight)
+        hits = mass_hits(await self.deaths(fight), raid, self.ability) if raid else []
+        return next((x for x in landed.get(fight["id"], ())
+                     if (decided is None or x.at_ms <= decided.at_ms - AHEAD_MS)
+                     and not any(h.first - WITH_HIT_MS <= fight["startTime"] + x.at_ms <= h.last for h in hits)
+                     and scripted(landed, every, x.ability, fight, x.at_ms) is False), None)
+
+    async def raid_debuffs(self, fight: dict) -> list[dict]:
+        """A pull's debuffs on players (Debuffs, Friendlies), read with every pull of its boss at once."""
+        await self._landed_on(fight)
+        return self._debuffs.get(fight["id"], [])
+
+    async def _landed_on(self, fight: dict) -> tuple[list[dict], dict[int, list[Landing]]]:
+        """The boss's pulls (resets and one in progress left out) and each one's landings, read once per boss."""
+        key = self.boss_key(fight)
+        if key not in self._landed:
+            every = [g for g in self.by_boss[key] if not is_reset(g) and not g.get("inProgress")]
+            debuffs = await self.events_for([(g["id"], {}) for g in every], "Debuffs", hostilityType="Friendlies")
+            await self.all_deaths(self.by_boss[key])  # as decided_cuts reads them: one query for the boss
+            backs = await self.resurrects(self.by_boss[key])
+            landed = {}
+            for g, events in zip(every, debuffs, strict=True):
+                self._debuffs[g["id"]] = events
+                landed[g["id"]] = landings(self, g, events, await self.deaths(g), backs[g["id"]],
+                                           await self.raid_size(g))
+            self._landed[key] = (every, landed)
+        return self._landed[key]
+
+    async def log_decided(self, fight: dict) -> Decided | None:
+        """When a wipe was decided by its log's own end: the boss gaining a buff it kept to the end (an
         enrage), or half the raid dead (a battle res brings one back), whichever came first, moved to the last death
         of the moment it falls in (deaths DEATH_GAP_MS apart, within DEATH_BURST_MS, and the whole of a hit killing
         many under way then): one hit's deaths are never split into counted and fallout. Deaths up to the moment
@@ -822,6 +851,12 @@ class Report(Fetched):
         if not found:
             return None
         at, enrage = min(found)
+        return Decided(await self._moment_end(fight, at), enrage)
+
+    async def _moment_end(self, fight: dict, at: float) -> float:
+        """`at` (ms from the pull) moved to the last death of the moment it falls in: deaths DEATH_GAP_MS apart,
+        within DEATH_BURST_MS, and the whole of a hit killing many under way then."""
+        deaths, raid = await self.deaths(fight), await self.raid_size(fight)
 
         def moment(end: float) -> float:
             """The last death of the run of deaths DEATH_GAP_MS apart that a death at `end` begins."""
@@ -836,7 +871,7 @@ class Report(Fetched):
         hits = mass_hits(deaths, raid, self.ability) if raid else []
         while under_way := [h.last for h in hits if h.first <= end < h.last]:
             end = moment(max(under_way))
-        return Decided(end - fight["startTime"], enrage)
+        return end - fight["startTime"]
 
     async def _partner_died(self, fight: dict, gained: float) -> bool:
         """Whether a buff gained at `gained` (ms from the pull) came as another boss of a council died: what
