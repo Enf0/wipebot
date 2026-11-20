@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-11-20
+
 ### Added
 
 - `Agent` **A mechanic cast by cast.** Asking who got hit by an add's or a boss's ability over a night now also shows it cast by cast: on Ula'tek, the first and second Blightscale Wretch's first and second Fester Burst each get a line with when it came, the damage, the deaths it caused and who it hit in the most pulls. So "what does the second Wretch's second cast cost us?" and "who is outside on it?" get a straight answer instead of a guess from a time window.
