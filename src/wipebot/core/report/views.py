@@ -10,7 +10,7 @@ import functools
 import hashlib
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from importlib import resources
 from typing import Any
 
@@ -1046,7 +1046,7 @@ async def meter_view(rep: Report, tool: str, args: dict, other: Report | None = 
         median = statistics.median(b.value for b in m.bars)
         return {"title": m.title, "scope": m.scope, "unit": m.unit, "seconds": round(m.seconds, 3),
                 "icon": icon(m.ability), "note": m.note, "what": m.what, "others": m.others,
-                "headline": meter_headline(m, said),
+                "headline": meter_headline(m, said, {n for n, p in players.items() if p.role == "tank"}),
                 # the heading's own: "(0:10 of combat; total 14.83M, 1.48M/s)"; of a kind of add, what it "took",
                 # which enemies states with no rate and no time
                 "stated": {"total": short(said.total), "over": clock(m.seconds * 1000) if m.seconds else "",
@@ -1077,10 +1077,11 @@ async def _by_pull_call(rep: Report, tool: str, args: dict) -> dict | None:
     return {"tool": tool, "args": by_pull} if len(pulls) >= TREND_MIN_PULLS else None
 
 
-def meter_headline(m: Meter, said: Stated | None = None) -> dict:
+def meter_headline(m: Meter, said: Stated | None = None, tanks: Collection[str] = ()) -> dict:
     """A ranking in one sentence of its tool's rows: who is first (with `least`, last), with how much, for one in
     only some of the pulls in how many as their row says it (`said`), and how that stands against the median of the
-    players ranked; against another night, the raid's per minute both nights and the change."""
+    players ranked; with a tank first (of `tanks`), the first who is no tank too; against another night, the raid's
+    per minute both nights and the change."""
     def amount(v: float) -> str:
         return meter_amount(m, v) + ("" if m.unit in ("amount", "per minute") else f" {m.unit}")
     if m.then:
@@ -1096,7 +1097,14 @@ def meter_headline(m: Meter, said: Stated | None = None) -> dict:
     if not median:
         return _headline(f"{b.name} is {place} of the {len(m.bars)} players ranked with {with_}.")
     against = f"{100 * b.value / median:.0f}% of" if m.least else f"{b.value / median:.1f} times"
-    return _headline(f"{b.name} is {place} with {with_}, {against} the median of the {len(m.bars)} players ranked.")
+    text = f"{b.name} is {place} with {with_}, {against} the median of the {len(m.bars)} players ranked."
+    if not m.least and tanks and b.name in tanks:  # a tank takes what's aimed at the boss's target: name the rest too
+        if other := next((x for x in m.bars if x.name not in tanks), None):
+            rest = said.rows.get(other.name, ("", ""))[1] if said else ""
+            text = (f"{b.name} (tank) is first with {with_}; first of the players who are no tank: {other.name}, "
+                    f"with {amount(other.value)}{f', {rest}' if rest else ''}, {other.value / median:.1f} times the "
+                    f"median of the {len(m.bars)} players ranked.")
+    return _headline(text)
 
 
 # ---- a trend by pull: one amount pull by pull over a night ----

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Agent` **A mechanic cast by cast.** Asking who got hit by an add's or a boss's ability over a night now also shows it cast by cast: on Ula'tek, the first and second Blightscale Wretch's first and second Fester Burst each get a line with when it came, the damage, the deaths it caused and who it hit in the most pulls. So "what does the second Wretch's second cast cost us?" and "who is outside on it?" get a straight answer instead of a guess from a time window.
+- `Agent` **Missed taunts that hit the raid.** Tank swaps over a night now list each time an ability that normally hits only the tanks went to the whole raid instead, such as Ula'tek's Mother's Wrath when her target is out of reach, with who held the boss at that moment.
+- `Agent` **Raiders' names for mechanics.** When no guide uses a raider's word for a mechanic, such as "tail swipe", Wipebot now looks for it in the tooltips of the boss's abilities (Ula'tek's Mephitic Thrash: "her tail sweeps the ground").
+
+### Changed
+
+- `MCP` `Discord` **A ranking led by a tank names the rest too.** When a tank tops who got hit by a mechanic, the card's headline also names the first player who is no tank.
+
+  ![A Fester Burst ranking in Claude's dark theme: the tank Nitrouzdk is first and the headline also names Frittprest as the first player who is no tank](https://raw.githubusercontent.com/Enf0/wipebot/main/docs/images/mechanic-tank-first.webp)
+
 ## [1.13.0] - 2026-11-19
 
 ### Changed

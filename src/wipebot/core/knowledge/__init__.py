@@ -16,6 +16,7 @@ from .bosses import (
     mechanic_tooltips_text,
     raid_boss_spells,
     raids,
+    tooltips_worded,
     worn_item,
 )
 from .fetch import KnowledgeError
@@ -60,7 +61,7 @@ __all__ = [
     "top_cooldowns_text",
     "defensive_effect", "enchant_names", "guide_builds", "heals", "hero_tree", "hotfixes_text", "items_granting",
     "lust_debuffs", "lust_duration_s", "map_bounds", "map_image", "matches_boss", "mechanic_tooltips_text",
-    "names_boss", "pvp_talent", "raids", "read_text", "search_text",
+    "names_boss", "pvp_talent", "raids", "read_text", "search_text", "tooltips_worded",
     "spaced",
     "spec_cooldowns_text", "spec_guide_text", "spec_spells", "spell_cooldown", "spell_name",
     "spell_text", "spell_tip", "talent_names", "talent_parts", "talent_trees", "tree_for", "tree_spells",

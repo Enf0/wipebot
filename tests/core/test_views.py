@@ -431,8 +431,10 @@ async def test_a_mechanics_meter_is_in_its_texts_order_by_what_the_text_ranks_by
     assert [(b["name"], b["text"], b["note"]) for b in m["bars"]] == [
         (name, rate, f"{counts}, {damage}") for name, counts, rate, damage in rows]
     assert [b["name"] for b in m["bars"]][:3] == ["Deathadim", "Krøpling", "Sveini"]
-    assert m["headline"]["text"] == ("Deathadim is first with 2.15 hits per minute of the pulls they were in, 2.5 "
-                                     "times the median of the 22 players ranked.")
+    assert m["headline"]["text"] == (
+        "Deathadim (tank) is first with 2.15 hits per minute of the pulls they were in; first of the players who are "
+        "no tank: Krøpling, with 1.64 hits per minute of the pulls they were in, 1.9 times the median of the 22 "
+        "players ranked.")
     assert all(b["share"] == "" for b in m["bars"]) and m["stated"] is None  # its text states no total of hits
 
 
@@ -578,13 +580,16 @@ async def test_a_call_that_ranks_no_players_has_no_meter(recorded, case):
 def test_a_meters_headline_says_who_is_first_and_how_that_stands_against_the_median():
     """The ranking in one sentence, from the meter's own rows: who is first with how much and how many times the
     median that is; with `least`, who is last and at what share of it; a count in its unit; against another night,
-    the raid's per minute both nights and the change."""
+    the raid's per minute both nights and the change; with a tank first, the first who is no tank too."""
     from wipebot.core.report.meter import Bar, Meter, Then
     bars = [Bar("Mirelle", 54_000_000), Bar("Rowan", 27_000_000), Bar("Tamsin", 20_000_000), Bar("Corin", 5_000_000)]
     assert views.meter_headline(Meter("Damage taken", "Torvek pull 3", bars)) == {
         "text": "Mirelle is first with 54.00M, 2.3 times the median of the 4 players ranked.", "kind": ""}
     assert views.meter_headline(Meter("Damage done", "Torvek pull 3, damage dealers only", bars, least=True))[
         "text"] == "Corin is last with 5.00M, 21% of the median of the 4 players ranked."
+    assert views.meter_headline(Meter("Damage taken", "Torvek pull 3", bars), tanks={"Mirelle"})["text"] == (
+        "Mirelle (tank) is first with 54.00M; first of the players who are no tank: Rowan, with 27.00M, 1.1 times the "
+        "median of the 4 players ranked.")
     kicks = [Bar("Mirelle", 6), Bar("Rowan", 2), Bar("Tamsin", 1)]
     assert views.meter_headline(Meter("Kicks", "Torvek pull 3", kicks, "kicks"))["text"] == (
         "Mirelle is first with 6 kicks, 3.0 times the median of the 3 players ranked.")

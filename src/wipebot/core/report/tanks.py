@@ -170,15 +170,98 @@ async def swaps_night(rep: Report, boss: str | None = None) -> str:
         lines.append("In none of them did a swap debuff go past 1 stack while its tank held the boss (a swap debuff: "
                      "one most of whose stints over these pulls end at 1, and that lands on the tank holding the "
                      "boss; tanks who swap at more stacks, or hold a boss each, show none here).")
+    return "\n".join([*lines, *await _to_the_raid(rep, fights, tanks, read, cut),
+                      *await _loose_night(rep, fights, tanks, read, cut), SWAPS_NOT_LOGGED])
+
+
+async def _loose_night(rep: Report, fights: list[dict], tanks: dict[int, list[Player]],
+                       read: dict[int, tuple[list, dict]], cut: dict[int, float]) -> list[str]:
+    """swaps_night's bosses without their tank (_loose), pull by pull, each until its wipe was decided."""
     loose = [row for f in fights if (row := await _loose(rep, f, read[f["id"]][0], tanks[f["id"]],
                                                          cut.get(f["id"], f["endTime"]) - f["startTime"]))]
-    if loose:
-        lines += ["A boss without its tank, pull by pull: a tank's death while they held a boss (what killed them, "
-                  "since when they held it) and a boss taken by a player who is no tank after the pull's first "
-                  "seconds (until whom a tank took it back):", *loose]
-    else:
-        lines.append("No tank died holding a boss, and no player who is no tank took one.")
-    return "\n".join([*lines, SWAPS_NOT_LOGGED])
+    if not loose:
+        return ["No tank died holding a boss, and no player who is no tank took one."]
+    return ["A boss without its tank, pull by pull: a tank's death while they held a boss (what killed them, since "
+            "when they held it) and a boss taken by a player who is no tank after the pull's first seconds (until "
+            "whom a tank took it back):", *loose]
+
+
+async def _raid_hits(rep: Report, ids: list[int], gid: int, tanks: set[str]) -> list[list[dict]]:
+    """The ability's hits on players who are no tank, those landing together on RAID_HIT_MIN or more of them, by
+    moment."""
+    hits = sorted((h for h in await rep.events(ids, "DamageTaken", hostilityType="Friendlies", abilityID=gid)
+                   if h.get("type") == "damage" and h["targetID"] in rep.names
+                   and rep.names[h["targetID"]] not in tanks), key=lambda h: h["timestamp"])
+    out, group = [], []
+    for h in [*hits, None]:
+        if h and group and h.get("fight") == group[0].get("fight") \
+                and h["timestamp"] - group[0]["timestamp"] <= RAID_HIT_MS:
+            group.append(h)
+            continue
+        if len({g["targetID"] for g in group}) >= RAID_HIT_MIN:
+            out.append(group)
+        group = [h] if h else []
+    return out
+
+
+RAID_HIT_MIN = 3  # players who are no tank hit at once by a tank's ability: it went to the raid
+RAID_HIT_MS = 1_000  # hits this close together are one moment
+
+
+async def _to_the_raid(rep: Report, fights: list[dict], tanks: dict[int, list[Player]],
+                       read: dict[int, tuple[list, dict]], cut: dict[int, float]) -> list[str]:
+    """Each time an ability that hits only tanks (its most-hitting id hit nobody else over the pulls) hit
+    RAID_HIT_MIN or more players who are no tank at once, under any of its ids: what a boss does to the raid when
+    its target is out of reach or a taunt is missed. Per moment: the pull and time, the ability, how many it hit and
+    killed, who held that boss then, and whether the wipe was already decided; else the tank abilities that stayed
+    on the tanks. Whole pulls, from the night's damage taken table and one query per id that hit others."""
+    names = {p.name for ts in tanks.values() for p in ts}
+    ids = [f["id"] for f in fights]
+    t = await rep.table(ids, "DamageTaken", hostilityType="Friendlies", viewBy="Ability")
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for e in t.get("entries") or []:
+        if e.get("guid") and e.get("actor") not in rep.names:  # an enemy's, not a player's own (Stagger)
+            by_name[e["name"]].append(e)
+    kept, moments = [], []
+    for name, entries in by_name.items():
+        main = max(entries, key=lambda e: e.get("hitCount") or 0)
+        if not main.get("targets") or any(x["name"] not in names for x in main["targets"]):
+            continue
+        kept.append(name)
+        for e in entries:
+            if any(x["name"] not in names for x in e.get("targets") or []):
+                moments += [(g, e["guid"]) for g in await _raid_hits(rep, ids, e["guid"], names)]
+    if not kept:
+        return []
+    if not moments:
+        return [f"Tank abilities that stayed on the tanks (they hit no one else over these pulls): {', '.join(kept)}: "
+                f"none of them hit {RAID_HIT_MIN} or more players who are no tank at once."]
+    lines = [f"A tank's ability that went to the raid ({', '.join(kept)} hit only the tanks otherwise), each time "
+             f"it hit {RAID_HIT_MIN} or more players who are no tank at once, whole pulls (pull, when, what, how "
+             "many it hit and killed, who held that boss then):"]
+    tips: set[int] = set()
+    for group, gid in moments:
+        f = next(f for f in fights if f["id"] == group[0].get("fight", ids[0]))
+        t0, at = f["startTime"], group[0]["timestamp"]
+        who = {g["targetID"] for g in group}
+        killed = sum(1 for d in await rep.deaths(f) if d["targetID"] in who
+                     and d.get("killingAbilityGameID") == gid and at <= d["timestamp"] <= at + 5_000)
+        boss = rep.actor(group[0].get("sourceID")) if group[0].get("sourceID") in rep.actors else ""
+        held = [(when, tank) for when, tank, _, b in read[f["id"]][0] if b == boss and when <= at]
+        holder = (f"; {held[-1][1]} held {boss} since {clock(held[-1][0] - t0)}" if held
+                  else f"; nobody held {boss} in the threat table" if boss else "")
+        late = (f"; after the wipe was decided at {clock(cut[f['id']] - t0)}"
+                if f["id"] in cut and at > cut[f["id"]] else "")
+        lines.append(f"  pull {rep.pull_no(f)} {clock(at - t0)}: {rep.ability_ref(gid)} hit {len(who)} who are no "
+                     f"tank, {killed} died to it{holder}{late}")
+        if gid not in tips:
+            tips.add(gid)
+            try:
+                if tip := await knowledge.spell_tip(gid):
+                    lines.append(f"    Wowhead's tooltip of {rep.ability(gid)}: {tip}")
+            except KnowledgeError:
+                pass
+    return lines
 
 
 OPENING_MS = 10_000  # a boss on a player who is no tank this early is the pull's opening, not a boss gone loose

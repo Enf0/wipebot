@@ -1069,8 +1069,9 @@ DEATHS_NIGHT_POINTS = 35  # player_history's deaths: a night read cold (7 nights
 @_tool
 async def tank_swaps(pull: Pull = None, boss: Boss = None,
                      all_pulls: Annotated[bool, Field(description=(
-                         "every pull on the boss: only the swaps that went wrong, pull by pull and per tank, for "
-                         "\"which pulls had a bad swap?\", \"who taunts late?\""))] = False,
+                         "every pull on the boss: only the swaps that went wrong, pull by pull and per tank, and "
+                         "each time a tank's ability hit the raid, for \"which pulls had a bad swap?\", \"who taunts "
+                         "late?\", \"how often did a missed taunt hit the raid?\""))] = False,
                      taunts: Annotated[bool, Field(description=(
                          "also the spells each tank has taken a boss's aggro with on the guild's recent raid nights: "
                          "only for whether a spell taunts or what a tank could have taunted with; slow (reads "
@@ -1082,7 +1083,9 @@ async def tank_swaps(pull: Pull = None, boss: Boss = None,
     spells each tank has taken a boss's aggro with on the guild's recent raid nights: what their kit can taunt
     with, as the log shows it. With `all_pulls`, every pull on the boss until its wipe was decided instead: each time
     a swap debuff went past 1 stack on the tank holding the boss, who took the boss next and when, that tank's
-    death at it, and how often per tank.
+    death at it, and how often per tank; then each time an ability that otherwise hits only the tanks hit the raid
+    (over whole pulls: what a boss does when its target is out of reach or a taunt is missed), with who held that
+    boss then.
     Reading it: it shows when each tank taunted and their stacks then, not the swap plan (the stacks to swap at,
     whose call it is); the raid note (raid_note) holds that."""
     rep = await lib().report(report)
@@ -2113,6 +2116,10 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
             if tip := await knowledge.mechanic_tooltips_text(await _ability_ids(mechanic, report)):
                 told = str(e)  # no guide names it, under this boss or another: the tooltip is what there is
                 return f"{told[:1].upper()}{told[1:]}. What its tooltip says:\n{tip}"
+            if tips := await knowledge.tooltips_worded(name, await _boss_ability_ids(boss, report)):
+                told = str(e).split("; its abilities")[0]  # a raider's word ("tail swipe"): the tooltips saying it
+                return (f"{told[:1].upper()}{told[1:]}. The abilities of {boss} in the log whose Wowhead tooltip has "
+                        f"those words:\n{tips}")
         try:
             rep = await lib().report(report)
             if rep.zone_id is None:
@@ -2122,6 +2129,20 @@ async def boss_guide(boss: Annotated[str, Field(description="raid boss name, e.g
             raise e from None
         raise KnowledgeError(f"{e}. The bosses of {raid_name}, as Warcraft Logs names them: "
                              + ", ".join(b["name"] for b in bosses)) from None
+
+
+async def _boss_ability_ids(boss: str, report: str | None) -> list[int]:
+    """The ids of the enemy abilities that hit players on the report's pulls of the boss, most damage first (from
+    the damage taken table, one query); none without a report or pulls of it."""
+    try:
+        rep = await lib().report(report)
+        pulls = [f for b in rep.by_boss if knowledge.matches_boss(boss, b) for f in rep.by_boss[b]]
+        if not pulls:
+            return []
+        t = await rep.table([f["id"] for f in pulls], "DamageTaken", hostilityType="Friendlies", viewBy="Ability")
+    except (FactError, WCLError):
+        return []
+    return [e["guid"] for e in t.get("entries") or [] if e.get("guid", 0) > 1 and e.get("actor") not in rep.names]
 
 
 async def _zone(report: str | None) -> str | None:

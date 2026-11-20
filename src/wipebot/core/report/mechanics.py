@@ -106,7 +106,130 @@ async def mechanic_hits(rep: Report, ability: str, pull: PullRef = None, boss: s
                     if (n := sum(h.died_after.values())) else ""))
     if all_pulls:
         lines.append(_per_pull(rep, fights, h))
+    lines += await _by_cast(rep, fights, rep.ability_ids(ability), _counting(fights, cut, window), name, all_pulls)
     return "\n".join(lines + await _applications(rep, fights, h, _counting(fights, cut, window), name) + [jobs])
+
+
+CASTS_TOLD_MAX = 8  # an ability cast this often in a pull or less is told cast by cast; more is a pulse or a rotation
+CAST_NAMED = 6  # players named per cast over a night, hit in the most pulls first
+CAST_EARLY_MS = 1_000  # a hit this long before its cast is logged belongs to it (the log's order within a moment)
+
+Slot = tuple[int, int]  # a cast's place: (which of the enemies casting it, by when it first cast in the pull; its nth)
+
+
+@dataclass
+class Casts:
+    """An ability's casts over some pulls by their place in each pull, and what each place's casts hit until each
+    wipe was decided."""
+    came: dict[Slot, list[tuple[int, float]]] = field(default_factory=lambda: defaultdict(list))  # (fight, when)
+    by: dict[int, list[tuple[float, tuple, Slot]]] = field(default_factory=lambda: defaultdict(list))  # per fight
+    kinds: dict[int, int] = field(default_factory=dict)  # an enemy's place -> its actor id, for its name
+    several: bool = False  # several enemies cast it in a pull
+    hit: dict[Slot, dict[str, set[int]]] = field(default_factory=lambda: defaultdict(lambda: defaultdict(set)))
+    damage: Counter = field(default_factory=Counter)
+    killed: Counter = field(default_factory=Counter)
+    died: Counter = field(default_factory=Counter)
+
+    def slot(self, e: dict, first: int) -> Slot | None:
+        """The cast a hit belongs to: the latest before it by its enemy, else by any."""
+        mine = [c for c in self.by.get(e.get("fight", first), []) if c[0] <= e["timestamp"] + CAST_EARLY_MS]
+        same = [c for c in mine if c[1] == (e.get("sourceID"), e.get("sourceInstance") or 1)]
+        return (same or mine)[-1][2] if (same or mine) else None
+
+
+async def _casts(rep: Report, fights: list[dict], ability_ids: list[int]) -> Casts | None:
+    """The ability's casts by enemies, each with its place in its pull; None for none, for one a pull at most, or
+    for more than CASTS_TOLD_MAX in a pull."""
+    ids = [f["id"] for f in fights]
+    found = []
+    for gid in ability_ids:
+        found += [e for e in await rep.events(ids, "Casts", hostilityType="Enemies", abilityID=gid)
+                  if e.get("type") == "cast"]
+    per_pull: dict[int, list[dict]] = defaultdict(list)
+    for e in sorted(found, key=lambda e: e["timestamp"]):
+        per_pull[e.get("fight", ids[0])].append(e)
+    if not per_pull or not 2 <= max(map(len, per_pull.values())) <= CASTS_TOLD_MAX:
+        return None
+    c = Casts()
+    for fid, theirs in per_pull.items():
+        order: dict[tuple, int] = {}
+        nth: Counter = Counter()
+        for e in theirs:
+            who = (e.get("sourceID"), e.get("sourceInstance") or 1)
+            place = order.setdefault(who, len(order) + 1)
+            nth[who] += 1
+            c.kinds.setdefault(place, e.get("sourceID") or 0)
+            c.by[fid].append((e["timestamp"], who, (place, nth[who])))
+            c.came[(place, nth[who])].append((fid, e["timestamp"]))
+        c.several = c.several or len(order) > 1
+    return c
+
+
+async def _cast_hits(rep: Report, fights: list[dict], ability_ids: list[int], counts: Callable[[dict], bool],
+                     c: Casts) -> None:
+    """Each cast's hits, damage and deaths until each wipe was decided, into `c`: a death counts for the cast of the
+    player's last hit from the ability before it."""
+    ids = [f["id"] for f in fights]
+    last_hit: dict[tuple[int, int], list[tuple[float, Slot]]] = defaultdict(list)  # (fight, player) -> hits
+    for gid in ability_ids:
+        for e in await rep.events(ids, "DamageTaken", hostilityType="Friendlies", abilityID=gid):
+            if e["targetID"] not in rep.names or e.get("type") != "damage" or not counts(e):
+                continue
+            if s := c.slot(e, ids[0]):
+                fid = e.get("fight", ids[0])
+                c.hit[s][rep.names[e["targetID"]]].add(fid)
+                c.damage[s] += e.get("amount", 0) + e.get("absorbed", 0)
+                last_hit[(fid, e["targetID"])].append((e["timestamp"], s))
+    for f in fights:
+        for d in await rep.deaths(f):
+            before = [x for x in last_hit.get((f["id"], d["targetID"]), []) if x[0] <= d["timestamp"]]
+            if not before or not counts({**d, "fight": f["id"]}):
+                continue
+            at, s = max(before)
+            c.killed[s] += d.get("killingAbilityGameID") in ability_ids
+            c.died[s] += d["timestamp"] - at <= HIT_THEN_DEATH_MS
+
+
+async def _by_cast(rep: Report, fights: list[dict], ability_ids: list[int], counts: Callable[[dict], bool],
+                   name: str, all_pulls: bool) -> list[str]:
+    """The ability cast by cast, for "what does its second cast cost?" and "who is out on the add's second cast?":
+    each cast by its place in the pull (Slot), when it came, in how many pulls, and its hits until each wipe was
+    decided: the players and damage, the deaths it dealt, and who it hit in the most pulls. [] for an ability no
+    enemy casts, or one cast more than CASTS_TOLD_MAX times in a pull."""
+    if not (c := await _casts(rep, fights, ability_ids)):
+        return []
+    await _cast_hits(rep, fights, ability_ids, counts, c)
+    starts = {f["id"]: f["startTime"] for f in fights}
+    lines = [f"{name} cast by cast" + (" (several enemies cast it: each by the order they first cast in the pull)"
+                                       if c.several else "")
+             + ": when it came" + (", in how many of the pulls still going then, how many of those before the wipe "
+                                   "was decided" if all_pulls else "")
+             + "; until the wipe was decided, the players it hit (hits or ticks)"
+             + (" and in how many pulls each, most first" if all_pulls else "")
+             + f", its damage, deaths with it as the killing blow, deaths of any cause within "
+             f"{HIT_THEN_DEATH_MS // 1000} s of its hit (a hit or death counts for the latest cast before it):"]
+    for s in sorted(c.came, key=lambda s: min(at - starts[fid] for fid, at in c.came[s])):
+        times = sorted(at - starts[fid] for fid, at in c.came[s])
+        when = clock(times[0]) + (f"-{clock(times[-1])}" if clock(times[-1]) != clock(times[0]) else "")
+        label = (f"the {ordinal(s[0])} {rep.actor(c.kinds[s[0]])}'s {ordinal(s[1])} cast" if c.several
+                 else f"its {ordinal(s[1])} cast")
+        hit = sorted(c.hit[s].items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        tail = (f", {short(c.damage[s])}, {plural(c.killed[s], 'killing blow')}, "
+                f"{plural(c.died[s], 'death')} within {HIT_THEN_DEATH_MS // 1000} s")
+        if not all_pulls:
+            lines.append(f"  {label} at {when}: hit " + (", ".join(n + rep.tank_tag(n) for n, _ in hit) + tail
+                                                          if hit else "nobody"))
+            continue
+        going = sum(1 for f in fights if f["endTime"] - f["startTime"] >= times[0])
+        decided = sum(1 for fid, at in c.came[s] if counts({"timestamp": at, "fight": fid}))
+        pulls = len({fid for ps in c.hit[s].values() for fid in ps})
+        named = ", ".join(f"{n}{rep.tank_tag(n)} {len(ps)}" for n, ps in hit[:CAST_NAMED]) + (
+            f" and {len(hit) - CAST_NAMED} more" if len(hit) > CAST_NAMED else "")
+        lines.append(f"  {label} ({when}): in {len(c.came[s])} of the {plural(going, 'pull')} still going then, "
+                     f"{decided} before the wipe was decided; "
+                     + (f"hit {plural(len(hit), 'player')} in {plural(pulls, 'pull')}{tail}; most: {named}"
+                        if hit else "hit nobody"))
+    return lines
 
 
 SOURCES_NAMED = 3  # the enemies an ability's hits came from that are named, most hits first

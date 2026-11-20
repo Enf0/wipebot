@@ -340,6 +340,31 @@ async def mechanic_tooltips_text(ids: Iterable[int]) -> str:
     return "\n".join(f"Tooltip (Wowhead, spell {s.id}): {s.text}" for s in list(tips.values())[:2])
 
 
+WORD_STEM = 4  # a raider's word and a tooltip's are one word when they start alike this far ("tail", "tails")
+TOOLTIPS_WORDED = 3  # tooltips given for a raider's word, the most words matched first
+_NOT_WORDS = {"the", "and", "boss", "add", "adds", "ability", "mechanic", "big", "small", "one", "that", "with"}
+
+
+def _words(text: str) -> set[str]:
+    """A text's words as WORD_STEM-long stems, small and common ones out."""
+    return {w[:WORD_STEM] for w in re.findall(r"[a-z]+", text.lower()) if len(w) >= 3 and w not in _NOT_WORDS}
+
+
+async def tooltips_worded(words: str, ids: Iterable[int]) -> str:
+    """For a raider's word no guide names ("tail swipe"): the abilities among `ids` (a boss's, from a log) whose
+    Wowhead tooltip has those words ("Ula'tek's tail sweeps the ground"), those with the most of them first, at most
+    TOOLTIPS_WORDED, a line each; '' when none has any."""
+    asked = _words(words)
+    if not asked:
+        return ""
+    found = [(len(asked & _words(s.text[len(s.name):] if s.text.startswith(s.name) else s.text)), s)
+             for s in await _tooltips(ids)]
+    found = sorted(((n, s) for n, s in found if n), key=lambda x: -x[0])
+    best = found[0][0] if found else 0
+    return "\n".join(f"Tooltip (Wowhead, spell {s.id}) of {s.name}: {s.text}"
+                     for n, s in found[:TOOLTIPS_WORDED] if n == best)
+
+
 async def boss_naming(mechanic: str, but: str, raid: str | None = None) -> tuple[str, str] | None:
     """(raid, boss) of the current expansion's raids, `but` aside, whose abilities (Lorrgs' and those Wowhead's
     guide links, by name: no tooltip is read) include `mechanic`; None when none does, the raids can't be read, or
