@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-11-23
+
 ### Fixed
 
 - `Agent` **A wipefest.gg or WoWAnalyzer link works as a report.** Pasting a link to a report on those sites used to be refused as not a Warcraft Logs report; Wipebot now reads the report code from it.
