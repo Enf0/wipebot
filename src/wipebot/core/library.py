@@ -275,8 +275,9 @@ class LatestRaids:
 
 
 def report_code(report: str) -> str:
-    """'https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21' or the bare code -> the code."""
-    m = re.search(r"reports/([A-Za-z0-9]+)", report)
+    """'https://www.warcraftlogs.com/reports/KBYT4xXn7VNjDgh8#fight=21' or the bare code -> the code. A link to a site
+    that reads Warcraft Logs reports by their code (wipefest.gg, wowanalyzer.com: '/report/<code>/...') gives it too."""
+    m = re.search(r"reports?/([A-Za-z0-9]+)", report)
     code = m.group(1) if m else report.strip()
     if not re.fullmatch(r"[A-Za-z0-9]{8,24}", code):
         raise FactError(f"not a Warcraft Logs report code or URL: {report!r}")

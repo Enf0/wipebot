@@ -25,6 +25,8 @@ TESTED_ELSEWHERE = {
     (CODE, CODE),
     (f"https://www.warcraftlogs.com/reports/{CODE}", CODE),
     (f"https://www.warcraftlogs.com/reports/{CODE}#fight=21&type=deaths", CODE),
+    (f"https://www.wipefest.gg/report/{CODE}/fight/1?gameVersion=warcraft-live", CODE),
+    (f"https://wowanalyzer.com/report/{CODE}/21-Mythic+Sszorak+-+Kill/Scopidruid/standard", CODE),
 ])
 def test_report_code(ref, code):
     assert server.report_code(ref) == code
