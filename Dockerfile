@@ -1,6 +1,6 @@
 # One image for Wipebot's remote MCP server and its Discord bot; compose.yml runs each.
 # Pinned by digest, so a new build gets the same base until Dependabot bumps it (it reads the tag beside it).
-FROM ghcr.io/astral-sh/uv:0.13.9-python3.14-trixie-slim@sha256:da0f1f04404173d7d2fa158112e09624d5a80262efa86c89882b68389dfd44eb
+FROM ghcr.io/astral-sh/uv:0.13.10-python3.14-trixie-slim@sha256:b093dbbd7963c765325ecdf866d42915f5327e135569f9dae9c77cac63559bf2
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never PYTHONUNBUFFERED=1
 WORKDIR /app
